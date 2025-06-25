@@ -149,10 +149,10 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
           name="notes"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Notes / Comments</FormLabel>
+              <FormLabel>Comments</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="Add any internal notes or comments..."
+                  placeholder="Add any internal comments..."
                   className="min-h-[120px]"
                   {...field}
                 />
