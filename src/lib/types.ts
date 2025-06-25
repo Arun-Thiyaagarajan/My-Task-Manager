@@ -15,7 +15,7 @@ export interface Task {
   id: string;
   title: string;
   description: string;
-  notes?: string;
+  comments?: string[];
   attachments?: Attachment[];
   status: TaskStatus;
   repositories: Repository[];

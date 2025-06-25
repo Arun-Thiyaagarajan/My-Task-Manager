@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, Users, CalendarDays, Loader2, Bug, StickyNote, Paperclip, Link2, FileText } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, Users, CalendarDays, Loader2, Bug, Paperclip, Link2, FileText } from 'lucide-react';
 import { TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -17,6 +17,7 @@ import { getInitials, getAvatarColor } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
 import type { Task } from '@/lib/types';
+import { CommentsSection } from '@/components/comments-section';
 
 
 export default function TaskPage() {
@@ -34,6 +35,13 @@ export default function TaskPage() {
       setIsLoading(false);
     }
   }, [taskId]);
+  
+  const handleCommentsUpdate = (newComments: string[]) => {
+    if (task) {
+      setTask({ ...task, comments: newComments });
+    }
+  };
+
 
   if (isLoading) {
     return (
@@ -143,21 +151,11 @@ export default function TaskPage() {
             </CardContent>
           </Card>
           
-          {task.notes && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <StickyNote className="h-5 w-5" />
-                  Comments
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-foreground/80 whitespace-pre-wrap">
-                  {task.notes}
-                </p>
-              </CardContent>
-            </Card>
-          )}
+          <CommentsSection
+            taskId={task.id}
+            comments={task.comments || []}
+            onCommentsUpdate={handleCommentsUpdate}
+          />
 
           {task.attachments && task.attachments.length > 0 && (
             <Card>

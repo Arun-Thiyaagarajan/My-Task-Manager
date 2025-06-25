@@ -94,7 +94,7 @@ export default function EditTaskPage() {
         description: "Your changes have been saved.",
     });
 
-    router.push(`/`);
+    router.push(`/tasks/${task.id}`);
   };
 
   if (isLoading) {

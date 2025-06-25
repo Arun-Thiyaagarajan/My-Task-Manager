@@ -63,7 +63,6 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
     defaultValues: {
       title: task?.title ?? '',
       description: task?.description ?? '',
-      notes: task?.notes ?? '',
       attachments: task?.attachments ?? [],
       status: task?.status ?? 'To Do',
       repositories: task?.repositories ?? [],
@@ -135,24 +134,6 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
               <FormControl>
                 <Textarea
                   placeholder="Describe the task in detail..."
-                  className="min-h-[120px]"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="notes"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Comments</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Add any internal comments..."
                   className="min-h-[120px]"
                   {...field}
                 />

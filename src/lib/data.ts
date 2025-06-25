@@ -42,7 +42,7 @@ export function getTaskById(id: string): Task | undefined {
   return tasks.find(task => task.id === id);
 }
 
-export function addTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>): Task {
+export function addTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'comments'>): Task {
   const tasks = getTasks();
   const now = new Date().toISOString();
   const newTask: Task = {
@@ -50,7 +50,7 @@ export function addTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>):
     createdAt: now,
     updatedAt: now,
     ...taskData,
-    notes: taskData.notes ?? '',
+    comments: [],
     attachments: taskData.attachments ?? [],
     prLinks: taskData.prLinks ?? {},
     deploymentStatus: taskData.deploymentStatus ?? {},
@@ -103,4 +103,26 @@ export function addDeveloper(name: string): Developer {
         setLocalStorage(DEVELOPERS_KEY, updatedDevelopers);
     }
     return newDeveloper;
+}
+
+export function addComment(taskId: string, comment: string): Task | undefined {
+  const task = getTaskById(taskId);
+  if (!task) return undefined;
+  const newComments = [...(task.comments || []), comment];
+  return updateTask(taskId, { comments: newComments });
+}
+
+export function updateComment(taskId: string, index: number, newComment: string): Task | undefined {
+   const task = getTaskById(taskId);
+   if (!task || !task.comments || index < 0 || index >= task.comments.length) return undefined;
+   const newComments = [...task.comments];
+   newComments[index] = newComment;
+   return updateTask(taskId, { comments: newComments });
+}
+
+export function deleteComment(taskId: string, index: number): Task | undefined {
+   const task = getTaskById(taskId);
+   if (!task || !task.comments || index < 0 || index >= task.comments.length) return undefined;
+   const newComments = task.comments.filter((_, i) => i !== index);
+   return updateTask(taskId, { comments: newComments });
 }
