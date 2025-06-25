@@ -54,16 +54,12 @@ export async function createTaskAction(data: TaskFormData) {
   }
 
   const taskData = processTaskData(validationResult.data);
-  const newTask = addTask(taskData);
+  addTask(taskData);
   revalidatePath('/');
-  redirect(`/tasks/${newTask.id}`);
+  redirect('/');
 }
 
 export async function updateTaskAction(id: string, data: TaskFormData) {
-  if (!getTaskById(id)) {
-    throw new Error('Task not found');
-  }
-  
   const validationResult = taskSchema.safeParse(data);
 
   if (!validationResult.success) {
@@ -79,7 +75,7 @@ export async function updateTaskAction(id: string, data: TaskFormData) {
   updateTask(id, taskData);
   revalidatePath('/');
   revalidatePath(`/tasks/${id}`);
-  redirect(`/tasks/${id}`);
+  redirect('/');
 }
 
 export async function deleteTaskAction(formData: FormData) {
