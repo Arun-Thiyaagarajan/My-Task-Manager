@@ -13,7 +13,7 @@ import { TaskStatusBadge } from './task-status-badge';
 import { GitMerge, ExternalLink } from 'lucide-react';
 import { EnvironmentStatus } from './environment-status';
 import { Badge } from './ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { Avatar, AvatarFallback } from './ui/avatar';
 import { getInitials, getAvatarColor } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { DeleteTaskButton } from './delete-task-button';
@@ -99,12 +99,10 @@ export function TaskCard({ task, onTaskDelete }: TaskCardProps) {
                     <Tooltip key={dev}>
                       <TooltipTrigger>
                         <Avatar className="h-7 w-7 border-2 border-card">
-                          <AvatarImage
-                            src={`https://placehold.co/40x40/${getAvatarColor(
-                              dev
-                            )}/ffffff.png?text=${getInitials(dev)}`}
-                          />
-                          <AvatarFallback className="text-xs">
+                          <AvatarFallback 
+                            className="text-xs font-semibold text-white"
+                            style={{ backgroundColor: `#${getAvatarColor(dev)}` }}
+                          >
                             {getInitials(dev)}
                           </AvatarFallback>
                         </Avatar>

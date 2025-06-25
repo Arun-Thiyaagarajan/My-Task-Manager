@@ -5,7 +5,7 @@ import { getTaskById } from '@/lib/data';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ArrowLeft, ExternalLink, GitMerge, Pencil, Users, CalendarDays, Loader2, Bug, Paperclip, Link2, FileText, StickyNote } from 'lucide-react';
 import { TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -239,8 +239,12 @@ export default function TaskPage() {
                                 <Tooltip key={dev}>
                                     <TooltipTrigger>
                                         <Avatar>
-                                            <AvatarImage src={`https://placehold.co/40x40/${getAvatarColor(dev)}/ffffff.png?text=${getInitials(dev)}`} />
-                                            <AvatarFallback>{getInitials(dev)}</AvatarFallback>
+                                            <AvatarFallback
+                                                className="font-semibold text-white"
+                                                style={{ backgroundColor: `#${getAvatarColor(dev)}` }}
+                                            >
+                                                {getInitials(dev)}
+                                            </AvatarFallback>
                                         </Avatar>
                                     </TooltipTrigger>
                                     <TooltipContent>
