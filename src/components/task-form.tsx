@@ -40,6 +40,7 @@ import { MultiSelect, type SelectOption } from './ui/multi-select';
 import { Checkbox } from './ui/checkbox';
 import * as React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { ScrollArea, ScrollBar } from './ui/scroll-area';
 
 
 type TaskFormData = z.infer<typeof taskSchema>;
@@ -658,26 +659,30 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                     <Separator />
                     <div>
                          <h4 className="font-medium text-sm text-muted-foreground mb-4">Pull Request Links</h4>
-                         <Tabs defaultValue="dev" className="w-full">
-                            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
-                                {ENVIRONMENTS.map((env) => (
-                                <TabsTrigger key={env} value={env} className="capitalize">
-                                    {env}
-                                </TabsTrigger>
-                                ))}
-                            </TabsList>
-                            {ENVIRONMENTS.map((env) => (
-                                <TabsContent key={env} value={env}>
-                                    <div className="space-y-4 pt-4 border-t">
-                                    {(selectedRepos && selectedRepos.length > 0) ? (
-                                        selectedRepos.map((repo) => (
+                         {selectedRepos && selectedRepos.length > 0 ? (
+                            <Tabs defaultValue={selectedRepos[0]} className="w-full">
+                                <ScrollArea className="w-full whitespace-nowrap">
+                                    <TabsList>
+                                        {selectedRepos.map((repo) => (
+                                        <TabsTrigger key={repo} value={repo}>
+                                            {repo}
+                                        </TabsTrigger>
+                                        ))}
+                                    </TabsList>
+                                    <ScrollBar orientation="horizontal" />
+                                </ScrollArea>
+
+                                {selectedRepos.map((repo) => (
+                                    <TabsContent key={repo} value={repo}>
+                                        <div className="space-y-4 pt-4 border-t">
+                                        {ENVIRONMENTS.map((env) => (
                                             <FormField
-                                                key={`${env}-${repo}`}
+                                                key={`${repo}-${env}`}
                                                 control={form.control}
                                                 name={`prLinks.${env}.${repo}`}
                                                 render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel>{repo}</FormLabel>
+                                                    <FormLabel className="capitalize">{env}</FormLabel>
                                                     <FormControl>
                                                     <Input
                                                         placeholder="e.g. 19703, 19704"
@@ -686,21 +691,21 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                                                         value={field.value ?? ''}
                                                     />
                                                     </FormControl>
-                                                    <FormDescription>Comma-separated PR IDs for this repo.</FormDescription>
+                                                    <FormDescription>Comma-separated PR IDs for {env}.</FormDescription>
                                                     <FormMessage />
                                                 </FormItem>
                                                 )}
                                             />
-                                        ))
-                                    ) : (
-                                        <p className="text-sm text-muted-foreground py-4 text-center">
-                                            Select at least one repository to add PR links.
-                                        </p>
-                                    )}
-                                    </div>
-                                </TabsContent>
-                            ))}
-                         </Tabs>
+                                        ))}
+                                        </div>
+                                    </TabsContent>
+                                ))}
+                            </Tabs>
+                         ) : (
+                            <div className="text-sm text-muted-foreground py-4 text-center border rounded-md">
+                                Select at least one repository to add PR links.
+                            </div>
+                         )}
                     </div>
                 </AccordionContent>
             </AccordionItem>
