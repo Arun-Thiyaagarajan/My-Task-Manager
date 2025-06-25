@@ -137,6 +137,16 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
     setIsPending(true);
     try {
         const id = fieldToEdit ? fieldToEdit.id : `custom_${Date.now()}`;
+
+        // Clean up conditionalLogic for options that may have been renamed or removed
+        if (data.conditionalLogic && data.options) {
+            const validOptionValues = new Set(data.options.map(o => o.value));
+            for (const key in data.conditionalLogic) {
+                if (!validOptionValues.has(key)) {
+                    delete data.conditionalLogic[key];
+                }
+            }
+        }
         
         const fieldToSave: FormFieldType = {
             ...(fieldToEdit || {}),
