@@ -12,6 +12,11 @@ export const attachmentSchema = z.object({
 });
 
 export const taskSchema = z.object({
+  id: z.string().optional(),
+  createdAt: z.string().datetime({ message: "Invalid datetime string." }).optional(),
+  updatedAt: z.string().datetime({ message: "Invalid datetime string." }).optional(),
+  comments: z.array(z.string()).optional(),
+  
   title: z.string().min(3, { message: 'Title must be at least 3 characters.' }),
   description: z.string().min(3, { message: 'Description must be at least 3 characters.' }),
   status: z.enum(TASK_STATUSES),

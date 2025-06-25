@@ -141,15 +141,22 @@ export function getTaskById(id: string): Task | undefined {
   return tasks.find(task => task.id === id);
 }
 
-export function addTask(taskData: Partial<Omit<Task, 'id' | 'createdAt' | 'updatedAt'>>): Task {
+export function addTask(taskData: Partial<Task>): Task {
   const data = getAppData();
   const activeCompanyId = data.activeCompanyId;
   const companyTasks = data.companyData[activeCompanyId]?.tasks || [];
+  const existingTaskIds = new Set(companyTasks.map(t => t.id));
 
+  let taskId = taskData.id;
+
+  if (!taskId || existingTaskIds.has(taskId)) {
+    taskId = `task-${crypto.randomUUID()}`;
+  }
+  
   const now = new Date().toISOString();
   const newTask: Task = {
-    id: `task-${crypto.randomUUID()}`,
-    createdAt: now,
+    id: taskId,
+    createdAt: taskData.createdAt || now,
     updatedAt: now,
     title: taskData.title || 'Untitled Task',
     description: taskData.description || '',
@@ -164,7 +171,7 @@ export function addTask(taskData: Partial<Omit<Task, 'id' | 'createdAt' | 'updat
     devEndDate: taskData.devEndDate || null,
     qaStartDate: taskData.qaStartDate || null,
     qaEndDate: taskData.qaEndDate || null,
-    comments: [],
+    comments: taskData.comments || [],
     attachments: taskData.attachments || [],
   };
   
