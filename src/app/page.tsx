@@ -15,9 +15,33 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { REPOSITORIES, TASK_STATUSES } from '@/lib/constants';
-import { LayoutGrid, List, Plus, Loader2, Search } from 'lucide-react';
+import {
+  LayoutGrid,
+  List,
+  Plus,
+  Loader2,
+  Search,
+  Calendar as CalendarIcon,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task } from '@/lib/types';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  format,
+  startOfDay,
+  endOfDay,
+  subDays,
+  startOfMonth,
+  endOfMonth,
+  startOfYear,
+  endOfYear,
+} from 'date-fns';
+import type { DateRange } from 'react-day-picker';
 
 type ViewMode = 'grid' | 'table';
 
@@ -26,6 +50,10 @@ export default function Home() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [repoFilter, setRepoFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [dateFilter, setDateFilter] = useState<DateRange | undefined>(
+    undefined
+  );
+  const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [isLoading, setIsLoading] = useState(true);
 
@@ -41,7 +69,8 @@ export default function Home() {
 
   const filteredTasks = tasks.filter((task: Task) => {
     const statusMatch = statusFilter === 'all' || task.status === statusFilter;
-    const repoMatch = repoFilter === 'all' || task.repositories.includes(repoFilter);
+    const repoMatch =
+      repoFilter === 'all' || task.repositories.includes(repoFilter);
 
     const searchLower = searchQuery.toLowerCase();
     const searchMatch =
@@ -50,9 +79,24 @@ export default function Home() {
       task.id.toLowerCase().includes(searchLower) ||
       (task.azureWorkItemId && task.azureWorkItemId.includes(searchQuery)) ||
       task.developers?.some((dev) => dev.toLowerCase().includes(searchLower)) ||
-      task.repositories.some((repo) => repo.toLowerCase().includes(searchLower));
+      task.repositories.some((repo) =>
+        repo.toLowerCase().includes(searchLower)
+      );
 
-    return statusMatch && repoMatch && searchMatch;
+    const dateMatch = (() => {
+      if (!dateFilter?.from) return true;
+      const taskDate = new Date(task.createdAt);
+
+      const from = startOfDay(dateFilter.from);
+      // If to is not set, range is just one day.
+      const to = dateFilter.to
+        ? endOfDay(dateFilter.to)
+        : endOfDay(dateFilter.from);
+
+      return taskDate >= from && taskDate <= to;
+    })();
+
+    return statusMatch && repoMatch && searchMatch && dateMatch;
   });
 
   if (isLoading) {
@@ -60,7 +104,9 @@ export default function Home() {
       <div className="flex flex-1 items-center justify-center">
         <div className="flex flex-col items-center gap-4 text-center">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          <p className="text-lg font-semibold text-muted-foreground">Loading tasks...</p>
+          <p className="text-lg font-semibold text-muted-foreground">
+            Loading tasks...
+          </p>
         </div>
       </div>
     );
@@ -81,7 +127,7 @@ export default function Home() {
       </div>
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto flex-1">
+        <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto flex-1 flex-wrap">
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -117,6 +163,106 @@ export default function Home() {
               ))}
             </SelectContent>
           </Select>
+          <Popover
+            open={isDatePopoverOpen}
+            onOpenChange={setIsDatePopoverOpen}
+          >
+            <PopoverTrigger asChild>
+              <Button
+                id="date"
+                variant={'outline'}
+                className={cn(
+                  'w-full sm:w-[260px] justify-start text-left font-normal bg-card',
+                  !dateFilter && 'text-muted-foreground'
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateFilter?.from ? (
+                  dateFilter.to ? (
+                    <>
+                      {format(dateFilter.from, 'LLL dd, y')} -{' '}
+                      {format(dateFilter.to, 'LLL dd, y')}
+                    </>
+                  ) : (
+                    format(dateFilter.from, 'LLL dd, y')
+                  )
+                ) : (
+                  <span>Filter by date</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 flex" align="start">
+              <div className="flex flex-col space-y-1 p-2 border-r">
+                <Button
+                  variant="ghost"
+                  className="justify-start px-2 font-normal text-sm"
+                  onClick={() => {
+                    setDateFilter(undefined);
+                    setIsDatePopoverOpen(false);
+                  }}
+                >
+                  Any time
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="justify-start px-2 font-normal text-sm"
+                  onClick={() => {
+                    setDateFilter({ from: new Date(), to: new Date() });
+                    setIsDatePopoverOpen(false);
+                  }}
+                >
+                  Today
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="justify-start px-2 font-normal text-sm"
+                  onClick={() => {
+                    setDateFilter({
+                      from: subDays(new Date(), 6),
+                      to: new Date(),
+                    });
+                    setIsDatePopoverOpen(false);
+                  }}
+                >
+                  Last 7 days
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="justify-start px-2 font-normal text-sm"
+                  onClick={() => {
+                    setDateFilter({
+                      from: startOfMonth(new Date()),
+                      to: endOfMonth(new Date()),
+                    });
+                    setIsDatePopoverOpen(false);
+                  }}
+                >
+                  This month
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="justify-start px-2 font-normal text-sm"
+                  onClick={() => {
+                    setDateFilter({
+                      from: startOfYear(new Date()),
+                      to: endOfYear(new Date()),
+                    });
+                    setIsDatePopoverOpen(false);
+                  }}
+                >
+                  This year
+                </Button>
+              </div>
+              <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={dateFilter?.from}
+                selected={dateFilter}
+                onSelect={setDateFilter}
+                numberOfMonths={1}
+              />
+            </PopoverContent>
+          </Popover>
         </div>
 
         <div className="flex items-center gap-2">
