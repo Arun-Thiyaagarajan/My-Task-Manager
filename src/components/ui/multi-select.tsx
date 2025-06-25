@@ -12,6 +12,7 @@ import {
   CommandEmpty
 } from '@/components/ui/command';
 import { Command as CommandPrimitive } from 'cmdk';
+import { cn } from '@/lib/utils';
 
 export type SelectOption = {
   value: string;
@@ -85,7 +86,7 @@ export function MultiSelect({
   );
 
   return (
-    <Command onKeyDown={handleKeyDown} className={className}>
+    <Command onKeyDown={handleKeyDown} className={cn('overflow-visible', className)}>
       <div className="group rounded-md border border-input px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
         <div className="flex flex-wrap gap-1">
           {selected.map((value) => {
