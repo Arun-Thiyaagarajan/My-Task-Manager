@@ -8,26 +8,14 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import type { z } from 'zod';
 import { taskSchema } from '@/lib/validators';
-import type { Environment } from '@/lib/types';
 
 type TaskFormData = z.infer<typeof taskSchema>;
 
-const parseCommaSeparatedString = (value: string | undefined): string[] => {
-  if (!value) return [];
-  return value.split(',').map(s => s.trim()).filter(Boolean);
-};
-
 const processTaskData = (data: TaskFormData) => {
-    const { prLinks, qaIssueIds, devStartDate, devEndDate, qaStartDate, qaEndDate, stageDate, productionDate, othersDate, ...rest } = data;
+    const { devStartDate, devEndDate, qaStartDate, qaEndDate, stageDate, productionDate, othersDate, ...rest } = data;
 
-    const processedPrLinks = Object.fromEntries(
-        Object.entries(prLinks).map(([env, links]) => [env, parseCommaSeparatedString(links)])
-    ) as { [key in Environment]?: string[] };
-    
     return {
         ...rest,
-        prLinks: processedPrLinks,
-        qaIssueIds: parseCommaSeparatedString(qaIssueIds),
         devStartDate: devStartDate?.toISOString(),
         devEndDate: devEndDate?.toISOString(),
         qaStartDate: qaStartDate?.toISOString(),

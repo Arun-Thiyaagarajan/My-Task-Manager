@@ -144,11 +144,11 @@ export default function TaskPage() {
                         </a>
                     </div>
                   )}
-                  {task.qaIssueIds && task.qaIssueIds.length > 0 && (
+                  {task.qaIssueIds && (
                     <div className="flex items-start gap-2">
                       <Bug className="h-4 w-4 text-muted-foreground mt-1" />
                        <div className="flex flex-wrap gap-1">
-                        {task.qaIssueIds.map(id => (
+                        {task.qaIssueIds.split(',').map(id => id.trim()).filter(Boolean).map(id => (
                             <Badge variant="secondary" key={id}>{id}</Badge>
                         ))}
                       </div>
@@ -169,7 +169,7 @@ export default function TaskPage() {
                         <CardTitle className="text-2xl flex-1 text-left">Pull Request Links</CardTitle>
                     </AccordionTrigger>
                     <AccordionContent className="px-6 pb-6 pt-0">
-                        <PrLinksGroup prLinks={task.prLinks} />
+                        <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} />
                     </AccordionContent>
                 </AccordionItem>
             </Card>

@@ -7,28 +7,18 @@ import { TaskForm } from '@/components/task-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { z } from 'zod';
 import { taskSchema } from '@/lib/validators';
-import type { Task, Environment } from '@/lib/types';
+import type { Task } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 type TaskFormData = z.infer<typeof taskSchema>;
 
-const parseCommaSeparatedString = (value: string | undefined): string[] => {
-  if (!value) return [];
-  return value.split(',').map(l => l.trim()).filter(Boolean);
-};
-
 const processTaskData = (data: TaskFormData) => {
-    const { prLinks, qaIssueIds, devStartDate, devEndDate, qaStartDate, qaEndDate, stageDate, productionDate, othersDate, ...rest } = data;
-    const processedPrLinks = Object.fromEntries(
-        Object.entries(prLinks).map(([env, links]) => [env, parseCommaSeparatedString(links)])
-    ) as { [key in Environment]?: string[] };
+    const { devStartDate, devEndDate, qaStartDate, qaEndDate, stageDate, productionDate, othersDate, ...rest } = data;
     
     return {
         ...rest,
-        prLinks: processedPrLinks,
-        qaIssueIds: parseCommaSeparatedString(qaIssueIds),
         devStartDate: devStartDate?.toISOString(),
         devEndDate: devEndDate?.toISOString(),
         qaStartDate: qaStartDate?.toISOString(),

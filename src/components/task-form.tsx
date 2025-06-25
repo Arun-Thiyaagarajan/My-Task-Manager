@@ -68,7 +68,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
       repositories: task?.repositories ?? [],
       azureWorkItemId: task?.azureWorkItemId ?? '',
       developers: task?.developers ?? (task ? [] : ['Arun']),
-      qaIssueIds: task?.qaIssueIds?.join(', ') ?? '',
+      qaIssueIds: task?.qaIssueIds ?? '',
       deploymentStatus: {
         dev: task?.deploymentStatus?.dev ?? false,
         stage: task?.deploymentStatus?.stage ?? false,
@@ -77,10 +77,10 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
       },
       othersEnvironmentName: task?.othersEnvironmentName ?? '',
       prLinks: {
-        dev: task?.prLinks?.dev?.join(', ') ?? '',
-        stage: task?.prLinks?.stage?.join(', ') ?? '',
-        production: task?.prLinks?.production?.join(', ') ?? '',
-        others: task?.prLinks?.others?.join(', ') ?? '',
+        dev: task?.prLinks?.dev ?? '',
+        stage: task?.prLinks?.stage ?? '',
+        production: task?.prLinks?.production ?? '',
+        others: task?.prLinks?.others ?? '',
       },
       devStartDate: task?.devStartDate ? new Date(task.devStartDate) : undefined,
       devEndDate: task?.devEndDate ? new Date(task.devEndDate) : undefined,
@@ -670,11 +670,11 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                                             <FormLabel className="capitalize">{env} PR Links</FormLabel>
                                             <FormControl>
                                                 <Input
-                                                    placeholder="e.g. https://..., https://..."
+                                                    placeholder="e.g. 19703, 19704"
                                                     {...field}
                                                 />
                                             </FormControl>
-                                            <FormDescription>Comma-separated full URLs.</FormDescription>
+                                            <FormDescription>Comma-separated PR IDs.</FormDescription>
                                             <FormMessage />
                                         </FormItem>
                                     )}
