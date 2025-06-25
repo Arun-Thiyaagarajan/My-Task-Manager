@@ -658,7 +658,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                     </div>
                     <Separator />
                     <div>
-                         <h4 className="font-medium text-sm text-muted-foreground mb-4">Pull Request Numbers</h4>
+                         <h4 className="font-medium text-sm text-muted-foreground mb-4">Pull Request Links</h4>
                         <div className="space-y-6">
                             {ENVIRONMENTS.map(env => (
                                 <FormField
@@ -667,14 +667,14 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                                     name={`prLinks.${env}`}
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel className="capitalize">{env} PR Numbers</FormLabel>
+                                            <FormLabel className="capitalize">{env} PR Links</FormLabel>
                                             <FormControl>
                                                 <Input
-                                                    placeholder="e.g. 123, 456"
+                                                    placeholder="e.g. https://..., https://..."
                                                     {...field}
                                                 />
                                             </FormControl>
-                                            <FormDescription>Comma-separated PR numbers.</FormDescription>
+                                            <FormDescription>Comma-separated full URLs.</FormDescription>
                                             <FormMessage />
                                         </FormItem>
                                     )}

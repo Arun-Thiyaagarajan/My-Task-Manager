@@ -169,7 +169,7 @@ export default function TaskPage() {
                         <CardTitle className="text-2xl flex-1 text-left">Pull Request Links</CardTitle>
                     </AccordionTrigger>
                     <AccordionContent className="px-6 pb-6 pt-0">
-                        <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} />
+                        <PrLinksGroup prLinks={task.prLinks} />
                     </AccordionContent>
                 </AccordionItem>
             </Card>
