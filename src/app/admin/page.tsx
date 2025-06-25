@@ -25,6 +25,10 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
+
 
 export default function AdminPage() {
   const [adminConfig, setAdminConfig] = useState<AdminConfig | null>(null);
@@ -38,6 +42,7 @@ export default function AdminPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [editingGroup, setEditingGroup] = useState<string | null>(null);
   const [newGroupName, setNewGroupName] = useState('');
+  const [selectedFields, setSelectedFields] = useState<string[]>([]);
   const { toast } = useToast();
 
   const initialLoadComplete = useRef(false);
@@ -317,7 +322,111 @@ export default function AdminPage() {
     }));
   }, [allFields, adminConfig?.groupOrder]);
 
-  if (isLoading || !adminConfig) {
+  const { formLayout, fieldConfig } = adminConfig || {};
+  const filteredActiveLayout = formLayout?.filter(id => filteredFields[id]) || [];
+  const inactiveFields = Object.keys(filteredFields).filter(id => !formLayout?.includes(id));
+
+  // --- Bulk Selection ---
+    const handleSelectField = (fieldId: string) => {
+        setSelectedFields(prev =>
+            prev.includes(fieldId) ? prev.filter(id => id !== fieldId) : [...prev, fieldId]
+        );
+    };
+
+    const activeFieldsInView = useMemo(() => {
+        if (!formLayout) return [];
+        return fieldGroups.flatMap(g =>
+            g.fieldIds.filter(id => formLayout.includes(id) && filteredFields[id])
+        );
+    }, [fieldGroups, formLayout, filteredFields]);
+
+    const selectedActiveFields = useMemo(() => {
+        return selectedFields.filter(id => activeFieldsInView.includes(id));
+    }, [selectedFields, activeFieldsInView]);
+
+    const allActiveSelected = activeFieldsInView.length > 0 && selectedActiveFields.length === activeFieldsInView.length;
+    const someActiveSelected = selectedActiveFields.length > 0 && !allActiveSelected;
+
+    const selectedInactiveFields = useMemo(() => {
+        return selectedFields.filter(id => inactiveFields.includes(id));
+    }, [selectedFields, inactiveFields]);
+
+    const allInactiveSelected = inactiveFields.length > 0 && selectedInactiveFields.length === inactiveFields.length;
+    const someInactiveSelected = selectedInactiveFields.length > 0 && !allInactiveSelected;
+    
+  // --- Bulk Actions ---
+    const handleBulkSetRequired = (required: boolean) => {
+        if (!adminConfig) return;
+        const newConfig = { ...adminConfig };
+        selectedFields.forEach(fieldId => {
+            const fieldConf = newConfig.fieldConfig[fieldId] || { visible: true, required: false };
+            fieldConf.required = required;
+            newConfig.fieldConfig[fieldId] = fieldConf;
+        });
+        setAdminConfig(newConfig);
+        toast({
+            variant: 'success',
+            title: 'Fields Updated',
+            description: `${selectedFields.length} field(s) have been marked as ${required ? 'required' : 'not required'}.`
+        });
+        setSelectedFields([]);
+    };
+
+    const handleBulkActivate = () => {
+        if (!adminConfig) return;
+        const newLayout = [...adminConfig.formLayout];
+        const newConfig = { ...adminConfig };
+
+        selectedFields.forEach(fieldId => {
+            if (!newLayout.includes(fieldId)) {
+                newLayout.push(fieldId);
+                newConfig.fieldConfig[fieldId] = { ...(newConfig.fieldConfig[fieldId] || { required: false }), visible: true };
+            }
+        });
+
+        setAdminConfig({ ...newConfig, formLayout: newLayout });
+        toast({
+            variant: 'success',
+            title: 'Fields Activated',
+            description: 'Selected fields have been added to the form.'
+        });
+        setSelectedFields([]);
+    };
+
+    const handleBulkDeactivate = () => {
+        if (!adminConfig) return;
+
+        const newLayout = adminConfig.formLayout.filter(id => !selectedFields.includes(id));
+        const newConfig = { ...adminConfig };
+
+        selectedFields.forEach(fieldId => {
+            newConfig.fieldConfig[fieldId] = { ...(newConfig.fieldConfig[fieldId] || {}), visible: false };
+        });
+
+        setAdminConfig({ ...newConfig, formLayout: newLayout });
+        toast({
+            variant: 'success',
+            title: 'Fields Deactivated',
+            description: 'Selected fields have been removed from the form.'
+        });
+        setSelectedFields([]);
+    };
+
+    const handleBulkDelete = () => {
+        selectedFields.forEach(fieldId => {
+            deleteField(fieldId);
+        });
+        refreshData();
+        toast({
+            variant: 'success',
+            title: 'Fields Deleted',
+            description: `${selectedFields.length} field(s) have been permanently removed.`
+        });
+        setSelectedFields([]);
+    };
+
+
+  if (isLoading || !adminConfig || !fieldConfig) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <div className="flex flex-col items-center gap-4 text-center">
@@ -327,29 +436,37 @@ export default function AdminPage() {
       </div>
     );
   }
-
-  const { formLayout, fieldConfig } = adminConfig;
-  const filteredActiveLayout = formLayout.filter(id => filteredFields[id]);
-  const inactiveFields = Object.keys(filteredFields).filter(id => !formLayout.includes(id));
   
   const renderFieldCard = (fieldId: string) => {
       const fieldDefinition = allFields[fieldId];
       if (!fieldDefinition) return null;
+      const isSelected = selectedFields.includes(fieldId);
 
       return (
         <div 
           key={fieldId}
-          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-lg border p-4 cursor-pointer bg-background hover:border-primary/50"
+          className={cn("flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-lg border p-4 transition-colors",
+            isSelected ? 'bg-primary/10 border-primary' : 'bg-background hover:border-primary/50'
+          )}
           draggable={true}
           onDragStart={(e) => handleDragStart(e, fieldId)}
           onDragOver={handleDragOver}
           onDrop={() => handleDropOnField(fieldId)}
           onDragEnd={handleDragEnd}
-          onClick={() => handleOpenEditDialog(fieldDefinition)}
         >
           <div className="flex items-center gap-4 flex-1">
+             <Checkbox
+                id={`select-${fieldId}`}
+                checked={isSelected}
+                onCheckedChange={() => handleSelectField(fieldId)}
+                aria-label={`Select field ${fieldDefinition.label}`}
+                className="shrink-0"
+            />
             <GripVertical className="h-6 w-6 text-muted-foreground cursor-grab shrink-0" />
-              <div>
+              <div 
+                className="flex-1 cursor-pointer"
+                onClick={() => handleOpenEditDialog(fieldDefinition)}
+              >
               <h3 className="font-semibold text-lg">{fieldDefinition.label}</h3>
               <p className="text-sm text-muted-foreground">{fieldDefinition.description}</p>
             </div>
@@ -360,6 +477,7 @@ export default function AdminPage() {
                   id={`required-${fieldId}`}
                   checked={fieldConfig[fieldId]?.required || false}
                   onCheckedChange={() => handleToggleRequired(fieldId)}
+                  onClick={e => e.stopPropagation()}
                 />
                 <Label htmlFor={`required-${fieldId}`}>Required</Label>
             </div>
@@ -412,7 +530,21 @@ export default function AdminPage() {
           <CardContent className="space-y-8">
             
             <div>
-              <h2 className="text-xl font-semibold mb-4 border-b pb-2">Active Form Fields</h2>
+              <div className="flex items-center gap-4 mb-4 border-b pb-2">
+                 <Checkbox
+                    id="select-all-active"
+                    checked={someActiveSelected ? 'indeterminate' : allActiveSelected}
+                    onCheckedChange={(checked) => {
+                        if (checked) {
+                            setSelectedFields(prev => [...new Set([...prev, ...activeFieldsInView])]);
+                        } else {
+                            setSelectedFields(prev => prev.filter(id => !activeFieldsInView.includes(id)));
+                        }
+                    }}
+                    aria-label="Select all active fields"
+                  />
+                  <h2 className="text-xl font-semibold">Active Form Fields</h2>
+              </div>
               
               {fieldGroups.map(groupInfo => {
                 const activeFieldsInGroup = formLayout.filter(id => 
@@ -489,7 +621,21 @@ export default function AdminPage() {
             
             <div>
               <div className="flex items-center justify-between mb-4 border-b pb-2">
-                <h2 className="text-xl font-semibold">Inactive Fields</h2>
+                <div className="flex items-center gap-4">
+                    <Checkbox
+                        id="select-all-inactive"
+                        checked={someInactiveSelected ? 'indeterminate' : allInactiveSelected}
+                        onCheckedChange={(checked) => {
+                            if (checked) {
+                                setSelectedFields(prev => [...new Set([...prev, ...inactiveFields])]);
+                            } else {
+                                setSelectedFields(prev => prev.filter(id => !inactiveFields.includes(id)));
+                            }
+                        }}
+                        aria-label="Select all inactive fields"
+                    />
+                    <h2 className="text-xl font-semibold">Inactive Fields</h2>
+                </div>
                 <Button variant="outline" onClick={() => { setFieldToEdit(null); setIsFieldDialogOpen(true); }}>
                   <PlusCircle className="mr-2 h-4 w-4" /> Add Custom Field
                 </Button>
@@ -498,14 +644,25 @@ export default function AdminPage() {
                 {inactiveFields.map(fieldId => {
                    const fieldDefinition = allFields[fieldId];
                    if (!fieldDefinition) return null;
+                   const isSelected = selectedFields.includes(fieldId);
                    return (
                      <div 
                         key={fieldId} 
-                        className="flex items-center justify-between gap-4 rounded-lg border p-3 bg-muted/50"
+                        className={cn("flex items-center justify-between gap-4 rounded-lg border p-3",
+                            isSelected ? 'bg-primary/10 border-primary' : 'bg-muted/50'
+                        )}
                       >
-                       <div className="flex-1">
-                          <p className="font-medium">{fieldDefinition.label}</p>
-                          <p className="text-xs text-muted-foreground">{fieldDefinition.type}</p>
+                       <div className="flex-1 flex items-center gap-4">
+                           <Checkbox
+                                id={`select-inactive-${fieldId}`}
+                                checked={isSelected}
+                                onCheckedChange={() => handleSelectField(fieldId)}
+                                aria-label={`Select field ${fieldDefinition.label}`}
+                           />
+                          <div>
+                            <p className="font-medium">{fieldDefinition.label}</p>
+                            <p className="text-xs text-muted-foreground">{fieldDefinition.type}</p>
+                          </div>
                         </div>
                         <div className='flex items-center gap-2'>
                           <Button size="sm" variant="outline" className="px-3 h-8" onClick={(e) => { e.stopPropagation(); handleAddField(fieldId);}}>
@@ -554,6 +711,46 @@ export default function AdminPage() {
           </CardContent>
         </Card>
       </div>
+      {selectedFields.length > 0 && (
+            <Card className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-auto max-w-[90%] shadow-2xl">
+                <CardContent className="p-3 flex items-center gap-4">
+                    <div className="text-sm font-medium whitespace-nowrap">
+                        {selectedFields.length} selected
+                    </div>
+                    <Separator orientation="vertical" className="h-6" />
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <Button size="sm" variant="outline" onClick={() => handleBulkSetRequired(true)}>Set as Required</Button>
+                        <Button size="sm" variant="outline" onClick={() => handleBulkSetRequired(false)}>Set as Not Required</Button>
+                        <Button size="sm" variant="outline" onClick={handleBulkActivate}>Activate</Button>
+                        <Button size="sm" variant="outline" onClick={handleBulkDeactivate}>Deactivate</Button>
+
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button size="sm" variant="destructive">
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>This will permanently delete the {selectedFields.length} selected field(s) and all associated data. This action cannot be undone.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90">Delete Field(s)</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </div>
+                    <Separator orientation="vertical" className="h-6" />
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setSelectedFields([])}>
+                        <X className="h-4 w-4" />
+                        <span className="sr-only">Clear selection</span>
+                    </Button>
+                </CardContent>
+            </Card>
+        )}
       <FieldEditorDialog
         isOpen={isFieldDialogOpen}
         onOpenChange={setIsFieldDialogOpen}
