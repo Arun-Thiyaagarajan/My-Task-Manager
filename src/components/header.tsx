@@ -36,6 +36,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useActiveCompany } from '@/hooks/use-active-company';
+import { ThemeToggle } from './theme-toggle';
 
 export function Header() {
   const { toast } = useToast();
@@ -95,68 +96,71 @@ export function Header() {
               <span className="font-bold sm:inline-block">My Task Manager</span>
             </Link>
           </div>
-          {activeCompany && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                    <Building className="mr-2 h-4 w-4" />
-                    {activeCompany.name}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-60">
-                <DropdownMenuLabel>Switch Company</DropdownMenuLabel>
-                <DropdownMenuRadioGroup value={activeCompanyId} onValueChange={handleCompanyChange}>
-                    {companies.map((company) => (
-                        <DropdownMenuRadioItem key={company.id} value={company.id}>
-                            {company.name}
-                        </DropdownMenuRadioItem>
-                    ))}
-                </DropdownMenuRadioGroup>
+          <div className="flex items-center gap-4">
+            {activeCompany && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                      <Building className="mr-2 h-4 w-4" />
+                      {activeCompany.name}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-60">
+                  <DropdownMenuLabel>Switch Company</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup value={activeCompanyId} onValueChange={handleCompanyChange}>
+                      {companies.map((company) => (
+                          <DropdownMenuRadioItem key={company.id} value={company.id}>
+                              {company.name}
+                          </DropdownMenuRadioItem>
+                      ))}
+                  </DropdownMenuRadioGroup>
 
-                <DropdownMenuSeparator />
-                
-                <DropdownMenuGroup>
-                    <DropdownMenuItem onSelect={handleAddCompany}>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        <span>Add New Company</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuLabel className="pt-2">Manage Companies</DropdownMenuLabel>
-                    {companies.map((company) => (
-                        <div key={company.id} className="flex items-center justify-between pl-2 pr-1 relative group">
-                            <span className="text-sm py-1.5 flex-1 pr-16 truncate">{company.name}</span>
-                            <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center bg-popover opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditCompany(company)}>
-                                    <Edit className="h-4 w-4" />
-                                </Button>
-                                
-                                <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                                This action cannot be undone. This will permanently delete the company and all its tasks.
-                                            </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDeleteCompany(company.id)} className="bg-destructive hover:bg-destructive/90">
-                                                Delete
-                                            </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-                            </div>
-                        </div>
-                    ))}
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+                  <DropdownMenuSeparator />
+                  
+                  <DropdownMenuGroup>
+                      <DropdownMenuItem onSelect={handleAddCompany}>
+                          <PlusCircle className="mr-2 h-4 w-4" />
+                          <span>Add New Company</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuLabel className="pt-2">Manage Companies</DropdownMenuLabel>
+                      {companies.map((company) => (
+                          <div key={company.id} className="flex items-center justify-between pl-2 pr-1 relative group">
+                              <span className="text-sm py-1.5 flex-1 pr-16 truncate">{company.name}</span>
+                              <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center bg-popover opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditCompany(company)}>
+                                      <Edit className="h-4 w-4" />
+                                  </Button>
+                                  
+                                  <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+                                              <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                  This action cannot be undone. This will permanently delete the company and all its tasks.
+                                              </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                              <AlertDialogAction onClick={() => handleDeleteCompany(company.id)} className="bg-destructive hover:bg-destructive/90">
+                                                  Delete
+                                              </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                  </AlertDialog>
+                              </div>
+                          </div>
+                      ))}
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            <ThemeToggle />
+          </div>
         </div>
       </header>
       <CompaniesManager 
