@@ -326,24 +326,25 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
             <CardHeader>
                 <CardTitle>Deployment Status</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
                     {ENVIRONMENTS.map(env => (
-                        <div key={env} className="space-y-2 rounded-md border p-4">
+                        <div key={env} className="space-y-2">
                             <FormField
                                 control={form.control}
                                 name={`deploymentStatus.${env}`}
                                 render={({ field }) => (
-                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                    <FormItem className="flex flex-row items-center space-x-3 space-y-0">
                                         <FormControl>
                                             <Checkbox
-                                            checked={field.value}
-                                            onCheckedChange={field.onChange}
+                                                checked={field.value}
+                                                onCheckedChange={field.onChange}
+                                                id={`deploy-check-${env}`}
                                             />
                                         </FormControl>
-                                        <div className="space-y-1 leading-none">
-                                            <FormLabel className="capitalize">{env}</FormLabel>
-                                        </div>
+                                        <FormLabel htmlFor={`deploy-check-${env}`} className="capitalize font-normal">
+                                            {env}
+                                        </FormLabel>
                                     </FormItem>
                                 )}
                             />
@@ -352,21 +353,21 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                                     control={form.control}
                                     name={`deploymentDates.${env}` as const}
                                     render={({ field }) => (
-                                        <FormItem className="flex flex-col mt-2 pl-1">
+                                        <FormItem className="flex flex-col pl-7">
                                             <Popover>
                                                 <PopoverTrigger asChild>
                                                     <FormControl>
                                                         <Button
                                                         variant={"outline"}
                                                         className={cn(
-                                                            "w-full pl-3 text-left font-normal",
+                                                            "w-full justify-start text-left font-normal",
                                                             !field.value && "text-muted-foreground"
                                                         )}
                                                         >
+                                                        <CalendarIcon className="mr-2 h-4 w-4" />
                                                         {field.value ? format(field.value, "PPP") : (
-                                                            <span>Pick a date</span>
+                                                            <span>Pick deployment date</span>
                                                         )}
-                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                                         </Button>
                                                     </FormControl>
                                                 </PopoverTrigger>
