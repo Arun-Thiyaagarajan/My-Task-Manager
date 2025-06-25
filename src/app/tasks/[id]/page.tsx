@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, Users, CalendarDays, Loader2, Bug, Paperclip, Link2, FileText } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, Users, CalendarDays, Loader2, Bug, Paperclip, Link2, FileText, StickyNote } from 'lucide-react';
 import { TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -18,6 +18,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { format } from 'date-fns';
 import type { Task } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 
 
 export default function TaskPage() {
@@ -151,51 +157,71 @@ export default function TaskPage() {
             </CardContent>
           </Card>
           
-          <CommentsSection
-            taskId={task.id}
-            comments={task.comments || []}
-            onCommentsUpdate={handleCommentsUpdate}
-          />
-
-          {task.attachments && task.attachments.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Paperclip className="h-5 w-5" />
-                  Attachments
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {task.attachments.map((att, index) => (
-                  <a
-                    key={index}
-                    href={att.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 p-3 rounded-md border bg-muted/50 hover:bg-muted/80 transition-colors"
-                  >
-                    {att.type === 'link' ? (
-                      <Link2 className="h-5 w-5 text-primary" />
-                    ) : (
-                      <FileText className="h-5 w-5 text-primary" />
-                    )}
-                    <span className="text-primary hover:underline underline-offset-4 truncate">{att.name}</span>
-                    <ExternalLink className="h-4 w-4 text-muted-foreground ml-auto" />
-                  </a>
-                ))}
-              </CardContent>
+          <Accordion type="multiple" defaultValue={['pull-requests', 'attachments', 'comments']} className="w-full space-y-4">
+            <Card as="div">
+                <AccordionItem value="pull-requests" className="border-none">
+                    <AccordionTrigger className="p-6 hover:no-underline">
+                        <CardTitle className="text-2xl flex-1 text-left">Pull Request Links</CardTitle>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-6 pb-6 pt-0">
+                        <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} />
+                    </AccordionContent>
+                </AccordionItem>
             </Card>
-          )}
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Pull Request Links</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} />
-            </CardContent>
-          </Card>
+            {task.attachments && task.attachments.length > 0 && (
+              <Card as="div">
+                <AccordionItem value="attachments" className="border-none">
+                  <AccordionTrigger className="p-6 hover:no-underline">
+                    <CardTitle className="text-2xl flex items-center gap-2 flex-1 text-left">
+                      <Paperclip className="h-5 w-5" />
+                      Attachments
+                    </CardTitle>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-6 pt-0 pb-6">
+                    <div className="space-y-3">
+                      {task.attachments.map((att, index) => (
+                        <a
+                          key={index}
+                          href={att.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-3 p-3 rounded-md border bg-muted/50 hover:bg-muted/80 transition-colors"
+                        >
+                          {att.type === 'link' ? (
+                            <Link2 className="h-5 w-5 text-primary" />
+                          ) : (
+                            <FileText className="h-5 w-5 text-primary" />
+                          )}
+                          <span className="text-primary hover:underline underline-offset-4 truncate">{att.name}</span>
+                          <ExternalLink className="h-4 w-4 text-muted-foreground ml-auto" />
+                        </a>
+                      ))}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Card>
+            )}
 
+            <Card as="div">
+                <AccordionItem value="comments" className="border-none">
+                    <AccordionTrigger className="p-6 hover:no-underline">
+                        <CardTitle className="text-2xl flex items-center gap-2 flex-1 text-left">
+                            <StickyNote className="h-5 w-5" />
+                            Comments
+                        </CardTitle>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-6 pt-0 pb-6">
+                        <CommentsSection
+                            taskId={task.id}
+                            comments={task.comments || []}
+                            onCommentsUpdate={handleCommentsUpdate}
+                            hideHeader
+                        />
+                    </AccordionContent>
+                </AccordionItem>
+            </Card>
+          </Accordion>
         </div>
         <div className="lg:w-1/3 space-y-6">
             <Card>

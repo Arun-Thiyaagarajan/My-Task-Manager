@@ -5,14 +5,16 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { addComment, updateComment, deleteComment } from '@/lib/data';
 import { Pencil, Trash2, X, Check, StickyNote } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface CommentsSectionProps {
   taskId: string;
   comments: string[];
   onCommentsUpdate: (newComments: string[]) => void;
+  hideHeader?: boolean;
 }
 
-export function CommentsSection({ taskId, comments, onCommentsUpdate }: CommentsSectionProps) {
+export function CommentsSection({ taskId, comments, onCommentsUpdate, hideHeader = false }: CommentsSectionProps) {
   const [newComment, setNewComment] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingText, setEditingText] = useState('');
@@ -55,14 +57,16 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate }: Comments
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-            <StickyNote className="h-5 w-5" />
-            Comments
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <Card className={cn(hideHeader && "border-none shadow-none")}>
+      {!hideHeader && (
+        <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+                <StickyNote className="h-5 w-5" />
+                Comments
+            </CardTitle>
+        </CardHeader>
+      )}
+      <CardContent className={cn("space-y-4", hideHeader && "p-0")}>
         <div className="space-y-4">
           {comments.map((comment, index) => (
             <div key={index} className="p-3 rounded-md border bg-muted/50 group min-h-[60px]">
