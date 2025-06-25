@@ -36,7 +36,6 @@ import { MultiSelect } from './ui/multi-select';
 import { Checkbox } from './ui/checkbox';
 import { addDeveloper } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { TASK_STATUSES, REPOSITORIES, ENVIRONMENTS } from '@/lib/constants';
 
 type TaskFormData = z.infer<typeof taskSchema>;
@@ -158,192 +157,197 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
             </CardContent>
         </Card>
 
-        <Accordion type="multiple" className="w-full space-y-4">
-            <AccordionItem value="assignment" className="border rounded-md px-4">
-                 <AccordionTrigger className="py-4 hover:no-underline">Assignment & Tracking</AccordionTrigger>
-                 <AccordionContent className="pt-2 pb-4 space-y-4">
-                    <FormField
-                        control={form.control}
-                        name="developers"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Developers</FormLabel>
-                            <FormControl>
-                                <MultiSelect
-                                selected={field.value ?? []}
-                                onChange={field.onChange}
-                                options={developersList.map(dev => ({ value: dev, label: dev }))}
-                                placeholder="Select developers..."
-                                onCreate={handleCreateDeveloper}
-                                />
-                            </FormControl>
-                            <FormDescription>Assign one or more developers to this task.</FormDescription>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name="repositories"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Repositories</FormLabel>
-                            <FormControl>
-                                <MultiSelect
-                                selected={field.value ?? []}
-                                onChange={field.onChange}
-                                options={REPOSITORIES.map(repo => ({ value: repo, label: repo }))}
-                                placeholder="Select repositories..."
-                                />
-                            </FormControl>
-                             <FormDescription>Which code repositories are affected?</FormDescription>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                     <FormField
-                        control={form.control}
-                        name="azureWorkItemId"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Azure Work Item ID</FormLabel>
-                            <FormControl>
-                                <Input placeholder="e.g., 12345" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                 </AccordionContent>
-            </AccordionItem>
-            
-            <AccordionItem value="pr-links" className="border rounded-md px-4">
-                <AccordionTrigger className="py-4 hover:no-underline">Pull Request Links</AccordionTrigger>
-                <AccordionContent className="pt-2 pb-4 space-y-4">
-                   {selectedRepos.length > 0 ? ENVIRONMENTS.map(env => (
-                       <div key={env}>
-                           <h4 className="font-medium text-sm capitalize mb-2">{env} PRs</h4>
-                            <div className="space-y-2">
-                                {selectedRepos.map(repo => (
-                                    <FormField
-                                        key={`${env}-${repo}`}
-                                        control={form.control}
-                                        name={`prLinks.${env}.${repo}` as any}
-                                        render={({ field }) => (
-                                            <FormItem className="flex items-center gap-2 space-y-0">
-                                                <GitPullRequest className="h-4 w-4 text-muted-foreground"/>
-                                                <FormLabel className="w-32 shrink-0">{repo}</FormLabel>
-                                                <FormControl>
-                                                    <Input placeholder="PR ID(s), comma separated" {...field} />
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-                                ))}
-                            </div>
-                       </div>
-                   )) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">Select at least one repository to add PR links.</p>
-                   )}
-                </AccordionContent>
-            </AccordionItem>
-            
-            <AccordionItem value="deployment" className="border rounded-md px-4">
-                 <AccordionTrigger className="py-4 hover:no-underline">Deployment Status</AccordionTrigger>
-                 <AccordionContent className="pt-2 pb-4 space-y-4">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {ENVIRONMENTS.map(env => (
-                            <FormField
-                                key={env}
-                                control={form.control}
-                                name={`deploymentStatus.${env}`}
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                                        <FormControl>
-                                            <Checkbox
-                                            checked={field.value}
-                                            onCheckedChange={field.onChange}
-                                            />
-                                        </FormControl>
-                                        <div className="space-y-1 leading-none">
-                                            <FormLabel className="capitalize">{env}</FormLabel>
-                                        </div>
-                                    </FormItem>
-                                )}
+        <Card>
+            <CardHeader>
+                <CardTitle>Assignment & Tracking</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <FormField
+                    control={form.control}
+                    name="developers"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Developers</FormLabel>
+                        <FormControl>
+                            <MultiSelect
+                            selected={field.value ?? []}
+                            onChange={field.onChange}
+                            options={developersList.map(dev => ({ value: dev, label: dev }))}
+                            placeholder="Select developers..."
+                            onCreate={handleCreateDeveloper}
                             />
-                        ))}
-                    </div>
-                     {form.watch('deploymentStatus.others') && (
+                        </FormControl>
+                        <FormDescription>Assign one or more developers to this task.</FormDescription>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="repositories"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Repositories</FormLabel>
+                        <FormControl>
+                            <MultiSelect
+                            selected={field.value ?? []}
+                            onChange={field.onChange}
+                            options={REPOSITORIES.map(repo => ({ value: repo, label: repo }))}
+                            placeholder="Select repositories..."
+                            />
+                        </FormControl>
+                         <FormDescription>Which code repositories are affected?</FormDescription>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                 <FormField
+                    control={form.control}
+                    name="azureWorkItemId"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Azure Work Item ID</FormLabel>
+                        <FormControl>
+                            <Input placeholder="e.g., 12345" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </CardContent>
+        </Card>
+        
+        <Card>
+            <CardHeader>
+                <CardTitle>Pull Request Links</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+               {selectedRepos.length > 0 ? ENVIRONMENTS.map(env => (
+                   <div key={env}>
+                       <h4 className="font-medium text-sm capitalize mb-2">{env} PRs</h4>
+                        <div className="space-y-2">
+                            {selectedRepos.map(repo => (
+                                <FormField
+                                    key={`${env}-${repo}`}
+                                    control={form.control}
+                                    name={`prLinks.${env}.${repo}` as any}
+                                    render={({ field }) => (
+                                        <FormItem className="flex items-center gap-2 space-y-0">
+                                            <GitPullRequest className="h-4 w-4 text-muted-foreground"/>
+                                            <FormLabel className="w-32 shrink-0">{repo}</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder="PR ID(s), comma separated" {...field} />
+                                            </FormControl>
+                                        </FormItem>
+                                    )}
+                                />
+                            ))}
+                        </div>
+                   </div>
+               )) : (
+                <p className="text-sm text-muted-foreground text-center py-4">Select at least one repository to add PR links.</p>
+               )}
+            </CardContent>
+        </Card>
+        
+        <Card>
+            <CardHeader>
+                <CardTitle>Deployment Status</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {ENVIRONMENTS.map(env => (
                         <FormField
+                            key={env}
                             control={form.control}
-                            name="othersEnvironmentName"
+                            name={`deploymentStatus.${env}`}
                             render={({ field }) => (
-                                <FormItem className="mt-4">
-                                <FormLabel>Other Environment Name</FormLabel>
-                                <FormControl>
-                                    <Input placeholder="e.g. UAT" {...field} />
-                                </FormControl>
-                                <FormMessage />
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                                    <FormControl>
+                                        <Checkbox
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                        />
+                                    </FormControl>
+                                    <div className="space-y-1 leading-none">
+                                        <FormLabel className="capitalize">{env}</FormLabel>
+                                    </div>
                                 </FormItem>
                             )}
                         />
-                    )}
-                 </AccordionContent>
-            </AccordionItem>
+                    ))}
+                </div>
+                 {form.watch('deploymentStatus.others') && (
+                    <FormField
+                        control={form.control}
+                        name="othersEnvironmentName"
+                        render={({ field }) => (
+                            <FormItem className="mt-4">
+                            <FormLabel>Other Environment Name</FormLabel>
+                            <FormControl>
+                                <Input placeholder="e.g. UAT" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                )}
+            </CardContent>
+        </Card>
 
-            <AccordionItem value="dates" className="border rounded-md px-4">
-                <AccordionTrigger className="py-4 hover:no-underline">Important Dates</AccordionTrigger>
-                <AccordionContent className="pt-2 pb-4 space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {[
-                            { name: 'devStartDate', label: 'Dev Start Date'},
-                            { name: 'devEndDate', label: 'Dev End Date'},
-                            { name: 'qaStartDate', label: 'QA Start Date'},
-                            { name: 'qaEndDate', label: 'QA End Date'},
-                        ].map(dateField => (
-                            <FormField
-                                key={dateField.name}
-                                control={form.control}
-                                name={dateField.name as any}
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-col">
-                                        <FormLabel>{dateField.label}</FormLabel>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <FormControl>
-                                                    <Button
-                                                    variant={"outline"}
-                                                    className={cn(
-                                                        "w-full pl-3 text-left font-normal",
-                                                        !field.value && "text-muted-foreground"
-                                                    )}
-                                                    >
-                                                    {field.value ? format(field.value, "PPP") : (
-                                                        <span>Pick a date</span>
-                                                    )}
-                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                    </Button>
-                                                </FormControl>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0" align="start">
-                                                <Calendar
-                                                    mode="single"
-                                                    selected={field.value}
-                                                    onSelect={field.onChange}
-                                                    initialFocus
-                                                />
-                                            </PopoverContent>
-                                        </Popover>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        ))}
-                    </div>
-                </AccordionContent>
-            </AccordionItem>
-
-        </Accordion>
+        <Card>
+            <CardHeader>
+                <CardTitle>Important Dates</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[
+                        { name: 'devStartDate', label: 'Dev Start Date'},
+                        { name: 'devEndDate', label: 'Dev End Date'},
+                        { name: 'qaStartDate', label: 'QA Start Date'},
+                        { name: 'qaEndDate', label: 'QA End Date'},
+                    ].map(dateField => (
+                        <FormField
+                            key={dateField.name}
+                            control={form.control}
+                            name={dateField.name as any}
+                            render={({ field }) => (
+                                <FormItem className="flex flex-col">
+                                    <FormLabel>{dateField.label}</FormLabel>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <FormControl>
+                                                <Button
+                                                variant={"outline"}
+                                                className={cn(
+                                                    "w-full pl-3 text-left font-normal",
+                                                    !field.value && "text-muted-foreground"
+                                                )}
+                                                >
+                                                {field.value ? format(field.value, "PPP") : (
+                                                    <span>Pick a date</span>
+                                                )}
+                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                </Button>
+                                            </FormControl>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                            <Calendar
+                                                mode="single"
+                                                selected={field.value}
+                                                onSelect={field.onChange}
+                                                initialFocus
+                                            />
+                                        </PopoverContent>
+                                    </Popover>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    ))}
+                </div>
+            </CardContent>
+        </Card>
 
         <div className="flex justify-end gap-4 pt-4 border-t">
             <Button type="button" variant="outline" onClick={() => router.back()} disabled={isPending}>
