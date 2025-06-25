@@ -90,6 +90,9 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
     },
   });
 
+  const devStartDate = form.watch('devStartDate');
+  const qaStartDate = form.watch('qaStartDate');
+
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "attachments"
@@ -404,7 +407,10 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                                             mode="single"
                                             selected={field.value}
                                             onSelect={field.onChange}
-                                            disabled={(date) => date < new Date("1900-01-01")}
+                                            disabled={(date) =>
+                                              (devStartDate && date < devStartDate) ||
+                                              date < new Date("1900-01-01")
+                                            }
                                             initialFocus
                                         />
                                         </PopoverContent>
@@ -482,7 +488,10 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                                             mode="single"
                                             selected={field.value}
                                             onSelect={field.onChange}
-                                            disabled={(date) => date < new Date("1900-01-01")}
+                                            disabled={(date) =>
+                                              (qaStartDate && date < qaStartDate) ||
+                                              date < new Date("1900-01-01")
+                                            }
                                             initialFocus
                                         />
                                         </PopoverContent>

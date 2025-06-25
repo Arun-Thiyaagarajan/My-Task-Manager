@@ -55,4 +55,26 @@ export const taskSchema = z.object({
     message: 'Please provide a name for the "others" environment.',
     path: ['othersEnvironmentName'],
   }
+).refine(
+  (data) => {
+    if (data.devStartDate && data.devEndDate) {
+      return data.devEndDate >= data.devStartDate;
+    }
+    return true;
+  },
+  {
+    message: "Development end date must be on or after the start date.",
+    path: ["devEndDate"],
+  }
+).refine(
+    (data) => {
+    if (data.qaStartDate && data.qaEndDate) {
+      return data.qaEndDate >= data.qaStartDate;
+    }
+    return true;
+  },
+  {
+    message: 'QA end date must be on or after the start date.',
+    path: ['qaEndDate'],
+  }
 );
