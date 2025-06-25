@@ -301,12 +301,26 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
         
-        <div className="space-y-6">
-            {adminConfig.formLayout.map(fieldId => (
-                <React.Fragment key={fieldId}>
-                    {renderField(fieldId)}
-                </React.Fragment>
-            ))}
+        <div className="grid grid-cols-1 gap-x-6 gap-y-8 md:grid-cols-2 lg:grid-cols-3">
+            {adminConfig.formLayout.map(fieldId => {
+                const fieldDef = internalAllFields[fieldId];
+                if (!fieldDef || !adminConfig.fieldConfig[fieldId]?.visible) {
+                    return null;
+                }
+
+                const isFullWidth = ['textarea', 'attachments', 'deployment', 'pr-links'].includes(fieldDef.type);
+
+                return (
+                    <div 
+                        key={fieldId} 
+                        className={cn(
+                            isFullWidth ? 'md:col-span-2 lg:col-span-3' : 'col-span-1'
+                        )}
+                    >
+                        {renderField(fieldId)}
+                    </div>
+                );
+            })}
         </div>
 
         <div className="flex justify-end gap-4">
