@@ -103,7 +103,7 @@ export default function TaskPage() {
       <div className="flex flex-col lg:flex-row gap-8">
         <div className="lg:w-2/3 space-y-6">
           <Card>
-            <CardHeader>
+            <CardHeader className="items-start">
               <TaskStatusBadge status={task.status} />
               <CardTitle className="text-3xl font-bold mt-2">
                 {task.title}
