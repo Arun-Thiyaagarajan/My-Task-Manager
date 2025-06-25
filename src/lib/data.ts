@@ -57,6 +57,13 @@ const getAppData = (): MyTaskManagerData => {
             if (!data.companyData[companyId].adminConfig) {
                 data.companyData[companyId].adminConfig = DEFAULT_ADMIN_CONFIG;
             }
+             // Migration: ensure visibility is correctly set based on formLayout
+            const config = data.companyData[companyId].adminConfig;
+            if (config && config.formLayout) {
+                Object.keys(config.fieldConfig).forEach(fieldId => {
+                    config.fieldConfig[fieldId].visible = config.formLayout.includes(fieldId);
+                });
+            }
         }
         return data;
     } catch (e) {
@@ -146,8 +153,13 @@ export function updateAdminConfig(newConfig: AdminConfig) {
     const data = getAppData();
     const activeCompanyId = data.activeCompanyId;
     if (activeCompanyId && data.companyData[activeCompanyId]) {
+        // Ensure visibility is correctly set from the new layout
+        Object.keys(newConfig.fieldConfig).forEach(fieldId => {
+            newConfig.fieldConfig[fieldId].visible = newConfig.formLayout.includes(fieldId);
+        });
         data.companyData[activeCompanyId].adminConfig = newConfig;
         setAppData(data);
+        window.dispatchEvent(new Event('storage'));
     }
 }
 
@@ -178,6 +190,7 @@ export function addTask(taskData: Partial<Omit<Task, 'id' | 'createdAt' | 'updat
     title: taskData.title || 'Untitled Task',
     description: taskData.description || '',
     status: taskData.status || 'To Do',
+    qaIssueIds: '', // Default to empty string
     ...taskData
   };
   
