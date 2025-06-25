@@ -6,7 +6,7 @@ import { getTaskById, getDevelopers, updateTask, addDeveloper } from '@/lib/data
 import { useParams, useRouter } from 'next/navigation';
 import { TaskForm } from '@/components/task-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { Task } from '@/lib/types';
+import type { Task, Environment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -63,16 +63,24 @@ export default function EditTaskPage() {
       });
     }
     
-    const taskDataToUpdate: Partial<Task> = {};
-    for (const key in validationResult.data) {
-        if (Object.prototype.hasOwnProperty.call(validationResult.data, key)) {
-            const value = validationResult.data[key as keyof typeof validationResult.data];
-            if (value instanceof Date) {
-                 (taskDataToUpdate as any)[key] = value.toISOString();
-            } else if (value !== undefined && value !== null) {
-                 (taskDataToUpdate as any)[key] = value;
-            }
-        }
+    const { deploymentDates, devStartDate, devEndDate, qaStartDate, qaEndDate, ...otherData } = validationResult.data;
+
+    const taskDataToUpdate: Partial<Task> = {
+        ...otherData,
+        devStartDate: devStartDate ? devStartDate.toISOString() : null,
+        devEndDate: devEndDate ? devEndDate.toISOString() : null,
+        qaStartDate: qaStartDate ? qaStartDate.toISOString() : null,
+        qaEndDate: qaEndDate ? qaEndDate.toISOString() : null,
+        deploymentDates: {}
+    };
+
+    if (deploymentDates) {
+        taskDataToUpdate.deploymentDates = {
+            dev: deploymentDates.dev?.toISOString() || null,
+            stage: deploymentDates.stage?.toISOString() || null,
+            production: deploymentDates.production?.toISOString() || null,
+            others: deploymentDates.others?.toISOString() || null,
+        };
     }
 
     updateTask(task.id, taskDataToUpdate);

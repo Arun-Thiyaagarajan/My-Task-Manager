@@ -26,7 +26,12 @@ export const taskSchema = z.object({
     others: z.boolean().optional(),
   }).optional(),
   othersEnvironmentName: z.string().optional(),
-  deploymentDate: z.coerce.date().optional().nullable(),
+  deploymentDates: z.object({
+    dev: z.coerce.date().optional().nullable(),
+    stage: z.coerce.date().optional().nullable(),
+    production: z.coerce.date().optional().nullable(),
+    others: z.coerce.date().optional().nullable(),
+  }).optional(),
   
   prLinks: z.object({
       dev: prLinkSchema.optional(),
@@ -76,15 +81,15 @@ export const taskSchema = z.object({
           path: ['qaEndDate'],
       }
 ).refine(
-  (data) => {
-    const needsDate = data.deploymentStatus?.stage || data.deploymentStatus?.production || data.deploymentStatus?.others;
-    if (needsDate && !data.deploymentDate) {
-      return false;
-    }
-    return true;
-  },
-  {
-    message: 'Deployment date is required when deploying to Stage, Production, or Others.',
-    path: ['deploymentDate'],
-  }
+    (data) => !(data.deploymentStatus?.dev && !data.deploymentDates?.dev),
+    { message: 'Dev deployment date is required.', path: ['deploymentDates.dev'] }
+).refine(
+    (data) => !(data.deploymentStatus?.stage && !data.deploymentDates?.stage),
+    { message: 'Stage deployment date is required.', path: ['deploymentDates.stage'] }
+).refine(
+    (data) => !(data.deploymentStatus?.production && !data.deploymentDates?.production),
+    { message: 'Production deployment date is required.', path: ['deploymentDates.production'] }
+).refine(
+    (data) => !(data.deploymentStatus?.others && !data.deploymentDates?.others),
+    { message: 'Others deployment date is required.', path: ['deploymentDates.others'] }
 );

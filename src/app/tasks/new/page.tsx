@@ -7,7 +7,7 @@ import { addTask, getDevelopers, addDeveloper } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import type { Task } from '@/lib/types';
+import type { Task, Environment } from '@/lib/types';
 import { taskSchema } from '@/lib/validators';
 import { Loader2 } from 'lucide-react';
 
@@ -46,16 +46,24 @@ export default function NewTaskPage() {
       });
     }
 
-    const taskDataToCreate: Partial<Task> = {};
-    for (const key in validationResult.data) {
-        if (Object.prototype.hasOwnProperty.call(validationResult.data, key)) {
-            const value = validationResult.data[key as keyof typeof validationResult.data];
-            if (value instanceof Date) {
-                 (taskDataToCreate as any)[key] = value.toISOString();
-            } else if (value !== undefined && value !== null && value !== '') {
-                 (taskDataToCreate as any)[key] = value;
-            }
-        }
+    const { deploymentDates, devStartDate, devEndDate, qaStartDate, qaEndDate, ...otherData } = validationResult.data;
+
+    const taskDataToCreate: Partial<Task> = {
+        ...otherData,
+        devStartDate: devStartDate ? devStartDate.toISOString() : null,
+        devEndDate: devEndDate ? devEndDate.toISOString() : null,
+        qaStartDate: qaStartDate ? qaStartDate.toISOString() : null,
+        qaEndDate: qaEndDate ? qaEndDate.toISOString() : null,
+        deploymentDates: {}
+    };
+
+    if (deploymentDates) {
+        taskDataToCreate.deploymentDates = {
+            dev: deploymentDates.dev?.toISOString() || null,
+            stage: deploymentDates.stage?.toISOString() || null,
+            production: deploymentDates.production?.toISOString() || null,
+            others: deploymentDates.others?.toISOString() || null,
+        };
     }
 
     addTask(taskDataToCreate);

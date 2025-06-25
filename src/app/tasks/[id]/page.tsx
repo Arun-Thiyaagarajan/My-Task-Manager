@@ -7,19 +7,19 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, Users, CalendarDays, Loader2, Cloud, ListChecks, Paperclip } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, Users, CalendarDays, Loader2, Cloud, ListChecks, Paperclip, CheckCircle2 } from 'lucide-react';
 import { TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { DeleteTaskButton } from '@/components/delete-task-button';
 import { PrLinksGroup } from '@/components/pr-links-group';
-import { EnvironmentStatus } from '@/components/environment-status';
 import { Badge } from '@/components/ui/badge';
-import { getInitials, getAvatarColor } from '@/lib/utils';
+import { getInitials, getAvatarColor, cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
-import type { Task } from '@/lib/types';
+import type { Task, Environment } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
+import { ENVIRONMENTS } from '@/lib/constants';
 
 export default function TaskPage() {
   const params = useParams();
@@ -122,8 +122,14 @@ export default function TaskPage() {
               </p>
             </CardContent>
           </Card>
+          
+           <CommentsSection
+              taskId={task.id}
+              comments={task.comments || []}
+              onCommentsUpdate={handleCommentsUpdate}
+           />
 
-          {task.attachments && task.attachments.length > 0 && (
+           {task.attachments && task.attachments.length > 0 && (
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -151,11 +157,6 @@ export default function TaskPage() {
             </Card>
           )}
 
-           <CommentsSection
-              taskId={task.id}
-              comments={task.comments || []}
-              onCommentsUpdate={handleCommentsUpdate}
-           />
         </div>
 
         <div className="lg:col-span-1 space-y-6">
@@ -191,7 +192,7 @@ export default function TaskPage() {
                     )}
                 </CardContent>
             </Card>
-
+            
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -199,17 +200,35 @@ export default function TaskPage() {
                         Deployments
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                   <EnvironmentStatus deploymentStatus={task.deploymentStatus} othersEnvironmentName={task.othersEnvironmentName} />
-                   {task.deploymentDate && (
-                     <>
-                      <Separator/>
-                      <div className="flex justify-between text-sm pt-2">
-                        <span className="text-muted-foreground">Deployment Date</span>
-                        <span>{format(new Date(task.deploymentDate), 'PPP')}</span>
-                      </div>
-                     </>
-                   )}
+                <CardContent className="space-y-3 text-sm">
+                    {ENVIRONMENTS.map(env => {
+                        const isDeployed = task.deploymentStatus?.[env];
+                        const deploymentDate = task.deploymentDates?.[env];
+                        const envName = env === 'others' && task.othersEnvironmentName ? task.othersEnvironmentName : env;
+
+                        if (env === 'others' && !isDeployed) return null;
+
+                        return (
+                            <div key={env} className="flex justify-between items-center">
+                                <span className={cn("capitalize", isDeployed ? "text-foreground font-medium" : "text-muted-foreground")}>
+                                    {envName}
+                                </span>
+                                {isDeployed ? (
+                                    <div className="flex items-center gap-2">
+                                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                        <span className="text-foreground">
+                                            {deploymentDate ? format(new Date(deploymentDate), 'PPP') : 'Deployed'}
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <span className="text-muted-foreground">Pending</span>
+                                )}
+                            </div>
+                        )
+                    })}
+                     {(!task.deploymentStatus || Object.values(task.deploymentStatus).every(s => !s)) && (
+                        <p className="text-muted-foreground text-center text-xs pt-2">No deployments recorded.</p>
+                     )}
                 </CardContent>
             </Card>
 
@@ -251,6 +270,18 @@ export default function TaskPage() {
                      )}
                 </CardContent>
             </Card>
+            
+             <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <GitMerge className="h-5 w-5" />
+                        Pull Requests
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                   <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} />
+                </CardContent>
+            </Card>
 
             <Card>
                 <CardHeader>
@@ -285,18 +316,6 @@ export default function TaskPage() {
                     ) : (
                         <p className="text-sm text-muted-foreground">No developers assigned.</p>
                     )}
-                </CardContent>
-            </Card>
-            
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <GitMerge className="h-5 w-5" />
-                        Pull Requests
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                   <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} />
                 </CardContent>
             </Card>
         </div>
