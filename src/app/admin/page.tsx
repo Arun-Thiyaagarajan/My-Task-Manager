@@ -540,186 +540,196 @@ export default function AdminPage() {
                 />
             </div>
           </CardHeader>
-          <CardContent className="space-y-8">
-            
-            <div>
-              <div className="flex items-center gap-4 mb-4 border-b pb-2">
-                 <Checkbox
-                    id="select-all-active"
-                    checked={someActiveSelected ? 'indeterminate' : allActiveSelected}
-                    onCheckedChange={(checked) => {
-                        const allActiveIds = activeFieldsInView.filter(id => id !== 'title');
-                        if (checked) {
-                            setSelectedFields(prev => [...new Set([...prev, ...allActiveIds])]);
-                        } else {
-                            setSelectedFields(prev => prev.filter(id => !allActiveIds.includes(id)));
-                        }
-                    }}
-                    aria-label="Select all active fields"
-                  />
-                  <h2 className="text-xl font-semibold">Active Form Fields</h2>
-              </div>
+          <CardContent>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               
-              {fieldGroups.map(groupInfo => {
-                const activeFieldsInGroup = formLayout.filter(id => 
-                    groupInfo.fieldIds.includes(id) && filteredFields[id]
-                );
-                
-                if (activeFieldsInGroup.length === 0) return null;
-
-                return (
-                    <div 
-                        key={groupInfo.title}
-                        onDragOver={handleDragOver}
-                        onDrop={() => handleGroupContainerDrop(groupInfo.title)}
-                        className="mb-6 rounded-lg border bg-muted/20"
-                    >
-                       {editingGroup === groupInfo.title ? (
-                          <div className="p-4 rounded-t-lg bg-muted/50 flex items-center justify-between gap-4">
-                              <div className="flex items-center gap-2 flex-1">
-                                  <GripVertical className="h-5 w-5 text-muted-foreground shrink-0" />
-                                  <Input 
-                                      value={newGroupName} 
-                                      onChange={e => setNewGroupName(e.target.value)}
-                                      className="h-9"
-                                      onKeyDown={(e) => {
-                                          if (e.key === 'Enter') handleRenameGroup(groupInfo.title, newGroupName);
-                                          if (e.key === 'Escape') setEditingGroup(null);
-                                      }}
-                                      autoFocus
-                                  />
-                              </div>
-                              <div className="flex items-center gap-1 shrink-0">
-                                  <Button size="icon" className="h-8 w-8" onClick={() => handleRenameGroup(groupInfo.title, newGroupName)}><Check className="h-4 w-4" /></Button>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingGroup(null)}><X className="h-4 w-4" /></Button>
-                              </div>
-                          </div>
-                      ) : (
-                          <div className="p-4 rounded-t-lg bg-muted/50 flex items-center justify-between">
-                              <div 
-                                  draggable 
-                                  onDragStart={(e) => handleGroupDragStart(e, groupInfo.title)}
-                                  onDragEnd={handleDragEnd}
-                                  onDragOver={handleDragOver}
-                                  className="flex items-center gap-2 flex-1 cursor-grab"
-                              >
-                                  <GripVertical className="h-5 w-5 text-muted-foreground" />
-                                  <h3 className="text-lg font-semibold">{groupInfo.title}</h3>
-                              </div>
-                              <Tooltip>
-                                  <TooltipTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
-                                          setEditingGroup(groupInfo.title);
-                                          setNewGroupName(groupInfo.title);
-                                      }}>
-                                          <Edit className="h-4 w-4" />
-                                      </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent><p>Rename Group</p></TooltipContent>
-                              </Tooltip>
-                          </div>
-                      )}
-                        <div className="p-4 pt-2 space-y-2">
-                            {activeFieldsInGroup.map(renderFieldCard)}
-                        </div>
-                    </div>
-                );
-              })}
-
-              {filteredActiveLayout.length === 0 && (
-                <p className="text-muted-foreground text-center py-4">
-                  {searchQuery ? 'No active fields match your search.' : 'No active fields. Add some from the list below.'}
-                </p>
-              )}
-            </div>
-            
-            <div>
-              <div className="flex items-center justify-between mb-4 border-b pb-2">
-                <div className="flex items-center gap-4">
-                    <Checkbox
-                        id="select-all-inactive"
-                        checked={someInactiveSelected ? 'indeterminate' : allInactiveSelected}
-                        onCheckedChange={(checked) => {
-                            if (checked) {
-                                setSelectedFields(prev => [...new Set([...prev, ...inactiveFields])]);
-                            } else {
-                                setSelectedFields(prev => prev.filter(id => !inactiveFields.includes(id)));
-                            }
-                        }}
-                        aria-label="Select all inactive fields"
+              <div className="lg:col-span-2 space-y-6">
+                <div className="flex items-center gap-4 border-b pb-2">
+                  <Checkbox
+                      id="select-all-active"
+                      checked={someActiveSelected ? 'indeterminate' : allActiveSelected}
+                      onCheckedChange={(checked) => {
+                          const allActiveIds = activeFieldsInView.filter(id => id !== 'title');
+                          if (checked) {
+                              setSelectedFields(prev => [...new Set([...prev, ...allActiveIds])]);
+                          } else {
+                              setSelectedFields(prev => prev.filter(id => !allActiveIds.includes(id)));
+                          }
+                      }}
+                      aria-label="Select all active fields"
                     />
-                    <h2 className="text-xl font-semibold">Inactive Fields</h2>
+                    <h2 className="text-xl font-semibold">Active Form Fields</h2>
                 </div>
-                <Button variant="outline" onClick={() => { setFieldToEdit(null); setIsFieldDialogOpen(true); }}>
-                  <PlusCircle className="mr-2 h-4 w-4" /> Add Custom Field
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {inactiveFields.map(fieldId => {
-                   const fieldDefinition = allFields[fieldId];
-                   if (!fieldDefinition) return null;
-                   const isSelected = selectedFields.includes(fieldId);
-                   return (
-                     <div 
-                        key={fieldId} 
-                        className={cn("flex items-center justify-between gap-4 rounded-lg border p-3",
-                            isSelected ? 'bg-primary/10 border-primary' : 'bg-muted/50'
-                        )}
+              
+                {fieldGroups.map(groupInfo => {
+                  const activeFieldsInGroup = formLayout.filter(id => 
+                      groupInfo.fieldIds.includes(id) && filteredFields[id]
+                  );
+                  
+                  if (activeFieldsInGroup.length === 0) return null;
+
+                  return (
+                      <div 
+                          key={groupInfo.title}
+                          onDragOver={handleDragOver}
+                          onDrop={() => handleGroupContainerDrop(groupInfo.title)}
+                          className="mb-6 rounded-lg border bg-muted/20"
                       >
-                       <div className="flex-1 flex items-center gap-4">
-                           <Checkbox
-                                id={`select-inactive-${fieldId}`}
-                                checked={isSelected}
-                                onCheckedChange={() => handleSelectField(fieldId)}
-                                aria-label={`Select field ${fieldDefinition.label}`}
-                           />
-                          <div>
-                            <p className="font-medium">{fieldDefinition.label}</p>
-                            <p className="text-xs text-muted-foreground">{fieldDefinition.type}</p>
+                        {editingGroup === groupInfo.title ? (
+                            <div className="p-4 rounded-t-lg bg-muted/50 flex items-center justify-between gap-4">
+                                <div className="flex items-center gap-2 flex-1">
+                                    <GripVertical className="h-5 w-5 text-muted-foreground shrink-0" />
+                                    <Input 
+                                        value={newGroupName} 
+                                        onChange={e => setNewGroupName(e.target.value)}
+                                        className="h-9"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') handleRenameGroup(groupInfo.title, newGroupName);
+                                            if (e.key === 'Escape') setEditingGroup(null);
+                                        }}
+                                        autoFocus
+                                    />
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                    <Button size="icon" className="h-8 w-8" onClick={() => handleRenameGroup(groupInfo.title, newGroupName)}><Check className="h-4 w-4" /></Button>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingGroup(null)}><X className="h-4 w-4" /></Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="p-4 rounded-t-lg bg-muted/50 flex items-center justify-between">
+                                <div 
+                                    draggable 
+                                    onDragStart={(e) => handleGroupDragStart(e, groupInfo.title)}
+                                    onDragEnd={handleDragEnd}
+                                    onDragOver={handleDragOver}
+                                    className="flex items-center gap-2 flex-1 cursor-grab"
+                                >
+                                    <GripVertical className="h-5 w-5 text-muted-foreground" />
+                                    <h3 className="text-lg font-semibold">{groupInfo.title}</h3>
+                                </div>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                                            setEditingGroup(groupInfo.title);
+                                            setNewGroupName(groupInfo.title);
+                                        }}>
+                                            <Edit className="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>Rename Group</p></TooltipContent>
+                                </Tooltip>
+                            </div>
+                        )}
+                          <div className="p-4 pt-2 space-y-2">
+                              {activeFieldsInGroup.map(renderFieldCard)}
                           </div>
-                        </div>
-                        <div className='flex items-center gap-2'>
-                          <Button size="sm" variant="outline" className="px-3 h-8" onClick={(e) => { e.stopPropagation(); handleAddField(fieldId);}}>
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Activate
-                          </Button>
-                           <Tooltip>
-                              <TooltipTrigger asChild>
-                               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditDialog(fieldDefinition)}>
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                             </TooltipTrigger>
-                             <TooltipContent>
-                               <p>Edit Field</p>
-                             </TooltipContent>
-                           </Tooltip>
-                           <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                                  <Trash2 className="h-4 w-4" />
-                                  <span className="sr-only">Delete Field</span>
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                  <AlertDialogDescription>This will permanently delete the "{fieldDefinition.label}" field and all associated data from your tasks. This action cannot be undone.</AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDeleteField(fieldId)} className="bg-destructive hover:bg-destructive/90">Delete Field</AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                        </div>
-                     </div>
-                   )
+                      </div>
+                  );
                 })}
-                {inactiveFields.length === 0 && (
-                  <p className="text-muted-foreground text-center py-4 w-full">
-                    {searchQuery ? 'No inactive fields match your search.' : 'All fields are active.'}
+
+                {filteredActiveLayout.length === 0 && (
+                  <p className="text-muted-foreground text-center py-4">
+                    {searchQuery ? 'No active fields match your search.' : 'No active fields. Add some from the list below.'}
                   </p>
                 )}
+              </div>
+            
+              <div className="lg:col-span-1 space-y-4">
+                <Card className="sticky top-20">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-xl font-semibold">Available Fields</h2>
+                      <Button variant="outline" size="sm" onClick={() => { setFieldToEdit(null); setIsFieldDialogOpen(true); }}>
+                        <PlusCircle className="mr-2 h-4 w-4" /> Add New
+                      </Button>
+                    </div>
+                     <div className="flex items-center gap-4 pt-2 border-t mt-4">
+                      <Checkbox
+                          id="select-all-inactive"
+                          checked={someInactiveSelected ? 'indeterminate' : allInactiveSelected}
+                          onCheckedChange={(checked) => {
+                              if (checked) {
+                                  setSelectedFields(prev => [...new Set([...prev, ...inactiveFields])]);
+                              } else {
+                                  setSelectedFields(prev => prev.filter(id => !inactiveFields.includes(id)));
+                              }
+                          }}
+                          aria-label="Select all inactive fields"
+                      />
+                      <Label htmlFor="select-all-inactive">Select all available</Label>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="max-h-[calc(100vh-22rem)] overflow-y-auto">
+                    <div className="space-y-2">
+                      {inactiveFields.map(fieldId => {
+                        const fieldDefinition = allFields[fieldId];
+                        if (!fieldDefinition) return null;
+                        const isSelected = selectedFields.includes(fieldId);
+                        return (
+                          <div 
+                              key={fieldId} 
+                              className={cn("flex items-center justify-between gap-2 rounded-lg border p-2",
+                                  isSelected ? 'bg-primary/10 border-primary' : 'bg-muted/50'
+                              )}
+                            >
+                            <div className="flex-1 flex items-center gap-2">
+                                <Checkbox
+                                      id={`select-inactive-${fieldId}`}
+                                      checked={isSelected}
+                                      onCheckedChange={() => handleSelectField(fieldId)}
+                                      aria-label={`Select field ${fieldDefinition.label}`}
+                                />
+                              <p className="font-medium text-sm">{fieldDefinition.label}</p>
+                              </div>
+                              <div className='flex items-center gap-0.5'>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleAddField(fieldId)}>
+                                      <PlusCircle className="h-4 w-4 text-green-500" />
+                                  </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent><p>Activate</p></TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenEditDialog(fieldDefinition)}>
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Edit Field</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+                                        <Trash2 className="h-4 w-4" />
+                                        <span className="sr-only">Delete Field</span>
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>This will permanently delete the "{fieldDefinition.label}" field and all associated data from your tasks. This action cannot be undone.</AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteField(fieldId)} className="bg-destructive hover:bg-destructive/90">Delete Field</AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                              </div>
+                          </div>
+                        )
+                      })}
+                      {inactiveFields.length === 0 && (
+                        <p className="text-muted-foreground text-center py-4 w-full text-sm">
+                          {searchQuery ? 'No available fields match your search.' : 'All fields are active.'}
+                        </p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             </div>
           </CardContent>

@@ -95,7 +95,7 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                 type: fieldToEdit.type,
                 group: fieldToEdit.group || (fieldToEdit.type === 'tags' ? 'Tagging' : 'Custom Fields'),
                 options: fieldToEdit.options?.map(o => ({ value: o })) || [],
-                required: adminConfig.fieldConfig[fieldToEdit.id]?.required || false,
+                required: fieldToEdit.id === 'title' || adminConfig.fieldConfig[fieldToEdit.id]?.required || false,
             });
         } else {
             form.reset({
@@ -330,6 +330,7 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                                     <Checkbox
                                         checked={field.value}
                                         onCheckedChange={field.onChange}
+                                        disabled={fieldToEdit?.id === 'title'}
                                     />
                                 </FormControl>
                             </FormItem>
