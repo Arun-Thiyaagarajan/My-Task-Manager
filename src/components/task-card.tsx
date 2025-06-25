@@ -44,12 +44,14 @@ export function TaskCard({ task, onTaskDelete }: TaskCardProps) {
       onClick={handleNavigate}
     >
       <CardHeader className="p-4 pb-2">
-        <div className="flex items-center mb-2">
-          <TaskStatusBadge status={task.status} />
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="text-base font-semibold leading-snug line-clamp-3">
+            {task.title}
+          </CardTitle>
+          <div className="flex-shrink-0">
+            <TaskStatusBadge status={task.status} />
+          </div>
         </div>
-        <CardTitle className="text-base font-semibold leading-snug line-clamp-3">
-          {task.title}
-        </CardTitle>
       </CardHeader>
       <CardContent className="flex-grow flex flex-col p-4 pt-2">
         <div className="flex-grow space-y-3">

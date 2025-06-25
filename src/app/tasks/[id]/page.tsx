@@ -114,11 +114,13 @@ export default function TaskPage() {
       <div className="flex flex-col lg:flex-row gap-8">
         <div className="lg:w-2/3 space-y-6">
           <Card>
-            <CardHeader className="items-start">
-              <TaskStatusBadge status={task.status} />
-              <CardTitle className="text-3xl font-bold mt-2">
-                {task.title}
-              </CardTitle>
+            <CardHeader>
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <CardTitle className="text-3xl font-bold">
+                  {task.title}
+                </CardTitle>
+                <TaskStatusBadge status={task.status} />
+              </div>
               <CardDescription>
                 Last updated on {format(new Date(task.updatedAt), 'PPP')}
               </CardDescription>
