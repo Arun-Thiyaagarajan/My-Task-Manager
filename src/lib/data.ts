@@ -17,8 +17,7 @@ interface MyTaskManagerData {
 const DATA_KEY = 'my_task_manager_data';
 
 const getInitialData = (): MyTaskManagerData => {
-    const randomSuffix = Math.random().toString(36).slice(2);
-    const defaultCompanyId = `company-${Date.now()}-${randomSuffix}`;
+    const defaultCompanyId = `company-${crypto.randomUUID()}`;
     return {
         companies: [{ id: defaultCompanyId, name: 'Default Company' }],
         activeCompanyId: defaultCompanyId,
@@ -33,7 +32,16 @@ const getInitialData = (): MyTaskManagerData => {
 
 const getAppData = (): MyTaskManagerData => {
     if (typeof window === 'undefined') {
-        return getInitialData();
+        return {
+            companies: [{ id: 'company-placeholder', name: 'Default Company' }],
+            activeCompanyId: 'company-placeholder',
+            companyData: {
+                'company-placeholder': {
+                    tasks: [],
+                    developers: ['Arun', 'Samantha', 'Rajesh'],
+                },
+            },
+        };
     }
     const stored = window.localStorage.getItem(DATA_KEY);
     if (!stored) {
@@ -68,8 +76,7 @@ export function getCompanies(): Company[] {
 
 export function addCompany(name: string): Company {
     const data = getAppData();
-    const randomSuffix = Math.random().toString(36).slice(2);
-    const newCompanyId = `company-${Date.now()}-${randomSuffix}`;
+    const newCompanyId = `company-${crypto.randomUUID()}`;
     const newCompany: Company = { id: newCompanyId, name };
     
     data.companies.push(newCompany);
@@ -140,9 +147,8 @@ export function addTask(taskData: Partial<Omit<Task, 'id' | 'createdAt' | 'updat
   const companyTasks = data.companyData[activeCompanyId]?.tasks || [];
 
   const now = new Date().toISOString();
-  const randomSuffix = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
   const newTask: Task = {
-    id: `task-${Date.now()}-${randomSuffix}`,
+    id: `task-${crypto.randomUUID()}`,
     createdAt: now,
     updatedAt: now,
     title: taskData.title || 'Untitled Task',
