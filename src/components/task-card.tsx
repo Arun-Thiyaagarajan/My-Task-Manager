@@ -29,13 +29,6 @@ export function TaskCard({ task, onTaskDelete }: TaskCardProps) {
     ? `https://dev.azure.com/ideaelan/Infinity/_workitems/edit/${task.azureWorkItemId}`
     : null;
 
-  const handleActionClick = (e: React.MouseEvent) => {
-    // When an action inside the Link is clicked (e.g., external link),
-    // we need to stop it from navigating.
-    e.stopPropagation();
-    e.preventDefault();
-  };
-
   return (
     <Card
       className="flex flex-col h-full transition-all duration-300 hover:shadow-lg hover:-translate-y-1 bg-card hover:border-primary"
@@ -66,15 +59,20 @@ export function TaskCard({ task, onTaskDelete }: TaskCardProps) {
             {azureWorkItemUrl && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <ExternalLink className="h-4 w-4 shrink-0" />
-                <a
-                  href={azureWorkItemUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-primary transition-colors line-clamp-1"
-                  onClick={handleActionClick}
+                <span
+                  role="link"
+                  aria-label={`View Azure Work Item ${task.azureWorkItemId}`}
+                  className="hover:text-primary transition-colors line-clamp-1 cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    if (azureWorkItemUrl) {
+                      window.open(azureWorkItemUrl, '_blank', 'noopener,noreferrer');
+                    }
+                  }}
                 >
                   Azure ID: {task.azureWorkItemId}
-                </a>
+                </span>
               </div>
             )}
           </div>
