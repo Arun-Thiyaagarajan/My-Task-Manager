@@ -51,7 +51,7 @@ export function TaskCard({ task, onTaskDelete }: TaskCardProps) {
         
         <div>
             <p className="text-xs font-medium text-muted-foreground mb-2">Deployments</p>
-            <EnvironmentStatus prLinks={task.prLinks} size="sm" />
+            <EnvironmentStatus deploymentStatus={task.deploymentStatus} size="sm" />
         </div>
         
         {task.developers && task.developers.length > 0 && (

@@ -5,12 +5,12 @@ import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 interface EnvironmentStatusProps {
-  prLinks: Task['prLinks'];
+  deploymentStatus: Task['deploymentStatus'];
   size?: 'sm' | 'default';
 }
 
-export function EnvironmentStatus({ prLinks, size = 'default' }: EnvironmentStatusProps) {
-  const hasPr = (env: keyof Task['prLinks']) => prLinks[env] && prLinks[env]!.length > 0;
+export function EnvironmentStatus({ deploymentStatus, size = 'default' }: EnvironmentStatusProps) {
+  const isDeployed = (env: Environment) => deploymentStatus && deploymentStatus[env];
 
   const getEnvInfo = (env: Environment) => {
     switch(env) {
@@ -46,7 +46,7 @@ export function EnvironmentStatus({ prLinks, size = 'default' }: EnvironmentStat
     <TooltipProvider delayDuration={100}>
       <div className="flex flex-wrap items-center gap-1.5">
         {ENVIRONMENTS.map(env => {
-          const isDeployed = hasPr(env);
+          const deployed = isDeployed(env);
           const envInfo = getEnvInfo(env);
           
           return (
@@ -56,7 +56,7 @@ export function EnvironmentStatus({ prLinks, size = 'default' }: EnvironmentStat
                   variant="outline"
                   className={cn(
                     'capitalize font-medium',
-                    isDeployed
+                    deployed
                       ? envInfo.color
                       : 'border-dashed text-muted-foreground/80 dark:text-muted-foreground/50',
                     size === 'sm' && 'px-1.5 py-0 text-[10px] h-4'
@@ -66,7 +66,7 @@ export function EnvironmentStatus({ prLinks, size = 'default' }: EnvironmentStat
                 </Badge>
               </TooltipTrigger>
               <TooltipContent>
-                <p>{envInfo.label}: {isDeployed ? 'Deployed' : 'Pending'}</p>
+                <p>{envInfo.label}: {deployed ? 'Deployed' : 'Pending'}</p>
               </TooltipContent>
             </Tooltip>
           );

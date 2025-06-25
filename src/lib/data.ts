@@ -51,6 +51,7 @@ export function addTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>):
     updatedAt: now,
     ...taskData,
     prLinks: taskData.prLinks ?? {},
+    deploymentStatus: taskData.deploymentStatus ?? {},
     developers: taskData.developers ?? [],
     qaIssueIds: taskData.qaIssueIds ?? [],
   };

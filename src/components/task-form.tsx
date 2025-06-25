@@ -37,6 +37,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Separator } from './ui/separator';
 import { MultiSelect, type SelectOption } from './ui/multi-select';
+import { Checkbox } from './ui/checkbox';
 
 type TaskFormData = z.infer<typeof taskSchema>;
 
@@ -66,6 +67,12 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
       azureWorkItemId: task?.azureWorkItemId ?? '',
       developers: task?.developers ?? (task ? [] : ['Arun']),
       qaIssueIds: task?.qaIssueIds?.join(', ') ?? '',
+      deploymentStatus: {
+        dev: task?.deploymentStatus?.dev ?? false,
+        stage: task?.deploymentStatus?.stage ?? false,
+        production: task?.deploymentStatus?.production ?? false,
+        others: task?.deploymentStatus?.others ?? false,
+      },
       prLinks: {
         dev: task?.prLinks?.dev?.join(', ') ?? '',
         stage: task?.prLinks?.stage?.join(', ') ?? '',
@@ -221,7 +228,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
           />
         </Card>
         
-        <Accordion type="single" collapsible className="w-full">
+        <Accordion type="single" collapsible className="w-full" defaultValue="advanced">
             <AccordionItem value="advanced">
                 <AccordionTrigger className="text-base">Advanced Details</AccordionTrigger>
                 <AccordionContent className="space-y-6 pt-4">
@@ -385,6 +392,34 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                                 )}
                             />
                         </div>
+                    </div>
+                    <Separator />
+                    <div>
+                      <h4 className="font-medium text-sm text-muted-foreground mb-4">Deployment Status</h4>
+                      <div className="space-y-4">
+                        {ENVIRONMENTS.map(env => (
+                            <FormField
+                            key={env}
+                            control={form.control}
+                            name={`deploymentStatus.${env}`}
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
+                                <FormControl>
+                                    <Checkbox
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                    />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                    <FormLabel className="capitalize font-normal">
+                                    Deployed to {env}
+                                    </FormLabel>
+                                </div>
+                                </FormItem>
+                            )}
+                            />
+                        ))}
+                      </div>
                     </div>
                     <Separator />
                     <div>

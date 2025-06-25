@@ -15,6 +15,9 @@ export interface Task {
   prLinks: {
     [key in Environment]?: string[];
   };
+  deploymentStatus: {
+    [key in Environment]?: boolean;
+  };
   developers?: Developer[];
   qaIssueIds?: string[];
   devStartDate?: string;

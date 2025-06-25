@@ -7,6 +7,12 @@ const prLinksSchema = z.object(
   )
 ) as z.ZodType<Record<typeof ENVIRONMENTS[number], string | undefined>>;
 
+const deploymentStatusSchema = z.object(
+  Object.fromEntries(
+    ENVIRONMENTS.map(env => [env, z.boolean().optional()])
+  )
+) as z.ZodType<Record<typeof ENVIRONMENTS[number], boolean | undefined>>;
+
 
 export const taskSchema = z.object({
   title: z.string().min(3, { message: 'Title must be at least 3 characters long.' }),
@@ -19,6 +25,7 @@ export const taskSchema = z.object({
   developers: z.array(z.string()).optional(),
   qaIssueIds: z.string().optional(),
   prLinks: prLinksSchema,
+  deploymentStatus: deploymentStatusSchema,
   devStartDate: z.date().optional(),
   devEndDate: z.date().optional(),
   qaStartDate: z.date().optional(),
