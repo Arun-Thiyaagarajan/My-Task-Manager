@@ -165,11 +165,19 @@ export function updateAdminConfig(newConfig: AdminConfig) {
             newConfig.fieldConfig[fieldId].visible = newConfig.formLayout.includes(fieldId);
         });
 
-        // Then, enforce the rules for the Title field, overriding any other settings
-        if (!newConfig.formLayout.includes('title')) {
-             newConfig.formLayout.unshift('title');
-        }
-        newConfig.fieldConfig.title = { visible: true, required: true };
+        // Then, enforce the rules for the core fields, overriding any other settings
+        const protectedFields = ['title', 'description'];
+        protectedFields.forEach(fieldId => {
+             if (!newConfig.formLayout.includes(fieldId)) {
+                newConfig.formLayout.unshift(fieldId);
+            }
+            if (!newConfig.fieldConfig[fieldId]) {
+                newConfig.fieldConfig[fieldId] = { visible: true, required: true };
+            } else {
+                newConfig.fieldConfig[fieldId].visible = true;
+                newConfig.fieldConfig[fieldId].required = true;
+            }
+        });
         
         data.companyData[activeCompanyId].adminConfig = newConfig;
         setAppData(data);
@@ -185,7 +193,8 @@ export function addField(fieldId: string) {
 }
 
 export function removeField(fieldId: string) {
-    if (fieldId === 'title') return; // Safeguard
+    const protectedFields = ['title', 'description'];
+    if (protectedFields.includes(fieldId)) return; // Safeguard
     const config = getAdminConfig();
     config.formLayout = config.formLayout.filter(id => id !== fieldId);
     updateAdminConfig(config);
@@ -213,8 +222,11 @@ export function saveField(field: FormField, required: boolean, activate: boolean
         const currentlyActive = companyData.adminConfig.formLayout.includes(field.id);
         if (activate && !currentlyActive) {
             companyData.adminConfig.formLayout.push(field.id);
-        } else if (!activate && currentlyActive && field.id !== 'title') {
-            companyData.adminConfig.formLayout = companyData.adminConfig.formLayout.filter(id => id !== field.id);
+        } else if (!activate && currentlyActive) {
+            const protectedFields = ['title', 'description'];
+            if (!protectedFields.includes(field.id)) {
+                companyData.adminConfig.formLayout = companyData.adminConfig.formLayout.filter(id => id !== field.id);
+            }
         }
         
         // Add new group to groupOrder if it doesn't exist
@@ -242,9 +254,8 @@ export function saveField(field: FormField, required: boolean, activate: boolean
 }
 
 export function deleteField(fieldId: string) {
-    if (fieldId === 'title') {
-        // Silently prevent deletion of the title field.
-        // The UI should prevent this action, but this is a safeguard.
+    const protectedFields = ['title', 'description'];
+    if (protectedFields.includes(fieldId)) {
         return;
     }
     const data = getAppData();
@@ -252,15 +263,52 @@ export function deleteField(fieldId: string) {
     const companyData = data.companyData[activeCompanyId];
 
     if (companyData?.fields[fieldId]) {
+        // First, remove it from any parent fields that might be using it as a child.
+        Object.values(companyData.fields).forEach(parentField => {
+            if (parentField.type === 'group' && parentField.childFieldIds?.includes(fieldId)) {
+                parentField.childFieldIds = parentField.childFieldIds.filter(id => id !== fieldId);
+            }
+            // Also remove from conditional logic
+            if (parentField.conditionalLogic) {
+                Object.keys(parentField.conditionalLogic).forEach(key => {
+                    if (parentField.conditionalLogic?.[key]) {
+                       parentField.conditionalLogic[key] = parentField.conditionalLogic[key].filter(id => id !== fieldId);
+                    }
+                });
+            }
+        });
+
+        // Now, delete the field itself
         delete companyData.fields[fieldId];
         
+        // Remove from layout and config
         companyData.adminConfig.formLayout = companyData.adminConfig.formLayout.filter(id => id !== fieldId);
         delete companyData.adminConfig.fieldConfig[fieldId];
 
+        // Clean up task data
         companyData.tasks.forEach(task => {
+            // Delete top-level field data
             if (fieldId in task) {
-                delete task[fieldId];
+                delete task[fieldId as keyof Task];
             }
+            
+            // Delete nested field data from inside groups
+            Object.values(companyData.fields).forEach(parentField => {
+                if (parentField.type === 'group' && task[parentField.id]) {
+                    if (parentField.isRepeatable) {
+                         (task[parentField.id] as any[]).forEach(groupInstance => {
+                             if (groupInstance && fieldId in groupInstance) {
+                                delete groupInstance[fieldId];
+                            }
+                        });
+                    } else {
+                        const groupInstance = task[parentField.id] as any;
+                        if (groupInstance && fieldId in groupInstance) {
+                            delete groupInstance[fieldId];
+                        }
+                    }
+                }
+            });
         });
         
         setAppData(data);
@@ -383,7 +431,6 @@ export function addTask(taskData: Partial<Omit<Task, 'id' | 'createdAt' | 'updat
     title: taskData.title || 'Untitled Task',
     description: taskData.description || '',
     status: taskData.status || 'To Do',
-    qaIssueIds: '', // Default to empty string
     ...taskData
   };
   

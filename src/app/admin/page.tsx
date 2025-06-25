@@ -102,7 +102,9 @@ export default function AdminPage() {
 
 
   const handleToggleRequired = (fieldId: string) => {
-    if (!adminConfig || fieldId === 'title') return;
+    if (!adminConfig) return;
+    const isProtectedField = fieldId === 'title' || fieldId === 'description';
+    if (isProtectedField) return;
     
     const newConfig = { ...adminConfig };
     const fieldConf = newConfig.fieldConfig[fieldId] || { visible: true, required: false };
@@ -331,7 +333,8 @@ export default function AdminPage() {
         if (!adminConfig) return;
         const newConfig = { ...adminConfig };
         selectedFields.forEach(fieldId => {
-            if (fieldId === 'title') return;
+            const isProtectedField = fieldId === 'title' || fieldId === 'description';
+            if (isProtectedField) return;
             const fieldConf = newConfig.fieldConfig[fieldId] || { visible: true, required: false };
             fieldConf.required = required;
             newConfig.fieldConfig[fieldId] = fieldConf;
@@ -361,7 +364,7 @@ export default function AdminPage() {
     };
 
     const handleBulkDeactivate = () => {
-        const selection = selectedFields.filter(id => id !== 'title');
+        const selection = selectedFields.filter(id => id !== 'title' && id !== 'description');
         selection.forEach(fieldId => {
             if (formLayout && formLayout.includes(fieldId)) {
                 removeField(fieldId);
@@ -377,7 +380,7 @@ export default function AdminPage() {
     };
 
     const handleBulkDelete = () => {
-        const selection = selectedFields.filter(id => id !== 'title');
+        const selection = selectedFields.filter(id => id !== 'title' && id !== 'description');
         selection.forEach(fieldId => {
             deleteField(fieldId);
         });
@@ -407,16 +410,16 @@ export default function AdminPage() {
       if (!fieldDefinition) return null;
 
       const isSelected = selectedFields.includes(fieldId);
-      const isTitleField = fieldId === 'title';
+      const isProtectedField = fieldId === 'title' || fieldId === 'description';
 
       return (
         <div 
           key={fieldId}
           className={cn("flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-lg border p-4 transition-colors",
-            isSelected && !isTitleField ? 'bg-primary/10 border-primary' : 'bg-background hover:border-primary/50'
+            isSelected && !isProtectedField ? 'bg-primary/10 border-primary' : 'bg-background hover:border-primary/50'
           )}
-          draggable={!isTitleField}
-          onDragStart={(e) => !isTitleField && handleDragStart(e, fieldId)}
+          draggable={!isProtectedField}
+          onDragStart={(e) => !isProtectedField && handleDragStart(e, fieldId)}
           onDragOver={handleDragOver}
           onDrop={() => handleDropOnField(fieldId)}
           onDragEnd={handleDragEnd}
@@ -428,9 +431,9 @@ export default function AdminPage() {
                 onCheckedChange={() => handleSelectField(fieldId)}
                 aria-label={`Select field ${fieldDefinition.label}`}
                 className="shrink-0"
-                disabled={isTitleField}
+                disabled={isProtectedField}
             />
-            <GripVertical className={cn("h-6 w-6 text-muted-foreground shrink-0", isTitleField ? "cursor-not-allowed text-muted-foreground/50" : "cursor-grab")} />
+            <GripVertical className={cn("h-6 w-6 text-muted-foreground shrink-0", isProtectedField ? "cursor-not-allowed text-muted-foreground/50" : "cursor-grab")} />
               <div 
                 className="flex-1 cursor-pointer"
                 onClick={() => handleOpenEditDialog(fieldDefinition)}
@@ -443,12 +446,12 @@ export default function AdminPage() {
             <div className="flex items-center space-x-2">
                 <Switch
                   id={`required-${fieldId}`}
-                  checked={isTitleField || (fieldConfig[fieldId]?.required || false)}
-                  onCheckedChange={() => !isTitleField && handleToggleRequired(fieldId)}
+                  checked={isProtectedField || (fieldConfig[fieldId]?.required || false)}
+                  onCheckedChange={() => !isProtectedField && handleToggleRequired(fieldId)}
                   onClick={e => e.stopPropagation()}
-                  disabled={isTitleField}
+                  disabled={isProtectedField}
                 />
-                <Label htmlFor={`required-${fieldId}`} className={cn(isTitleField && "text-muted-foreground/80")}>Required</Label>
+                <Label htmlFor={`required-${fieldId}`} className={cn(isProtectedField && "text-muted-foreground/80")}>Required</Label>
             </div>
             <div className="flex items-center border-l pl-4 gap-1">
                 <Tooltip>
@@ -458,13 +461,13 @@ export default function AdminPage() {
                         size="icon" 
                         className="h-8 w-8 text-destructive hover:text-destructive" 
                         onClick={() => removeField(fieldId)}
-                        disabled={isTitleField}
+                        disabled={isProtectedField}
                     >
                       <XCircle className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>{isTitleField ? "Title field cannot be deactivated" : "Deactivate"}</p>
+                    <p>{isProtectedField ? "This field cannot be deactivated" : "Deactivate"}</p>
                   </TooltipContent>
                 </Tooltip>
             </div>
@@ -477,11 +480,13 @@ export default function AdminPage() {
     const fieldDefinition = allFields[fieldId];
     if (!fieldDefinition) return null;
     const isSelected = selectedFields.includes(fieldId);
+    const isProtectedField = fieldId === 'title' || fieldId === 'description';
+
     return (
       <div 
           key={fieldId} 
           className={cn("flex items-center justify-between gap-2 rounded-lg border p-2",
-              isSelected ? 'bg-primary/10 border-primary' : 'bg-muted/50'
+              isSelected && !isProtectedField ? 'bg-primary/10 border-primary' : 'bg-muted/50'
           )}
         >
         <div className="flex-1 flex items-center gap-2">
@@ -490,6 +495,7 @@ export default function AdminPage() {
                   checked={isSelected}
                   onCheckedChange={() => handleSelectField(fieldId)}
                   aria-label={`Select field ${fieldDefinition.label}`}
+                  disabled={isProtectedField}
             />
           <p className="font-medium text-sm">{fieldDefinition.label}</p>
           </div>
@@ -514,7 +520,7 @@ export default function AdminPage() {
             </Tooltip>
             <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" disabled={isProtectedField}>
                     <Trash2 className="h-4 w-4" />
                     <span className="sr-only">Delete Field</span>
                   </Button>
@@ -573,7 +579,7 @@ export default function AdminPage() {
                       id="select-all-active"
                       checked={someActiveSelected ? 'indeterminate' : allActiveSelected}
                       onCheckedChange={(checked) => {
-                          const allActiveIds = activeFieldsInView.filter(id => id !== 'title');
+                          const allActiveIds = activeFieldsInView.filter(id => id !== 'title' && id !== 'description');
                           if (checked) {
                               setSelectedFields(prev => [...new Set([...prev, ...allActiveIds])]);
                           } else {
