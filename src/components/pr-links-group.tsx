@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,19 +10,19 @@ import { ScrollArea, ScrollBar } from './ui/scroll-area';
 
 interface PrLinksGroupProps {
   prLinks: Task['prLinks'];
-  repositories: Repository[];
+  repositories: Repository[] | undefined;
 }
 
 export function PrLinksGroup({ prLinks, repositories }: PrLinksGroupProps) {
   const baseUrl = 'https://dev.azure.com/ideaelan/Infinity/_git/';
 
-  // Use all repositories assigned to the task for the tabs, except 'Other'
-  const displayRepos = repositories.filter(repo => repo !== 'Other');
+  // Use all repositories assigned to the task for the tabs
+  const displayRepos = repositories?.filter(repo => repo !== 'Other') || [];
 
   if (!displayRepos || displayRepos.length === 0) {
     return (
       <p className="text-muted-foreground text-sm py-4 text-center">
-        No repositories (excluding 'Other') are assigned to this task.
+        No repositories are assigned to this task.
       </p>
     );
   }
@@ -41,7 +42,7 @@ export function PrLinksGroup({ prLinks, repositories }: PrLinksGroupProps) {
       {displayRepos.map((repo) => {
         // Find if this specific repo has any links to show
         const linksForRepo = ENVIRONMENTS.map(env => {
-            const prIdString = prLinks[env]?.[repo] || '';
+            const prIdString = prLinks?.[env]?.[repo] || '';
             const prIds = prIdString
                 .split(',')
                 .map((id) => id.trim())

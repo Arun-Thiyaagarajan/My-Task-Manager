@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getTaskById, getDevelopers, updateTask, addDeveloper, getAdminConfig, getCustomFields } from '@/lib/data';
+import { getTaskById, getDevelopers, updateTask, addDeveloper, getAdminConfig, getFields } from '@/lib/data';
 import { useParams, useRouter } from 'next/navigation';
 import { TaskForm } from '@/components/task-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +11,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { buildTaskSchema } from '@/lib/validators';
-import { MASTER_FORM_FIELDS } from '@/lib/form-config';
 
 export default function EditTaskPage() {
   const params = useParams();
@@ -30,12 +29,12 @@ export default function EditTaskPage() {
       const foundTask = getTaskById(taskId);
       const devs = getDevelopers();
       const config = getAdminConfig();
-      const customFields = getCustomFields();
+      const fields = getFields();
 
       setTask(foundTask || null);
       setDevelopersList(devs);
       setAdminConfig(config);
-      setAllFields({ ...MASTER_FORM_FIELDS, ...customFields });
+      setAllFields(fields);
       setIsLoading(false);
       
       if (foundTask) {

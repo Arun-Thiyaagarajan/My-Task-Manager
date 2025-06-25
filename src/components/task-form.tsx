@@ -66,6 +66,10 @@ const getInitialTaskData = (allFields: Record<string, FormField>, task?: Task) =
             defaultData[field.id] = field.defaultValue;
         }
     });
+     // Set default repository if creating a new task and it's not already set
+    if (!task && allFields.repositories && allFields.repositories.defaultValue) {
+        defaultData.repositories = allFields.repositories.defaultValue;
+    }
     return defaultData;
 }
 
@@ -176,7 +180,13 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
         )
       
       case 'multiselect':
-         const options = (fieldDef.id === 'developers' ? allDevelopers : fieldDef.options ?? []).map(opt => ({ value: opt, label: opt }));
+         let options: { value: string; label: string; }[] = [];
+         if (fieldDef.id === 'developers') {
+             options = allDevelopers.map(opt => ({ value: opt, label: opt }));
+         } else {
+             options = (fieldDef.options ?? []).map(opt => ({ value: opt, label: opt }));
+         }
+
          return (
             <HookFormField
                 control={form.control}
@@ -222,7 +232,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
                                 )}
                                 >
                                 {field.value ? (
-                                    format(field.value, "PPP")
+                                    format(new Date(field.value), "PPP")
                                 ) : (
                                     <span>{fieldDef.placeholder}</span>
                                 )}
@@ -233,7 +243,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
                             <PopoverContent className="w-auto p-0" align="start">
                             <Calendar
                                 mode="single"
-                                selected={field.value}
+                                selected={field.value ? new Date(field.value) : undefined}
                                 onSelect={field.onChange}
                                 disabled={(date) =>
                                     (watchedDate && date < new Date(watchedDate)) ||

@@ -1,12 +1,13 @@
 
 import type { Task, Developer, Company, AdminConfig, FormField } from './types';
-import { DEFAULT_ADMIN_CONFIG } from './form-config';
+import { DEFAULT_ADMIN_CONFIG, MASTER_FORM_FIELDS } from './form-config';
+import { cloneDeep } from 'lodash';
 
 interface CompanyData {
     tasks: Task[];
     developers: Developer[];
     adminConfig: AdminConfig;
-    customFields: Record<string, FormField>;
+    fields: Record<string, FormField>;
 }
 
 interface MyTaskManagerData {
@@ -28,8 +29,8 @@ const getInitialData = (): MyTaskManagerData => {
             [defaultCompanyId]: {
                 tasks: [],
                 developers: ['Arun'],
-                adminConfig: DEFAULT_ADMIN_CONFIG,
-                customFields: {},
+                adminConfig: cloneDeep(DEFAULT_ADMIN_CONFIG),
+                fields: cloneDeep(MASTER_FORM_FIELDS),
             },
         },
     };
@@ -37,11 +38,7 @@ const getInitialData = (): MyTaskManagerData => {
 
 const getAppData = (): MyTaskManagerData => {
     if (typeof window === 'undefined') {
-        return {
-            companies: [],
-            activeCompanyId: '',
-            companyData: {},
-        };
+        return getInitialData(); // Return initial data for SSR to avoid undefined errors
     }
     const stored = window.localStorage.getItem(DATA_KEY);
     if (!stored) {
@@ -54,18 +51,20 @@ const getAppData = (): MyTaskManagerData => {
         if (!data.companies || !data.activeCompanyId || !data.companyData) {
             throw new Error("Invalid data structure");
         }
-        // Migration: ensure adminConfig and customFields exist for all companies
+        // Migration for older data structures
         for (const companyId in data.companyData) {
+            if (!data.companyData[companyId].fields) {
+                 data.companyData[companyId].fields = cloneDeep(MASTER_FORM_FIELDS);
+            }
             if (!data.companyData[companyId].adminConfig) {
-                data.companyData[companyId].adminConfig = DEFAULT_ADMIN_CONFIG;
+                data.companyData[companyId].adminConfig = cloneDeep(DEFAULT_ADMIN_CONFIG);
             }
-            if (!data.companyData[companyId].customFields) {
-                data.companyData[companyId].customFields = {};
-            }
-             // Migration: ensure visibility is correctly set based on formLayout
-            const config = data.companyData[companyId].adminConfig;
+             const config = data.companyData[companyId].adminConfig;
             if (config && config.formLayout) {
-                Object.keys(config.fieldConfig).forEach(fieldId => {
+                Object.keys(data.companyData[companyId].fields).forEach(fieldId => {
+                    if(!config.fieldConfig[fieldId]){
+                        config.fieldConfig[fieldId] = { visible: false, required: false };
+                    }
                     config.fieldConfig[fieldId].visible = config.formLayout.includes(fieldId);
                 });
             }
@@ -96,7 +95,7 @@ export function addCompany(name: string): Company {
     const newCompany: Company = { id: newCompanyId, name };
     
     data.companies.push(newCompany);
-    data.companyData[newCompanyId] = { tasks: [], developers: ['Arun'], adminConfig: DEFAULT_ADMIN_CONFIG, customFields: {} };
+    data.companyData[newCompanyId] = { tasks: [], developers: ['Arun'], adminConfig: cloneDeep(DEFAULT_ADMIN_CONFIG), fields: cloneDeep(MASTER_FORM_FIELDS) };
     data.activeCompanyId = newCompanyId; // Switch to the new company
 
     setAppData(data);
@@ -143,21 +142,19 @@ export function setActiveCompanyId(id: string) {
     }
 }
 
-// Admin Config & Custom Field Functions
+// Admin Config & Field Functions
 export function getAdminConfig(): AdminConfig {
     const data = getAppData();
     const activeCompanyId = data.activeCompanyId;
-    if (!activeCompanyId || !data.companyData[activeCompanyId]) {
-        return DEFAULT_ADMIN_CONFIG;
-    }
-    return data.companyData[activeCompanyId].adminConfig || DEFAULT_ADMIN_CONFIG;
+    return data.companyData[activeCompanyId]?.adminConfig || cloneDeep(DEFAULT_ADMIN_CONFIG);
 }
 
 export function updateAdminConfig(newConfig: AdminConfig) {
     const data = getAppData();
     const activeCompanyId = data.activeCompanyId;
     if (activeCompanyId && data.companyData[activeCompanyId]) {
-        Object.keys(newConfig.fieldConfig).forEach(fieldId => {
+        Object.keys(data.companyData[activeCompanyId].fields).forEach(fieldId => {
+            if(!newConfig.fieldConfig[fieldId]) newConfig.fieldConfig[fieldId] = { visible: false, required: false };
             newConfig.fieldConfig[fieldId].visible = newConfig.formLayout.includes(fieldId);
         });
         data.companyData[activeCompanyId].adminConfig = newConfig;
@@ -166,39 +163,33 @@ export function updateAdminConfig(newConfig: AdminConfig) {
     }
 }
 
-export function getCustomFields(): Record<string, FormField> {
+export function getFields(): Record<string, FormField> {
     const data = getAppData();
     const activeCompanyId = data.activeCompanyId;
-    if (!activeCompanyId || !data.companyData[activeCompanyId]) {
-        return {};
-    }
-    return data.companyData[activeCompanyId].customFields || {};
+    return data.companyData[activeCompanyId]?.fields || {};
 }
 
-export function saveCustomField(field: FormField) {
+export function saveField(field: FormField) {
     const data = getAppData();
     const activeCompanyId = data.activeCompanyId;
     if (activeCompanyId && data.companyData[activeCompanyId]) {
-        data.companyData[activeCompanyId].customFields[field.id] = field;
+        data.companyData[activeCompanyId].fields[field.id] = field;
         setAppData(data);
         window.dispatchEvent(new Event('storage'));
     }
 }
 
-export function deleteCustomField(fieldId: string) {
+export function deleteField(fieldId: string) {
     const data = getAppData();
     const activeCompanyId = data.activeCompanyId;
     const companyData = data.companyData[activeCompanyId];
 
-    if (companyData?.customFields) {
-        // Remove from custom fields list
-        delete companyData.customFields[fieldId];
+    if (companyData?.fields[fieldId]?.isCustom) {
+        delete companyData.fields[fieldId];
         
-        // Remove from admin config layout and fieldConfig
         companyData.adminConfig.formLayout = companyData.adminConfig.formLayout.filter(id => id !== fieldId);
         delete companyData.adminConfig.fieldConfig[fieldId];
 
-        // Remove data from all tasks
         companyData.tasks.forEach(task => {
             if (fieldId in task) {
                 delete task[fieldId];
@@ -209,7 +200,6 @@ export function deleteCustomField(fieldId: string) {
         window.dispatchEvent(new Event('storage'));
     }
 }
-
 
 // Task Functions
 export function getTasks(): Task[] {

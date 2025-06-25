@@ -1,8 +1,8 @@
 
-import type { TASK_STATUSES, REPOSITORIES, ENVIRONMENTS } from './constants';
+import type { TASK_STATUSES, ENVIRONMENTS } from './constants';
 
 export type TaskStatus = (typeof TASK_STATUSES)[number];
-export type Repository = (typeof REPOSITORIES)[number];
+export type Repository = string; // Now fully dynamic
 export type Environment = (typeof ENVIRONMENTS)[number];
 export type Developer = string;
 
@@ -65,6 +65,7 @@ export interface FormField {
   disablePastDatesFrom?: string;
   icon: string;
   isCustom?: boolean;
+  isCore?: boolean;
 }
 
 export interface FormFieldConfig {

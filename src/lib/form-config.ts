@@ -1,6 +1,6 @@
 
 import type { FormField, AdminConfig } from './types';
-import { TASK_STATUSES, REPOSITORIES, ENVIRONMENTS } from './constants';
+import { TASK_STATUSES } from './constants';
 import { 
     FileText, 
     Type, 
@@ -53,7 +53,7 @@ export const MASTER_FORM_FIELDS: Record<string, FormField> = {
         id: 'status',
         label: 'Status',
         type: 'select',
-        options: TASK_STATUSES,
+        options: [...TASK_STATUSES],
         placeholder: 'Select a status',
         description: 'The current status of the task.',
         defaultValue: 'To Do',
@@ -63,7 +63,7 @@ export const MASTER_FORM_FIELDS: Record<string, FormField> = {
         id: 'repositories',
         label: 'Repositories',
         type: 'multiselect',
-        options: REPOSITORIES,
+        options: ['UI-Dashboard', 'UI-Admin', 'Templates', 'API-Export', 'Other'],
         placeholder: 'Select repositories...',
         description: 'Select all applicable repositories for this task.',
         defaultValue: ['UI-Dashboard'],
@@ -189,24 +189,12 @@ export const MASTER_FORM_FIELDS: Record<string, FormField> = {
 
 
 export const DEFAULT_ADMIN_CONFIG: AdminConfig = {
-    formLayout: Object.keys(MASTER_FORM_FIELDS),
-    fieldConfig: {
-        title: { visible: true, required: true },
-        description: { visible: true, required: true },
-        status: { visible: true, required: true },
-        repositories: { visible: false, required: false },
-        developers: { visible: false, required: false },
-        azureWorkItemId: { visible: false, required: false },
-        qaIssueIds: { visible: false, required: false },
-        attachments: { visible: false, required: false },
-        devStartDate: { visible: false, required: false },
-        devEndDate: { visible: false, required: false },
-        qaStartDate: { visible: false, required: false },
-        qaEndDate: { visible: false, required: false },
-        stageDate: { visible: false, required: false },
-        productionDate: { visible: false, required: false },
-        othersDate: { visible: false, required: false },
-        deploymentStatus: { visible: false, required: false },
-        prLinks: { visible: false, required: false },
-    }
+    formLayout: ['title', 'description', 'status'],
+    fieldConfig: Object.keys(MASTER_FORM_FIELDS).reduce((acc, key) => {
+        acc[key] = {
+            visible: ['title', 'description', 'status'].includes(key),
+            required: ['title', 'description', 'status'].includes(key),
+        };
+        return acc;
+    }, {} as Record<string, { visible: boolean; required: boolean; }>)
 }

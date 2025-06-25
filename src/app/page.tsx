@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getTasks, getAdminConfig } from '@/lib/data';
+import { getTasks, getAdminConfig, getFields } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { REPOSITORIES, TASK_STATUSES } from '@/lib/constants';
+import { TASK_STATUSES } from '@/lib/constants';
 import {
   LayoutGrid,
   List,
@@ -25,8 +25,7 @@ import {
   Calendar as CalendarIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Task, Environment, AdminConfig } from '@/lib/types';
-import { MASTER_FORM_FIELDS } from '@/lib/form-config';
+import type { Task, Environment, AdminConfig, FormField } from '@/lib/types';
 import {
   Popover,
   PopoverContent,
@@ -51,6 +50,7 @@ export default function Home() {
   const activeCompanyId = useActiveCompany();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [adminConfig, setAdminConfig] = useState<AdminConfig | null>(null);
+  const [allFields, setAllFields] = useState<Record<string, FormField>>({});
   const [statusFilter, setStatusFilter] = useState('all');
   const [repoFilter, setRepoFilter] = useState('all');
   const [deploymentFilter, setDeploymentFilter] = useState('all');
@@ -66,6 +66,7 @@ export default function Home() {
     if (activeCompanyId) {
         setTasks(getTasks());
         setAdminConfig(getAdminConfig());
+        setAllFields(getFields());
     }
   };
 
@@ -77,14 +78,17 @@ export default function Home() {
     refreshData();
     setIsLoading(false);
     
-    // Also listen for config changes from the admin page
     window.addEventListener('storage', refreshData);
     return () => window.removeEventListener('storage', refreshData);
   }, [activeCompanyId]);
 
   const isFilterVisible = (id: string) => adminConfig?.fieldConfig[id]?.visible ?? false;
+  const repoField = allFields['repositories'];
+  const repoOptions = repoField?.options || [];
 
   const filteredTasks = tasks.filter((task: Task) => {
+    if (!adminConfig) return false;
+
     const statusMatch = statusFilter === 'all' || task.status === statusFilter;
     
     const repoMatch = !isFilterVisible('repositories') || repoFilter === 'all' || task.repositories?.includes(repoFilter);
@@ -185,7 +189,7 @@ export default function Home() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Repositories</SelectItem>
-                {REPOSITORIES.map((repo) => (
+                {repoOptions.map((repo) => (
                   <SelectItem key={repo} value={repo}>
                     {repo}
                   </SelectItem>

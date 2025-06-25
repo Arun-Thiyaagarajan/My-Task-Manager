@@ -33,7 +33,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { saveCustomField } from '@/lib/data';
+import { saveField } from '@/lib/data';
 import type { FormField as FormFieldType } from '@/lib/types';
 import { Loader2, PlusCircle, Trash2 } from 'lucide-react';
 import { ICONS } from '@/lib/form-config';
@@ -41,7 +41,7 @@ import { ICONS } from '@/lib/form-config';
 const fieldSchema = z.object({
   label: z.string().min(2, { message: 'Field name must be at least 2 characters.' }),
   description: z.string().min(2, { message: 'Description must be at least 2 characters.' }),
-  type: z.enum(['text', 'textarea', 'date', 'select', 'multiselect']),
+  type: z.enum(['text', 'textarea', 'date', 'select', 'multiselect', 'attachments', 'deployment', 'pr-links']),
   options: z.array(z.object({ value: z.string().min(1, 'Option cannot be empty') })).optional(),
 }).refine(data => {
     if ((data.type === 'select' || data.type === 'multiselect') && (!data.options || data.options.length < 1)) {
@@ -55,14 +55,14 @@ const fieldSchema = z.object({
 
 type FieldFormData = z.infer<typeof fieldSchema>;
 
-interface CustomFieldDialogProps {
+interface FieldEditorDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   fieldToEdit?: FormFieldType | null;
 }
 
-export function CustomFieldDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit }: CustomFieldDialogProps) {
+export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit }: FieldEditorDialogProps) {
   const { toast } = useToast();
   const [isPending, setIsPending] = useState(false);
   
@@ -76,6 +76,7 @@ export function CustomFieldDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
   });
 
   const fieldType = form.watch('type');
+  const isBuiltInField = fieldToEdit && !fieldToEdit.isCustom;
 
   useEffect(() => {
     if (isOpen) {
@@ -83,7 +84,7 @@ export function CustomFieldDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
             form.reset({
                 label: fieldToEdit.label,
                 description: fieldToEdit.description,
-                type: fieldToEdit.type as any, // Cast because form-config types are wider
+                type: fieldToEdit.type,
                 options: fieldToEdit.options?.map(o => ({ value: o })) || []
             });
         } else {
@@ -101,17 +102,24 @@ export function CustomFieldDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
     setIsPending(true);
     try {
         const id = fieldToEdit ? fieldToEdit.id : `custom_${Date.now()}`;
-        const newField: FormFieldType = {
+        
+        const fieldToSave: FormFieldType = {
+            ...fieldToEdit, // a null fieldToEdit will be gracefully handled
             id,
             label: data.label,
             description: data.description,
             type: data.type,
             options: data.options?.map(o => o.value),
-            isCustom: true,
-            icon: 'text', // Default icon, can be improved
-            defaultValue: data.type === 'multiselect' ? [] : data.type === 'date' ? null : '',
+            icon: fieldToEdit?.icon || 'text',
+            isCustom: !fieldToEdit?.isCustom ? false : true,
         };
-        saveCustomField(newField);
+
+        if (!fieldToEdit) { // This is a new custom field
+            fieldToSave.isCustom = true;
+            fieldToSave.defaultValue = data.type === 'multiselect' ? [] : data.type === 'date' ? null : '';
+        }
+        
+        saveField(fieldToSave);
         onSuccess();
         onOpenChange(false);
     } catch (error) {
@@ -125,9 +133,9 @@ export function CustomFieldDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>{fieldToEdit ? 'Edit Custom Field' : 'Add New Custom Field'}</DialogTitle>
+          <DialogTitle>{fieldToEdit ? 'Edit Field' : 'Add New Custom Field'}</DialogTitle>
           <DialogDescription>
-            {fieldToEdit ? `Update your custom field.` : `Create a new field to use in your task forms.`}
+            {fieldToEdit ? `Update the properties for "${fieldToEdit.label}".` : `Create a new custom field to use in your forms.`}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -137,7 +145,7 @@ export function CustomFieldDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                     name="label"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Field Name</FormLabel>
+                            <FormLabel>Field Label</FormLabel>
                             <FormControl><Input {...field} /></FormControl>
                             <FormMessage />
                         </FormItem>
@@ -179,7 +187,7 @@ export function CustomFieldDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                 {(fieldType === 'select' || fieldType === 'multiselect') && (
                     <div className="space-y-4 rounded-md border p-4">
                         <FormLabel>Options</FormLabel>
-                        <FormDescription>Add options for the dropdown menu.</FormDescription>
+                        <FormDescription>Add/remove options for the dropdown menu.</FormDescription>
                         {fields.map((field, index) => (
                            <FormField
                                 key={field.id}

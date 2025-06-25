@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getTaskById, getCustomFields } from '@/lib/data';
+import { getTaskById, getFields } from '@/lib/data';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -25,7 +25,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { MASTER_FORM_FIELDS } from '@/lib/form-config';
 
 
 export default function TaskPage() {
@@ -40,9 +39,9 @@ export default function TaskPage() {
   useEffect(() => {
     if (taskId) {
       const foundTask = getTaskById(taskId);
-      const customFields = getCustomFields();
+      const fields = getFields();
       setTask(foundTask || null);
-      setAllFields({ ...MASTER_FORM_FIELDS, ...customFields });
+      setAllFields(fields);
       setIsLoading(false);
       if (foundTask) {
         document.title = `${foundTask.title} | My Task Manager`;
@@ -155,7 +154,7 @@ export default function TaskPage() {
                           rel="noopener noreferrer"
                           className="hover:text-primary transition-colors"
                         >
-                          Azure ID: {task.azureWorkItemId}
+                          {allFields['azureWorkItemId']?.label || 'Azure ID'}: {task.azureWorkItemId}
                         </a>
                     </div>
                   )}

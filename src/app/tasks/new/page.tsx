@@ -3,14 +3,13 @@
 
 import { useState, useEffect } from 'react';
 import { TaskForm } from '@/components/task-form';
-import { addTask, getDevelopers, addDeveloper, getAdminConfig, getCustomFields } from '@/lib/data';
+import { addTask, getDevelopers, addDeveloper, getAdminConfig, getFields } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import type { AdminConfig, Task, FormField } from '@/lib/types';
 import { buildTaskSchema } from '@/lib/validators';
 import { Loader2 } from 'lucide-react';
-import { MASTER_FORM_FIELDS } from '@/lib/form-config';
 
 
 export default function NewTaskPage() {
@@ -23,11 +22,11 @@ export default function NewTaskPage() {
   useEffect(() => {
     document.title = 'New Task | TaskFlow';
     const config = getAdminConfig();
-    const customFields = getCustomFields();
+    const fields = getFields();
     
     setDevelopersList(getDevelopers());
     setAdminConfig(config);
-    setAllFields({ ...MASTER_FORM_FIELDS, ...customFields });
+    setAllFields(fields);
   }, []);
 
   const handleCreateTask = (data: any) => {
