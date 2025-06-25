@@ -88,6 +88,51 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
     defaultValues: getInitialTaskData(allFields, task),
   });
 
+  const watchedValues = form.watch();
+
+  const dependencyMap = useMemo(() => {
+    const map: Record<string, { parentId: string; optionValue: string }[]> = {};
+    for (const field of Object.values(allFields)) {
+      if (field.conditionalLogic) {
+        for (const [optionValue, childIds] of Object.entries(field.conditionalLogic)) {
+          for (const childId of childIds) {
+            if (!map[childId]) map[childId] = [];
+            map[childId].push({ parentId: field.id, optionValue });
+          }
+        }
+      }
+    }
+    return map;
+  }, [allFields]);
+
+  const visibleFields = useMemo(() => {
+    const baseVisible = new Set(adminConfig.formLayout);
+    const allConditionalChildren = new Set(Object.keys(dependencyMap));
+
+    // Initially hide all fields that are managed by conditional logic
+    allConditionalChildren.forEach(childId => baseVisible.delete(childId));
+    
+    // Now, check conditions and add back the children that should be visible
+    for (const childId in dependencyMap) {
+        const parents = dependencyMap[childId];
+        for (const { parentId, optionValue } of parents) {
+            const parentValue = watchedValues[parentId];
+            if (
+                (Array.isArray(parentValue) && parentValue.includes(optionValue)) ||
+                (typeof parentValue === 'string' && parentValue === optionValue)
+            ) {
+                baseVisible.add(childId);
+                break; // One condition met is enough to show it
+            }
+        }
+    }
+
+    // Use the original layout order, plus any newly visible conditional fields appended at the end
+    const allPossibleFields = [...new Set([...adminConfig.formLayout, ...allConditionalChildren])];
+    return allPossibleFields.filter(id => baseVisible.has(id));
+
+  }, [watchedValues, adminConfig.formLayout, dependencyMap]);
+
   useEffect(() => {
     form.reset(getInitialTaskData(allFields, task));
   }, [task, allFields, form]);
@@ -121,9 +166,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
     const fieldDef = internalAllFields[fieldId];
     if (!fieldDef) return null;
     
-    const isVisible = adminConfig.fieldConfig[fieldId]?.visible;
-    if (!isVisible) return null;
-    
+    // Primary visibility check is now handled by the `visibleFields` memo
     const isRequired = adminConfig.fieldConfig[fieldId]?.required;
     const label = `${fieldDef.label}${isRequired ? ' *' : ''}`;
 
@@ -285,16 +328,6 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
                 )}
             />
         )
-
-      case 'attachments':
-        return <AttachmentsField form={form} label={label} />;
-
-      case 'deployment':
-        return <DeploymentField form={form} label={label} />;
-        
-      case 'pr-links':
-        return <PrLinksField form={form} label={label} />;
-
       default:
         return null;
     }
@@ -305,13 +338,11 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
       <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
         
         <div className="grid grid-cols-1 gap-x-6 gap-y-8 md:grid-cols-2 lg:grid-cols-3">
-            {adminConfig.formLayout.map(fieldId => {
+            {visibleFields.map(fieldId => {
                 const fieldDef = internalAllFields[fieldId];
-                if (!fieldDef || !adminConfig.fieldConfig[fieldId]?.visible) {
-                    return null;
-                }
+                if (!fieldDef) return null;
 
-                const isFullWidth = ['textarea', 'attachments', 'deployment', 'pr-links'].includes(fieldDef.type);
+                const isFullWidth = ['textarea'].includes(fieldDef.type);
 
                 return (
                     <div 
@@ -338,213 +369,4 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
       </form>
     </Form>
   );
-}
-
-
-function AttachmentsField({ form, label }: { form: any, label: string }) {
-    const { fields, append, remove } = useFieldArray({
-        control: form.control,
-        name: "attachments"
-    });
-    return (
-         <Card className="p-4 space-y-4">
-            <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium">{label}</h3>
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => append({ name: '', url: '', type: 'link' })}
-                >
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Add Attachment
-                </Button>
-            </div>
-            <div className="space-y-4">
-                {fields.map((field, index) => (
-                    <div key={field.id} className="flex flex-col md:flex-row gap-4 items-start border p-4 rounded-md relative">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-grow w-full">
-                            <HookFormField
-                                control={form.control}
-                                name={`attachments.${index}.name`}
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Name <span className="text-destructive">*</span></FormLabel>
-                                        <FormControl>
-                                            <Input placeholder="e.g. Design Mockup" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <HookFormField
-                                control={form.control}
-                                name={`attachments.${index}.url`}
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>URL <span className="text-destructive">*</span></FormLabel>
-                                        <FormControl>
-                                            <Input placeholder="https://..." {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <HookFormField
-                                control={form.control}
-                                name={`attachments.${index}.type`}
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Type <span className="text-destructive">*</span></FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                            <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select type" />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                <SelectItem value="link">
-                                                  <div className="flex items-center"><Link2 className="mr-2 h-4 w-4" /> Web Link</div>
-                                                </SelectItem>
-                                                <SelectItem value="file">
-                                                  <div className="flex items-center"><FileText className="mr-2 h-4 w-4" /> File Link</div>
-                                                </SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        </div>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="md:absolute md:top-2 md:right-2 mt-4 md:mt-0 shrink-0"
-                            onClick={() => remove(index)}
-                        >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                            <span className="sr-only">Remove attachment</span>
-                        </Button>
-                    </div>
-                ))}
-                {fields.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-4">No attachments added.</p>
-                )}
-            </div>
-        </Card>
-    )
-}
-
-function DeploymentField({ form, label }: { form: any, label: string }) {
-    const isOthersDeployed = form.watch('deploymentStatus.others');
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="text-xl">{label}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                {ENVIRONMENTS.map(env => (
-                    <React.Fragment key={env}>
-                        <HookFormField
-                        control={form.control}
-                        name={`deploymentStatus.${env}`}
-                        render={({ field }) => (
-                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
-                            <FormControl>
-                                <Checkbox
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                                />
-                            </FormControl>
-                            <div className="space-y-1 leading-none">
-                                <FormLabel className="capitalize font-normal">
-                                Deployed to {env}
-                                </FormLabel>
-                            </div>
-                            </FormItem>
-                        )}
-                        />
-                        {env === 'others' && isOthersDeployed && (
-                        <div className="pl-4 pb-2 -mt-2">
-                            <HookFormField
-                            control={form.control}
-                            name="othersEnvironmentName"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Environment Name <span className="text-destructive">*</span></FormLabel>
-                                <FormControl>
-                                    <Input placeholder="e.g. UAT, Demo" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                            />
-                        </div>
-                        )}
-                    </React.Fragment>
-                ))}
-            </CardContent>
-        </Card>
-    )
-}
-
-function PrLinksField({ form, label }: { form: any, label: string }) {
-    const selectedRepos = form.watch('repositories');
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="text-xl">{label}</CardTitle>
-            </CardHeader>
-            <CardContent>
-                {selectedRepos && selectedRepos.length > 0 ? (
-                <Tabs defaultValue={selectedRepos[0]} className="w-full">
-                    <ScrollArea className="w-full whitespace-nowrap">
-                        <TabsList>
-                            {selectedRepos.map((repo:string) => (
-                            <TabsTrigger key={repo} value={repo}>
-                                {repo}
-                            </TabsTrigger>
-                            ))}
-                        </TabsList>
-                        <ScrollBar orientation="horizontal" />
-                    </ScrollArea>
-
-                    {selectedRepos.map((repo:string) => (
-                        <TabsContent key={repo} value={repo}>
-                            <div className="space-y-4 pt-4 border-t">
-                            {ENVIRONMENTS.map((env) => (
-                                <HookFormField
-                                    key={`${repo}-${env}`}
-                                    control={form.control}
-                                    name={`prLinks.${env}.${repo}`}
-                                    render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel className="capitalize">{env}</FormLabel>
-                                        <FormControl>
-                                        <Input
-                                            placeholder="e.g. 19703, 19704"
-                                            {...field}
-                                            onChange={(e) => field.onChange(e.target.value ?? '')}
-                                            value={field.value ?? ''}
-                                        />
-                                        </FormControl>
-                                        <FormDescription>Comma-separated PR IDs for {env}.</FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                            ))}
-                            </div>
-                        </TabsContent>
-                    ))}
-                </Tabs>
-                ) : (
-                <div className="text-sm text-muted-foreground py-4 text-center border rounded-md">
-                    Select at least one repository to add PR links.
-                </div>
-                )}
-            </CardContent>
-        </Card>
-    );
 }

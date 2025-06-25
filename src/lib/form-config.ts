@@ -66,7 +66,7 @@ export const DEFAULT_ADMIN_CONFIG: AdminConfig = {
         },
         description: {
             visible: true,
-            required: true,
+            required: false,
         },
     },
     groupOrder: [

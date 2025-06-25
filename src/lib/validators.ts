@@ -54,28 +54,6 @@ const getFieldSchema = (fieldId: string, config: FormFieldConfig, allFields: Rec
                 schema = schema.refine(val => val != null, { message: `${fieldDef.label} is required.`});
             }
             break;
-        case 'attachments':
-            schema = z.array(attachmentSchema).optional();
-            break;
-        case 'deployment':
-            const deploymentStatusSchema = z.object(
-                Object.fromEntries(
-                    ENVIRONMENTS.map(env => [env, z.boolean().optional()])
-                )
-            );
-            schema = deploymentStatusSchema.optional();
-            break;
-        case 'pr-links':
-            const prLinksSchema = z.object(
-                Object.fromEntries(
-                    ENVIRONMENTS.map(env => [
-                    env,
-                    z.record(z.string(), z.string().optional()).optional(),
-                    ])
-                )
-            );
-            schema = prLinksSchema.optional();
-            break;
         default:
             schema = z.any();
     }
@@ -86,20 +64,34 @@ const getFieldSchema = (fieldId: string, config: FormFieldConfig, allFields: Rec
 export const buildTaskSchema = (adminConfig: AdminConfig, allFields: Record<string, FormField>) => {
     let schemaObject = {} as Record<string, z.ZodTypeAny>;
 
-    adminConfig.formLayout.forEach(fieldId => {
-        const fieldConfig = adminConfig.fieldConfig[fieldId];
-        if (fieldConfig.visible) {
-            const fieldSchema = getFieldSchema(fieldId, fieldConfig, allFields);
-            if (fieldSchema) {
-                 schemaObject[fieldId] = fieldSchema;
+    // Add all fields to the schema initially, but many will be optional
+    for (const fieldId in allFields) {
+        const fieldConfig = adminConfig.fieldConfig[fieldId] || { visible: true, required: false };
+        const fieldSchema = getFieldSchema(fieldId, fieldConfig, allFields);
+        if (fieldSchema) {
+            // If the field isn't required by config, make it optional
+            // unless it's the title field which is always required.
+            if (!fieldConfig.required && fieldId !== 'title') {
+                schemaObject[fieldId] = fieldSchema.optional();
+            } else {
+                schemaObject[fieldId] = fieldSchema;
             }
         }
-    });
+    }
+    
+    // Ensure title is always present and a string
+    schemaObject.title = z.string().min(3, { message: 'Title is required and must be at least 3 characters.' });
+    
 
-    // Special case for othersEnvironmentName
-     if (adminConfig.fieldConfig.deploymentStatus?.visible) {
+    // Special case for fields that might not be in the layout but are needed for validation logic
+    if (adminConfig.fieldConfig.deploymentStatus?.visible && !schemaObject.othersEnvironmentName) {
          schemaObject.othersEnvironmentName = z.string().optional();
-     }
+    }
+    if (!schemaObject.devStartDate) schemaObject.devStartDate = z.coerce.date().optional().nullable();
+    if (!schemaObject.devEndDate) schemaObject.devEndDate = z.coerce.date().optional().nullable();
+    if (!schemaObject.qaStartDate) schemaObject.qaStartDate = z.coerce.date().optional().nullable();
+    if (!schemaObject.qaEndDate) schemaObject.qaEndDate = z.coerce.date().optional().nullable();
+    
 
     let dynamicSchema = z.object(schemaObject);
 

@@ -52,7 +52,7 @@ export interface Task {
 }
 
 // Types for Dynamic Form Configuration
-export type FieldType = 'text' | 'textarea' | 'select' | 'multiselect' | 'date' | 'attachments' | 'deployment' | 'pr-links' | 'tags';
+export type FieldType = 'text' | 'textarea' | 'select' | 'multiselect' | 'date' | 'tags';
 
 export interface FormField {
   id: string;
@@ -67,6 +67,9 @@ export interface FormField {
   icon: string;
   isCustom?: boolean;
   isCore?: boolean;
+  conditionalLogic?: {
+    [optionValue: string]: string[]; // Key: parent option, Value: array of child field IDs
+  };
 }
 
 export interface FormFieldConfig {

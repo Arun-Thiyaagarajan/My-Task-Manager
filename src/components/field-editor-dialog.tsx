@@ -40,15 +40,18 @@ import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check } from 'lucide-react
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { MultiSelect } from './ui/multi-select';
+import { Separator } from './ui/separator';
 
 
 const fieldSchema = z.object({
   label: z.string().min(2, { message: 'Field name must be at least 2 characters.' }),
   description: z.string().min(2, { message: 'Description must be at least 2 characters.' }),
-  type: z.enum(['text', 'textarea', 'date', 'select', 'multiselect', 'tags', 'attachments', 'deployment', 'pr-links']),
+  type: z.enum(['text', 'textarea', 'date', 'select', 'multiselect', 'tags']),
   group: z.string().min(1, 'Please enter a group name.'),
   options: z.array(z.object({ value: z.string().min(1, 'Option cannot be empty') })).optional(),
   required: z.boolean().optional(),
+  conditionalLogic: z.record(z.array(z.string())).optional(),
 }).refine(data => {
     if ((data.type === 'select' || data.type === 'multiselect' || data.type === 'tags') && (!data.options || data.options.length < 1)) {
         return false;
@@ -67,9 +70,10 @@ interface FieldEditorDialogProps {
   onSuccess: () => void;
   fieldToEdit?: FormFieldType | null;
   adminConfig: AdminConfig;
+  allFields: Record<string, FormFieldType>;
 }
 
-export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit, adminConfig }: FieldEditorDialogProps) {
+export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit, adminConfig, allFields }: FieldEditorDialogProps) {
   const { toast } = useToast();
   const [isPending, setIsPending] = useState(false);
   const [groupPopoverOpen, setGroupPopoverOpen] = useState(false);
@@ -78,13 +82,20 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
     resolver: zodResolver(fieldSchema),
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields: optionsFields, append: appendOption, remove: removeOption } = useFieldArray({
       control: form.control,
       name: 'options'
   });
 
   const fieldType = form.watch('type');
+  const watchedOptions = form.watch('options');
   const groupNames = useMemo(() => adminConfig?.groupOrder ? [...new Set(adminConfig.groupOrder)] : [], [adminConfig?.groupOrder]);
+  
+  const potentialChildFields = useMemo(() => {
+    return Object.values(allFields)
+      .filter(f => f.id !== 'title' && f.id !== 'description' && f.id !== fieldToEdit?.id)
+      .map(f => ({ value: f.id, label: f.label }));
+  }, [allFields, fieldToEdit]);
 
   useEffect(() => {
     if (isOpen) {
@@ -96,6 +107,7 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                 group: fieldToEdit.group || (fieldToEdit.type === 'tags' ? 'Tagging' : 'Custom Fields'),
                 options: fieldToEdit.options?.map(o => ({ value: o })) || [],
                 required: fieldToEdit.id === 'title' || adminConfig.fieldConfig[fieldToEdit.id]?.required || false,
+                conditionalLogic: fieldToEdit.conditionalLogic || {},
             });
         } else {
             form.reset({
@@ -105,10 +117,21 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                 group: 'Custom Fields',
                 options: [],
                 required: false,
+                conditionalLogic: {},
             });
         }
     }
   }, [isOpen, fieldToEdit, form, adminConfig]);
+  
+  const handleRemoveOption = (index: number) => {
+    const optionValue = form.getValues(`options.${index}.value`);
+    const currentLogic = form.getValues('conditionalLogic');
+    if (currentLogic && optionValue in currentLogic) {
+        delete currentLogic[optionValue];
+        form.setValue('conditionalLogic', { ...currentLogic });
+    }
+    removeOption(index);
+  }
 
   const onSubmit: SubmitHandler<FieldFormData> = (data) => {
     setIsPending(true);
@@ -125,6 +148,7 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
             options: (data.type === 'select' || data.type === 'multiselect' || data.type === 'tags') ? data.options?.map(o => o.value) : [],
             icon: fieldToEdit?.icon || 'text',
             isCustom: fieldToEdit ? (fieldToEdit.isCustom ?? false) : true,
+            conditionalLogic: data.conditionalLogic,
         };
 
         if (!fieldToEdit) { // This is a new custom field
@@ -141,6 +165,8 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
       setIsPending(false);
     }
   };
+
+  const showConditionalLogic = ['select', 'multiselect', 'tags'].includes(fieldType);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -290,7 +316,7 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                             <FormLabel>Options</FormLabel>
                             <FormDescription>Add/remove options for the dropdown menu.</FormDescription>
                             <div className="space-y-2">
-                                {fields.map((field, index) => (
+                                {optionsFields.map((field, index) => (
                                 <FormField
                                     key={field.id}
                                     control={form.control}
@@ -299,7 +325,7 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                                         <FormItem>
                                             <div className="flex items-center gap-2">
                                                 <FormControl><Input {...field} /></FormControl>
-                                                <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)}>
+                                                <Button type="button" variant="destructive" size="icon" onClick={() => handleRemoveOption(index)}>
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>
                                             </div>
@@ -309,7 +335,7 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                                 />
                                 ))}
                             </div>
-                            <Button type="button" variant="outline" size="sm" onClick={() => append({value: ''})}>
+                            <Button type="button" variant="outline" size="sm" onClick={() => appendOption({value: ''})}>
                                 <PlusCircle className="mr-2 h-4 w-4" /> Add Option
                             </Button>
                             <FormMessage>{form.formState.errors.options?.root?.message}</FormMessage>
@@ -336,6 +362,49 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                             </FormItem>
                         )}
                     />
+                    {showConditionalLogic && (
+                        <div className="space-y-4 rounded-md border p-4">
+                            <FormLabel>Conditional Fields</FormLabel>
+                            <FormDescription>
+                                Show specific fields based on the value selected in this dropdown.
+                            </FormDescription>
+                             <div className="space-y-4">
+                                {watchedOptions && watchedOptions.length > 0 ? (
+                                    watchedOptions.map((option, index) => {
+                                      if (!option.value) return null;
+                                      
+                                      const logicFieldName = `conditionalLogic.${option.value}`;
+
+                                      return (
+                                        <div key={index}>
+                                            <Separator className={cn(index > 0 && "mb-4")} />
+                                            <FormField
+                                                control={form.control}
+                                                name={logicFieldName as any}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel className="font-semibold">When <span className="text-primary italic">"{option.value}"</span> is selected, show:</FormLabel>
+                                                        <FormControl>
+                                                            <MultiSelect
+                                                                selected={field.value || []}
+                                                                onChange={field.onChange}
+                                                                options={potentialChildFields}
+                                                                placeholder="Select fields to show..."
+                                                            />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+                                      )
+                                    })
+                                ) : (
+                                    <p className="text-sm text-muted-foreground text-center py-2">Add some options above to configure conditional fields.</p>
+                                )}
+                             </div>
+                        </div>
+                    )}
                 </form>
             </Form>
         </div>
