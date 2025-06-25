@@ -242,7 +242,7 @@ export function getDevelopers(): Developer[] {
     if (!data.activeCompanyId || !data.companyData[data.activeCompanyId]) {
       return [];
     }
-    return data.companyData[activeCompanyId].developers;
+    return data.companyData[data.activeCompanyId].developers;
 }
 
 export function addDeveloper(name: string): Developer {
