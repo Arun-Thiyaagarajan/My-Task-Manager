@@ -15,7 +15,6 @@ import { DeleteTaskButton } from '@/components/delete-task-button';
 import { PrLinksGroup } from '@/components/pr-links-group';
 import { Badge } from '@/components/ui/badge';
 import { getInitials, getAvatarColor, cn } from '@/lib/utils';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 import type { Task } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
@@ -125,57 +124,60 @@ export default function TaskPage() {
             </CardContent>
           </Card>
           
-          <Card>
-              <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-xl">
-                      <GitMerge className="h-5 w-5" />
-                      Activity
-                  </CardTitle>
-              </CardHeader>
-              <CardContent>
-                  <Tabs defaultValue="deployments" className="w-full">
-                      <TabsList className="grid w-full grid-cols-2">
-                          <TabsTrigger value="deployments">Deployments</TabsTrigger>
-                          <TabsTrigger value="pull-requests">Pull Requests</TabsTrigger>
-                      </TabsList>
-                      <TabsContent value="deployments" className="pt-4">
-                         <div className="space-y-3 text-sm">
-                              {ENVIRONMENTS.map(env => {
-                                  const isDeployed = task.deploymentStatus?.[env];
-                                  const envName = env === 'others' && task.othersEnvironmentName ? task.othersEnvironmentName : env;
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-xl">
+                        <CheckCircle2 className="h-5 w-5" />
+                        Deployments
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-3 text-sm">
+                        {ENVIRONMENTS.map(env => {
+                            const isDeployed = task.deploymentStatus?.[env];
+                            const envName = env === 'others' && task.othersEnvironmentName ? task.othersEnvironmentName : env;
 
-                                  if (env === 'others' && !isDeployed) return null;
+                            if (env === 'others' && !isDeployed) return null;
 
-                                  return (
-                                      <div key={env} className="flex justify-between items-center">
-                                          <span className={cn("capitalize", isDeployed ? "text-foreground font-medium" : "text-muted-foreground")}>
-                                              {envName}
-                                          </span>
-                                          {isDeployed ? (
-                                              <div className="flex items-center gap-2">
-                                                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                                  <span className="text-foreground">Deployed</span>
-                                              </div>
-                                          ) : (
-                                              <div className="flex items-center gap-2 text-muted-foreground">
-                                                  <Clock className="h-4 w-4" />
-                                                  <span>Pending</span>
-                                              </div>
-                                          )}
-                                      </div>
-                                  )
-                              })}
-                               {(!task.deploymentStatus || Object.values(task.deploymentStatus).every(s => !s)) && (
-                                  <p className="text-muted-foreground text-center text-xs pt-2">No deployments recorded.</p>
-                               )}
-                          </div>
-                      </TabsContent>
-                      <TabsContent value="pull-requests" className="pt-2">
-                           <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} />
-                      </TabsContent>
-                  </Tabs>
-              </CardContent>
-          </Card>
+                            return (
+                                <div key={env} className="flex justify-between items-center">
+                                    <span className={cn("capitalize", isDeployed ? "text-foreground font-medium" : "text-muted-foreground")}>
+                                        {envName}
+                                    </span>
+                                    {isDeployed ? (
+                                        <div className="flex items-center gap-2">
+                                            <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                            <span className="text-foreground">Deployed</span>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-2 text-muted-foreground">
+                                            <Clock className="h-4 w-4" />
+                                            <span>Pending</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                        })}
+                        {(!task.deploymentStatus || Object.values(task.deploymentStatus).every(s => !s)) && (
+                            <p className="text-muted-foreground text-center text-xs pt-2">No deployments recorded.</p>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-xl">
+                        <GitMerge className="h-5 w-5" />
+                        Pull Requests
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} />
+                </CardContent>
+            </Card>
+          </div>
           
           {task.attachments && task.attachments.length > 0 && (
             <Card>
@@ -223,31 +225,31 @@ export default function TaskPage() {
                 <CardContent className="space-y-4">
                     <div>
                         <h4 className="text-sm font-semibold text-muted-foreground mb-2">Assigned Developers</h4>
-                        {task.developers && task.developers.length > 0 ? (
                         <div className="flex flex-wrap gap-4">
-                            {task.developers.map((dev) => (
-                            <div key={dev} className="flex items-center gap-2">
-                                <Avatar className="h-7 w-7">
-                                <AvatarFallback
-                                    className="font-semibold text-white text-[10px]"
-                                    style={{
-                                    backgroundColor: `#${getAvatarColor(dev)}`,
-                                    }}
-                                >
-                                    {getInitials(dev)}
-                                </AvatarFallback>
-                                </Avatar>
-                                <span className="text-sm font-medium text-foreground">
-                                {dev}
-                                </span>
-                            </div>
-                            ))}
+                            {task.developers && task.developers.length > 0 ? (
+                                task.developers.map((dev) => (
+                                <div key={dev} className="flex items-center gap-2">
+                                    <Avatar className="h-7 w-7">
+                                    <AvatarFallback
+                                        className="font-semibold text-white text-[10px]"
+                                        style={{
+                                        backgroundColor: `#${getAvatarColor(dev)}`,
+                                        }}
+                                    >
+                                        {getInitials(dev)}
+                                    </AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-sm font-medium text-foreground">
+                                    {dev}
+                                    </span>
+                                </div>
+                                ))
+                            ) : (
+                            <p className="text-sm text-muted-foreground">
+                                No developers assigned.
+                            </p>
+                            )}
                         </div>
-                        ) : (
-                        <p className="text-sm text-muted-foreground">
-                            No developers assigned.
-                        </p>
-                        )}
                     </div>
                     
                     <Separator />
