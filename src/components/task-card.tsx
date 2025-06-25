@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import type { Task } from '@/lib/types';
 import {
   Card,
@@ -25,73 +24,71 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, onTaskDelete }: TaskCardProps) {
-  const router = useRouter();
-
   const azureWorkItemUrl = task.azureWorkItemId
     ? `https://dev.azure.com/ideaelan/Infinity/_workitems/edit/${task.azureWorkItemId}`
     : null;
 
-  const handleNavigate = () => {
-    router.push(`/tasks/${task.id}`);
-  };
-
   const handleActionClick = (e: React.MouseEvent) => {
+    // When an action inside the Link is clicked (e.g., external link),
+    // we need to stop it from navigating.
     e.stopPropagation();
+    e.preventDefault();
   };
 
   return (
     <Card
-      className="flex flex-col h-full transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer bg-card hover:border-primary"
-      onClick={handleNavigate}
+      className="flex flex-col h-full transition-all duration-300 hover:shadow-lg hover:-translate-y-1 bg-card hover:border-primary"
     >
-      <CardHeader className="p-4 pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-base font-semibold leading-snug line-clamp-3">
-            {task.title}
-          </CardTitle>
-          <div className="flex-shrink-0">
-            <TaskStatusBadge status={task.status} />
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="flex-grow flex flex-col p-4 pt-2">
-        <div className="flex-grow space-y-3">
-          <div className="flex items-start gap-2 text-sm text-muted-foreground">
-            <GitMerge className="h-4 w-4 shrink-0 mt-0.5" />
-            <div className="flex flex-wrap gap-1">
-              {(task.repositories || []).map((repo) => (
-                <Badge variant="secondary" key={repo} className="text-xs">
-                  {repo}
-                </Badge>
-              ))}
+      <Link href={`/tasks/${task.id}`} className="flex flex-col flex-grow cursor-pointer">
+        <CardHeader className="p-4 pb-2">
+          <div className="flex items-start justify-between gap-2">
+            <CardTitle className="text-base font-semibold leading-snug line-clamp-3">
+              {task.title}
+            </CardTitle>
+            <div className="flex-shrink-0">
+              <TaskStatusBadge status={task.status} />
             </div>
           </div>
-          {azureWorkItemUrl && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <ExternalLink className="h-4 w-4 shrink-0" />
-              <a
-                href={azureWorkItemUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-primary transition-colors line-clamp-1"
-                onClick={handleActionClick}
-              >
-                Azure ID: {task.azureWorkItemId}
-              </a>
+        </CardHeader>
+        <CardContent className="flex-grow flex flex-col p-4 pt-2">
+          <div className="flex-grow space-y-3">
+            <div className="flex items-start gap-2 text-sm text-muted-foreground">
+              <GitMerge className="h-4 w-4 shrink-0 mt-0.5" />
+              <div className="flex flex-wrap gap-1">
+                {(task.repositories || []).map((repo) => (
+                  <Badge variant="secondary" key={repo} className="text-xs">
+                    {repo}
+                  </Badge>
+                ))}
+              </div>
             </div>
-          )}
-        </div>
-        
-        <div className="mt-4">
-          <p className="text-xs font-medium text-muted-foreground mb-1.5">
-            Deployments
-          </p>
-          <EnvironmentStatus
-            deploymentStatus={task.deploymentStatus}
-            size="sm"
-          />
-        </div>
-      </CardContent>
+            {azureWorkItemUrl && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <ExternalLink className="h-4 w-4 shrink-0" />
+                <a
+                  href={azureWorkItemUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-primary transition-colors line-clamp-1"
+                  onClick={handleActionClick}
+                >
+                  Azure ID: {task.azureWorkItemId}
+                </a>
+              </div>
+            )}
+          </div>
+          
+          <div className="mt-4">
+            <p className="text-xs font-medium text-muted-foreground mb-1.5">
+              Deployments
+            </p>
+            <EnvironmentStatus
+              deploymentStatus={task.deploymentStatus}
+              size="sm"
+            />
+          </div>
+        </CardContent>
+      </Link>
       <CardFooter className="flex items-center justify-between p-4 border-t">
         <div className="flex items-center gap-2">
           {task.developers && task.developers.length > 0 ? (
@@ -120,7 +117,7 @@ export function TaskCard({ task, onTaskDelete }: TaskCardProps) {
             <div className="text-xs text-muted-foreground italic">No assignees</div>
           )}
         </div>
-        <div onClick={handleActionClick}>
+        <div>
           <DeleteTaskButton
             taskId={task.id}
             onSuccess={onTaskDelete}
