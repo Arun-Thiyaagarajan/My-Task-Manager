@@ -198,5 +198,13 @@ export const DEFAULT_ADMIN_CONFIG: AdminConfig = {
             required: ['title', 'description', 'status'].includes(key),
         };
         return acc;
-    }, {} as Record<string, { visible: boolean; required: boolean; }>)
+    }, {} as Record<string, { visible: boolean; required: boolean; }>),
+    groupOrder: [
+        'Core Details',
+        'Assignment & Tracking',
+        'Dates',
+        'Advanced',
+        'Tagging',
+        'Custom Fields',
+    ],
 }

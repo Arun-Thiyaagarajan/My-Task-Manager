@@ -60,6 +60,9 @@ const getAppData = (): MyTaskManagerData => {
                 data.companyData[companyId].adminConfig = cloneDeep(DEFAULT_ADMIN_CONFIG);
             }
              const config = data.companyData[companyId].adminConfig;
+            if (config && !config.groupOrder) {
+                config.groupOrder = cloneDeep(DEFAULT_ADMIN_CONFIG.groupOrder);
+            }
             if (config && config.formLayout) {
                 Object.keys(data.companyData[companyId].fields).forEach(fieldId => {
                     if(!config.fieldConfig[fieldId]){

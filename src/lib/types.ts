@@ -76,4 +76,5 @@ export interface FormFieldConfig {
 export interface AdminConfig {
   formLayout: string[]; // Array of field IDs to determine order
   fieldConfig: Record<string, FormFieldConfig>; // Config for each field
+  groupOrder?: string[];
 }

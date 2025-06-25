@@ -26,33 +26,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
-const FIELD_GROUPS = [
-  {
-    title: 'Core Details',
-    fieldIds: ['title', 'description', 'status'],
-  },
-  {
-    title: 'Assignment & Tracking',
-    fieldIds: ['developers', 'repositories', 'azureWorkItemId', 'prLinks'],
-  },
-  {
-    title: 'Dates',
-    fieldIds: [
-      'devStartDate',
-      'devEndDate',
-      'qaStartDate',
-      'qaEndDate',
-      'stageDate',
-      'productionDate',
-      'othersDate',
-    ],
-  },
-  {
-    title: 'Advanced',
-    fieldIds: ['deploymentStatus', 'qaIssueIds', 'attachments'],
-  }
-];
-
 export default function AdminPage() {
   const [adminConfig, setAdminConfig] = useState<AdminConfig | null>(null);
   const [allFields, setAllFields] = useState<Record<string, FormField>>({});
@@ -61,6 +34,7 @@ export default function AdminPage() {
   const [isFieldDialogOpen, setIsFieldDialogOpen] = useState(false);
   const [fieldToEdit, setFieldToEdit] = useState<FormField | null>(null);
   const [draggedFieldId, setDraggedFieldId] = useState<string | null>(null);
+  const [draggedGroupTitle, setDraggedGroupTitle] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
 
@@ -90,13 +64,10 @@ export default function AdminPage() {
     }
 
     if (!initialLoadComplete.current) {
-      // This is the first run after data has loaded.
-      // Mark it as complete and do not save.
       initialLoadComplete.current = true;
       return;
     }
 
-    // Any subsequent run of this effect is a real change.
     setIsSaving(true);
     const handler = setTimeout(() => {
       if (adminConfig) {
@@ -147,6 +118,27 @@ export default function AdminPage() {
 
     setAdminConfig({ ...adminConfig, formLayout: newLayout });
     setDraggedFieldId(null);
+  }
+  
+  const handleGroupDragStart = (e: React.DragEvent<HTMLDivElement>, title: string) => {
+    setDraggedGroupTitle(title);
+    e.dataTransfer.effectAllowed = 'move';
+  }
+
+  const handleGroupDrop = (targetGroupTitle: string) => {
+    if (!draggedGroupTitle || !adminConfig?.groupOrder) return;
+    
+    const newGroupOrder = [...adminConfig.groupOrder];
+    const draggedIndex = newGroupOrder.indexOf(draggedGroupTitle);
+    const targetIndex = newGroupOrder.indexOf(targetGroupTitle);
+    
+    if (draggedIndex === -1 || targetIndex === -1) return;
+    
+    const [movedItem] = newGroupOrder.splice(draggedIndex, 1);
+    newGroupOrder.splice(targetIndex, 0, movedItem);
+
+    setAdminConfig({ ...adminConfig, groupOrder: newGroupOrder });
+    setDraggedGroupTitle(null);
   }
 
   const handleAddField = (fieldId: string) => {
@@ -209,6 +201,22 @@ export default function AdminPage() {
       return acc;
     }, {} as Record<string, FormField>);
   }, [searchQuery, allFields]);
+  
+  const fieldGroups = useMemo(() => {
+    const customTagFields = Object.keys(allFields).filter(id => allFields[id].isCustom && allFields[id].type === 'tags');
+    const otherCustomFields = Object.keys(allFields).filter(id => allFields[id].isCustom && allFields[id].type !== 'tags');
+    
+    const groups = [
+      { title: 'Core Details', fieldIds: ['title', 'description', 'status'] },
+      { title: 'Assignment & Tracking', fieldIds: ['developers', 'repositories', 'azureWorkItemId', 'prLinks'] },
+      { title: 'Dates', fieldIds: ['devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate', 'stageDate', 'productionDate', 'othersDate'] },
+      { title: 'Advanced', fieldIds: ['deploymentStatus', 'qaIssueIds', 'attachments'] },
+      { title: 'Tagging', fieldIds: customTagFields },
+      { title: 'Custom Fields', fieldIds: otherCustomFields }
+    ];
+    
+    return groups;
+  }, [allFields]);
 
   if (isLoading || !adminConfig) {
     return (
@@ -232,7 +240,7 @@ export default function AdminPage() {
       return (
         <div 
           key={fieldId}
-          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-lg border p-4 cursor-pointer bg-card hover:border-primary/50"
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-lg border p-4 cursor-pointer bg-background hover:border-primary/50"
           draggable={true}
           onDragStart={(e) => handleDragStart(e, fieldId)}
           onDragOver={handleDragOver}
@@ -271,44 +279,6 @@ export default function AdminPage() {
         </div>
       );
   }
-  
-  const renderGroupedFields = (fieldsToRender: string[]) => {
-      const customFields = fieldsToRender.filter(id => allFields[id]?.isCustom);
-      const groupedStandardFields = FIELD_GROUPS.map(group => {
-        return {
-          ...group,
-          fields: group.fieldIds.filter(id => fieldsToRender.includes(id))
-        }
-      }).filter(group => group.fields.length > 0);
-
-      const standardFieldElements = groupedStandardFields.map(group => (
-        <div key={group.title}>
-            <h3 className="text-lg font-semibold mt-4 mb-3 pb-2 border-b">{group.title}</h3>
-            <div className="space-y-2">
-                {group.fields.map(renderFieldCard)}
-            </div>
-        </div>
-      ));
-      
-      const customFieldElements = customFields.length > 0 ? (
-        <div>
-            <h3 className="text-lg font-semibold mt-4 mb-3 pb-2 border-b">Custom Fields</h3>
-            <div className="space-y-2">
-                {customFields.map(renderFieldCard)}
-            </div>
-        </div>
-      ) : null;
-
-      return (
-          <>
-            {standardFieldElements}
-            {customFieldElements}
-            {fieldsToRender.length === 0 && searchQuery && (
-                <p className="text-muted-foreground text-center py-4">No active fields match your search.</p>
-            )}
-          </>
-      )
-  }
 
   return (
     <TooltipProvider>
@@ -328,7 +298,7 @@ export default function AdminPage() {
               Admin Portal
               {isSaving && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
             </CardTitle>
-            <CardDescription>Drag and drop to reorder fields, or click to edit. Changes are saved automatically.</CardDescription>
+            <CardDescription>Drag and drop to reorder fields or groups. Changes are saved automatically.</CardDescription>
              <div className="relative mt-4">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input 
@@ -343,9 +313,45 @@ export default function AdminPage() {
             
             <div>
               <h2 className="text-xl font-semibold mb-4 border-b pb-2">Active Form Fields</h2>
-              {renderGroupedFields(filteredActiveLayout)}
-              {filteredActiveLayout.length === 0 && !searchQuery && (
-                  <p className="text-muted-foreground text-center py-4">No active fields. Add some from the list below.</p>
+              
+              {adminConfig.groupOrder?.map(groupTitle => {
+                const groupInfo = fieldGroups.find(g => g.title === groupTitle);
+                if (!groupInfo) return null;
+
+                const activeFieldsInGroup = formLayout.filter(id => 
+                    groupInfo.fieldIds.includes(id) && filteredFields[id]
+                );
+                
+                if (activeFieldsInGroup.length === 0) return null;
+
+                return (
+                    <div 
+                        key={groupTitle}
+                        onDragOver={handleDragOver}
+                        onDrop={() => handleGroupDrop(groupTitle)}
+                        className="mb-6 rounded-lg border bg-muted/20"
+                    >
+                        <div 
+                            draggable 
+                            onDragStart={(e) => handleGroupDragStart(e, groupTitle)}
+                            className="p-4 cursor-grab rounded-t-lg bg-muted/50"
+                        >
+                            <h3 className="text-lg font-semibold flex items-center gap-2">
+                                <GripVertical className="h-5 w-5 text-muted-foreground" />
+                                {groupTitle}
+                            </h3>
+                        </div>
+                        <div className="p-4 pt-2 space-y-2">
+                            {activeFieldsInGroup.map(renderFieldCard)}
+                        </div>
+                    </div>
+                );
+              })}
+
+              {filteredActiveLayout.length === 0 && (
+                <p className="text-muted-foreground text-center py-4">
+                  {searchQuery ? 'No active fields match your search.' : 'No active fields. Add some from the list below.'}
+                </p>
               )}
             </div>
             
