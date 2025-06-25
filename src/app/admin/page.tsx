@@ -1,14 +1,15 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { getAdminConfig, updateAdminConfig, getFields, deleteField } from '@/lib/data';
 import type { AdminConfig, FormField } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, GripVertical, XCircle, PlusCircle, Trash2, Edit } from 'lucide-react';
+import { Loader2, ArrowLeft, GripVertical, XCircle, PlusCircle, Trash2, Edit, Search } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import { FieldEditorDialog } from '@/components/field-editor-dialog';
@@ -23,17 +24,47 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
+const FIELD_GROUPS = [
+  {
+    title: 'Core Details',
+    fieldIds: ['title', 'description', 'status'],
+  },
+  {
+    title: 'Assignment & Tracking',
+    fieldIds: ['developers', 'repositories', 'azureWorkItemId', 'prLinks'],
+  },
+  {
+    title: 'Dates',
+    fieldIds: [
+      'devStartDate',
+      'devEndDate',
+      'qaStartDate',
+      'qaEndDate',
+      'stageDate',
+      'productionDate',
+      'othersDate',
+    ],
+  },
+  {
+    title: 'Advanced',
+    fieldIds: ['deploymentStatus', 'qaIssueIds', 'attachments'],
+  }
+];
 
 export default function AdminPage() {
   const [adminConfig, setAdminConfig] = useState<AdminConfig | null>(null);
   const [allFields, setAllFields] = useState<Record<string, FormField>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [isFieldDialogOpen, setIsFieldDialogOpen] = useState(false);
   const [fieldToEdit, setFieldToEdit] = useState<FormField | null>(null);
   const [draggedFieldId, setDraggedFieldId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
+
+  const isInitialMount = useRef(true);
 
   const refreshData = () => {
       const config = getAdminConfig();
@@ -50,6 +81,29 @@ export default function AdminPage() {
     window.addEventListener('storage', refreshData);
     return () => window.removeEventListener('storage', refreshData);
   }, []);
+
+  useEffect(() => {
+    if (isInitialMount.current) {
+        isInitialMount.current = false;
+        return;
+    }
+    if (isLoading || !adminConfig) return;
+
+    setIsSaving(true);
+    const handler = setTimeout(() => {
+        updateAdminConfig(adminConfig);
+        toast({
+            variant: 'success',
+            title: 'Configuration Saved',
+            description: 'Your changes have been saved automatically.',
+        });
+        setIsSaving(false);
+    }, 1500);
+
+    return () => {
+        clearTimeout(handler);
+    }
+  }, [adminConfig]);
 
   const handleToggleRequired = (fieldId: string) => {
     if (!adminConfig) return;
@@ -107,7 +161,7 @@ export default function AdminPage() {
     if (!adminConfig) return;
 
     const newLayout = adminConfig.formLayout.filter(id => id !== fieldId);
-    const newFieldConfig = { ...adminConfig.fieldConfig[fieldId], visible: false };
+    const newFieldConfig = { ...(adminConfig.fieldConfig[fieldId] || {}), visible: false };
     
     setAdminConfig({
       ...adminConfig,
@@ -132,17 +186,20 @@ export default function AdminPage() {
         description: 'The custom field has been removed.',
     });
   }
-
-  const handleSaveChanges = () => {
-    if (adminConfig) {
-      updateAdminConfig(adminConfig);
-      toast({
-        variant: 'success',
-        title: 'Configuration Saved',
-        description: 'Your form settings have been updated.',
-      });
-    }
-  };
+  
+  const filteredFields = useMemo(() => {
+    if (!searchQuery) return allFields;
+    const lowerCaseQuery = searchQuery.toLowerCase();
+    return Object.entries(allFields).reduce((acc, [id, field]) => {
+      if (
+        field.label.toLowerCase().includes(lowerCaseQuery) ||
+        field.description?.toLowerCase().includes(lowerCaseQuery)
+      ) {
+        acc[id] = field;
+      }
+      return acc;
+    }, {} as Record<string, FormField>);
+  }, [searchQuery, allFields]);
 
   if (isLoading || !adminConfig) {
     return (
@@ -156,7 +213,93 @@ export default function AdminPage() {
   }
 
   const { formLayout, fieldConfig } = adminConfig;
-  const inactiveFields = Object.keys(allFields).filter(id => !formLayout.includes(id));
+  const filteredActiveLayout = formLayout.filter(id => filteredFields[id]);
+  const inactiveFields = Object.keys(filteredFields).filter(id => !formLayout.includes(id));
+  
+  const renderFieldCard = (fieldId: string) => {
+      const fieldDefinition = allFields[fieldId];
+      if (!fieldDefinition) return null;
+
+      return (
+        <div 
+          key={fieldId}
+          className="flex flex-col sm:flex-row items-start justify-between gap-4 rounded-lg border p-4 cursor-pointer bg-card hover:border-primary/50"
+          draggable={true}
+          onDragStart={(e) => handleDragStart(e, fieldId)}
+          onDragOver={handleDragOver}
+          onDrop={() => handleDrop(fieldId)}
+          onClick={() => handleOpenEditDialog(fieldDefinition)}
+        >
+          <div className="flex items-start gap-4 flex-1">
+            <GripVertical className="h-6 w-6 text-muted-foreground mt-1 cursor-grab" />
+              <div>
+              <h3 className="font-semibold text-lg">{fieldDefinition.label}</h3>
+              <p className="text-sm text-muted-foreground">{fieldDefinition.description}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4 pt-2 sm:pt-0 shrink-0" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center space-x-2">
+                <Switch
+                  id={`required-${fieldId}`}
+                  checked={fieldConfig[fieldId]?.required || false}
+                  onCheckedChange={() => handleToggleRequired(fieldId)}
+                />
+                <Label htmlFor={`required-${fieldId}`}>Required</Label>
+            </div>
+            <div className="flex items-center border-l pl-4 gap-1">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleRemoveField(fieldId)}>
+                      <XCircle className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Deactivate</p>
+                  </TooltipContent>
+                </Tooltip>
+            </div>
+          </div>
+        </div>
+      );
+  }
+  
+  const renderGroupedFields = (fieldsToRender: string[]) => {
+      const customFields = fieldsToRender.filter(id => allFields[id]?.isCustom);
+      const groupedStandardFields = FIELD_GROUPS.map(group => {
+        return {
+          ...group,
+          fields: group.fieldIds.filter(id => fieldsToRender.includes(id))
+        }
+      }).filter(group => group.fields.length > 0);
+
+      const standardFieldElements = groupedStandardFields.map(group => (
+        <div key={group.title}>
+            <h3 className="text-lg font-semibold mt-4 mb-3 pb-2 border-b">{group.title}</h3>
+            <div className="space-y-2">
+                {group.fields.map(renderFieldCard)}
+            </div>
+        </div>
+      ));
+      
+      const customFieldElements = customFields.length > 0 ? (
+        <div>
+            <h3 className="text-lg font-semibold mt-4 mb-3 pb-2 border-b">Custom Fields</h3>
+            <div className="space-y-2">
+                {customFields.map(renderFieldCard)}
+            </div>
+        </div>
+      ) : null;
+
+      return (
+          <>
+            {standardFieldElements}
+            {customFieldElements}
+            {fieldsToRender.length === 0 && searchQuery && (
+                <p className="text-muted-foreground text-center py-4">No active fields match your search.</p>
+            )}
+          </>
+      )
+  }
 
   return (
     <TooltipProvider>
@@ -172,64 +315,29 @@ export default function AdminPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-3xl font-bold tracking-tight">Admin Portal</CardTitle>
-            <CardDescription>Drag and drop to reorder fields. Click a field to edit its properties.</CardDescription>
+            <CardTitle className="text-3xl font-bold tracking-tight flex items-center gap-3">
+              Admin Portal
+              {isSaving && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
+            </CardTitle>
+            <CardDescription>Drag and drop to reorder fields, or click to edit. Changes are saved automatically.</CardDescription>
+             <div className="relative pt-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                    placeholder="Search fields..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                />
+            </div>
           </CardHeader>
           <CardContent className="space-y-8">
             
             <div>
               <h2 className="text-xl font-semibold mb-4 border-b pb-2">Active Form Fields</h2>
-              <div className="space-y-2">
-                {formLayout.map((fieldId) => {
-                  const fieldDefinition = allFields[fieldId];
-                  if (!fieldDefinition) return null;
-
-                  return (
-                    <div 
-                      key={fieldId}
-                      className="flex flex-col sm:flex-row items-start justify-between gap-4 rounded-lg border p-4 cursor-pointer bg-card hover:border-primary/50"
-                      draggable={true}
-                      onDragStart={(e) => handleDragStart(e, fieldId)}
-                      onDragOver={handleDragOver}
-                      onDrop={() => handleDrop(fieldId)}
-                      onClick={() => handleOpenEditDialog(fieldDefinition)}
-                    >
-                      <div className="flex items-start gap-4 flex-1">
-                        <GripVertical className="h-6 w-6 text-muted-foreground mt-1 cursor-grab" />
-                         <div>
-                          <h3 className="font-semibold text-lg">{fieldDefinition.label}</h3>
-                          <p className="text-sm text-muted-foreground">{fieldDefinition.description}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4 pt-2 sm:pt-0 shrink-0" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center space-x-2">
-                            <Switch
-                              id={`required-${fieldId}`}
-                              checked={fieldConfig[fieldId]?.required || false}
-                              onCheckedChange={() => handleToggleRequired(fieldId)}
-                            />
-                            <Label htmlFor={`required-${fieldId}`}>Required</Label>
-                        </div>
-                        <div className="flex items-center border-l pl-4 gap-1">
-                           <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleRemoveField(fieldId)}>
-                                  <XCircle className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Deactivate</p>
-                              </TooltipContent>
-                            </Tooltip>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-                {formLayout.length === 0 && (
+              {renderGroupedFields(filteredActiveLayout)}
+              {filteredActiveLayout.length === 0 && !searchQuery && (
                   <p className="text-muted-foreground text-center py-4">No active fields. Add some from the list below.</p>
-                )}
-              </div>
+              )}
             </div>
             
             <div>
@@ -309,13 +417,11 @@ export default function AdminPage() {
                    )
                 })}
                 {inactiveFields.length === 0 && (
-                  <p className="text-muted-foreground text-center py-4 w-full">No inactive fields.</p>
+                  <p className="text-muted-foreground text-center py-4 w-full">
+                    {searchQuery ? 'No inactive fields match your search.' : 'All fields are active.'}
+                  </p>
                 )}
               </div>
-            </div>
-
-            <div className="flex justify-end mt-8">
-              <Button onClick={handleSaveChanges}>Save Changes</Button>
             </div>
           </CardContent>
         </Card>
