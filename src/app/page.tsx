@@ -82,10 +82,12 @@ export default function Home() {
     return () => window.removeEventListener('storage', refreshData);
   }, [activeCompanyId]);
 
+  const isFilterVisible = (id: string) => adminConfig?.fieldConfig[id]?.visible ?? false;
+
   const filteredTasks = tasks.filter((task: Task) => {
     const statusMatch = statusFilter === 'all' || task.status === statusFilter;
     
-    const repoMatch = !adminConfig?.fieldConfig.repositories.visible || repoFilter === 'all' || task.repositories?.includes(repoFilter);
+    const repoMatch = !isFilterVisible('repositories') || repoFilter === 'all' || task.repositories?.includes(repoFilter);
 
     const searchLower = searchQuery.toLowerCase();
     const searchMatch =
@@ -99,7 +101,7 @@ export default function Home() {
       );
 
     const dateMatch = (() => {
-      if (!adminConfig?.fieldConfig.devEndDate.visible) return true;
+      if (!isFilterVisible('devEndDate')) return true;
       if (!dateFilter?.from) return true;
       if (!task.devEndDate) return false;
 
@@ -114,7 +116,7 @@ export default function Home() {
     })();
     
     const deploymentMatch =
-      !adminConfig?.fieldConfig.deploymentStatus.visible ||
+      !isFilterVisible('deploymentStatus') ||
       deploymentFilter === 'all' ||
       (task.deploymentStatus?.[deploymentFilter as Environment] ?? false);
 
@@ -133,8 +135,6 @@ export default function Home() {
       </div>
     );
   }
-
-  const isFilterVisible = (id: string) => adminConfig?.fieldConfig[id]?.visible ?? false;
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
