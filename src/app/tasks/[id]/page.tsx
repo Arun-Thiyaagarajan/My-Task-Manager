@@ -55,7 +55,7 @@ export default function TaskPage() {
   }
 
   const azureWorkItemUrl = task.azureWorkItemId 
-    ? `https://dev.azure.com/your-org/your-project/_workitems/edit/${task.azureWorkItemId}` 
+    ? `https://dev.azure.com/ideaelan/Infinity/_workitems/edit/${task.azureWorkItemId}` 
     : null;
 
   const renderDateRange = (start?: string, end?: string) => {
@@ -131,7 +131,7 @@ export default function TaskPage() {
               <CardTitle>Pull Request Links</CardTitle>
             </CardHeader>
             <CardContent>
-              <PrLinksGroup prLinks={task.prLinks} />
+              <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} />
             </CardContent>
           </Card>
 

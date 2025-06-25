@@ -22,7 +22,7 @@ interface TaskCardProps {
 
 export function TaskCard({ task }: TaskCardProps) {
   const azureWorkItemUrl = task.azureWorkItemId 
-    ? `https://dev.azure.com/your-org/your-project/_workitems/edit/${task.azureWorkItemId}` 
+    ? `https://dev.azure.com/ideaelan/Infinity/_workitems/edit/${task.azureWorkItemId}` 
     : null;
 
   return (

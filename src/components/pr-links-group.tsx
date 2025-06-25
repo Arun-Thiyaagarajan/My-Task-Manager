@@ -2,14 +2,17 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { GitPullRequest } from 'lucide-react';
-import type { Task } from '@/lib/types';
+import type { Task, Repository } from '@/lib/types';
 import { ENVIRONMENTS } from '@/lib/constants';
 
 interface PrLinksGroupProps {
   prLinks: Task['prLinks'];
+  repositories: Repository[];
 }
 
-export function PrLinksGroup({ prLinks }: PrLinksGroupProps) {
+export function PrLinksGroup({ prLinks, repositories }: PrLinksGroupProps) {
+  const prBaseUrl = 'https://dev.azure.com/ideaelan/Infinity/_git/';
+
   return (
     <Tabs defaultValue="dev" className="w-full">
       <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
@@ -17,20 +20,29 @@ export function PrLinksGroup({ prLinks }: PrLinksGroupProps) {
             <TabsTrigger key={env} value={env} className="capitalize">{env}</TabsTrigger>
         ))}
       </TabsList>
-      {ENVIRONMENTS.map(env => (
+      {ENVIRONMENTS.map(env => {
+        const allPrLinks = repositories.flatMap(repo => 
+            (prLinks[env] || []).map(prId => ({
+                repo,
+                prId,
+                url: `${prBaseUrl}${repo}/pullrequest/${prId}`
+            }))
+        );
+
+        return (
         <TabsContent key={env} value={env}>
           <div className="mt-4 space-y-3">
-            {(prLinks[env] && prLinks[env]!.length > 0) ? (
-              prLinks[env]!.map((link, index) => (
+            {allPrLinks.length > 0 ? (
+              allPrLinks.map(({repo, prId, url}, index) => (
                 <div key={index} className="flex items-center gap-3">
                   <GitPullRequest className="h-5 w-5 text-muted-foreground" />
                   <a
-                    href={link}
+                    href={url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-primary hover:underline underline-offset-4 truncate"
                   >
-                    {link}
+                    {repo}/pullrequest/{prId}
                   </a>
                 </div>
               ))
@@ -41,7 +53,7 @@ export function PrLinksGroup({ prLinks }: PrLinksGroupProps) {
             )}
           </div>
         </TabsContent>
-      ))}
+      )})}
     </Tabs>
   );
 }

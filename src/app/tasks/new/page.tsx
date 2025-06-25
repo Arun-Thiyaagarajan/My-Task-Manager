@@ -14,7 +14,7 @@ type TaskFormData = z.infer<typeof taskSchema>;
 
 const parsePrLinks = (links: string | undefined): string[] => {
   if (!links) return [];
-  return links.split('\n').map(l => l.trim()).filter(Boolean);
+  return links.split(',').map(l => l.trim()).filter(Boolean);
 };
 
 const processTaskData = (data: TaskFormData) => {
@@ -70,14 +70,14 @@ export default function NewTaskPage() {
     }
 
     const taskData = processTaskData(validationResult.data);
-    const newTask = addTask(taskData);
+    addTask(taskData);
     
     toast({
         title: `Task created`,
         description: "Your new task has been saved.",
     });
 
-    router.push(`/tasks/${newTask.id}`);
+    router.push(`/`);
   };
 
   return (

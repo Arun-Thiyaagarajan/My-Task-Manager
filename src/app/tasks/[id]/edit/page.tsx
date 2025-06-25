@@ -10,12 +10,13 @@ import { taskSchema } from '@/lib/validators';
 import type { Task, Environment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 type TaskFormData = z.infer<typeof taskSchema>;
 
 const parsePrLinks = (links: string | undefined): string[] => {
   if (!links) return [];
-  return links.split('\n').map(l => l.trim()).filter(Boolean);
+  return links.split(',').map(l => l.trim()).filter(Boolean);
 };
 
 const processTaskData = (data: TaskFormData) => {
@@ -89,7 +90,7 @@ export default function EditTaskPage() {
         description: "Your changes have been saved.",
     });
 
-    router.push(`/tasks/${task.id}`);
+    router.push(`/`);
   };
 
   if (isLoading) {

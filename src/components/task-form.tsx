@@ -30,7 +30,6 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Loader2, CalendarIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
-import { useToast } from '@/hooks/use-toast';
 import { Card } from './ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
@@ -51,7 +50,6 @@ interface TaskFormProps {
 export function TaskForm({ task, onSubmit, submitButtonText, developersList }: TaskFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const { toast } = useToast();
   const [allDevelopers, setAllDevelopers] = useState<string[]>(developersList);
 
 
@@ -65,10 +63,10 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
       azureWorkItemId: task?.azureWorkItemId ?? '',
       developers: task?.developers ?? [],
       prLinks: {
-        dev: task?.prLinks?.dev?.join('\n') ?? '',
-        stage: task?.prLinks?.stage?.join('\n') ?? '',
-        production: task?.prLinks?.production?.join('\n') ?? '',
-        others: task?.prLinks?.others?.join('\n') ?? '',
+        dev: task?.prLinks?.dev?.join(', ') ?? '',
+        stage: task?.prLinks?.stage?.join(', ') ?? '',
+        production: task?.prLinks?.production?.join(', ') ?? '',
+        others: task?.prLinks?.others?.join(', ') ?? '',
       },
       devStartDate: task?.devStartDate ? new Date(task.devStartDate) : undefined,
       devEndDate: task?.devEndDate ? new Date(task.devEndDate) : undefined,
@@ -372,7 +370,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                     </div>
                     <Separator />
                     <div>
-                         <h4 className="font-medium text-sm text-muted-foreground mb-4">Pull Request Links</h4>
+                         <h4 className="font-medium text-sm text-muted-foreground mb-4">Pull Request Numbers</h4>
                         <div className="space-y-6">
                             {ENVIRONMENTS.map(env => (
                                 <FormField
@@ -381,14 +379,14 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                                     name={`prLinks.${env}`}
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel className="capitalize">{env} PR Links</FormLabel>
+                                            <FormLabel className="capitalize">{env} PR Numbers</FormLabel>
                                             <FormControl>
-                                                <Textarea
-                                                placeholder={`Paste ${env} PR links here, one per line...`}
-                                                className="min-h-[80px] font-mono text-xs"
-                                                {...field}
+                                                <Input
+                                                    placeholder="e.g. 123, 456"
+                                                    {...field}
                                                 />
                                             </FormControl>
+                                            <FormDescription>Comma-separated PR numbers.</FormDescription>
                                             <FormMessage />
                                         </FormItem>
                                     )}
