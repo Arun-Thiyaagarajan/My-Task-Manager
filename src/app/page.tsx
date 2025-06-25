@@ -1,8 +1,9 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getTasks } from '@/lib/data';
+import { getTasks, getAdminConfig } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -24,7 +25,8 @@ import {
   Calendar as CalendarIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Task, Environment } from '@/lib/types';
+import type { Task, Environment, AdminConfig } from '@/lib/types';
+import { MASTER_FORM_FIELDS } from '@/lib/form-config';
 import {
   Popover,
   PopoverContent,
@@ -48,6 +50,7 @@ type ViewMode = 'grid' | 'table';
 export default function Home() {
   const activeCompanyId = useActiveCompany();
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [adminConfig, setAdminConfig] = useState<AdminConfig | null>(null);
   const [statusFilter, setStatusFilter] = useState('all');
   const [repoFilter, setRepoFilter] = useState('all');
   const [deploymentFilter, setDeploymentFilter] = useState('all');
@@ -59,27 +62,30 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    if (!activeCompanyId) {
-      // Still waiting for client-side mount to determine company
-      return;
-    }
-    document.title = 'Tasks | My Task Manager';
-    // Data is fetched on the client from localStorage
-    setTasks(getTasks());
-    setIsLoading(false);
-  }, [activeCompanyId]);
-
-  const refreshTasks = () => {
+  const refreshData = () => {
     if (activeCompanyId) {
         setTasks(getTasks());
+        setAdminConfig(getAdminConfig());
     }
   };
 
+  useEffect(() => {
+    if (!activeCompanyId) {
+      return;
+    }
+    document.title = 'Tasks | TaskFlow';
+    refreshData();
+    setIsLoading(false);
+    
+    // Also listen for config changes from the admin page
+    window.addEventListener('storage', refreshData);
+    return () => window.removeEventListener('storage', refreshData);
+  }, [activeCompanyId]);
+
   const filteredTasks = tasks.filter((task: Task) => {
     const statusMatch = statusFilter === 'all' || task.status === statusFilter;
-    const repoMatch =
-      repoFilter === 'all' || task.repositories.includes(repoFilter);
+    
+    const repoMatch = !adminConfig?.fieldConfig.repositories.visible || repoFilter === 'all' || task.repositories?.includes(repoFilter);
 
     const searchLower = searchQuery.toLowerCase();
     const searchMatch =
@@ -88,18 +94,18 @@ export default function Home() {
       task.id.toLowerCase().includes(searchLower) ||
       (task.azureWorkItemId && task.azureWorkItemId.includes(searchQuery)) ||
       task.developers?.some((dev) => dev.toLowerCase().includes(searchLower)) ||
-      task.repositories.some((repo) =>
+      task.repositories?.some((repo) =>
         repo.toLowerCase().includes(searchLower)
       );
 
     const dateMatch = (() => {
+      if (!adminConfig?.fieldConfig.devEndDate.visible) return true;
       if (!dateFilter?.from) return true;
-      if (!task.devEndDate) return false; // Task must have a dev end date to be filtered
+      if (!task.devEndDate) return false;
 
       const taskDate = new Date(task.devEndDate);
 
       const from = startOfDay(dateFilter.from);
-      // If to is not set, range is just one day.
       const to = dateFilter.to
         ? endOfDay(dateFilter.to)
         : endOfDay(dateFilter.from);
@@ -108,6 +114,7 @@ export default function Home() {
     })();
     
     const deploymentMatch =
+      !adminConfig?.fieldConfig.deploymentStatus.visible ||
       deploymentFilter === 'all' ||
       (task.deploymentStatus?.[deploymentFilter as Environment] ?? false);
 
@@ -126,6 +133,8 @@ export default function Home() {
       </div>
     );
   }
+
+  const isFilterVisible = (id: string) => adminConfig?.fieldConfig[id]?.visible ?? false;
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -152,143 +161,156 @@ export default function Home() {
               className="pl-10 bg-card"
             />
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-[180px] bg-card">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              {TASK_STATUSES.map((status) => (
-                <SelectItem key={status} value={status}>
-                  {status}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={repoFilter} onValueChange={setRepoFilter}>
-            <SelectTrigger className="w-full sm:w-[180px] bg-card">
-              <SelectValue placeholder="Filter by repository" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Repositories</SelectItem>
-              {REPOSITORIES.map((repo) => (
-                <SelectItem key={repo} value={repo}>
-                  {repo}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={deploymentFilter} onValueChange={setDeploymentFilter}>
-            <SelectTrigger className="w-full sm:w-[190px] bg-card">
-              <SelectValue placeholder="Filter by deployment" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Any Deployment</SelectItem>
-              <SelectItem value="dev">Deployed to Dev</SelectItem>
-              <SelectItem value="stage">Deployed to Stage</SelectItem>
-              <SelectItem value="production">Deployed to Production</SelectItem>
-            </SelectContent>
-          </Select>
-          <Popover
-            open={isDatePopoverOpen}
-            onOpenChange={setIsDatePopoverOpen}
-          >
-            <PopoverTrigger asChild>
-              <Button
-                id="date"
-                variant={'outline'}
-                className={cn(
-                  'w-full sm:w-[260px] justify-start text-left font-normal bg-card',
-                  !dateFilter && 'text-muted-foreground'
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateFilter?.from ? (
-                  dateFilter.to ? (
-                    <>
-                      {format(dateFilter.from, 'LLL dd, y')} -{' '}
-                      {format(dateFilter.to, 'LLL dd, y')}
-                    </>
+
+          {isFilterVisible('status') && (
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-[180px] bg-card">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                {TASK_STATUSES.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {status}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {isFilterVisible('repositories') && (
+            <Select value={repoFilter} onValueChange={setRepoFilter}>
+              <SelectTrigger className="w-full sm:w-[180px] bg-card">
+                <SelectValue placeholder="Filter by repository" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Repositories</SelectItem>
+                {REPOSITORIES.map((repo) => (
+                  <SelectItem key={repo} value={repo}>
+                    {repo}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          
+          {isFilterVisible('deploymentStatus') && (
+            <Select value={deploymentFilter} onValueChange={setDeploymentFilter}>
+                <SelectTrigger className="w-full sm:w-[190px] bg-card">
+                <SelectValue placeholder="Filter by deployment" />
+                </SelectTrigger>
+                <SelectContent>
+                <SelectItem value="all">Any Deployment</SelectItem>
+                <SelectItem value="dev">Deployed to Dev</SelectItem>
+                <SelectItem value="stage">Deployed to Stage</SelectItem>
+                <SelectItem value="production">Deployed to Production</SelectItem>
+                </SelectContent>
+            </Select>
+          )}
+          
+          {isFilterVisible('devEndDate') && (
+            <Popover
+              open={isDatePopoverOpen}
+              onOpenChange={setIsDatePopoverOpen}
+            >
+              <PopoverTrigger asChild>
+                <Button
+                  id="date"
+                  variant={'outline'}
+                  className={cn(
+                    'w-full sm:w-[260px] justify-start text-left font-normal bg-card',
+                    !dateFilter && 'text-muted-foreground'
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateFilter?.from ? (
+                    dateFilter.to ? (
+                      <>
+                        {format(dateFilter.from, 'LLL dd, y')} -{' '}
+                        {format(dateFilter.to, 'LLL dd, y')}
+                      </>
+                    ) : (
+                      format(dateFilter.from, 'LLL dd, y')
+                    )
                   ) : (
-                    format(dateFilter.from, 'LLL dd, y')
-                  )
-                ) : (
-                  <span>Filter by Dev End Date</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 flex" align="start">
-              <div className="flex flex-col space-y-1 p-2 border-r">
-                <Button
-                  variant="ghost"
-                  className="justify-start px-2 font-normal text-sm"
-                  onClick={() => {
-                    setDateFilter(undefined);
-                    setIsDatePopoverOpen(false);
-                  }}
-                >
-                  Any time
+                    <span>Filter by Dev End Date</span>
+                  )}
                 </Button>
-                <Button
-                  variant="ghost"
-                  className="justify-start px-2 font-normal text-sm"
-                  onClick={() => {
-                    setDateFilter({ from: new Date(), to: new Date() });
-                    setIsDatePopoverOpen(false);
-                  }}
-                >
-                  Today
-                </Button>
-                <Button
-                  variant="ghost"
-                  className="justify-start px-2 font-normal text-sm"
-                  onClick={() => {
-                    setDateFilter({
-                      from: subDays(new Date(), 6),
-                      to: new Date(),
-                    });
-                    setIsDatePopoverOpen(false);
-                  }}
-                >
-                  Last 7 days
-                </Button>
-                <Button
-                  variant="ghost"
-                  className="justify-start px-2 font-normal text-sm"
-                  onClick={() => {
-                    setDateFilter({
-                      from: startOfMonth(new Date()),
-                      to: endOfMonth(new Date()),
-                    });
-                    setIsDatePopoverOpen(false);
-                  }}
-                >
-                  This month
-                </Button>
-                <Button
-                  variant="ghost"
-                  className="justify-start px-2 font-normal text-sm"
-                  onClick={() => {
-                    setDateFilter({
-                      from: startOfYear(new Date()),
-                      to: endOfYear(new Date()),
-                    });
-                    setIsDatePopoverOpen(false);
-                  }}
-                >
-                  This year
-                </Button>
-              </div>
-              <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={dateFilter?.from}
-                selected={dateFilter}
-                onSelect={setDateFilter}
-                numberOfMonths={1}
-              />
-            </PopoverContent>
-          </Popover>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 flex" align="start">
+                <div className="flex flex-col space-y-1 p-2 border-r">
+                  <Button
+                    variant="ghost"
+                    className="justify-start px-2 font-normal text-sm"
+                    onClick={() => {
+                      setDateFilter(undefined);
+                      setIsDatePopoverOpen(false);
+                    }}
+                  >
+                    Any time
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="justify-start px-2 font-normal text-sm"
+                    onClick={() => {
+                      setDateFilter({ from: new Date(), to: new Date() });
+                      setIsDatePopoverOpen(false);
+                    }}
+                  >
+                    Today
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="justify-start px-2 font-normal text-sm"
+                    onClick={() => {
+                      setDateFilter({
+                        from: subDays(new Date(), 6),
+                        to: new Date(),
+                      });
+                      setIsDatePopoverOpen(false);
+                    }}
+                  >
+                    Last 7 days
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="justify-start px-2 font-normal text-sm"
+                    onClick={() => {
+                      setDateFilter({
+                        from: startOfMonth(new Date()),
+                        to: endOfMonth(new Date()),
+                      });
+                      setIsDatePopoverOpen(false);
+                    }}
+                  >
+                    This month
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="justify-start px-2 font-normal text-sm"
+                    onClick={() => {
+                      setDateFilter({
+                        from: startOfYear(new Date()),
+                        to: endOfYear(new Date()),
+                      });
+                      setIsDatePopoverOpen(false);
+                    }}
+                  >
+                    This year
+                  </Button>
+                </div>
+                <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={dateFilter?.from}
+                  selected={dateFilter}
+                  onSelect={setDateFilter}
+                  numberOfMonths={1}
+                />
+              </PopoverContent>
+            </Popover>
+          )}
+
         </div>
 
         <div className="flex items-center gap-2">
@@ -321,9 +343,9 @@ export default function Home() {
 
       {filteredTasks.length > 0 ? (
         viewMode === 'grid' ? (
-          <TasksGrid tasks={filteredTasks} onTaskDelete={refreshTasks} />
+          <TasksGrid tasks={filteredTasks} onTaskDelete={refreshData} />
         ) : (
-          <TasksTable tasks={filteredTasks} onTaskDelete={refreshTasks} />
+          <TasksTable tasks={filteredTasks} onTaskDelete={refreshData} />
         )
       ) : (
         <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg">

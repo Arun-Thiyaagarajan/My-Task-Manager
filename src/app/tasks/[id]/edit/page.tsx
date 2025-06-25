@@ -1,42 +1,16 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getTaskById, getDevelopers, updateTask, addDeveloper } from '@/lib/data';
+import { getTaskById, getDevelopers, updateTask, addDeveloper, getAdminConfig } from '@/lib/data';
 import { useParams, useRouter } from 'next/navigation';
 import { TaskForm } from '@/components/task-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { z } from 'zod';
-import { taskSchema } from '@/lib/validators';
-import type { Task } from '@/lib/types';
+import type { Task, AdminConfig } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-
-type TaskFormData = z.infer<typeof taskSchema>;
-
-const processTaskData = (data: TaskFormData) => {
-    const { devStartDate, devEndDate, qaStartDate, qaEndDate, stageDate, productionDate, othersDate, ...rest } = data;
-    
-    return {
-        ...rest,
-        devStartDate: devStartDate?.toISOString(),
-        devEndDate: devEndDate?.toISOString(),
-        qaStartDate: qaStartDate?.toISOString(),
-        qaEndDate: qaEndDate?.toISOString(),
-        stageDate: stageDate?.toISOString(),
-        productionDate: productionDate?.toISOString(),
-        othersDate: othersDate?.toISOString(),
-    };
-}
-
-const handleNewDevelopers = (developers: string[]) => {
-    const existingDevelopers = getDevelopers();
-    developers.forEach(dev => {
-        if (!existingDevelopers.includes(dev)) {
-            addDeveloper(dev);
-        }
-    });
-}
+import { buildTaskSchema } from '@/lib/validators';
 
 export default function EditTaskPage() {
   const params = useParams();
@@ -46,28 +20,34 @@ export default function EditTaskPage() {
   const taskId = params.id as string;
   const [task, setTask] = useState<Task | null>(null);
   const [developersList, setDevelopersList] = useState<string[]>([]);
+  const [adminConfig, setAdminConfig] = useState<AdminConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (taskId) {
       const foundTask = getTaskById(taskId);
       const devs = getDevelopers();
+      const config = getAdminConfig();
+
       setTask(foundTask || null);
       setDevelopersList(devs);
+      setAdminConfig(config);
       setIsLoading(false);
       
       if (foundTask) {
-        document.title = `Edit: ${foundTask.title} | My Task Manager`;
+        document.title = `Edit: ${foundTask.title} | TaskFlow`;
       } else {
-        document.title = 'Task Not Found | My Task Manager';
+        document.title = 'Task Not Found | TaskFlow';
       }
     }
   }, [taskId]);
 
-  const handleUpdateTask = (data: TaskFormData) => {
-    if (!task) return;
+  const handleUpdateTask = (data: any) => {
+    if (!task || !adminConfig) return;
 
+    const taskSchema = buildTaskSchema(adminConfig);
     const validationResult = taskSchema.safeParse(data);
+
      if (!validationResult.success) {
       console.error(validationResult.error.flatten().fieldErrors);
       toast({
@@ -79,11 +59,27 @@ export default function EditTaskPage() {
     }
     
     if (validationResult.data.developers) {
-      handleNewDevelopers(validationResult.data.developers);
+      const existingDevelopers = getDevelopers();
+      validationResult.data.developers.forEach((dev: string) => {
+          if (!existingDevelopers.includes(dev)) {
+              addDeveloper(dev);
+          }
+      });
     }
     
-    const taskData = processTaskData(validationResult.data);
-    updateTask(task.id, taskData);
+    const taskDataToUpdate: Partial<Task> = {};
+    for (const key in validationResult.data) {
+        if (Object.prototype.hasOwnProperty.call(validationResult.data, key)) {
+            const value = validationResult.data[key as keyof typeof validationResult.data];
+            if (value instanceof Date) {
+                 (taskDataToUpdate as any)[key] = value.toISOString();
+            } else {
+                 (taskDataToUpdate as any)[key] = value;
+            }
+        }
+    }
+
+    updateTask(task.id, taskDataToUpdate);
 
     toast({
         variant: 'success',
@@ -94,7 +90,7 @@ export default function EditTaskPage() {
     router.push(`/tasks/${task.id}`);
   };
 
-  if (isLoading) {
+  if (isLoading || !adminConfig) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <div className="flex flex-col items-center gap-4 text-center">
@@ -132,6 +128,7 @@ export default function EditTaskPage() {
             onSubmit={handleUpdateTask}
             submitButtonText="Save Changes"
             developersList={developersList}
+            adminConfig={adminConfig}
           />
         </CardContent>
       </Card>

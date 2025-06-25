@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -21,7 +22,7 @@ import {
   deleteCompany,
 } from '@/lib/data';
 import type { Company } from '@/lib/types';
-import { Building, PlusCircle, Trash2, Edit } from 'lucide-react';
+import { Building, PlusCircle, Trash2, Edit, Settings } from 'lucide-react';
 import { CompaniesManager } from './companies-manager';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -93,10 +94,10 @@ export function Header() {
           <div className="flex items-center">
             <Link href="/" className="mr-6 flex items-center space-x-2">
               <Icons.logo className="h-6 w-6 text-primary" />
-              <span className="font-bold sm:inline-block">My Task Manager</span>
+              <span className="font-bold sm:inline-block">TaskFlow</span>
             </Link>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
             {activeCompany && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -160,6 +161,12 @@ export function Header() {
               </DropdownMenu>
             )}
             <ThemeToggle />
+            <Button asChild variant="ghost" size="icon">
+              <Link href="/admin">
+                <Settings />
+                <span className="sr-only">Admin Settings</span>
+              </Link>
+            </Button>
           </div>
         </div>
       </header>

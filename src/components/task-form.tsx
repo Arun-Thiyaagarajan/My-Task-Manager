@@ -1,12 +1,12 @@
+
 'use client';
 
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
-import { taskSchema } from '@/lib/validators';
-import type { Task } from '@/lib/types';
-import { REPOSITORIES, TASK_STATUSES, ENVIRONMENTS } from '@/lib/constants';
-
+import { buildTaskSchema } from '@/lib/validators';
+import type { Task, AdminConfig, FormField } from '@/lib/types';
+import { MASTER_FORM_FIELDS } from '@/lib/form-config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -26,80 +26,67 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Loader2, CalendarIcon, PlusCircle, Trash2, Link2, FileText } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState, useTransition, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
+import { useState, useTransition, useEffect, useMemo } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Separator } from './ui/separator';
-import { MultiSelect, type SelectOption } from './ui/multi-select';
+import { MultiSelect } from './ui/multi-select';
 import { Checkbox } from './ui/checkbox';
 import * as React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { ScrollArea, ScrollBar } from './ui/scroll-area';
+import { ENVIRONMENTS } from '@/lib/constants';
+import { Card, CardContent } from './ui/card';
 
 
-type TaskFormData = z.infer<typeof taskSchema>;
+type TaskFormData = z.infer<ReturnType<typeof buildTaskSchema>>;
 
 interface TaskFormProps {
   task?: Task;
-  onSubmit: (data: TaskFormData) => void;
+  onSubmit: (data: any) => void;
   submitButtonText: string;
   developersList: string[];
+  adminConfig: AdminConfig;
 }
 
-export function TaskForm({ task, onSubmit, submitButtonText, developersList }: TaskFormProps) {
+const getInitialTaskData = (task?: Task) => {
+    const defaultData: any = {};
+    Object.values(MASTER_FORM_FIELDS).forEach(field => {
+        if (task && task[field.id as keyof Task] !== undefined) {
+            if (field.type === 'date' && task[field.id as keyof Task]) {
+                defaultData[field.id] = new Date(task[field.id as keyof Task] as string);
+            } else {
+                defaultData[field.id] = task[field.id as keyof Task];
+            }
+        } else {
+            defaultData[field.id] = field.defaultValue;
+        }
+    });
+    return defaultData;
+}
+
+export function TaskForm({ task, onSubmit, submitButtonText, developersList, adminConfig }: TaskFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [allDevelopers, setAllDevelopers] = useState<string[]>(developersList);
+  
+  const taskSchema = useMemo(() => buildTaskSchema(adminConfig), [adminConfig]);
+  
+  const form = useForm<TaskFormData>({
+    resolver: zodResolver(taskSchema),
+    defaultValues: getInitialTaskData(task),
+  });
 
+  useEffect(() => {
+    form.reset(getInitialTaskData(task));
+  }, [task, form]);
+  
   useEffect(() => {
     setAllDevelopers(developersList);
   }, [developersList]);
-
-  const form = useForm<TaskFormData>({
-    resolver: zodResolver(taskSchema),
-    defaultValues: {
-      title: task?.title ?? '',
-      description: task?.description ?? '',
-      attachments: task?.attachments ?? [],
-      status: task?.status ?? 'To Do',
-      repositories: task?.repositories ?? ['UI-Dashboard'],
-      azureWorkItemId: task?.azureWorkItemId ?? '',
-      developers: task?.developers ?? (task ? [] : ['Arun']),
-      qaIssueIds: task?.qaIssueIds ?? '',
-      deploymentStatus: {
-        dev: task?.deploymentStatus?.dev ?? false,
-        stage: task?.deploymentStatus?.stage ?? false,
-        production: task?.deploymentStatus?.production ?? false,
-        others: task?.deploymentStatus?.others ?? false,
-      },
-      othersEnvironmentName: task?.othersEnvironmentName ?? '',
-      prLinks: task?.prLinks ?? {},
-      devStartDate: task?.devStartDate ? new Date(task.devStartDate) : undefined,
-      devEndDate: task?.devEndDate ? new Date(task.devEndDate) : undefined,
-      qaStartDate: task?.qaStartDate ? new Date(task.qaStartDate) : undefined,
-      qaEndDate: task?.qaEndDate ? new Date(task.qaEndDate) : undefined,
-      stageDate: task?.stageDate ? new Date(task.stageDate) : undefined,
-      productionDate: task?.productionDate ? new Date(task.productionDate) : undefined,
-      othersDate: task?.othersDate ? new Date(task.othersDate) : undefined,
-    },
-  });
-
-  const devStartDate = form.watch('devStartDate');
-  const qaStartDate = form.watch('qaStartDate');
-
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: "attachments"
-  });
-
-  const isOthersDeployed = form.watch('deploymentStatus.others');
-  const selectedRepos = form.watch('repositories');
 
 
   const handleFormSubmit = (data: TaskFormData) => {
@@ -108,61 +95,75 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
     });
   };
 
-  const repositoryOptions: SelectOption[] = REPOSITORIES.map(repo => ({ value: repo, label: repo }));
-  const developerOptions: SelectOption[] = allDevelopers.map(dev => ({ value: dev, label: dev }));
+  const renderField = (fieldId: string) => {
+    const fieldDef = MASTER_FORM_FIELDS[fieldId];
+    if (!fieldDef) return null;
+    
+    const isVisible = adminConfig.fieldConfig[fieldId]?.visible;
+    if (!isVisible) return null;
+    
+    const isRequired = adminConfig.fieldConfig[fieldId]?.required;
+    const label = `${fieldDef.label}${isRequired ? ' *' : ''}`;
 
-  return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Title <span className="text-destructive">*</span></FormLabel>
-              <FormControl>
-                <Input placeholder="E.g. Fix login button" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description <span className="text-destructive">*</span></FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Describe the task in detail..."
-                  className="min-h-[120px]"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+    switch (fieldDef.type) {
+      case 'text':
+        return (
           <FormField
             control={form.control}
-            name="status"
+            name={fieldId}
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Status <span className="text-destructive">*</span></FormLabel>
+                <FormLabel>{label}</FormLabel>
+                <FormControl>
+                  <Input placeholder={fieldDef.placeholder} {...field} value={field.value ?? ''}/>
+                </FormControl>
+                {fieldDef.description && <FormDescription>{fieldDef.description}</FormDescription>}
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        );
+
+      case 'textarea':
+        return (
+          <FormField
+            control={form.control}
+            name={fieldId}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{label}</FormLabel>
+                <FormControl>
+                  <Textarea
+                    placeholder={fieldDef.placeholder}
+                    className="min-h-[120px]"
+                    {...field}
+                    value={field.value ?? ''}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        );
+        
+      case 'select':
+        return (
+           <FormField
+            control={form.control}
+            name={fieldId}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{label}</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select a status" />
+                      <SelectValue placeholder={fieldDef.placeholder} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {TASK_STATUSES.map((status) => (
-                      <SelectItem key={status} value={status}>
-                        {status}
+                    {fieldDef.options?.map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -171,82 +172,132 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
               </FormItem>
             )}
           />
+        )
+      
+      case 'multiselect':
+         const options = (fieldDef.id === 'developers' ? allDevelopers : fieldDef.options ?? []).map(opt => ({ value: opt, label: opt }));
+         return (
             <FormField
-              control={form.control}
-              name="azureWorkItemId"
-              render={({ field }) => (
+                control={form.control}
+                name={fieldId}
+                render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Azure Work Item ID (Optional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. 101" {...field} />
-                  </FormControl>
-                  <FormMessage />
+                    <FormLabel>{label}</FormLabel>
+                    <FormControl>
+                        <MultiSelect
+                            selected={field.value ?? []}
+                            onChange={field.onChange}
+                            options={options}
+                            placeholder={fieldDef.placeholder}
+                            onCreate={fieldDef.id === 'developers' ? (value) => {
+                                setAllDevelopers((prev) => [...new Set([...prev, value])]);
+                            } : undefined}
+                        />
+                    </FormControl>
+                    {fieldDef.description && <FormDescription>{fieldDef.description}</FormDescription>}
+                    <FormMessage />
                 </FormItem>
-              )}
+                )}
             />
+         );
+      
+      case 'date':
+        const watchedDate = form.watch(fieldDef.disablePastDatesFrom as any);
+        return (
             <FormField
-              control={form.control}
-              name="qaIssueIds"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>QA Issue IDs (Optional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. T118-1, T118-2" {...field} />
-                  </FormControl>
-                  <FormDescription>Comma-separated issue IDs.</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
+                control={form.control}
+                name={fieldId}
+                render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                        <FormLabel>{label}</FormLabel>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                            <FormControl>
+                                <Button
+                                variant={"outline"}
+                                className={cn(
+                                    "pl-3 text-left font-normal",
+                                    !field.value && "text-muted-foreground"
+                                )}
+                                >
+                                {field.value ? (
+                                    format(field.value, "PPP")
+                                ) : (
+                                    <span>{fieldDef.placeholder}</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                            </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                                mode="single"
+                                selected={field.value}
+                                onSelect={field.onChange}
+                                disabled={(date) =>
+                                    (watchedDate && date < watchedDate) ||
+                                    date < new Date("1900-01-01")
+                                }
+                                initialFocus
+                            />
+                            </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                    </FormItem>
+                )}
             />
-        </div>
-        
-        <Card className="p-4 space-y-6">
-          <FormField
-            control={form.control}
-            name="repositories"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Repositories <span className="text-destructive">*</span></FormLabel>
-                <FormControl>
-                    <MultiSelect
-                        selected={field.value ?? []}
-                        onChange={field.onChange}
-                        options={repositoryOptions}
-                        placeholder="Select repositories..."
-                    />
-                </FormControl>
-                <FormDescription>Select all applicable repositories for this task.</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-           <FormField
-            control={form.control}
-            name="developers"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Developers</FormLabel>
-                 <FormControl>
-                    <MultiSelect
-                        selected={field.value ?? []}
-                        onChange={field.onChange}
-                        options={developerOptions}
-                        placeholder="Select or create developers..."
-                        onCreate={(value) => {
-                          setAllDevelopers((prev) => [...new Set([...prev, value])]);
-                        }}
-                    />
-                </FormControl>
-                <FormDescription>Assign developers to this task. Type a new name and press Enter to add.</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </Card>
+        )
 
-        <Card className="p-4 space-y-4">
+      case 'attachments':
+        return <AttachmentsField form={form} label={label} />;
+
+      case 'deployment':
+        return <DeploymentField form={form} label={label} />;
+        
+      case 'pr-links':
+        return <PrLinksField form={form} label={label} />;
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
+        
+        <div className="space-y-6">
+            {adminConfig.formLayout.map(fieldId => (
+                <React.Fragment key={fieldId}>
+                    {renderField(fieldId)}
+                </React.Fragment>
+            ))}
+        </div>
+
+        <div className="flex justify-end gap-4">
+            <Button type="button" variant="outline" onClick={() => router.back()} disabled={isPending}>
+                Cancel
+            </Button>
+            <Button type="submit" disabled={isPending}>
+              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {submitButtonText}
+            </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}
+
+
+function AttachmentsField({ form, label }: { form: any, label: string }) {
+    const { fields, append, remove } = useFieldArray({
+        control: form.control,
+        name: "attachments"
+    });
+    return (
+         <Card className="p-4 space-y-4">
             <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium">Attachments</h3>
+                <h3 className="text-lg font-medium">{label}</h3>
                 <Button
                     type="button"
                     variant="outline"
@@ -330,407 +381,118 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                 )}
             </div>
         </Card>
-        
-        <Accordion type="single" collapsible className="w-full" defaultValue="advanced">
-            <AccordionItem value="advanced">
-                <AccordionTrigger className="text-base">Advanced Details</AccordionTrigger>
-                <AccordionContent className="space-y-6 pt-4">
-                    <div className="space-y-4">
-                        <h4 className="font-medium text-sm text-muted-foreground">Task Dates</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    )
+}
+
+function DeploymentField({ form, label }: { form: any, label: string }) {
+    const isOthersDeployed = form.watch('deploymentStatus.others');
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="text-xl">{label}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {ENVIRONMENTS.map(env => (
+                    <React.Fragment key={env}>
+                        <FormField
+                        control={form.control}
+                        name={`deploymentStatus.${env}`}
+                        render={({ field }) => (
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
+                            <FormControl>
+                                <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                                />
+                            </FormControl>
+                            <div className="space-y-1 leading-none">
+                                <FormLabel className="capitalize font-normal">
+                                Deployed to {env}
+                                </FormLabel>
+                            </div>
+                            </FormItem>
+                        )}
+                        />
+                        {env === 'others' && isOthersDeployed && (
+                        <div className="pl-4 pb-2 -mt-2">
                             <FormField
-                                control={form.control}
-                                name="devStartDate"
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-col">
-                                    <FormLabel>Development Start</FormLabel>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                        <FormControl>
-                                            <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "pl-3 text-left font-normal",
-                                                !field.value && "text-muted-foreground"
-                                            )}
-                                            >
-                                            {field.value ? (
-                                                format(field.value, "PPP")
-                                            ) : (
-                                                <span>Pick a date</span>
-                                            )}
-                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                            </Button>
-                                        </FormControl>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar
-                                            mode="single"
-                                            selected={field.value}
-                                            onSelect={field.onChange}
-                                            disabled={(date) => date < new Date("1900-01-01")}
-                                            initialFocus
-                                        />
-                                        </PopoverContent>
-                                    </Popover>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                             <FormField
-                                control={form.control}
-                                name="devEndDate"
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-col">
-                                    <FormLabel>Development End</FormLabel>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                        <FormControl>
-                                            <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "pl-3 text-left font-normal",
-                                                !field.value && "text-muted-foreground"
-                                            )}
-                                            >
-                                            {field.value ? (
-                                                format(field.value, "PPP")
-                                            ) : (
-                                                <span>Pick a date</span>
-                                            )}
-                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                            </Button>
-                                        </FormControl>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar
-                                            mode="single"
-                                            selected={field.value}
-                                            onSelect={field.onChange}
-                                            disabled={(date) =>
-                                              (devStartDate && date < devStartDate) ||
-                                              date < new Date("1900-01-01")
-                                            }
-                                            initialFocus
-                                        />
-                                        </PopoverContent>
-                                    </Popover>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                             <FormField
-                                control={form.control}
-                                name="qaStartDate"
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-col">
-                                    <FormLabel>QA Start</FormLabel>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                        <FormControl>
-                                            <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "pl-3 text-left font-normal",
-                                                !field.value && "text-muted-foreground"
-                                            )}
-                                            >
-                                            {field.value ? (
-                                                format(field.value, "PPP")
-                                            ) : (
-                                                <span>Pick a date</span>
-                                            )}
-                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                            </Button>
-                                        </FormControl>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar
-                                            mode="single"
-                                            selected={field.value}
-                                            onSelect={field.onChange}
-                                            disabled={(date) => date < new Date("1900-01-01")}
-                                            initialFocus
-                                        />
-                                        </PopoverContent>
-                                    </Popover>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                             <FormField
-                                control={form.control}
-                                name="qaEndDate"
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-col">
-                                    <FormLabel>QA End</FormLabel>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                        <FormControl>
-                                            <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "pl-3 text-left font-normal",
-                                                !field.value && "text-muted-foreground"
-                                            )}
-                                            >
-                                            {field.value ? (
-                                                format(field.value, "PPP")
-                                            ) : (
-                                                <span>Pick a date</span>
-                                            )}
-                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                            </Button>
-                                        </FormControl>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar
-                                            mode="single"
-                                            selected={field.value}
-                                            onSelect={field.onChange}
-                                            disabled={(date) =>
-                                              (qaStartDate && date < qaStartDate) ||
-                                              date < new Date("1900-01-01")
-                                            }
-                                            initialFocus
-                                        />
-                                        </PopoverContent>
-                                    </Popover>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="stageDate"
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-col">
-                                    <FormLabel>Stage Updated Date</FormLabel>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                        <FormControl>
-                                            <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "pl-3 text-left font-normal",
-                                                !field.value && "text-muted-foreground"
-                                            )}
-                                            >
-                                            {field.value ? (
-                                                format(field.value, "PPP")
-                                            ) : (
-                                                <span>Pick a date</span>
-                                            )}
-                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                            </Button>
-                                        </FormControl>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar
-                                            mode="single"
-                                            selected={field.value}
-                                            onSelect={field.onChange}
-                                            disabled={(date) => date < new Date("1900-01-01")}
-                                            initialFocus
-                                        />
-                                        </PopoverContent>
-                                    </Popover>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="productionDate"
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-col">
-                                    <FormLabel>Production Updated Date</FormLabel>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                        <FormControl>
-                                            <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "pl-3 text-left font-normal",
-                                                !field.value && "text-muted-foreground"
-                                            )}
-                                            >
-                                            {field.value ? (
-                                                format(field.value, "PPP")
-                                            ) : (
-                                                <span>Pick a date</span>
-                                            )}
-                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                            </Button>
-                                        </FormControl>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar
-                                            mode="single"
-                                            selected={field.value}
-                                            onSelect={field.onChange}
-                                            disabled={(date) => date < new Date("1900-01-01")}
-                                            initialFocus
-                                        />
-                                        </PopoverContent>
-                                    </Popover>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="othersDate"
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-col">
-                                    <FormLabel>Others Updated Date</FormLabel>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                        <FormControl>
-                                            <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "pl-3 text-left font-normal",
-                                                !field.value && "text-muted-foreground"
-                                            )}
-                                            >
-                                            {field.value ? (
-                                                format(field.value, "PPP")
-                                            ) : (
-                                                <span>Pick a date</span>
-                                            )}
-                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                            </Button>
-                                        </FormControl>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar
-                                            mode="single"
-                                            selected={field.value}
-                                            onSelect={field.onChange}
-                                            disabled={(date) => date < new Date("1900-01-01")}
-                                            initialFocus
-                                        />
-                                        </PopoverContent>
-                                    </Popover>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
+                            control={form.control}
+                            name="othersEnvironmentName"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Environment Name <span className="text-destructive">*</span></FormLabel>
+                                <FormControl>
+                                    <Input placeholder="e.g. UAT, Demo" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
                             />
                         </div>
-                    </div>
-                    <Separator />
-                    <div>
-                      <h4 className="font-medium text-sm text-muted-foreground mb-4">Deployment Status</h4>
-                      <div className="space-y-4">
-                        {ENVIRONMENTS.map(env => (
-                            <React.Fragment key={env}>
+                        )}
+                    </React.Fragment>
+                ))}
+            </CardContent>
+        </Card>
+    )
+}
+
+function PrLinksField({ form, label }: { form: any, label: string }) {
+    const selectedRepos = form.watch('repositories');
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="text-xl">{label}</CardTitle>
+            </CardHeader>
+            <CardContent>
+                {selectedRepos && selectedRepos.length > 0 ? (
+                <Tabs defaultValue={selectedRepos[0]} className="w-full">
+                    <ScrollArea className="w-full whitespace-nowrap">
+                        <TabsList>
+                            {selectedRepos.map((repo:string) => (
+                            <TabsTrigger key={repo} value={repo}>
+                                {repo}
+                            </TabsTrigger>
+                            ))}
+                        </TabsList>
+                        <ScrollBar orientation="horizontal" />
+                    </ScrollArea>
+
+                    {selectedRepos.map((repo:string) => (
+                        <TabsContent key={repo} value={repo}>
+                            <div className="space-y-4 pt-4 border-t">
+                            {ENVIRONMENTS.map((env) => (
                                 <FormField
-                                control={form.control}
-                                name={`deploymentStatus.${env}`}
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
-                                    <FormControl>
-                                        <Checkbox
-                                        checked={field.value}
-                                        onCheckedChange={field.onChange}
-                                        />
-                                    </FormControl>
-                                    <div className="space-y-1 leading-none">
-                                        <FormLabel className="capitalize font-normal">
-                                        Deployed to {env}
-                                        </FormLabel>
-                                    </div>
-                                    </FormItem>
-                                )}
-                                />
-                                {env === 'others' && isOthersDeployed && (
-                                <div className="pl-4 pb-2 -mt-2">
-                                    <FormField
+                                    key={`${repo}-${env}`}
                                     control={form.control}
-                                    name="othersEnvironmentName"
+                                    name={`prLinks.${env}.${repo}`}
                                     render={({ field }) => (
-                                        <FormItem>
-                                        <FormLabel>Environment Name <span className="text-destructive">*</span></FormLabel>
+                                    <FormItem>
+                                        <FormLabel className="capitalize">{env}</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="e.g. UAT, Demo" {...field} />
+                                        <Input
+                                            placeholder="e.g. 19703, 19704"
+                                            {...field}
+                                            onChange={(e) => field.onChange(e.target.value ?? '')}
+                                            value={field.value ?? ''}
+                                        />
                                         </FormControl>
+                                        <FormDescription>Comma-separated PR IDs for {env}.</FormDescription>
                                         <FormMessage />
-                                        </FormItem>
+                                    </FormItem>
                                     )}
-                                    />
-                                </div>
-                                )}
-                            </React.Fragment>
-                        ))}
-                      </div>
-                    </div>
-                    <Separator />
-                    <div>
-                         <h4 className="font-medium text-sm text-muted-foreground mb-4">Pull Request Links</h4>
-                         {selectedRepos && selectedRepos.length > 0 ? (
-                            <Tabs defaultValue={selectedRepos[0]} className="w-full">
-                                <ScrollArea className="w-full whitespace-nowrap">
-                                    <TabsList>
-                                        {selectedRepos.map((repo) => (
-                                        <TabsTrigger key={repo} value={repo}>
-                                            {repo}
-                                        </TabsTrigger>
-                                        ))}
-                                    </TabsList>
-                                    <ScrollBar orientation="horizontal" />
-                                </ScrollArea>
-
-                                {selectedRepos.map((repo) => (
-                                    <TabsContent key={repo} value={repo}>
-                                        <div className="space-y-4 pt-4 border-t">
-                                        {ENVIRONMENTS.map((env) => (
-                                            <FormField
-                                                key={`${repo}-${env}`}
-                                                control={form.control}
-                                                name={`prLinks.${env}.${repo}`}
-                                                render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel className="capitalize">{env}</FormLabel>
-                                                    <FormControl>
-                                                    <Input
-                                                        placeholder="e.g. 19703, 19704"
-                                                        {...field}
-                                                        onChange={(e) => field.onChange(e.target.value ?? '')}
-                                                        value={field.value ?? ''}
-                                                    />
-                                                    </FormControl>
-                                                    <FormDescription>Comma-separated PR IDs for {env}.</FormDescription>
-                                                    <FormMessage />
-                                                </FormItem>
-                                                )}
-                                            />
-                                        ))}
-                                        </div>
-                                    </TabsContent>
-                                ))}
-                            </Tabs>
-                         ) : (
-                            <div className="text-sm text-muted-foreground py-4 text-center border rounded-md">
-                                Select at least one repository to add PR links.
+                                />
+                            ))}
                             </div>
-                         )}
-                    </div>
-                </AccordionContent>
-            </AccordionItem>
-        </Accordion>
-
-
-        <div className="flex justify-end gap-4">
-            <Button type="button" variant="outline" onClick={() => router.back()} disabled={isPending}>
-                Cancel
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {submitButtonText}
-            </Button>
-        </div>
-      </form>
-    </Form>
-  );
+                        </TabsContent>
+                    ))}
+                </Tabs>
+                ) : (
+                <div className="text-sm text-muted-foreground py-4 text-center border rounded-md">
+                    Select at least one repository to add PR links.
+                </div>
+                )}
+            </CardContent>
+        </Card>
+    );
 }

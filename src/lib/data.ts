@@ -1,11 +1,11 @@
-import type { Task, Developer, Company } from './types';
 
-// In a real application, this would be a database.
-// For this demo, we're using localStorage, scoped by company.
+import type { Task, Developer, Company, AdminConfig } from './types';
+import { DEFAULT_ADMIN_CONFIG } from './form-config';
 
 interface CompanyData {
     tasks: Task[];
     developers: Developer[];
+    adminConfig: AdminConfig;
 }
 
 interface MyTaskManagerData {
@@ -27,6 +27,7 @@ const getInitialData = (): MyTaskManagerData => {
             [defaultCompanyId]: {
                 tasks: [],
                 developers: ['Arun'],
+                adminConfig: DEFAULT_ADMIN_CONFIG,
             },
         },
     };
@@ -34,7 +35,6 @@ const getInitialData = (): MyTaskManagerData => {
 
 const getAppData = (): MyTaskManagerData => {
     if (typeof window === 'undefined') {
-        // Return a mock/empty structure on the server
         return {
             companies: [],
             activeCompanyId: '',
@@ -48,12 +48,15 @@ const getAppData = (): MyTaskManagerData => {
         return initialData;
     }
     try {
-        // Basic migration/validation
         const data = JSON.parse(stored);
         if (!data.companies || !data.activeCompanyId || !data.companyData) {
-            const initialData = getInitialData();
-            window.localStorage.setItem(DATA_KEY, JSON.stringify(initialData));
-            return initialData;
+            throw new Error("Invalid data structure");
+        }
+        // Migration: ensure adminConfig exists for all companies
+        for (const companyId in data.companyData) {
+            if (!data.companyData[companyId].adminConfig) {
+                data.companyData[companyId].adminConfig = DEFAULT_ADMIN_CONFIG;
+            }
         }
         return data;
     } catch (e) {
@@ -81,7 +84,7 @@ export function addCompany(name: string): Company {
     const newCompany: Company = { id: newCompanyId, name };
     
     data.companies.push(newCompany);
-    data.companyData[newCompanyId] = { tasks: [], developers: ['Arun'] };
+    data.companyData[newCompanyId] = { tasks: [], developers: ['Arun'], adminConfig: DEFAULT_ADMIN_CONFIG };
     data.activeCompanyId = newCompanyId; // Switch to the new company
 
     setAppData(data);
@@ -108,7 +111,6 @@ export function deleteCompany(id: string): boolean {
     delete data.companyData[id];
     data.companies.splice(companyIndex, 1);
 
-    // If deleting the active company, switch to another one
     if (data.activeCompanyId === id) {
         data.activeCompanyId = data.companies[0].id;
     }
@@ -129,7 +131,27 @@ export function setActiveCompanyId(id: string) {
     }
 }
 
-// Task Functions (now company-aware)
+// Admin Config Functions
+export function getAdminConfig(): AdminConfig {
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    if (!activeCompanyId || !data.companyData[activeCompanyId]) {
+        return DEFAULT_ADMIN_CONFIG;
+    }
+    // Return stored config, defaulting if it's somehow missing
+    return data.companyData[activeCompanyId].adminConfig || DEFAULT_ADMIN_CONFIG;
+}
+
+export function updateAdminConfig(newConfig: AdminConfig) {
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    if (activeCompanyId && data.companyData[activeCompanyId]) {
+        data.companyData[activeCompanyId].adminConfig = newConfig;
+        setAppData(data);
+    }
+}
+
+// Task Functions
 export function getTasks(): Task[] {
   const data = getAppData();
   if (!data.activeCompanyId || !data.companyData[data.activeCompanyId]) {
@@ -143,7 +165,7 @@ export function getTaskById(id: string): Task | undefined {
   return tasks.find(task => task.id === id);
 }
 
-export function addTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'comments'>): Task {
+export function addTask(taskData: Partial<Omit<Task, 'id' | 'createdAt' | 'updatedAt'>>): Task {
   const data = getAppData();
   const activeCompanyId = data.activeCompanyId;
   const companyTasks = data.companyData[activeCompanyId]?.tasks || [];
@@ -153,13 +175,10 @@ export function addTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 
     id: `task-${Date.now()}`,
     createdAt: now,
     updatedAt: now,
-    ...taskData,
-    comments: [],
-    attachments: taskData.attachments ?? [],
-    prLinks: taskData.prLinks ?? {},
-    deploymentStatus: taskData.deploymentStatus ?? {},
-    developers: taskData.developers ?? [],
-    qaIssueIds: taskData.qaIssueIds ?? '',
+    title: taskData.title || 'Untitled Task',
+    description: taskData.description || '',
+    status: taskData.status || 'To Do',
+    ...taskData
   };
   
   data.companyData[activeCompanyId].tasks = [newTask, ...companyTasks];
@@ -204,13 +223,13 @@ export function deleteTask(id: string): boolean {
 }
 
 
-// Developer Functions (now company-aware)
+// Developer Functions
 export function getDevelopers(): Developer[] {
     const data = getAppData();
     if (!data.activeCompanyId || !data.companyData[data.activeCompanyId]) {
       return [];
     }
-    return data.companyData[data.activeCompanyId].developers;
+    return data.companyData[activeCompanyId].developers;
 }
 
 export function addDeveloper(name: string): Developer {
@@ -226,7 +245,7 @@ export function addDeveloper(name: string): Developer {
     return newDeveloper;
 }
 
-// Comment Functions are wrappers around updateTask, so they are implicitly company-aware.
+// Comment Functions
 export function addComment(taskId: string, comment: string): Task | undefined {
   const task = getTaskById(taskId);
   if (!task) return undefined;

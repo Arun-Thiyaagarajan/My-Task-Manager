@@ -1,3 +1,4 @@
+
 import type { TASK_STATUSES, REPOSITORIES, ENVIRONMENTS } from './constants';
 
 export type TaskStatus = (typeof TASK_STATUSES)[number];
@@ -20,15 +21,19 @@ export interface Task {
   id: string;
   title: string;
   description: string;
+  status: TaskStatus;
+  createdAt: string;
+  updatedAt: string;
+  
+  // Optional fields managed by admin config
   comments?: string[];
   attachments?: Attachment[];
-  status: TaskStatus;
-  repositories: Repository[];
+  repositories?: Repository[];
   azureWorkItemId?: string;
-  prLinks: {
+  prLinks?: {
     [key in Environment]?: { [repo: string]: string };
   };
-  deploymentStatus: {
+  deploymentStatus?: {
     [key in Environment]?: boolean;
   };
   othersEnvironmentName?: string;
@@ -41,6 +46,29 @@ export interface Task {
   stageDate?: string;
   productionDate?: string;
   othersDate?: string;
-  createdAt: string;
-  updatedAt: string;
+}
+
+// Types for Dynamic Form Configuration
+export type FieldType = 'text' | 'textarea' | 'select' | 'multiselect' | 'date' | 'attachments' | 'deployment' | 'pr-links';
+
+export interface FormField {
+  id: string;
+  label: string;
+  type: FieldType;
+  options?: readonly string[];
+  placeholder?: string;
+  description?: string;
+  defaultValue?: any;
+  disablePastDatesFrom?: string;
+  icon: string;
+}
+
+export interface FormFieldConfig {
+  visible: boolean;
+  required: boolean;
+}
+
+export interface AdminConfig {
+  formLayout: string[]; // Array of field IDs to determine order
+  fieldConfig: Record<string, FormFieldConfig>; // Config for each field
 }
