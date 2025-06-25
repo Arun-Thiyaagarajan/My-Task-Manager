@@ -123,17 +123,33 @@ export default function TaskPage() {
             </CardContent>
           </Card>
 
-          <Card>
-              <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                      <GitMerge className="h-5 w-5" />
-                      Pull Requests
-                  </CardTitle>
-              </CardHeader>
-              <CardContent>
-                 <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} />
-              </CardContent>
-          </Card>
+          {task.attachments && task.attachments.length > 0 && (
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Paperclip className="h-5 w-5" />
+                        Attachments
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                <ul className="space-y-3">
+                    {task.attachments.map((att, index) => (
+                    <li key={index}>
+                        <a
+                        href={att.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-sm text-primary hover:underline"
+                        >
+                        <ExternalLink className="h-4 w-4" />
+                        <span className="truncate">{att.name}</span>
+                        </a>
+                    </li>
+                    ))}
+                </ul>
+                </CardContent>
+            </Card>
+          )}
 
            <CommentsSection
               taskId={task.id}
@@ -151,17 +167,14 @@ export default function TaskPage() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Status</span>
-                        <TaskStatusBadge status={task.status} />
-                    </div>
-                     <Separator />
                     <div className="space-y-2">
                         <span className="text-muted-foreground block">Repositories</span>
                          <div className="flex flex-wrap gap-1">
-                          {(task.repositories || []).map(repo => (
+                          {(task.repositories && task.repositories.length > 0) ? (task.repositories || []).map(repo => (
                             <Badge key={repo} variant="secondary">{repo}</Badge>
-                          ))}
+                          )) : (
+                            <p className="text-sm text-muted-foreground">No repositories assigned.</p>
+                          )}
                         </div>
                     </div>
                     {azureWorkItemUrl && (
@@ -214,34 +227,18 @@ export default function TaskPage() {
                     )}
                 </CardContent>
             </Card>
-
-            {task.attachments && task.attachments.length > 0 && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Paperclip className="h-5 w-5" />
-                            Attachments
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                    <ul className="space-y-3">
-                        {task.attachments.map((att, index) => (
-                        <li key={index}>
-                            <a
-                            href={att.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 text-sm text-primary hover:underline"
-                            >
-                            <ExternalLink className="h-4 w-4" />
-                            <span className="truncate">{att.name}</span>
-                            </a>
-                        </li>
-                        ))}
-                    </ul>
-                    </CardContent>
-                </Card>
-            )}
+            
+             <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <GitMerge className="h-5 w-5" />
+                        Pull Requests
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                   <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} />
+                </CardContent>
+            </Card>
 
              <Card>
                 <CardHeader>
