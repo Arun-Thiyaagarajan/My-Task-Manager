@@ -2,15 +2,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getTaskById, getDevelopers, updateTask, addDeveloper, getAdminConfig } from '@/lib/data';
+import { getTaskById, getDevelopers, updateTask, addDeveloper, getAdminConfig, getCustomFields } from '@/lib/data';
 import { useParams, useRouter } from 'next/navigation';
 import { TaskForm } from '@/components/task-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { Task, AdminConfig } from '@/lib/types';
+import type { Task, AdminConfig, FormField } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { buildTaskSchema } from '@/lib/validators';
+import { MASTER_FORM_FIELDS } from '@/lib/form-config';
 
 export default function EditTaskPage() {
   const params = useParams();
@@ -21,6 +22,7 @@ export default function EditTaskPage() {
   const [task, setTask] = useState<Task | null>(null);
   const [developersList, setDevelopersList] = useState<string[]>([]);
   const [adminConfig, setAdminConfig] = useState<AdminConfig | null>(null);
+  const [allFields, setAllFields] = useState<Record<string, FormField> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -28,10 +30,12 @@ export default function EditTaskPage() {
       const foundTask = getTaskById(taskId);
       const devs = getDevelopers();
       const config = getAdminConfig();
+      const customFields = getCustomFields();
 
       setTask(foundTask || null);
       setDevelopersList(devs);
       setAdminConfig(config);
+      setAllFields({ ...MASTER_FORM_FIELDS, ...customFields });
       setIsLoading(false);
       
       if (foundTask) {
@@ -43,9 +47,9 @@ export default function EditTaskPage() {
   }, [taskId]);
 
   const handleUpdateTask = (data: any) => {
-    if (!task || !adminConfig) return;
+    if (!task || !adminConfig || !allFields) return;
 
-    const taskSchema = buildTaskSchema(adminConfig);
+    const taskSchema = buildTaskSchema(adminConfig, allFields);
     const validationResult = taskSchema.safeParse(data);
 
      if (!validationResult.success) {
@@ -73,7 +77,7 @@ export default function EditTaskPage() {
             const value = validationResult.data[key as keyof typeof validationResult.data];
             if (value instanceof Date) {
                  (taskDataToUpdate as any)[key] = value.toISOString();
-            } else {
+            } else if (value !== undefined && value !== null) {
                  (taskDataToUpdate as any)[key] = value;
             }
         }
@@ -90,7 +94,7 @@ export default function EditTaskPage() {
     router.push(`/tasks/${task.id}`);
   };
 
-  if (isLoading || !adminConfig) {
+  if (isLoading || !adminConfig || !allFields) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <div className="flex flex-col items-center gap-4 text-center">
@@ -129,6 +133,7 @@ export default function EditTaskPage() {
             submitButtonText="Save Changes"
             developersList={developersList}
             adminConfig={adminConfig}
+            allFields={allFields}
           />
         </CardContent>
       </Card>

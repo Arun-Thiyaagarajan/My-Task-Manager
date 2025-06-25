@@ -46,6 +46,9 @@ export interface Task {
   stageDate?: string;
   productionDate?: string;
   othersDate?: string;
+
+  // For custom fields
+  [key: string]: any;
 }
 
 // Types for Dynamic Form Configuration
@@ -55,12 +58,13 @@ export interface FormField {
   id: string;
   label: string;
   type: FieldType;
-  options?: readonly string[];
+  options?: string[];
   placeholder?: string;
   description?: string;
   defaultValue?: any;
   disablePastDatesFrom?: string;
   icon: string;
+  isCustom?: boolean;
 }
 
 export interface FormFieldConfig {

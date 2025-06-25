@@ -1,11 +1,12 @@
 
-import type { Task, Developer, Company, AdminConfig } from './types';
+import type { Task, Developer, Company, AdminConfig, FormField } from './types';
 import { DEFAULT_ADMIN_CONFIG } from './form-config';
 
 interface CompanyData {
     tasks: Task[];
     developers: Developer[];
     adminConfig: AdminConfig;
+    customFields: Record<string, FormField>;
 }
 
 interface MyTaskManagerData {
@@ -28,6 +29,7 @@ const getInitialData = (): MyTaskManagerData => {
                 tasks: [],
                 developers: ['Arun'],
                 adminConfig: DEFAULT_ADMIN_CONFIG,
+                customFields: {},
             },
         },
     };
@@ -52,10 +54,13 @@ const getAppData = (): MyTaskManagerData => {
         if (!data.companies || !data.activeCompanyId || !data.companyData) {
             throw new Error("Invalid data structure");
         }
-        // Migration: ensure adminConfig exists for all companies
+        // Migration: ensure adminConfig and customFields exist for all companies
         for (const companyId in data.companyData) {
             if (!data.companyData[companyId].adminConfig) {
                 data.companyData[companyId].adminConfig = DEFAULT_ADMIN_CONFIG;
+            }
+            if (!data.companyData[companyId].customFields) {
+                data.companyData[companyId].customFields = {};
             }
              // Migration: ensure visibility is correctly set based on formLayout
             const config = data.companyData[companyId].adminConfig;
@@ -91,7 +96,7 @@ export function addCompany(name: string): Company {
     const newCompany: Company = { id: newCompanyId, name };
     
     data.companies.push(newCompany);
-    data.companyData[newCompanyId] = { tasks: [], developers: ['Arun'], adminConfig: DEFAULT_ADMIN_CONFIG };
+    data.companyData[newCompanyId] = { tasks: [], developers: ['Arun'], adminConfig: DEFAULT_ADMIN_CONFIG, customFields: {} };
     data.activeCompanyId = newCompanyId; // Switch to the new company
 
     setAppData(data);
@@ -138,14 +143,13 @@ export function setActiveCompanyId(id: string) {
     }
 }
 
-// Admin Config Functions
+// Admin Config & Custom Field Functions
 export function getAdminConfig(): AdminConfig {
     const data = getAppData();
     const activeCompanyId = data.activeCompanyId;
     if (!activeCompanyId || !data.companyData[activeCompanyId]) {
         return DEFAULT_ADMIN_CONFIG;
     }
-    // Return stored config, defaulting if it's somehow missing
     return data.companyData[activeCompanyId].adminConfig || DEFAULT_ADMIN_CONFIG;
 }
 
@@ -153,7 +157,6 @@ export function updateAdminConfig(newConfig: AdminConfig) {
     const data = getAppData();
     const activeCompanyId = data.activeCompanyId;
     if (activeCompanyId && data.companyData[activeCompanyId]) {
-        // Ensure visibility is correctly set from the new layout
         Object.keys(newConfig.fieldConfig).forEach(fieldId => {
             newConfig.fieldConfig[fieldId].visible = newConfig.formLayout.includes(fieldId);
         });
@@ -162,6 +165,51 @@ export function updateAdminConfig(newConfig: AdminConfig) {
         window.dispatchEvent(new Event('storage'));
     }
 }
+
+export function getCustomFields(): Record<string, FormField> {
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    if (!activeCompanyId || !data.companyData[activeCompanyId]) {
+        return {};
+    }
+    return data.companyData[activeCompanyId].customFields || {};
+}
+
+export function saveCustomField(field: FormField) {
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    if (activeCompanyId && data.companyData[activeCompanyId]) {
+        data.companyData[activeCompanyId].customFields[field.id] = field;
+        setAppData(data);
+        window.dispatchEvent(new Event('storage'));
+    }
+}
+
+export function deleteCustomField(fieldId: string) {
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    const companyData = data.companyData[activeCompanyId];
+
+    if (companyData?.customFields) {
+        // Remove from custom fields list
+        delete companyData.customFields[fieldId];
+        
+        // Remove from admin config layout and fieldConfig
+        companyData.adminConfig.formLayout = companyData.adminConfig.formLayout.filter(id => id !== fieldId);
+        delete companyData.adminConfig.fieldConfig[fieldId];
+
+        // Remove data from all tasks
+        companyData.tasks.forEach(task => {
+            if (fieldId in task) {
+                delete task[fieldId];
+            }
+        });
+        
+        setAppData(data);
+        window.dispatchEvent(new Event('storage'));
+    }
+}
+
 
 // Task Functions
 export function getTasks(): Task[] {
@@ -239,10 +287,11 @@ export function deleteTask(id: string): boolean {
 // Developer Functions
 export function getDevelopers(): Developer[] {
     const data = getAppData();
-    if (!data.activeCompanyId || !data.companyData[data.activeCompanyId]) {
+    const activeCompanyId = getActiveCompanyId();
+    if (!activeCompanyId || !data.companyData[activeCompanyId]) {
       return [];
     }
-    return data.companyData[data.activeCompanyId].developers;
+    return data.companyData[activeCompanyId].developers;
 }
 
 export function addDeveloper(name: string): Developer {

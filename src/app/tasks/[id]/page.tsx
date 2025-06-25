@@ -1,12 +1,13 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getTaskById } from '@/lib/data';
+import { getTaskById, getCustomFields } from '@/lib/data';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, Users, CalendarDays, Loader2, Bug, Paperclip, Link2, FileText, StickyNote } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, Users, CalendarDays, Loader2, Bug, Paperclip, Link2, FileText, StickyNote, Info } from 'lucide-react';
 import { TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -16,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { getInitials, getAvatarColor } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
-import type { Task } from '@/lib/types';
+import type { Task, FormField } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
 import {
   Accordion,
@@ -24,12 +25,14 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import { MASTER_FORM_FIELDS } from '@/lib/form-config';
 
 
 export default function TaskPage() {
   const params = useParams();
   const router = useRouter();
   const [task, setTask] = useState<Task | null>(null);
+  const [allFields, setAllFields] = useState<Record<string, FormField>>({});
   const [isLoading, setIsLoading] = useState(true);
 
   const taskId = params.id as string;
@@ -37,7 +40,9 @@ export default function TaskPage() {
   useEffect(() => {
     if (taskId) {
       const foundTask = getTaskById(taskId);
+      const customFields = getCustomFields();
       setTask(foundTask || null);
+      setAllFields({ ...MASTER_FORM_FIELDS, ...customFields });
       setIsLoading(false);
       if (foundTask) {
         document.title = `${foundTask.title} | My Task Manager`;
@@ -52,6 +57,12 @@ export default function TaskPage() {
       setTask({ ...task, comments: newComments });
     }
   };
+
+  const customFieldIds = Object.keys(allFields).filter(id => allFields[id].isCustom);
+  const customFieldsToDisplay = customFieldIds.map(id => ({
+      ...allFields[id],
+      value: task?.[id]
+  })).filter(field => field.value !== undefined && field.value !== null && field.value !== '');
 
 
   if (isLoading) {
@@ -115,11 +126,13 @@ export default function TaskPage() {
         <div className="lg:w-2/3 space-y-6">
           <Card>
             <CardHeader>
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <CardTitle className="text-3xl font-bold">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <CardTitle className="text-3xl font-bold flex-1">
                   {task.title}
                 </CardTitle>
-                <TaskStatusBadge status={task.status} />
+                <div className="flex-shrink-0">
+                  <TaskStatusBadge status={task.status} />
+                </div>
               </div>
               <CardDescription>
                 Last updated on {format(new Date(task.updatedAt), 'PPP')}
@@ -130,7 +143,7 @@ export default function TaskPage() {
                   <div className="flex items-center gap-2">
                     <GitMerge className="h-4 w-4" />
                     <div className="flex flex-wrap gap-1">
-                        {task.repositories.map(repo => <Badge variant="secondary" key={repo}>{repo}</Badge>)}
+                        {task.repositories?.map(repo => <Badge variant="secondary" key={repo}>{repo}</Badge>)}
                     </div>
                   </div>
                   {azureWorkItemUrl && (
@@ -296,6 +309,28 @@ export default function TaskPage() {
                     </div>
                 </CardContent>
             </Card>
+             {customFieldsToDisplay.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Info className="h-5 w-5" />
+                            Additional Details
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4 text-sm">
+                        {customFieldsToDisplay.map(field => (
+                            <div key={field.id}>
+                                <p className="font-medium text-muted-foreground">{field.label}</p>
+                                <div className="text-foreground/90">
+                                    {field.type === 'date' && field.value ? format(new Date(field.value), 'PPP')
+                                    : Array.isArray(field.value) ? field.value.join(', ')
+                                    : field.value}
+                                </div>
+                            </div>
+                        ))}
+                    </CardContent>
+                </Card>
+            )}
         </div>
       </div>
     </div>

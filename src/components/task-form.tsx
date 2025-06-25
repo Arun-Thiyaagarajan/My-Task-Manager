@@ -6,7 +6,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
 import { buildTaskSchema } from '@/lib/validators';
 import type { Task, AdminConfig, FormField } from '@/lib/types';
-import { MASTER_FORM_FIELDS } from '@/lib/form-config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,7 +20,7 @@ import {
   Form,
   FormControl,
   FormDescription,
-  FormField,
+  FormField as HookFormField,
   FormItem,
   FormLabel,
   FormMessage,
@@ -50,16 +49,18 @@ interface TaskFormProps {
   submitButtonText: string;
   developersList: string[];
   adminConfig: AdminConfig;
+  allFields: Record<string, FormField>;
 }
 
-const getInitialTaskData = (task?: Task) => {
+const getInitialTaskData = (allFields: Record<string, FormField>, task?: Task) => {
     const defaultData: any = {};
-    Object.values(MASTER_FORM_FIELDS).forEach(field => {
-        if (task && task[field.id as keyof Task] !== undefined) {
-            if (field.type === 'date' && task[field.id as keyof Task]) {
-                defaultData[field.id] = new Date(task[field.id as keyof Task] as string);
+    Object.values(allFields).forEach(field => {
+        const taskValue = task?.[field.id as keyof Task];
+        if (task && taskValue !== undefined) {
+            if (field.type === 'date' && taskValue) {
+                defaultData[field.id] = new Date(taskValue as string);
             } else {
-                defaultData[field.id] = task[field.id as keyof Task];
+                defaultData[field.id] = taskValue;
             }
         } else {
             defaultData[field.id] = field.defaultValue;
@@ -68,21 +69,21 @@ const getInitialTaskData = (task?: Task) => {
     return defaultData;
 }
 
-export function TaskForm({ task, onSubmit, submitButtonText, developersList, adminConfig }: TaskFormProps) {
+export function TaskForm({ task, onSubmit, submitButtonText, developersList, adminConfig, allFields }: TaskFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [allDevelopers, setAllDevelopers] = useState<string[]>(developersList);
   
-  const taskSchema = useMemo(() => buildTaskSchema(adminConfig), [adminConfig]);
+  const taskSchema = useMemo(() => buildTaskSchema(adminConfig, allFields), [adminConfig, allFields]);
   
   const form = useForm<TaskFormData>({
     resolver: zodResolver(taskSchema),
-    defaultValues: getInitialTaskData(task),
+    defaultValues: getInitialTaskData(allFields, task),
   });
 
   useEffect(() => {
-    form.reset(getInitialTaskData(task));
-  }, [task, form]);
+    form.reset(getInitialTaskData(allFields, task));
+  }, [task, allFields, form]);
   
   useEffect(() => {
     setAllDevelopers(developersList);
@@ -96,7 +97,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
   };
 
   const renderField = (fieldId: string) => {
-    const fieldDef = MASTER_FORM_FIELDS[fieldId];
+    const fieldDef = allFields[fieldId];
     if (!fieldDef) return null;
     
     const isVisible = adminConfig.fieldConfig[fieldId]?.visible;
@@ -108,7 +109,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
     switch (fieldDef.type) {
       case 'text':
         return (
-          <FormField
+          <HookFormField
             control={form.control}
             name={fieldId}
             render={({ field }) => (
@@ -126,7 +127,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
 
       case 'textarea':
         return (
-          <FormField
+          <HookFormField
             control={form.control}
             name={fieldId}
             render={({ field }) => (
@@ -148,13 +149,13 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
         
       case 'select':
         return (
-           <FormField
+           <HookFormField
             control={form.control}
             name={fieldId}
             render={({ field }) => (
               <FormItem>
                 <FormLabel>{label}</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder={fieldDef.placeholder} />
@@ -177,7 +178,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
       case 'multiselect':
          const options = (fieldDef.id === 'developers' ? allDevelopers : fieldDef.options ?? []).map(opt => ({ value: opt, label: opt }));
          return (
-            <FormField
+            <HookFormField
                 control={form.control}
                 name={fieldId}
                 render={({ field }) => (
@@ -204,7 +205,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
       case 'date':
         const watchedDate = form.watch(fieldDef.disablePastDatesFrom as any);
         return (
-            <FormField
+            <HookFormField
                 control={form.control}
                 name={fieldId}
                 render={({ field }) => (
@@ -235,7 +236,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
                                 selected={field.value}
                                 onSelect={field.onChange}
                                 disabled={(date) =>
-                                    (watchedDate && date < watchedDate) ||
+                                    (watchedDate && date < new Date(watchedDate)) ||
                                     date < new Date("1900-01-01")
                                 }
                                 initialFocus
@@ -312,7 +313,7 @@ function AttachmentsField({ form, label }: { form: any, label: string }) {
                 {fields.map((field, index) => (
                     <div key={field.id} className="flex flex-col md:flex-row gap-4 items-start border p-4 rounded-md relative">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-grow w-full">
-                            <FormField
+                            <HookFormField
                                 control={form.control}
                                 name={`attachments.${index}.name`}
                                 render={({ field }) => (
@@ -325,7 +326,7 @@ function AttachmentsField({ form, label }: { form: any, label: string }) {
                                     </FormItem>
                                 )}
                             />
-                            <FormField
+                            <HookFormField
                                 control={form.control}
                                 name={`attachments.${index}.url`}
                                 render={({ field }) => (
@@ -338,7 +339,7 @@ function AttachmentsField({ form, label }: { form: any, label: string }) {
                                     </FormItem>
                                 )}
                             />
-                            <FormField
+                            <HookFormField
                                 control={form.control}
                                 name={`attachments.${index}.type`}
                                 render={({ field }) => (
@@ -394,7 +395,7 @@ function DeploymentField({ form, label }: { form: any, label: string }) {
             <CardContent className="space-y-4">
                 {ENVIRONMENTS.map(env => (
                     <React.Fragment key={env}>
-                        <FormField
+                        <HookFormField
                         control={form.control}
                         name={`deploymentStatus.${env}`}
                         render={({ field }) => (
@@ -415,7 +416,7 @@ function DeploymentField({ form, label }: { form: any, label: string }) {
                         />
                         {env === 'others' && isOthersDeployed && (
                         <div className="pl-4 pb-2 -mt-2">
-                            <FormField
+                            <HookFormField
                             control={form.control}
                             name="othersEnvironmentName"
                             render={({ field }) => (
@@ -462,7 +463,7 @@ function PrLinksField({ form, label }: { form: any, label: string }) {
                         <TabsContent key={repo} value={repo}>
                             <div className="space-y-4 pt-4 border-t">
                             {ENVIRONMENTS.map((env) => (
-                                <FormField
+                                <HookFormField
                                     key={`${repo}-${env}`}
                                     control={form.control}
                                     name={`prLinks.${env}.${repo}`}

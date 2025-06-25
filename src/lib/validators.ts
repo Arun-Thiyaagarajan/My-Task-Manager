@@ -1,8 +1,7 @@
 
 import { z } from 'zod';
 import { TASK_STATUSES, REPOSITORIES, ENVIRONMENTS } from './constants';
-import type { AdminConfig, FormFieldConfig } from './types';
-import { MASTER_FORM_FIELDS } from './form-config';
+import type { AdminConfig, FormFieldConfig, FormField } from './types';
 
 export const attachmentSchema = z.object({
   name: z.string().min(1, 'Attachment name is required.'),
@@ -10,8 +9,8 @@ export const attachmentSchema = z.object({
   type: z.enum(['link', 'file'], { errorMap: () => ({ message: 'Please select a type.' })}),
 });
 
-const getFieldSchema = (fieldId: string, config: FormFieldConfig) => {
-    const fieldDef = MASTER_FORM_FIELDS[fieldId];
+const getFieldSchema = (fieldId: string, config: FormFieldConfig, allFields: Record<string, FormField>) => {
+    const fieldDef = allFields[fieldId];
     if (!fieldDef) return null;
 
     let schema: z.ZodTypeAny;
@@ -33,8 +32,13 @@ const getFieldSchema = (fieldId: string, config: FormFieldConfig) => {
             break;
         }
         case 'select':
-            schema = z.enum(fieldDef.options as [string, ...string[]]);
-            break; // Status is always required by default in the schema
+            schema = z.string();
+            if(config.required) {
+                schema = schema.min(1, { message: `${fieldDef.label} is required.`});
+            } else {
+                schema = schema.optional();
+            }
+            break;
         case 'multiselect':
             schema = z.array(z.string());
              if (config.required) {
@@ -44,7 +48,7 @@ const getFieldSchema = (fieldId: string, config: FormFieldConfig) => {
             }
             break;
         case 'date':
-            schema = z.coerce.date().optional();
+            schema = z.coerce.date().optional().nullable();
             if (config.required) {
                 schema = schema.refine(val => val != null, { message: `${fieldDef.label} is required.`});
             }
@@ -78,13 +82,13 @@ const getFieldSchema = (fieldId: string, config: FormFieldConfig) => {
     return schema;
 }
 
-export const buildTaskSchema = (adminConfig: AdminConfig) => {
+export const buildTaskSchema = (adminConfig: AdminConfig, allFields: Record<string, FormField>) => {
     let schemaObject = {} as Record<string, z.ZodTypeAny>;
 
     adminConfig.formLayout.forEach(fieldId => {
         const fieldConfig = adminConfig.fieldConfig[fieldId];
         if (fieldConfig.visible) {
-            const fieldSchema = getFieldSchema(fieldId, fieldConfig);
+            const fieldSchema = getFieldSchema(fieldId, fieldConfig, allFields);
             if (fieldSchema) {
                  schemaObject[fieldId] = fieldSchema;
             }
