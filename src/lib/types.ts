@@ -5,6 +5,11 @@ export type Repository = (typeof REPOSITORIES)[number];
 export type Environment = (typeof ENVIRONMENTS)[number];
 export type Developer = string;
 
+export interface Company {
+  id: string;
+  name: string;
+}
+
 export interface Attachment {
   name: string;
   url: string;

@@ -53,6 +53,7 @@ export default function NewTaskPage() {
   const [developersList, setDevelopersList] = useState<string[]>([]);
   
   useEffect(() => {
+    document.title = 'New Task | My Task Manager';
     setDevelopersList(getDevelopers());
   }, []);
 

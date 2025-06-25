@@ -39,6 +39,11 @@ export default function TaskPage() {
       const foundTask = getTaskById(taskId);
       setTask(foundTask || null);
       setIsLoading(false);
+      if (foundTask) {
+        document.title = `${foundTask.title} | My Task Manager`;
+      } else {
+        document.title = 'Task Not Found | My Task Manager';
+      }
     }
   }, [taskId]);
   

@@ -65,6 +65,12 @@ export default function EditTaskPage() {
       setTask(foundTask || null);
       setDevelopersList(devs);
       setIsLoading(false);
+      
+      if (foundTask) {
+        document.title = `Edit: ${foundTask.title} | My Task Manager`;
+      } else {
+        document.title = 'Task Not Found | My Task Manager';
+      }
     }
   }, [taskId]);
 

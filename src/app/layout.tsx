@@ -5,8 +5,11 @@ import { Header } from '@/components/header';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'TaskFlow',
-  description: 'A sleek and simple task tracker.',
+  title: {
+    default: 'My Task Manager',
+    template: '%s | My Task Manager',
+  },
+  description: 'A sleek and simple task tracker for multiple teams.',
 };
 
 export default function RootLayout({

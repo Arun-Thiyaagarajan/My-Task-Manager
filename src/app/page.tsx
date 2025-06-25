@@ -58,6 +58,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    document.title = 'Tasks | My Task Manager';
     // Data is fetched on the client from localStorage
     setTasks(getTasks());
     setIsLoading(false);
