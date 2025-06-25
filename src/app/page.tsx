@@ -1,9 +1,9 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { getTasks } from '@/lib/data';
+import { getTasks, addTask, addDeveloper, getDevelopers } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { TASK_STATUSES, REPOSITORIES } from '@/lib/constants';
 import {
   LayoutGrid,
@@ -23,6 +29,8 @@ import {
   Loader2,
   Search,
   Calendar as CalendarIcon,
+  Upload,
+  Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task, Environment } from '@/lib/types';
@@ -40,9 +48,12 @@ import {
   startOfMonth,
   endOfMonth,
   startOfYear,
+  endOfYear,
 } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { useActiveCompany } from '@/hooks/use-active-company';
+import { useToast } from '@/hooks/use-toast';
+import * as XLSX from 'xlsx';
 
 type ViewMode = 'grid' | 'table';
 
@@ -59,6 +70,8 @@ export default function Home() {
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const refreshData = () => {
     if (activeCompanyId) {
@@ -115,6 +128,125 @@ export default function Home() {
     return statusMatch && repoMatch && searchMatch && dateMatch && deploymentMatch;
   });
 
+  const handleExport = (tasksToExport: Task[], fileName: string) => {
+    const dataForSheet = tasksToExport.map(task => ({
+      'Title': task.title,
+      'Description': task.description,
+      'Status': task.status,
+      'Developers': task.developers?.join(', ') ?? '',
+      'Repositories': task.repositories?.join(', ') ?? '',
+      'Azure Work Item ID': task.azureWorkItemId ?? '',
+      'Dev Start Date': task.devStartDate ? format(new Date(task.devStartDate), 'yyyy-MM-dd') : '',
+      'Dev End Date': task.devEndDate ? format(new Date(task.devEndDate), 'yyyy-MM-dd') : '',
+      'QA Start Date': task.qaStartDate ? format(new Date(task.qaStartDate), 'yyyy-MM-dd') : '',
+      'QA End Date': task.qaEndDate ? format(new Date(task.qaEndDate), 'yyyy-MM-dd') : '',
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataForSheet);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Tasks");
+    XLSX.writeFile(workbook, fileName);
+    
+    toast({
+        variant: 'success',
+        title: 'Export Successful',
+        description: `${tasksToExport.length} tasks exported successfully.`
+    });
+  };
+
+  const handleDownloadTemplate = () => {
+      const templateData = [{
+        'Title': 'Example: Fix login button',
+        'Description': 'The login button is not working on the main page.',
+        'Status': 'To Do',
+        'Developers': 'Arun, Samantha',
+        'Repositories': 'UI-Dashboard',
+        'Azure Work Item ID': '12345',
+        'Dev Start Date': '2024-01-15',
+        'Dev End Date': '',
+        'QA Start Date': '',
+        'QA End Date': ''
+      }];
+      const worksheet = XLSX.utils.json_to_sheet(templateData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Tasks");
+      XLSX.writeFile(workbook, "TaskFlow_Import_Template.xlsx");
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+          try {
+              const data = new Uint8Array(e.target?.result as ArrayBuffer);
+              const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+              const sheetName = workbook.SheetNames[0];
+              const worksheet = workbook.Sheets[sheetName];
+              const json: any[] = XLSX.utils.sheet_to_json(worksheet);
+              
+              let importedCount = 0;
+              let skippedCount = 0;
+              
+              const existingDevelopers = getDevelopers();
+
+              json.forEach(row => {
+                  if (!row.Title || !row.Description || !row.Status) {
+                      skippedCount++;
+                      return;
+                  }
+                  
+                  const developers = row.Developers ? String(row.Developers).split(',').map(d => d.trim()).filter(Boolean) : [];
+                  developers.forEach(dev => {
+                      if (!existingDevelopers.includes(dev)) {
+                          addDeveloper(dev);
+                          existingDevelopers.push(dev);
+                      }
+                  });
+                  
+                  const taskData: Partial<Task> = {
+                      title: row.Title,
+                      description: row.Description,
+                      status: TASK_STATUSES.includes(row.Status) ? row.Status : 'To Do',
+                      developers: developers,
+                      repositories: row.Repositories ? String(row.Repositories).split(',').map(r => r.trim()).filter(Boolean) : [],
+                      azureWorkItemId: row['Azure Work Item ID'] ? String(row['Azure Work Item ID']) : undefined,
+                      devStartDate: row['Dev Start Date'] ? new Date(row['Dev Start Date']).toISOString() : null,
+                      devEndDate: row['Dev End Date'] ? new Date(row['Dev End Date']).toISOString() : null,
+                      qaStartDate: row['QA Start Date'] ? new Date(row['QA Start Date']).toISOString() : null,
+                      qaEndDate: row['QA End Date'] ? new Date(row['QA End Date']).toISOString() : null,
+                  };
+                  
+                  addTask(taskData);
+                  importedCount++;
+              });
+
+              refreshData();
+
+              toast({
+                  variant: 'success',
+                  title: 'Import Complete',
+                  description: `${importedCount} tasks imported. ${skippedCount} rows skipped.`
+              });
+
+          } catch (error) {
+              console.error("Error importing file:", error);
+              toast({
+                  variant: 'destructive',
+                  title: 'Import Failed',
+                  description: 'Please ensure it is a valid Excel file using the template.'
+              });
+          } finally {
+              if(fileInputRef.current) {
+                  fileInputRef.current.value = '';
+              }
+          }
+      };
+      reader.readAsArrayBuffer(file);
+  };
+
+
   if (isLoading) {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -134,12 +266,43 @@ export default function Home() {
         <h1 className="text-3xl font-bold tracking-tight text-foreground">
           Tasks
         </h1>
-        <Button asChild>
-          <Link href="/tasks/new">
-            <Plus className="mr-2 h-4 w-4" />
-            New Task
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                    <Download className="mr-2 h-4 w-4" />
+                    Export
+                </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                <DropdownMenuItem onSelect={() => handleExport(filteredTasks, 'TaskFlow_Export.xlsx')}>
+                    Export Current View
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={handleDownloadTemplate}>
+                    Download Import Template
+                </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+                <Upload className="mr-2 h-4 w-4" />
+                Import
+            </Button>
+            <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden"
+                accept=".xlsx, .xls"
+            />
+            
+            <Button asChild>
+            <Link href="/tasks/new">
+                <Plus className="mr-2 h-4 w-4" />
+                New Task
+            </Link>
+            </Button>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
