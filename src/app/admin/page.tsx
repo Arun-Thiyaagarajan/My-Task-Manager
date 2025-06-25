@@ -64,14 +64,14 @@ export default function AdminPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
 
-  const isInitialMount = useRef(true);
+  const initialLoadComplete = useRef(false);
 
   const refreshData = () => {
-      const config = getAdminConfig();
-      const cFields = getFields();
-      setAdminConfig(config);
-      setAllFields(cFields);
-  }
+    const config = getAdminConfig();
+    const cFields = getFields();
+    setAdminConfig(config);
+    setAllFields(cFields);
+  };
 
   useEffect(() => {
     document.title = 'Admin Portal | TaskFlow';
@@ -85,27 +85,34 @@ export default function AdminPage() {
   const adminConfigString = useMemo(() => JSON.stringify(adminConfig), [adminConfig]);
 
   useEffect(() => {
-    if (isInitialMount.current) {
-        isInitialMount.current = false;
-        return;
+    if (isLoading) {
+      return; // Don't save while initial data is loading
     }
-    if (isLoading || !adminConfig) return;
 
+    if (!initialLoadComplete.current) {
+      // This is the first run after data has loaded.
+      // Mark it as complete and do not save.
+      initialLoadComplete.current = true;
+      return;
+    }
+
+    // Any subsequent run of this effect is a real change.
     setIsSaving(true);
     const handler = setTimeout(() => {
+      if (adminConfig) {
         updateAdminConfig(adminConfig);
         toast({
             variant: 'success',
             title: 'Configuration Saved',
             description: 'Your changes have been saved automatically.',
         });
-        setIsSaving(false);
+      }
+      setIsSaving(false);
     }, 1500);
 
-    return () => {
-        clearTimeout(handler);
-    }
-  }, [adminConfigString]);
+    return () => clearTimeout(handler);
+  }, [adminConfigString, isLoading]);
+
 
   const handleToggleRequired = (fieldId: string) => {
     if (!adminConfig) return;
@@ -440,5 +447,3 @@ export default function AdminPage() {
     </TooltipProvider>
   );
 }
-
-    
