@@ -24,7 +24,7 @@ import {
   Calendar as CalendarIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Task } from '@/lib/types';
+import type { Task, Environment } from '@/lib/types';
 import {
   Popover,
   PopoverContent,
@@ -50,6 +50,7 @@ export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [repoFilter, setRepoFilter] = useState('all');
+  const [deploymentFilter, setDeploymentFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState<DateRange | undefined>(
     undefined
@@ -105,8 +106,12 @@ export default function Home() {
 
       return taskDate >= from && taskDate <= to;
     })();
+    
+    const deploymentMatch =
+      deploymentFilter === 'all' ||
+      (task.deploymentStatus?.[deploymentFilter as Environment] ?? false);
 
-    return statusMatch && repoMatch && searchMatch && dateMatch;
+    return statusMatch && repoMatch && searchMatch && dateMatch && deploymentMatch;
   });
 
   if (isLoading) {
@@ -171,6 +176,17 @@ export default function Home() {
                   {repo}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+          <Select value={deploymentFilter} onValueChange={setDeploymentFilter}>
+            <SelectTrigger className="w-full sm:w-[190px] bg-card">
+              <SelectValue placeholder="Filter by deployment" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Any Deployment</SelectItem>
+              <SelectItem value="dev">Deployed to Dev</SelectItem>
+              <SelectItem value="stage">Deployed to Stage</SelectItem>
+              <SelectItem value="production">Deployed to Production</SelectItem>
             </SelectContent>
           </Select>
           <Popover
