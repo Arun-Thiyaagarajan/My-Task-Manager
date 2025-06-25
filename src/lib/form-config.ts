@@ -41,6 +41,7 @@ export const MASTER_FORM_FIELDS: Record<string, FormField> = {
         description: 'A short, descriptive title for the task.',
         defaultValue: '',
         icon: 'text',
+        group: 'Core Details',
     },
     description: {
         id: 'description',
@@ -50,6 +51,7 @@ export const MASTER_FORM_FIELDS: Record<string, FormField> = {
         description: 'Provide a thorough description of what needs to be done.',
         defaultValue: '',
         icon: 'textarea',
+        group: 'Core Details',
     },
     status: {
         id: 'status',
@@ -60,6 +62,7 @@ export const MASTER_FORM_FIELDS: Record<string, FormField> = {
         description: 'The current status of the task.',
         defaultValue: 'To Do',
         icon: 'select',
+        group: 'Core Details',
     },
     repositories: {
         id: 'repositories',
@@ -70,6 +73,7 @@ export const MASTER_FORM_FIELDS: Record<string, FormField> = {
         description: 'Select all applicable repositories for this task.',
         defaultValue: ['UI-Dashboard'],
         icon: 'multiselect',
+        group: 'Assignment & Tracking',
     },
     developers: {
         id: 'developers',
@@ -79,6 +83,7 @@ export const MASTER_FORM_FIELDS: Record<string, FormField> = {
         description: 'Assign developers to this task. Type a new name and press Enter to add.',
         defaultValue: [],
         icon: 'users',
+        group: 'Assignment & Tracking',
     },
     azureWorkItemId: {
         id: 'azureWorkItemId',
@@ -88,6 +93,7 @@ export const MASTER_FORM_FIELDS: Record<string, FormField> = {
         description: 'The associated Azure DevOps work item ID.',
         defaultValue: '',
         icon: 'link',
+        group: 'Assignment & Tracking',
     },
     qaIssueIds: {
         id: 'qaIssueIds',
@@ -97,6 +103,7 @@ export const MASTER_FORM_FIELDS: Record<string, FormField> = {
         description: 'Comma-separated issue IDs from the QA process.',
         defaultValue: '',
         icon: 'bug',
+        group: 'Advanced',
     },
     attachments: {
         id: 'attachments',
@@ -105,6 +112,7 @@ export const MASTER_FORM_FIELDS: Record<string, FormField> = {
         description: 'Add relevant links or files.',
         defaultValue: [],
         icon: 'attachments',
+        group: 'Advanced',
     },
     devStartDate: {
         id: 'devStartDate',
@@ -114,6 +122,7 @@ export const MASTER_FORM_FIELDS: Record<string, FormField> = {
         description: 'The start date for development work.',
         defaultValue: undefined,
         icon: 'date',
+        group: 'Dates',
     },
     devEndDate: {
         id: 'devEndDate',
@@ -124,6 +133,7 @@ export const MASTER_FORM_FIELDS: Record<string, FormField> = {
         disablePastDatesFrom: 'devStartDate',
         defaultValue: undefined,
         icon: 'date',
+        group: 'Dates',
     },
     qaStartDate: {
         id: 'qaStartDate',
@@ -133,6 +143,7 @@ export const MASTER_FORM_FIELDS: Record<string, FormField> = {
         description: 'The start date for QA testing.',
         defaultValue: undefined,
         icon: 'date',
+        group: 'Dates',
     },
     qaEndDate: {
         id: 'qaEndDate',
@@ -143,6 +154,7 @@ export const MASTER_FORM_FIELDS: Record<string, FormField> = {
         disablePastDatesFrom: 'qaStartDate',
         defaultValue: undefined,
         icon: 'date',
+        group: 'Dates',
     },
     stageDate: {
         id: 'stageDate',
@@ -152,6 +164,7 @@ export const MASTER_FORM_FIELDS: Record<string, FormField> = {
         description: 'Date the task was deployed to staging.',
         defaultValue: undefined,
         icon: 'date',
+        group: 'Dates',
     },
     productionDate: {
         id: 'productionDate',
@@ -161,6 +174,7 @@ export const MASTER_FORM_FIELDS: Record<string, FormField> = {
         description: 'Date the task was deployed to production.',
         defaultValue: undefined,
         icon: 'date',
+        group: 'Dates',
     },
     othersDate: {
         id: 'othersDate',
@@ -170,6 +184,7 @@ export const MASTER_FORM_FIELDS: Record<string, FormField> = {
         description: 'Date the task was deployed to another environment.',
         defaultValue: undefined,
         icon: 'date',
+        group: 'Dates',
     },
     deploymentStatus: {
         id: 'deploymentStatus',
@@ -178,6 +193,7 @@ export const MASTER_FORM_FIELDS: Record<string, FormField> = {
         description: 'Track deployment across different environments.',
         defaultValue: { dev: false, stage: false, production: false, others: false },
         icon: 'deployment',
+        group: 'Advanced',
     },
     prLinks: {
         id: 'prLinks',
@@ -186,6 +202,7 @@ export const MASTER_FORM_FIELDS: Record<string, FormField> = {
         description: 'Add PR numbers for each repository and environment.',
         defaultValue: {},
         icon: 'pr',
+        group: 'Assignment & Tracking',
     }
 };
 

@@ -58,6 +58,7 @@ export interface FormField {
   id: string;
   label: string;
   type: FieldType;
+  group?: string;
   options?: string[];
   placeholder?: string;
   description?: string;

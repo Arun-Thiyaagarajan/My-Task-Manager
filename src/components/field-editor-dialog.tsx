@@ -42,6 +42,7 @@ const fieldSchema = z.object({
   label: z.string().min(2, { message: 'Field name must be at least 2 characters.' }),
   description: z.string().min(2, { message: 'Description must be at least 2 characters.' }),
   type: z.enum(['text', 'textarea', 'date', 'select', 'multiselect', 'tags', 'attachments', 'deployment', 'pr-links']),
+  group: z.string().min(1, 'Please select a group.'),
   options: z.array(z.object({ value: z.string().min(1, 'Option cannot be empty') })).optional(),
   required: z.boolean().optional(),
 }).refine(data => {
@@ -86,6 +87,7 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                 label: fieldToEdit.label,
                 description: fieldToEdit.description,
                 type: fieldToEdit.type,
+                group: fieldToEdit.group || (fieldToEdit.type === 'tags' ? 'Tagging' : 'Custom Fields'),
                 options: fieldToEdit.options?.map(o => ({ value: o })) || [],
                 required: adminConfig.fieldConfig[fieldToEdit.id]?.required || false,
             });
@@ -94,6 +96,7 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                 label: '',
                 description: '',
                 type: 'text',
+                group: 'Custom Fields',
                 options: [],
                 required: false,
             });
@@ -112,6 +115,7 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
             label: data.label,
             description: data.description,
             type: data.type,
+            group: data.group,
             options: (data.type === 'select' || data.type === 'multiselect' || data.type === 'tags') ? data.options?.map(o => o.value) : [],
             icon: fieldToEdit?.icon || 'text',
             isCustom: fieldToEdit ? (fieldToEdit.isCustom ?? false) : true,
@@ -172,7 +176,17 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Field Type</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!fieldToEdit}>
+                                <Select 
+                                    onValueChange={(value) => {
+                                        field.onChange(value);
+                                        if (!fieldToEdit) {
+                                            const newGroup = value === 'tags' ? 'Tagging' : 'Custom Fields';
+                                            form.setValue('group', newGroup, { shouldValidate: true });
+                                        }
+                                    }} 
+                                    defaultValue={field.value} 
+                                    disabled={!!fieldToEdit}
+                                >
                                     <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                                     <SelectContent>
                                         <SelectItem value="text">Text</SelectItem>
@@ -184,6 +198,25 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                                     </SelectContent>
                                 </Select>
                                 <FormDescription>The type cannot be changed after creation.</FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="group"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Group</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        {adminConfig?.groupOrder?.map(groupName => (
+                                            <SelectItem key={groupName} value={groupName}>{groupName}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormDescription>Assign this field to a group on the admin page.</FormDescription>
                                 <FormMessage />
                             </FormItem>
                         )}

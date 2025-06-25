@@ -203,20 +203,29 @@ export default function AdminPage() {
   }, [searchQuery, allFields]);
   
   const fieldGroups = useMemo(() => {
-    const customTagFields = Object.keys(allFields).filter(id => allFields[id].isCustom && allFields[id].type === 'tags');
-    const otherCustomFields = Object.keys(allFields).filter(id => allFields[id].isCustom && allFields[id].type !== 'tags');
+    if (!adminConfig?.groupOrder) return [];
     
-    const groups = [
-      { title: 'Core Details', fieldIds: ['title', 'description', 'status'] },
-      { title: 'Assignment & Tracking', fieldIds: ['developers', 'repositories', 'azureWorkItemId', 'prLinks'] },
-      { title: 'Dates', fieldIds: ['devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate', 'stageDate', 'productionDate', 'othersDate'] },
-      { title: 'Advanced', fieldIds: ['deploymentStatus', 'qaIssueIds', 'attachments'] },
-      { title: 'Tagging', fieldIds: customTagFields },
-      { title: 'Custom Fields', fieldIds: otherCustomFields }
-    ];
+    const groupedByTitle = Object.values(allFields).reduce((acc, field) => {
+        const groupTitle = field.group || (field.isCustom ? (field.type === 'tags' ? 'Tagging' : 'Custom Fields') : 'Core Details');
+        if (!acc[groupTitle]) {
+            acc[groupTitle] = [];
+        }
+        acc[groupTitle].push(field.id);
+        return acc;
+    }, {} as Record<string, string[]>);
     
-    return groups;
-  }, [allFields]);
+    const orderedGroupTitles = [...adminConfig.groupOrder];
+    Object.keys(groupedByTitle).forEach(title => {
+        if (!orderedGroupTitles.includes(title)) {
+            orderedGroupTitles.push(title);
+        }
+    });
+    
+    return orderedGroupTitles.map(title => ({
+        title: title,
+        fieldIds: groupedByTitle[title] || [],
+    }));
+  }, [allFields, adminConfig?.groupOrder]);
 
   if (isLoading || !adminConfig) {
     return (
@@ -314,10 +323,7 @@ export default function AdminPage() {
             <div>
               <h2 className="text-xl font-semibold mb-4 border-b pb-2">Active Form Fields</h2>
               
-              {adminConfig.groupOrder?.map(groupTitle => {
-                const groupInfo = fieldGroups.find(g => g.title === groupTitle);
-                if (!groupInfo) return null;
-
+              {fieldGroups.map(groupInfo => {
                 const activeFieldsInGroup = formLayout.filter(id => 
                     groupInfo.fieldIds.includes(id) && filteredFields[id]
                 );
@@ -326,19 +332,19 @@ export default function AdminPage() {
 
                 return (
                     <div 
-                        key={groupTitle}
+                        key={groupInfo.title}
                         onDragOver={handleDragOver}
-                        onDrop={() => handleGroupDrop(groupTitle)}
+                        onDrop={() => handleGroupDrop(groupInfo.title)}
                         className="mb-6 rounded-lg border bg-muted/20"
                     >
                         <div 
                             draggable 
-                            onDragStart={(e) => handleGroupDragStart(e, groupTitle)}
+                            onDragStart={(e) => handleGroupDragStart(e, groupInfo.title)}
                             className="p-4 cursor-grab rounded-t-lg bg-muted/50"
                         >
                             <h3 className="text-lg font-semibold flex items-center gap-2">
                                 <GripVertical className="h-5 w-5 text-muted-foreground" />
-                                {groupTitle}
+                                {groupInfo.title}
                             </h3>
                         </div>
                         <div className="p-4 pt-2 space-y-2">
