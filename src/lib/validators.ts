@@ -26,7 +26,7 @@ export const taskSchema = z.object({
     others: z.boolean().optional(),
   }).optional(),
   othersEnvironmentName: z.string().optional(),
-  deploymentUpdate: z.string().optional(),
+  deploymentDate: z.coerce.date().optional().nullable(),
   
   prLinks: z.object({
       dev: prLinkSchema.optional(),
@@ -77,14 +77,14 @@ export const taskSchema = z.object({
       }
 ).refine(
   (data) => {
-    const needsUpdate = data.deploymentStatus?.stage || data.deploymentStatus?.production || data.deploymentStatus?.others;
-    if (needsUpdate && !data.deploymentUpdate?.trim()) {
+    const needsDate = data.deploymentStatus?.stage || data.deploymentStatus?.production || data.deploymentStatus?.others;
+    if (needsDate && !data.deploymentDate) {
       return false;
     }
     return true;
   },
   {
-    message: 'An update is required when deploying to Stage, Production, or Others.',
-    path: ['deploymentUpdate'],
+    message: 'Deployment date is required when deploying to Stage, Production, or Others.',
+    path: ['deploymentDate'],
   }
 );

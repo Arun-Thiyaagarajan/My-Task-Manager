@@ -58,7 +58,7 @@ const getInitialTaskData = (task?: Task) => {
             prLinks: {},
             deploymentStatus: {},
             attachments: [],
-            deploymentUpdate: '',
+            deploymentDate: undefined,
         };
     }
     
@@ -68,8 +68,8 @@ const getInitialTaskData = (task?: Task) => {
         devEndDate: task.devEndDate ? new Date(task.devEndDate) : undefined,
         qaStartDate: task.qaStartDate ? new Date(task.qaStartDate) : undefined,
         qaEndDate: task.qaEndDate ? new Date(task.qaEndDate) : undefined,
+        deploymentDate: task.deploymentDate ? new Date(task.deploymentDate) : undefined,
         attachments: task.attachments || [],
-        deploymentUpdate: task.deploymentUpdate || '',
     }
 }
 
@@ -104,7 +104,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
 
   const selectedRepos = form.watch('repositories') || [];
   const deploymentStatus = form.watch('deploymentStatus');
-  const showDeploymentUpdate = deploymentStatus?.stage || deploymentStatus?.production || deploymentStatus?.others;
+  const showDeploymentDate = deploymentStatus?.stage || deploymentStatus?.production || deploymentStatus?.others;
 
   return (
     <Form {...form}>
@@ -361,18 +361,41 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                         )}
                     />
                 )}
-                {showDeploymentUpdate && (
+                {showDeploymentDate && (
                      <FormField
                         control={form.control}
-                        name="deploymentUpdate"
+                        name="deploymentDate"
                         render={({ field }) => (
-                            <FormItem className="mt-4">
-                            <FormLabel>Deployment Update *</FormLabel>
-                            <FormControl>
-                                <Textarea placeholder="Provide a brief update on the deployment status for Stage/Production/Others..." {...field} />
-                            </FormControl>
-                            <FormDescription>This update is required for higher environments.</FormDescription>
-                            <FormMessage />
+                            <FormItem className="flex flex-col mt-4">
+                                <FormLabel>Deployment Date *</FormLabel>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <FormControl>
+                                            <Button
+                                            variant={"outline"}
+                                            className={cn(
+                                                "w-full pl-3 text-left font-normal",
+                                                !field.value && "text-muted-foreground"
+                                            )}
+                                            >
+                                            {field.value ? format(field.value, "PPP") : (
+                                                <span>Pick a deployment date</span>
+                                            )}
+                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                            </Button>
+                                        </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar
+                                            mode="single"
+                                            selected={field.value}
+                                            onSelect={field.onChange}
+                                            initialFocus
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                                <FormDescription>This date is required for higher environments.</FormDescription>
+                                <FormMessage />
                             </FormItem>
                         )}
                     />

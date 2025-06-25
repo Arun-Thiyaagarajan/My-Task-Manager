@@ -34,7 +34,7 @@ export interface Task {
     [key in Environment]?: boolean;
   };
   othersEnvironmentName?: string;
-  deploymentUpdate?: string;
+  deploymentDate?: string | null;
   developers?: Developer[];
   comments?: string[];
   attachments?: Attachment[];

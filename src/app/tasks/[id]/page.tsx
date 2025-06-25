@@ -191,7 +191,19 @@ export default function TaskPage() {
                     )}
                 </CardContent>
             </Card>
-
+            
+             <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <GitMerge className="h-5 w-5" />
+                        Pull Requests
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                   <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} />
+                </CardContent>
+            </Card>
+            
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -227,18 +239,6 @@ export default function TaskPage() {
                     )}
                 </CardContent>
             </Card>
-            
-             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <GitMerge className="h-5 w-5" />
-                        Pull Requests
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                   <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} />
-                </CardContent>
-            </Card>
 
              <Card>
                 <CardHeader>
@@ -249,12 +249,12 @@ export default function TaskPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                    <EnvironmentStatus deploymentStatus={task.deploymentStatus} othersEnvironmentName={task.othersEnvironmentName} />
-                   {task.deploymentUpdate && (
+                   {task.deploymentDate && (
                      <>
                       <Separator/>
-                      <div>
-                        <h4 className="text-sm font-medium text-muted-foreground mb-1">Deployment Update</h4>
-                        <p className="text-sm text-foreground/80 whitespace-pre-wrap">{task.deploymentUpdate}</p>
+                      <div className="flex justify-between text-sm pt-2">
+                        <span className="text-muted-foreground">Deployment Date</span>
+                        <span>{format(new Date(task.deploymentDate), 'PPP')}</span>
                       </div>
                      </>
                    )}
