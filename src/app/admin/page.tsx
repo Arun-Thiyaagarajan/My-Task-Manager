@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { getAdminConfig, updateAdminConfig, getFields, deleteField, renameGroup } from '@/lib/data';
+import { getAdminConfig, updateAdminConfig, getFields, deleteField, renameGroup, moveFieldAndReorder, moveFieldToNewGroup } from '@/lib/data';
 import type { AdminConfig, FormField } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -110,21 +110,32 @@ export default function AdminPage() {
     e.preventDefault();
   }
 
-  const handleDrop = (targetFieldId: string) => {
-    if (!draggedFieldId || !adminConfig) return;
-    
-    const newLayout = [...adminConfig.formLayout];
-    const draggedIndex = newLayout.indexOf(draggedFieldId);
-    const targetIndex = newLayout.indexOf(targetFieldId);
-
-    if (draggedIndex === -1 || targetIndex === -1) return;
-
-    const [movedItem] = newLayout.splice(draggedIndex, 1);
-    newLayout.splice(targetIndex, 0, movedItem);
-
-    setAdminConfig({ ...adminConfig, formLayout: newLayout });
+  const handleDropOnField = (targetFieldId: string) => {
+    if (!draggedFieldId) return;
+    moveFieldAndReorder(draggedFieldId, targetFieldId);
+    refreshData();
     setDraggedFieldId(null);
-  }
+  };
+
+  const handleDropOnGroup = (targetGroupTitle: string) => {
+    if (!draggedFieldId) return;
+    const field = allFields[draggedFieldId];
+    if (field?.group === targetGroupTitle) {
+      setDraggedFieldId(null);
+      return;
+    }
+    moveFieldToNewGroup(draggedFieldId, targetGroupTitle);
+    refreshData();
+    setDraggedFieldId(null);
+  };
+  
+  const handleGroupContainerDrop = (targetGroupTitle: string) => {
+      if (draggedGroupTitle) {
+          handleGroupDrop(targetGroupTitle);
+      } else if (draggedFieldId) {
+          handleDropOnGroup(targetGroupTitle);
+      }
+  };
   
   const handleGroupDragStart = (e: React.DragEvent<HTMLDivElement>, title: string) => {
     setDraggedGroupTitle(title);
@@ -283,7 +294,7 @@ export default function AdminPage() {
           draggable={true}
           onDragStart={(e) => handleDragStart(e, fieldId)}
           onDragOver={handleDragOver}
-          onDrop={() => handleDrop(fieldId)}
+          onDrop={() => handleDropOnField(fieldId)}
           onClick={() => handleOpenEditDialog(fieldDefinition)}
         >
           <div className="flex items-center gap-4 flex-1">
@@ -364,7 +375,7 @@ export default function AdminPage() {
                     <div 
                         key={groupInfo.title}
                         onDragOver={handleDragOver}
-                        onDrop={() => handleGroupDrop(groupInfo.title)}
+                        onDrop={() => handleGroupContainerDrop(groupInfo.title)}
                         className="mb-6 rounded-lg border bg-muted/20"
                     >
                        {editingGroup === groupInfo.title ? (

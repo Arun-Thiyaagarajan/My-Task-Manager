@@ -260,6 +260,51 @@ export function renameGroup(oldName: string, newName: string) {
     }
 }
 
+export function moveFieldAndReorder(fieldId: string, targetFieldId: string) {
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    const companyData = data.companyData[activeCompanyId];
+
+    if (!companyData) return;
+
+    const fieldToMove = companyData.fields[fieldId];
+    const targetField = companyData.fields[targetFieldId];
+
+    if (!fieldToMove || !targetField) return;
+
+    // Update group if different
+    if (targetField.group && fieldToMove.group !== targetField.group) {
+        fieldToMove.group = targetField.group;
+    }
+
+    // Update layout
+    const layout = companyData.adminConfig.formLayout;
+    const draggedIndex = layout.indexOf(fieldId);
+    const targetIndex = layout.indexOf(targetFieldId);
+
+    if (draggedIndex !== -1 && targetIndex !== -1) {
+        const [movedItem] = layout.splice(draggedIndex, 1);
+        layout.splice(targetIndex, 0, movedItem);
+    }
+
+    setAppData(data);
+}
+
+export function moveFieldToNewGroup(fieldId: string, newGroup: string) {
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    const companyData = data.companyData[activeCompanyId];
+
+    if (!companyData) return;
+
+    const fieldToMove = companyData.fields[fieldId];
+    if (fieldToMove && fieldToMove.group !== newGroup) {
+        fieldToMove.group = newGroup;
+        setAppData(data);
+    }
+}
+
+
 // Task Functions
 export function getTasks(): Task[] {
   const data = getAppData();
