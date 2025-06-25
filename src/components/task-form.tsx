@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
 import { taskSchema } from '@/lib/validators';
@@ -25,7 +25,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Loader2, CalendarIcon, GitPullRequest } from 'lucide-react';
+import { Loader2, CalendarIcon, GitPullRequest, Trash2, Paperclip } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTransition, useEffect } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
@@ -57,6 +57,7 @@ const getInitialTaskData = (task?: Task) => {
             developers: [],
             prLinks: {},
             deploymentStatus: {},
+            attachments: [],
         };
     }
     
@@ -66,6 +67,7 @@ const getInitialTaskData = (task?: Task) => {
         devEndDate: task.devEndDate ? new Date(task.devEndDate) : undefined,
         qaStartDate: task.qaStartDate ? new Date(task.qaStartDate) : undefined,
         qaEndDate: task.qaEndDate ? new Date(task.qaEndDate) : undefined,
+        attachments: task.attachments || [],
     }
 }
 
@@ -78,6 +80,11 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
     defaultValues: getInitialTaskData(task),
   });
   
+  const { fields: attachmentFields, append: appendAttachment, remove: removeAttachment } = useFieldArray({
+    control: form.control,
+    name: 'attachments',
+  });
+
   useEffect(() => {
     form.reset(getInitialTaskData(task));
   }, [task, form]);
@@ -248,6 +255,64 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                 <p className="text-sm text-muted-foreground text-center py-4">Select at least one repository to add PR links.</p>
                )}
             </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Attachments</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {attachmentFields.map((field, index) => (
+              <div key={field.id} className="flex items-end gap-2 p-3 border rounded-md bg-muted/20">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-grow">
+                  <FormField
+                    control={form.control}
+                    name={`attachments.${index}.name`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Attachment Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Design Mockup" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name={`attachments.${index}.url`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Attachment URL</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  className="shrink-0"
+                  onClick={() => removeAttachment(index)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span className="sr-only">Remove Attachment</span>
+                </Button>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => appendAttachment({ name: '', url: '', type: 'link' })}
+            >
+              <Paperclip className="mr-2 h-4 w-4" />
+              Add Attachment
+            </Button>
+          </CardContent>
         </Card>
         
         <Card>

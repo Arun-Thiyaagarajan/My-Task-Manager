@@ -5,6 +5,12 @@ import { TASK_STATUSES } from './constants';
 export const prLinkSchema = z.record(z.string().optional());
 export const environmentPrLinksSchema = z.record(prLinkSchema.optional());
 
+export const attachmentSchema = z.object({
+  name: z.string().min(1, 'Attachment name is required.'),
+  url: z.string().url('Please enter a valid URL.'),
+  type: z.enum(['link', 'file']),
+});
+
 export const taskSchema = z.object({
   title: z.string().min(3, { message: 'Title must be at least 3 characters.' }),
   description: z.string().min(3, { message: 'Description must be at least 3 characters.' }),
@@ -27,6 +33,8 @@ export const taskSchema = z.object({
       production: prLinkSchema.optional(),
       others: prLinkSchema.optional(),
   }).optional(),
+
+  attachments: z.array(attachmentSchema).optional(),
   
   devStartDate: z.coerce.date().optional().nullable(),
   devEndDate: z.coerce.date().optional().nullable(),

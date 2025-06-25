@@ -1,5 +1,5 @@
 
-import type { Task, Developer, Company } from './types';
+import type { Task, Developer, Company, Attachment } from './types';
 
 interface CompanyData {
     tasks: Task[];
@@ -156,6 +156,7 @@ export function addTask(taskData: Partial<Omit<Task, 'id' | 'createdAt' | 'updat
     qaStartDate: taskData.qaStartDate || null,
     qaEndDate: taskData.qaEndDate || null,
     comments: [],
+    attachments: taskData.attachments || [],
   };
   
   data.companyData[activeCompanyId].tasks = [newTask, ...companyTasks];

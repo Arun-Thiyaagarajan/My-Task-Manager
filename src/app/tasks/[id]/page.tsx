@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, Users, CalendarDays, Loader2, Cloud, ListChecks } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, Users, CalendarDays, Loader2, Cloud, ListChecks, Paperclip } from 'lucide-react';
 import { TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -214,6 +214,35 @@ export default function TaskPage() {
                     )}
                 </CardContent>
             </Card>
+
+            {task.attachments && task.attachments.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Paperclip className="h-5 w-5" />
+                            Attachments
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                    <ul className="space-y-3">
+                        {task.attachments.map((att, index) => (
+                        <li key={index}>
+                            <a
+                            href={att.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-sm text-primary hover:underline"
+                            >
+                            <ExternalLink className="h-4 w-4" />
+                            <span className="truncate">{att.name}</span>
+                            </a>
+                        </li>
+                        ))}
+                    </ul>
+                    </CardContent>
+                </Card>
+            )}
+
              <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">

@@ -36,6 +36,7 @@ export interface Task {
   othersEnvironmentName?: string;
   developers?: Developer[];
   comments?: string[];
+  attachments?: Attachment[];
   
   devStartDate?: string | null;
   devEndDate?: string | null;
