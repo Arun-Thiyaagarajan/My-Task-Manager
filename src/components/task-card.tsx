@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useRouter } from 'next/navigation';
@@ -58,7 +59,7 @@ export function TaskCard({ task, onTaskDelete }: TaskCardProps) {
           <div className="flex items-start gap-2 text-sm text-muted-foreground">
             <GitMerge className="h-4 w-4 shrink-0 mt-0.5" />
             <div className="flex flex-wrap gap-1">
-              {task.repositories.map((repo) => (
+              {(task.repositories || []).map((repo) => (
                 <Badge variant="secondary" key={repo} className="text-xs">
                   {repo}
                 </Badge>

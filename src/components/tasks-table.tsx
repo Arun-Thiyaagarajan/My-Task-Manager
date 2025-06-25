@@ -1,3 +1,4 @@
+
 import Link from 'next/link';
 import {
   Table,
@@ -46,7 +47,7 @@ export function TasksTable({ tasks, onTaskDelete }: TasksTableProps) {
               </TableCell>
               <TableCell>
                 <div className="flex flex-wrap gap-1">
-                  {task.repositories.map(repo => (
+                  {(task.repositories || []).map(repo => (
                     <Badge variant="secondary" key={repo} className="text-xs font-normal">{repo}</Badge>
                   ))}
                 </div>
