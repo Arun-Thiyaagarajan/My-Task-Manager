@@ -183,6 +183,14 @@ export function saveField(field: FormField, required: boolean) {
         }
         companyData.adminConfig.fieldConfig[field.id].required = required;
         
+        // Add new group to groupOrder if it doesn't exist
+        if (field.group && !companyData.adminConfig.groupOrder?.includes(field.group)) {
+            if (!companyData.adminConfig.groupOrder) {
+                companyData.adminConfig.groupOrder = [];
+            }
+            companyData.adminConfig.groupOrder.push(field.group);
+        }
+
         setAppData(data);
     }
 }

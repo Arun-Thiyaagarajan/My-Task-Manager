@@ -42,7 +42,7 @@ const fieldSchema = z.object({
   label: z.string().min(2, { message: 'Field name must be at least 2 characters.' }),
   description: z.string().min(2, { message: 'Description must be at least 2 characters.' }),
   type: z.enum(['text', 'textarea', 'date', 'select', 'multiselect', 'tags', 'attachments', 'deployment', 'pr-links']),
-  group: z.string().min(1, 'Please select a group.'),
+  group: z.string().min(1, 'Please enter a group name.'),
   options: z.array(z.object({ value: z.string().min(1, 'Option cannot be empty') })).optional(),
   required: z.boolean().optional(),
 }).refine(data => {
@@ -208,15 +208,10 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Group</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                                    <SelectContent>
-                                        {adminConfig?.groupOrder?.map(groupName => (
-                                            <SelectItem key={groupName} value={groupName}>{groupName}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <FormDescription>Assign this field to a group on the admin page.</FormDescription>
+                                <FormControl>
+                                    <Input placeholder="e.g. Custom Fields" {...field} />
+                                </FormControl>
+                                <FormDescription>Assign this field to a group. Type a new name to create a new group.</FormDescription>
                                 <FormMessage />
                             </FormItem>
                         )}
