@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, Users, CalendarDays, Loader2, Cloud, ListChecks, Paperclip, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, Loader2, ListChecks, Paperclip, CheckCircle2 } from 'lucide-react';
 import { TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -16,8 +16,9 @@ import { PrLinksGroup } from '@/components/pr-links-group';
 import { Badge } from '@/components/ui/badge';
 import { getInitials, getAvatarColor, cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
-import type { Task, Environment } from '@/lib/types';
+import type { Task } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
 import { ENVIRONMENTS } from '@/lib/constants';
 
@@ -44,7 +45,6 @@ export default function TaskPage() {
   
   const handleCommentsUpdate = (newComments: string[]) => {
     if (task) {
-      // In a real app, this would also persist the change
       setTask({ ...task, comments: newComments });
     }
   };
@@ -156,21 +156,51 @@ export default function TaskPage() {
                 </CardContent>
             </Card>
           )}
-
         </div>
 
         <div className="lg:col-span-1 space-y-6">
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 text-xl">
                         <ListChecks className="h-5 w-5" />
-                        Properties
+                        Task Details
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <span className="text-muted-foreground block">Repositories</span>
-                         <div className="flex flex-wrap gap-1">
+                    <div>
+                        <h4 className="text-sm font-semibold text-muted-foreground mb-2">Assigned Developers</h4>
+                         {task.developers && task.developers.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                                <TooltipProvider>
+                                {task.developers.map(dev => (
+                                    <Tooltip key={dev}>
+                                        <TooltipTrigger>
+                                            <Avatar>
+                                                <AvatarFallback
+                                                    className="font-semibold text-white"
+                                                    style={{ backgroundColor: `#${getAvatarColor(dev)}` }}
+                                                >
+                                                    {getInitials(dev)}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>{dev}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                ))}
+                                </TooltipProvider>
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">No developers assigned.</p>
+                        )}
+                    </div>
+                    
+                    <Separator />
+
+                    <div>
+                        <h4 className="text-sm font-semibold text-muted-foreground mb-2">Repositories</h4>
+                        <div className="flex flex-wrap gap-1">
                           {(task.repositories && task.repositories.length > 0) ? (task.repositories || []).map(repo => (
                             <Badge key={repo} variant="secondary">{repo}</Badge>
                           )) : (
@@ -178,144 +208,107 @@ export default function TaskPage() {
                           )}
                         </div>
                     </div>
+                    
                     {azureWorkItemUrl && (
                         <>
-                         <Separator />
-                         <div className="space-y-2">
-                            <span className="text-muted-foreground block">Azure DevOps</span>
-                            <a href={azureWorkItemUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline">
-                                <ExternalLink className="h-4 w-4" />
-                                <span>Work Item #{task.azureWorkItemId}</span>
-                            </a>
-                        </div>
+                            <Separator />
+                            <div>
+                                <h4 className="text-sm font-semibold text-muted-foreground mb-2">Azure DevOps</h4>
+                                <a href={azureWorkItemUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline text-sm">
+                                    <ExternalLink className="h-4 w-4" />
+                                    <span>Work Item #{task.azureWorkItemId}</span>
+                                </a>
+                            </div>
                         </>
                     )}
+
+                    <Separator />
+
+                    <div>
+                        <h4 className="text-sm font-semibold text-muted-foreground mb-2">Important Dates</h4>
+                        <div className="space-y-2 text-sm">
+                            {task.devStartDate && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Dev Start</span>
+                                    <span>{format(new Date(task.devStartDate), 'PPP')}</span>
+                                </div>
+                            )}
+                            {task.devEndDate && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Dev End</span>
+                                    <span>{format(new Date(task.devEndDate), 'PPP')}</span>
+                                </div>
+                            )}
+                            {(task.devStartDate || task.devEndDate) && (task.qaStartDate || task.qaEndDate) && <Separator className="my-1"/>}
+                            {task.qaStartDate && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">QA Start</span>
+                                    <span>{format(new Date(task.qaStartDate), 'PPP')}</span>
+                                </div>
+                            )}
+                            {task.qaEndDate && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">QA End</span>
+                                    <span>{format(new Date(task.qaEndDate), 'PPP')}</span>
+                                </div>
+                            )}
+                             {!(task.devStartDate || task.devEndDate || task.qaStartDate || task.qaEndDate) && (
+                                <p className="text-muted-foreground text-center text-xs">No dates have been set.</p>
+                             )}
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
             
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Cloud className="h-5 w-5" />
-                        Deployments
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                    {ENVIRONMENTS.map(env => {
-                        const isDeployed = task.deploymentStatus?.[env];
-                        const deploymentDate = task.deploymentDates?.[env];
-                        const envName = env === 'others' && task.othersEnvironmentName ? task.othersEnvironmentName : env;
-
-                        if (env === 'others' && !isDeployed) return null;
-
-                        return (
-                            <div key={env} className="flex justify-between items-center">
-                                <span className={cn("capitalize", isDeployed ? "text-foreground font-medium" : "text-muted-foreground")}>
-                                    {envName}
-                                </span>
-                                {isDeployed ? (
-                                    <div className="flex items-center gap-2">
-                                        <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                        <span className="text-foreground">
-                                            {deploymentDate ? format(new Date(deploymentDate), 'PPP') : 'Deployed'}
-                                        </span>
-                                    </div>
-                                ) : (
-                                    <span className="text-muted-foreground">Pending</span>
-                                )}
-                            </div>
-                        )
-                    })}
-                     {(!task.deploymentStatus || Object.values(task.deploymentStatus).every(s => !s)) && (
-                        <p className="text-muted-foreground text-center text-xs pt-2">No deployments recorded.</p>
-                     )}
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <CalendarDays className="h-5 w-5" />
-                        Important Dates
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                    {task.devStartDate && (
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Dev Start</span>
-                            <span>{format(new Date(task.devStartDate), 'PPP')}</span>
-                        </div>
-                    )}
-                    {task.devEndDate && (
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Dev End</span>
-                            <span>{format(new Date(task.devEndDate), 'PPP')}</span>
-                        </div>
-                    )}
-                    {(task.devStartDate || task.devEndDate) && (task.qaStartDate || task.qaEndDate) && <Separator />}
-                    {task.qaStartDate && (
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">QA Start</span>
-                            <span>{format(new Date(task.qaStartDate), 'PPP')}</span>
-                        </div>
-                    )}
-                    {task.qaEndDate && (
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">QA End</span>
-                            <span>{format(new Date(task.qaEndDate), 'PPP')}</span>
-                        </div>
-                    )}
-                     {!(task.devStartDate || task.devEndDate || task.qaStartDate || task.qaEndDate) && (
-                        <p className="text-muted-foreground text-center text-xs">No dates have been set.</p>
-                     )}
-                </CardContent>
-            </Card>
-            
-             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 text-xl">
                         <GitMerge className="h-5 w-5" />
-                        Pull Requests
+                        Activity
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                   <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} />
-                </CardContent>
-            </Card>
+                    <Tabs defaultValue="deployments" className="w-full">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="deployments">Deployments</TabsTrigger>
+                            <TabsTrigger value="pull-requests">Pull Requests</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="deployments" className="pt-4">
+                           <div className="space-y-3 text-sm">
+                                {ENVIRONMENTS.map(env => {
+                                    const isDeployed = task.deploymentStatus?.[env];
+                                    const deploymentDate = task.deploymentDates?.[env];
+                                    const envName = env === 'others' && task.othersEnvironmentName ? task.othersEnvironmentName : env;
 
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Users className="h-5 w-5" />
-                        Assigned Developers
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {task.developers && task.developers.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                            <TooltipProvider>
-                            {task.developers.map(dev => (
-                                <Tooltip key={dev}>
-                                    <TooltipTrigger>
-                                        <Avatar>
-                                            <AvatarFallback
-                                                className="font-semibold text-white"
-                                                style={{ backgroundColor: `#${getAvatarColor(dev)}` }}
-                                            >
-                                                {getInitials(dev)}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>{dev}</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            ))}
-                            </TooltipProvider>
-                        </div>
-                    ) : (
-                        <p className="text-sm text-muted-foreground">No developers assigned.</p>
-                    )}
+                                    if (env === 'others' && !isDeployed) return null;
+
+                                    return (
+                                        <div key={env} className="flex justify-between items-center">
+                                            <span className={cn("capitalize", isDeployed ? "text-foreground font-medium" : "text-muted-foreground")}>
+                                                {envName}
+                                            </span>
+                                            {isDeployed ? (
+                                                <div className="flex items-center gap-2">
+                                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                                    <span className="text-foreground">
+                                                        {deploymentDate ? format(new Date(deploymentDate), 'PPP') : 'Deployed'}
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-muted-foreground">Pending</span>
+                                            )}
+                                        </div>
+                                    )
+                                })}
+                                 {(!task.deploymentStatus || Object.values(task.deploymentStatus).every(s => !s)) && (
+                                    <p className="text-muted-foreground text-center text-xs pt-2">No deployments recorded.</p>
+                                 )}
+                            </div>
+                        </TabsContent>
+                        <TabsContent value="pull-requests" className="pt-2">
+                             <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} />
+                        </TabsContent>
+                    </Tabs>
                 </CardContent>
             </Card>
         </div>
