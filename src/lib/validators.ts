@@ -31,6 +31,9 @@ export const taskSchema = z.object({
   devEndDate: z.date().optional(),
   qaStartDate: z.date().optional(),
   qaEndDate: z.date().optional(),
+  stageDate: z.date().optional(),
+  productionDate: z.date().optional(),
+  othersDate: z.date().optional(),
 }).refine(
   (data) => {
     if (data.deploymentStatus.others && !data.othersEnvironmentName?.trim()) {

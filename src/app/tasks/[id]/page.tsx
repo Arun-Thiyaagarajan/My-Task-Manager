@@ -192,7 +192,7 @@ export default function TaskPage() {
                         Important Dates
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3 text-sm">
+                <CardContent className="space-y-4 text-sm">
                     <div>
                         <p className="font-medium text-muted-foreground">Development</p>
                         <p className="text-foreground/90">{renderDateRange(task.devStartDate, task.devEndDate)}</p>
@@ -200,6 +200,18 @@ export default function TaskPage() {
                      <div>
                         <p className="font-medium text-muted-foreground">QA / Testing</p>
                         <p className="text-foreground/90">{renderDateRange(task.qaStartDate, task.qaEndDate)}</p>
+                    </div>
+                    <div>
+                        <p className="font-medium text-muted-foreground">Stage Deployment</p>
+                        <p className="text-foreground/90">{task.stageDate ? format(new Date(task.stageDate), 'PPP') : 'Not set'}</p>
+                    </div>
+                     <div>
+                        <p className="font-medium text-muted-foreground">Production Deployment</p>
+                        <p className="text-foreground/90">{task.productionDate ? format(new Date(task.productionDate), 'PPP') : 'Not set'}</p>
+                    </div>
+                     <div>
+                        <p className="font-medium text-muted-foreground">{task.othersEnvironmentName || 'Others'} Deployment</p>
+                        <p className="text-foreground/90">{task.othersDate ? format(new Date(task.othersDate), 'PPP') : 'Not set'}</p>
                     </div>
                 </CardContent>
             </Card>

@@ -25,6 +25,9 @@ export interface Task {
   devEndDate?: string;
   qaStartDate?: string;
   qaEndDate?: string;
+  stageDate?: string;
+  productionDate?: string;
+  othersDate?: string;
   createdAt: string;
   updatedAt: string;
 }

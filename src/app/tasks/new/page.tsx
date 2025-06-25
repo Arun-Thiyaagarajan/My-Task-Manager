@@ -18,7 +18,7 @@ const parseCommaSeparatedString = (value: string | undefined): string[] => {
 };
 
 const processTaskData = (data: TaskFormData) => {
-    const { prLinks, qaIssueIds, devStartDate, devEndDate, qaStartDate, qaEndDate, ...rest } = data;
+    const { prLinks, qaIssueIds, devStartDate, devEndDate, qaStartDate, qaEndDate, stageDate, productionDate, othersDate, ...rest } = data;
 
     const processedPrLinks = Object.fromEntries(
         Object.entries(prLinks).map(([env, links]) => [env, parseCommaSeparatedString(links)])
@@ -32,6 +32,9 @@ const processTaskData = (data: TaskFormData) => {
         devEndDate: devEndDate?.toISOString(),
         qaStartDate: qaStartDate?.toISOString(),
         qaEndDate: qaEndDate?.toISOString(),
+        stageDate: stageDate?.toISOString(),
+        productionDate: productionDate?.toISOString(),
+        othersDate: othersDate?.toISOString(),
     };
 }
 
