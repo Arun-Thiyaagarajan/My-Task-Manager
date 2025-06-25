@@ -85,7 +85,9 @@ export default function Home() {
 
     const dateMatch = (() => {
       if (!dateFilter?.from) return true;
-      const taskDate = new Date(task.createdAt);
+      if (!task.devEndDate) return false; // Task must have a dev end date to be filtered
+
+      const taskDate = new Date(task.devEndDate);
 
       const from = startOfDay(dateFilter.from);
       // If to is not set, range is just one day.
@@ -187,7 +189,7 @@ export default function Home() {
                     format(dateFilter.from, 'LLL dd, y')
                   )
                 ) : (
-                  <span>Filter by date</span>
+                  <span>Filter by Dev End Date</span>
                 )}
               </Button>
             </PopoverTrigger>
