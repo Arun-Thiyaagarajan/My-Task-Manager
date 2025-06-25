@@ -1,4 +1,6 @@
-import Link from 'next/link';
+'use client';
+
+import { useRouter } from 'next/navigation';
 import type { Task } from '@/lib/types';
 import {
   Card,
@@ -7,7 +9,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Button } from './ui/button';
 import { TaskStatusBadge } from './task-status-badge';
 import { GitMerge, ExternalLink } from 'lucide-react';
 import { EnvironmentStatus } from './environment-status';
@@ -23,18 +24,29 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, onTaskDelete }: TaskCardProps) {
+  const router = useRouter();
+  
   const azureWorkItemUrl = task.azureWorkItemId 
     ? `https://dev.azure.com/ideaelan/Infinity/_workitems/edit/${task.azureWorkItemId}` 
     : null;
 
+  const handleNavigate = () => {
+    router.push(`/tasks/${task.id}`);
+  };
+
+  const handleActionClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   return (
-    <Card className="flex flex-col h-full overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+    <Card 
+      className="flex flex-col h-full transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer"
+      onClick={handleNavigate}
+    >
       <CardHeader>
         <div className="flex justify-between items-start gap-2">
           <CardTitle className="text-lg leading-tight line-clamp-2">
-            <Link href={`/tasks/${task.id}`} className="hover:text-primary transition-colors">
-              {task.title}
-            </Link>
+            {task.title}
           </CardTitle>
         </div>
       </CardHeader>
@@ -85,18 +97,17 @@ export function TaskCard({ task, onTaskDelete }: TaskCardProps) {
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-primary transition-colors line-clamp-1"
-              onClick={(e) => e.stopPropagation()}
+              onClick={handleActionClick}
             >
               Azure ID: {task.azureWorkItemId}
             </a>
           </div>
         )}
       </CardContent>
-      <CardFooter className="flex items-center gap-2">
-        <Button asChild variant="outline" size="sm" className="flex-1">
-          <Link href={`/tasks/${task.id}`}>Manage Task</Link>
-        </Button>
-        <DeleteTaskButton taskId={task.id} onSuccess={onTaskDelete} />
+      <CardFooter className="flex items-center justify-end">
+        <div onClick={handleActionClick}>
+          <DeleteTaskButton taskId={task.id} onSuccess={onTaskDelete} iconOnly />
+        </div>
       </CardFooter>
     </Card>
   );

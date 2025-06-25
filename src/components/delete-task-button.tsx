@@ -20,9 +20,10 @@ import { useToast } from '@/hooks/use-toast';
 interface DeleteTaskButtonProps {
   taskId: string;
   onSuccess: () => void;
+  iconOnly?: boolean;
 }
 
-export function DeleteTaskButton({ taskId, onSuccess }: DeleteTaskButtonProps) {
+export function DeleteTaskButton({ taskId, onSuccess, iconOnly = false }: DeleteTaskButtonProps) {
   const [isPending, setIsPending] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const { toast } = useToast();
@@ -52,10 +53,17 @@ export function DeleteTaskButton({ taskId, onSuccess }: DeleteTaskButtonProps) {
   return (
     <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
       <AlertDialogTrigger asChild>
-        <Button variant="destructive" size="sm">
-          <Trash2 className="mr-2 h-4 w-4" />
-          Delete
-        </Button>
+        {iconOnly ? (
+            <Button variant="destructive" size="icon">
+                <Trash2 className="h-4 w-4" />
+                <span className="sr-only">Delete Task</span>
+            </Button>
+        ) : (
+            <Button variant="destructive" size="sm">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+            </Button>
+        )}
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
