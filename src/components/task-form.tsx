@@ -29,7 +29,7 @@ import {
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Loader2, CalendarIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { Card } from './ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
@@ -52,6 +52,9 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
   const [isPending, startTransition] = useTransition();
   const [allDevelopers, setAllDevelopers] = useState<string[]>(developersList);
 
+  useEffect(() => {
+    setAllDevelopers(developersList);
+  }, [developersList]);
 
   const form = useForm<TaskFormData>({
     resolver: zodResolver(taskSchema),
