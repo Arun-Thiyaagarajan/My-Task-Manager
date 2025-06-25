@@ -81,9 +81,6 @@ export const taskSchema = z.object({
           path: ['qaEndDate'],
       }
 ).refine(
-    (data) => !(data.deploymentStatus?.dev && !data.deploymentDates?.dev),
-    { message: 'Dev deployment date is required.', path: ['deploymentDates.dev'] }
-).refine(
     (data) => !(data.deploymentStatus?.stage && !data.deploymentDates?.stage),
     { message: 'Stage deployment date is required.', path: ['deploymentDates.stage'] }
 ).refine(

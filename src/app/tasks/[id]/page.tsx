@@ -291,7 +291,7 @@ export default function TaskPage() {
                                                 <div className="flex items-center gap-2">
                                                     <CheckCircle2 className="h-4 w-4 text-green-500" />
                                                     <span className="text-foreground">
-                                                        {deploymentDate ? format(new Date(deploymentDate), 'PPP') : 'Deployed'}
+                                                        {deploymentDate && env !== 'dev' ? format(new Date(deploymentDate), 'PPP') : 'Deployed'}
                                                     </span>
                                                 </div>
                                             ) : (

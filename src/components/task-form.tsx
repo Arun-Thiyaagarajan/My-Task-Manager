@@ -347,7 +347,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                                     </FormItem>
                                 )}
                             />
-                            {form.watch(`deploymentStatus.${env}`) && (
+                            {form.watch(`deploymentStatus.${env}`) && env !== 'dev' && (
                                 <FormField
                                     control={form.control}
                                     name={`deploymentDates.${env}` as const}
