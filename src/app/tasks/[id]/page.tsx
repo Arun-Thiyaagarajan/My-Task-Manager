@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, Users } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, Users, CalendarDays } from 'lucide-react';
 import { TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -13,6 +13,7 @@ import { DeleteTaskButton } from '@/components/delete-task-button';
 import { Badge } from '@/components/ui/badge';
 import { getInitials } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { format } from 'date-fns';
 
 interface TaskPageProps {
   params: {
@@ -30,6 +31,13 @@ export default function TaskPage({ params }: TaskPageProps) {
   const azureWorkItemUrl = task.azureWorkItemId 
     ? `https://dev.azure.com/your-org/your-project/_workitems/edit/${task.azureWorkItemId}` 
     : null;
+
+  const renderDateRange = (start?: string, end?: string) => {
+      if (!start && !end) return 'Not set';
+      const startDate = start ? format(new Date(start), 'PPP') : '...';
+      const endDate = end ? format(new Date(end), 'PPP') : '...';
+      return `${startDate} - ${endDate}`;
+  }
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -59,6 +67,9 @@ export default function TaskPage({ params }: TaskPageProps) {
               <CardTitle className="text-3xl font-bold mt-2">
                 {task.title}
               </CardTitle>
+              <CardDescription>
+                Last updated on {format(new Date(task.updatedAt), 'PPP')}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-muted-foreground mb-4">
@@ -129,6 +140,24 @@ export default function TaskPage({ params }: TaskPageProps) {
                     ) : (
                         <p className="text-sm text-muted-foreground">No developers assigned.</p>
                     )}
+                </CardContent>
+            </Card>
+             <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <CalendarDays className="h-5 w-5" />
+                        Important Dates
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm">
+                    <div>
+                        <p className="font-medium text-muted-foreground">Development</p>
+                        <p className="text-foreground/90">{renderDateRange(task.devStartDate, task.devEndDate)}</p>
+                    </div>
+                     <div>
+                        <p className="font-medium text-muted-foreground">QA / Testing</p>
+                        <p className="text-foreground/90">{renderDateRange(task.qaStartDate, task.qaEndDate)}</p>
+                    </div>
                 </CardContent>
             </Card>
            <AiTaskSuggester task={task} />

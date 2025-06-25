@@ -14,6 +14,24 @@ const parsePrLinks = (links: string | undefined): string[] => {
   return links.split('\n').map(l => l.trim()).filter(Boolean);
 };
 
+const processTaskData = (data: TaskFormData) => {
+    const { prLinks, devStartDate, devEndDate, qaStartDate, qaEndDate, ...rest } = data;
+
+    const processedPrLinks = Object.fromEntries(
+        Object.entries(prLinks).map(([env, links]) => [env, parsePrLinks(links)])
+    ) as { [key in Environment]?: string[] };
+    
+    return {
+        ...rest,
+        prLinks: processedPrLinks,
+        devStartDate: devStartDate?.toISOString(),
+        devEndDate: devEndDate?.toISOString(),
+        qaStartDate: qaStartDate?.toISOString(),
+        qaEndDate: qaEndDate?.toISOString(),
+    };
+}
+
+
 export async function createTaskAction(data: TaskFormData) {
   const validationResult = taskSchema.safeParse(data);
 
@@ -22,17 +40,7 @@ export async function createTaskAction(data: TaskFormData) {
     throw new Error('Invalid task data passed to action.');
   }
 
-  const { prLinks, ...rest } = validationResult.data;
-
-  const processedPrLinks = Object.fromEntries(
-    Object.entries(prLinks).map(([env, links]) => [env, parsePrLinks(links)])
-  ) as { [key in Environment]?: string[] };
-  
-  const taskData: Omit<Task, 'id'> = {
-      ...rest,
-      prLinks: processedPrLinks,
-  }
-
+  const taskData = processTaskData(validationResult.data);
   const newTask = addTask(taskData);
   revalidatePath('/');
   redirect(`/tasks/${newTask.id}`);
@@ -50,17 +58,7 @@ export async function updateTaskAction(id: string, data: TaskFormData) {
     throw new Error('Invalid task data passed to action.');
   }
 
-  const { prLinks, ...rest } = validationResult.data;
-
-  const processedPrLinks = Object.fromEntries(
-    Object.entries(prLinks).map(([env, links]) => [env, parsePrLinks(links)])
-  ) as { [key in Environment]?: string[] };
-
-  const taskData: Partial<Task> = {
-    ...rest,
-    prLinks: processedPrLinks,
-  };
-
+  const taskData = processTaskData(validationResult.data);
   updateTask(id, taskData);
   revalidatePath('/');
   revalidatePath(`/tasks/${id}`);

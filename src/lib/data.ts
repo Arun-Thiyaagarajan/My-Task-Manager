@@ -15,6 +15,10 @@ let tasks: Task[] = [
       stage: ['https://github.com/your-org/ui-dashboard/pull/122'],
     },
     developers: ['Alice', 'Bob'],
+    devStartDate: '2024-07-01T00:00:00.000Z',
+    devEndDate: '2024-07-15T00:00:00.000Z',
+    createdAt: '2024-06-20T00:00:00.000Z',
+    updatedAt: '2024-07-05T00:00:00.000Z',
   },
   {
     id: 'task-2',
@@ -29,6 +33,12 @@ let tasks: Task[] = [
       production: ['https://github.com/your-org/api-export/pull/53'],
     },
     developers: ['Charlie'],
+    devStartDate: '2024-06-10T00:00:00.000Z',
+    devEndDate: '2024-06-12T00:00:00.000Z',
+    qaStartDate: '2024-06-13T00:00:00.000Z',
+    qaEndDate: '2024-06-14T00:00:00.000Z',
+    createdAt: '2024-06-09T00:00:00.000Z',
+    updatedAt: '2024-06-15T00:00:00.000Z',
   },
   {
     id: 'task-3',
@@ -38,6 +48,8 @@ let tasks: Task[] = [
     repositories: ['Templates'],
     prLinks: {},
     developers: ['Dana'],
+    createdAt: '2024-07-10T00:00:00.000Z',
+    updatedAt: '2024-07-10T00:00:00.000Z',
   },
   {
     id: 'task-4',
@@ -50,6 +62,8 @@ let tasks: Task[] = [
       dev: ['https://github.com/your-org/ui-admin/pull/201'],
     },
     developers: ['Bob', 'Eve'],
+    createdAt: '2024-07-02T00:00:00.000Z',
+    updatedAt: '2024-07-08T00:00:00.000Z',
   },
   {
     id: 'task-5',
@@ -63,6 +77,8 @@ let tasks: Task[] = [
       production: ['https://github.com/your-org/api-export/pull/76'],
     },
     developers: ['Alice'],
+    createdAt: '2024-05-15T00:00:00.000Z',
+    updatedAt: '2024-05-20T00:00:00.000Z',
   },
   {
     id: 'task-6',
@@ -72,6 +88,8 @@ let tasks: Task[] = [
     repositories: ['UI-Dashboard'],
     azureWorkItemId: '106',
     prLinks: {},
+    createdAt: '2024-07-11T00:00:00.000Z',
+    updatedAt: '2024-07-11T00:00:00.000Z',
   },
     {
     id: 'task-7',
@@ -83,6 +101,8 @@ let tasks: Task[] = [
       dev: ['https://github.com/your-org/other-repo/pull/11'],
     },
     developers: ['Dana', 'Charlie'],
+    createdAt: '2024-07-01T00:00:00.000Z',
+    updatedAt: '2024-07-03T00:00:00.000Z',
   },
   {
     id: 'task-8',
@@ -95,6 +115,8 @@ let tasks: Task[] = [
       stage: ['https://github.com/your-org/ui-dashboard/pull/299'],
     },
     developers: ['Eve'],
+    createdAt: '2024-07-05T00:00:00.000Z',
+    updatedAt: '2024-07-09T00:00:00.000Z',
   },
 ];
 
@@ -107,9 +129,12 @@ export function getTaskById(id: string): Task | undefined {
   return tasks.find(task => task.id === id);
 }
 
-export function addTask(taskData: Omit<Task, 'id'>): Task {
+export function addTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>): Task {
+  const now = new Date().toISOString();
   const newTask: Task = {
     id: `task-${Date.now()}`,
+    createdAt: now,
+    updatedAt: now,
     ...taskData,
     prLinks: taskData.prLinks ?? {},
     developers: taskData.developers ?? [],
@@ -118,12 +143,16 @@ export function addTask(taskData: Omit<Task, 'id'>): Task {
   return newTask;
 }
 
-export function updateTask(id: string, taskData: Partial<Omit<Task, 'id'>>): Task | undefined {
+export function updateTask(id: string, taskData: Partial<Omit<Task, 'id' | 'createdAt' | 'updatedAt'>>): Task | undefined {
   const taskIndex = tasks.findIndex(task => task.id === id);
   if (taskIndex === -1) {
     return undefined;
   }
-  tasks[taskIndex] = { ...tasks[taskIndex], ...taskData };
+  tasks[taskIndex] = { 
+    ...tasks[taskIndex], 
+    ...taskData,
+    updatedAt: new Date().toISOString()
+  };
   return tasks[taskIndex];
 }
 

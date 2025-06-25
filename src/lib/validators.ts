@@ -18,4 +18,8 @@ export const taskSchema = z.object({
   azureWorkItemId: z.string().regex(/^\d*$/, { message: "Please enter a valid work item ID." }).optional().or(z.literal('')),
   developers: z.array(z.string()).optional(),
   prLinks: prLinksSchema,
+  devStartDate: z.date().optional(),
+  devEndDate: z.date().optional(),
+  qaStartDate: z.date().optional(),
+  qaEndDate: z.date().optional(),
 });
