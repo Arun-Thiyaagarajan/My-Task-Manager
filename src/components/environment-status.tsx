@@ -1,17 +1,16 @@
 
 import { Badge } from '@/components/ui/badge';
-import { ENVIRONMENTS } from '@/lib/constants';
 import type { Task } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 interface EnvironmentStatusProps {
   deploymentStatus: Task['deploymentStatus'];
+  deploymentDates?: Task['deploymentDates'];
   size?: 'sm' | 'default';
 }
 
-export function EnvironmentStatus({ deploymentStatus, size = 'default' }: EnvironmentStatusProps) {
-  const isDeployed = (env: string) => deploymentStatus && deploymentStatus[env];
+export function EnvironmentStatus({ deploymentStatus, deploymentDates, size = 'default' }: EnvironmentStatusProps) {
 
   const getEnvInfo = (env: string) => {
     switch(env) {
@@ -33,7 +32,7 @@ export function EnvironmentStatus({ deploymentStatus, size = 'default' }: Enviro
       default:
         return { 
           color: 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-700/50 dark:text-gray-300 dark:border-gray-600/80',
-          label: env // For custom environments, use their name as the label
+          label: env
         };
     }
   }
@@ -44,10 +43,8 @@ export function EnvironmentStatus({ deploymentStatus, size = 'default' }: Enviro
     <TooltipProvider delayDuration={100}>
       <div className="flex flex-wrap items-center gap-1.5">
         {allEnvs.map(env => {
-          const deployed = isDeployed(env);
-          if (!deployed) return null;
-
           const envInfo = getEnvInfo(env);
+          const isComplete = env === 'dev' || (deploymentDates && deploymentDates[env]);
           
           return (
             <Tooltip key={env}>
@@ -56,7 +53,7 @@ export function EnvironmentStatus({ deploymentStatus, size = 'default' }: Enviro
                   variant="outline"
                   className={cn(
                     'capitalize font-medium',
-                    deployed
+                    isComplete
                       ? envInfo.color
                       : 'border-dashed text-muted-foreground/80 dark:text-muted-foreground/50',
                     size === 'sm' && 'px-1.5 py-0 text-[10px] h-4'
@@ -66,7 +63,7 @@ export function EnvironmentStatus({ deploymentStatus, size = 'default' }: Enviro
                 </Badge>
               </TooltipTrigger>
               <TooltipContent>
-                <p className="capitalize">{envInfo.label}: {deployed ? 'Deployed' : 'Pending'}</p>
+                <p className="capitalize">{envInfo.label}: {isComplete ? 'Deployed' : 'Pending'}</p>
               </TooltipContent>
             </Tooltip>
           );

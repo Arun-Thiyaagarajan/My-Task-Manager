@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -84,6 +85,7 @@ export function TaskCard({ task, onTaskDelete }: TaskCardProps) {
             </p>
             <EnvironmentStatus
               deploymentStatus={task.deploymentStatus}
+              deploymentDates={task.deploymentDates}
               size="sm"
             />
           </div>

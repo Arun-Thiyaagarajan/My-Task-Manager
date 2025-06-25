@@ -137,14 +137,15 @@ export default function TaskPage() {
                 <CardContent>
                     <div className="space-y-3 text-sm">
                         {allDeploymentEnvs.length > 0 ? allDeploymentEnvs.map(env => {
-                            const isDeployed = task.deploymentStatus?.[env];
+                            const isDateSet = task.deploymentDates && task.deploymentDates[env];
+                            const isComplete = env === 'dev' || !!isDateSet;
                             
                             return (
                                 <div key={env} className="flex justify-between items-center">
-                                    <span className={cn("capitalize", isDeployed ? "text-foreground font-medium" : "text-muted-foreground")}>
+                                    <span className={cn("capitalize", isComplete ? "text-foreground font-medium" : "text-muted-foreground")}>
                                         {env}
                                     </span>
-                                    {isDeployed ? (
+                                    {isComplete ? (
                                         <div className="flex items-center gap-2">
                                             <CheckCircle2 className="h-4 w-4 text-green-500" />
                                             <span className="text-foreground">Deployed</span>
@@ -177,12 +178,6 @@ export default function TaskPage() {
             </Card>
           </div>
           
-           <CommentsSection
-              taskId={task.id}
-              comments={task.comments || []}
-              onCommentsUpdate={handleCommentsUpdate}
-           />
-
           {task.attachments && task.attachments.length > 0 && (
             <Card>
                 <CardHeader>
@@ -210,6 +205,12 @@ export default function TaskPage() {
                 </CardContent>
             </Card>
           )}
+          
+           <CommentsSection
+              taskId={task.id}
+              comments={task.comments || []}
+              onCommentsUpdate={handleCommentsUpdate}
+           />
 
         </div>
 

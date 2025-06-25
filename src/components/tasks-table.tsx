@@ -53,7 +53,7 @@ export function TasksTable({ tasks, onTaskDelete }: TasksTableProps) {
                 </div>
               </TableCell>
               <TableCell>
-                <EnvironmentStatus deploymentStatus={task.deploymentStatus} size="sm" />
+                <EnvironmentStatus deploymentStatus={task.deploymentStatus} deploymentDates={task.deploymentDates} size="sm" />
               </TableCell>
               <TableCell>
                 <div className="flex items-center justify-end gap-2">
@@ -63,7 +63,7 @@ export function TasksTable({ tasks, onTaskDelete }: TasksTableProps) {
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
                   </Button>
-                  <DeleteTaskButton taskId={task.id} onSuccess={onTaskDelete} />
+                  <DeleteTaskButton taskId={task.id} onSuccess={onTaskDelete} iconOnly/>
                 </div>
               </TableCell>
             </TableRow>
