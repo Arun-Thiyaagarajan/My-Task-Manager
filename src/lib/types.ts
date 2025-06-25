@@ -26,7 +26,7 @@ export interface Task {
   repositories: Repository[];
   azureWorkItemId?: string;
   prLinks: {
-    [key in Environment]?: string;
+    [key in Environment]?: { [repo: string]: string };
   };
   deploymentStatus: {
     [key in Environment]?: boolean;

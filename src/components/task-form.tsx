@@ -39,6 +39,8 @@ import { Separator } from './ui/separator';
 import { MultiSelect, type SelectOption } from './ui/multi-select';
 import { Checkbox } from './ui/checkbox';
 import * as React from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+
 
 type TaskFormData = z.infer<typeof taskSchema>;
 
@@ -76,12 +78,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
         others: task?.deploymentStatus?.others ?? false,
       },
       othersEnvironmentName: task?.othersEnvironmentName ?? '',
-      prLinks: {
-        dev: task?.prLinks?.dev ?? '',
-        stage: task?.prLinks?.stage ?? '',
-        production: task?.prLinks?.production ?? '',
-        others: task?.prLinks?.others ?? '',
-      },
+      prLinks: task?.prLinks ?? {},
       devStartDate: task?.devStartDate ? new Date(task.devStartDate) : undefined,
       devEndDate: task?.devEndDate ? new Date(task.devEndDate) : undefined,
       qaStartDate: task?.qaStartDate ? new Date(task.qaStartDate) : undefined,
@@ -98,6 +95,8 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
   });
 
   const isOthersDeployed = form.watch('deploymentStatus.others');
+  const selectedRepos = form.watch('repositories');
+
 
   const handleFormSubmit = (data: TaskFormData) => {
     startTransition(() => {
@@ -659,28 +658,49 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                     <Separator />
                     <div>
                          <h4 className="font-medium text-sm text-muted-foreground mb-4">Pull Request Links</h4>
-                        <div className="space-y-6">
-                            {ENVIRONMENTS.map(env => (
-                                <FormField
-                                    key={env}
-                                    control={form.control}
-                                    name={`prLinks.${env}`}
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel className="capitalize">{env} PR Links</FormLabel>
-                                            <FormControl>
-                                                <Input
-                                                    placeholder="e.g. 19703, 19704"
-                                                    {...field}
-                                                />
-                                            </FormControl>
-                                            <FormDescription>Comma-separated PR IDs.</FormDescription>
-                                            <FormMessage />
-                                        </FormItem>
+                         <Tabs defaultValue="dev" className="w-full">
+                            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
+                                {ENVIRONMENTS.map((env) => (
+                                <TabsTrigger key={env} value={env} className="capitalize">
+                                    {env}
+                                </TabsTrigger>
+                                ))}
+                            </TabsList>
+                            {ENVIRONMENTS.map((env) => (
+                                <TabsContent key={env} value={env}>
+                                    <div className="space-y-4 pt-4 border-t">
+                                    {(selectedRepos && selectedRepos.length > 0) ? (
+                                        selectedRepos.map((repo) => (
+                                            <FormField
+                                                key={`${env}-${repo}`}
+                                                control={form.control}
+                                                name={`prLinks.${env}.${repo}`}
+                                                render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>{repo}</FormLabel>
+                                                    <FormControl>
+                                                    <Input
+                                                        placeholder="e.g. 19703, 19704"
+                                                        {...field}
+                                                        onChange={(e) => field.onChange(e.target.value ?? '')}
+                                                        value={field.value ?? ''}
+                                                    />
+                                                    </FormControl>
+                                                    <FormDescription>Comma-separated PR IDs for this repo.</FormDescription>
+                                                    <FormMessage />
+                                                </FormItem>
+                                                )}
+                                            />
+                                        ))
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground py-4 text-center">
+                                            Select at least one repository to add PR links.
+                                        </p>
                                     )}
-                                />
+                                    </div>
+                                </TabsContent>
                             ))}
-                        </div>
+                         </Tabs>
                     </div>
                 </AccordionContent>
             </AccordionItem>

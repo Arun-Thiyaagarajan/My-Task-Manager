@@ -3,9 +3,12 @@ import { TASK_STATUSES, REPOSITORIES, ENVIRONMENTS } from './constants';
 
 const prLinksSchema = z.object(
   Object.fromEntries(
-    ENVIRONMENTS.map(env => [env, z.string().optional()])
+    ENVIRONMENTS.map(env => [
+      env,
+      z.record(z.string(), z.string().optional()).optional(),
+    ])
   )
-) as z.ZodType<Record<typeof ENVIRONMENTS[number], string | undefined>>;
+);
 
 const deploymentStatusSchema = z.object(
   Object.fromEntries(
@@ -31,7 +34,7 @@ export const taskSchema = z.object({
   azureWorkItemId: z.string().regex(/^\d*$/, { message: "Please enter a valid work item ID." }).optional().or(z.literal('')),
   developers: z.array(z.string()).optional(),
   qaIssueIds: z.string().optional(),
-  prLinks: prLinksSchema,
+  prLinks: prLinksSchema.optional(),
   deploymentStatus: deploymentStatusSchema,
   othersEnvironmentName: z.string().optional(),
   devStartDate: z.date().optional(),

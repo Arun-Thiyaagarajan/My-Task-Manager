@@ -24,41 +24,54 @@ export function PrLinksGroup({ prLinks, repositories }: PrLinksGroupProps) {
         ))}
       </TabsList>
       {ENVIRONMENTS.map((env) => {
-        const prIdString = prLinks[env] || '';
-        const prIds = prIdString.split(',').map(id => id.trim()).filter(Boolean);
-        const hasLinks = prIds.length > 0 && repositories.length > 0;
+        const repoPrMap = prLinks[env];
+        const hasAnyLinkForEnv =
+          repoPrMap &&
+          repositories.some((repo) => {
+            const prIdString = repoPrMap[repo] || '';
+            return prIdString.trim().length > 0;
+          });
 
         return (
           <TabsContent key={env} value={env}>
             <div className="mt-4">
-              {hasLinks ? (
+              {hasAnyLinkForEnv ? (
                 <div className="space-y-4">
-                  {repositories.map(repo => (
-                    <div key={repo}>
-                      <h4 className="font-semibold mb-2 text-sm text-foreground">{repo}</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {prIds.map(id => {
-                          const url = `${baseUrl}${repo}/pullrequest/${id}`;
-                          return (
-                            <a
-                              key={`${repo}-${id}`}
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <Badge
-                                variant="outline"
-                                className="font-normal py-1 px-2.5 hover:bg-accent"
+                  {repositories.map((repo) => {
+                    const prIdString = repoPrMap?.[repo] || '';
+                    const prIds = prIdString.split(',').map((id) => id.trim()).filter(Boolean);
+                    
+                    if (prIds.length === 0) {
+                        return null;
+                    }
+
+                    return (
+                      <div key={repo}>
+                        <h4 className="font-semibold mb-2 text-sm text-foreground">{repo}</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {prIds.map((id) => {
+                            const url = `${baseUrl}${repo}/pullrequest/${id}`;
+                            return (
+                              <a
+                                key={`${repo}-${id}`}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
                               >
-                                <GitPullRequest className="h-3 w-3 mr-1.5 text-muted-foreground" />
-                                <span>PR #{id}</span>
-                              </Badge>
-                            </a>
-                          );
-                        })}
+                                <Badge
+                                  variant="outline"
+                                  className="font-normal py-1 px-2.5 hover:bg-accent"
+                                >
+                                  <GitPullRequest className="h-3 w-3 mr-1.5 text-muted-foreground" />
+                                  <span>PR #{id}</span>
+                                </Badge>
+                              </a>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-muted-foreground text-sm py-4 text-center">
