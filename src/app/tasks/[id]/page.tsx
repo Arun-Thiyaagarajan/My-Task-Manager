@@ -2,12 +2,13 @@ import { getTaskById } from '@/lib/data';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ExternalLink, GitMerge } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil } from 'lucide-react';
 import { TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { PrLinksGroup } from '@/components/pr-links-group';
 import { AiTaskSuggester } from '@/components/ai-task-suggester';
+import { DeleteTaskButton } from '@/components/delete-task-button';
 
 interface TaskPageProps {
   params: {
@@ -24,13 +25,22 @@ export default function TaskPage({ params }: TaskPageProps) {
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <div className="mb-6">
+      <div className="flex justify-between items-center mb-6">
         <Button asChild variant="ghost" className="pl-1">
           <Link href="/">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to tasks
           </Link>
         </Button>
+        <div className="flex gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/tasks/${task.id}/edit`}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit
+              </Link>
+            </Button>
+            <DeleteTaskButton taskId={task.id} />
+        </div>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">

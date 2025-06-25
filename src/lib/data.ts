@@ -1,7 +1,9 @@
 import type { Task } from './types';
 
-const tasks: Task[] = [
-  {
+// In a real application, this would be a database.
+// For this demo, we're using an in-memory array that resets on server restart.
+let tasks: Task[] = [
+    {
     id: 'task-1',
     title: 'Implement new dashboard widgets',
     description: 'Develop and integrate new interactive widgets for the main dashboard to display key metrics. The widgets should be responsive and update in real-time.',
@@ -87,9 +89,38 @@ const tasks: Task[] = [
 ];
 
 export function getTasks(): Task[] {
-  return tasks;
+  // Return a copy to prevent direct mutation of the array on the client
+  return [...tasks];
 }
 
 export function getTaskById(id: string): Task | undefined {
   return tasks.find(task => task.id === id);
+}
+
+export function addTask(taskData: Omit<Task, 'id' | 'prLinks'>): Task {
+  const newTask: Task = {
+    ...taskData,
+    id: `task-${Date.now()}`,
+    prLinks: {},
+  };
+  tasks.unshift(newTask);
+  return newTask;
+}
+
+export function updateTask(id: string, taskData: Partial<Task>): Task | undefined {
+  const taskIndex = tasks.findIndex(task => task.id === id);
+  if (taskIndex === -1) {
+    return undefined;
+  }
+  tasks[taskIndex] = { ...tasks[taskIndex], ...taskData };
+  return tasks[taskIndex];
+}
+
+export function deleteTask(id: string): boolean {
+  const taskIndex = tasks.findIndex(task => task.id === id);
+  if (taskIndex === -1) {
+    return false;
+  }
+  tasks.splice(taskIndex, 1);
+  return true;
 }
