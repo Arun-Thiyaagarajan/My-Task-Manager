@@ -191,56 +191,8 @@ export default function TaskPage() {
                     )}
                 </CardContent>
             </Card>
-            
-             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <GitMerge className="h-5 w-5" />
-                        Pull Requests
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                   <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} />
-                </CardContent>
-            </Card>
-            
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Users className="h-5 w-5" />
-                        Assigned Developers
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {task.developers && task.developers.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                            <TooltipProvider>
-                            {task.developers.map(dev => (
-                                <Tooltip key={dev}>
-                                    <TooltipTrigger>
-                                        <Avatar>
-                                            <AvatarFallback
-                                                className="font-semibold text-white"
-                                                style={{ backgroundColor: `#${getAvatarColor(dev)}` }}
-                                            >
-                                                {getInitials(dev)}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>{dev}</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            ))}
-                            </TooltipProvider>
-                        </div>
-                    ) : (
-                        <p className="text-sm text-muted-foreground">No developers assigned.</p>
-                    )}
-                </CardContent>
-            </Card>
 
-             <Card>
+            <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Cloud className="h-5 w-5" />
@@ -297,6 +249,54 @@ export default function TaskPage() {
                      {!(task.devStartDate || task.devEndDate || task.qaStartDate || task.qaEndDate) && (
                         <p className="text-muted-foreground text-center text-xs">No dates have been set.</p>
                      )}
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Users className="h-5 w-5" />
+                        Assigned Developers
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {task.developers && task.developers.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                            <TooltipProvider>
+                            {task.developers.map(dev => (
+                                <Tooltip key={dev}>
+                                    <TooltipTrigger>
+                                        <Avatar>
+                                            <AvatarFallback
+                                                className="font-semibold text-white"
+                                                style={{ backgroundColor: `#${getAvatarColor(dev)}` }}
+                                            >
+                                                {getInitials(dev)}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>{dev}</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            ))}
+                            </TooltipProvider>
+                        </div>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">No developers assigned.</p>
+                    )}
+                </CardContent>
+            </Card>
+            
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <GitMerge className="h-5 w-5" />
+                        Pull Requests
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                   <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} />
                 </CardContent>
             </Card>
         </div>
