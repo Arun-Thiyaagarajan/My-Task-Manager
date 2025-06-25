@@ -200,7 +200,7 @@ export function deleteField(fieldId: string) {
     const activeCompanyId = data.activeCompanyId;
     const companyData = data.companyData[activeCompanyId];
 
-    if (companyData?.fields[fieldId]?.isCustom) {
+    if (companyData?.fields[fieldId]) {
         delete companyData.fields[fieldId];
         
         companyData.adminConfig.formLayout = companyData.adminConfig.formLayout.filter(id => id !== fieldId);

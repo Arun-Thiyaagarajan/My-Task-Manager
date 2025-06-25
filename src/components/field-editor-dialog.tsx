@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm, useFieldArray, SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -36,7 +36,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { saveField } from '@/lib/data';
 import type { FormField as FormFieldType, AdminConfig } from '@/lib/types';
-import { Loader2, PlusCircle, Trash2 } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+
 
 const fieldSchema = z.object({
   label: z.string().min(2, { message: 'Field name must be at least 2 characters.' }),
@@ -68,6 +72,7 @@ interface FieldEditorDialogProps {
 export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit, adminConfig }: FieldEditorDialogProps) {
   const { toast } = useToast();
   const [isPending, setIsPending] = useState(false);
+  const [groupPopoverOpen, setGroupPopoverOpen] = useState(false);
   
   const form = useForm<FieldFormData>({
     resolver: zodResolver(fieldSchema),
@@ -79,6 +84,7 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
   });
 
   const fieldType = form.watch('type');
+  const groupNames = useMemo(() => adminConfig?.groupOrder ? [...new Set(adminConfig.groupOrder)] : [], [adminConfig?.groupOrder]);
 
   useEffect(() => {
     if (isOpen) {
@@ -206,12 +212,74 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                         control={form.control}
                         name="group"
                         render={({ field }) => (
-                            <FormItem>
+                            <FormItem className="flex flex-col">
                                 <FormLabel>Group</FormLabel>
-                                <FormControl>
-                                    <Input placeholder="e.g. Custom Fields" {...field} />
-                                </FormControl>
-                                <FormDescription>Assign this field to a group. Type a new name to create a new group.</FormDescription>
+                                <Popover open={groupPopoverOpen} onOpenChange={setGroupPopoverOpen}>
+                                    <PopoverTrigger asChild>
+                                        <FormControl>
+                                            <Button
+                                                variant="outline"
+                                                role="combobox"
+                                                className={cn(
+                                                    "w-full justify-between font-normal",
+                                                    !field.value && "text-muted-foreground"
+                                                )}
+                                            >
+                                                {field.value || "Select a group"}
+                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
+                                        </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                                        <Command
+                                            filter={(value, search) => value.toLowerCase().includes(search.toLowerCase().trim()) ? 1 : 0}
+                                        >
+                                            <CommandInput 
+                                                placeholder="Search or create group..."
+                                                onKeyDown={(e) => {
+                                                    if(e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        const inputVal = (e.target as HTMLInputElement).value.trim();
+                                                        if(inputVal) {
+                                                            field.onChange(inputVal);
+                                                            setGroupPopoverOpen(false);
+                                                        }
+                                                    }
+                                                }}
+                                            />
+                                            <CommandList>
+                                                <CommandEmpty>
+                                                    No group found. Press Enter to create.
+                                                </CommandEmpty>
+                                                <CommandGroup>
+                                                    {groupNames.map((group) => (
+                                                        <CommandItem
+                                                            value={group}
+                                                            key={group}
+                                                            onSelect={() => {
+                                                                field.onChange(group);
+                                                                setGroupPopoverOpen(false);
+                                                            }}
+                                                        >
+                                                            <Check
+                                                                className={cn(
+                                                                    "mr-2 h-4 w-4",
+                                                                    group === field.value
+                                                                        ? "opacity-100"
+                                                                        : "opacity-0"
+                                                                )}
+                                                            />
+                                                            {group}
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
+                                <FormDescription>
+                                    Assign this field to a group. Type and press Enter to create a new one.
+                                </FormDescription>
                                 <FormMessage />
                             </FormItem>
                         )}
