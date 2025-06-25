@@ -13,12 +13,14 @@ import { ArrowRight } from 'lucide-react';
 import type { Task } from '@/lib/types';
 import { EnvironmentStatus } from './environment-status';
 import { Badge } from './ui/badge';
+import { DeleteTaskButton } from './delete-task-button';
 
 interface TasksTableProps {
   tasks: Task[];
+  onTaskDelete: () => void;
 }
 
-export function TasksTable({ tasks }: TasksTableProps) {
+export function TasksTable({ tasks, onTaskDelete }: TasksTableProps) {
   return (
     <div className="border rounded-lg bg-card">
       <Table>
@@ -52,13 +54,16 @@ export function TasksTable({ tasks }: TasksTableProps) {
               <TableCell>
                 <EnvironmentStatus prLinks={task.prLinks} size="sm" />
               </TableCell>
-              <TableCell className="text-right">
-                <Button asChild variant="ghost" size="sm">
-                  <Link href={`/tasks/${task.id}`}>
-                    View
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
+              <TableCell>
+                <div className="flex items-center justify-end gap-2">
+                  <Button asChild variant="ghost" size="sm">
+                    <Link href={`/tasks/${task.id}`}>
+                      View
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                  <DeleteTaskButton taskId={task.id} onSuccess={onTaskDelete} />
+                </div>
               </TableCell>
             </TableRow>
           ))}

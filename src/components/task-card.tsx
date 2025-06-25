@@ -15,12 +15,14 @@ import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { getInitials, getAvatarColor } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { DeleteTaskButton } from './delete-task-button';
 
 interface TaskCardProps {
   task: Task;
+  onTaskDelete: () => void;
 }
 
-export function TaskCard({ task }: TaskCardProps) {
+export function TaskCard({ task, onTaskDelete }: TaskCardProps) {
   const azureWorkItemUrl = task.azureWorkItemId 
     ? `https://dev.azure.com/ideaelan/Infinity/_workitems/edit/${task.azureWorkItemId}` 
     : null;
@@ -90,10 +92,11 @@ export function TaskCard({ task }: TaskCardProps) {
           </div>
         )}
       </CardContent>
-      <CardFooter>
-        <Button asChild variant="outline" size="sm" className="w-full">
+      <CardFooter className="flex items-center gap-2">
+        <Button asChild variant="outline" size="sm" className="flex-1">
           <Link href={`/tasks/${task.id}`}>Manage Task</Link>
         </Button>
+        <DeleteTaskButton taskId={task.id} onSuccess={onTaskDelete} />
       </CardFooter>
     </Card>
   );

@@ -80,7 +80,7 @@ export default function TaskPage() {
                 Edit
               </Link>
             </Button>
-            <DeleteTaskButton taskId={task.id} />
+            <DeleteTaskButton taskId={task.id} onSuccess={() => router.push('/')} />
         </div>
       </div>
 

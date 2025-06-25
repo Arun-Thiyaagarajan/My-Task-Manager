@@ -16,16 +16,16 @@ import { Trash2, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { deleteTask } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
 
 interface DeleteTaskButtonProps {
   taskId: string;
+  onSuccess: () => void;
 }
 
-export function DeleteTaskButton({ taskId }: DeleteTaskButtonProps) {
+export function DeleteTaskButton({ taskId, onSuccess }: DeleteTaskButtonProps) {
   const [isPending, setIsPending] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const { toast } = useToast();
-  const router = useRouter();
 
   const handleDelete = () => {
     setIsPending(true);
@@ -35,7 +35,8 @@ export function DeleteTaskButton({ taskId }: DeleteTaskButtonProps) {
         title: 'Task Deleted',
         description: 'The task has been successfully removed.',
       });
-      router.push('/');
+      onSuccess();
+      setIsOpen(false);
     } catch (error) {
        console.error(error);
        toast({
@@ -43,12 +44,13 @@ export function DeleteTaskButton({ taskId }: DeleteTaskButtonProps) {
          title: 'Something went wrong',
          description: error instanceof Error ? error.message : 'Please try again.',
        });
-       setIsPending(false);
+    } finally {
+        setIsPending(false);
     }
   };
 
   return (
-    <AlertDialog>
+    <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
       <AlertDialogTrigger asChild>
         <Button variant="destructive" size="sm">
           <Trash2 className="mr-2 h-4 w-4" />
