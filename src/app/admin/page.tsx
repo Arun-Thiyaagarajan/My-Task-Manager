@@ -2,14 +2,14 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { getAdminConfig, updateAdminConfig, getFields, deleteField, renameGroup, moveFieldAndReorder, moveFieldToNewGroup } from '@/lib/data';
+import { getAdminConfig, updateAdminConfig, getFields, deleteField, renameGroup, moveFieldAndReorder, moveFieldToNewGroup, addField, removeField } from '@/lib/data';
 import type { AdminConfig, FormField } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, GripVertical, XCircle, PlusCircle, Trash2, Edit, Search, Check, X } from 'lucide-react';
+import { Loader2, ArrowLeft, GripVertical, XCircle, PlusCircle, Trash2, Edit, Search, Check, X, ShieldCheck } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import { FieldEditorDialog } from '@/components/field-editor-dialog';
@@ -22,12 +22,12 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 
 export default function AdminPage() {
@@ -37,6 +37,7 @@ export default function AdminPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isFieldDialogOpen, setIsFieldDialogOpen] = useState(false);
   const [fieldToEdit, setFieldToEdit] = useState<FormField | null>(null);
+  const [creationMode, setCreationMode] = useState<'parent' | 'child' | null>(null);
   const [draggedFieldId, setDraggedFieldId] = useState<string | null>(null);
   const [draggedGroupTitle, setDraggedGroupTitle] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -211,41 +212,15 @@ export default function AdminPage() {
     setDraggedGroupTitle(null);
   }
 
-  const handleAddField = (fieldId: string) => {
-    if (!adminConfig) return;
-    if (adminConfig.formLayout.includes(fieldId)) return;
-    
-    const newLayout = [...adminConfig.formLayout, fieldId];
-    const newFieldConfig = { ...(adminConfig.fieldConfig[fieldId] || { required: false }), visible: true };
-
-    setAdminConfig({
-      ...adminConfig,
-      formLayout: newLayout,
-       fieldConfig: {
-        ...adminConfig.fieldConfig,
-        [fieldId]: newFieldConfig
-      }
-    });
-  }
-
-  const handleRemoveField = (fieldId: string) => {
-    if (!adminConfig || fieldId === 'title') return;
-
-    const newLayout = adminConfig.formLayout.filter(id => id !== fieldId);
-    const newFieldConfig = { ...(adminConfig.fieldConfig[fieldId] || {}), visible: false };
-    
-    setAdminConfig({
-      ...adminConfig,
-      formLayout: newLayout,
-      fieldConfig: {
-        ...adminConfig.fieldConfig,
-        [fieldId]: newFieldConfig
-      }
-    });
-  }
-
   const handleOpenEditDialog = (field: FormField) => {
+    setCreationMode(null);
     setFieldToEdit(field);
+    setIsFieldDialogOpen(true);
+  }
+
+  const handleOpenNewDialog = (mode: 'parent' | 'child') => {
+    setFieldToEdit(null);
+    setCreationMode(mode);
     setIsFieldDialogOpen(true);
   }
 
@@ -324,7 +299,10 @@ export default function AdminPage() {
 
   const { formLayout, fieldConfig } = adminConfig || {};
   const filteredActiveLayout = formLayout?.filter(id => filteredFields[id]) || [];
-  const inactiveFields = Object.keys(filteredFields).filter(id => !formLayout?.includes(id));
+  
+  const allInactiveFields = Object.keys(filteredFields).filter(id => !formLayout?.includes(id));
+  const inactiveChildFields = allInactiveFields.filter(id => filteredFields[id].type !== 'group');
+  const inactiveParentFields = allInactiveFields.filter(id => filteredFields[id].type === 'group');
 
   // --- Bulk Selection ---
     const handleSelectField = (fieldId: string) => {
@@ -346,13 +324,6 @@ export default function AdminPage() {
 
     const allActiveSelected = activeFieldsInView.length > 0 && selectedActiveFields.length === activeFieldsInView.length;
     const someActiveSelected = selectedActiveFields.length > 0 && !allActiveSelected;
-
-    const selectedInactiveFields = useMemo(() => {
-        return selectedFields.filter(id => inactiveFields.includes(id));
-    }, [selectedFields, inactiveFields]);
-
-    const allInactiveSelected = inactiveFields.length > 0 && selectedInactiveFields.length === inactiveFields.length;
-    const someInactiveSelected = selectedInactiveFields.length > 0 && !allInactiveSelected;
     
   // --- Bulk Actions ---
     const handleBulkSetRequired = (required: boolean) => {
@@ -374,18 +345,12 @@ export default function AdminPage() {
     };
 
     const handleBulkActivate = () => {
-        if (!adminConfig) return;
-        const newLayout = [...adminConfig.formLayout];
-        const newConfig = { ...adminConfig };
-
         selectedFields.forEach(fieldId => {
-            if (!newLayout.includes(fieldId)) {
-                newLayout.push(fieldId);
-                newConfig.fieldConfig[fieldId] = { ...(newConfig.fieldConfig[fieldId] || { required: false }), visible: true };
+           if (formLayout && !formLayout.includes(fieldId)) {
+                addField(fieldId);
             }
         });
-
-        setAdminConfig({ ...newConfig, formLayout: newLayout });
+        refreshData();
         toast({
             variant: 'success',
             title: 'Fields Activated',
@@ -395,17 +360,13 @@ export default function AdminPage() {
     };
 
     const handleBulkDeactivate = () => {
-        if (!adminConfig) return;
         const selection = selectedFields.filter(id => id !== 'title');
-
-        const newLayout = adminConfig.formLayout.filter(id => !selection.includes(id));
-        const newConfig = { ...adminConfig };
-
         selection.forEach(fieldId => {
-            newConfig.fieldConfig[fieldId] = { ...(newConfig.fieldConfig[fieldId] || {}), visible: false };
+            if (formLayout && formLayout.includes(fieldId)) {
+                removeField(fieldId);
+            }
         });
-
-        setAdminConfig({ ...newConfig, formLayout: newLayout });
+        refreshData();
         toast({
             variant: 'success',
             title: 'Fields Deactivated',
@@ -495,7 +456,7 @@ export default function AdminPage() {
                         variant="ghost" 
                         size="icon" 
                         className="h-8 w-8 text-destructive hover:text-destructive" 
-                        onClick={() => handleRemoveField(fieldId)}
+                        onClick={() => removeField(fieldId)}
                         disabled={isTitleField}
                     >
                       <XCircle className="h-4 w-4" />
@@ -509,6 +470,68 @@ export default function AdminPage() {
           </div>
         </div>
       );
+  }
+
+  const renderAvailableField = (fieldId: string) => {
+    const fieldDefinition = allFields[fieldId];
+    if (!fieldDefinition) return null;
+    const isSelected = selectedFields.includes(fieldId);
+    return (
+      <div 
+          key={fieldId} 
+          className={cn("flex items-center justify-between gap-2 rounded-lg border p-2",
+              isSelected ? 'bg-primary/10 border-primary' : 'bg-muted/50'
+          )}
+        >
+        <div className="flex-1 flex items-center gap-2">
+            <Checkbox
+                  id={`select-inactive-${fieldId}`}
+                  checked={isSelected}
+                  onCheckedChange={() => handleSelectField(fieldId)}
+                  aria-label={`Select field ${fieldDefinition.label}`}
+            />
+          <p className="font-medium text-sm">{fieldDefinition.label}</p>
+          </div>
+          <div className='flex items-center gap-0.5'>
+            <Tooltip>
+              <TooltipTrigger asChild>
+              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => addField(fieldId)}>
+                  <PlusCircle className="h-4 w-4 text-green-500" />
+              </Button>
+              </TooltipTrigger>
+              <TooltipContent><p>Activate</p></TooltipContent>
+            </Tooltip>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenEditDialog(fieldDefinition)}>
+                    <Edit className="h-4 w-4" />
+                  </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Edit Field</p>
+              </TooltipContent>
+            </Tooltip>
+            <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+                    <Trash2 className="h-4 w-4" />
+                    <span className="sr-only">Delete Field</span>
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>This will permanently delete the "{fieldDefinition.label}" field and all associated data from your tasks. This action cannot be undone.</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => handleDeleteField(fieldId)} className="bg-destructive hover:bg-destructive/90">Delete Field</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+          </div>
+      </div>
+    )
   }
 
   return (
@@ -558,7 +581,7 @@ export default function AdminPage() {
                       }}
                       aria-label="Select all active fields"
                     />
-                    <h2 className="text-xl font-semibold">Active Form Fields</h2>
+                    <h2 className="text-xl font-semibold">Active Form Layout</h2>
                 </div>
               
                 {fieldGroups.map(groupInfo => {
@@ -629,7 +652,7 @@ export default function AdminPage() {
 
                 {filteredActiveLayout.length === 0 && (
                   <p className="text-muted-foreground text-center py-4">
-                    {searchQuery ? 'No active fields match your search.' : 'No active fields. Add some from the list below.'}
+                    {searchQuery ? 'No active fields match your search.' : 'No active fields. Add some from the library below.'}
                   </p>
                 )}
               </div>
@@ -637,97 +660,42 @@ export default function AdminPage() {
               <div className="lg:col-span-1 space-y-4">
                 <Card className="sticky top-20">
                   <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <h2 className="text-xl font-semibold">Available Fields</h2>
-                      <Button variant="outline" size="sm" onClick={() => { setFieldToEdit(null); setIsFieldDialogOpen(true); }}>
-                        <PlusCircle className="mr-2 h-4 w-4" /> Add New
-                      </Button>
-                    </div>
-                     <div className="flex items-center gap-4 pt-2 border-t mt-4">
-                      <Checkbox
-                          id="select-all-inactive"
-                          checked={someInactiveSelected ? 'indeterminate' : allInactiveSelected}
-                          onCheckedChange={(checked) => {
-                              if (checked) {
-                                  setSelectedFields(prev => [...new Set([...prev, ...inactiveFields])]);
-                              } else {
-                                  setSelectedFields(prev => prev.filter(id => !inactiveFields.includes(id)));
-                              }
-                          }}
-                          aria-label="Select all inactive fields"
-                      />
-                      <Label htmlFor="select-all-inactive">Select all available</Label>
-                    </div>
+                      <h2 className="text-xl font-semibold">Fields Library</h2>
+                      <CardDescription>Add new fields to use in your forms.</CardDescription>
+                      <div className="flex items-center gap-2 pt-2">
+                        <Button variant="outline" size="sm" className="flex-1" onClick={() => handleOpenNewDialog('child')}>
+                           Add Child Field
+                        </Button>
+                        <Button variant="outline" size="sm" className="flex-1" onClick={() => handleOpenNewDialog('parent')}>
+                           Add Parent Field
+                        </Button>
+                      </div>
                   </CardHeader>
-                  <CardContent className="max-h-[calc(100vh-22rem)] overflow-y-auto">
-                    <div className="space-y-2">
-                      {inactiveFields.map(fieldId => {
-                        const fieldDefinition = allFields[fieldId];
-                        if (!fieldDefinition) return null;
-                        const isSelected = selectedFields.includes(fieldId);
-                        return (
-                          <div 
-                              key={fieldId} 
-                              className={cn("flex items-center justify-between gap-2 rounded-lg border p-2",
-                                  isSelected ? 'bg-primary/10 border-primary' : 'bg-muted/50'
-                              )}
-                            >
-                            <div className="flex-1 flex items-center gap-2">
-                                <Checkbox
-                                      id={`select-inactive-${fieldId}`}
-                                      checked={isSelected}
-                                      onCheckedChange={() => handleSelectField(fieldId)}
-                                      aria-label={`Select field ${fieldDefinition.label}`}
-                                />
-                              <p className="font-medium text-sm">{fieldDefinition.label}</p>
-                              </div>
-                              <div className='flex items-center gap-0.5'>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleAddField(fieldId)}>
-                                      <PlusCircle className="h-4 w-4 text-green-500" />
-                                  </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent><p>Activate</p></TooltipContent>
-                                </Tooltip>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenEditDialog(fieldDefinition)}>
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Edit Field</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                                <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
-                                        <Trash2 className="h-4 w-4" />
-                                        <span className="sr-only">Delete Field</span>
-                                      </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                        <AlertDialogDescription>This will permanently delete the "{fieldDefinition.label}" field and all associated data from your tasks. This action cannot be undone.</AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleDeleteField(fieldId)} className="bg-destructive hover:bg-destructive/90">Delete Field</AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                              </div>
-                          </div>
-                        )
-                      })}
-                      {inactiveFields.length === 0 && (
-                        <p className="text-muted-foreground text-center py-4 w-full text-sm">
-                          {searchQuery ? 'No available fields match your search.' : 'All fields are active.'}
-                        </p>
-                      )}
-                    </div>
+                  <CardContent className="p-0">
+                    <Tabs defaultValue="child">
+                      <TabsList className="w-full rounded-none justify-start px-6">
+                        <TabsTrigger value="child">Child Fields</TabsTrigger>
+                        <TabsTrigger value="parent">Parent Fields</TabsTrigger>
+                      </TabsList>
+                      <div className="p-4 max-h-[calc(100vh-30rem)] overflow-y-auto">
+                        <TabsContent value="child">
+                           <div className="space-y-2">
+                              {inactiveChildFields.length > 0 
+                                ? inactiveChildFields.map(renderAvailableField)
+                                : <p className="text-muted-foreground text-center py-4 w-full text-sm">No available child fields.</p>
+                              }
+                           </div>
+                        </TabsContent>
+                        <TabsContent value="parent">
+                           <div className="space-y-2">
+                            {inactiveParentFields.length > 0 
+                              ? inactiveParentFields.map(renderAvailableField)
+                              : <p className="text-muted-foreground text-center py-4 w-full text-sm">No available parent fields.</p>
+                            }
+                           </div>
+                        </TabsContent>
+                      </div>
+                    </Tabs>
                   </CardContent>
                 </Card>
               </div>
@@ -779,6 +747,7 @@ export default function AdminPage() {
         isOpen={isFieldDialogOpen}
         onOpenChange={setIsFieldDialogOpen}
         fieldToEdit={fieldToEdit}
+        creationMode={creationMode}
         adminConfig={adminConfig}
         allFields={allFields}
         onSuccess={() => {

@@ -35,10 +35,11 @@ import { format } from 'date-fns';
 import { MultiSelect } from './ui/multi-select';
 import { Checkbox } from './ui/checkbox';
 import * as React from 'react';
-import { Card, CardContent } from './ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { cloneDeep } from 'lodash';
 import { addFieldOption } from '@/lib/data';
 import { Separator } from './ui/separator';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 
 
 type TaskFormData = z.infer<ReturnType<typeof buildTaskSchema>>;
@@ -347,18 +348,35 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
 
     const isRequired = adminConfig.fieldConfig[fieldDef.id]?.required;
     const label = `${fieldDef.label}${isRequired ? ' *' : ''}`;
+    
+    const childFieldsToRender = fieldDef.childFieldIds?.filter(id => {
+      const isConditionallyVisible = Object.values(dependencyMap).flat().some(dep => dep.parentId === fieldDef.id && dep.optionValue === watchedValues[fieldDef.id]);
+      return visibleFields.includes(id) || isConditionallyVisible;
+    }) || [];
 
     if (fieldDef.isRepeatable) {
       return (
-        <div className="space-y-4 rounded-lg border p-4">
-          <h3 className="text-lg font-semibold">{label}</h3>
-          {fieldDef.description && <p className="text-sm text-muted-foreground -mt-3 mb-4">{fieldDef.description}</p>}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold">{label}</h3>
+              {fieldDef.description && <p className="text-sm text-muted-foreground">{fieldDef.description}</p>}
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => append({})}
+            >
+              <PlusCircle className="mr-2 h-4 w-4" /> Add {fieldDef.label}
+            </Button>
+          </div>
           <div className="space-y-4">
             {fields.map((item, index) => (
               <Card key={item.id} className="p-4 relative bg-muted/30">
                 <CardContent className="p-0 space-y-4">
                     <div className="grid grid-cols-1 gap-x-6 gap-y-8 md:grid-cols-2">
-                        {fieldDef.childFieldIds?.map(childId => (
+                        {childFieldsToRender.map(childId => (
                             <HookFormField
                                 key={childId}
                                 control={form.control}
@@ -388,25 +406,19 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
               </Card>
             ))}
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => append({})}
-          >
-            <PlusCircle className="mr-2 h-4 w-4" /> Add {fieldDef.label}
-          </Button>
         </div>
       )
     }
 
     // Non-repeatable group
     return (
-      <div className="space-y-4 rounded-lg border p-4">
-        <h3 className="text-lg font-semibold">{label}</h3>
-        {fieldDef.description && <p className="text-sm text-muted-foreground -mt-3 mb-4">{fieldDef.description}</p>}
+       <div className="space-y-4">
+        <div>
+            <h3 className="text-lg font-semibold">{label}</h3>
+            {fieldDef.description && <p className="text-sm text-muted-foreground">{fieldDef.description}</p>}
+        </div>
          <div className="grid grid-cols-1 gap-x-6 gap-y-8 md:grid-cols-2">
-            {fieldDef.childFieldIds?.map(childId => (
+            {childFieldsToRender.map(childId => (
                  <HookFormField
                     key={childId}
                     control={form.control}
@@ -427,26 +439,19 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
     );
   };
 
+  const topLevelFields = visibleFields.filter(fieldId => !allChildFieldIds.has(fieldId) && internalAllFields[fieldId]?.type !== 'group');
+  const groupFields = visibleFields.filter(fieldId => internalAllFields[fieldId]?.type === 'group');
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
         
         <div className="grid grid-cols-1 gap-x-6 gap-y-8 md:grid-cols-2 lg:grid-cols-3">
-            {visibleFields
-                .filter(fieldId => !allChildFieldIds.has(fieldId))
-                .map(fieldId => {
+            {topLevelFields.map(fieldId => {
                 const fieldDef = internalAllFields[fieldId];
                 if (!fieldDef) return null;
 
-                const isFullWidth = ['textarea', 'group'].includes(fieldDef.type);
-                
-                if (fieldDef.type === 'group') {
-                    return (
-                        <div key={fieldId} className="md:col-span-2 lg:col-span-3">
-                            {renderGroupField(fieldDef)}
-                        </div>
-                    )
-                }
+                const isFullWidth = ['textarea'].includes(fieldDef.type);
 
                 return (
                     <div 
@@ -467,6 +472,28 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
                 );
             })}
         </div>
+
+        {groupFields.length > 0 && (
+          <Accordion type="multiple" defaultValue={groupFields} className="w-full space-y-4">
+             {groupFields.map(fieldId => {
+                const fieldDef = internalAllFields[fieldId];
+                if (!fieldDef) return null;
+
+                return (
+                  <Card as="div" key={fieldId}>
+                    <AccordionItem value={fieldId} className="border-none">
+                      <AccordionTrigger className="p-6 hover:no-underline">
+                        <CardTitle className="text-xl flex-1 text-left">{fieldDef.label}</CardTitle>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-6 pb-6 pt-0">
+                        {renderGroupField(fieldDef)}
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Card>
+                )
+             })}
+          </Accordion>
+        )}
 
         <Separator />
 

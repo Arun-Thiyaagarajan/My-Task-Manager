@@ -11,7 +11,6 @@ import { ArrowLeft, ExternalLink, GitMerge, Pencil, Users, CalendarDays, Loader2
 import { TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { PrLinksGroup } from '@/components/pr-links-group';
 import { DeleteTaskButton } from '@/components/delete-task-button';
 import { Badge } from '@/components/ui/badge';
 import { getInitials, getAvatarColor, cn } from '@/lib/utils';
@@ -44,9 +43,9 @@ export default function TaskPage() {
       setAllFields(fields);
       setIsLoading(false);
       if (foundTask) {
-        document.title = `${foundTask.title} | My Task Manager`;
+        document.title = `${foundTask.title} | TaskFlow`;
       } else {
-        document.title = 'Task Not Found | My Task Manager';
+        document.title = 'Task Not Found | TaskFlow';
       }
     }
   }, [taskId]);

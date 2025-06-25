@@ -51,6 +51,7 @@ const fieldSchema = z.object({
   group: z.string().min(1, 'Please enter a group name.'),
   options: z.array(z.object({ value: z.string().min(1, 'Option cannot be empty') })).optional(),
   required: z.boolean().optional(),
+  activate: z.boolean().optional(),
   conditionalLogic: z.record(z.array(z.string())).optional(),
   childFieldIds: z.array(z.string()).optional(),
   isRepeatable: z.boolean().optional(),
@@ -68,7 +69,7 @@ const fieldSchema = z.object({
     }
     return true;
 }, {
-    message: 'Field Groups must have at least one child field selected.',
+    message: 'Field Groups must have at least one active child field selected.',
     path: ['childFieldIds'],
 });
 
@@ -79,11 +80,12 @@ interface FieldEditorDialogProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   fieldToEdit?: FormFieldType | null;
+  creationMode?: 'parent' | 'child' | null;
   adminConfig: AdminConfig;
   allFields: Record<string, FormFieldType>;
 }
 
-export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit, adminConfig, allFields }: FieldEditorDialogProps) {
+export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit, creationMode, adminConfig, allFields }: FieldEditorDialogProps) {
   const { toast } = useToast();
   const [isPending, setIsPending] = useState(false);
   const [groupPopoverOpen, setGroupPopoverOpen] = useState(false);
@@ -96,6 +98,9 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
       control: form.control,
       name: 'options'
   });
+  
+  const isEditing = !!fieldToEdit;
+  const effectiveMode = creationMode || (fieldToEdit?.type === 'group' ? 'parent' : 'child');
 
   const fieldType = form.watch('type');
   const watchedOptions = form.watch('options');
@@ -109,9 +114,13 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
 
   const potentialGroupChildFields = useMemo(() => {
     return Object.values(allFields)
-        .filter(f => f.type !== 'group' && f.id !== fieldToEdit?.id)
+        .filter(f => 
+          f.type !== 'group' && 
+          f.id !== fieldToEdit?.id &&
+          adminConfig.formLayout.includes(f.id) // Only show active fields
+        )
         .map(f => ({ value: f.id, label: f.label }));
-  }, [allFields, fieldToEdit]);
+  }, [allFields, fieldToEdit, adminConfig.formLayout]);
 
   useEffect(() => {
     if (isOpen) {
@@ -123,6 +132,7 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                 group: fieldToEdit.group || (fieldToEdit.type === 'tags' ? 'Tagging' : 'Custom Fields'),
                 options: fieldToEdit.options?.map(o => ({ value: o })) || [],
                 required: fieldToEdit.id === 'title' || adminConfig.fieldConfig[fieldToEdit.id]?.required || false,
+                activate: adminConfig.formLayout.includes(fieldToEdit.id),
                 conditionalLogic: fieldToEdit.conditionalLogic || {},
                 childFieldIds: fieldToEdit.childFieldIds || [],
                 isRepeatable: fieldToEdit.isRepeatable || false,
@@ -131,17 +141,18 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
             form.reset({
                 label: '',
                 description: '',
-                type: 'text',
+                type: creationMode === 'parent' ? 'group' : 'text',
                 group: 'Custom Fields',
                 options: [],
                 required: false,
+                activate: true,
                 conditionalLogic: {},
                 childFieldIds: [],
                 isRepeatable: false,
             });
         }
     }
-  }, [isOpen, fieldToEdit, form, adminConfig]);
+  }, [isOpen, fieldToEdit, creationMode, form, adminConfig]);
   
   const handleRemoveOption = (index: number) => {
     const optionValue = form.getValues(`options.${index}.value`);
@@ -195,7 +206,7 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
             }
         }
         
-        saveField(fieldToSave, data.required || false);
+        saveField(fieldToSave, data.required || false, data.activate || false);
         onSuccess();
         onOpenChange(false);
     } catch (error) {
@@ -206,14 +217,20 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
   };
 
   const showConditionalLogic = ['select', 'multiselect', 'tags'].includes(fieldType);
+  const isTitleField = fieldToEdit?.id === 'title';
+
+  const getDialogTitle = () => {
+      if (isEditing) return `Edit ${effectiveMode === 'parent' ? 'Parent' : 'Child'} Field`;
+      return `Add New ${effectiveMode === 'parent' ? 'Parent' : 'Child'} Field`;
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] flex flex-col max-h-[90vh]">
         <DialogHeader className="flex-shrink-0">
-          <DialogTitle>{fieldToEdit ? 'Edit Field' : 'Add New Custom Field'}</DialogTitle>
+          <DialogTitle>{getDialogTitle()}</DialogTitle>
           <DialogDescription>
-            {fieldToEdit ? `Update the properties for "${fieldToEdit.label}".` : `Create a new custom field to use in your forms.`}
+            {isEditing ? `Update the properties for "${fieldToEdit.label}".` : `Create a new field to use in your forms.`}
           </DialogDescription>
         </DialogHeader>
         <div className="flex-1 overflow-y-auto -mx-6 px-6 py-4">
@@ -250,23 +267,28 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                                 <Select 
                                     onValueChange={(value) => {
                                         field.onChange(value);
-                                        if (!fieldToEdit) {
+                                        if (!isEditing) {
                                             const newGroup = value === 'tags' ? 'Tagging' : 'Custom Fields';
                                             form.setValue('group', newGroup, { shouldValidate: true });
                                         }
                                     }} 
                                     defaultValue={field.value} 
-                                    disabled={!!fieldToEdit}
+                                    disabled={isEditing || effectiveMode === 'parent'}
                                 >
                                     <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                                     <SelectContent>
-                                        <SelectItem value="text">Text</SelectItem>
-                                        <SelectItem value="textarea">Text Area</SelectItem>
-                                        <SelectItem value="date">Date</SelectItem>
-                                        <SelectItem value="select">Dropdown (Single-Select)</SelectItem>
-                                        <SelectItem value="multiselect">Dropdown (Multi-Select)</SelectItem>
-                                        <SelectItem value="tags">Tag Selection</SelectItem>
-                                        <SelectItem value="group">Field Group (Parent)</SelectItem>
+                                      {effectiveMode === 'child' ? (
+                                        <>
+                                          <SelectItem value="text">Text</SelectItem>
+                                          <SelectItem value="textarea">Text Area</SelectItem>
+                                          <SelectItem value="date">Date</SelectItem>
+                                          <SelectItem value="select">Dropdown (Single-Select)</SelectItem>
+                                          <SelectItem value="multiselect">Dropdown (Multi-Select)</SelectItem>
+                                          <SelectItem value="tags">Tag Selection</SelectItem>
+                                        </>
+                                      ) : (
+                                          <SelectItem value="group">Field Group (Parent)</SelectItem>
+                                      )}
                                     </SelectContent>
                                 </Select>
                                 <FormDescription>The type cannot be changed after creation.</FormDescription>
@@ -399,7 +421,7 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                                                 placeholder="Select child fields for this group..."
                                             />
                                         </FormControl>
-                                        <FormDescription>Select the fields that will be part of this group.</FormDescription>
+                                        <FormDescription>Select the active child fields that will be part of this group.</FormDescription>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -421,28 +443,51 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                             />
                         </div>
                     )}
-
-                    <FormField
-                        control={form.control}
-                        name="required"
-                        render={({ field }) => (
-                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                                <div className="space-y-0.5">
-                                    <FormLabel>Required</FormLabel>
-                                    <FormDescription>
-                                        Make this field mandatory in the task form.
-                                    </FormDescription>
-                                </div>
-                                <FormControl>
-                                    <Checkbox
-                                        checked={field.value}
-                                        onCheckedChange={field.onChange}
-                                        disabled={fieldToEdit?.id === 'title'}
-                                    />
-                                </FormControl>
-                            </FormItem>
-                        )}
-                    />
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                          control={form.control}
+                          name="required"
+                          render={({ field }) => (
+                              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                  <div className="space-y-0.5">
+                                      <FormLabel>Required</FormLabel>
+                                      <FormDescription>
+                                          Make this field mandatory.
+                                      </FormDescription>
+                                  </div>
+                                  <FormControl>
+                                      <Checkbox
+                                          checked={field.value}
+                                          onCheckedChange={field.onChange}
+                                          disabled={isTitleField}
+                                      />
+                                  </FormControl>
+                              </FormItem>
+                          )}
+                      />
+                      <FormField
+                          control={form.control}
+                          name="activate"
+                          render={({ field }) => (
+                              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                  <div className="space-y-0.5">
+                                      <FormLabel>Active</FormLabel>
+                                      <FormDescription>
+                                          Show this field in the task form.
+                                      </FormDescription>
+                                  </div>
+                                  <FormControl>
+                                      <Checkbox
+                                          checked={field.value}
+                                          onCheckedChange={field.onChange}
+                                          disabled={isTitleField}
+                                      />
+                                  </FormControl>
+                              </FormItem>
+                          )}
+                      />
+                    </div>
                     {showConditionalLogic && (
                         <div className="space-y-4 rounded-md border p-4">
                             <FormLabel>Conditional Fields</FormLabel>
@@ -493,7 +538,7 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>Cancel</Button>
             <Button type="submit" form="field-editor-form" disabled={isPending}>
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {fieldToEdit ? 'Save Changes' : 'Create Field'}
+                {isEditing ? 'Save Changes' : 'Create Field'}
             </Button>
         </DialogFooter>
       </DialogContent>
