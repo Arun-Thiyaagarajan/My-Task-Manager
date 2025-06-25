@@ -360,8 +360,6 @@ export default function AdminPage() {
                 
                 if (activeFieldsInGroup.length === 0) return null;
 
-                const isCoreGroup = ['Core Details', 'Assignment & Tracking', 'Dates', 'Advanced'].includes(groupInfo.title);
-
                 return (
                     <div 
                         key={groupInfo.title}
@@ -399,19 +397,17 @@ export default function AdminPage() {
                                   <GripVertical className="h-5 w-5 text-muted-foreground" />
                                   <h3 className="text-lg font-semibold">{groupInfo.title}</h3>
                               </div>
-                              {!isCoreGroup && (
-                                  <Tooltip>
-                                      <TooltipTrigger asChild>
-                                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
-                                              setEditingGroup(groupInfo.title);
-                                              setNewGroupName(groupInfo.title);
-                                          }}>
-                                              <Edit className="h-4 w-4" />
-                                          </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent><p>Rename Group</p></TooltipContent>
-                                  </Tooltip>
-                              )}
+                              <Tooltip>
+                                  <TooltipTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                                          setEditingGroup(groupInfo.title);
+                                          setNewGroupName(groupInfo.title);
+                                      }}>
+                                          <Edit className="h-4 w-4" />
+                                      </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent><p>Rename Group</p></TooltipContent>
+                              </Tooltip>
                           </div>
                       )}
                         <div className="p-4 pt-2 space-y-2">

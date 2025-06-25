@@ -238,12 +238,6 @@ export function addFieldOption(fieldId: string, option: string): boolean {
 }
 
 export function renameGroup(oldName: string, newName: string) {
-    const CORE_GROUPS = ['Core Details', 'Assignment & Tracking', 'Dates', 'Advanced'];
-    if (CORE_GROUPS.includes(oldName)) {
-        console.warn("Attempted to rename a core group. This is not allowed.");
-        return;
-    }
-
     const data = getAppData();
     const activeCompanyId = data.activeCompanyId;
     if (activeCompanyId && data.companyData[activeCompanyId]) {
