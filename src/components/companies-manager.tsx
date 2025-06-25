@@ -59,10 +59,10 @@ export function CompaniesManager({ isOpen, onOpenChange, onSuccess, companyToEdi
     try {
       if (companyToEdit) {
         updateCompany(companyToEdit.id, data.name);
-        toast({ title: 'Company Updated', description: `The company "${data.name}" has been updated.` });
+        toast({ variant: 'success', title: 'Company Updated', description: `The company "${data.name}" has been updated.` });
       } else {
         addCompany(data.name);
-        toast({ title: 'Company Added', description: `The company "${data.name}" has been created.` });
+        toast({ variant: 'success', title: 'Company Added', description: `The company "${data.name}" has been created.` });
       }
       onSuccess();
       handleOpenChange(false);

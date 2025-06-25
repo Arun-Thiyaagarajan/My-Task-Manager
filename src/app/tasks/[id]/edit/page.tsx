@@ -86,6 +86,7 @@ export default function EditTaskPage() {
     updateTask(task.id, taskData);
 
     toast({
+        variant: 'success',
         title: `Task updated`,
         description: "Your changes have been saved.",
     });

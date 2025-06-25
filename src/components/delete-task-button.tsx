@@ -33,6 +33,7 @@ export function DeleteTaskButton({ taskId, onSuccess, iconOnly = false }: Delete
     try {
       deleteTask(taskId);
       toast({
+        variant: 'success',
         title: 'Task Deleted',
         description: 'The task has been successfully removed.',
       });

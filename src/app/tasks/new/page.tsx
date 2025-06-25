@@ -66,6 +66,7 @@ export default function NewTaskPage() {
     addTask(taskData);
     
     toast({
+        variant: 'success',
         title: `Task created`,
         description: "Your new task has been saved.",
     });
