@@ -100,7 +100,7 @@ export default function AdminPage() {
 
 
   const handleToggleRequired = (fieldId: string) => {
-    if (!adminConfig) return;
+    if (!adminConfig || fieldId === 'title') return;
     
     const newConfig = { ...adminConfig };
     const fieldConf = newConfig.fieldConfig[fieldId] || { visible: true, required: false };
@@ -229,7 +229,7 @@ export default function AdminPage() {
   }
 
   const handleRemoveField = (fieldId: string) => {
-    if (!adminConfig) return;
+    if (!adminConfig || fieldId === 'title') return;
 
     const newLayout = adminConfig.formLayout.filter(id => id !== fieldId);
     const newFieldConfig = { ...(adminConfig.fieldConfig[fieldId] || {}), visible: false };
@@ -359,6 +359,7 @@ export default function AdminPage() {
         if (!adminConfig) return;
         const newConfig = { ...adminConfig };
         selectedFields.forEach(fieldId => {
+            if (fieldId === 'title') return;
             const fieldConf = newConfig.fieldConfig[fieldId] || { visible: true, required: false };
             fieldConf.required = required;
             newConfig.fieldConfig[fieldId] = fieldConf;
@@ -395,11 +396,12 @@ export default function AdminPage() {
 
     const handleBulkDeactivate = () => {
         if (!adminConfig) return;
+        const selection = selectedFields.filter(id => id !== 'title');
 
-        const newLayout = adminConfig.formLayout.filter(id => !selectedFields.includes(id));
+        const newLayout = adminConfig.formLayout.filter(id => !selection.includes(id));
         const newConfig = { ...adminConfig };
 
-        selectedFields.forEach(fieldId => {
+        selection.forEach(fieldId => {
             newConfig.fieldConfig[fieldId] = { ...(newConfig.fieldConfig[fieldId] || {}), visible: false };
         });
 
@@ -407,20 +409,21 @@ export default function AdminPage() {
         toast({
             variant: 'success',
             title: 'Fields Deactivated',
-            description: 'Selected fields have been removed from the form.'
+            description: `${selection.length} field(s) have been removed from the form.`
         });
         setSelectedFields([]);
     };
 
     const handleBulkDelete = () => {
-        selectedFields.forEach(fieldId => {
+        const selection = selectedFields.filter(id => id !== 'title');
+        selection.forEach(fieldId => {
             deleteField(fieldId);
         });
         refreshData();
         toast({
             variant: 'success',
             title: 'Fields Deleted',
-            description: `${selectedFields.length} field(s) have been permanently removed.`
+            description: `${selection.length} field(s) have been permanently removed.`
         });
         setSelectedFields([]);
     };
@@ -440,16 +443,18 @@ export default function AdminPage() {
   const renderFieldCard = (fieldId: string) => {
       const fieldDefinition = allFields[fieldId];
       if (!fieldDefinition) return null;
+
       const isSelected = selectedFields.includes(fieldId);
+      const isTitleField = fieldId === 'title';
 
       return (
         <div 
           key={fieldId}
           className={cn("flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-lg border p-4 transition-colors",
-            isSelected ? 'bg-primary/10 border-primary' : 'bg-background hover:border-primary/50'
+            isSelected && !isTitleField ? 'bg-primary/10 border-primary' : 'bg-background hover:border-primary/50'
           )}
-          draggable={true}
-          onDragStart={(e) => handleDragStart(e, fieldId)}
+          draggable={!isTitleField}
+          onDragStart={(e) => !isTitleField && handleDragStart(e, fieldId)}
           onDragOver={handleDragOver}
           onDrop={() => handleDropOnField(fieldId)}
           onDragEnd={handleDragEnd}
@@ -461,8 +466,9 @@ export default function AdminPage() {
                 onCheckedChange={() => handleSelectField(fieldId)}
                 aria-label={`Select field ${fieldDefinition.label}`}
                 className="shrink-0"
+                disabled={isTitleField}
             />
-            <GripVertical className="h-6 w-6 text-muted-foreground cursor-grab shrink-0" />
+            <GripVertical className={cn("h-6 w-6 text-muted-foreground shrink-0", isTitleField ? "cursor-not-allowed text-muted-foreground/50" : "cursor-grab")} />
               <div 
                 className="flex-1 cursor-pointer"
                 onClick={() => handleOpenEditDialog(fieldDefinition)}
@@ -475,21 +481,28 @@ export default function AdminPage() {
             <div className="flex items-center space-x-2">
                 <Switch
                   id={`required-${fieldId}`}
-                  checked={fieldConfig[fieldId]?.required || false}
-                  onCheckedChange={() => handleToggleRequired(fieldId)}
+                  checked={isTitleField || (fieldConfig[fieldId]?.required || false)}
+                  onCheckedChange={() => !isTitleField && handleToggleRequired(fieldId)}
                   onClick={e => e.stopPropagation()}
+                  disabled={isTitleField}
                 />
-                <Label htmlFor={`required-${fieldId}`}>Required</Label>
+                <Label htmlFor={`required-${fieldId}`} className={cn(isTitleField && "text-muted-foreground/80")}>Required</Label>
             </div>
             <div className="flex items-center border-l pl-4 gap-1">
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleRemoveField(fieldId)}>
+                    <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-destructive hover:text-destructive" 
+                        onClick={() => handleRemoveField(fieldId)}
+                        disabled={isTitleField}
+                    >
                       <XCircle className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Deactivate</p>
+                    <p>{isTitleField ? "Title field cannot be deactivated" : "Deactivate"}</p>
                   </TooltipContent>
                 </Tooltip>
             </div>
@@ -535,10 +548,11 @@ export default function AdminPage() {
                     id="select-all-active"
                     checked={someActiveSelected ? 'indeterminate' : allActiveSelected}
                     onCheckedChange={(checked) => {
+                        const allActiveIds = activeFieldsInView.filter(id => id !== 'title');
                         if (checked) {
-                            setSelectedFields(prev => [...new Set([...prev, ...activeFieldsInView])]);
+                            setSelectedFields(prev => [...new Set([...prev, ...allActiveIds])]);
                         } else {
-                            setSelectedFields(prev => prev.filter(id => !activeFieldsInView.includes(id)));
+                            setSelectedFields(prev => prev.filter(id => !allActiveIds.includes(id)));
                         }
                     }}
                     aria-label="Select all active fields"

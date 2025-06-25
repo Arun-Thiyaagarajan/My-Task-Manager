@@ -156,10 +156,21 @@ export function updateAdminConfig(newConfig: AdminConfig) {
     const data = getAppData();
     const activeCompanyId = data.activeCompanyId;
     if (activeCompanyId && data.companyData[activeCompanyId]) {
+        
+        // First, set visibility for all fields based on the incoming layout
         Object.keys(data.companyData[activeCompanyId].fields).forEach(fieldId => {
-            if(!newConfig.fieldConfig[fieldId]) newConfig.fieldConfig[fieldId] = { visible: false, required: false };
+            if(!newConfig.fieldConfig[fieldId]) {
+                newConfig.fieldConfig[fieldId] = { visible: false, required: false };
+            }
             newConfig.fieldConfig[fieldId].visible = newConfig.formLayout.includes(fieldId);
         });
+
+        // Then, enforce the rules for the Title field, overriding any other settings
+        if (!newConfig.formLayout.includes('title')) {
+             newConfig.formLayout.unshift('title');
+        }
+        newConfig.fieldConfig.title = { visible: true, required: true };
+        
         data.companyData[activeCompanyId].adminConfig = newConfig;
         setAppData(data);
     }
@@ -196,6 +207,11 @@ export function saveField(field: FormField, required: boolean) {
 }
 
 export function deleteField(fieldId: string) {
+    if (fieldId === 'title') {
+        // Silently prevent deletion of the title field.
+        // The UI should prevent this action, but this is a safeguard.
+        return;
+    }
     const data = getAppData();
     const activeCompanyId = data.activeCompanyId;
     const companyData = data.companyData[activeCompanyId];
