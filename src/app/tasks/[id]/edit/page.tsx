@@ -96,7 +96,7 @@ export default function EditTaskPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8 max-w-3xl flex justify-center items-center">
+      <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8 flex justify-center items-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
@@ -104,7 +104,7 @@ export default function EditTaskPage() {
 
   if (!task) {
     return (
-      <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8 max-w-3xl">
+      <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <h1 className="text-2xl font-bold">Task not found</h1>
         <p className="text-muted-foreground">The task you are looking for does not exist.</p>
         <Button onClick={() => router.push('/')} className="mt-4">Go to Home</Button>
@@ -113,7 +113,7 @@ export default function EditTaskPage() {
   }
   
   return (
-    <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8 max-w-3xl">
+    <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl">Edit Task</CardTitle>

@@ -82,7 +82,7 @@ export default function NewTaskPage() {
   };
 
   return (
-    <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8 max-w-3xl">
+    <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl">Create a New Task</CardTitle>
