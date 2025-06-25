@@ -41,6 +41,9 @@ export default function AdminPage() {
   const { toast } = useToast();
 
   const initialLoadComplete = useRef(false);
+  const scrollDirectionRef = useRef<number>(0);
+  const scrollIntervalRef = useRef<number | null>(null);
+
 
   const refreshData = () => {
     const config = getAdminConfig();
@@ -101,16 +104,58 @@ export default function AdminPage() {
     setAdminConfig(newConfig);
   };
 
+  const stopScrolling = () => {
+    if (scrollIntervalRef.current) {
+      cancelAnimationFrame(scrollIntervalRef.current);
+    }
+    scrollIntervalRef.current = null;
+    scrollDirectionRef.current = 0;
+  };
+
+  const startScrolling = () => {
+    if (scrollIntervalRef.current) return;
+
+    const scrollStep = () => {
+      if (scrollDirectionRef.current !== 0) {
+        window.scrollBy(0, scrollDirectionRef.current * 15);
+        scrollIntervalRef.current = requestAnimationFrame(scrollStep);
+      } else {
+        stopScrolling();
+      }
+    };
+    scrollIntervalRef.current = requestAnimationFrame(scrollStep);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const viewportHeight = window.innerHeight;
+    const scrollZone = 100;
+
+    if (e.clientY < scrollZone) {
+      scrollDirectionRef.current = -1;
+      startScrolling();
+    } else if (e.clientY > viewportHeight - scrollZone) {
+      scrollDirectionRef.current = 1;
+      startScrolling();
+    } else {
+      scrollDirectionRef.current = 0;
+      stopScrolling();
+    }
+  };
+  
+  const handleDragEnd = () => {
+    stopScrolling();
+    setDraggedFieldId(null);
+    setDraggedGroupTitle(null);
+  };
+
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, fieldId: string) => {
     setDraggedFieldId(fieldId);
     e.dataTransfer.effectAllowed = 'move';
   }
 
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-  }
-
   const handleDropOnField = (targetFieldId: string) => {
+    stopScrolling();
     if (!draggedFieldId) return;
     moveFieldAndReorder(draggedFieldId, targetFieldId);
     refreshData();
@@ -118,6 +163,7 @@ export default function AdminPage() {
   };
 
   const handleDropOnGroup = (targetGroupTitle: string) => {
+    stopScrolling();
     if (!draggedFieldId) return;
     const field = allFields[draggedFieldId];
     if (field?.group === targetGroupTitle) {
@@ -130,6 +176,7 @@ export default function AdminPage() {
   };
   
   const handleGroupContainerDrop = (targetGroupTitle: string) => {
+      stopScrolling();
       if (draggedGroupTitle) {
           handleGroupDrop(targetGroupTitle);
       } else if (draggedFieldId) {
@@ -143,6 +190,7 @@ export default function AdminPage() {
   }
 
   const handleGroupDrop = (targetGroupTitle: string) => {
+    stopScrolling();
     if (!draggedGroupTitle || !adminConfig?.groupOrder) return;
     
     const newGroupOrder = [...adminConfig.groupOrder];
@@ -295,6 +343,7 @@ export default function AdminPage() {
           onDragStart={(e) => handleDragStart(e, fieldId)}
           onDragOver={handleDragOver}
           onDrop={() => handleDropOnField(fieldId)}
+          onDragEnd={handleDragEnd}
           onClick={() => handleOpenEditDialog(fieldDefinition)}
         >
           <div className="flex items-center gap-4 flex-1">
@@ -403,6 +452,8 @@ export default function AdminPage() {
                               <div 
                                   draggable 
                                   onDragStart={(e) => handleGroupDragStart(e, groupInfo.title)}
+                                  onDragEnd={handleDragEnd}
+                                  onDragOver={handleDragOver}
                                   className="flex items-center gap-2 flex-1 cursor-grab"
                               >
                                   <GripVertical className="h-5 w-5 text-muted-foreground" />
