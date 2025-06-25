@@ -13,38 +13,38 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Trash2, Loader2 } from 'lucide-react';
-import { useTransition } from 'react';
-import { deleteTaskAction } from '@/lib/actions';
+import { useState } from 'react';
+import { deleteTask } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 interface DeleteTaskButtonProps {
   taskId: string;
 }
 
 export function DeleteTaskButton({ taskId }: DeleteTaskButtonProps) {
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
 
   const handleDelete = () => {
-    const formData = new FormData();
-    formData.append('id', taskId);
-
-    startTransition(async () => {
-      try {
-        await deleteTaskAction(formData);
-        toast({
-          title: 'Task Deleted',
-          description: 'The task has been successfully removed.',
-        });
-      } catch (error) {
-         console.error(error);
-         toast({
-           variant: 'destructive',
-           title: 'Something went wrong',
-           description: error instanceof Error ? error.message : 'Please try again.',
-         });
-      }
-    });
+    setIsPending(true);
+    try {
+      deleteTask(taskId);
+      toast({
+        title: 'Task Deleted',
+        description: 'The task has been successfully removed.',
+      });
+      router.push('/');
+    } catch (error) {
+       console.error(error);
+       toast({
+         variant: 'destructive',
+         title: 'Something went wrong',
+         description: error instanceof Error ? error.message : 'Please try again.',
+       });
+       setIsPending(false);
+    }
   };
 
   return (

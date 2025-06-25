@@ -43,12 +43,12 @@ type TaskFormData = z.infer<typeof taskSchema>;
 
 interface TaskFormProps {
   task?: Task;
-  action: (data: TaskFormData) => Promise<any>;
+  onSubmit: (data: TaskFormData) => void;
   submitButtonText: string;
   developersList: string[];
 }
 
-export function TaskForm({ task, action, submitButtonText, developersList }: TaskFormProps) {
+export function TaskForm({ task, onSubmit, submitButtonText, developersList }: TaskFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
@@ -77,22 +77,9 @@ export function TaskForm({ task, action, submitButtonText, developersList }: Tas
     },
   });
 
-  const onSubmit = (data: TaskFormData) => {
-    startTransition(async () => {
-      try {
-        await action(data);
-        toast({
-            title: `Task ${task ? 'updated' : 'created'}`,
-            description: "Your changes have been saved.",
-        });
-      } catch (error) {
-        console.error(error);
-        toast({
-          variant: 'destructive',
-          title: 'Something went wrong',
-          description: error instanceof Error ? error.message : 'Please try again.',
-        });
-      }
+  const handleFormSubmit = (data: TaskFormData) => {
+    startTransition(() => {
+        onSubmit(data);
     });
   };
 
@@ -101,7 +88,7 @@ export function TaskForm({ task, action, submitButtonText, developersList }: Tas
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
         <FormField
           control={form.control}
           name="title"

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getTasks } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
@@ -14,17 +14,24 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { REPOSITORIES, TASK_STATUSES } from '@/lib/constants';
-import { LayoutGrid, List, Plus } from 'lucide-react';
+import { LayoutGrid, List, Plus, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task } from '@/lib/types';
 
 type ViewMode = 'grid' | 'table';
 
 export default function Home() {
-  const tasks = getTasks();
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [repoFilter, setRepoFilter] = useState('all');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Data is fetched on the client from localStorage
+    setTasks(getTasks());
+    setIsLoading(false);
+  }, []);
 
   const filteredTasks = tasks.filter((task: Task) => {
     const statusMatch = statusFilter === 'all' || task.status === statusFilter;
@@ -87,8 +94,12 @@ export default function Home() {
             </Button>
         </div>
       </div>
-
-      {filteredTasks.length > 0 ? (
+      
+      {isLoading ? (
+        <div className="flex justify-center items-center py-16">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : filteredTasks.length > 0 ? (
         viewMode === 'grid' ? <TasksGrid tasks={filteredTasks} /> : <TasksTable tasks={filteredTasks} />
       ) : (
         <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg">

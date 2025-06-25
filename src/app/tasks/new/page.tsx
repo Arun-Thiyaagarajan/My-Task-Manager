@@ -1,10 +1,85 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import { TaskForm } from '@/components/task-form';
-import { createTaskAction } from '@/lib/actions';
+import { addTask, getDevelopers, addDeveloper } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { getDevelopers } from '@/lib/data';
+import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
+import type { z } from 'zod';
+import { taskSchema } from '@/lib/validators';
+import type { Environment } from '@/lib/types';
+
+type TaskFormData = z.infer<typeof taskSchema>;
+
+const parsePrLinks = (links: string | undefined): string[] => {
+  if (!links) return [];
+  return links.split('\n').map(l => l.trim()).filter(Boolean);
+};
+
+const processTaskData = (data: TaskFormData) => {
+    const { prLinks, devStartDate, devEndDate, qaStartDate, qaEndDate, ...rest } = data;
+
+    const processedPrLinks = Object.fromEntries(
+        Object.entries(prLinks).map(([env, links]) => [env, parsePrLinks(links)])
+    ) as { [key in Environment]?: string[] };
+    
+    return {
+        ...rest,
+        prLinks: processedPrLinks,
+        devStartDate: devStartDate?.toISOString(),
+        devEndDate: devEndDate?.toISOString(),
+        qaStartDate: qaStartDate?.toISOString(),
+        qaEndDate: qaEndDate?.toISOString(),
+    };
+}
+
+const handleNewDevelopers = (developers: string[]) => {
+    const existingDevelopers = getDevelopers();
+    developers.forEach(dev => {
+        if (!existingDevelopers.includes(dev)) {
+            addDeveloper(dev);
+        }
+    });
+}
 
 export default function NewTaskPage() {
-  const developersList = getDevelopers();
+  const router = useRouter();
+  const { toast } = useToast();
+  const [developersList, setDevelopersList] = useState<string[]>([]);
+  
+  useEffect(() => {
+    setDevelopersList(getDevelopers());
+  }, []);
+
+  const handleCreateTask = (data: TaskFormData) => {
+    const validationResult = taskSchema.safeParse(data);
+
+    if (!validationResult.success) {
+      console.error(validationResult.error.flatten().fieldErrors);
+      toast({
+        variant: 'destructive',
+        title: 'Invalid data',
+        description: 'Please check the form for errors.',
+      });
+      return;
+    }
+  
+    if (validationResult.data.developers) {
+      handleNewDevelopers(validationResult.data.developers);
+    }
+
+    const taskData = processTaskData(validationResult.data);
+    const newTask = addTask(taskData);
+    
+    toast({
+        title: `Task created`,
+        description: "Your new task has been saved.",
+    });
+
+    router.push(`/tasks/${newTask.id}`);
+  };
+
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8 max-w-3xl">
       <Card>
@@ -13,7 +88,7 @@ export default function NewTaskPage() {
         </CardHeader>
         <CardContent>
           <TaskForm
-            action={createTaskAction}
+            onSubmit={handleCreateTask}
             submitButtonText="Create Task"
             developersList={developersList}
           />

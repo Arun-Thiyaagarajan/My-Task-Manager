@@ -1,9 +1,12 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import { getTaskById } from '@/lib/data';
-import { notFound } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, Users, CalendarDays } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, Users, CalendarDays, Loader2 } from 'lucide-react';
 import { TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -14,18 +17,41 @@ import { Badge } from '@/components/ui/badge';
 import { getInitials } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
+import type { Task } from '@/lib/types';
 
-interface TaskPageProps {
-  params: {
-    id: string;
-  };
-}
 
-export default function TaskPage({ params }: TaskPageProps) {
-  const task = getTaskById(params.id);
+export default function TaskPage() {
+  const params = useParams();
+  const router = useRouter();
+  const [task, setTask] = useState<Task | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const taskId = params.id as string;
+
+  useEffect(() => {
+    if (taskId) {
+      const foundTask = getTaskById(taskId);
+      setTask(foundTask || null);
+      setIsLoading(false);
+    }
+  }, [taskId]);
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8 flex justify-center items-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (!task) {
-    notFound();
+    return (
+      <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <h1 className="text-2xl font-bold">Task not found</h1>
+        <p className="text-muted-foreground">The task you are looking for does not exist.</p>
+        <Button onClick={() => router.push('/')} className="mt-4">Go to Home</Button>
+      </div>
+    );
   }
 
   const azureWorkItemUrl = task.azureWorkItemId 

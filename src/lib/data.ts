@@ -1,10 +1,9 @@
 import type { Task, Developer } from './types';
 
-let developers: Developer[] = ['Alice', 'Bob', 'Charlie', 'Dana', 'Eve'];
-
 // In a real application, this would be a database.
-// For this demo, we're using an in-memory array that resets on server restart.
-let tasks: Task[] = [
+// For this demo, we're using localStorage.
+
+const initialTasks: Task[] = [
     {
     id: 'task-1',
     title: 'Implement new dashboard widgets',
@@ -121,17 +120,46 @@ let tasks: Task[] = [
     updatedAt: '2024-07-09T00:00:00.000Z',
   },
 ];
+const initialDevelopers: Developer[] = ['Alice', 'Bob', 'Charlie', 'Dana', 'Eve'];
+
+const TASKS_KEY = 'taskflow_tasks';
+const DEVELOPERS_KEY = 'taskflow_developers';
+
+// Helper to get and initialize data from localStorage
+const getLocalStorage = <T>(key: string, fallback: T): T => {
+    if (typeof window === 'undefined') {
+        return fallback;
+    }
+    const stored = window.localStorage.getItem(key);
+    if (!stored) {
+        window.localStorage.setItem(key, JSON.stringify(fallback));
+        return fallback;
+    }
+    try {
+        return JSON.parse(stored);
+    } catch (e) {
+        console.error(`Error parsing localStorage key "${key}":`, e);
+        return fallback;
+    }
+}
+
+// Helper to set data in localStorage
+const setLocalStorage = <T>(key: string, value: T) => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(key, JSON.stringify(value));
+}
 
 export function getTasks(): Task[] {
-  // Return a copy to prevent direct mutation of the array on the client
-  return [...tasks];
+  return getLocalStorage(TASKS_KEY, initialTasks);
 }
 
 export function getTaskById(id: string): Task | undefined {
+  const tasks = getTasks();
   return tasks.find(task => task.id === id);
 }
 
 export function addTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>): Task {
+  const tasks = getTasks();
   const now = new Date().toISOString();
   const newTask: Task = {
     id: `task-${Date.now()}`,
@@ -141,38 +169,50 @@ export function addTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>):
     prLinks: taskData.prLinks ?? {},
     developers: taskData.developers ?? [],
   };
-  tasks.unshift(newTask);
+  const updatedTasks = [newTask, ...tasks];
+  setLocalStorage(TASKS_KEY, updatedTasks);
   return newTask;
 }
 
 export function updateTask(id: string, taskData: Partial<Omit<Task, 'id' | 'createdAt' | 'updatedAt'>>): Task | undefined {
+  const tasks = getTasks();
   const taskIndex = tasks.findIndex(task => task.id === id);
   if (taskIndex === -1) {
     return undefined;
   }
-  tasks[taskIndex] = { 
+  
+  const updatedTask = { 
     ...tasks[taskIndex], 
     ...taskData,
     updatedAt: new Date().toISOString()
   };
-  return tasks[taskIndex];
+  
+  tasks[taskIndex] = updatedTask;
+  setLocalStorage(TASKS_KEY, tasks);
+  return updatedTask;
 }
 
 export function deleteTask(id: string): boolean {
+  let tasks = getTasks();
   const taskIndex = tasks.findIndex(task => task.id === id);
   if (taskIndex === -1) {
     return false;
   }
   tasks.splice(taskIndex, 1);
+  setLocalStorage(TASKS_KEY, tasks);
   return true;
 }
 
 export function getDevelopers(): Developer[] {
-    return [...developers];
+    return getLocalStorage(DEVELOPERS_KEY, initialDevelopers);
 }
 
 export function addDeveloper(name: string): Developer {
+    const developers = getDevelopers();
     const newDeveloper: Developer = name;
-    developers.push(newDeveloper);
+    if (!developers.includes(newDeveloper)) {
+        const updatedDevelopers = [...developers, newDeveloper];
+        setLocalStorage(DEVELOPERS_KEY, updatedDevelopers);
+    }
     return newDeveloper;
 }
