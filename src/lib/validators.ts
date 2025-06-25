@@ -1,7 +1,7 @@
 
 import { z } from 'zod';
 import { TASK_STATUSES, REPOSITORIES, ENVIRONMENTS } from './constants';
-import type { AdminConfig } from './types';
+import type { AdminConfig, FormFieldConfig } from './types';
 import { MASTER_FORM_FIELDS } from './form-config';
 
 export const attachmentSchema = z.object({
@@ -18,17 +18,20 @@ const getFieldSchema = (fieldId: string, config: FormFieldConfig) => {
 
     switch(fieldDef.type) {
         case 'text':
-        case 'textarea':
-            schema = z.string();
-            if (config.required) {
-                schema = schema.min(fieldId === 'title' ? 3 : 1, { message: `${fieldDef.label} is required.` });
-            } else {
-                 schema = schema.optional().or(z.literal(''));
+        case 'textarea': {
+            let baseSchema = z.string();
+
+            if (fieldId === 'azureWorkItemId') {
+                baseSchema = baseSchema.regex(/^\d*$/, { message: "Please enter a valid work item ID." });
             }
-             if (fieldId === 'azureWorkItemId') {
-                schema = schema.regex(/^\d*$/, { message: "Please enter a valid work item ID." });
+
+            if (config.required) {
+                schema = baseSchema.min(fieldId === 'title' ? 3 : 1, { message: `${fieldDef.label} is required.` });
+            } else {
+                 schema = baseSchema.optional().or(z.literal(''));
             }
             break;
+        }
         case 'select':
             schema = z.enum(fieldDef.options as [string, ...string[]]);
             break; // Status is always required by default in the schema
@@ -41,7 +44,10 @@ const getFieldSchema = (fieldId: string, config: FormFieldConfig) => {
             }
             break;
         case 'date':
-            schema = z.date().optional();
+            schema = z.coerce.date().optional();
+            if (config.required) {
+                schema = schema.refine(val => val != null, { message: `${fieldDef.label} is required.`});
+            }
             break;
         case 'attachments':
             schema = z.array(attachmentSchema).optional();
