@@ -38,6 +38,7 @@ import { format } from 'date-fns';
 import { Separator } from './ui/separator';
 import { MultiSelect, type SelectOption } from './ui/multi-select';
 import { Checkbox } from './ui/checkbox';
+import * as React from 'react';
 
 type TaskFormData = z.infer<typeof taskSchema>;
 
@@ -73,6 +74,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
         production: task?.deploymentStatus?.production ?? false,
         others: task?.deploymentStatus?.others ?? false,
       },
+      othersEnvironmentName: task?.othersEnvironmentName ?? '',
       prLinks: {
         dev: task?.prLinks?.dev?.join(', ') ?? '',
         stage: task?.prLinks?.stage?.join(', ') ?? '',
@@ -85,6 +87,8 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
       qaEndDate: task?.qaEndDate ? new Date(task.qaEndDate) : undefined,
     },
   });
+
+  const isOthersDeployed = form.watch('deploymentStatus.others');
 
   const handleFormSubmit = (data: TaskFormData) => {
     startTransition(() => {
@@ -398,26 +402,44 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                       <h4 className="font-medium text-sm text-muted-foreground mb-4">Deployment Status</h4>
                       <div className="space-y-4">
                         {ENVIRONMENTS.map(env => (
-                            <FormField
-                            key={env}
-                            control={form.control}
-                            name={`deploymentStatus.${env}`}
-                            render={({ field }) => (
-                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
-                                <FormControl>
-                                    <Checkbox
-                                    checked={field.value}
-                                    onCheckedChange={field.onChange}
+                            <React.Fragment key={env}>
+                                <FormField
+                                control={form.control}
+                                name={`deploymentStatus.${env}`}
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
+                                    <FormControl>
+                                        <Checkbox
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                        />
+                                    </FormControl>
+                                    <div className="space-y-1 leading-none">
+                                        <FormLabel className="capitalize font-normal">
+                                        Deployed to {env}
+                                        </FormLabel>
+                                    </div>
+                                    </FormItem>
+                                )}
+                                />
+                                {env === 'others' && isOthersDeployed && (
+                                <div className="pl-4 pb-2 -mt-2">
+                                    <FormField
+                                    control={form.control}
+                                    name="othersEnvironmentName"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Environment Name</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="e.g. UAT, Demo" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
                                     />
-                                </FormControl>
-                                <div className="space-y-1 leading-none">
-                                    <FormLabel className="capitalize font-normal">
-                                    Deployed to {env}
-                                    </FormLabel>
                                 </div>
-                                </FormItem>
-                            )}
-                            />
+                                )}
+                            </React.Fragment>
                         ))}
                       </div>
                     </div>

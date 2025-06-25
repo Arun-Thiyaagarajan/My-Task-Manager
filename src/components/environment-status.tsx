@@ -6,10 +6,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/t
 
 interface EnvironmentStatusProps {
   deploymentStatus: Task['deploymentStatus'];
+  othersEnvironmentName?: string;
   size?: 'sm' | 'default';
 }
 
-export function EnvironmentStatus({ deploymentStatus, size = 'default' }: EnvironmentStatusProps) {
+export function EnvironmentStatus({ deploymentStatus, othersEnvironmentName, size = 'default' }: EnvironmentStatusProps) {
   const isDeployed = (env: Environment) => deploymentStatus && deploymentStatus[env];
 
   const getEnvInfo = (env: Environment) => {
@@ -47,7 +48,14 @@ export function EnvironmentStatus({ deploymentStatus, size = 'default' }: Enviro
       <div className="flex flex-wrap items-center gap-1.5">
         {ENVIRONMENTS.map(env => {
           const deployed = isDeployed(env);
+          
+          if (env === 'others' && !deployed) {
+            return null;
+          }
+
           const envInfo = getEnvInfo(env);
+          const badgeLabel = env === 'others' && deployed ? (othersEnvironmentName || 'Others') : env;
+          const tooltipLabel = env === 'others' ? (othersEnvironmentName || envInfo.label) : envInfo.label;
           
           return (
             <Tooltip key={env}>
@@ -62,11 +70,11 @@ export function EnvironmentStatus({ deploymentStatus, size = 'default' }: Enviro
                     size === 'sm' && 'px-1.5 py-0 text-[10px] h-4'
                   )}
                 >
-                  {env}
+                  {badgeLabel}
                 </Badge>
               </TooltipTrigger>
               <TooltipContent>
-                <p>{envInfo.label}: {deployed ? 'Deployed' : 'Pending'}</p>
+                <p>{tooltipLabel}: {deployed ? 'Deployed' : 'Pending'}</p>
               </TooltipContent>
             </Tooltip>
           );

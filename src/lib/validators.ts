@@ -26,8 +26,20 @@ export const taskSchema = z.object({
   qaIssueIds: z.string().optional(),
   prLinks: prLinksSchema,
   deploymentStatus: deploymentStatusSchema,
+  othersEnvironmentName: z.string().optional(),
   devStartDate: z.date().optional(),
   devEndDate: z.date().optional(),
   qaStartDate: z.date().optional(),
   qaEndDate: z.date().optional(),
-});
+}).refine(
+  (data) => {
+    if (data.deploymentStatus.others && !data.othersEnvironmentName?.trim()) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: 'Please provide a name for the "others" environment.',
+    path: ['othersEnvironmentName'],
+  }
+);

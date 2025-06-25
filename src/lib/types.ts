@@ -18,6 +18,7 @@ export interface Task {
   deploymentStatus: {
     [key in Environment]?: boolean;
   };
+  othersEnvironmentName?: string;
   developers?: Developer[];
   qaIssueIds?: string[];
   devStartDate?: string;
