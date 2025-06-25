@@ -23,7 +23,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
@@ -35,8 +34,6 @@ export default function AdminPage() {
   const [fieldToEdit, setFieldToEdit] = useState<FormField | null>(null);
   const [draggedFieldId, setDraggedFieldId] = useState<string | null>(null);
   const { toast } = useToast();
-
-  const CORE_FIELDS = ['title', 'description', 'status'];
 
   const refreshData = () => {
       const config = getAdminConfig();
@@ -107,7 +104,7 @@ export default function AdminPage() {
   }
 
   const handleRemoveField = (fieldId: string) => {
-    if (!adminConfig || CORE_FIELDS.includes(fieldId)) return;
+    if (!adminConfig) return;
 
     const newLayout = adminConfig.formLayout.filter(id => id !== fieldId);
     const newFieldConfig = { ...adminConfig.fieldConfig[fieldId], visible: false };
@@ -187,21 +184,19 @@ export default function AdminPage() {
                   const fieldDefinition = allFields[fieldId];
                   if (!fieldDefinition) return null;
 
-                  const isCoreField = CORE_FIELDS.includes(fieldId);
-
                   return (
                     <div 
                       key={fieldId}
                       className="flex flex-col sm:flex-row items-start justify-between gap-4 rounded-lg border p-4 cursor-pointer bg-card hover:border-primary/50"
-                      draggable={!isCoreField}
+                      draggable={true}
                       onDragStart={(e) => handleDragStart(e, fieldId)}
                       onDragOver={handleDragOver}
                       onDrop={() => handleDrop(fieldId)}
                       onClick={() => handleOpenEditDialog(fieldDefinition)}
                     >
                       <div className="flex items-start gap-4 flex-1">
-                        {!isCoreField && <GripVertical className="h-6 w-6 text-muted-foreground mt-1 cursor-grab" />}
-                         <div className={cn(isCoreField && "pl-10")}>
+                        <GripVertical className="h-6 w-6 text-muted-foreground mt-1 cursor-grab" />
+                         <div>
                           <h3 className="font-semibold text-lg">{fieldDefinition.label}</h3>
                           <p className="text-sm text-muted-foreground">{fieldDefinition.description}</p>
                         </div>
@@ -212,14 +207,13 @@ export default function AdminPage() {
                               id={`required-${fieldId}`}
                               checked={fieldConfig[fieldId]?.required || false}
                               onCheckedChange={() => handleToggleRequired(fieldId)}
-                              disabled={isCoreField}
                             />
                             <Label htmlFor={`required-${fieldId}`}>Required</Label>
                         </div>
                         <div className="flex items-center border-l pl-4 gap-1">
                            <Tooltip>
                               <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleRemoveField(fieldId)} disabled={isCoreField}>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleRemoveField(fieldId)}>
                                   <XCircle className="h-4 w-4" />
                                 </Button>
                               </TooltipTrigger>
@@ -273,7 +267,7 @@ export default function AdminPage() {
                                <p>Edit Field</p>
                              </TooltipContent>
                            </Tooltip>
-                          {fieldDefinition.isCustom && (
+                          {fieldDefinition.isCustom ? (
                              <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                   <Tooltip>
@@ -298,6 +292,17 @@ export default function AdminPage() {
                                   </AlertDialogFooter>
                                 </AlertDialogContent>
                               </AlertDialog>
+                          ) : (
+                             <Tooltip>
+                               <TooltipTrigger asChild>
+                                 <Button variant="ghost" size="icon" className="h-8 w-8" disabled>
+                                   <Trash2 className="h-4 w-4 text-muted-foreground/50" />
+                                 </Button>
+                               </TooltipTrigger>
+                               <TooltipContent>
+                                 <p>Default fields cannot be deleted.</p>
+                               </TooltipContent>
+                             </Tooltip>
                           )}
                         </div>
                      </div>
