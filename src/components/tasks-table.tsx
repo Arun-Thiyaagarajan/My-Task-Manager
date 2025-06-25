@@ -27,7 +27,7 @@ export function TasksTable({ tasks, onTaskDelete }: TasksTableProps) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[40%]">Title</TableHead>
+            <TableHead>Title</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Repositories</TableHead>
             <TableHead>Deployments</TableHead>

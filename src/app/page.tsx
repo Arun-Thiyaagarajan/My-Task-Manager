@@ -29,8 +29,8 @@ import {
   Loader2,
   Search,
   Calendar as CalendarIcon,
-  Upload,
   Download,
+  Upload,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task, Environment } from '@/lib/types';
@@ -54,11 +54,13 @@ import type { DateRange } from 'react-day-picker';
 import { useActiveCompany } from '@/hooks/use-active-company';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from 'xlsx';
+import { useRouter } from 'next/navigation';
 
 type ViewMode = 'grid' | 'table';
 
 export default function Home() {
   const activeCompanyId = useActiveCompany();
+  const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [repoFilter, setRepoFilter] = useState('all');
@@ -155,19 +157,11 @@ export default function Home() {
   };
 
   const handleDownloadTemplate = () => {
-      const templateData = [{
-        'Title': 'Example: Fix login button',
-        'Description': 'The login button is not working on the main page.',
-        'Status': 'To Do',
-        'Developers': 'Arun, Samantha',
-        'Repositories': 'UI-Dashboard',
-        'Azure Work Item ID': '12345',
-        'Dev Start Date': '2024-01-15',
-        'Dev End Date': '',
-        'QA Start Date': '',
-        'QA End Date': ''
-      }];
-      const worksheet = XLSX.utils.json_to_sheet(templateData);
+      const headers = [
+        ['Title', 'Description', 'Status', 'Developers', 'Repositories', 
+        'Azure Work Item ID', 'Dev Start Date', 'Dev End Date', 'QA Start Date', 'QA End Date']
+      ];
+      const worksheet = XLSX.utils.aoa_to_sheet(headers);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Tasks");
       XLSX.writeFile(workbook, "TaskFlow_Import_Template.xlsx");
@@ -187,14 +181,19 @@ export default function Home() {
               const json: any[] = XLSX.utils.sheet_to_json(worksheet);
               
               let importedCount = 0;
-              let skippedCount = 0;
-              
               const existingDevelopers = getDevelopers();
 
-              json.forEach(row => {
-                  if (!row.Title || !row.Description || !row.Status) {
-                      skippedCount++;
-                      return;
+              for (const row of json) {
+                  if (!row.Title || !row.Description || !row.Status || !TASK_STATUSES.includes(row.Status)) {
+                      toast({
+                          variant: 'destructive',
+                          title: 'Invalid Data Found',
+                          description: 'Redirecting to fix the invalid task. Please correct the errors and save.',
+                      });
+                      sessionStorage.setItem('failed_import_row', JSON.stringify(row));
+                      router.push('/tasks/new');
+                      if(fileInputRef.current) fileInputRef.current.value = '';
+                      return; 
                   }
                   
                   const developers = row.Developers ? String(row.Developers).split(',').map(d => d.trim()).filter(Boolean) : [];
@@ -208,7 +207,7 @@ export default function Home() {
                   const taskData: Partial<Task> = {
                       title: row.Title,
                       description: row.Description,
-                      status: TASK_STATUSES.includes(row.Status) ? row.Status : 'To Do',
+                      status: row.Status,
                       developers: developers,
                       repositories: row.Repositories ? String(row.Repositories).split(',').map(r => r.trim()).filter(Boolean) : [],
                       azureWorkItemId: row['Azure Work Item ID'] ? String(row['Azure Work Item ID']) : undefined,
@@ -220,22 +219,23 @@ export default function Home() {
                   
                   addTask(taskData);
                   importedCount++;
-              });
-
-              refreshData();
-
-              toast({
-                  variant: 'success',
-                  title: 'Import Complete',
-                  description: `${importedCount} tasks imported. ${skippedCount} rows skipped.`
-              });
+              }
+              
+              if(importedCount > 0) {
+                refreshData();
+                toast({
+                    variant: 'success',
+                    title: 'Import Complete',
+                    description: `${importedCount} tasks imported successfully.`
+                });
+              }
 
           } catch (error) {
               console.error("Error importing file:", error);
               toast({
                   variant: 'destructive',
                   title: 'Import Failed',
-                  description: 'Please ensure it is a valid Excel file using the template.'
+                  description: 'There was an error processing your file. Please ensure it is a valid Excel file.'
               });
           } finally {
               if(fileInputRef.current) {
@@ -270,7 +270,7 @@ export default function Home() {
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                 <Button variant="outline">
-                    <Download className="mr-2 h-4 w-4" />
+                    <Upload className="mr-2 h-4 w-4" />
                     Export
                 </Button>
                 </DropdownMenuTrigger>
@@ -285,7 +285,7 @@ export default function Home() {
             </DropdownMenu>
 
             <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-                <Upload className="mr-2 h-4 w-4" />
+                <Download className="mr-2 h-4 w-4" />
                 Import
             </Button>
             <input

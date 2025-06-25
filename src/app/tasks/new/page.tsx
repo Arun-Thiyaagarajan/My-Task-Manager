@@ -7,9 +7,10 @@ import { addTask, getDevelopers, addDeveloper } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import type { Task, Environment } from '@/lib/types';
+import type { Task } from '@/lib/types';
 import { taskSchema } from '@/lib/validators';
 import { Loader2 } from 'lucide-react';
+import { TASK_STATUSES } from '@/lib/constants';
 
 
 export default function NewTaskPage() {
@@ -17,10 +18,46 @@ export default function NewTaskPage() {
   const { toast } = useToast();
   const [developersList, setDevelopersList] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [initialData, setInitialData] = useState<Partial<Task> | undefined>(undefined);
   
   useEffect(() => {
     document.title = 'New Task | TaskFlow';
     setDevelopersList(getDevelopers());
+    
+    const failedImportRowString = sessionStorage.getItem('failed_import_row');
+    if (failedImportRowString) {
+      try {
+        const row = JSON.parse(failedImportRowString);
+        
+        const prefillData: Partial<Task> = {
+          title: row.Title || '',
+          description: row.Description || '',
+          status: TASK_STATUSES.includes(row.Status) ? row.Status : undefined,
+          developers: row.Developers ? String(row.Developers).split(',').map((d:string) => d.trim()).filter(Boolean) : [],
+          repositories: row.Repositories ? String(row.Repositories).split(',').map((r:string) => r.trim()).filter(Boolean) : [],
+          azureWorkItemId: row['Azure Work Item ID'] ? String(row['Azure Work Item ID']) : '',
+          devStartDate: row['Dev Start Date'] ? new Date(row['Dev Start Date']).toISOString() : undefined,
+          devEndDate: row['Dev End Date'] ? new Date(row['Dev End Date']).toISOString() : undefined,
+          qaStartDate: row['QA Start Date'] ? new Date(row['QA Start Date']).toISOString() : undefined,
+          qaEndDate: row['QA End Date'] ? new Date(row['QA End Date']).toISOString() : undefined,
+        };
+        
+        setInitialData(prefillData);
+
+        toast({
+            variant: 'warning',
+            title: 'Review Required',
+            description: 'This form is pre-filled from an import. Please correct any errors and save the task.',
+            duration: 5000,
+        });
+
+      } catch (error) {
+        console.error("Error processing failed import data:", error);
+      } finally {
+        sessionStorage.removeItem('failed_import_row');
+      }
+    }
+
     setIsLoading(false);
   }, []);
 
@@ -59,7 +96,6 @@ export default function NewTaskPage() {
 
     if (deploymentDates) {
         taskDataToCreate.deploymentDates = {
-            dev: deploymentDates.dev?.toISOString() || null,
             stage: deploymentDates.stage?.toISOString() || null,
             production: deploymentDates.production?.toISOString() || null,
             others: deploymentDates.others?.toISOString() || null,
@@ -96,6 +132,7 @@ export default function NewTaskPage() {
         </CardHeader>
         <CardContent>
           <TaskForm
+            task={initialData}
             onSubmit={handleCreateTask}
             submitButtonText="Create Task"
             developersList={developersList}
