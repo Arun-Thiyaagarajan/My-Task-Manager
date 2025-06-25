@@ -12,6 +12,14 @@ import { taskSchema } from '@/lib/validators';
 import { Loader2 } from 'lucide-react';
 import { TASK_STATUSES } from '@/lib/constants';
 
+const parseJsonSafe = (jsonString: string, fallback: any) => {
+  if (!jsonString) return fallback;
+  try {
+    return JSON.parse(jsonString);
+  } catch {
+    return fallback;
+  }
+};
 
 export default function NewTaskPage() {
   const router = useRouter();
@@ -29,6 +37,11 @@ export default function NewTaskPage() {
       try {
         const row = JSON.parse(failedImportRowString);
         
+        const parseBoolean = (value: any) => {
+          if (typeof value === 'boolean') return value;
+          return String(value).toLowerCase() === 'true';
+        };
+        
         const prefillData: Partial<Task> = {
           title: row.Title || '',
           description: row.Description || '',
@@ -40,6 +53,22 @@ export default function NewTaskPage() {
           devEndDate: row['Dev End Date'] ? new Date(row['Dev End Date']).toISOString() : undefined,
           qaStartDate: row['QA Start Date'] ? new Date(row['QA Start Date']).toISOString() : undefined,
           qaEndDate: row['QA End Date'] ? new Date(row['QA End Date']).toISOString() : undefined,
+          deploymentStatus: {
+              dev: parseBoolean(row['Deployed to Dev']),
+              stage: parseBoolean(row['Deployed to Stage']),
+              production: parseBoolean(row['Deployed to Production']),
+              others: parseBoolean(row['Deployed to Others']),
+          },
+          deploymentDates: {
+              dev: row['Dev Deployed Date'] ? new Date(row['Dev Deployed Date']).toISOString() : undefined,
+              stage: row['Stage Deployed Date'] ? new Date(row['Stage Deployed Date']).toISOString() : undefined,
+              production: row['Production Deployed Date'] ? new Date(row['Production Deployed Date']).toISOString() : undefined,
+              others: row['Others Deployed Date'] ? new Date(row['Others Deployed Date']).toISOString() : undefined,
+          },
+          othersEnvironmentName: row['Others Environment Name'] || undefined,
+          prLinks: parseJsonSafe(row['PR Links (JSON)'], {}),
+          attachments: parseJsonSafe(row['Attachments (JSON)'], []),
+          comments: row.Comments ? String(row.Comments).split('\n') : [],
         };
         
         setInitialData(prefillData);
@@ -96,6 +125,7 @@ export default function NewTaskPage() {
 
     if (deploymentDates) {
         taskDataToCreate.deploymentDates = {
+            dev: deploymentDates.dev?.toISOString() || null,
             stage: deploymentDates.stage?.toISOString() || null,
             production: deploymentDates.production?.toISOString() || null,
             others: deploymentDates.others?.toISOString() || null,

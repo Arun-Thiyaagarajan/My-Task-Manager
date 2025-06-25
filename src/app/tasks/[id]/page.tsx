@@ -79,7 +79,7 @@ export default function TaskPage() {
     : null;
 
   const hasDevQaDates = task.devStartDate || task.devEndDate || task.qaStartDate || task.qaEndDate;
-  const hasDeploymentDates = task.deploymentDates?.stage || task.deploymentDates?.production || task.deploymentDates?.others;
+  const hasAnyDeploymentDate = task.deploymentDates && Object.values(task.deploymentDates).some(d => d);
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -125,6 +125,58 @@ export default function TaskPage() {
             </CardContent>
           </Card>
           
+          <Card>
+              <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                      <GitMerge className="h-5 w-5" />
+                      Activity
+                  </CardTitle>
+              </CardHeader>
+              <CardContent>
+                  <Tabs defaultValue="deployments" className="w-full">
+                      <TabsList className="grid w-full grid-cols-2">
+                          <TabsTrigger value="deployments">Deployments</TabsTrigger>
+                          <TabsTrigger value="pull-requests">Pull Requests</TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="deployments" className="pt-4">
+                         <div className="space-y-3 text-sm">
+                              {ENVIRONMENTS.map(env => {
+                                  const isDeployed = task.deploymentStatus?.[env];
+                                  const envName = env === 'others' && task.othersEnvironmentName ? task.othersEnvironmentName : env;
+
+                                  if (env === 'others' && !isDeployed) return null;
+
+                                  return (
+                                      <div key={env} className="flex justify-between items-center">
+                                          <span className={cn("capitalize", isDeployed ? "text-foreground font-medium" : "text-muted-foreground")}>
+                                              {envName}
+                                          </span>
+                                          {isDeployed ? (
+                                              <div className="flex items-center gap-2">
+                                                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                                  <span className="text-foreground">Deployed</span>
+                                              </div>
+                                          ) : (
+                                              <div className="flex items-center gap-2 text-muted-foreground">
+                                                  <Clock className="h-4 w-4" />
+                                                  <span>Pending</span>
+                                              </div>
+                                          )}
+                                      </div>
+                                  )
+                              })}
+                               {(!task.deploymentStatus || Object.values(task.deploymentStatus).every(s => !s)) && (
+                                  <p className="text-muted-foreground text-center text-xs pt-2">No deployments recorded.</p>
+                               )}
+                          </div>
+                      </TabsContent>
+                      <TabsContent value="pull-requests" className="pt-2">
+                           <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} />
+                      </TabsContent>
+                  </Tabs>
+              </CardContent>
+          </Card>
+
            <CommentsSection
               taskId={task.id}
               comments={task.comments || []}
@@ -248,7 +300,13 @@ export default function TaskPage() {
                                     <span>{format(new Date(task.qaEndDate), 'PPP')}</span>
                                 </div>
                             )}
-                            {hasDevQaDates && hasDeploymentDates && <Separator className="my-2"/>}
+                            {(hasDevQaDates || hasAnyDeploymentDate) && <Separator className="my-2"/>}
+                            {task.deploymentDates?.dev && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Dev Deployed</span>
+                                    <span>{format(new Date(task.deploymentDates.dev), 'PPP')}</span>
+                                </div>
+                            )}
                             {task.deploymentDates?.stage && (
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Stage Deployed</span>
@@ -267,63 +325,11 @@ export default function TaskPage() {
                                     <span>{format(new Date(task.deploymentDates.others), 'PPP')}</span>
                                 </div>
                             )}
-                             {!(hasDevQaDates || hasDeploymentDates) && (
+                             {!(hasDevQaDates || hasAnyDeploymentDate) && (
                                 <p className="text-muted-foreground text-center text-xs">No dates have been set.</p>
                              )}
                         </div>
                     </div>
-                </CardContent>
-            </Card>
-            
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-xl">
-                        <GitMerge className="h-5 w-5" />
-                        Activity
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <Tabs defaultValue="deployments" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="deployments">Deployments</TabsTrigger>
-                            <TabsTrigger value="pull-requests">Pull Requests</TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="deployments" className="pt-4">
-                           <div className="space-y-3 text-sm">
-                                {ENVIRONMENTS.map(env => {
-                                    const isDeployed = task.deploymentStatus?.[env];
-                                    const envName = env === 'others' && task.othersEnvironmentName ? task.othersEnvironmentName : env;
-
-                                    if (env === 'others' && !isDeployed) return null;
-
-                                    return (
-                                        <div key={env} className="flex justify-between items-center">
-                                            <span className={cn("capitalize", isDeployed ? "text-foreground font-medium" : "text-muted-foreground")}>
-                                                {envName}
-                                            </span>
-                                            {isDeployed ? (
-                                                <div className="flex items-center gap-2">
-                                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                                    <span className="text-foreground">Deployed</span>
-                                                </div>
-                                            ) : (
-                                                <div className="flex items-center gap-2 text-muted-foreground">
-                                                    <Clock className="h-4 w-4" />
-                                                    <span>Pending</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )
-                                })}
-                                 {(!task.deploymentStatus || Object.values(task.deploymentStatus).every(s => !s)) && (
-                                    <p className="text-muted-foreground text-center text-xs pt-2">No deployments recorded.</p>
-                                 )}
-                            </div>
-                        </TabsContent>
-                        <TabsContent value="pull-requests" className="pt-2">
-                             <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} />
-                        </TabsContent>
-                    </Tabs>
                 </CardContent>
             </Card>
         </div>

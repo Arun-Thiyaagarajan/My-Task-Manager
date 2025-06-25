@@ -138,10 +138,22 @@ export default function Home() {
       'Developers': task.developers?.join(', ') ?? '',
       'Repositories': task.repositories?.join(', ') ?? '',
       'Azure Work Item ID': task.azureWorkItemId ?? '',
-      'Dev Start Date': task.devStartDate ? format(new Date(task.devStartDate), 'yyyy-MM-dd') : '',
-      'Dev End Date': task.devEndDate ? format(new Date(task.devEndDate), 'yyyy-MM-dd') : '',
-      'QA Start Date': task.qaStartDate ? format(new Date(task.qaStartDate), 'yyyy-MM-dd') : '',
-      'QA End Date': task.qaEndDate ? format(new Date(task.qaEndDate), 'yyyy-MM-dd') : '',
+      'Dev Start Date': task.devStartDate ? new Date(task.devStartDate).toISOString() : '',
+      'Dev End Date': task.devEndDate ? new Date(task.devEndDate).toISOString() : '',
+      'QA Start Date': task.qaStartDate ? new Date(task.qaStartDate).toISOString() : '',
+      'QA End Date': task.qaEndDate ? new Date(task.qaEndDate).toISOString() : '',
+      'Deployed to Dev': task.deploymentStatus?.dev ?? false,
+      'Dev Deployed Date': task.deploymentDates?.dev ? new Date(task.deploymentDates.dev).toISOString() : '',
+      'Deployed to Stage': task.deploymentStatus?.stage ?? false,
+      'Stage Deployed Date': task.deploymentDates?.stage ? new Date(task.deploymentDates.stage).toISOString() : '',
+      'Deployed to Production': task.deploymentStatus?.production ?? false,
+      'Production Deployed Date': task.deploymentDates?.production ? new Date(task.deploymentDates.production).toISOString() : '',
+      'Deployed to Others': task.deploymentStatus?.others ?? false,
+      'Others Environment Name': task.othersEnvironmentName ?? '',
+      'Others Deployed Date': task.deploymentDates?.others ? new Date(task.deploymentDates.others).toISOString() : '',
+      'PR Links (JSON)': task.prLinks ? JSON.stringify(task.prLinks, null, 2) : '{}',
+      'Attachments (JSON)': task.attachments ? JSON.stringify(task.attachments, null, 2) : '[]',
+      'Comments': task.comments?.join('\n') ?? '',
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(dataForSheet);
@@ -159,7 +171,10 @@ export default function Home() {
   const handleDownloadTemplate = () => {
       const headers = [
         ['Title', 'Description', 'Status', 'Developers', 'Repositories', 
-        'Azure Work Item ID', 'Dev Start Date', 'Dev End Date', 'QA Start Date', 'QA End Date']
+        'Azure Work Item ID', 'Dev Start Date', 'Dev End Date', 'QA Start Date', 'QA End Date',
+        'Deployed to Dev', 'Dev Deployed Date', 'Deployed to Stage', 'Stage Deployed Date',
+        'Deployed to Production', 'Production Deployed Date', 'Deployed to Others', 'Others Environment Name', 'Others Deployed Date',
+        'PR Links (JSON)', 'Attachments (JSON)', 'Comments']
       ];
       const worksheet = XLSX.utils.aoa_to_sheet(headers);
       const workbook = XLSX.utils.book_new();
@@ -184,7 +199,15 @@ export default function Home() {
               const existingDevelopers = getDevelopers();
 
               for (const row of json) {
-                  if (!row.Title || !row.Description || !row.Status || !TASK_STATUSES.includes(row.Status)) {
+                  let jsonIsValid = true;
+                  try {
+                    if (row['PR Links (JSON)']) JSON.parse(row['PR Links (JSON)']);
+                    if (row['Attachments (JSON)']) JSON.parse(row['Attachments (JSON)']);
+                  } catch {
+                    jsonIsValid = false;
+                  }
+
+                  if (!row.Title || !row.Description || !TASK_STATUSES.includes(row.Status) || !jsonIsValid) {
                       toast({
                           variant: 'destructive',
                           title: 'Invalid Data Found',
@@ -204,6 +227,11 @@ export default function Home() {
                       }
                   });
                   
+                  const parseBoolean = (value: any) => {
+                    if (typeof value === 'boolean') return value;
+                    return String(value).toLowerCase() === 'true';
+                  };
+
                   const taskData: Partial<Task> = {
                       title: row.Title,
                       description: row.Description,
@@ -215,6 +243,22 @@ export default function Home() {
                       devEndDate: row['Dev End Date'] ? new Date(row['Dev End Date']).toISOString() : null,
                       qaStartDate: row['QA Start Date'] ? new Date(row['QA Start Date']).toISOString() : null,
                       qaEndDate: row['QA End Date'] ? new Date(row['QA End Date']).toISOString() : null,
+                      deploymentStatus: {
+                        dev: parseBoolean(row['Deployed to Dev']),
+                        stage: parseBoolean(row['Deployed to Stage']),
+                        production: parseBoolean(row['Deployed to Production']),
+                        others: parseBoolean(row['Deployed to Others']),
+                      },
+                      deploymentDates: {
+                        dev: row['Dev Deployed Date'] ? new Date(row['Dev Deployed Date']).toISOString() : null,
+                        stage: row['Stage Deployed Date'] ? new Date(row['Stage Deployed Date']).toISOString() : null,
+                        production: row['Production Deployed Date'] ? new Date(row['Production Deployed Date']).toISOString() : null,
+                        others: row['Others Deployed Date'] ? new Date(row['Others Deployed Date']).toISOString() : null,
+                      },
+                      othersEnvironmentName: row['Others Environment Name'] || undefined,
+                      prLinks: row['PR Links (JSON)'] ? JSON.parse(row['PR Links (JSON)']) : {},
+                      attachments: row['Attachments (JSON)'] ? JSON.parse(row['Attachments (JSON)']) : [],
+                      comments: row.Comments ? String(row.Comments).split('\n') : [],
                   };
                   
                   addTask(taskData);
