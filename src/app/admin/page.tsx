@@ -2,13 +2,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getAdminConfig, updateAdminConfig, getFields, deleteField, saveField } from '@/lib/data';
+import { getAdminConfig, updateAdminConfig, getFields, deleteField } from '@/lib/data';
 import type { AdminConfig, FormField } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, GripVertical, XCircle, PlusCircle, Trash2 } from 'lucide-react';
+import { Loader2, ArrowLeft, GripVertical, XCircle, PlusCircle, Trash2, Edit } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import { FieldEditorDialog } from '@/components/field-editor-dialog';
@@ -191,7 +191,7 @@ export default function AdminPage() {
                   return (
                     <div 
                       key={fieldId}
-                      className="flex flex-col sm:flex-row items-start justify-between gap-4 rounded-lg border p-4 cursor-pointer hover:border-primary/50"
+                      className="flex flex-col sm:flex-row items-start justify-between gap-4 rounded-lg border p-4 cursor-pointer bg-card hover:border-primary/50"
                       draggable={!isCoreField}
                       onDragStart={(e) => handleDragStart(e, fieldId)}
                       onDragOver={handleDragOver}
@@ -237,48 +237,48 @@ export default function AdminPage() {
                   <PlusCircle className="mr-2 h-4 w-4" /> Add Custom Field
                 </Button>
               </div>
-              <div className="flex flex-wrap gap-4">
+              <div className="space-y-2">
                 {availableFields.map(fieldId => {
                    const fieldDefinition = allFields[fieldId];
                    if (!fieldDefinition) return null;
                    return (
-                     <Card 
+                     <div 
                         key={fieldId} 
-                        className="p-3 cursor-pointer hover:border-primary/50 w-full sm:w-auto"
-                        onClick={() => handleOpenEditDialog(fieldDefinition)}
+                        className="flex items-center justify-between gap-4 rounded-lg border p-3 bg-muted/50"
                       >
-                       <div className="flex items-center justify-between gap-4">
-                          <div className="flex-1">
-                            <p className="font-medium">{fieldDefinition.label}</p>
-                            <p className="text-xs text-muted-foreground">{fieldDefinition.type}</p>
-                          </div>
-                          <div className='flex items-center'>
-                            <Button size="sm" className="px-3 h-7" onClick={(e) => { e.stopPropagation(); handleAddField(fieldId);}}>
-                              <PlusCircle className="mr-2 h-4 w-4" />
-                              Activate
+                       <div className="flex-1">
+                          <p className="font-medium">{fieldDefinition.label}</p>
+                          <p className="text-xs text-muted-foreground">{fieldDefinition.type}</p>
+                        </div>
+                        <div className='flex items-center gap-2'>
+                          <Button size="sm" variant="outline" className="px-3 h-8" onClick={(e) => { e.stopPropagation(); handleAddField(fieldId);}}>
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Activate
+                          </Button>
+                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditDialog(fieldDefinition)}>
+                              <Edit className="h-4 w-4" />
                             </Button>
-                            {fieldDefinition.isCustom && (
-                               <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 ml-1 text-destructive hover:text-destructive" onClick={e => e.stopPropagation()}>
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                        <AlertDialogDescription>This will permanently delete the "{fieldDefinition.label}" field and all associated data from your tasks. This action cannot be undone.</AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleDeleteField(fieldId)} className="bg-destructive hover:bg-destructive/90">Delete Field</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                            )}
-                          </div>
-                       </div>
-                     </Card>
+                          {fieldDefinition.isCustom && (
+                             <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={e => e.stopPropagation()}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                      <AlertDialogDescription>This will permanently delete the "{fieldDefinition.label}" field and all associated data from your tasks. This action cannot be undone.</AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleDeleteField(fieldId)} className="bg-destructive hover:bg-destructive/90">Delete Field</AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                          )}
+                        </div>
+                     </div>
                    )
                 })}
                 {availableFields.length === 0 && (
