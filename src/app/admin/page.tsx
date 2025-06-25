@@ -24,6 +24,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 export default function AdminPage() {
@@ -158,10 +159,10 @@ export default function AdminPage() {
   }
 
   const { formLayout, fieldConfig } = adminConfig;
-  const availableFields = Object.keys(allFields).filter(id => !formLayout.includes(id));
+  const inactiveFields = Object.keys(allFields).filter(id => !formLayout.includes(id));
 
   return (
-    <>
+    <TooltipProvider>
       <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-6">
           <Button asChild variant="ghost" className="pl-1">
@@ -216,9 +217,16 @@ export default function AdminPage() {
                             <Label htmlFor={`required-${fieldId}`}>Required</Label>
                         </div>
                         <div className="flex items-center border-l pl-4 gap-1">
-                           <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleRemoveField(fieldId)} disabled={isCoreField}>
-                            <XCircle className="h-4 w-4" />
-                          </Button>
+                           <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleRemoveField(fieldId)} disabled={isCoreField}>
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Deactivate</p>
+                              </TooltipContent>
+                            </Tooltip>
                         </div>
                       </div>
                     </div>
@@ -232,13 +240,13 @@ export default function AdminPage() {
             
             <div>
               <div className="flex items-center justify-between mb-4 border-b pb-2">
-                <h2 className="text-xl font-semibold">Available Fields</h2>
+                <h2 className="text-xl font-semibold">Inactive Fields</h2>
                 <Button variant="outline" onClick={() => { setFieldToEdit(null); setIsFieldDialogOpen(true); }}>
                   <PlusCircle className="mr-2 h-4 w-4" /> Add Custom Field
                 </Button>
               </div>
               <div className="space-y-2">
-                {availableFields.map(fieldId => {
+                {inactiveFields.map(fieldId => {
                    const fieldDefinition = allFields[fieldId];
                    if (!fieldDefinition) return null;
                    return (
@@ -255,15 +263,29 @@ export default function AdminPage() {
                             <PlusCircle className="mr-2 h-4 w-4" />
                             Activate
                           </Button>
-                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditDialog(fieldDefinition)}>
-                              <Edit className="h-4 w-4" />
-                            </Button>
+                           <Tooltip>
+                              <TooltipTrigger asChild>
+                               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditDialog(fieldDefinition)}>
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                             </TooltipTrigger>
+                             <TooltipContent>
+                               <p>Edit Field</p>
+                             </TooltipContent>
+                           </Tooltip>
                           {fieldDefinition.isCustom && (
                              <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={e => e.stopPropagation()}>
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={e => e.stopPropagation()}>
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Delete Field</p>
+                                      </TooltipContent>
+                                    </Tooltip>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                   <AlertDialogHeader>
@@ -281,8 +303,8 @@ export default function AdminPage() {
                      </div>
                    )
                 })}
-                {availableFields.length === 0 && (
-                  <p className="text-muted-foreground text-center py-4 w-full">All available fields are active.</p>
+                {inactiveFields.length === 0 && (
+                  <p className="text-muted-foreground text-center py-4 w-full">No inactive fields.</p>
                 )}
               </div>
             </div>
@@ -302,6 +324,6 @@ export default function AdminPage() {
           refreshData();
         }}
       />
-    </>
+    </TooltipProvider>
   );
 }
