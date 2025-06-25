@@ -129,16 +129,16 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[600px] flex flex-col max-h-[90vh]">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>{fieldToEdit ? 'Edit Field' : 'Add New Custom Field'}</DialogTitle>
           <DialogDescription>
             {fieldToEdit ? `Update the properties for "${fieldToEdit.label}".` : `Create a new custom field to use in your forms.`}
           </DialogDescription>
         </DialogHeader>
-        <div className="flex-1 overflow-y-auto -mx-6 px-6">
+        <div className="flex-1 overflow-y-auto -mx-6 px-6 py-4">
             <Form {...form}>
-                <form id="field-editor-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-2">
+                <form id="field-editor-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                     <FormField
                         control={form.control}
                         name="label"
@@ -187,8 +187,9 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                         <div className="space-y-4 rounded-md border p-4">
                             <FormLabel>Options</FormLabel>
                             <FormDescription>Add/remove options for the dropdown menu.</FormDescription>
-                            {fields.map((field, index) => (
-                               <FormField
+                            <div className="space-y-2">
+                                {fields.map((field, index) => (
+                                <FormField
                                     key={field.id}
                                     control={form.control}
                                     name={`options.${index}.value`}
@@ -203,18 +204,19 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                                             <FormMessage />
                                         </FormItem>
                                     )}
-                               />
-                            ))}
-                             <Button type="button" variant="outline" size="sm" onClick={() => append({value: ''})}>
+                                />
+                                ))}
+                            </div>
+                            <Button type="button" variant="outline" size="sm" onClick={() => append({value: ''})}>
                                 <PlusCircle className="mr-2 h-4 w-4" /> Add Option
                             </Button>
-                            <FormMessage>{form.formState.errors.options?.message}</FormMessage>
+                            <FormMessage>{form.formState.errors.options?.root?.message}</FormMessage>
                         </div>
                     )}
                 </form>
             </Form>
         </div>
-        <DialogFooter className="pt-4 border-t -mx-6 px-6 bg-background sticky bottom-0">
+        <DialogFooter className="flex-shrink-0 pt-4 border-t -mx-6 px-6 bg-background">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>Cancel</Button>
             <Button type="submit" form="field-editor-form" disabled={isPending}>
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
