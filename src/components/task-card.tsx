@@ -44,27 +44,42 @@ export function TaskCard({ task, onTaskDelete }: TaskCardProps) {
       onClick={handleNavigate}
     >
       <CardHeader className="p-4 pb-2">
+        <div className="flex items-center mb-2">
+          <TaskStatusBadge status={task.status} />
+        </div>
         <CardTitle className="text-base font-semibold leading-snug line-clamp-3">
           {task.title}
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex-grow p-4 pt-2 space-y-3">
-        <div className="flex items-center">
-          <TaskStatusBadge status={task.status} />
+      <CardContent className="flex-grow flex flex-col p-4 pt-2">
+        <div className="flex-grow space-y-3">
+          <div className="flex items-start gap-2 text-sm text-muted-foreground">
+            <GitMerge className="h-4 w-4 shrink-0 mt-0.5" />
+            <div className="flex flex-wrap gap-1">
+              {task.repositories.map((repo) => (
+                <Badge variant="secondary" key={repo} className="text-xs">
+                  {repo}
+                </Badge>
+              ))}
+            </div>
+          </div>
+          {azureWorkItemUrl && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <ExternalLink className="h-4 w-4 shrink-0" />
+              <a
+                href={azureWorkItemUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-primary transition-colors line-clamp-1"
+                onClick={handleActionClick}
+              >
+                Azure ID: {task.azureWorkItemId}
+              </a>
+            </div>
+          )}
         </div>
         
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <GitMerge className="h-4 w-4 shrink-0" />
-          <div className="flex flex-wrap gap-1">
-            {task.repositories.map((repo) => (
-              <Badge variant="secondary" key={repo} className="text-xs">
-                {repo}
-              </Badge>
-            ))}
-          </div>
-        </div>
-
-        <div className="pt-1">
+        <div className="mt-4">
           <p className="text-xs font-medium text-muted-foreground mb-1.5">
             Deployments
           </p>
@@ -74,21 +89,6 @@ export function TaskCard({ task, onTaskDelete }: TaskCardProps) {
             size="sm"
           />
         </div>
-
-        {azureWorkItemUrl && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground pt-1">
-            <ExternalLink className="h-4 w-4 shrink-0" />
-            <a
-              href={azureWorkItemUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-primary transition-colors line-clamp-1"
-              onClick={handleActionClick}
-            >
-              Azure ID: {task.azureWorkItemId}
-            </a>
-          </div>
-        )}
       </CardContent>
       <CardFooter className="flex items-center justify-between p-4 border-t">
         <div className="flex items-center gap-2">
@@ -120,7 +120,6 @@ export function TaskCard({ task, onTaskDelete }: TaskCardProps) {
             <div className="text-xs text-muted-foreground italic">No assignees</div>
           )}
         </div>
-
         <div onClick={handleActionClick}>
           <DeleteTaskButton
             taskId={task.id}
