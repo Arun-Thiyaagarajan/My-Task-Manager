@@ -237,6 +237,35 @@ export function addFieldOption(fieldId: string, option: string): boolean {
     return false;
 }
 
+export function renameGroup(oldName: string, newName: string) {
+    const CORE_GROUPS = ['Core Details', 'Assignment & Tracking', 'Dates', 'Advanced'];
+    if (CORE_GROUPS.includes(oldName)) {
+        console.warn("Attempted to rename a core group. This is not allowed.");
+        return;
+    }
+
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    if (activeCompanyId && data.companyData[activeCompanyId]) {
+        const companyData = data.companyData[activeCompanyId];
+
+        if (companyData.adminConfig.groupOrder) {
+            const index = companyData.adminConfig.groupOrder.indexOf(oldName);
+            if (index !== -1) {
+                companyData.adminConfig.groupOrder[index] = newName;
+            }
+        }
+
+        Object.values(companyData.fields).forEach(field => {
+            if (field.group === oldName) {
+                field.group = newName;
+            }
+        });
+        
+        setAppData(data);
+    }
+}
+
 // Task Functions
 export function getTasks(): Task[] {
   const data = getAppData();

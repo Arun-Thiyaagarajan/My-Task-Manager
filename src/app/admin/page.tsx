@@ -2,14 +2,14 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { getAdminConfig, updateAdminConfig, getFields, deleteField } from '@/lib/data';
+import { getAdminConfig, updateAdminConfig, getFields, deleteField, renameGroup } from '@/lib/data';
 import type { AdminConfig, FormField } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, GripVertical, XCircle, PlusCircle, Trash2, Edit, Search } from 'lucide-react';
+import { Loader2, ArrowLeft, GripVertical, XCircle, PlusCircle, Trash2, Edit, Search, Check, X } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import { FieldEditorDialog } from '@/components/field-editor-dialog';
@@ -36,6 +36,8 @@ export default function AdminPage() {
   const [draggedFieldId, setDraggedFieldId] = useState<string | null>(null);
   const [draggedGroupTitle, setDraggedGroupTitle] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [editingGroup, setEditingGroup] = useState<string | null>(null);
+  const [newGroupName, setNewGroupName] = useState('');
   const { toast } = useToast();
 
   const initialLoadComplete = useRef(false);
@@ -187,6 +189,30 @@ export default function AdminPage() {
         description: 'The custom field has been removed.',
     });
   }
+
+  const handleRenameGroup = (oldName: string, newName: string) => {
+    const trimmedNewName = newName.trim();
+    if (!trimmedNewName || oldName === trimmedNewName) {
+      setEditingGroup(null);
+      return;
+    }
+    if (adminConfig?.groupOrder?.includes(trimmedNewName)) {
+      toast({
+        variant: 'destructive',
+        title: 'Group Name Exists',
+        description: `A group named "${trimmedNewName}" already exists.`,
+      });
+      return;
+    }
+    renameGroup(oldName, trimmedNewName);
+    refreshData();
+    setEditingGroup(null);
+    toast({
+      variant: 'success',
+      title: 'Group Renamed',
+      description: `The group "${oldName}" was renamed to "${trimmedNewName}".`,
+    });
+  };
   
   const filteredFields = useMemo(() => {
     if (!searchQuery) return allFields;
@@ -330,6 +356,8 @@ export default function AdminPage() {
                 
                 if (activeFieldsInGroup.length === 0) return null;
 
+                const isCoreGroup = ['Core Details', 'Assignment & Tracking', 'Dates', 'Advanced'].includes(groupInfo.title);
+
                 return (
                     <div 
                         key={groupInfo.title}
@@ -337,16 +365,51 @@ export default function AdminPage() {
                         onDrop={() => handleGroupDrop(groupInfo.title)}
                         className="mb-6 rounded-lg border bg-muted/20"
                     >
-                        <div 
-                            draggable 
-                            onDragStart={(e) => handleGroupDragStart(e, groupInfo.title)}
-                            className="p-4 cursor-grab rounded-t-lg bg-muted/50"
-                        >
-                            <h3 className="text-lg font-semibold flex items-center gap-2">
-                                <GripVertical className="h-5 w-5 text-muted-foreground" />
-                                {groupInfo.title}
-                            </h3>
-                        </div>
+                       {editingGroup === groupInfo.title ? (
+                          <div className="p-4 rounded-t-lg bg-muted/50 flex items-center justify-between gap-4">
+                              <div className="flex items-center gap-2 flex-1">
+                                  <GripVertical className="h-5 w-5 text-muted-foreground shrink-0" />
+                                  <Input 
+                                      value={newGroupName} 
+                                      onChange={e => setNewGroupName(e.target.value)}
+                                      className="h-9"
+                                      onKeyDown={(e) => {
+                                          if (e.key === 'Enter') handleRenameGroup(groupInfo.title, newGroupName);
+                                          if (e.key === 'Escape') setEditingGroup(null);
+                                      }}
+                                      autoFocus
+                                  />
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                  <Button size="icon" className="h-8 w-8" onClick={() => handleRenameGroup(groupInfo.title, newGroupName)}><Check className="h-4 w-4" /></Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingGroup(null)}><X className="h-4 w-4" /></Button>
+                              </div>
+                          </div>
+                      ) : (
+                          <div className="p-4 rounded-t-lg bg-muted/50 flex items-center justify-between">
+                              <div 
+                                  draggable 
+                                  onDragStart={(e) => handleGroupDragStart(e, groupInfo.title)}
+                                  className="flex items-center gap-2 flex-1 cursor-grab"
+                              >
+                                  <GripVertical className="h-5 w-5 text-muted-foreground" />
+                                  <h3 className="text-lg font-semibold">{groupInfo.title}</h3>
+                              </div>
+                              {!isCoreGroup && (
+                                  <Tooltip>
+                                      <TooltipTrigger asChild>
+                                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                                              setEditingGroup(groupInfo.title);
+                                              setNewGroupName(groupInfo.title);
+                                          }}>
+                                              <Edit className="h-4 w-4" />
+                                          </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent><p>Rename Group</p></TooltipContent>
+                                  </Tooltip>
+                              )}
+                          </div>
+                      )}
                         <div className="p-4 pt-2 space-y-2">
                             {activeFieldsInGroup.map(renderFieldCard)}
                         </div>
