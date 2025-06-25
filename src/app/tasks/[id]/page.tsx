@@ -2,12 +2,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getTaskById, getFields } from '@/lib/data';
+import { getTaskById } from '@/lib/data';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, Users, CalendarDays, Loader2, Bug, Paperclip, Link2, FileText, StickyNote } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, Users, CalendarDays, Loader2, Cloud } from 'lucide-react';
 import { TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -18,14 +18,13 @@ import { Badge } from '@/components/ui/badge';
 import { getInitials, getAvatarColor } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
-import type { Task, FormField } from '@/lib/types';
+import type { Task } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
 
 export default function TaskPage() {
   const params = useParams();
   const router = useRouter();
   const [task, setTask] = useState<Task | null>(null);
-  const [allFields, setAllFields] = useState<Record<string, FormField>>({});
   const [isLoading, setIsLoading] = useState(true);
 
   const taskId = params.id as string;
@@ -33,9 +32,7 @@ export default function TaskPage() {
   useEffect(() => {
     if (taskId) {
       const foundTask = getTaskById(taskId);
-      const fields = getFields();
       setTask(foundTask || null);
-      setAllFields(fields);
       setIsLoading(false);
       if (foundTask) {
         document.title = `${foundTask.title} | TaskFlow`;
@@ -47,6 +44,7 @@ export default function TaskPage() {
   
   const handleCommentsUpdate = (newComments: string[]) => {
     if (task) {
+      // In a real app, this would also persist the change
       setTask({ ...task, comments: newComments });
     }
   };
@@ -125,28 +123,23 @@ export default function TaskPage() {
             </CardContent>
           </Card>
 
-          {task.prLinks && (
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <GitMerge className="h-5 w-5" />
-                        Pull Requests
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                   <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} />
-                </CardContent>
-            </Card>
-          )}
+          <Card>
+              <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                      <GitMerge className="h-5 w-5" />
+                      Pull Requests
+                  </CardTitle>
+              </CardHeader>
+              <CardContent>
+                 <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} />
+              </CardContent>
+          </Card>
 
-          {task.comments && (
-             <CommentsSection
-                taskId={task.id}
-                comments={task.comments}
-                onCommentsUpdate={handleCommentsUpdate}
-             />
-          )}
-
+           <CommentsSection
+              taskId={task.id}
+              comments={task.comments || []}
+              onCommentsUpdate={handleCommentsUpdate}
+           />
         </div>
 
         <div className="lg:col-span-1 space-y-6">
@@ -241,19 +234,34 @@ export default function TaskPage() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
-                    {Object.entries({
-                        'Dev Start': task.devStartDate,
-                        'Dev End': task.devEndDate,
-                        'QA Start': task.qaStartDate,
-                        'QA End': task.qaEndDate,
-                    }).map(([label, date]) => (
-                        date ? (
-                            <div key={label} className="flex justify-between">
-                                <span className="text-muted-foreground">{label}</span>
-                                <span>{format(new Date(date), 'PPP')}</span>
-                            </div>
-                        ) : null
-                    ))}
+                    {task.devStartDate && (
+                        <div className="flex justify-between">
+                            <span className="text-muted-foreground">Dev Start</span>
+                            <span>{format(new Date(task.devStartDate), 'PPP')}</span>
+                        </div>
+                    )}
+                    {task.devEndDate && (
+                        <div className="flex justify-between">
+                            <span className="text-muted-foreground">Dev End</span>
+                            <span>{format(new Date(task.devEndDate), 'PPP')}</span>
+                        </div>
+                    )}
+                    {(task.devStartDate || task.devEndDate) && (task.qaStartDate || task.qaEndDate) && <Separator />}
+                    {task.qaStartDate && (
+                        <div className="flex justify-between">
+                            <span className="text-muted-foreground">QA Start</span>
+                            <span>{format(new Date(task.qaStartDate), 'PPP')}</span>
+                        </div>
+                    )}
+                    {task.qaEndDate && (
+                        <div className="flex justify-between">
+                            <span className="text-muted-foreground">QA End</span>
+                            <span>{format(new Date(task.qaEndDate), 'PPP')}</span>
+                        </div>
+                    )}
+                     {!(task.devStartDate || task.devEndDate || task.qaStartDate || task.qaEndDate) && (
+                        <p className="text-muted-foreground text-center text-xs">No dates have been set.</p>
+                     )}
                 </CardContent>
             </Card>
         </div>

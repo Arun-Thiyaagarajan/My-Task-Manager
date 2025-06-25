@@ -22,7 +22,7 @@ import {
   deleteCompany,
 } from '@/lib/data';
 import type { Company } from '@/lib/types';
-import { Building, PlusCircle, Trash2, Edit, Settings } from 'lucide-react';
+import { Building, PlusCircle, Trash2, Edit } from 'lucide-react';
 import { CompaniesManager } from './companies-manager';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -53,7 +53,6 @@ export function Header() {
   useEffect(() => {
     refreshCompanies();
     
-    // Listen for company changes to refresh the list of companies
     window.addEventListener('company-changed', refreshCompanies);
     return () => {
         window.removeEventListener('company-changed', refreshCompanies);
@@ -161,12 +160,6 @@ export function Header() {
               </DropdownMenu>
             )}
             <ThemeToggle />
-            <Button asChild variant="ghost" size="icon">
-              <Link href="/admin">
-                <Settings />
-                <span className="sr-only">Admin Settings</span>
-              </Link>
-            </Button>
           </div>
         </div>
       </header>

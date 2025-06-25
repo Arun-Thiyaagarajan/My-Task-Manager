@@ -1,13 +1,9 @@
 
-import type { Task, Developer, Company, AdminConfig, FormField } from './types';
-import { DEFAULT_ADMIN_CONFIG, MASTER_FORM_FIELDS } from './form-config';
-import { cloneDeep } from 'lodash';
+import type { Task, Developer, Company } from './types';
 
 interface CompanyData {
     tasks: Task[];
     developers: Developer[];
-    adminConfig: AdminConfig;
-    fields: Record<string, FormField>;
 }
 
 interface MyTaskManagerData {
@@ -28,9 +24,7 @@ const getInitialData = (): MyTaskManagerData => {
         companyData: {
             [defaultCompanyId]: {
                 tasks: [],
-                developers: ['Arun'],
-                adminConfig: cloneDeep(DEFAULT_ADMIN_CONFIG),
-                fields: cloneDeep(MASTER_FORM_FIELDS),
+                developers: ['Arun', 'Samantha', 'Rajesh'],
             },
         },
     };
@@ -38,7 +32,7 @@ const getInitialData = (): MyTaskManagerData => {
 
 const getAppData = (): MyTaskManagerData => {
     if (typeof window === 'undefined') {
-        return getInitialData(); // Return initial data for SSR to avoid undefined errors
+        return getInitialData();
     }
     const stored = window.localStorage.getItem(DATA_KEY);
     if (!stored) {
@@ -50,27 +44,6 @@ const getAppData = (): MyTaskManagerData => {
         const data = JSON.parse(stored);
         if (!data.companies || !data.activeCompanyId || !data.companyData) {
             throw new Error("Invalid data structure");
-        }
-        // Migration for older data structures
-        for (const companyId in data.companyData) {
-            if (!data.companyData[companyId].fields) {
-                 data.companyData[companyId].fields = cloneDeep(MASTER_FORM_FIELDS);
-            }
-            if (!data.companyData[companyId].adminConfig) {
-                data.companyData[companyId].adminConfig = cloneDeep(DEFAULT_ADMIN_CONFIG);
-            }
-             const config = data.companyData[companyId].adminConfig;
-            if (config && !config.groupOrder) {
-                config.groupOrder = cloneDeep(DEFAULT_ADMIN_CONFIG.groupOrder);
-            }
-            if (config && config.formLayout) {
-                Object.keys(data.companyData[companyId].fields).forEach(fieldId => {
-                    if(!config.fieldConfig[fieldId]){
-                        config.fieldConfig[fieldId] = { visible: false, required: false };
-                    }
-                    config.fieldConfig[fieldId].visible = config.formLayout.includes(fieldId);
-                });
-            }
         }
         return data;
     } catch (e) {
@@ -98,8 +71,8 @@ export function addCompany(name: string): Company {
     const newCompany: Company = { id: newCompanyId, name };
     
     data.companies.push(newCompany);
-    data.companyData[newCompanyId] = { tasks: [], developers: ['Arun'], adminConfig: cloneDeep(DEFAULT_ADMIN_CONFIG), fields: cloneDeep(MASTER_FORM_FIELDS) };
-    data.activeCompanyId = newCompanyId; // Switch to the new company
+    data.companyData[newCompanyId] = { tasks: [], developers: ['Arun', 'Samantha', 'Rajesh'] };
+    data.activeCompanyId = newCompanyId;
 
     setAppData(data);
     return newCompany;
@@ -117,7 +90,7 @@ export function updateCompany(id: string, name: string): Company | undefined {
 
 export function deleteCompany(id: string): boolean {
     const data = getAppData();
-    if (data.companies.length <= 1) return false; // Cannot delete the last company
+    if (data.companies.length <= 1) return false;
 
     const companyIndex = data.companies.findIndex(c => c.id === id);
     if (companyIndex === -1) return false;
@@ -144,219 +117,6 @@ export function setActiveCompanyId(id: string) {
         setAppData(data);
     }
 }
-
-// Admin Config & Field Functions
-export function getAdminConfig(): AdminConfig {
-    const data = getAppData();
-    const activeCompanyId = data.activeCompanyId;
-    return data.companyData[activeCompanyId]?.adminConfig || cloneDeep(DEFAULT_ADMIN_CONFIG);
-}
-
-export function updateAdminConfig(newConfig: AdminConfig) {
-    const data = getAppData();
-    const activeCompanyId = data.activeCompanyId;
-    if (activeCompanyId && data.companyData[activeCompanyId]) {
-        
-        // First, set visibility for all fields based on the incoming layout
-        Object.keys(data.companyData[activeCompanyId].fields).forEach(fieldId => {
-            if(!newConfig.fieldConfig[fieldId]) {
-                newConfig.fieldConfig[fieldId] = { visible: false, required: false };
-            }
-            newConfig.fieldConfig[fieldId].visible = newConfig.formLayout.includes(fieldId);
-        });
-
-        // Then, enforce the rules for the core fields, overriding any other settings
-        const protectedFields = ['title'];
-        protectedFields.forEach(fieldId => {
-             if (!newConfig.formLayout.includes(fieldId)) {
-                newConfig.formLayout.unshift(fieldId);
-            }
-            if (!newConfig.fieldConfig[fieldId]) {
-                newConfig.fieldConfig[fieldId] = { visible: true, required: true };
-            } else {
-                newConfig.fieldConfig[fieldId].visible = true;
-                newConfig.fieldConfig[fieldId].required = true;
-            }
-        });
-        
-        data.companyData[activeCompanyId].adminConfig = newConfig;
-        setAppData(data);
-    }
-}
-
-export function addField(fieldId: string) {
-    const config = getAdminConfig();
-    if (!config.formLayout.includes(fieldId)) {
-        config.formLayout.push(fieldId);
-        updateAdminConfig(config);
-    }
-}
-
-export function removeField(fieldId: string) {
-    const protectedFields = ['title'];
-    if (protectedFields.includes(fieldId)) return; // Safeguard
-    const config = getAdminConfig();
-    config.formLayout = config.formLayout.filter(id => id !== fieldId);
-    updateAdminConfig(config);
-}
-
-
-export function getFields(): Record<string, FormField> {
-    const data = getAppData();
-    const activeCompanyId = data.activeCompanyId;
-    return data.companyData[activeCompanyId]?.fields || {};
-}
-
-export function saveField(field: FormField, required: boolean, activate: boolean) {
-    const data = getAppData();
-    const activeCompanyId = data.activeCompanyId;
-    if (activeCompanyId && data.companyData[activeCompanyId]) {
-        const companyData = data.companyData[activeCompanyId];
-        companyData.fields[field.id] = field;
-
-        if (!companyData.adminConfig.fieldConfig[field.id]) {
-            companyData.adminConfig.fieldConfig[field.id] = { visible: false, required: false };
-        }
-        companyData.adminConfig.fieldConfig[field.id].required = required;
-        
-        const currentlyActive = companyData.adminConfig.formLayout.includes(field.id);
-        if (activate && !currentlyActive) {
-            companyData.adminConfig.formLayout.push(field.id);
-        } else if (!activate && currentlyActive) {
-            const protectedFields = ['title'];
-            if (!protectedFields.includes(field.id)) {
-                companyData.adminConfig.formLayout = companyData.adminConfig.formLayout.filter(id => id !== field.id);
-            }
-        }
-        
-        // Add new group to groupOrder if it doesn't exist
-        if (field.group && !companyData.adminConfig.groupOrder?.includes(field.group)) {
-            if (!companyData.adminConfig.groupOrder) {
-                companyData.adminConfig.groupOrder = [];
-            }
-            companyData.adminConfig.groupOrder.push(field.group);
-        }
-        
-        if (!field.isCustom) {
-            if (field.type === 'multiselect' || field.type === 'tags') {
-                field.defaultValue = [];
-            } else if (field.type === 'date') {
-                field.defaultValue = null;
-            } else {
-                field.defaultValue = '';
-            }
-        }
-
-        setAppData(data);
-    }
-}
-
-export function deleteField(fieldId: string) {
-    const protectedFields = ['title'];
-    if (protectedFields.includes(fieldId)) {
-        return;
-    }
-    const data = getAppData();
-    const activeCompanyId = data.activeCompanyId;
-    if (data.companyData[activeCompanyId]) {
-        delete data.companyData[activeCompanyId].fields[fieldId];
-        data.companyData[activeCompanyId].adminConfig.formLayout = data.companyData[activeCompanyId].adminConfig.formLayout.filter(id => id !== fieldId);
-        delete data.companyData[activeCompanyId].adminConfig.fieldConfig[fieldId];
-        data.companyData[activeCompanyId].tasks.forEach(task => {
-            delete task[fieldId as keyof Task];
-        });
-        setAppData(data);
-    }
-}
-
-export function addFieldOption(fieldId: string, option: string): boolean {
-    const data = getAppData();
-    const activeCompanyId = data.activeCompanyId;
-    const companyData = data.companyData[activeCompanyId];
-
-    if (companyData && companyData.fields[fieldId]) {
-        const field = companyData.fields[fieldId];
-        if (field.type === 'tags' || field.type === 'multiselect' || field.type === 'select') {
-             if (!field.options) {
-                field.options = [];
-            }
-            if (!field.options.includes(option)) {
-                field.options.push(option);
-                setAppData(data);
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-export function renameGroup(oldName: string, newName: string) {
-    const data = getAppData();
-    const activeCompanyId = data.activeCompanyId;
-    if (activeCompanyId && data.companyData[activeCompanyId]) {
-        const companyData = data.companyData[activeCompanyId];
-
-        if (companyData.adminConfig.groupOrder) {
-            const index = companyData.adminConfig.groupOrder.indexOf(oldName);
-            if (index !== -1) {
-                companyData.adminConfig.groupOrder[index] = newName;
-            }
-        }
-
-        Object.values(companyData.fields).forEach(field => {
-            if (field.group === oldName) {
-                field.group = newName;
-            }
-        });
-        
-        setAppData(data);
-    }
-}
-
-export function moveFieldAndReorder(fieldId: string, targetFieldId: string) {
-    const data = getAppData();
-    const activeCompanyId = data.activeCompanyId;
-    const companyData = data.companyData[activeCompanyId];
-
-    if (!companyData) return;
-
-    const fieldToMove = companyData.fields[fieldId];
-    const targetField = companyData.fields[targetFieldId];
-
-    if (!fieldToMove || !targetField) return;
-
-    // Update group if different
-    if (targetField.group && fieldToMove.group !== targetField.group) {
-        fieldToMove.group = targetField.group;
-    }
-
-    // Update layout
-    const layout = companyData.adminConfig.formLayout;
-    const draggedIndex = layout.indexOf(fieldId);
-    const targetIndex = layout.indexOf(targetFieldId);
-
-    if (draggedIndex !== -1 && targetIndex !== -1) {
-        const [movedItem] = layout.splice(draggedIndex, 1);
-        layout.splice(targetIndex, 0, movedItem);
-    }
-
-    setAppData(data);
-}
-
-export function moveFieldToNewGroup(fieldId: string, newGroup: string) {
-    const data = getAppData();
-    const activeCompanyId = data.activeCompanyId;
-    const companyData = data.companyData[activeCompanyId];
-
-    if (!companyData) return;
-
-    const fieldToMove = companyData.fields[fieldId];
-    if (fieldToMove && fieldToMove.group !== newGroup) {
-        fieldToMove.group = newGroup;
-        setAppData(data);
-    }
-}
-
 
 // Task Functions
 export function getTasks(): Task[] {
@@ -385,7 +145,17 @@ export function addTask(taskData: Partial<Omit<Task, 'id' | 'createdAt' | 'updat
     title: taskData.title || 'Untitled Task',
     description: taskData.description || '',
     status: taskData.status || 'To Do',
-    ...taskData
+    repositories: taskData.repositories || [],
+    developers: taskData.developers || [],
+    azureWorkItemId: taskData.azureWorkItemId || '',
+    deploymentStatus: taskData.deploymentStatus || {},
+    othersEnvironmentName: taskData.othersEnvironmentName || '',
+    prLinks: taskData.prLinks || {},
+    devStartDate: taskData.devStartDate || null,
+    devEndDate: taskData.devEndDate || null,
+    qaStartDate: taskData.qaStartDate || null,
+    qaEndDate: taskData.qaEndDate || null,
+    comments: [],
   };
   
   data.companyData[activeCompanyId].tasks = [newTask, ...companyTasks];

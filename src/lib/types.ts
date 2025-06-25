@@ -25,9 +25,6 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   
-  // Optional fields managed by admin config
-  comments?: string[];
-  attachments?: Attachment[];
   repositories?: Repository[];
   azureWorkItemId?: string;
   prLinks?: {
@@ -38,44 +35,10 @@ export interface Task {
   };
   othersEnvironmentName?: string;
   developers?: Developer[];
-  qaIssueIds?: string;
-  devStartDate?: string;
-  devEndDate?: string;
-  qaStartDate?: string;
-  qaEndDate?: string;
-  stageDate?: string;
-  productionDate?: string;
-  othersDate?: string;
-
-  // For custom fields
-  [key: string]: any;
-}
-
-// Types for Dynamic Form Configuration
-export type FieldType = 'text' | 'textarea' | 'select' | 'multiselect' | 'date' | 'tags';
-
-export interface FormField {
-  id: string;
-  label: string;
-  type: FieldType;
-  group?: string;
-  options?: string[];
-  placeholder?: string;
-  description?: string;
-  defaultValue?: any;
-  disablePastDatesFrom?: string;
-  icon: string;
-  isCustom?: boolean;
-  isCore?: boolean;
-}
-
-export interface FormFieldConfig {
-  visible: boolean;
-  required: boolean;
-}
-
-export interface AdminConfig {
-  formLayout: string[]; // Array of field IDs to determine order
-  fieldConfig: Record<string, FormFieldConfig>; // Config for each field
-  groupOrder?: string[];
+  comments?: string[];
+  
+  devStartDate?: string | null;
+  devEndDate?: string | null;
+  qaStartDate?: string | null;
+  qaEndDate?: string | null;
 }

@@ -3,12 +3,12 @@
 
 import { useState, useEffect } from 'react';
 import { TaskForm } from '@/components/task-form';
-import { addTask, getDevelopers, addDeveloper, getAdminConfig, getFields } from '@/lib/data';
+import { addTask, getDevelopers, addDeveloper } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import type { AdminConfig, Task, FormField } from '@/lib/types';
-import { buildTaskSchema } from '@/lib/validators';
+import type { Task } from '@/lib/types';
+import { taskSchema } from '@/lib/validators';
 import { Loader2 } from 'lucide-react';
 
 
@@ -16,23 +16,15 @@ export default function NewTaskPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [developersList, setDevelopersList] = useState<string[]>([]);
-  const [adminConfig, setAdminConfig] = useState<AdminConfig | null>(null);
-  const [allFields, setAllFields] = useState<Record<string, FormField> | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
     document.title = 'New Task | TaskFlow';
-    const config = getAdminConfig();
-    const fields = getFields();
-    
     setDevelopersList(getDevelopers());
-    setAdminConfig(config);
-    setAllFields(fields);
+    setIsLoading(false);
   }, []);
 
   const handleCreateTask = (data: any) => {
-    if (!adminConfig || !allFields) return;
-
-    const taskSchema = buildTaskSchema(adminConfig, allFields);
     const validationResult = taskSchema.safeParse(data);
 
     if (!validationResult.success) {
@@ -60,7 +52,7 @@ export default function NewTaskPage() {
             const value = validationResult.data[key as keyof typeof validationResult.data];
             if (value instanceof Date) {
                  (taskDataToCreate as any)[key] = value.toISOString();
-            } else if (value !== undefined && value !== null) {
+            } else if (value !== undefined && value !== null && value !== '') {
                  (taskDataToCreate as any)[key] = value;
             }
         }
@@ -77,7 +69,7 @@ export default function NewTaskPage() {
     router.push(`/`);
   };
 
-  if (!adminConfig || !allFields) {
+  if (isLoading) {
     return (
        <div className="flex flex-1 items-center justify-center">
         <div className="flex flex-col items-center gap-4 text-center">
@@ -99,8 +91,6 @@ export default function NewTaskPage() {
             onSubmit={handleCreateTask}
             submitButtonText="Create Task"
             developersList={developersList}
-            adminConfig={adminConfig}
-            allFields={allFields}
           />
         </CardContent>
       </Card>
