@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { TaskStatusBadge } from '@/components/task-status-badge';
 import { ArrowRight } from 'lucide-react';
 import type { Task } from '@/lib/types';
+import { EnvironmentStatus } from './environment-status';
 
 interface TasksTableProps {
   tasks: Task[];
@@ -22,9 +23,10 @@ export function TasksTable({ tasks }: TasksTableProps) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[50%]">Title</TableHead>
+            <TableHead className="w-[40%]">Title</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Repository</TableHead>
+            <TableHead>Deployments</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -40,6 +42,9 @@ export function TasksTable({ tasks }: TasksTableProps) {
                 <TaskStatusBadge status={task.status} />
               </TableCell>
               <TableCell>{task.repository}</TableCell>
+              <TableCell>
+                <EnvironmentStatus prLinks={task.prLinks} size="sm" />
+              </TableCell>
               <TableCell className="text-right">
                 <Button asChild variant="ghost" size="sm">
                   <Link href={`/tasks/${task.id}`}>

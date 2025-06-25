@@ -10,6 +10,7 @@ import {
 import { Button } from './ui/button';
 import { TaskStatusBadge } from './task-status-badge';
 import { GitMerge, ExternalLink } from 'lucide-react';
+import { EnvironmentStatus } from './environment-status';
 
 interface TaskCardProps {
   task: Task;
@@ -27,7 +28,7 @@ export function TaskCard({ task }: TaskCardProps) {
           </CardTitle>
         </div>
       </CardHeader>
-      <CardContent className="flex-grow space-y-3">
+      <CardContent className="flex-grow space-y-4">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
            <TaskStatusBadge status={task.status} />
         </div>
@@ -35,6 +36,12 @@ export function TaskCard({ task }: TaskCardProps) {
           <GitMerge className="h-4 w-4 shrink-0" />
           <span>{task.repository}</span>
         </div>
+        
+        <div>
+            <p className="text-xs font-medium text-muted-foreground mb-2">Deployments</p>
+            <EnvironmentStatus prLinks={task.prLinks} size="sm" />
+        </div>
+
         {task.azureId && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <ExternalLink className="h-4 w-4 shrink-0" />
