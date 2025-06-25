@@ -61,13 +61,8 @@ export default function AdminPage() {
   const adminConfigString = useMemo(() => JSON.stringify(adminConfig), [adminConfig]);
 
   useEffect(() => {
-    if (isLoading) {
-      return; // Don't save while initial data is loading
-    }
-
-    if (!initialLoadComplete.current) {
-      initialLoadComplete.current = true;
-      return;
+    if (isLoading || !initialLoadComplete.current) {
+        return;
     }
 
     setIsSaving(true);
@@ -85,6 +80,15 @@ export default function AdminPage() {
 
     return () => clearTimeout(handler);
   }, [adminConfigString, isLoading]);
+  
+  useEffect(() => {
+      if (!isLoading) {
+          const timer = setTimeout(() => {
+            initialLoadComplete.current = true;
+          }, 500);
+          return () => clearTimeout(timer);
+      }
+  }, [isLoading]);
 
 
   const handleToggleRequired = (fieldId: string) => {
