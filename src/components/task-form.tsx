@@ -58,6 +58,7 @@ const getInitialTaskData = (task?: Task) => {
             prLinks: {},
             deploymentStatus: {},
             attachments: [],
+            deploymentUpdate: '',
         };
     }
     
@@ -68,6 +69,7 @@ const getInitialTaskData = (task?: Task) => {
         qaStartDate: task.qaStartDate ? new Date(task.qaStartDate) : undefined,
         qaEndDate: task.qaEndDate ? new Date(task.qaEndDate) : undefined,
         attachments: task.attachments || [],
+        deploymentUpdate: task.deploymentUpdate || '',
     }
 }
 
@@ -101,6 +103,8 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
   };
 
   const selectedRepos = form.watch('repositories') || [];
+  const deploymentStatus = form.watch('deploymentStatus');
+  const showDeploymentUpdate = deploymentStatus?.stage || deploymentStatus?.production || deploymentStatus?.others;
 
   return (
     <Form {...form}>
@@ -352,6 +356,22 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                             <FormControl>
                                 <Input placeholder="e.g. UAT" {...field} />
                             </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                )}
+                {showDeploymentUpdate && (
+                     <FormField
+                        control={form.control}
+                        name="deploymentUpdate"
+                        render={({ field }) => (
+                            <FormItem className="mt-4">
+                            <FormLabel>Deployment Update *</FormLabel>
+                            <FormControl>
+                                <Textarea placeholder="Provide a brief update on the deployment status for Stage/Production/Others..." {...field} />
+                            </FormControl>
+                            <FormDescription>This update is required for higher environments.</FormDescription>
                             <FormMessage />
                             </FormItem>
                         )}

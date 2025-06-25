@@ -26,6 +26,7 @@ export const taskSchema = z.object({
     others: z.boolean().optional(),
   }).optional(),
   othersEnvironmentName: z.string().optional(),
+  deploymentUpdate: z.string().optional(),
   
   prLinks: z.object({
       dev: prLinkSchema.optional(),
@@ -74,4 +75,16 @@ export const taskSchema = z.object({
           message: 'QA end date must be on or after the start date.',
           path: ['qaEndDate'],
       }
-    );
+).refine(
+  (data) => {
+    const needsUpdate = data.deploymentStatus?.stage || data.deploymentStatus?.production || data.deploymentStatus?.others;
+    if (needsUpdate && !data.deploymentUpdate?.trim()) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: 'An update is required when deploying to Stage, Production, or Others.',
+    path: ['deploymentUpdate'],
+  }
+);

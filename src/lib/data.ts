@@ -150,6 +150,7 @@ export function addTask(taskData: Partial<Omit<Task, 'id' | 'createdAt' | 'updat
     azureWorkItemId: taskData.azureWorkItemId || '',
     deploymentStatus: taskData.deploymentStatus || {},
     othersEnvironmentName: taskData.othersEnvironmentName || '',
+    deploymentUpdate: taskData.deploymentUpdate || '',
     prLinks: taskData.prLinks || {},
     devStartDate: taskData.devStartDate || null,
     devEndDate: taskData.devEndDate || null,

@@ -250,8 +250,17 @@ export default function TaskPage() {
                         Deployments
                     </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
                    <EnvironmentStatus deploymentStatus={task.deploymentStatus} othersEnvironmentName={task.othersEnvironmentName} />
+                   {task.deploymentUpdate && (
+                     <>
+                      <Separator/>
+                      <div>
+                        <h4 className="text-sm font-medium text-muted-foreground mb-1">Deployment Update</h4>
+                        <p className="text-sm text-foreground/80 whitespace-pre-wrap">{task.deploymentUpdate}</p>
+                      </div>
+                     </>
+                   )}
                 </CardContent>
             </Card>
 
