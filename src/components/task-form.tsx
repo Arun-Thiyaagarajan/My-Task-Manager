@@ -116,7 +116,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
           name="title"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Title</FormLabel>
+              <FormLabel>Title <span className="text-destructive">*</span></FormLabel>
               <FormControl>
                 <Input placeholder="E.g. Fix login button" {...field} />
               </FormControl>
@@ -130,7 +130,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Description</FormLabel>
+              <FormLabel>Description <span className="text-destructive">*</span></FormLabel>
               <FormControl>
                 <Textarea
                   placeholder="Describe the task in detail..."
@@ -149,7 +149,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
             name="status"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Status</FormLabel>
+                <FormLabel>Status <span className="text-destructive">*</span></FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
@@ -203,7 +203,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
             name="repositories"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Repositories</FormLabel>
+                <FormLabel>Repositories <span className="text-destructive">*</span></FormLabel>
                 <FormControl>
                     <MultiSelect
                         selected={field.value ?? []}
@@ -263,7 +263,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                                 name={`attachments.${index}.name`}
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Name</FormLabel>
+                                        <FormLabel>Name <span className="text-destructive">*</span></FormLabel>
                                         <FormControl>
                                             <Input placeholder="e.g. Design Mockup" {...field} />
                                         </FormControl>
@@ -276,7 +276,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                                 name={`attachments.${index}.url`}
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>URL</FormLabel>
+                                        <FormLabel>URL <span className="text-destructive">*</span></FormLabel>
                                         <FormControl>
                                             <Input placeholder="https://..." {...field} />
                                         </FormControl>
@@ -289,7 +289,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                                 name={`attachments.${index}.type`}
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Type</FormLabel>
+                                        <FormLabel>Type <span className="text-destructive">*</span></FormLabel>
                                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                                             <FormControl>
                                                 <SelectTrigger>
@@ -642,7 +642,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                                     name="othersEnvironmentName"
                                     render={({ field }) => (
                                         <FormItem>
-                                        <FormLabel>Environment Name</FormLabel>
+                                        <FormLabel>Environment Name <span className="text-destructive">*</span></FormLabel>
                                         <FormControl>
                                             <Input placeholder="e.g. UAT, Demo" {...field} />
                                         </FormControl>
