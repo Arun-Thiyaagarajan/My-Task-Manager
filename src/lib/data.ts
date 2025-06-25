@@ -176,13 +176,29 @@ export function updateAdminConfig(newConfig: AdminConfig) {
     }
 }
 
+export function addField(fieldId: string) {
+    const config = getAdminConfig();
+    if (!config.formLayout.includes(fieldId)) {
+        config.formLayout.push(fieldId);
+        updateAdminConfig(config);
+    }
+}
+
+export function removeField(fieldId: string) {
+    if (fieldId === 'title') return; // Safeguard
+    const config = getAdminConfig();
+    config.formLayout = config.formLayout.filter(id => id !== fieldId);
+    updateAdminConfig(config);
+}
+
+
 export function getFields(): Record<string, FormField> {
     const data = getAppData();
     const activeCompanyId = data.activeCompanyId;
     return data.companyData[activeCompanyId]?.fields || {};
 }
 
-export function saveField(field: FormField, required: boolean) {
+export function saveField(field: FormField, required: boolean, activate: boolean) {
     const data = getAppData();
     const activeCompanyId = data.activeCompanyId;
     if (activeCompanyId && data.companyData[activeCompanyId]) {
@@ -193,6 +209,13 @@ export function saveField(field: FormField, required: boolean) {
             companyData.adminConfig.fieldConfig[field.id] = { visible: false, required: false };
         }
         companyData.adminConfig.fieldConfig[field.id].required = required;
+        
+        const currentlyActive = companyData.adminConfig.formLayout.includes(field.id);
+        if (activate && !currentlyActive) {
+            companyData.adminConfig.formLayout.push(field.id);
+        } else if (!activate && currentlyActive && field.id !== 'title') {
+            companyData.adminConfig.formLayout = companyData.adminConfig.formLayout.filter(id => id !== field.id);
+        }
         
         // Add new group to groupOrder if it doesn't exist
         if (field.group && !companyData.adminConfig.groupOrder?.includes(field.group)) {
