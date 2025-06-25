@@ -15,7 +15,6 @@ import { DeleteTaskButton } from '@/components/delete-task-button';
 import { PrLinksGroup } from '@/components/pr-links-group';
 import { Badge } from '@/components/ui/badge';
 import { getInitials, getAvatarColor, cn } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 import type { Task } from '@/lib/types';
@@ -173,27 +172,21 @@ export default function TaskPage() {
                     <div>
                         <h4 className="text-sm font-semibold text-muted-foreground mb-2">Assigned Developers</h4>
                          {task.developers && task.developers.length > 0 ? (
-                            <div className="flex flex-wrap gap-2">
-                                <TooltipProvider>
+                            <ul className="space-y-2">
                                 {task.developers.map(dev => (
-                                    <Tooltip key={dev}>
-                                        <TooltipTrigger>
-                                            <Avatar>
-                                                <AvatarFallback
-                                                    className="font-semibold text-white"
-                                                    style={{ backgroundColor: `#${getAvatarColor(dev)}` }}
-                                                >
-                                                    {getInitials(dev)}
-                                                </AvatarFallback>
-                                            </Avatar>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>{dev}</p>
-                                        </TooltipContent>
-                                    </Tooltip>
+                                    <li key={dev} className="flex items-center gap-2.5">
+                                        <Avatar className="h-7 w-7">
+                                            <AvatarFallback
+                                                className="font-semibold text-white text-[10px]"
+                                                style={{ backgroundColor: `#${getAvatarColor(dev)}` }}
+                                            >
+                                                {getInitials(dev)}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <span className="text-sm font-medium text-foreground">{dev}</span>
+                                    </li>
                                 ))}
-                                </TooltipProvider>
-                            </div>
+                            </ul>
                         ) : (
                             <p className="text-sm text-muted-foreground">No developers assigned.</p>
                         )}
