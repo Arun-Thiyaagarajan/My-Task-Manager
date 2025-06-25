@@ -55,6 +55,17 @@ export default function Home() {
     return statusMatch && repoMatch && searchMatch;
   });
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <p className="text-lg font-semibold text-muted-foreground">Loading tasks...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
@@ -136,11 +147,7 @@ export default function Home() {
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="flex justify-center items-center py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      ) : filteredTasks.length > 0 ? (
+      {filteredTasks.length > 0 ? (
         viewMode === 'grid' ? (
           <TasksGrid tasks={filteredTasks} onTaskDelete={refreshTasks} />
         ) : (

@@ -9,7 +9,7 @@ import type { z } from 'zod';
 import { taskSchema } from '@/lib/validators';
 import type { Task, Environment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 type TaskFormData = z.infer<typeof taskSchema>;
@@ -96,18 +96,26 @@ export default function EditTaskPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8 flex justify-center items-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex flex-1 items-center justify-center">
+        <div className="flex flex-col items-center gap-4 text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <p className="text-lg font-semibold text-muted-foreground">Loading task...</p>
+        </div>
       </div>
     );
   }
 
   if (!task) {
     return (
-      <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <h1 className="text-2xl font-bold">Task not found</h1>
-        <p className="text-muted-foreground">The task you are looking for does not exist.</p>
-        <Button onClick={() => router.push('/')} className="mt-4">Go to Home</Button>
+      <div className="flex flex-1 items-center justify-center">
+         <div className="text-center space-y-4">
+            <h1 className="text-2xl font-bold">Task not found</h1>
+            <p className="text-muted-foreground">The task you are looking for does not exist.</p>
+            <Button onClick={() => router.push('/')} className="mt-4">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Go to Home
+            </Button>
+        </div>
       </div>
     );
   }
