@@ -39,7 +39,7 @@ import * as React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { ScrollArea, ScrollBar } from './ui/scroll-area';
 import { ENVIRONMENTS } from '@/lib/constants';
-import { Card, CardContent } from './ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 
 
 type TaskFormData = z.infer<ReturnType<typeof buildTaskSchema>>;
