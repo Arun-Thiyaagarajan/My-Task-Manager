@@ -144,7 +144,7 @@ export default function TaskPage() {
                         </a>
                     </div>
                   )}
-                  {task.qaIssueIds && (
+                  {task.qaIssueIds && typeof task.qaIssueIds === 'string' && (
                     <div className="flex items-start gap-2">
                       <Bug className="h-4 w-4 text-muted-foreground mt-1" />
                        <div className="flex flex-wrap gap-1">

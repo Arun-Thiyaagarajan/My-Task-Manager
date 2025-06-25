@@ -159,7 +159,7 @@ export function addTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 
     prLinks: taskData.prLinks ?? {},
     deploymentStatus: taskData.deploymentStatus ?? {},
     developers: taskData.developers ?? [],
-    qaIssueIds: taskData.qaIssueIds ?? [],
+    qaIssueIds: taskData.qaIssueIds ?? '',
   };
   
   data.companyData[activeCompanyId].tasks = [newTask, ...companyTasks];
