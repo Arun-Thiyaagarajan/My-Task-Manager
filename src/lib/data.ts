@@ -17,7 +17,8 @@ interface MyTaskManagerData {
 const DATA_KEY = 'my_task_manager_data';
 
 const getInitialData = (): MyTaskManagerData => {
-    const defaultCompanyId = `company-${Date.now()}`;
+    const randomSuffix = Math.random().toString(36).slice(2);
+    const defaultCompanyId = `company-${Date.now()}-${randomSuffix}`;
     return {
         companies: [{ id: defaultCompanyId, name: 'Default Company' }],
         activeCompanyId: defaultCompanyId,
@@ -67,7 +68,8 @@ export function getCompanies(): Company[] {
 
 export function addCompany(name: string): Company {
     const data = getAppData();
-    const newCompanyId = `company-${Date.now()}`;
+    const randomSuffix = Math.random().toString(36).slice(2);
+    const newCompanyId = `company-${Date.now()}-${randomSuffix}`;
     const newCompany: Company = { id: newCompanyId, name };
     
     data.companies.push(newCompany);
@@ -138,8 +140,9 @@ export function addTask(taskData: Partial<Omit<Task, 'id' | 'createdAt' | 'updat
   const companyTasks = data.companyData[activeCompanyId]?.tasks || [];
 
   const now = new Date().toISOString();
+  const randomSuffix = Math.random().toString(36).slice(2);
   const newTask: Task = {
-    id: `task-${Date.now()}`,
+    id: `task-${Date.now()}-${randomSuffix}`,
     createdAt: now,
     updatedAt: now,
     title: taskData.title || 'Untitled Task',
