@@ -19,26 +19,10 @@ export const taskSchema = z.object({
   developers: z.array(z.string()).optional(),
   azureWorkItemId: z.string().regex(/^\d*$/, { message: "Please enter a valid work item ID." }).optional().or(z.literal('')),
   
-  deploymentStatus: z.object({
-    dev: z.boolean().optional(),
-    stage: z.boolean().optional(),
-    production: z.boolean().optional(),
-    others: z.boolean().optional(),
-  }).optional(),
-  othersEnvironmentName: z.string().optional(),
-  deploymentDates: z.object({
-    dev: z.coerce.date().optional().nullable(),
-    stage: z.coerce.date().optional().nullable(),
-    production: z.coerce.date().optional().nullable(),
-    others: z.coerce.date().optional().nullable(),
-  }).optional(),
+  deploymentStatus: z.record(z.string(), z.boolean().optional()).optional(),
+  deploymentDates: z.record(z.string(), z.coerce.date().optional().nullable()).optional(),
   
-  prLinks: z.object({
-      dev: prLinkSchema.optional(),
-      stage: prLinkSchema.optional(),
-      production: prLinkSchema.optional(),
-      others: prLinkSchema.optional(),
-  }).optional(),
+  prLinks: z.record(z.string(), prLinkSchema.optional()).optional(),
 
   attachments: z.array(attachmentSchema).optional(),
   
@@ -48,17 +32,6 @@ export const taskSchema = z.object({
   qaEndDate: z.coerce.date().optional().nullable(),
 
 }).refine(
-  (data) => {
-    if (data.deploymentStatus?.others && !data.othersEnvironmentName?.trim()) {
-      return false;
-    }
-    return true;
-  },
-  {
-    message: 'Please provide a name for the "others" environment when selected.',
-    path: ['othersEnvironmentName'],
-  }
-).refine(
     (data) => {
       if (data.devStartDate && data.devEndDate) {
         return data.devEndDate >= data.devStartDate;
@@ -81,12 +54,19 @@ export const taskSchema = z.object({
           path: ['qaEndDate'],
       }
 ).refine(
-    (data) => !(data.deploymentStatus?.stage && !data.deploymentDates?.stage),
-    { message: 'Stage deployment date is required.', path: ['deploymentDates.stage'] }
-).refine(
-    (data) => !(data.deploymentStatus?.production && !data.deploymentDates?.production),
-    { message: 'Production deployment date is required.', path: ['deploymentDates.production'] }
-).refine(
-    (data) => !(data.deploymentStatus?.others && !data.deploymentDates?.others),
-    { message: 'Others deployment date is required.', path: ['deploymentDates.others'] }
+    (data) => {
+      if (!data.deploymentStatus || !data.deploymentDates) return true;
+      
+      const deployedWithoutDate = Object.keys(data.deploymentStatus).find(env => 
+          env !== 'dev' &&
+          data.deploymentStatus?.[env] === true &&
+          !data.deploymentDates?.[env]
+      );
+      
+      return !deployedWithoutDate;
+    },
+    { 
+        message: 'Each deployed environment (except dev) must have a deployment date.',
+        path: ['deploymentDates'],
+    }
 );

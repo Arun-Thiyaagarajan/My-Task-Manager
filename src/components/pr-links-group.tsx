@@ -4,7 +4,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { GitPullRequest } from 'lucide-react';
 import type { Task, Repository } from '@/lib/types';
-import { ENVIRONMENTS } from '@/lib/constants';
 import { Badge } from './ui/badge';
 import { ScrollArea, ScrollBar } from './ui/scroll-area';
 
@@ -16,13 +15,22 @@ interface PrLinksGroupProps {
 export function PrLinksGroup({ prLinks, repositories }: PrLinksGroupProps) {
   const baseUrl = 'https://dev.azure.com/ideaelan/Infinity/_git/';
 
-  // Use all repositories assigned to the task for the tabs
   const displayRepos = repositories?.filter(repo => repo !== 'Other') || [];
 
   if (!displayRepos || displayRepos.length === 0) {
     return (
       <p className="text-muted-foreground text-sm py-4 text-center">
         No repositories are assigned to this task.
+      </p>
+    );
+  }
+
+  const allEnvs = Object.keys(prLinks || {}).sort();
+  
+  if (allEnvs.length === 0) {
+     return (
+      <p className="text-muted-foreground text-sm py-4 text-center">
+        No pull request links have been added.
       </p>
     );
   }
@@ -40,8 +48,7 @@ export function PrLinksGroup({ prLinks, repositories }: PrLinksGroupProps) {
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
       {displayRepos.map((repo) => {
-        // Find if this specific repo has any links to show
-        const linksForRepo = ENVIRONMENTS.map(env => {
+        const linksForRepo = allEnvs.map(env => {
             const prIdString = prLinks?.[env]?.[repo] || '';
             const prIds = prIdString
                 .split(',')
@@ -54,7 +61,7 @@ export function PrLinksGroup({ prLinks, repositories }: PrLinksGroupProps) {
                 env,
                 prIds
             };
-        }).filter((item): item is { env: typeof ENVIRONMENTS[number], prIds: string[] } => !!item);
+        }).filter((item): item is { env: string, prIds: string[] } => !!item);
 
         return (
             <TabsContent key={repo} value={repo}>

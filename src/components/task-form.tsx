@@ -5,7 +5,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
 import { taskSchema } from '@/lib/validators';
-import type { Task, Environment } from '@/lib/types';
+import type { Task } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -25,9 +25,9 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Loader2, CalendarIcon, GitPullRequest, Trash2, Paperclip } from 'lucide-react';
+import { Loader2, CalendarIcon, GitPullRequest, Trash2, Paperclip, PlusCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useTransition, useEffect } from 'react';
+import { useTransition, useEffect, useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
@@ -41,13 +41,13 @@ import { TASK_STATUSES, REPOSITORIES, ENVIRONMENTS } from '@/lib/constants';
 type TaskFormData = z.infer<typeof taskSchema>;
 
 interface TaskFormProps {
-  task?: Task;
+  task?: Partial<Task>;
   onSubmit: (data: TaskFormData) => void;
   submitButtonText: string;
   developersList: string[];
 }
 
-const getInitialTaskData = (task?: Task) => {
+const getInitialTaskData = (task?: Partial<Task>) => {
     if (!task) {
         return {
             title: '',
@@ -62,18 +62,24 @@ const getInitialTaskData = (task?: Task) => {
         };
     }
     
+    // Ensure deployment dates are Date objects if they exist
+    const deploymentDatesAsDates: { [key: string]: Date | undefined } = {};
+    if (task.deploymentDates) {
+        for (const key in task.deploymentDates) {
+            const dateVal = task.deploymentDates[key];
+            if(dateVal) {
+                deploymentDatesAsDates[key] = new Date(dateVal);
+            }
+        }
+    }
+    
     return {
         ...task,
         devStartDate: task.devStartDate ? new Date(task.devStartDate) : undefined,
         devEndDate: task.devEndDate ? new Date(task.devEndDate) : undefined,
         qaStartDate: task.qaStartDate ? new Date(task.qaStartDate) : undefined,
         qaEndDate: task.qaEndDate ? new Date(task.qaEndDate) : undefined,
-        deploymentDates: {
-            dev: task.deploymentDates?.dev ? new Date(task.deploymentDates.dev) : undefined,
-            stage: task.deploymentDates?.stage ? new Date(task.deploymentDates.stage) : undefined,
-            production: task.deploymentDates?.production ? new Date(task.deploymentDates.production) : undefined,
-            others: task.deploymentDates?.others ? new Date(task.deploymentDates.others) : undefined,
-        },
+        deploymentDates: deploymentDatesAsDates,
         attachments: task.attachments || [],
     }
 }
@@ -81,6 +87,9 @@ const getInitialTaskData = (task?: Task) => {
 export function TaskForm({ task, onSubmit, submitButtonText, developersList }: TaskFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  
+  const [customEnvironments, setCustomEnvironments] = useState<string[]>([]);
+  const [newEnvName, setNewEnvName] = useState('');
 
   const form = useForm<TaskFormData>({
     resolver: zodResolver(taskSchema),
@@ -91,14 +100,17 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
     control: form.control,
     name: 'attachments',
   });
-
+  
   useEffect(() => {
-    form.reset(getInitialTaskData(task));
+    const defaultValues = getInitialTaskData(task);
+    form.reset(defaultValues);
+    const allEnvs = Object.keys(defaultValues.deploymentStatus || {});
+    const custom = allEnvs.filter(env => !ENVIRONMENTS.includes(env as any));
+    setCustomEnvironments(custom);
   }, [task, form]);
 
   const handleCreateDeveloper = (name: string) => {
     addDeveloper(name);
-    // Note: In a real app, you might want to refresh the developersList state
   };
 
   const handleFormSubmit = (data: TaskFormData) => {
@@ -106,9 +118,25 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
         onSubmit(data);
     });
   };
+  
+  const handleAddCustomEnv = () => {
+    const trimmedName = newEnvName.trim();
+    if (trimmedName && !ENVIRONMENTS.includes(trimmedName as any) && !customEnvironments.includes(trimmedName)) {
+        setCustomEnvironments([...customEnvironments, trimmedName]);
+        setNewEnvName('');
+    }
+  }
+
+  const handleRemoveCustomEnv = (envToRemove: string) => {
+    setCustomEnvironments(customEnvironments.filter(env => env !== envToRemove));
+    form.unregister(`deploymentStatus.${envToRemove}`);
+    form.unregister(`deploymentDates.${envToRemove}`);
+    form.unregister(`prLinks.${envToRemove}`);
+  };
 
   const selectedRepos = form.watch('repositories') || [];
-  const deploymentStatus = form.watch('deploymentStatus');
+  const deploymentStatus = form.watch('deploymentStatus') || {};
+  const allEnvs = [...ENVIRONMENTS, ...customEnvironments];
 
   const dateFields = [
     { name: 'devStartDate', label: 'Dev Start Date'},
@@ -117,12 +145,12 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
     { name: 'qaEndDate', label: 'QA End Date'},
   ] as const;
 
-  const deploymentDateFields = [
-    { name: 'deploymentDates.stage', label: 'Stage Deployment Date', condition: deploymentStatus?.stage },
-    { name: 'deploymentDates.production', label: 'Production Deployment Date', condition: deploymentStatus?.production },
-    { name: 'deploymentDates.others', label: 'Others Deployment Date', condition: deploymentStatus?.others },
-  ] as const;
-
+  const deploymentDateFields = allEnvs
+    .filter(env => env !== 'dev' && deploymentStatus[env])
+    .map(env => ({
+      name: `deploymentDates.${env}`,
+      label: `${env.charAt(0).toUpperCase() + env.slice(1)} Deployment Date`,
+    })) as { name: `deploymentDates.${string}`; label: string }[];
 
   return (
     <Form {...form}>
@@ -251,7 +279,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                 <CardTitle>Pull Request Links</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-               {selectedRepos.length > 0 ? ENVIRONMENTS.map(env => (
+               {selectedRepos.length > 0 ? allEnvs.map(env => (
                    <div key={env}>
                        <h4 className="font-medium text-sm capitalize mb-2">{env} PRs</h4>
                         <div className="space-y-2">
@@ -341,8 +369,8 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
             <CardHeader>
                 <CardTitle>Deployment Status</CardTitle>
             </CardHeader>
-            <CardContent>
-                <div className="space-y-4">
+            <CardContent className="space-y-4">
+                <div className="space-y-3">
                     {ENVIRONMENTS.map(env => (
                         <FormField
                             key={env}
@@ -364,22 +392,42 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                             )}
                         />
                     ))}
+                    {customEnvironments.map((env) => (
+                        <FormField
+                            key={env}
+                            control={form.control}
+                            name={`deploymentStatus.${env}`}
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                                    <FormControl>
+                                        <Checkbox
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                            id={`deploy-check-${env}`}
+                                        />
+                                    </FormControl>
+                                    <FormLabel htmlFor={`deploy-check-${env}`} className="capitalize font-normal flex-1">
+                                        {env}
+                                    </FormLabel>
+                                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRemoveCustomEnv(env)}>
+                                        <Trash2 className="h-4 w-4 text-destructive"/>
+                                    </Button>
+                                </FormItem>
+                            )}
+                        />
+                    ))}
                 </div>
-                 {form.watch('deploymentStatus.others') && (
-                    <FormField
-                        control={form.control}
-                        name="othersEnvironmentName"
-                        render={({ field }) => (
-                            <FormItem className="mt-4">
-                            <FormLabel>Other Environment Name</FormLabel>
-                            <FormControl>
-                                <Input placeholder="e.g. UAT" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                            </FormItem>
-                        )}
+                 <div className="flex items-center gap-2 pt-4 border-t mt-4">
+                    <Input 
+                        placeholder="New environment name..." 
+                        value={newEnvName}
+                        onChange={(e) => setNewEnvName(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddCustomEnv(); }}}
                     />
-                )}
+                    <Button type="button" onClick={handleAddCustomEnv}>
+                        <PlusCircle className="mr-2 h-4 w-4"/> Add
+                    </Button>
+                </div>
             </CardContent>
         </Card>
 
@@ -407,7 +455,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                                                     !field.value && "text-muted-foreground"
                                                 )}
                                                 >
-                                                {field.value ? format(field.value, "PPP") : (
+                                                {field.value ? format(field.value as Date, "PPP") : (
                                                     <span>Pick a date</span>
                                                 )}
                                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
@@ -417,7 +465,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                                         <PopoverContent className="w-auto p-0" align="start">
                                             <Calendar
                                                 mode="single"
-                                                selected={field.value as Date}
+                                                selected={field.value as Date | undefined}
                                                 onSelect={field.onChange}
                                                 initialFocus
                                             />
@@ -430,13 +478,14 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                     ))}
                 </div>
                 
-                {deploymentDateFields.some(f => f.condition) && (
+                {deploymentDateFields.length > 0 && (
                     <>
                         <div className="pt-4 mt-4 border-t">
                             <h4 className="text-sm font-medium text-muted-foreground">Deployment Dates</h4>
+                             { form.formState.errors.deploymentDates && <p className="text-sm font-medium text-destructive">{form.formState.errors.deploymentDates.message}</p>}
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {deploymentDateFields.filter(f => f.condition).map(dateField => (
+                            {deploymentDateFields.map(dateField => (
                                 <FormField
                                     key={dateField.name}
                                     control={form.control}
@@ -464,7 +513,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                                                 <PopoverContent className="w-auto p-0" align="start">
                                                     <Calendar
                                                         mode="single"
-                                                        selected={field.value as Date}
+                                                        selected={field.value as Date | undefined}
                                                         onSelect={field.onChange}
                                                         initialFocus
                                                     />

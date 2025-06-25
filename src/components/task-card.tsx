@@ -88,7 +88,6 @@ export function TaskCard({ task, onTaskDelete }: TaskCardProps) {
           </p>
           <EnvironmentStatus
             deploymentStatus={task.deploymentStatus}
-            othersEnvironmentName={task.othersEnvironmentName}
             size="sm"
           />
         </div>

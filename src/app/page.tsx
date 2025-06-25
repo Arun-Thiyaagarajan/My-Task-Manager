@@ -125,7 +125,7 @@ export default function Home() {
     
     const deploymentMatch =
       deploymentFilter === 'all' ||
-      (task.deploymentStatus?.[deploymentFilter as Environment] ?? false);
+      (task.deploymentStatus?.[deploymentFilter as string] ?? false);
 
     return statusMatch && repoMatch && searchMatch && dateMatch && deploymentMatch;
   });

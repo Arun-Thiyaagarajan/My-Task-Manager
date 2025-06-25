@@ -49,7 +49,7 @@ export default function EditTaskPage() {
       toast({
         variant: 'destructive',
         title: 'Invalid data',
-        description: 'Please check the form for errors.',
+        description: validationResult.error.flatten().formErrors.join(', ') || 'Please check the form for errors.',
       });
       return;
     }
@@ -75,12 +75,14 @@ export default function EditTaskPage() {
     };
 
     if (deploymentDates) {
-        taskDataToUpdate.deploymentDates = {
-            dev: deploymentDates.dev?.toISOString() || null,
-            stage: deploymentDates.stage?.toISOString() || null,
-            production: deploymentDates.production?.toISOString() || null,
-            others: deploymentDates.others?.toISOString() || null,
-        };
+        taskDataToUpdate.deploymentDates = Object.entries(deploymentDates).reduce((acc, [key, value]) => {
+            if (value) {
+                acc[key] = (value as Date).toISOString();
+            } else {
+                acc[key] = null;
+            }
+            return acc;
+        }, {} as { [key: string]: string | null });
     }
 
     updateTask(task.id, taskDataToUpdate);

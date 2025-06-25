@@ -1,19 +1,19 @@
+
 import { Badge } from '@/components/ui/badge';
 import { ENVIRONMENTS } from '@/lib/constants';
-import type { Task, Environment } from '@/lib/types';
+import type { Task } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 interface EnvironmentStatusProps {
   deploymentStatus: Task['deploymentStatus'];
-  othersEnvironmentName?: string;
   size?: 'sm' | 'default';
 }
 
-export function EnvironmentStatus({ deploymentStatus, othersEnvironmentName, size = 'default' }: EnvironmentStatusProps) {
-  const isDeployed = (env: Environment) => deploymentStatus && deploymentStatus[env];
+export function EnvironmentStatus({ deploymentStatus, size = 'default' }: EnvironmentStatusProps) {
+  const isDeployed = (env: string) => deploymentStatus && deploymentStatus[env];
 
-  const getEnvInfo = (env: Environment) => {
+  const getEnvInfo = (env: string) => {
     switch(env) {
       case 'dev':
         return { 
@@ -30,32 +30,24 @@ export function EnvironmentStatus({ deploymentStatus, othersEnvironmentName, siz
           color: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700/80',
           label: 'Production'
          };
-      case 'others':
+      default:
         return { 
           color: 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-700/50 dark:text-gray-300 dark:border-gray-600/80',
-          label: 'Others'
+          label: env // For custom environments, use their name as the label
         };
-      default:
-        return {
-          color: 'bg-muted text-muted-foreground',
-          label: 'Unknown'
-        }
     }
   }
+
+  const allEnvs = Object.keys(deploymentStatus || {}).filter(env => deploymentStatus?.[env]).sort();
 
   return (
     <TooltipProvider delayDuration={100}>
       <div className="flex flex-wrap items-center gap-1.5">
-        {ENVIRONMENTS.map(env => {
+        {allEnvs.map(env => {
           const deployed = isDeployed(env);
-          
-          if (env === 'others' && !deployed) {
-            return null;
-          }
+          if (!deployed) return null;
 
           const envInfo = getEnvInfo(env);
-          const badgeLabel = env === 'others' && deployed ? (othersEnvironmentName || 'Others') : env;
-          const tooltipLabel = env === 'others' ? (othersEnvironmentName || envInfo.label) : envInfo.label;
           
           return (
             <Tooltip key={env}>
@@ -70,11 +62,11 @@ export function EnvironmentStatus({ deploymentStatus, othersEnvironmentName, siz
                     size === 'sm' && 'px-1.5 py-0 text-[10px] h-4'
                   )}
                 >
-                  {badgeLabel}
+                  {env}
                 </Badge>
               </TooltipTrigger>
               <TooltipContent>
-                <p>{tooltipLabel}: {deployed ? 'Deployed' : 'Pending'}</p>
+                <p className="capitalize">{envInfo.label}: {deployed ? 'Deployed' : 'Pending'}</p>
               </TooltipContent>
             </Tooltip>
           );

@@ -28,14 +28,13 @@ export interface Task {
   repositories?: Repository[];
   azureWorkItemId?: string;
   prLinks?: {
-    [key in Environment]?: { [repo: string]: string };
+    [key: string]: { [repo: string]: string } | undefined;
   };
   deploymentStatus?: {
-    [key in Environment]?: boolean;
+    [key: string]: boolean | undefined;
   };
-  othersEnvironmentName?: string;
   deploymentDates?: {
-    [key in Environment]?: string | null;
+    [key: string]: string | null | undefined;
   };
   developers?: Developer[];
   comments?: string[];

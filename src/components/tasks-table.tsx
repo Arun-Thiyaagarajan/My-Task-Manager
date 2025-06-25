@@ -53,7 +53,7 @@ export function TasksTable({ tasks, onTaskDelete }: TasksTableProps) {
                 </div>
               </TableCell>
               <TableCell>
-                <EnvironmentStatus deploymentStatus={task.deploymentStatus} othersEnvironmentName={task.othersEnvironmentName} size="sm" />
+                <EnvironmentStatus deploymentStatus={task.deploymentStatus} size="sm" />
               </TableCell>
               <TableCell>
                 <div className="flex items-center justify-end gap-2">

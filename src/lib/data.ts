@@ -140,7 +140,7 @@ export function addTask(taskData: Partial<Omit<Task, 'id' | 'createdAt' | 'updat
   const companyTasks = data.companyData[activeCompanyId]?.tasks || [];
 
   const now = new Date().toISOString();
-  const randomSuffix = Math.random().toString(36).slice(2);
+  const randomSuffix = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
   const newTask: Task = {
     id: `task-${Date.now()}-${randomSuffix}`,
     createdAt: now,
@@ -152,7 +152,6 @@ export function addTask(taskData: Partial<Omit<Task, 'id' | 'createdAt' | 'updat
     developers: taskData.developers || [],
     azureWorkItemId: taskData.azureWorkItemId || '',
     deploymentStatus: taskData.deploymentStatus || {},
-    othersEnvironmentName: taskData.othersEnvironmentName || '',
     deploymentDates: taskData.deploymentDates || {},
     prLinks: taskData.prLinks || {},
     devStartDate: taskData.devStartDate || null,

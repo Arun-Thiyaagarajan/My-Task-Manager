@@ -79,6 +79,8 @@ export default function TaskPage() {
 
   const hasDevQaDates = task.devStartDate || task.devEndDate || task.qaStartDate || task.qaEndDate;
   const hasAnyDeploymentDate = task.deploymentDates && Object.values(task.deploymentDates).some(d => d);
+  const allDeploymentEnvs = Object.keys(task.deploymentStatus || {}).filter(env => task.deploymentStatus?.[env]).sort();
+
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -134,16 +136,13 @@ export default function TaskPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-3 text-sm">
-                        {ENVIRONMENTS.map(env => {
+                        {allDeploymentEnvs.length > 0 ? allDeploymentEnvs.map(env => {
                             const isDeployed = task.deploymentStatus?.[env];
-                            const envName = env === 'others' && task.othersEnvironmentName ? task.othersEnvironmentName : env;
-
-                            if (env === 'others' && !isDeployed) return null;
-
+                            
                             return (
                                 <div key={env} className="flex justify-between items-center">
                                     <span className={cn("capitalize", isDeployed ? "text-foreground font-medium" : "text-muted-foreground")}>
-                                        {envName}
+                                        {env}
                                     </span>
                                     {isDeployed ? (
                                         <div className="flex items-center gap-2">
@@ -158,8 +157,7 @@ export default function TaskPage() {
                                     )}
                                 </div>
                             )
-                        })}
-                        {(!task.deploymentStatus || Object.values(task.deploymentStatus).every(s => !s)) && (
+                        }) : (
                             <p className="text-muted-foreground text-center text-xs pt-2">No deployments recorded.</p>
                         )}
                     </div>
@@ -179,6 +177,12 @@ export default function TaskPage() {
             </Card>
           </div>
           
+           <CommentsSection
+              taskId={task.id}
+              comments={task.comments || []}
+              onCommentsUpdate={handleCommentsUpdate}
+           />
+
           {task.attachments && task.attachments.length > 0 && (
             <Card>
                 <CardHeader>
@@ -207,11 +211,6 @@ export default function TaskPage() {
             </Card>
           )}
 
-           <CommentsSection
-              taskId={task.id}
-              comments={task.comments || []}
-              onCommentsUpdate={handleCommentsUpdate}
-           />
         </div>
 
         <div className="lg:col-span-1 space-y-6">
@@ -309,30 +308,17 @@ export default function TaskPage() {
                                 </div>
                             )}
                             {(hasDevQaDates || hasAnyDeploymentDate) && <Separator className="my-2"/>}
-                            {task.deploymentDates?.dev && (
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Dev Deployed</span>
-                                    <span>{format(new Date(task.deploymentDates.dev), 'PPP')}</span>
-                                </div>
-                            )}
-                            {task.deploymentDates?.stage && (
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Stage Deployed</span>
-                                    <span>{format(new Date(task.deploymentDates.stage), 'PPP')}</span>
-                                </div>
-                            )}
-                             {task.deploymentDates?.production && (
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Prod Deployed</span>
-                                    <span>{format(new Date(task.deploymentDates.production), 'PPP')}</span>
-                                </div>
-                            )}
-                             {task.deploymentDates?.others && task.othersEnvironmentName && (
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground capitalize">{task.othersEnvironmentName} Deployed</span>
-                                    <span>{format(new Date(task.deploymentDates.others), 'PPP')}</span>
-                                </div>
-                            )}
+
+                            {task.deploymentDates && Object.entries(task.deploymentDates).map(([env, date]) => {
+                                if (!date) return null;
+                                return (
+                                    <div key={env} className="flex justify-between">
+                                        <span className="text-muted-foreground capitalize">{env} Deployed</span>
+                                        <span>{format(new Date(date), 'PPP')}</span>
+                                    </div>
+                                )
+                            })}
+
                              {!(hasDevQaDates || hasAnyDeploymentDate) && (
                                 <p className="text-muted-foreground text-center text-xs">No dates have been set.</p>
                              )}
