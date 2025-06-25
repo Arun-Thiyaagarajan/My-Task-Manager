@@ -14,20 +14,21 @@ import { Button } from '@/components/ui/button';
 
 type TaskFormData = z.infer<typeof taskSchema>;
 
-const parsePrLinks = (links: string | undefined): string[] => {
-  if (!links) return [];
-  return links.split(',').map(l => l.trim()).filter(Boolean);
+const parseCommaSeparatedString = (value: string | undefined): string[] => {
+  if (!value) return [];
+  return value.split(',').map(l => l.trim()).filter(Boolean);
 };
 
 const processTaskData = (data: TaskFormData) => {
-    const { prLinks, devStartDate, devEndDate, qaStartDate, qaEndDate, ...rest } = data;
+    const { prLinks, qaIssueIds, devStartDate, devEndDate, qaStartDate, qaEndDate, ...rest } = data;
     const processedPrLinks = Object.fromEntries(
-        Object.entries(prLinks).map(([env, links]) => [env, parsePrLinks(links)])
+        Object.entries(prLinks).map(([env, links]) => [env, parseCommaSeparatedString(links)])
     ) as { [key in Environment]?: string[] };
     
     return {
         ...rest,
         prLinks: processedPrLinks,
+        qaIssueIds: parseCommaSeparatedString(qaIssueIds),
         devStartDate: devStartDate?.toISOString(),
         devEndDate: devEndDate?.toISOString(),
         qaStartDate: qaStartDate?.toISOString(),

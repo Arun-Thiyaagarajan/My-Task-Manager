@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, Users, CalendarDays, Loader2 } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, Users, CalendarDays, Loader2, Bug } from 'lucide-react';
 import { TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -98,7 +98,7 @@ export default function TaskPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-muted-foreground mb-4">
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-4 text-muted-foreground mb-4">
                   <div className="flex items-center gap-2">
                     <GitMerge className="h-4 w-4" />
                     <div className="flex flex-wrap gap-1">
@@ -116,6 +116,16 @@ export default function TaskPage() {
                         >
                           Azure ID: {task.azureWorkItemId}
                         </a>
+                    </div>
+                  )}
+                  {task.qaIssueIds && task.qaIssueIds.length > 0 && (
+                    <div className="flex items-start gap-2">
+                      <Bug className="h-4 w-4 text-muted-foreground mt-1" />
+                       <div className="flex flex-wrap gap-1">
+                        {task.qaIssueIds.map(id => (
+                            <Badge variant="secondary" key={id}>{id}</Badge>
+                        ))}
+                      </div>
                     </div>
                   )}
               </div>

@@ -17,6 +17,7 @@ export const taskSchema = z.object({
   repositories: z.array(z.enum(REPOSITORIES)).min(1, { message: 'Please select at least one repository.' }),
   azureWorkItemId: z.string().regex(/^\d*$/, { message: "Please enter a valid work item ID." }).optional().or(z.literal('')),
   developers: z.array(z.string()).optional(),
+  qaIssueIds: z.string().optional(),
   prLinks: prLinksSchema,
   devStartDate: z.date().optional(),
   devEndDate: z.date().optional(),

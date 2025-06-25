@@ -116,6 +116,7 @@ const initialTasks: Task[] = [
       stage: ['299'],
     },
     developers: ['Eve'],
+    qaIssueIds: ['T8-1', 'T8-2'],
     createdAt: '2024-07-05T00:00:00.000Z',
     updatedAt: '2024-07-09T00:00:00.000Z',
   },
@@ -168,6 +169,7 @@ export function addTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>):
     ...taskData,
     prLinks: taskData.prLinks ?? {},
     developers: taskData.developers ?? [],
+    qaIssueIds: taskData.qaIssueIds ?? [],
   };
   const updatedTasks = [newTask, ...tasks];
   setLocalStorage(TASKS_KEY, updatedTasks);

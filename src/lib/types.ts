@@ -16,6 +16,7 @@ export interface Task {
     [key in Environment]?: string[];
   };
   developers?: Developer[];
+  qaIssueIds?: string[];
   devStartDate?: string;
   devEndDate?: string;
   qaStartDate?: string;

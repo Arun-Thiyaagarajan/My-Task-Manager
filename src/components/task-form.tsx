@@ -62,6 +62,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
       repositories: task?.repositories ?? [],
       azureWorkItemId: task?.azureWorkItemId ?? '',
       developers: task?.developers ?? [],
+      qaIssueIds: task?.qaIssueIds?.join(', ') ?? '',
       prLinks: {
         dev: task?.prLinks?.dev?.join(', ') ?? '',
         stage: task?.prLinks?.stage?.join(', ') ?? '',
@@ -153,6 +154,20 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                   <FormControl>
                     <Input placeholder="e.g. 101" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="qaIssueIds"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>QA Issue IDs (Optional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g. T118-1, T118-2" {...field} />
+                  </FormControl>
+                  <FormDescription>Comma-separated issue IDs.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
