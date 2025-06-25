@@ -159,7 +159,6 @@ export function updateAdminConfig(newConfig: AdminConfig) {
         });
         data.companyData[activeCompanyId].adminConfig = newConfig;
         setAppData(data);
-        window.dispatchEvent(new Event('storage'));
     }
 }
 
@@ -175,7 +174,6 @@ export function saveField(field: FormField) {
     if (activeCompanyId && data.companyData[activeCompanyId]) {
         data.companyData[activeCompanyId].fields[field.id] = field;
         setAppData(data);
-        window.dispatchEvent(new Event('storage'));
     }
 }
 
@@ -197,7 +195,6 @@ export function deleteField(fieldId: string) {
         });
         
         setAppData(data);
-        window.dispatchEvent(new Event('storage'));
     }
 }
 
