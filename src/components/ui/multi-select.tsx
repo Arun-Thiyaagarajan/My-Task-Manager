@@ -72,13 +72,9 @@ export function MultiSelect({
         if (e.key === 'Escape') {
           input.blur();
         }
-        if (e.key === 'Enter' && input.value !== '') {
-            e.preventDefault();
-            handleCreate();
-        }
       }
     },
-    [handleUnselect, selected, handleCreate]
+    [handleUnselect, selected]
   );
   
   const filteredOptions = options.filter(
