@@ -260,6 +260,16 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
 
   const watchedValues = form.watch();
 
+  const allChildFieldIds = useMemo(() => {
+    const childIds = new Set<string>();
+    Object.values(allFields).forEach(field => {
+        if (field.type === 'group' && Array.isArray(field.childFieldIds)) {
+            field.childFieldIds.forEach(id => childIds.add(id));
+        }
+    });
+    return childIds;
+  }, [allFields]);
+
   const dependencyMap = useMemo(() => {
     const map: Record<string, { parentId: string; optionValue: string }[]> = {};
     for (const field of Object.values(allFields)) {
@@ -422,7 +432,9 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
       <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
         
         <div className="grid grid-cols-1 gap-x-6 gap-y-8 md:grid-cols-2 lg:grid-cols-3">
-            {visibleFields.map(fieldId => {
+            {visibleFields
+                .filter(fieldId => !allChildFieldIds.has(fieldId))
+                .map(fieldId => {
                 const fieldDef = internalAllFields[fieldId];
                 if (!fieldDef) return null;
 
