@@ -162,6 +162,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
                     value={field.value ?? ''}
                   />
                 </FormControl>
+                {fieldDef.description && <FormDescription>{fieldDef.description}</FormDescription>}
                 <FormMessage />
               </FormItem>
             )}
@@ -190,6 +191,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
                     ))}
                   </SelectContent>
                 </Select>
+                {fieldDef.description && <FormDescription>{fieldDef.description}</FormDescription>}
                 <FormMessage />
               </FormItem>
             )}
@@ -243,7 +245,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
                 control={form.control}
                 name={fieldId}
                 render={({ field }) => (
-                    <FormItem className="flex flex-col">
+                    <FormItem>
                         <FormLabel>{label}</FormLabel>
                         <Popover>
                             <PopoverTrigger asChild>
@@ -251,7 +253,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
                                 <Button
                                 variant={"outline"}
                                 className={cn(
-                                    "pl-3 text-left font-normal",
+                                    "w-full pl-3 text-left font-normal",
                                     !field.value && "text-muted-foreground"
                                 )}
                                 >
@@ -277,6 +279,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
                             />
                             </PopoverContent>
                         </Popover>
+                        {fieldDef.description && <FormDescription>{fieldDef.description}</FormDescription>}
                         <FormMessage />
                     </FormItem>
                 )}
