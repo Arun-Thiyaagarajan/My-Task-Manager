@@ -52,7 +52,7 @@ export interface Task {
 }
 
 // Types for Dynamic Form Configuration
-export type FieldType = 'text' | 'textarea' | 'select' | 'multiselect' | 'date' | 'tags';
+export type FieldType = 'text' | 'textarea' | 'select' | 'multiselect' | 'date' | 'tags' | 'group';
 
 export interface FormField {
   id: string;
@@ -70,6 +70,9 @@ export interface FormField {
   conditionalLogic?: {
     [optionValue: string]: string[]; // Key: parent option, Value: array of child field IDs
   };
+  // New properties for parent-child relationships
+  childFieldIds?: string[];
+  isRepeatable?: boolean;
 }
 
 export interface FormFieldConfig {

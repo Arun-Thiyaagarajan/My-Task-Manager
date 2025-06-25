@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { getTaskById, getFields } from '@/lib/data';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -14,7 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import { PrLinksGroup } from '@/components/pr-links-group';
 import { DeleteTaskButton } from '@/components/delete-task-button';
 import { Badge } from '@/components/ui/badge';
-import { getInitials, getAvatarColor } from '@/lib/utils';
+import { getInitials, getAvatarColor, cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
 import type { Task, FormField } from '@/lib/types';
@@ -57,11 +57,37 @@ export default function TaskPage() {
     }
   };
 
-  const customFieldIds = Object.keys(allFields).filter(id => allFields[id].isCustom);
+  const customFieldIds = Object.keys(allFields).filter(id => {
+      const field = allFields[id];
+      // Exclude core, always-visible fields and group fields (which are rendered separately)
+      return field.isCustom && field.type !== 'group';
+  });
+
   const customFieldsToDisplay = customFieldIds.map(id => ({
       ...allFields[id],
       value: task?.[id]
   })).filter(field => field.value !== undefined && field.value !== null && field.value !== '');
+
+  const groupFields = Object.values(allFields).filter(field => field.type === 'group');
+
+  const renderFieldValue = (field: FormField, value: any) => {
+    if (value === undefined || value === null || value === '') return 'Not set';
+
+    if (field.type === 'date' && value) {
+        try {
+            return format(new Date(value), 'PPP');
+        } catch {
+            return 'Invalid Date';
+        }
+    }
+    if (Array.isArray(value)) {
+      return value.join(', ');
+    }
+    if (typeof value === 'object') {
+        return JSON.stringify(value, null, 2); // Fallback for nested objects
+    }
+    return String(value);
+  }
 
 
   if (isLoading) {
@@ -93,13 +119,6 @@ export default function TaskPage() {
   const azureWorkItemUrl = task.azureWorkItemId 
     ? `https://dev.azure.com/ideaelan/Infinity/_workitems/edit/${task.azureWorkItemId}` 
     : null;
-
-  const renderDateRange = (start?: string, end?: string) => {
-      if (!start && !end) return 'Not set';
-      const startDate = start ? format(new Date(start), 'PPP') : '...';
-      const endDate = end ? format(new Date(end), 'PPP') : '...';
-      return `${startDate} - ${endDate}`;
-  }
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -138,90 +157,73 @@ export default function TaskPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-4 text-muted-foreground mb-4">
-                  <div className="flex items-center gap-2">
-                    <GitMerge className="h-4 w-4" />
-                    <div className="flex flex-wrap gap-1">
-                        {task.repositories?.map(repo => <Badge variant="secondary" key={repo}>{repo}</Badge>)}
-                    </div>
-                  </div>
-                  {azureWorkItemUrl && (
-                    <div className="flex items-center gap-2">
-                      <ExternalLink className="h-4 w-4" />
-                       <a
-                          href={azureWorkItemUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="hover:text-primary transition-colors"
-                        >
-                          {allFields['azureWorkItemId']?.label || 'Azure ID'}: {task.azureWorkItemId}
-                        </a>
-                    </div>
-                  )}
-                  {task.qaIssueIds && typeof task.qaIssueIds === 'string' && (
-                    <div className="flex items-start gap-2">
-                      <Bug className="h-4 w-4 text-muted-foreground mt-1" />
-                       <div className="flex flex-wrap gap-1">
-                        {task.qaIssueIds.split(',').map(id => id.trim()).filter(Boolean).map(id => (
-                            <Badge variant="secondary" key={id}>{id}</Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-              </div>
-              <Separator className="my-4"/>
               <p className="text-foreground/80 whitespace-pre-wrap">
                 {task.description}
               </p>
             </CardContent>
           </Card>
           
-          <Accordion type="multiple" defaultValue={['pull-requests', 'attachments', 'comments']} className="w-full space-y-4">
-            <Card as="div">
-                <AccordionItem value="pull-requests" className="border-none">
-                    <AccordionTrigger className="p-6 hover:no-underline">
-                        <CardTitle className="text-2xl flex-1 text-left">Pull Request Links</CardTitle>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-6 pb-6 pt-0">
-                        <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} />
-                    </AccordionContent>
-                </AccordionItem>
-            </Card>
+          <Accordion type="multiple" defaultValue={['comments']} className="w-full space-y-4">
+            {groupFields.map(groupFieldDef => {
+                const groupData = task[groupFieldDef.id];
+                if (!groupData) return null;
 
-            {task.attachments && task.attachments.length > 0 && (
-              <Card as="div">
-                <AccordionItem value="attachments" className="border-none">
-                  <AccordionTrigger className="p-6 hover:no-underline">
-                    <CardTitle className="text-2xl flex items-center gap-2 flex-1 text-left">
-                      <Paperclip className="h-5 w-5" />
-                      Attachments
-                    </CardTitle>
-                  </AccordionTrigger>
-                  <AccordionContent className="px-6 pt-0 pb-6">
-                    <div className="space-y-3">
-                      {task.attachments.map((att, index) => (
-                        <a
-                          key={index}
-                          href={att.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-3 p-3 rounded-md border bg-muted/50 hover:bg-muted/80 transition-colors"
-                        >
-                          {att.type === 'link' ? (
-                            <Link2 className="h-5 w-5 text-primary" />
-                          ) : (
-                            <FileText className="h-5 w-5 text-primary" />
-                          )}
-                          <span className="text-primary hover:underline underline-offset-4 truncate">{att.name}</span>
-                          <ExternalLink className="h-4 w-4 text-muted-foreground ml-auto" />
-                        </a>
-                      ))}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Card>
+                const items = groupFieldDef.isRepeatable ? (Array.isArray(groupData) ? groupData : []) : [groupData];
+                if (items.length === 0) return null;
+
+                return (
+                    <Card as="div" key={groupFieldDef.id}>
+                        <AccordionItem value={groupFieldDef.id} className="border-none">
+                            <AccordionTrigger className="p-6 hover:no-underline">
+                                <CardTitle className="text-2xl flex-1 text-left">{groupFieldDef.label}</CardTitle>
+                            </AccordionTrigger>
+                            <AccordionContent className="px-6 pb-6 pt-0 space-y-4">
+                                {items.map((item, index) => (
+                                    <div key={index} className={cn("rounded-lg border p-4", items.length > 1 && "bg-muted/40")}>
+                                        {groupFieldDef.isRepeatable && <h4 className="font-semibold text-md mb-3">{groupFieldDef.label} #{index + 1}</h4>}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                            {groupFieldDef.childFieldIds?.map(childId => {
+                                                const childFieldDef = allFields[childId];
+                                                if (!childFieldDef) return null;
+                                                return (
+                                                    <div key={childId}>
+                                                        <p className="font-medium text-muted-foreground">{childFieldDef.label}</p>
+                                                        <p className="text-foreground/90">{renderFieldValue(childFieldDef, item[childId])}</p>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    </div>
+                                ))}
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Card>
+                );
+            })}
+             {customFieldsToDisplay.length > 0 && (
+                <Card>
+                    <AccordionItem value="additional-details" className="border-none">
+                      <AccordionTrigger className="p-6 hover:no-underline">
+                        <CardTitle className="text-2xl flex items-center gap-2 flex-1 text-left">
+                            <Info className="h-5 w-5" />
+                            Additional Details
+                        </CardTitle>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-6 pb-6 pt-0">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            {customFieldsToDisplay.map(field => (
+                                <div key={field.id}>
+                                    <p className="font-medium text-muted-foreground">{field.label}</p>
+                                    <div className="text-foreground/90">
+                                      {renderFieldValue(field, field.value)}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                </Card>
             )}
-
             <Card as="div">
                 <AccordionItem value="comments" className="border-none">
                     <AccordionTrigger className="p-6 hover:no-underline">
@@ -286,50 +288,14 @@ export default function TaskPage() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm">
-                    <div>
-                        <p className="font-medium text-muted-foreground">Development</p>
-                        <p className="text-foreground/90">{renderDateRange(task.devStartDate, task.devEndDate)}</p>
-                    </div>
-                     <div>
-                        <p className="font-medium text-muted-foreground">QA / Testing</p>
-                        <p className="text-foreground/90">{renderDateRange(task.qaStartDate, task.qaEndDate)}</p>
-                    </div>
-                    <div>
-                        <p className="font-medium text-muted-foreground">Stage Deployment</p>
-                        <p className="text-foreground/90">{task.stageDate ? format(new Date(task.stageDate), 'PPP') : 'Not set'}</p>
-                    </div>
-                     <div>
-                        <p className="font-medium text-muted-foreground">Production Deployment</p>
-                        <p className="text-foreground/90">{task.productionDate ? format(new Date(task.productionDate), 'PPP') : 'Not set'}</p>
-                    </div>
-                     <div>
-                        <p className="font-medium text-muted-foreground">{task.othersEnvironmentName || 'Others'} Deployment</p>
-                        <p className="text-foreground/90">{task.othersDate ? format(new Date(task.othersDate), 'PPP') : 'Not set'}</p>
-                    </div>
+                    {Object.values(allFields).filter(f => f.type === 'date' && task[f.id]).map(dateField => (
+                        <div key={dateField.id}>
+                            <p className="font-medium text-muted-foreground">{dateField.label}</p>
+                            <p className="text-foreground/90">{renderFieldValue(dateField, task[dateField.id])}</p>
+                        </div>
+                    ))}
                 </CardContent>
             </Card>
-             {customFieldsToDisplay.length > 0 && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Info className="h-5 w-5" />
-                            Additional Details
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4 text-sm">
-                        {customFieldsToDisplay.map(field => (
-                            <div key={field.id}>
-                                <p className="font-medium text-muted-foreground">{field.label}</p>
-                                <div className="text-foreground/90">
-                                    {field.type === 'date' && field.value ? format(new Date(field.value), 'PPP')
-                                    : Array.isArray(field.value) ? field.value.join(', ')
-                                    : field.value}
-                                </div>
-                            </div>
-                        ))}
-                    </CardContent>
-                </Card>
-            )}
         </div>
       </div>
     </div>

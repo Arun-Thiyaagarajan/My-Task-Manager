@@ -13,7 +13,8 @@ import {
     Cloud, 
     Calendar,
     StickyNote,
-    Tags
+    Tags,
+    Container
 } from 'lucide-react';
 
 export const ICONS = {
@@ -28,7 +29,8 @@ export const ICONS = {
     deployment: Cloud,
     date: Calendar,
     comments: StickyNote,
-    tags: Tags
+    tags: Tags,
+    group: Container,
 };
 
 export const MASTER_FORM_FIELDS: Record<string, FormField> = {
@@ -66,7 +68,7 @@ export const DEFAULT_ADMIN_CONFIG: AdminConfig = {
         },
         description: {
             visible: true,
-            required: false,
+            required: true,
         },
     },
     groupOrder: [

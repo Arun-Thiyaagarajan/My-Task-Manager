@@ -201,6 +201,18 @@ export function saveField(field: FormField, required: boolean) {
             }
             companyData.adminConfig.groupOrder.push(field.group);
         }
+        
+        if (!field.isCustom) {
+            if (field.type === 'group') {
+                 field.defaultValue = field.isRepeatable ? [] : null;
+            } else if (field.type === 'multiselect' || field.type === 'tags') {
+                field.defaultValue = [];
+            } else if (field.type === 'date') {
+                field.defaultValue = null;
+            } else {
+                field.defaultValue = '';
+            }
+        }
 
         setAppData(data);
     }

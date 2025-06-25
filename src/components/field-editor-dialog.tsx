@@ -47,11 +47,13 @@ import { Separator } from './ui/separator';
 const fieldSchema = z.object({
   label: z.string().min(2, { message: 'Field name must be at least 2 characters.' }),
   description: z.string().min(2, { message: 'Description must be at least 2 characters.' }),
-  type: z.enum(['text', 'textarea', 'date', 'select', 'multiselect', 'tags']),
+  type: z.enum(['text', 'textarea', 'date', 'select', 'multiselect', 'tags', 'group']),
   group: z.string().min(1, 'Please enter a group name.'),
   options: z.array(z.object({ value: z.string().min(1, 'Option cannot be empty') })).optional(),
   required: z.boolean().optional(),
   conditionalLogic: z.record(z.array(z.string())).optional(),
+  childFieldIds: z.array(z.string()).optional(),
+  isRepeatable: z.boolean().optional(),
 }).refine(data => {
     if ((data.type === 'select' || data.type === 'multiselect' || data.type === 'tags') && (!data.options || data.options.length < 1)) {
         return false;
@@ -60,6 +62,14 @@ const fieldSchema = z.object({
 }, {
     message: 'Select, Multiselect, and Tags types require at least one option.',
     path: ['options'],
+}).refine(data => {
+    if (data.type === 'group' && (!data.childFieldIds || data.childFieldIds.length < 1)) {
+        return false;
+    }
+    return true;
+}, {
+    message: 'Field Groups must have at least one child field selected.',
+    path: ['childFieldIds'],
 });
 
 type FieldFormData = z.infer<typeof fieldSchema>;
@@ -91,10 +101,16 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
   const watchedOptions = form.watch('options');
   const groupNames = useMemo(() => adminConfig?.groupOrder ? [...new Set(adminConfig.groupOrder)] : [], [adminConfig?.groupOrder]);
   
-  const potentialChildFields = useMemo(() => {
+  const potentialConditionalChildFields = useMemo(() => {
     return Object.values(allFields)
       .filter(f => f.id !== 'title' && f.id !== 'description' && f.id !== fieldToEdit?.id)
       .map(f => ({ value: f.id, label: f.label }));
+  }, [allFields, fieldToEdit]);
+
+  const potentialGroupChildFields = useMemo(() => {
+    return Object.values(allFields)
+        .filter(f => f.type !== 'group' && f.id !== fieldToEdit?.id)
+        .map(f => ({ value: f.id, label: f.label }));
   }, [allFields, fieldToEdit]);
 
   useEffect(() => {
@@ -108,6 +124,8 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                 options: fieldToEdit.options?.map(o => ({ value: o })) || [],
                 required: fieldToEdit.id === 'title' || adminConfig.fieldConfig[fieldToEdit.id]?.required || false,
                 conditionalLogic: fieldToEdit.conditionalLogic || {},
+                childFieldIds: fieldToEdit.childFieldIds || [],
+                isRepeatable: fieldToEdit.isRepeatable || false,
             });
         } else {
             form.reset({
@@ -118,6 +136,8 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                 options: [],
                 required: false,
                 conditionalLogic: {},
+                childFieldIds: [],
+                isRepeatable: false,
             });
         }
     }
@@ -138,7 +158,6 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
     try {
         const id = fieldToEdit ? fieldToEdit.id : `custom_${Date.now()}`;
 
-        // Clean up conditionalLogic for options that may have been renamed or removed
         if (data.conditionalLogic && data.options) {
             const validOptionValues = new Set(data.options.map(o => o.value));
             for (const key in data.conditionalLogic) {
@@ -159,11 +178,21 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
             icon: fieldToEdit?.icon || 'text',
             isCustom: fieldToEdit ? (fieldToEdit.isCustom ?? false) : true,
             conditionalLogic: data.conditionalLogic,
+            childFieldIds: data.type === 'group' ? data.childFieldIds : [],
+            isRepeatable: data.type === 'group' ? data.isRepeatable : false,
         };
 
-        if (!fieldToEdit) { // This is a new custom field
+        if (!fieldToEdit) {
             fieldToSave.isCustom = true;
-            fieldToSave.defaultValue = (data.type === 'multiselect' || data.type === 'tags') ? [] : data.type === 'date' ? null : '';
+            if (data.type === 'group') {
+                fieldToSave.defaultValue = data.isRepeatable ? [] : null;
+            } else if (data.type === 'multiselect' || data.type === 'tags') {
+                fieldToSave.defaultValue = [];
+            } else if (data.type === 'date') {
+                fieldToSave.defaultValue = null;
+            } else {
+                fieldToSave.defaultValue = '';
+            }
         }
         
         saveField(fieldToSave, data.required || false);
@@ -237,6 +266,7 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                                         <SelectItem value="select">Dropdown (Single-Select)</SelectItem>
                                         <SelectItem value="multiselect">Dropdown (Multi-Select)</SelectItem>
                                         <SelectItem value="tags">Tag Selection</SelectItem>
+                                        <SelectItem value="group">Field Group (Parent)</SelectItem>
                                     </SelectContent>
                                 </Select>
                                 <FormDescription>The type cannot be changed after creation.</FormDescription>
@@ -351,6 +381,47 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                             <FormMessage>{form.formState.errors.options?.root?.message}</FormMessage>
                         </div>
                     )}
+
+                    {fieldType === 'group' && (
+                        <div className="space-y-4 rounded-md border p-4">
+                            <FormLabel className="text-base">Field Group Configuration</FormLabel>
+                            <FormField
+                                control={form.control}
+                                name="childFieldIds"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Child Fields</FormLabel>
+                                        <FormControl>
+                                            <MultiSelect
+                                                selected={field.value || []}
+                                                onChange={field.onChange}
+                                                options={potentialGroupChildFields}
+                                                placeholder="Select child fields for this group..."
+                                            />
+                                        </FormControl>
+                                        <FormDescription>Select the fields that will be part of this group.</FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                             <FormField
+                                control={form.control}
+                                name="isRepeatable"
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center gap-2 space-y-0">
+                                        <FormControl>
+                                            <Checkbox
+                                                checked={field.value}
+                                                onCheckedChange={field.onChange}
+                                            />
+                                        </FormControl>
+                                        <FormLabel className="font-normal">Allow multiple entries (One-to-Many)</FormLabel>
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+                    )}
+
                     <FormField
                         control={form.control}
                         name="required"
@@ -398,7 +469,7 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                                                             <MultiSelect
                                                                 selected={field.value || []}
                                                                 onChange={field.onChange}
-                                                                options={potentialChildFields}
+                                                                options={potentialConditionalChildFields}
                                                                 placeholder="Select fields to show..."
                                                             />
                                                         </FormControl>

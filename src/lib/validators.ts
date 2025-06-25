@@ -2,39 +2,100 @@
 import { z } from 'zod';
 import type { AdminConfig, FormField } from './types';
 
-export const attachmentSchema = z.object({
-  name: z.string().min(1, 'Attachment name is required.'),
-  url: z.string().url('Please provide a valid URL.'),
-  type: z.enum(['link', 'file'], { errorMap: () => ({ message: 'Please select a type.' })}),
-});
-
-const getBaseFieldSchema = (fieldDef: FormField) => {
+// Helper function to create a Zod schema for a single field definition
+const createFieldSchema = (
+    fieldDef: FormField, 
+    adminConfig: AdminConfig, 
+    allFields: Record<string, FormField>, 
+    isConditional: boolean
+): z.ZodTypeAny | null => {
     if (!fieldDef) return null;
+
+    let baseSchema: z.ZodTypeAny;
 
     switch(fieldDef.type) {
         case 'text':
         case 'textarea': {
-            let baseSchema = z.string();
+            baseSchema = z.string();
             if (fieldDef.id === 'azureWorkItemId') {
                 baseSchema = baseSchema.regex(/^\d*$/, { message: "Please enter a valid work item ID." });
             }
-            return baseSchema;
+            break;
         }
         case 'select':
-            return z.string();
+            baseSchema = z.string();
+            break;
         case 'multiselect':
         case 'tags':
-            return z.array(z.string());
+            baseSchema = z.array(z.string());
+            break;
         case 'date':
-            return z.coerce.date();
+            baseSchema = z.coerce.date();
+            break;
+        case 'group': {
+            if (fieldDef.childFieldIds && fieldDef.childFieldIds.length > 0) {
+                const subSchemaObject = fieldDef.childFieldIds.reduce((acc, childId) => {
+                    const childDef = allFields[childId];
+                    if (childDef) {
+                        // For children of a group, they are always "conditional" on the group's existence.
+                        // We pass `true` for isConditional to make them optional inside the object.
+                        const childSchema = createFieldSchema(childDef, adminConfig, allFields, true);
+                        if (childSchema) {
+                            acc[childId] = childSchema;
+                        }
+                    }
+                    return acc;
+                }, {} as Record<string, z.ZodTypeAny>);
+
+                const groupSchema = z.object(subSchemaObject);
+
+                if (fieldDef.isRepeatable) {
+                    baseSchema = z.array(groupSchema);
+                } else {
+                    baseSchema = groupSchema;
+                }
+            } else {
+                return z.any(); // No children defined, so no validation
+            }
+            break;
+        }
         default:
             return z.any();
     }
-}
 
+    const fieldConfig = adminConfig.fieldConfig[fieldDef.id] || { visible: false, required: false };
+    const isRequired = fieldConfig.required && !isConditional; 
+
+    if (isRequired) {
+        if (fieldDef.type === 'text' || fieldDef.type === 'textarea' || fieldDef.type === 'select') {
+            return baseSchema.min(1, { message: `${fieldDef.label} is required.` });
+        }
+        if (fieldDef.type === 'multiselect' || fieldDef.type === 'tags') {
+            return (baseSchema as z.ZodArray<any, any>).min(1, { message: `Please select at least one ${fieldDef.label.toLowerCase()}.` });
+        }
+        if (fieldDef.type === 'date') {
+            return baseSchema.refine(val => val != null, { message: `${fieldDef.label} is required.`});
+        }
+        if (fieldDef.type === 'group' && !fieldDef.isRepeatable) {
+            return baseSchema.nullable(); // Required, but can be an object
+        }
+        return baseSchema;
+    } else {
+        // Optional fields
+        if (fieldDef.type === 'text' || fieldDef.type === 'textarea') {
+            return baseSchema.optional().or(z.literal(''));
+        }
+        if (fieldDef.type === 'date') {
+            return baseSchema.optional().nullable();
+        }
+        if (fieldDef.type === 'group' && !fieldDef.isRepeatable) {
+            return baseSchema.optional().nullable();
+        }
+        return baseSchema.optional();
+    }
+};
 
 export const buildTaskSchema = (adminConfig: AdminConfig, allFields: Record<string, FormField>) => {
-    // Build a set of all field IDs that are children in a conditional logic relationship.
     const conditionalChildrenIds = new Set<string>();
     Object.values(allFields).forEach(field => {
         if (field.conditionalLogic) {
@@ -50,42 +111,15 @@ export const buildTaskSchema = (adminConfig: AdminConfig, allFields: Record<stri
         const fieldDef = allFields[fieldId];
         if (!fieldDef) continue;
         
-        const fieldConfig = adminConfig.fieldConfig[fieldId] || { visible: false, required: false };
-        let baseSchema = getBaseFieldSchema(fieldDef);
-        if (!baseSchema) continue;
-
         const isConditional = conditionalChildrenIds.has(fieldId);
-        // Conditional fields are always optional, regardless of their "required" toggle.
-        const isRequired = fieldConfig.required && !isConditional; 
-
-        if (isRequired) {
-            if (fieldDef.type === 'text' || fieldDef.type === 'textarea') {
-                baseSchema = baseSchema.min(1, { message: `${fieldDef.label} is required.` });
-            } else if (fieldDef.type === 'select') {
-                baseSchema = baseSchema.min(1, { message: `${fieldDef.label} is required.`});
-            } else if (fieldDef.type === 'multiselect' || fieldDef.type === 'tags') {
-                baseSchema = baseSchema.min(1, { message: `Please select at least one ${fieldDef.label.toLowerCase()}.` });
-            } else if (fieldDef.type === 'date') {
-                // The .refine check handles both null and undefined.
-                baseSchema = baseSchema.refine(val => val != null, { message: `${fieldDef.label} is required.`});
-            }
-            schemaObject[fieldId] = baseSchema;
-        } else {
-            // Optional fields
-            if (fieldDef.type === 'text' || fieldDef.type === 'textarea') {
-                schemaObject[fieldId] = baseSchema.optional().or(z.literal(''));
-            } else if (fieldDef.type === 'date') {
-                schemaObject[fieldId] = baseSchema.optional().nullable();
-            } else {
-                schemaObject[fieldId] = baseSchema.optional();
-            }
+        const fieldSchema = createFieldSchema(fieldDef, adminConfig, allFields, isConditional);
+        if (fieldSchema) {
+            schemaObject[fieldId] = fieldSchema;
         }
     }
     
-    // Ensure title is always present and a string, overriding any other logic.
     schemaObject.title = z.string().min(3, { message: 'Title is required and must be at least 3 characters.' });
     
-    // Special case for fields that might not be in the layout but are needed for validation logic
     if (adminConfig.fieldConfig.deploymentStatus?.visible && !schemaObject.othersEnvironmentName) {
          schemaObject.othersEnvironmentName = z.string().optional();
     }
@@ -94,7 +128,6 @@ export const buildTaskSchema = (adminConfig: AdminConfig, allFields: Record<stri
     if (!schemaObject.qaStartDate) schemaObject.qaStartDate = z.coerce.date().optional().nullable();
     if (!schemaObject.qaEndDate) schemaObject.qaEndDate = z.coerce.date().optional().nullable();
     
-
     let dynamicSchema = z.object(schemaObject);
 
     // Add refinements
