@@ -11,7 +11,6 @@ import { TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { PrLinksGroup } from '@/components/pr-links-group';
-import { AiTaskSuggester } from '@/components/ai-task-suggester';
 import { DeleteTaskButton } from '@/components/delete-task-button';
 import { Badge } from '@/components/ui/badge';
 import { getInitials, getAvatarColor } from '@/lib/utils';
@@ -196,7 +195,6 @@ export default function TaskPage() {
                     </div>
                 </CardContent>
             </Card>
-           <AiTaskSuggester task={task} />
         </div>
       </div>
     </div>
