@@ -1,4 +1,6 @@
-import type { Task } from './types';
+import type { Task, Developer } from './types';
+
+let developers: Developer[] = ['Alice', 'Bob', 'Charlie', 'Dana', 'Eve'];
 
 // In a real application, this would be a database.
 // For this demo, we're using an in-memory array that resets on server restart.
@@ -163,4 +165,14 @@ export function deleteTask(id: string): boolean {
   }
   tasks.splice(taskIndex, 1);
   return true;
+}
+
+export function getDevelopers(): Developer[] {
+    return [...developers];
+}
+
+export function addDeveloper(name: string): Developer {
+    const newDeveloper: Developer = name;
+    developers.push(newDeveloper);
+    return newDeveloper;
 }

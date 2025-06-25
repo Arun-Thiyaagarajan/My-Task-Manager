@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { addTask, deleteTask, updateTask, getTaskById } from './data';
+import { addTask, deleteTask, updateTask, getTaskById, getDevelopers, addDeveloper } from './data';
 import { taskSchema } from './validators';
 import type { z } from 'zod';
 import type { Task, Environment } from './types';
@@ -31,6 +31,15 @@ const processTaskData = (data: TaskFormData) => {
     };
 }
 
+const handleNewDevelopers = (developers: string[]) => {
+    const existingDevelopers = getDevelopers();
+    developers.forEach(dev => {
+        if (!existingDevelopers.includes(dev)) {
+            addDeveloper(dev);
+        }
+    });
+}
+
 
 export async function createTaskAction(data: TaskFormData) {
   const validationResult = taskSchema.safeParse(data);
@@ -38,6 +47,10 @@ export async function createTaskAction(data: TaskFormData) {
   if (!validationResult.success) {
     console.error(validationResult.error.flatten().fieldErrors);
     throw new Error('Invalid task data passed to action.');
+  }
+  
+  if (validationResult.data.developers) {
+      handleNewDevelopers(validationResult.data.developers);
   }
 
   const taskData = processTaskData(validationResult.data);
@@ -56,6 +69,10 @@ export async function updateTaskAction(id: string, data: TaskFormData) {
   if (!validationResult.success) {
     console.error(validationResult.error.flatten().fieldErrors);
     throw new Error('Invalid task data passed to action.');
+  }
+
+  if (validationResult.data.developers) {
+      handleNewDevelopers(validationResult.data.developers);
   }
 
   const taskData = processTaskData(validationResult.data);

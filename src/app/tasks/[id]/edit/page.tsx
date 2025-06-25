@@ -1,4 +1,4 @@
-import { getTaskById } from '@/lib/data';
+import { getTaskById, getDevelopers } from '@/lib/data';
 import { notFound } from 'next/navigation';
 import { TaskForm } from '@/components/task-form';
 import { updateTaskAction } from '@/lib/actions';
@@ -18,6 +18,7 @@ export default function EditTaskPage({ params }: EditTaskPageProps) {
   }
   
   const updateTaskWithId = updateTaskAction.bind(null, task.id);
+  const developersList = getDevelopers();
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8 max-w-3xl">
@@ -30,6 +31,7 @@ export default function EditTaskPage({ params }: EditTaskPageProps) {
             task={task}
             action={updateTaskWithId}
             submitButtonText="Save Changes"
+            developersList={developersList}
           />
         </CardContent>
       </Card>

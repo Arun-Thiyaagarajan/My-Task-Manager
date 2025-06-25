@@ -1,9 +1,9 @@
-import type { TASK_STATUSES, REPOSITORIES, ENVIRONMENTS, DEVELOPERS } from './constants';
+import type { TASK_STATUSES, REPOSITORIES, ENVIRONMENTS } from './constants';
 
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 export type Repository = (typeof REPOSITORIES)[number];
 export type Environment = (typeof ENVIRONMENTS)[number];
-export type Developer = (typeof DEVELOPERS)[number];
+export type Developer = string;
 
 export interface Task {
   id: string;

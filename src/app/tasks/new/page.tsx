@@ -1,8 +1,10 @@
 import { TaskForm } from '@/components/task-form';
 import { createTaskAction } from '@/lib/actions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { getDevelopers } from '@/lib/data';
 
 export default function NewTaskPage() {
+  const developersList = getDevelopers();
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8 max-w-3xl">
       <Card>
@@ -13,6 +15,7 @@ export default function NewTaskPage() {
           <TaskForm
             action={createTaskAction}
             submitButtonText="Create Task"
+            developersList={developersList}
           />
         </CardContent>
       </Card>

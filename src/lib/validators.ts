@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TASK_STATUSES, REPOSITORIES, DEVELOPERS, ENVIRONMENTS } from './constants';
+import { TASK_STATUSES, REPOSITORIES, ENVIRONMENTS } from './constants';
 
 const prLinksSchema = z.object(
   Object.fromEntries(

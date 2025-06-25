@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
 import { taskSchema } from '@/lib/validators';
 import type { Task } from '@/lib/types';
-import { REPOSITORIES, TASK_STATUSES, DEVELOPERS, ENVIRONMENTS } from '@/lib/constants';
+import { REPOSITORIES, TASK_STATUSES, ENVIRONMENTS } from '@/lib/constants';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,17 +27,17 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, CalendarIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Card } from './ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Separator } from '@/components/ui/separator';
+import { Separator } from './ui/separator';
+import { MultiSelect, type SelectOption } from './ui/multi-select';
 
 type TaskFormData = z.infer<typeof taskSchema>;
 
@@ -45,12 +45,15 @@ interface TaskFormProps {
   task?: Task;
   action: (data: TaskFormData) => Promise<any>;
   submitButtonText: string;
+  developersList: string[];
 }
 
-export function TaskForm({ task, action, submitButtonText }: TaskFormProps) {
+export function TaskForm({ task, action, submitButtonText, developersList }: TaskFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
+  const [allDevelopers, setAllDevelopers] = useState<string[]>(developersList);
+
 
   const form = useForm<TaskFormData>({
     resolver: zodResolver(taskSchema),
@@ -92,6 +95,9 @@ export function TaskForm({ task, action, submitButtonText }: TaskFormProps) {
       }
     });
   };
+
+  const repositoryOptions: SelectOption[] = REPOSITORIES.map(repo => ({ value: repo, label: repo }));
+  const developerOptions: SelectOption[] = allDevelopers.map(dev => ({ value: dev, label: dev }));
 
   return (
     <Form {...form}>
@@ -168,81 +174,48 @@ export function TaskForm({ task, action, submitButtonText }: TaskFormProps) {
             />
         </div>
         
-        <Card className="p-4">
+        <Card className="p-4 space-y-6">
           <FormField
             control={form.control}
             name="repositories"
-            render={() => (
+            render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-base">Repositories</FormLabel>
-                <FormDescription>Select all applicable repositories for this task.</FormDescription>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-2">
-                  {REPOSITORIES.map((repo) => (
-                    <FormField
-                      key={repo}
-                      control={form.control}
-                      name="repositories"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value?.includes(repo)}
-                              onCheckedChange={(checked) => {
-                                return checked
-                                  ? field.onChange([...field.value, repo])
-                                  : field.onChange(field.value?.filter((value) => value !== repo))
-                              }}
-                            />
-                          </FormControl>
-                          <FormLabel className="font-normal">{repo}</FormLabel>
-                        </FormItem>
-                      )}
+                <FormLabel>Repositories</FormLabel>
+                <FormControl>
+                    <MultiSelect
+                        selected={field.value ?? []}
+                        onChange={field.onChange}
+                        options={repositoryOptions}
+                        placeholder="Select repositories..."
                     />
-                  ))}
-                </div>
+                </FormControl>
+                <FormDescription>Select all applicable repositories for this task.</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
-        </Card>
-
-        <Card className="p-4">
-            <FormField
-              control={form.control}
-              name="developers"
-              render={() => (
-                <FormItem>
-                  <FormLabel className="text-base">Developers</FormLabel>
-                  <FormDescription>Assign developers to this task.</FormDescription>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-2">
-                    {DEVELOPERS.map((dev) => (
-                      <FormField
-                        key={dev}
-                        control={form.control}
-                        name="developers"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value?.includes(dev)}
-                                onCheckedChange={(checked) => {
-                                  const currentDevs = field.value ?? [];
-                                  return checked
-                                    ? field.onChange([...currentDevs, dev])
-                                    : field.onChange(currentDevs.filter((value) => value !== dev))
-                                }}
-                              />
-                            </FormControl>
-                            <FormLabel className="font-normal">{dev}</FormLabel>
-                          </FormItem>
-                        )}
-                      />
-                    ))}
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+           <FormField
+            control={form.control}
+            name="developers"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Developers</FormLabel>
+                 <FormControl>
+                    <MultiSelect
+                        selected={field.value ?? []}
+                        onChange={field.onChange}
+                        options={developerOptions}
+                        placeholder="Select or create developers..."
+                        onCreate={(value) => {
+                          setAllDevelopers((prev) => [...new Set([...prev, value])]);
+                        }}
+                    />
+                </FormControl>
+                <FormDescription>Assign developers to this task. Type a new name and press Enter to add.</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </Card>
         
         <Accordion type="single" collapsible className="w-full">
