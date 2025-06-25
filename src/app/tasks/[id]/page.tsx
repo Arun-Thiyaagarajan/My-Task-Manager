@@ -176,14 +176,8 @@ export default function TaskPage() {
                   </Tabs>
               </CardContent>
           </Card>
-
-           <CommentsSection
-              taskId={task.id}
-              comments={task.comments || []}
-              onCommentsUpdate={handleCommentsUpdate}
-           />
-
-           {task.attachments && task.attachments.length > 0 && (
+          
+          {task.attachments && task.attachments.length > 0 && (
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -210,6 +204,12 @@ export default function TaskPage() {
                 </CardContent>
             </Card>
           )}
+
+           <CommentsSection
+              taskId={task.id}
+              comments={task.comments || []}
+              onCommentsUpdate={handleCommentsUpdate}
+           />
         </div>
 
         <div className="lg:col-span-1 space-y-6">
