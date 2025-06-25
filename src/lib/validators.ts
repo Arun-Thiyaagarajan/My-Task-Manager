@@ -1,6 +1,6 @@
 
 import { z } from 'zod';
-import { TASK_STATUSES, REPOSITORIES, ENVIRONMENTS } from './constants';
+import { TASK_STATUSES, ENVIRONMENTS } from './constants';
 import type { AdminConfig, FormFieldConfig, FormField } from './types';
 
 export const attachmentSchema = z.object({
