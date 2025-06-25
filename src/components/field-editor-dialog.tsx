@@ -36,7 +36,6 @@ import { useToast } from '@/hooks/use-toast';
 import { saveField } from '@/lib/data';
 import type { FormField as FormFieldType } from '@/lib/types';
 import { Loader2, PlusCircle, Trash2 } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 const fieldSchema = z.object({
   label: z.string().min(2, { message: 'Field name must be at least 2 characters.' }),
@@ -215,7 +214,7 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                 </form>
             </Form>
         </div>
-        <DialogFooter className="pt-4 border-t -mx-6 px-6 bg-background">
+        <DialogFooter className="pt-4 border-t -mx-6 px-6 bg-background sticky bottom-0">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>Cancel</Button>
             <Button type="submit" form="field-editor-form" disabled={isPending}>
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
