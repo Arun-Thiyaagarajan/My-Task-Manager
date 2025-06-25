@@ -61,7 +61,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
       status: task?.status ?? 'To Do',
       repositories: task?.repositories ?? [],
       azureWorkItemId: task?.azureWorkItemId ?? '',
-      developers: task?.developers ?? [],
+      developers: task?.developers ?? (task ? [] : ['Arun']),
       qaIssueIds: task?.qaIssueIds?.join(', ') ?? '',
       prLinks: {
         dev: task?.prLinks?.dev?.join(', ') ?? '',

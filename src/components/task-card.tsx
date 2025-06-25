@@ -13,7 +13,7 @@ import { GitMerge, ExternalLink } from 'lucide-react';
 import { EnvironmentStatus } from './environment-status';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { getInitials } from '@/lib/utils';
+import { getInitials, getAvatarColor } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 interface TaskCardProps {
@@ -61,7 +61,7 @@ export function TaskCard({ task }: TaskCardProps) {
                   <Tooltip key={dev}>
                     <TooltipTrigger>
                       <Avatar className="h-6 w-6 border-2 border-card">
-                        <AvatarImage src={`https://placehold.co/40x40.png?text=${getInitials(dev)}`} />
+                        <AvatarImage src={`https://placehold.co/40x40/${getAvatarColor(dev)}/ffffff.png?text=${getInitials(dev)}`} />
                         <AvatarFallback>{getInitials(dev)}</AvatarFallback>
                       </Avatar>
                     </TooltipTrigger>

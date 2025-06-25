@@ -14,7 +14,7 @@ import { PrLinksGroup } from '@/components/pr-links-group';
 import { AiTaskSuggester } from '@/components/ai-task-suggester';
 import { DeleteTaskButton } from '@/components/delete-task-button';
 import { Badge } from '@/components/ui/badge';
-import { getInitials } from '@/lib/utils';
+import { getInitials, getAvatarColor } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
 import type { Task } from '@/lib/types';
@@ -162,7 +162,7 @@ export default function TaskPage() {
                                 <Tooltip key={dev}>
                                     <TooltipTrigger>
                                         <Avatar>
-                                            <AvatarImage src={`https://placehold.co/40x40.png?text=${getInitials(dev)}`} />
+                                            <AvatarImage src={`https://placehold.co/40x40/${getAvatarColor(dev)}/ffffff.png?text=${getInitials(dev)}`} />
                                             <AvatarFallback>{getInitials(dev)}</AvatarFallback>
                                         </Avatar>
                                     </TooltipTrigger>
