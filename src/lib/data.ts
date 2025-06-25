@@ -50,6 +50,8 @@ export function addTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>):
     createdAt: now,
     updatedAt: now,
     ...taskData,
+    notes: taskData.notes ?? '',
+    attachments: taskData.attachments ?? [],
     prLinks: taskData.prLinks ?? {},
     deploymentStatus: taskData.deploymentStatus ?? {},
     developers: taskData.developers ?? [],

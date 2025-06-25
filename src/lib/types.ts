@@ -5,10 +5,18 @@ export type Repository = (typeof REPOSITORIES)[number];
 export type Environment = (typeof ENVIRONMENTS)[number];
 export type Developer = string;
 
+export interface Attachment {
+  name: string;
+  url: string;
+  type: 'link' | 'file';
+}
+
 export interface Task {
   id: string;
   title: string;
   description: string;
+  notes?: string;
+  attachments?: Attachment[];
   status: TaskStatus;
   repositories: Repository[];
   azureWorkItemId?: string;

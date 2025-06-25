@@ -1,6 +1,6 @@
 'use client';
 
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
 import { taskSchema } from '@/lib/validators';
@@ -27,10 +27,10 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Loader2, CalendarIcon } from 'lucide-react';
+import { Loader2, CalendarIcon, PlusCircle, Trash2, Link2, FileText } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition, useEffect } from 'react';
-import { Card } from './ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
@@ -63,6 +63,8 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
     defaultValues: {
       title: task?.title ?? '',
       description: task?.description ?? '',
+      notes: task?.notes ?? '',
+      attachments: task?.attachments ?? [],
       status: task?.status ?? 'To Do',
       repositories: task?.repositories ?? [],
       azureWorkItemId: task?.azureWorkItemId ?? '',
@@ -89,6 +91,11 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
       productionDate: task?.productionDate ? new Date(task.productionDate) : undefined,
       othersDate: task?.othersDate ? new Date(task.othersDate) : undefined,
     },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "attachments"
   });
 
   const isOthersDeployed = form.watch('deploymentStatus.others');
@@ -128,6 +135,24 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
               <FormControl>
                 <Textarea
                   placeholder="Describe the task in detail..."
+                  className="min-h-[120px]"
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="notes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Notes / Comments</FormLabel>
+              <FormControl>
+                <Textarea
+                  placeholder="Add any internal notes or comments..."
                   className="min-h-[120px]"
                   {...field}
                 />
@@ -233,6 +258,93 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
               </FormItem>
             )}
           />
+        </Card>
+
+        <Card className="p-4 space-y-4">
+            <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium">Attachments</h3>
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => append({ name: '', url: '', type: 'link' })}
+                >
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add Attachment
+                </Button>
+            </div>
+            <div className="space-y-4">
+                {fields.map((field, index) => (
+                    <div key={field.id} className="flex flex-col md:flex-row gap-4 items-start border p-4 rounded-md relative">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-grow w-full">
+                            <FormField
+                                control={form.control}
+                                name={`attachments.${index}.name`}
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Name</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="e.g. Design Mockup" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name={`attachments.${index}.url`}
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>URL</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="https://..." {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name={`attachments.${index}.type`}
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Type</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select type" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="link">
+                                                  <div className="flex items-center"><Link2 className="mr-2 h-4 w-4" /> Web Link</div>
+                                                </SelectItem>
+                                                <SelectItem value="file">
+                                                  <div className="flex items-center"><FileText className="mr-2 h-4 w-4" /> File Link</div>
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="md:absolute md:top-2 md:right-2 mt-4 md:mt-0 shrink-0"
+                            onClick={() => remove(index)}
+                        >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                            <span className="sr-only">Remove attachment</span>
+                        </Button>
+                    </div>
+                ))}
+                {fields.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">No attachments added.</p>
+                )}
+            </div>
         </Card>
         
         <Accordion type="single" collapsible className="w-full" defaultValue="advanced">

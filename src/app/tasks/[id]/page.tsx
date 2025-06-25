@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, Users, CalendarDays, Loader2, Bug } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, Users, CalendarDays, Loader2, Bug, StickyNote, Paperclip, Link2, FileText } from 'lucide-react';
 import { TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -143,6 +143,52 @@ export default function TaskPage() {
             </CardContent>
           </Card>
           
+          {task.notes && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <StickyNote className="h-5 w-5" />
+                  Notes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-foreground/80 whitespace-pre-wrap">
+                  {task.notes}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {task.attachments && task.attachments.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Paperclip className="h-5 w-5" />
+                  Attachments
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {task.attachments.map((att, index) => (
+                  <a
+                    key={index}
+                    href={att.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-3 rounded-md border bg-muted/50 hover:bg-muted/80 transition-colors"
+                  >
+                    {att.type === 'link' ? (
+                      <Link2 className="h-5 w-5 text-primary" />
+                    ) : (
+                      <FileText className="h-5 w-5 text-primary" />
+                    )}
+                    <span className="text-primary hover:underline underline-offset-4 truncate">{att.name}</span>
+                    <ExternalLink className="h-4 w-4 text-muted-foreground ml-auto" />
+                  </a>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle>Pull Request Links</CardTitle>
