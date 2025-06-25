@@ -53,8 +53,8 @@ import {
 import type { DateRange } from 'react-day-picker';
 import { useActiveCompany } from '@/hooks/use-active-company';
 import { useToast } from '@/hooks/use-toast';
-import * as XLSX from 'xlsx';
 import { useRouter } from 'next/navigation';
+import { taskSchema } from '@/lib/validators';
 
 type ViewMode = 'grid' | 'table';
 
@@ -131,35 +131,13 @@ export default function Home() {
   });
 
   const handleExport = (tasksToExport: Task[], fileName: string) => {
-    const dataForSheet = tasksToExport.map(task => ({
-      'Title': task.title,
-      'Description': task.description,
-      'Status': task.status,
-      'Developers': task.developers?.join(', ') ?? '',
-      'Repositories': task.repositories?.join(', ') ?? '',
-      'Azure Work Item ID': task.azureWorkItemId ?? '',
-      'Dev Start Date': task.devStartDate ? new Date(task.devStartDate).toISOString() : '',
-      'Dev End Date': task.devEndDate ? new Date(task.devEndDate).toISOString() : '',
-      'QA Start Date': task.qaStartDate ? new Date(task.qaStartDate).toISOString() : '',
-      'QA End Date': task.qaEndDate ? new Date(task.qaEndDate).toISOString() : '',
-      'Deployed to Dev': task.deploymentStatus?.dev ?? false,
-      'Dev Deployed Date': task.deploymentDates?.dev ? new Date(task.deploymentDates.dev).toISOString() : '',
-      'Deployed to Stage': task.deploymentStatus?.stage ?? false,
-      'Stage Deployed Date': task.deploymentDates?.stage ? new Date(task.deploymentDates.stage).toISOString() : '',
-      'Deployed to Production': task.deploymentStatus?.production ?? false,
-      'Production Deployed Date': task.deploymentDates?.production ? new Date(task.deploymentDates.production).toISOString() : '',
-      'Deployed to Others': task.deploymentStatus?.others ?? false,
-      'Others Environment Name': task.othersEnvironmentName ?? '',
-      'Others Deployed Date': task.deploymentDates?.others ? new Date(task.deploymentDates.others).toISOString() : '',
-      'PR Links (JSON)': task.prLinks ? JSON.stringify(task.prLinks, null, 2) : '{}',
-      'Attachments (JSON)': task.attachments ? JSON.stringify(task.attachments, null, 2) : '[]',
-      'Comments': task.comments?.join('\n') ?? '',
-    }));
-
-    const worksheet = XLSX.utils.json_to_sheet(dataForSheet);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Tasks");
-    XLSX.writeFile(workbook, fileName);
+    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
+      JSON.stringify(tasksToExport, null, 2)
+    )}`;
+    const link = document.createElement("a");
+    link.href = jsonString;
+    link.download = fileName;
+    link.click();
     
     toast({
         variant: 'success',
@@ -169,17 +147,13 @@ export default function Home() {
   };
 
   const handleDownloadTemplate = () => {
-      const headers = [
-        ['Title', 'Description', 'Status', 'Developers', 'Repositories', 
-        'Azure Work Item ID', 'Dev Start Date', 'Dev End Date', 'QA Start Date', 'QA End Date',
-        'Deployed to Dev', 'Dev Deployed Date', 'Deployed to Stage', 'Stage Deployed Date',
-        'Deployed to Production', 'Production Deployed Date', 'Deployed to Others', 'Others Environment Name', 'Others Deployed Date',
-        'PR Links (JSON)', 'Attachments (JSON)', 'Comments']
-      ];
-      const worksheet = XLSX.utils.aoa_to_sheet(headers);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Tasks");
-      XLSX.writeFile(workbook, "TaskFlow_Import_Template.xlsx");
+      const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
+        JSON.stringify([], null, 2)
+      )}`;
+      const link = document.createElement("a");
+      link.href = jsonString;
+      link.download = "TaskFlow_Import_Template.json";
+      link.click();
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -189,37 +163,32 @@ export default function Home() {
       const reader = new FileReader();
       reader.onload = (e) => {
           try {
-              const data = new Uint8Array(e.target?.result as ArrayBuffer);
-              const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-              const sheetName = workbook.SheetNames[0];
-              const worksheet = workbook.Sheets[sheetName];
-              const json: any[] = XLSX.utils.sheet_to_json(worksheet);
-              
+              const text = e.target?.result as string;
+              const importedTasks: Partial<Task>[] = JSON.parse(text);
+
+              if (!Array.isArray(importedTasks)) {
+                  throw new Error("Invalid format: JSON file must contain an array of tasks.");
+              }
+
               let importedCount = 0;
               const existingDevelopers = getDevelopers();
 
-              for (const row of json) {
-                  let jsonIsValid = true;
-                  try {
-                    if (row['PR Links (JSON)']) JSON.parse(row['PR Links (JSON)']);
-                    if (row['Attachments (JSON)']) JSON.parse(row['Attachments (JSON)']);
-                  } catch {
-                    jsonIsValid = false;
-                  }
-
-                  if (!row.Title || !row.Description || !TASK_STATUSES.includes(row.Status) || !jsonIsValid) {
+              for (const taskData of importedTasks) {
+                  const validationResult = taskSchema.safeParse(taskData);
+                  
+                  if (!validationResult.success) {
                       toast({
                           variant: 'destructive',
                           title: 'Invalid Data Found',
                           description: 'Redirecting to fix the invalid task. Please correct the errors and save.',
                       });
-                      sessionStorage.setItem('failed_import_row', JSON.stringify(row));
+                      sessionStorage.setItem('failed_import_row', JSON.stringify(taskData));
                       router.push('/tasks/new');
                       if(fileInputRef.current) fileInputRef.current.value = '';
                       return; 
                   }
                   
-                  const developers = row.Developers ? String(row.Developers).split(',').map(d => d.trim()).filter(Boolean) : [];
+                  const developers = validationResult.data.developers || [];
                   developers.forEach(dev => {
                       if (!existingDevelopers.includes(dev)) {
                           addDeveloper(dev);
@@ -227,41 +196,7 @@ export default function Home() {
                       }
                   });
                   
-                  const parseBoolean = (value: any) => {
-                    if (typeof value === 'boolean') return value;
-                    return String(value).toLowerCase() === 'true';
-                  };
-
-                  const taskData: Partial<Task> = {
-                      title: row.Title,
-                      description: row.Description,
-                      status: row.Status,
-                      developers: developers,
-                      repositories: row.Repositories ? String(row.Repositories).split(',').map(r => r.trim()).filter(Boolean) : [],
-                      azureWorkItemId: row['Azure Work Item ID'] ? String(row['Azure Work Item ID']) : undefined,
-                      devStartDate: row['Dev Start Date'] ? new Date(row['Dev Start Date']).toISOString() : null,
-                      devEndDate: row['Dev End Date'] ? new Date(row['Dev End Date']).toISOString() : null,
-                      qaStartDate: row['QA Start Date'] ? new Date(row['QA Start Date']).toISOString() : null,
-                      qaEndDate: row['QA End Date'] ? new Date(row['QA End Date']).toISOString() : null,
-                      deploymentStatus: {
-                        dev: parseBoolean(row['Deployed to Dev']),
-                        stage: parseBoolean(row['Deployed to Stage']),
-                        production: parseBoolean(row['Deployed to Production']),
-                        others: parseBoolean(row['Deployed to Others']),
-                      },
-                      deploymentDates: {
-                        dev: row['Dev Deployed Date'] ? new Date(row['Dev Deployed Date']).toISOString() : null,
-                        stage: row['Stage Deployed Date'] ? new Date(row['Stage Deployed Date']).toISOString() : null,
-                        production: row['Production Deployed Date'] ? new Date(row['Production Deployed Date']).toISOString() : null,
-                        others: row['Others Deployed Date'] ? new Date(row['Others Deployed Date']).toISOString() : null,
-                      },
-                      othersEnvironmentName: row['Others Environment Name'] || undefined,
-                      prLinks: row['PR Links (JSON)'] ? JSON.parse(row['PR Links (JSON)']) : {},
-                      attachments: row['Attachments (JSON)'] ? JSON.parse(row['Attachments (JSON)']) : [],
-                      comments: row.Comments ? String(row.Comments).split('\n') : [],
-                  };
-                  
-                  addTask(taskData);
+                  addTask(validationResult.data);
                   importedCount++;
               }
               
@@ -274,12 +209,12 @@ export default function Home() {
                 });
               }
 
-          } catch (error) {
+          } catch (error: any) {
               console.error("Error importing file:", error);
               toast({
                   variant: 'destructive',
                   title: 'Import Failed',
-                  description: 'There was an error processing your file. Please ensure it is a valid Excel file.'
+                  description: error.message || 'There was an error processing your file. Please ensure it is a valid JSON file.'
               });
           } finally {
               if(fileInputRef.current) {
@@ -287,7 +222,7 @@ export default function Home() {
               }
           }
       };
-      reader.readAsArrayBuffer(file);
+      reader.readAsText(file);
   };
 
 
@@ -319,7 +254,7 @@ export default function Home() {
                 </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                <DropdownMenuItem onSelect={() => handleExport(filteredTasks, 'TaskFlow_Export.xlsx')}>
+                <DropdownMenuItem onSelect={() => handleExport(filteredTasks, 'TaskFlow_Export.json')}>
                     Export Current View
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={handleDownloadTemplate}>
@@ -337,7 +272,7 @@ export default function Home() {
                 ref={fileInputRef}
                 onChange={handleFileChange}
                 className="hidden"
-                accept=".xlsx, .xls"
+                accept=".json"
             />
             
             <Button asChild>
@@ -351,7 +286,7 @@ export default function Home() {
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto flex-1 flex-wrap">
-          <div className="relative w-full sm:w-64">
+          <div className="relative w-full sm:w-auto md:flex-grow">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search tasks..."

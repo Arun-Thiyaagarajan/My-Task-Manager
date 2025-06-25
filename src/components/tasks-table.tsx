@@ -37,7 +37,7 @@ export function TasksTable({ tasks, onTaskDelete }: TasksTableProps) {
         <TableBody>
           {tasks.map(task => (
             <TableRow key={task.id}>
-              <TableCell className="font-medium">
+              <TableCell className="font-medium max-w-xs truncate">
                 <Link href={`/tasks/${task.id}`} className="hover:text-primary transition-colors">
                   {task.title}
                 </Link>

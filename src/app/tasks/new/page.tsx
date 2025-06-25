@@ -10,16 +10,6 @@ import { useToast } from '@/hooks/use-toast';
 import type { Task } from '@/lib/types';
 import { taskSchema } from '@/lib/validators';
 import { Loader2 } from 'lucide-react';
-import { TASK_STATUSES } from '@/lib/constants';
-
-const parseJsonSafe = (jsonString: string, fallback: any) => {
-  if (!jsonString) return fallback;
-  try {
-    return JSON.parse(jsonString);
-  } catch {
-    return fallback;
-  }
-};
 
 export default function NewTaskPage() {
   const router = useRouter();
@@ -36,42 +26,7 @@ export default function NewTaskPage() {
     if (failedImportRowString) {
       try {
         const row = JSON.parse(failedImportRowString);
-        
-        const parseBoolean = (value: any) => {
-          if (typeof value === 'boolean') return value;
-          return String(value).toLowerCase() === 'true';
-        };
-        
-        const prefillData: Partial<Task> = {
-          title: row.Title || '',
-          description: row.Description || '',
-          status: TASK_STATUSES.includes(row.Status) ? row.Status : undefined,
-          developers: row.Developers ? String(row.Developers).split(',').map((d:string) => d.trim()).filter(Boolean) : [],
-          repositories: row.Repositories ? String(row.Repositories).split(',').map((r:string) => r.trim()).filter(Boolean) : [],
-          azureWorkItemId: row['Azure Work Item ID'] ? String(row['Azure Work Item ID']) : '',
-          devStartDate: row['Dev Start Date'] ? new Date(row['Dev Start Date']).toISOString() : undefined,
-          devEndDate: row['Dev End Date'] ? new Date(row['Dev End Date']).toISOString() : undefined,
-          qaStartDate: row['QA Start Date'] ? new Date(row['QA Start Date']).toISOString() : undefined,
-          qaEndDate: row['QA End Date'] ? new Date(row['QA End Date']).toISOString() : undefined,
-          deploymentStatus: {
-              dev: parseBoolean(row['Deployed to Dev']),
-              stage: parseBoolean(row['Deployed to Stage']),
-              production: parseBoolean(row['Deployed to Production']),
-              others: parseBoolean(row['Deployed to Others']),
-          },
-          deploymentDates: {
-              dev: row['Dev Deployed Date'] ? new Date(row['Dev Deployed Date']).toISOString() : undefined,
-              stage: row['Stage Deployed Date'] ? new Date(row['Stage Deployed Date']).toISOString() : undefined,
-              production: row['Production Deployed Date'] ? new Date(row['Production Deployed Date']).toISOString() : undefined,
-              others: row['Others Deployed Date'] ? new Date(row['Others Deployed Date']).toISOString() : undefined,
-          },
-          othersEnvironmentName: row['Others Environment Name'] || undefined,
-          prLinks: parseJsonSafe(row['PR Links (JSON)'], {}),
-          attachments: parseJsonSafe(row['Attachments (JSON)'], []),
-          comments: row.Comments ? String(row.Comments).split('\n') : [],
-        };
-        
-        setInitialData(prefillData);
+        setInitialData(row as Partial<Task>);
 
         toast({
             variant: 'warning',
