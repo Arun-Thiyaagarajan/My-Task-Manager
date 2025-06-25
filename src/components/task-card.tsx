@@ -11,12 +11,20 @@ import { Button } from './ui/button';
 import { TaskStatusBadge } from './task-status-badge';
 import { GitMerge, ExternalLink } from 'lucide-react';
 import { EnvironmentStatus } from './environment-status';
+import { Badge } from './ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { getInitials } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 interface TaskCardProps {
   task: Task;
 }
 
 export function TaskCard({ task }: TaskCardProps) {
+  const azureWorkItemUrl = task.azureWorkItemId 
+    ? `https://dev.azure.com/your-org/your-project/_workitems/edit/${task.azureWorkItemId}` 
+    : null;
+
   return (
     <Card className="flex flex-col h-full overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
       <CardHeader>
@@ -34,25 +42,50 @@ export function TaskCard({ task }: TaskCardProps) {
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <GitMerge className="h-4 w-4 shrink-0" />
-          <span>{task.repository}</span>
+          <div className="flex flex-wrap gap-1">
+            {task.repositories.map(repo => <Badge variant="secondary" key={repo} className="text-xs">{repo}</Badge>)}
+          </div>
         </div>
         
         <div>
             <p className="text-xs font-medium text-muted-foreground mb-2">Deployments</p>
             <EnvironmentStatus prLinks={task.prLinks} size="sm" />
         </div>
+        
+        {task.developers && task.developers.length > 0 && (
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-2">Assignees</p>
+            <div className="flex -space-x-2">
+              <TooltipProvider>
+                {task.developers.map(dev => (
+                  <Tooltip key={dev}>
+                    <TooltipTrigger>
+                      <Avatar className="h-6 w-6 border-2 border-card">
+                        <AvatarImage src={`https://placehold.co/40x40.png?text=${getInitials(dev)}`} />
+                        <AvatarFallback>{getInitials(dev)}</AvatarFallback>
+                      </Avatar>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{dev}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </TooltipProvider>
+            </div>
+          </div>
+        )}
 
-        {task.azureId && (
+        {azureWorkItemUrl && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <ExternalLink className="h-4 w-4 shrink-0" />
             <a
-              href={task.azureId}
+              href={azureWorkItemUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-primary transition-colors line-clamp-1"
               onClick={(e) => e.stopPropagation()}
             >
-              Azure Work Item
+              Azure ID: {task.azureWorkItemId}
             </a>
           </div>
         )}

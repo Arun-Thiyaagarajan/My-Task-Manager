@@ -1,5 +1,12 @@
 import { z } from 'zod';
-import { TASK_STATUSES, REPOSITORIES } from './constants';
+import { TASK_STATUSES, REPOSITORIES, DEVELOPERS, ENVIRONMENTS } from './constants';
+
+const prLinksSchema = z.object(
+  Object.fromEntries(
+    ENVIRONMENTS.map(env => [env, z.string().optional()])
+  )
+) as z.ZodType<Record<typeof ENVIRONMENTS[number], string | undefined>>;
+
 
 export const taskSchema = z.object({
   title: z.string().min(3, { message: 'Title must be at least 3 characters long.' }),
@@ -7,8 +14,8 @@ export const taskSchema = z.object({
   status: z.enum(TASK_STATUSES, {
     errorMap: () => ({ message: 'Please select a valid status.' }),
   }),
-  repository: z.enum(REPOSITORIES, {
-    errorMap: () => ({ message: 'Please select a valid repository.' }),
-  }),
-  azureId: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
+  repositories: z.array(z.enum(REPOSITORIES)).min(1, { message: 'Please select at least one repository.' }),
+  azureWorkItemId: z.string().regex(/^\d*$/, { message: "Please enter a valid work item ID." }).optional().or(z.literal('')),
+  developers: z.array(z.string()).optional(),
+  prLinks: prLinksSchema,
 });

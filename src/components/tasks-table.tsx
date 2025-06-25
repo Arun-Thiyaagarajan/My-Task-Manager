@@ -12,6 +12,7 @@ import { TaskStatusBadge } from '@/components/task-status-badge';
 import { ArrowRight } from 'lucide-react';
 import type { Task } from '@/lib/types';
 import { EnvironmentStatus } from './environment-status';
+import { Badge } from './ui/badge';
 
 interface TasksTableProps {
   tasks: Task[];
@@ -25,7 +26,7 @@ export function TasksTable({ tasks }: TasksTableProps) {
           <TableRow>
             <TableHead className="w-[40%]">Title</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Repository</TableHead>
+            <TableHead>Repositories</TableHead>
             <TableHead>Deployments</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
@@ -41,7 +42,13 @@ export function TasksTable({ tasks }: TasksTableProps) {
               <TableCell>
                 <TaskStatusBadge status={task.status} />
               </TableCell>
-              <TableCell>{task.repository}</TableCell>
+              <TableCell>
+                <div className="flex flex-wrap gap-1">
+                  {task.repositories.map(repo => (
+                    <Badge variant="secondary" key={repo} className="text-xs font-normal">{repo}</Badge>
+                  ))}
+                </div>
+              </TableCell>
               <TableCell>
                 <EnvironmentStatus prLinks={task.prLinks} size="sm" />
               </TableCell>

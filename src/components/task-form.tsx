@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
 import { taskSchema } from '@/lib/validators';
 import type { Task } from '@/lib/types';
-import { REPOSITORIES, TASK_STATUSES } from '@/lib/constants';
+import { REPOSITORIES, TASK_STATUSES, DEVELOPERS, ENVIRONMENTS } from '@/lib/constants';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,15 +20,19 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { Card } from './ui/card';
 
 type TaskFormData = z.infer<typeof taskSchema>;
 
@@ -48,9 +52,16 @@ export function TaskForm({ task, action, submitButtonText }: TaskFormProps) {
     defaultValues: {
       title: task?.title ?? '',
       description: task?.description ?? '',
-      status: task?.status ?? 'Not Started',
-      repository: task?.repository ?? 'Other',
-      azureId: task?.azureId ?? '',
+      status: task?.status ?? 'To Do',
+      repositories: task?.repositories ?? [],
+      azureWorkItemId: task?.azureWorkItemId ?? '',
+      developers: task?.developers ?? [],
+      prLinks: {
+        dev: task?.prLinks?.dev?.join('\n') ?? '',
+        stage: task?.prLinks?.stage?.join('\n') ?? '',
+        production: task?.prLinks?.production?.join('\n') ?? '',
+        others: task?.prLinks?.others?.join('\n') ?? '',
+      }
     },
   });
 
@@ -133,46 +144,126 @@ export function TaskForm({ task, action, submitButtonText }: TaskFormProps) {
               </FormItem>
             )}
           />
-
+            <FormField
+              control={form.control}
+              name="azureWorkItemId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Azure Work Item ID (Optional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g. 101" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+        </div>
+        
+        <Card className="p-4">
           <FormField
             control={form.control}
-            name="repository"
-            render={({ field }) => (
+            name="repositories"
+            render={() => (
               <FormItem>
-                <FormLabel>Repository</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a repository" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {REPOSITORIES.map((repo) => (
-                      <SelectItem key={repo} value={repo}>
-                        {repo}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormLabel className="text-base">Repositories</FormLabel>
+                <FormDescription>Select all applicable repositories for this task.</FormDescription>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-2">
+                  {REPOSITORIES.map((repo) => (
+                    <FormField
+                      key={repo}
+                      control={form.control}
+                      name="repositories"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value?.includes(repo)}
+                              onCheckedChange={(checked) => {
+                                return checked
+                                  ? field.onChange([...field.value, repo])
+                                  : field.onChange(field.value?.filter((value) => value !== repo))
+                              }}
+                            />
+                          </FormControl>
+                          <FormLabel className="font-normal">{repo}</FormLabel>
+                        </FormItem>
+                      )}
+                    />
+                  ))}
+                </div>
                 <FormMessage />
               </FormItem>
             )}
           />
-        </div>
+        </Card>
 
-        <FormField
-          control={form.control}
-          name="azureId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Azure Work Item URL (Optional)</FormLabel>
-              <FormControl>
-                <Input placeholder="https://dev.azure.com/..." {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <Card className="p-4">
+            <FormField
+              control={form.control}
+              name="developers"
+              render={() => (
+                <FormItem>
+                  <FormLabel className="text-base">Developers</FormLabel>
+                  <FormDescription>Assign developers to this task.</FormDescription>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-2">
+                    {DEVELOPERS.map((dev) => (
+                      <FormField
+                        key={dev}
+                        control={form.control}
+                        name="developers"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value?.includes(dev)}
+                                onCheckedChange={(checked) => {
+                                  const currentDevs = field.value ?? [];
+                                  return checked
+                                    ? field.onChange([...currentDevs, dev])
+                                    : field.onChange(currentDevs.filter((value) => value !== dev))
+                                }}
+                              />
+                            </FormControl>
+                            <FormLabel className="font-normal">{dev}</FormLabel>
+                          </FormItem>
+                        )}
+                      />
+                    ))}
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+        </Card>
+        
+        <Accordion type="single" collapsible className="w-full">
+            <AccordionItem value="pr-links">
+                <AccordionTrigger className="text-base">Pull Request Links (Optional)</AccordionTrigger>
+                <AccordionContent className="space-y-6 pt-4">
+                    {ENVIRONMENTS.map(env => (
+                        <FormField
+                            key={env}
+                            control={form.control}
+                            name={`prLinks.${env}`}
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="capitalize">{env} PR Links</FormLabel>
+                                    <FormControl>
+                                        <Textarea
+                                        placeholder={`Paste ${env} PR links here, one per line...`}
+                                        className="min-h-[80px] font-mono text-xs"
+                                        {...field}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    ))}
+                </AccordionContent>
+            </AccordionItem>
+        </Accordion>
+
 
         <div className="flex justify-end gap-4">
             <Button type="button" variant="outline" onClick={() => router.back()} disabled={isPending}>

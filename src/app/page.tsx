@@ -28,7 +28,7 @@ export default function Home() {
 
   const filteredTasks = tasks.filter((task: Task) => {
     const statusMatch = statusFilter === 'all' || task.status === statusFilter;
-    const repoMatch = repoFilter === 'all' || task.repository === repoFilter;
+    const repoMatch = repoFilter === 'all' || task.repositories.includes(repoFilter);
     return statusMatch && repoMatch;
   });
 
