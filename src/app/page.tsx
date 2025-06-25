@@ -39,13 +39,14 @@ import {
   startOfMonth,
   endOfMonth,
   startOfYear,
-  endOfYear,
 } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
+import { useActiveCompany } from '@/hooks/use-active-company';
 
 type ViewMode = 'grid' | 'table';
 
 export default function Home() {
+  const activeCompanyId = useActiveCompany();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [repoFilter, setRepoFilter] = useState('all');
@@ -58,14 +59,20 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (!activeCompanyId) {
+      // Still waiting for client-side mount to determine company
+      return;
+    }
     document.title = 'Tasks | My Task Manager';
     // Data is fetched on the client from localStorage
     setTasks(getTasks());
     setIsLoading(false);
-  }, []);
+  }, [activeCompanyId]);
 
   const refreshTasks = () => {
-    setTasks(getTasks());
+    if (activeCompanyId) {
+        setTasks(getTasks());
+    }
   };
 
   const filteredTasks = tasks.filter((task: Task) => {

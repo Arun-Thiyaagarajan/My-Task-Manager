@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Icons } from './icons';
 import { Button } from './ui/button';
@@ -18,7 +17,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   getCompanies,
-  getActiveCompanyId,
   setActiveCompanyId,
   deleteCompany,
 } from '@/lib/data';
@@ -37,28 +35,33 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { useActiveCompany } from '@/hooks/use-active-company';
 
 export function Header() {
-  const router = useRouter();
   const { toast } = useToast();
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [activeCompanyId, _setActiveCompanyId] = useState<string>('');
+  const activeCompanyId = useActiveCompany();
   const [isManagerOpen, setIsManagerOpen] = useState(false);
   const [companyToEdit, setCompanyToEdit] = useState<Company | null>(null);
 
-  const refreshData = () => {
+  const refreshCompanies = () => {
     setCompanies(getCompanies());
-    _setActiveCompanyId(getActiveCompanyId());
   };
 
   useEffect(() => {
-    refreshData();
+    refreshCompanies();
+    
+    // Listen for company changes to refresh the list of companies
+    window.addEventListener('company-changed', refreshCompanies);
+    return () => {
+        window.removeEventListener('company-changed', refreshCompanies);
+    };
+
   }, []);
 
   const handleCompanyChange = (id: string) => {
     setActiveCompanyId(id);
-    _setActiveCompanyId(id);
-    router.refresh();
+    window.dispatchEvent(new Event('company-changed'));
   };
 
   const handleAddCompany = () => {
@@ -74,11 +77,7 @@ export function Header() {
   const handleDeleteCompany = (id: string) => {
       if(deleteCompany(id)) {
           toast({title: 'Company Deleted', description: 'The company has been successfully removed.'});
-          const newCompanies = getCompanies();
-          const newActiveId = getActiveCompanyId();
-          setCompanies(newCompanies);
-          _setActiveCompanyId(newActiveId);
-          router.refresh();
+          window.dispatchEvent(new Event('company-changed'));
       } else {
           toast({variant: 'destructive', title: 'Error', description: 'Cannot delete the only company.'});
       }
@@ -164,8 +163,7 @@ export function Header() {
         isOpen={isManagerOpen}
         onOpenChange={setIsManagerOpen}
         onSuccess={() => {
-            refreshData();
-            router.refresh();
+            window.dispatchEvent(new Event('company-changed'));
         }}
         companyToEdit={companyToEdit}
       />
