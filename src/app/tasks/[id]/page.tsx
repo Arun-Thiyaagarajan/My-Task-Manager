@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, Loader2, ListChecks, Paperclip, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, Loader2, ListChecks, Paperclip, CheckCircle2, Clock } from 'lucide-react';
 import { TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -295,7 +295,10 @@ export default function TaskPage() {
                                                     </span>
                                                 </div>
                                             ) : (
-                                                <span className="text-muted-foreground">Pending</span>
+                                                <div className="flex items-center gap-2 text-muted-foreground">
+                                                    <Clock className="h-4 w-4" />
+                                                    <span>Pending</span>
+                                                </div>
                                             )}
                                         </div>
                                     )
