@@ -120,6 +120,19 @@ export default function TaskPage() {
     ? `https://dev.azure.com/ideaelan/Infinity/_workitems/edit/${task.azureWorkItemId}` 
     : null;
 
+  const dateGroups: {label: string, startDate?: string, endDate?: string}[] = [
+    { label: 'Dev', startDate: task?.devStartDate, endDate: task?.devEndDate },
+    { label: 'QA', startDate: task?.qaStartDate, endDate: task?.qaEndDate },
+  ]
+
+  const otherDates = Object.values(allFields).filter(f => 
+    f.type === 'date' && 
+    task[f.id] &&
+    !f.id.match(/(dev|qa)(Start|End)Date/)
+  );
+
+  const hasAnyDate = dateGroups.some(g => g.startDate || g.endDate) || otherDates.length > 0;
+
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <div className="flex justify-between items-center mb-6">
@@ -287,13 +300,48 @@ export default function TaskPage() {
                         Important Dates
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4 text-sm">
-                    {Object.values(allFields).filter(f => f.type === 'date' && task[f.id]).map(dateField => (
-                        <div key={dateField.id}>
-                            <p className="font-medium text-muted-foreground">{dateField.label}</p>
-                            <p className="text-foreground/90">{renderFieldValue(dateField, task[dateField.id])}</p>
-                        </div>
-                    ))}
+                <CardContent className="space-y-6 text-sm">
+                    {hasAnyDate ? (
+                        <>
+                            {dateGroups.map(group => {
+                                const startFieldDef = allFields[`${group.label.toLowerCase()}StartDate`];
+                                const endFieldDef = allFields[`${group.label.toLowerCase()}EndDate`];
+                                if (!group.startDate && !group.endDate) return null;
+
+                                return (
+                                    <div key={group.label} className="space-y-2">
+                                        <h4 className="font-semibold text-base">{group.label} Dates</h4>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 pl-2 border-l-2">
+                                            <div>
+                                                <p className="font-medium text-muted-foreground">{startFieldDef?.label || `${group.label} Start`}</p>
+                                                <p className="text-foreground/90">{group.startDate ? renderFieldValue(startFieldDef, group.startDate) : 'Not set'}</p>
+                                            </div>
+                                            <div>
+                                                <p className="font-medium text-muted-foreground">{endFieldDef?.label || `${group.label} End`}</p>
+                                                <p className="text-foreground/90">{group.endDate ? renderFieldValue(endFieldDef, group.endDate) : 'Not set'}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+
+                            {otherDates.length > 0 && (
+                                <div className="space-y-2">
+                                     <h4 className="font-semibold text-base">Other Dates</h4>
+                                     <div className="space-y-3 pl-2 border-l-2">
+                                        {otherDates.map(dateField => (
+                                            <div key={dateField.id}>
+                                                <p className="font-medium text-muted-foreground">{dateField.label}</p>
+                                                <p className="text-foreground/90">{renderFieldValue(dateField, task[dateField.id])}</p>
+                                            </div>
+                                        ))}
+                                     </div>
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                         <p className="text-muted-foreground">No dates have been set for this task.</p>
+                    )}
                 </CardContent>
             </Card>
         </div>
