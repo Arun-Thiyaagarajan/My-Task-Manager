@@ -1,30 +1,25 @@
 
 'use client';
 
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect } from 'react';
 import { getTaskById, getFields } from '@/lib/data';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, Users, CalendarDays, Loader2, Bug, Paperclip, Link2, FileText, StickyNote, Info } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, Users, CalendarDays, Loader2, Bug, Paperclip, Link2, FileText, StickyNote } from 'lucide-react';
 import { TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { DeleteTaskButton } from '@/components/delete-task-button';
+import { PrLinksGroup } from '@/components/pr-links-group';
+import { EnvironmentStatus } from '@/components/environment-status';
 import { Badge } from '@/components/ui/badge';
-import { getInitials, getAvatarColor, cn } from '@/lib/utils';
+import { getInitials, getAvatarColor } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
 import type { Task, FormField } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
-
 
 export default function TaskPage() {
   const params = useParams();
@@ -56,39 +51,6 @@ export default function TaskPage() {
     }
   };
 
-  const customFieldIds = Object.keys(allFields).filter(id => {
-      const field = allFields[id];
-      // Exclude core, always-visible fields and group fields (which are rendered separately)
-      return field.isCustom && field.type !== 'group';
-  });
-
-  const customFieldsToDisplay = customFieldIds.map(id => ({
-      ...allFields[id],
-      value: task?.[id]
-  })).filter(field => field.value !== undefined && field.value !== null && field.value !== '');
-
-  const groupFields = Object.values(allFields).filter(field => field.type === 'group');
-
-  const renderFieldValue = (field: FormField, value: any) => {
-    if (value === undefined || value === null || value === '') return 'Not set';
-
-    if (field.type === 'date' && value) {
-        try {
-            return format(new Date(value), 'PPP');
-        } catch {
-            return 'Invalid Date';
-        }
-    }
-    if (Array.isArray(value)) {
-      return value.join(', ');
-    }
-    if (typeof value === 'object') {
-        return JSON.stringify(value, null, 2); // Fallback for nested objects
-    }
-    return String(value);
-  }
-
-
   if (isLoading) {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -119,19 +81,6 @@ export default function TaskPage() {
     ? `https://dev.azure.com/ideaelan/Infinity/_workitems/edit/${task.azureWorkItemId}` 
     : null;
 
-  const dateGroups: {label: string, startDate?: string, endDate?: string}[] = [
-    { label: 'Dev', startDate: task?.devStartDate, endDate: task?.devEndDate },
-    { label: 'QA', startDate: task?.qaStartDate, endDate: task?.qaEndDate },
-  ]
-
-  const otherDates = Object.values(allFields).filter(f => 
-    f.type === 'date' && 
-    task[f.id] &&
-    !f.id.match(/(dev|qa)(Start|End)Date/)
-  );
-
-  const hasAnyDate = dateGroups.some(g => g.startDate || g.endDate) || otherDates.length > 0;
-
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <div className="flex justify-between items-center mb-6">
@@ -152,8 +101,9 @@ export default function TaskPage() {
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-8">
-        <div className="lg:w-2/3 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader>
               <div className="flex flex-wrap items-start justify-between gap-4">
@@ -174,89 +124,68 @@ export default function TaskPage() {
               </p>
             </CardContent>
           </Card>
-          
-          <Accordion type="multiple" defaultValue={['comments']} className="w-full space-y-4">
-            {groupFields.map(groupFieldDef => {
-                const groupData = task[groupFieldDef.id];
-                if (!groupData) return null;
 
-                const items = groupFieldDef.isRepeatable ? (Array.isArray(groupData) ? groupData : []) : [groupData];
-                if (items.length === 0) return null;
-
-                return (
-                    <Card as="div" key={groupFieldDef.id}>
-                        <AccordionItem value={groupFieldDef.id} className="border-none">
-                            <AccordionTrigger className="p-6 hover:no-underline">
-                                <CardTitle className="text-2xl flex-1 text-left">{groupFieldDef.label}</CardTitle>
-                            </AccordionTrigger>
-                            <AccordionContent className="px-6 pb-6 pt-0 space-y-4">
-                                {items.map((item, index) => (
-                                    <div key={index} className={cn("rounded-lg border p-4", items.length > 1 && "bg-muted/40")}>
-                                        {groupFieldDef.isRepeatable && <h4 className="font-semibold text-md mb-3">{groupFieldDef.label} #{index + 1}</h4>}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                            {groupFieldDef.childFieldIds?.map(childId => {
-                                                const childFieldDef = allFields[childId];
-                                                if (!childFieldDef) return null;
-                                                return (
-                                                    <div key={childId}>
-                                                        <p className="font-medium text-muted-foreground">{childFieldDef.label}</p>
-                                                        <p className="text-foreground/90">{renderFieldValue(childFieldDef, item[childId])}</p>
-                                                    </div>
-                                                )
-                                            })}
-                                        </div>
-                                    </div>
-                                ))}
-                            </AccordionContent>
-                        </AccordionItem>
-                    </Card>
-                );
-            })}
-             {customFieldsToDisplay.length > 0 && (
-                <Card>
-                    <AccordionItem value="additional-details" className="border-none">
-                      <AccordionTrigger className="p-6 hover:no-underline">
-                        <CardTitle className="text-2xl flex items-center gap-2 flex-1 text-left">
-                            <Info className="h-5 w-5" />
-                            Additional Details
-                        </CardTitle>
-                      </AccordionTrigger>
-                      <AccordionContent className="px-6 pb-6 pt-0">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                            {customFieldsToDisplay.map(field => (
-                                <div key={field.id}>
-                                    <p className="font-medium text-muted-foreground">{field.label}</p>
-                                    <div className="text-foreground/90">
-                                      {renderFieldValue(field, field.value)}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                </Card>
-            )}
-            <Card as="div">
-                <AccordionItem value="comments" className="border-none">
-                    <AccordionTrigger className="p-6 hover:no-underline">
-                        <CardTitle className="text-2xl flex items-center gap-2 flex-1 text-left">
-                            <StickyNote className="h-5 w-5" />
-                            Comments
-                        </CardTitle>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-6 pt-0 pb-6">
-                        <CommentsSection
-                            taskId={task.id}
-                            comments={task.comments || []}
-                            onCommentsUpdate={handleCommentsUpdate}
-                            hideHeader
-                        />
-                    </AccordionContent>
-                </AccordionItem>
+          {task.prLinks && (
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <GitMerge className="h-5 w-5" />
+                        Pull Requests
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                   <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} />
+                </CardContent>
             </Card>
-          </Accordion>
+          )}
+
+          {task.comments && (
+             <CommentsSection
+                taskId={task.id}
+                comments={task.comments}
+                onCommentsUpdate={handleCommentsUpdate}
+             />
+          )}
+
         </div>
-        <div className="lg:w-1/3 space-y-6">
+
+        <div className="lg:col-span-1 space-y-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Users className="h-5 w-5" />
+                        Details
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Status</span>
+                        <TaskStatusBadge status={task.status} />
+                    </div>
+                     <Separator />
+                    <div className="space-y-2">
+                        <span className="text-muted-foreground block">Repositories</span>
+                         <div className="flex flex-wrap gap-1">
+                          {(task.repositories || []).map(repo => (
+                            <Badge key={repo} variant="secondary">{repo}</Badge>
+                          ))}
+                        </div>
+                    </div>
+                    {azureWorkItemUrl && (
+                        <>
+                         <Separator />
+                         <div className="space-y-2">
+                            <span className="text-muted-foreground block">Azure DevOps</span>
+                            <a href={azureWorkItemUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline">
+                                <ExternalLink className="h-4 w-4" />
+                                <span>Work Item #{task.azureWorkItemId}</span>
+                            </a>
+                        </div>
+                        </>
+                    )}
+                </CardContent>
+            </Card>
+
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -295,52 +224,36 @@ export default function TaskPage() {
              <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
+                        <Cloud className="h-5 w-5" />
+                        Deployments
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                   <EnvironmentStatus deploymentStatus={task.deploymentStatus} othersEnvironmentName={task.othersEnvironmentName} />
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
                         <CalendarDays className="h-5 w-5" />
                         Important Dates
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-6 text-sm">
-                    {hasAnyDate ? (
-                        <>
-                            {dateGroups.map(group => {
-                                const startFieldDef = allFields[`${group.label.toLowerCase()}StartDate`];
-                                const endFieldDef = allFields[`${group.label.toLowerCase()}EndDate`];
-                                if (!group.startDate && !group.endDate) return null;
-
-                                return (
-                                    <div key={group.label} className="space-y-2">
-                                        <h4 className="font-semibold text-base">{group.label} Dates</h4>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 pl-2 border-l-2">
-                                            <div>
-                                                <p className="font-medium text-muted-foreground">{startFieldDef?.label || `${group.label} Start`}</p>
-                                                <p className="text-foreground/90">{group.startDate ? renderFieldValue(startFieldDef, group.startDate) : 'Not set'}</p>
-                                            </div>
-                                            <div>
-                                                <p className="font-medium text-muted-foreground">{endFieldDef?.label || `${group.label} End`}</p>
-                                                <p className="text-foreground/90">{group.endDate ? renderFieldValue(endFieldDef, group.endDate) : 'Not set'}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-
-                            {otherDates.length > 0 && (
-                                <div className="space-y-2">
-                                     <h4 className="font-semibold text-base">Other Dates</h4>
-                                     <div className="space-y-3 pl-2 border-l-2">
-                                        {otherDates.map(dateField => (
-                                            <div key={dateField.id}>
-                                                <p className="font-medium text-muted-foreground">{dateField.label}</p>
-                                                <p className="text-foreground/90">{renderFieldValue(dateField, task[dateField.id])}</p>
-                                            </div>
-                                        ))}
-                                     </div>
-                                </div>
-                            )}
-                        </>
-                    ) : (
-                         <p className="text-muted-foreground">No dates have been set for this task.</p>
-                    )}
+                <CardContent className="space-y-3 text-sm">
+                    {Object.entries({
+                        'Dev Start': task.devStartDate,
+                        'Dev End': task.devEndDate,
+                        'QA Start': task.qaStartDate,
+                        'QA End': task.qaEndDate,
+                    }).map(([label, date]) => (
+                        date ? (
+                            <div key={label} className="flex justify-between">
+                                <span className="text-muted-foreground">{label}</span>
+                                <span>{format(new Date(date), 'PPP')}</span>
+                            </div>
+                        ) : null
+                    ))}
                 </CardContent>
             </Card>
         </div>

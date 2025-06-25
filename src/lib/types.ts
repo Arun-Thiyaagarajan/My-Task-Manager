@@ -2,7 +2,7 @@
 import type { TASK_STATUSES, ENVIRONMENTS } from './constants';
 
 export type TaskStatus = (typeof TASK_STATUSES)[number];
-export type Repository = string; // Now fully dynamic
+export type Repository = string;
 export type Environment = (typeof ENVIRONMENTS)[number];
 export type Developer = string;
 
@@ -52,7 +52,7 @@ export interface Task {
 }
 
 // Types for Dynamic Form Configuration
-export type FieldType = 'text' | 'textarea' | 'select' | 'multiselect' | 'date' | 'tags' | 'group';
+export type FieldType = 'text' | 'textarea' | 'select' | 'multiselect' | 'date' | 'tags';
 
 export interface FormField {
   id: string;
@@ -67,12 +67,6 @@ export interface FormField {
   icon: string;
   isCustom?: boolean;
   isCore?: boolean;
-  conditionalLogic?: {
-    [optionValue: string]: string[]; // Key: parent option, Value: array of child field IDs
-  };
-  // New properties for parent-child relationships
-  childFieldIds?: string[];
-  isRepeatable?: boolean;
 }
 
 export interface FormFieldConfig {

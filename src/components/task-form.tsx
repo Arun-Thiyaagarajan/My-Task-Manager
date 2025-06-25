@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useForm, useFieldArray, Control } from 'react-hook-form';
+import { useForm, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
 import { buildTaskSchema } from '@/lib/validators';
@@ -25,7 +25,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Loader2, CalendarIcon, PlusCircle, Trash2 } from 'lucide-react';
+import { Loader2, CalendarIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition, useEffect, useMemo } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
@@ -35,12 +35,8 @@ import { format } from 'date-fns';
 import { MultiSelect } from './ui/multi-select';
 import { Checkbox } from './ui/checkbox';
 import * as React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { cloneDeep } from 'lodash';
 import { addFieldOption } from '@/lib/data';
-import { Separator } from './ui/separator';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
-
+import { cloneDeep } from 'lodash';
 
 type TaskFormData = z.infer<ReturnType<typeof buildTaskSchema>>;
 
@@ -67,9 +63,6 @@ const getInitialTaskData = (allFields: Record<string, FormField>, task?: Task) =
             defaultData[field.id] = field.defaultValue;
         }
     });
-    if (!task && allFields.repositories && allFields.repositories.defaultValue) {
-        defaultData.repositories = allFields.repositories.defaultValue;
-    }
     return defaultData;
 }
 
@@ -183,11 +176,7 @@ const RenderField = ({ fieldId, control, allFields, adminConfig, allDevelopers, 
                             options={options}
                             placeholder={fieldDef.placeholder}
                             onCreate={canCreate ? (value) => {
-                                if(fieldDef.id === 'developers') {
-                                    // This part is tricky with nested state. Assuming developers is not a child field.
-                                } else {
-                                    handleCreateTag(fieldId, value);
-                                }
+                                handleCreateTag(fieldId, value);
                             } : undefined}
                         />
                     </FormControl>
@@ -259,58 +248,6 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
     defaultValues: getInitialTaskData(allFields, task),
   });
 
-  const watchedValues = form.watch();
-
-  const allChildFieldIds = useMemo(() => {
-    const childIds = new Set<string>();
-    Object.values(allFields).forEach(field => {
-        if (field.type === 'group' && Array.isArray(field.childFieldIds)) {
-            field.childFieldIds.forEach(id => childIds.add(id));
-        }
-    });
-    return childIds;
-  }, [allFields]);
-
-  const dependencyMap = useMemo(() => {
-    const map: Record<string, { parentId: string; optionValue: string }[]> = {};
-    for (const field of Object.values(allFields)) {
-      if (field.conditionalLogic) {
-        for (const [optionValue, childIds] of Object.entries(field.conditionalLogic)) {
-          for (const childId of childIds) {
-            if (!map[childId]) map[childId] = [];
-            map[childId].push({ parentId: field.id, optionValue });
-          }
-        }
-      }
-    }
-    return map;
-  }, [allFields]);
-
-  const visibleFields = useMemo(() => {
-    const baseVisible = new Set(adminConfig.formLayout);
-    const allConditionalChildren = new Set(Object.keys(dependencyMap));
-
-    allConditionalChildren.forEach(childId => baseVisible.delete(childId));
-    
-    for (const childId in dependencyMap) {
-        const parents = dependencyMap[childId];
-        for (const { parentId, optionValue } of parents) {
-            const parentValue = watchedValues[parentId];
-            if (
-                (Array.isArray(parentValue) && parentValue.includes(optionValue)) ||
-                (typeof parentValue === 'string' && parentValue === optionValue)
-            ) {
-                baseVisible.add(childId);
-                break;
-            }
-        }
-    }
-
-    const allPossibleFields = [...new Set([...adminConfig.formLayout, ...allConditionalChildren])];
-    return allPossibleFields.filter(id => baseVisible.has(id));
-
-  }, [watchedValues, adminConfig.formLayout, dependencyMap]);
-
   useEffect(() => {
     form.reset(getInitialTaskData(allFields, task));
   }, [task, allFields, form]);
@@ -340,164 +277,35 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
     });
   };
 
-  const renderGroupField = (fieldDef: FormField) => {
-    const { fields, append, remove } = useFieldArray({
-      control: form.control,
-      name: fieldDef.id as any,
-    });
-
-    const isRequired = adminConfig.fieldConfig[fieldDef.id]?.required;
-    const label = `${fieldDef.label}${isRequired ? ' *' : ''}`;
-    
-    const childFieldsToRender = fieldDef.childFieldIds?.filter(id => {
-      const isConditionallyVisible = Object.values(dependencyMap).flat().some(dep => dep.parentId === fieldDef.id && dep.optionValue === watchedValues[fieldDef.id]);
-      return visibleFields.includes(id) || isConditionallyVisible;
-    }) || [];
-
-    if (fieldDef.isRepeatable) {
-      return (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold">{label}</h3>
-              {fieldDef.description && <p className="text-sm text-muted-foreground">{fieldDef.description}</p>}
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => append({})}
-            >
-              <PlusCircle className="mr-2 h-4 w-4" /> Add {fieldDef.label}
-            </Button>
-          </div>
-          <div className="space-y-4">
-            {fields.map((item, index) => (
-              <Card key={item.id} className="p-4 relative bg-muted/30">
-                <CardContent className="p-0 space-y-4">
-                    <div className="grid grid-cols-1 gap-x-6 gap-y-8 md:grid-cols-2">
-                        {childFieldsToRender.map(childId => (
-                            <HookFormField
-                                key={childId}
-                                control={form.control}
-                                name={`${fieldDef.id}.${index}.${childId}` as any}
-                                render={({ field }) => <RenderField {... {
-                                    fieldId: childId,
-                                    control: form.control,
-                                    allFields: internalAllFields,
-                                    adminConfig,
-                                    allDevelopers,
-                                    handleCreateTag,
-                                    ...field
-                                }} />}
-                            />
-                        ))}
-                    </div>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    className="absolute top-2 right-2 h-7 w-7"
-                    onClick={() => remove(index)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )
-    }
-
-    // Non-repeatable group
-    return (
-       <div className="space-y-4">
-        <div>
-            <h3 className="text-lg font-semibold">{label}</h3>
-            {fieldDef.description && <p className="text-sm text-muted-foreground">{fieldDef.description}</p>}
-        </div>
-         <div className="grid grid-cols-1 gap-x-6 gap-y-8 md:grid-cols-2">
-            {childFieldsToRender.map(childId => (
-                 <HookFormField
-                    key={childId}
-                    control={form.control}
-                    name={`${fieldDef.id}.${childId}` as any}
-                    render={({ field }) => <RenderField {... {
-                        fieldId: childId,
-                        control: form.control,
-                        allFields: internalAllFields,
-                        adminConfig,
-                        allDevelopers,
-                        handleCreateTag,
-                        ...field
-                    }} />}
-                />
-            ))}
-        </div>
-      </div>
-    );
-  };
-
-  const topLevelFields = visibleFields.filter(fieldId => !allChildFieldIds.has(fieldId) && internalAllFields[fieldId]?.type !== 'group');
-  const groupFields = visibleFields.filter(fieldId => internalAllFields[fieldId]?.type === 'group');
-
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
-        
-        <div className="grid grid-cols-1 gap-x-6 gap-y-8 md:grid-cols-2 lg:grid-cols-3">
-            {topLevelFields.map(fieldId => {
-                const fieldDef = internalAllFields[fieldId];
-                if (!fieldDef) return null;
+      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
+        <div className="grid grid-cols-1 gap-x-6 gap-y-8 md:grid-cols-2">
+          {adminConfig.formLayout.map((fieldId) => {
+            const fieldDef = internalAllFields[fieldId];
+            if (!fieldDef) return null;
 
-                const isFullWidth = ['textarea'].includes(fieldDef.type);
-
-                return (
-                    <div 
-                        key={fieldId} 
-                        className={cn(
-                            isFullWidth ? 'md:col-span-2 lg:col-span-3' : 'col-span-1'
-                        )}
-                    >
-                       <RenderField 
-                          fieldId={fieldId} 
-                          control={form.control}
-                          allFields={internalAllFields}
-                          adminConfig={adminConfig}
-                          allDevelopers={allDevelopers}
-                          handleCreateTag={handleCreateTag}
-                        />
-                    </div>
-                );
-            })}
+            const isFullWidth = ['textarea'].includes(fieldDef.type);
+            
+            return (
+              <div 
+                key={fieldId} 
+                className={cn(isFullWidth ? 'md:col-span-2' : 'col-span-1')}
+              >
+                  <RenderField 
+                    fieldId={fieldId} 
+                    control={form.control}
+                    allFields={internalAllFields}
+                    adminConfig={adminConfig}
+                    allDevelopers={allDevelopers}
+                    handleCreateTag={handleCreateTag}
+                  />
+              </div>
+            );
+          })}
         </div>
 
-        {groupFields.length > 0 && (
-          <Accordion type="multiple" defaultValue={groupFields} className="w-full space-y-4">
-             {groupFields.map(fieldId => {
-                const fieldDef = internalAllFields[fieldId];
-                if (!fieldDef) return null;
-
-                return (
-                  <Card as="div" key={fieldId}>
-                    <AccordionItem value={fieldId} className="border-none">
-                      <AccordionTrigger className="p-6 hover:no-underline">
-                        <CardTitle className="text-xl flex-1 text-left">{fieldDef.label}</CardTitle>
-                      </AccordionTrigger>
-                      <AccordionContent className="px-6 pb-6 pt-0">
-                        {renderGroupField(fieldDef)}
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Card>
-                )
-             })}
-          </Accordion>
-        )}
-
-        <Separator />
-
-        <div className="flex justify-end gap-4">
+        <div className="flex justify-end gap-4 pt-4 border-t">
             <Button type="button" variant="outline" onClick={() => router.back()} disabled={isPending}>
                 Cancel
             </Button>
