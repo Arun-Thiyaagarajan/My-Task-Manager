@@ -79,6 +79,9 @@ export default function TaskPage() {
     ? `https://dev.azure.com/ideaelan/Infinity/_workitems/edit/${task.azureWorkItemId}` 
     : null;
 
+  const hasDevQaDates = task.devStartDate || task.devEndDate || task.qaStartDate || task.qaEndDate;
+  const hasDeploymentDates = task.deploymentDates?.stage || task.deploymentDates?.production || task.deploymentDates?.others;
+
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <div className="flex justify-between items-center mb-6">
@@ -252,7 +255,26 @@ export default function TaskPage() {
                                     <span>{format(new Date(task.qaEndDate), 'PPP')}</span>
                                 </div>
                             )}
-                             {!(task.devStartDate || task.devEndDate || task.qaStartDate || task.qaEndDate) && (
+                            {hasDevQaDates && hasDeploymentDates && <Separator className="my-2"/>}
+                            {task.deploymentDates?.stage && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Stage Deployed</span>
+                                    <span>{format(new Date(task.deploymentDates.stage), 'PPP')}</span>
+                                </div>
+                            )}
+                             {task.deploymentDates?.production && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Prod Deployed</span>
+                                    <span>{format(new Date(task.deploymentDates.production), 'PPP')}</span>
+                                </div>
+                            )}
+                             {task.deploymentDates?.others && task.othersEnvironmentName && (
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground capitalize">{task.othersEnvironmentName} Deployed</span>
+                                    <span>{format(new Date(task.deploymentDates.others), 'PPP')}</span>
+                                </div>
+                            )}
+                             {!(hasDevQaDates || hasDeploymentDates) && (
                                 <p className="text-muted-foreground text-center text-xs">No dates have been set.</p>
                              )}
                         </div>
@@ -277,7 +299,6 @@ export default function TaskPage() {
                            <div className="space-y-3 text-sm">
                                 {ENVIRONMENTS.map(env => {
                                     const isDeployed = task.deploymentStatus?.[env];
-                                    const deploymentDate = task.deploymentDates?.[env];
                                     const envName = env === 'others' && task.othersEnvironmentName ? task.othersEnvironmentName : env;
 
                                     if (env === 'others' && !isDeployed) return null;
@@ -290,9 +311,7 @@ export default function TaskPage() {
                                             {isDeployed ? (
                                                 <div className="flex items-center gap-2">
                                                     <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                                    <span className="text-foreground">
-                                                        {deploymentDate && env !== 'dev' ? format(new Date(deploymentDate), 'PPP') : 'Deployed'}
-                                                    </span>
+                                                    <span className="text-foreground">Deployed</span>
                                                 </div>
                                             ) : (
                                                 <div className="flex items-center gap-2 text-muted-foreground">

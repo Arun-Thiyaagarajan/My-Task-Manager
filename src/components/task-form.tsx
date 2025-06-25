@@ -108,6 +108,21 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
   };
 
   const selectedRepos = form.watch('repositories') || [];
+  const deploymentStatus = form.watch('deploymentStatus');
+
+  const dateFields = [
+    { name: 'devStartDate', label: 'Dev Start Date'},
+    { name: 'devEndDate', label: 'Dev End Date'},
+    { name: 'qaStartDate', label: 'QA Start Date'},
+    { name: 'qaEndDate', label: 'QA End Date'},
+  ] as const;
+
+  const deploymentDateFields = [
+    { name: 'deploymentDates.stage', label: 'Stage Deployment Date', condition: deploymentStatus?.stage },
+    { name: 'deploymentDates.production', label: 'Production Deployment Date', condition: deploymentStatus?.production },
+    { name: 'deploymentDates.others', label: 'Others Deployment Date', condition: deploymentStatus?.others },
+  ] as const;
+
 
   return (
     <Form {...form}>
@@ -327,65 +342,27 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                 <CardTitle>Deployment Status</CardTitle>
             </CardHeader>
             <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+                <div className="space-y-4">
                     {ENVIRONMENTS.map(env => (
-                        <div key={env} className="space-y-2">
-                            <FormField
-                                control={form.control}
-                                name={`deploymentStatus.${env}`}
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                                        <FormControl>
-                                            <Checkbox
-                                                checked={field.value}
-                                                onCheckedChange={field.onChange}
-                                                id={`deploy-check-${env}`}
-                                            />
-                                        </FormControl>
-                                        <FormLabel htmlFor={`deploy-check-${env}`} className="capitalize font-normal">
-                                            {env}
-                                        </FormLabel>
-                                    </FormItem>
-                                )}
-                            />
-                            {form.watch(`deploymentStatus.${env}`) && env !== 'dev' && (
-                                <FormField
-                                    control={form.control}
-                                    name={`deploymentDates.${env}` as const}
-                                    render={({ field }) => (
-                                        <FormItem className="flex flex-col pl-7">
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <FormControl>
-                                                        <Button
-                                                        variant={"outline"}
-                                                        className={cn(
-                                                            "w-full justify-start text-left font-normal",
-                                                            !field.value && "text-muted-foreground"
-                                                        )}
-                                                        >
-                                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                                        {field.value ? format(field.value, "PPP") : (
-                                                            <span>Pick deployment date</span>
-                                                        )}
-                                                        </Button>
-                                                    </FormControl>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-auto p-0" align="start">
-                                                    <Calendar
-                                                        mode="single"
-                                                        selected={field.value}
-                                                        onSelect={field.onChange}
-                                                        initialFocus
-                                                    />
-                                                </PopoverContent>
-                                            </Popover>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
+                        <FormField
+                            key={env}
+                            control={form.control}
+                            name={`deploymentStatus.${env}`}
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                                    <FormControl>
+                                        <Checkbox
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                            id={`deploy-check-${env}`}
+                                        />
+                                    </FormControl>
+                                    <FormLabel htmlFor={`deploy-check-${env}`} className="capitalize font-normal">
+                                        {env}
+                                    </FormLabel>
+                                </FormItem>
                             )}
-                        </div>
+                        />
                     ))}
                 </div>
                  {form.watch('deploymentStatus.others') && (
@@ -412,16 +389,11 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
             </CardHeader>
             <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {[
-                        { name: 'devStartDate', label: 'Dev Start Date'},
-                        { name: 'devEndDate', label: 'Dev End Date'},
-                        { name: 'qaStartDate', label: 'QA Start Date'},
-                        { name: 'qaEndDate', label: 'QA End Date'},
-                    ].map(dateField => (
+                    {dateFields.map(dateField => (
                         <FormField
                             key={dateField.name}
                             control={form.control}
-                            name={dateField.name as any}
+                            name={dateField.name}
                             render={({ field }) => (
                                 <FormItem className="flex flex-col">
                                     <FormLabel>{dateField.label}</FormLabel>
@@ -445,7 +417,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                                         <PopoverContent className="w-auto p-0" align="start">
                                             <Calendar
                                                 mode="single"
-                                                selected={field.value}
+                                                selected={field.value as Date}
                                                 onSelect={field.onChange}
                                                 initialFocus
                                             />
@@ -457,6 +429,55 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                         />
                     ))}
                 </div>
+                
+                {deploymentDateFields.some(f => f.condition) && (
+                    <>
+                        <div className="pt-4 mt-4 border-t">
+                            <h4 className="text-sm font-medium text-muted-foreground">Deployment Dates</h4>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {deploymentDateFields.filter(f => f.condition).map(dateField => (
+                                <FormField
+                                    key={dateField.name}
+                                    control={form.control}
+                                    name={dateField.name}
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-col">
+                                            <FormLabel>{dateField.label}</FormLabel>
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <FormControl>
+                                                        <Button
+                                                        variant={"outline"}
+                                                        className={cn(
+                                                            "w-full pl-3 text-left font-normal",
+                                                            !field.value && "text-muted-foreground"
+                                                        )}
+                                                        >
+                                                        {field.value ? format(field.value as Date, "PPP") : (
+                                                            <span>Pick a date</span>
+                                                        )}
+                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                        </Button>
+                                                    </FormControl>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-auto p-0" align="start">
+                                                    <Calendar
+                                                        mode="single"
+                                                        selected={field.value as Date}
+                                                        onSelect={field.onChange}
+                                                        initialFocus
+                                                    />
+                                                </PopoverContent>
+                                            </Popover>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            ))}
+                        </div>
+                    </>
+                )}
             </CardContent>
         </Card>
 
