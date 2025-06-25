@@ -7,18 +7,17 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, Loader2, ListChecks, Paperclip, CheckCircle2, Clock, MinusCircle } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, Loader2, ListChecks, Paperclip, CheckCircle2, Clock } from 'lucide-react';
 import { TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { DeleteTaskButton } from '@/components/delete-task-button';
 import { PrLinksGroup } from '@/components/pr-links-group';
 import { Badge } from '@/components/ui/badge';
-import { getInitials, getAvatarColor, cn } from '@/lib/utils';
+import { getInitials, getAvatarColor } from '@/lib/utils';
 import { format } from 'date-fns';
 import type { Task } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
-import { ENVIRONMENTS } from '@/lib/constants';
 
 export default function TaskPage() {
   const params = useParams();
@@ -80,13 +79,9 @@ export default function TaskPage() {
   const hasDevQaDates = task.devStartDate || task.devEndDate || task.qaStartDate || task.qaEndDate;
   const hasAnyDeploymentDate = task.deploymentDates && Object.values(task.deploymentDates).some(d => d);
 
-  // Combine standard environments with any custom ones from this task
-  const standardEnvs = ENVIRONMENTS;
-  const customEnvsInTask = Object.keys(task.deploymentStatus || {}).filter(
-    (env) => !standardEnvs.includes(env as any)
-  );
-  const allPossibleEnvs = [...standardEnvs, ...customEnvsInTask];
-
+  const deployedEnvs = Object.keys(task.deploymentStatus || {})
+    .filter(env => task.deploymentStatus?.[env])
+    .sort();
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -142,42 +137,26 @@ export default function TaskPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-3 text-sm">
-                        {allPossibleEnvs.length > 0 ? allPossibleEnvs.map(env => {
-                            const isPartOfPipeline = task.deploymentStatus?.[env] ?? false;
+                        {deployedEnvs.length > 0 ? deployedEnvs.map(env => {
                             const isDateSet = task.deploymentDates && task.deploymentDates[env];
-                            const isComplete = isPartOfPipeline && (env === 'dev' || !!isDateSet);
-                            
-                            let StatusComponent;
-
-                            if (isComplete) {
-                                StatusComponent = (
-                                    <div className="flex items-center gap-2">
-                                        <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                        <span className="text-foreground">Deployed</span>
-                                    </div>
-                                );
-                            } else if (isPartOfPipeline && !isDateSet) {
-                                StatusComponent = (
-                                    <div className="flex items-center gap-2 text-muted-foreground">
-                                        <Clock className="h-4 w-4" />
-                                        <span>Pending</span>
-                                    </div>
-                                );
-                            } else {
-                                StatusComponent = (
-                                     <div className="flex items-center gap-2 text-muted-foreground/60">
-                                        <MinusCircle className="h-4 w-4" />
-                                        <span>Not in pipeline</span>
-                                    </div>
-                                )
-                            }
+                            const isComplete = env === 'dev' || !!isDateSet;
                             
                             return (
                                 <div key={env} className="flex justify-between items-center">
-                                    <span className={cn("capitalize", isComplete || isPartOfPipeline ? "text-foreground font-medium" : "text-muted-foreground/60")}>
+                                    <span className="capitalize text-foreground font-medium">
                                         {env}
                                     </span>
-                                    {StatusComponent}
+                                    {isComplete ? (
+                                        <div className="flex items-center gap-2">
+                                            <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                            <span className="text-foreground">Deployed</span>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-2 text-muted-foreground">
+                                            <Clock className="h-4 w-4" />
+                                            <span>Pending</span>
+                                        </div>
+                                    )}
                                 </div>
                             )
                         }) : (
