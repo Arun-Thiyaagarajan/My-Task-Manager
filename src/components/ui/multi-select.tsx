@@ -55,7 +55,6 @@ export function MultiSelect({
       }
       onChange([...selected, newOptionValue]);
       setQuery('');
-      inputRef.current?.blur();
     }
   };
 
@@ -82,7 +81,7 @@ export function MultiSelect({
   );
 
   return (
-    <Command onKeyDown={handleKeyDown} className={cn('overflow-visible', className)}>
+    <Command onKeyDown={handleKeyDown} className={cn('overflow-visible bg-transparent', className)}>
       <div className="group rounded-md border border-input px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
         <div className="flex flex-wrap gap-1">
           {selected.map((value) => {
@@ -120,9 +119,10 @@ export function MultiSelect({
             <CommandList>
                 <CommandEmpty>No results found.</CommandEmpty>
               <CommandGroup>
-                {filteredOptions.filter(o => o.label.toLowerCase().includes(query.toLowerCase().trim())).map((option) => (
+                {filteredOptions.map((option) => (
                   <CommandItem
                     key={option.value}
+                    value={option.label}
                     onMouseDown={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -130,7 +130,6 @@ export function MultiSelect({
                     onSelect={() => {
                       onChange([...selected, option.value]);
                       setQuery('');
-                      inputRef.current?.blur();
                     }}
                     className="cursor-pointer"
                   >
@@ -139,6 +138,8 @@ export function MultiSelect({
                 ))}
                 {onCreate && query.trim() && !options.some(o => o.label.toLowerCase() === query.trim().toLowerCase()) && (
                   <CommandItem
+                    key={query}
+                    value={query}
                     onMouseDown={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
