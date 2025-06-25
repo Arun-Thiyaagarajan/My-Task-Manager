@@ -58,20 +58,4 @@ export const taskSchema = z.object({
           message: 'QA end date must be on or after the start date.',
           path: ['qaEndDate'],
       }
-).refine(
-    (data) => {
-      if (!data.deploymentStatus || !data.deploymentDates) return true;
-      
-      const deployedWithoutDate = Object.keys(data.deploymentStatus).find(env => 
-          env !== 'dev' &&
-          data.deploymentStatus?.[env] === true &&
-          !data.deploymentDates?.[env]
-      );
-      
-      return !deployedWithoutDate;
-    },
-    { 
-        message: 'Each deployed environment (except dev) must have a deployment date.',
-        path: ['deploymentDates'],
-    }
 );
