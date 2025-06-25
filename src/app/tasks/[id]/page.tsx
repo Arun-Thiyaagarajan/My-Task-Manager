@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, Loader2, ListChecks, Paperclip, CheckCircle2, Clock } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, Loader2, ListChecks, Paperclip, CheckCircle2, Clock, MinusCircle } from 'lucide-react';
 import { TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -79,7 +79,13 @@ export default function TaskPage() {
 
   const hasDevQaDates = task.devStartDate || task.devEndDate || task.qaStartDate || task.qaEndDate;
   const hasAnyDeploymentDate = task.deploymentDates && Object.values(task.deploymentDates).some(d => d);
-  const allDeploymentEnvs = Object.keys(task.deploymentStatus || {}).filter(env => task.deploymentStatus?.[env]).sort();
+
+  // Combine standard environments with any custom ones from this task
+  const standardEnvs = ENVIRONMENTS;
+  const customEnvsInTask = Object.keys(task.deploymentStatus || {}).filter(
+    (env) => !standardEnvs.includes(env as any)
+  );
+  const allPossibleEnvs = [...standardEnvs, ...customEnvsInTask];
 
 
   return (
@@ -136,26 +142,42 @@ export default function TaskPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-3 text-sm">
-                        {allDeploymentEnvs.length > 0 ? allDeploymentEnvs.map(env => {
+                        {allPossibleEnvs.length > 0 ? allPossibleEnvs.map(env => {
+                            const isPartOfPipeline = task.deploymentStatus?.[env] ?? false;
                             const isDateSet = task.deploymentDates && task.deploymentDates[env];
-                            const isComplete = env === 'dev' || !!isDateSet;
+                            const isComplete = isPartOfPipeline && (env === 'dev' || !!isDateSet);
+                            
+                            let StatusComponent;
+
+                            if (isComplete) {
+                                StatusComponent = (
+                                    <div className="flex items-center gap-2">
+                                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                        <span className="text-foreground">Deployed</span>
+                                    </div>
+                                );
+                            } else if (isPartOfPipeline && !isDateSet) {
+                                StatusComponent = (
+                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                        <Clock className="h-4 w-4" />
+                                        <span>Pending</span>
+                                    </div>
+                                );
+                            } else {
+                                StatusComponent = (
+                                     <div className="flex items-center gap-2 text-muted-foreground/60">
+                                        <MinusCircle className="h-4 w-4" />
+                                        <span>Not in pipeline</span>
+                                    </div>
+                                )
+                            }
                             
                             return (
                                 <div key={env} className="flex justify-between items-center">
-                                    <span className={cn("capitalize", isComplete ? "text-foreground font-medium" : "text-muted-foreground")}>
+                                    <span className={cn("capitalize", isComplete || isPartOfPipeline ? "text-foreground font-medium" : "text-muted-foreground/60")}>
                                         {env}
                                     </span>
-                                    {isComplete ? (
-                                        <div className="flex items-center gap-2">
-                                            <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                            <span className="text-foreground">Deployed</span>
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center gap-2 text-muted-foreground">
-                                            <Clock className="h-4 w-4" />
-                                            <span>Pending</span>
-                                        </div>
-                                    )}
+                                    {StatusComponent}
                                 </div>
                             )
                         }) : (
