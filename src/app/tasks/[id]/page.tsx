@@ -223,24 +223,30 @@ export default function TaskPage() {
                 <CardContent className="space-y-4">
                     <div>
                         <h4 className="text-sm font-semibold text-muted-foreground mb-2">Assigned Developers</h4>
-                         {task.developers && task.developers.length > 0 ? (
-                            <ul className="space-y-2">
-                                {task.developers.map(dev => (
-                                    <li key={dev} className="flex items-center gap-2.5">
-                                        <Avatar className="h-7 w-7">
-                                            <AvatarFallback
-                                                className="font-semibold text-white text-[10px]"
-                                                style={{ backgroundColor: `#${getAvatarColor(dev)}` }}
-                                            >
-                                                {getInitials(dev)}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <span className="text-sm font-medium text-foreground">{dev}</span>
-                                    </li>
-                                ))}
-                            </ul>
+                        {task.developers && task.developers.length > 0 ? (
+                        <div className="flex flex-wrap gap-4">
+                            {task.developers.map((dev) => (
+                            <div key={dev} className="flex items-center gap-2">
+                                <Avatar className="h-7 w-7">
+                                <AvatarFallback
+                                    className="font-semibold text-white text-[10px]"
+                                    style={{
+                                    backgroundColor: `#${getAvatarColor(dev)}`,
+                                    }}
+                                >
+                                    {getInitials(dev)}
+                                </AvatarFallback>
+                                </Avatar>
+                                <span className="text-sm font-medium text-foreground">
+                                {dev}
+                                </span>
+                            </div>
+                            ))}
+                        </div>
                         ) : (
-                            <p className="text-sm text-muted-foreground">No developers assigned.</p>
+                        <p className="text-sm text-muted-foreground">
+                            No developers assigned.
+                        </p>
                         )}
                     </div>
                     
