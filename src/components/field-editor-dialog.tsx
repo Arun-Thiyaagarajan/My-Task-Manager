@@ -32,23 +32,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { saveField } from '@/lib/data';
-import type { FormField as FormFieldType } from '@/lib/types';
+import type { FormField as FormFieldType, AdminConfig } from '@/lib/types';
 import { Loader2, PlusCircle, Trash2 } from 'lucide-react';
 
 const fieldSchema = z.object({
   label: z.string().min(2, { message: 'Field name must be at least 2 characters.' }),
   description: z.string().min(2, { message: 'Description must be at least 2 characters.' }),
-  type: z.enum(['text', 'textarea', 'date', 'select', 'multiselect', 'attachments', 'deployment', 'pr-links']),
+  type: z.enum(['text', 'textarea', 'date', 'select', 'multiselect', 'tags', 'attachments', 'deployment', 'pr-links']),
   options: z.array(z.object({ value: z.string().min(1, 'Option cannot be empty') })).optional(),
+  required: z.boolean().optional(),
 }).refine(data => {
-    if ((data.type === 'select' || data.type === 'multiselect') && (!data.options || data.options.length < 1)) {
+    if ((data.type === 'select' || data.type === 'multiselect' || data.type === 'tags') && (!data.options || data.options.length < 1)) {
         return false;
     }
     return true;
 }, {
-    message: 'Select and Multiselect types require at least one option.',
+    message: 'Select, Multiselect, and Tags types require at least one option.',
     path: ['options'],
 });
 
@@ -59,9 +61,10 @@ interface FieldEditorDialogProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   fieldToEdit?: FormFieldType | null;
+  adminConfig: AdminConfig;
 }
 
-export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit }: FieldEditorDialogProps) {
+export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit, adminConfig }: FieldEditorDialogProps) {
   const { toast } = useToast();
   const [isPending, setIsPending] = useState(false);
   
@@ -83,18 +86,20 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                 label: fieldToEdit.label,
                 description: fieldToEdit.description,
                 type: fieldToEdit.type,
-                options: fieldToEdit.options?.map(o => ({ value: o })) || []
+                options: fieldToEdit.options?.map(o => ({ value: o })) || [],
+                required: adminConfig.fieldConfig[fieldToEdit.id]?.required || false,
             });
         } else {
             form.reset({
                 label: '',
                 description: '',
                 type: 'text',
-                options: []
+                options: [],
+                required: false,
             });
         }
     }
-  }, [isOpen, fieldToEdit, form]);
+  }, [isOpen, fieldToEdit, form, adminConfig]);
 
   const onSubmit: SubmitHandler<FieldFormData> = (data) => {
     setIsPending(true);
@@ -107,17 +112,17 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
             label: data.label,
             description: data.description,
             type: data.type,
-            options: data.options?.map(o => o.value),
+            options: (data.type === 'select' || data.type === 'multiselect' || data.type === 'tags') ? data.options?.map(o => o.value) : [],
             icon: fieldToEdit?.icon || 'text',
             isCustom: fieldToEdit ? (fieldToEdit.isCustom ?? false) : true,
         };
 
         if (!fieldToEdit) { // This is a new custom field
             fieldToSave.isCustom = true;
-            fieldToSave.defaultValue = data.type === 'multiselect' ? [] : data.type === 'date' ? null : '';
+            fieldToSave.defaultValue = (data.type === 'multiselect' || data.type === 'tags') ? [] : data.type === 'date' ? null : '';
         }
         
-        saveField(fieldToSave);
+        saveField(fieldToSave, data.required || false);
         onSuccess();
         onOpenChange(false);
     } catch (error) {
@@ -175,6 +180,7 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                                         <SelectItem value="date">Date</SelectItem>
                                         <SelectItem value="select">Dropdown (Single-Select)</SelectItem>
                                         <SelectItem value="multiselect">Dropdown (Multi-Select)</SelectItem>
+                                        <SelectItem value="tags">Tag Selection</SelectItem>
                                     </SelectContent>
                                 </Select>
                                 <FormDescription>The type cannot be changed after creation.</FormDescription>
@@ -183,7 +189,7 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                         )}
                     />
 
-                    {(fieldType === 'select' || fieldType === 'multiselect') && (
+                    {(fieldType === 'select' || fieldType === 'multiselect' || fieldType === 'tags') && (
                         <div className="space-y-4 rounded-md border p-4">
                             <FormLabel>Options</FormLabel>
                             <FormDescription>Add/remove options for the dropdown menu.</FormDescription>
@@ -213,6 +219,26 @@ export function FieldEditorDialog({ isOpen, onOpenChange, onSuccess, fieldToEdit
                             <FormMessage>{form.formState.errors.options?.root?.message}</FormMessage>
                         </div>
                     )}
+                    <FormField
+                        control={form.control}
+                        name="required"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                <div className="space-y-0.5">
+                                    <FormLabel>Required</FormLabel>
+                                    <FormDescription>
+                                        Make this field mandatory in the task form.
+                                    </FormDescription>
+                                </div>
+                                <FormControl>
+                                    <Checkbox
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                    />
+                                </FormControl>
+                            </FormItem>
+                        )}
+                    />
                 </form>
             </Form>
         </div>

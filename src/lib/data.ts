@@ -168,11 +168,18 @@ export function getFields(): Record<string, FormField> {
     return data.companyData[activeCompanyId]?.fields || {};
 }
 
-export function saveField(field: FormField) {
+export function saveField(field: FormField, required: boolean) {
     const data = getAppData();
     const activeCompanyId = data.activeCompanyId;
     if (activeCompanyId && data.companyData[activeCompanyId]) {
-        data.companyData[activeCompanyId].fields[field.id] = field;
+        const companyData = data.companyData[activeCompanyId];
+        companyData.fields[field.id] = field;
+
+        if (!companyData.adminConfig.fieldConfig[field.id]) {
+            companyData.adminConfig.fieldConfig[field.id] = { visible: false, required: false };
+        }
+        companyData.adminConfig.fieldConfig[field.id].required = required;
+        
         setAppData(data);
     }
 }
@@ -196,6 +203,27 @@ export function deleteField(fieldId: string) {
         
         setAppData(data);
     }
+}
+
+export function addFieldOption(fieldId: string, option: string): boolean {
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    const companyData = data.companyData[activeCompanyId];
+
+    if (companyData && companyData.fields[fieldId]) {
+        const field = companyData.fields[fieldId];
+        if (field.type === 'tags' || field.type === 'multiselect' || field.type === 'select') {
+             if (!field.options) {
+                field.options = [];
+            }
+            if (!field.options.includes(option)) {
+                field.options.push(option);
+                setAppData(data);
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 // Task Functions

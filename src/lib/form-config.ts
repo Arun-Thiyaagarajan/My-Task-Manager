@@ -13,7 +13,8 @@ import {
     GitPullRequest,
     Cloud, 
     Calendar,
-    StickyNote
+    StickyNote,
+    Tags
 } from 'lucide-react';
 
 export const ICONS = {
@@ -27,7 +28,8 @@ export const ICONS = {
     pr: GitPullRequest,
     deployment: Cloud,
     date: Calendar,
-    comments: StickyNote
+    comments: StickyNote,
+    tags: Tags
 };
 
 export const MASTER_FORM_FIELDS: Record<string, FormField> = {

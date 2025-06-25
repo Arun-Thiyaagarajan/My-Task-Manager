@@ -439,6 +439,7 @@ export default function AdminPage() {
         isOpen={isFieldDialogOpen}
         onOpenChange={setIsFieldDialogOpen}
         fieldToEdit={fieldToEdit}
+        adminConfig={adminConfig}
         onSuccess={() => {
           toast({ variant: 'success', title: fieldToEdit ? 'Field Updated' : 'Field Created' });
           refreshData();

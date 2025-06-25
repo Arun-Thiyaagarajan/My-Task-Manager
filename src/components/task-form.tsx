@@ -39,6 +39,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { ScrollArea, ScrollBar } from './ui/scroll-area';
 import { ENVIRONMENTS } from '@/lib/constants';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { cloneDeep } from 'lodash';
+import { addFieldOption } from '@/lib/data';
 
 
 type TaskFormData = z.infer<ReturnType<typeof buildTaskSchema>>;
@@ -76,9 +78,10 @@ const getInitialTaskData = (allFields: Record<string, FormField>, task?: Task) =
 export function TaskForm({ task, onSubmit, submitButtonText, developersList, adminConfig, allFields }: TaskFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [internalAllFields, setInternalAllFields] = useState(allFields);
   const [allDevelopers, setAllDevelopers] = useState<string[]>(developersList);
   
-  const taskSchema = useMemo(() => buildTaskSchema(adminConfig, allFields), [adminConfig, allFields]);
+  const taskSchema = useMemo(() => buildTaskSchema(adminConfig, internalAllFields), [adminConfig, internalAllFields]);
   
   const form = useForm<TaskFormData>({
     resolver: zodResolver(taskSchema),
@@ -93,6 +96,20 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
     setAllDevelopers(developersList);
   }, [developersList]);
 
+  useEffect(() => {
+      setInternalAllFields(allFields);
+  }, [allFields]);
+
+  const handleCreateTag = (fieldId: string, value: string) => {
+    if (addFieldOption(fieldId, value)) {
+        const newFields = cloneDeep(internalAllFields);
+        if (!newFields[fieldId].options) {
+            newFields[fieldId].options = [];
+        }
+        newFields[fieldId].options!.push(value);
+        setInternalAllFields(newFields);
+    }
+  };
 
   const handleFormSubmit = (data: TaskFormData) => {
     startTransition(() => {
@@ -101,7 +118,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
   };
 
   const renderField = (fieldId: string) => {
-    const fieldDef = allFields[fieldId];
+    const fieldDef = internalAllFields[fieldId];
     if (!fieldDef) return null;
     
     const isVisible = adminConfig.fieldConfig[fieldId]?.visible;
@@ -180,12 +197,15 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
         )
       
       case 'multiselect':
+      case 'tags':
          let options: { value: string; label: string; }[] = [];
          if (fieldDef.id === 'developers') {
              options = allDevelopers.map(opt => ({ value: opt, label: opt }));
          } else {
              options = (fieldDef.options ?? []).map(opt => ({ value: opt, label: opt }));
          }
+         
+         const canCreate = fieldDef.id === 'developers' || fieldDef.type === 'tags';
 
          return (
             <HookFormField
@@ -200,8 +220,12 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList, adm
                             onChange={field.onChange}
                             options={options}
                             placeholder={fieldDef.placeholder}
-                            onCreate={fieldDef.id === 'developers' ? (value) => {
-                                setAllDevelopers((prev) => [...new Set([...prev, value])]);
+                            onCreate={canCreate ? (value) => {
+                                if(fieldDef.id === 'developers') {
+                                    setAllDevelopers((prev) => [...new Set([...prev, value])]);
+                                } else { // 'tags' type
+                                    handleCreateTag(fieldId, value);
+                                }
                             } : undefined}
                         />
                     </FormControl>

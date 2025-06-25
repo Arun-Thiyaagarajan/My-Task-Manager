@@ -40,6 +40,7 @@ const getFieldSchema = (fieldId: string, config: FormFieldConfig, allFields: Rec
             }
             break;
         case 'multiselect':
+        case 'tags':
             schema = z.array(z.string());
              if (config.required) {
                 schema = schema.min(1, { message: `Please select at least one ${fieldDef.label.toLowerCase()}.` });

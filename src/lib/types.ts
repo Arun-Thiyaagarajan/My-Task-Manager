@@ -52,7 +52,7 @@ export interface Task {
 }
 
 // Types for Dynamic Form Configuration
-export type FieldType = 'text' | 'textarea' | 'select' | 'multiselect' | 'date' | 'attachments' | 'deployment' | 'pr-links';
+export type FieldType = 'text' | 'textarea' | 'select' | 'multiselect' | 'date' | 'attachments' | 'deployment' | 'pr-links' | 'tags';
 
 export interface FormField {
   id: string;
