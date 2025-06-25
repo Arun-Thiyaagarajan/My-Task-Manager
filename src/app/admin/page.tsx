@@ -82,6 +82,8 @@ export default function AdminPage() {
     return () => window.removeEventListener('storage', refreshData);
   }, []);
 
+  const adminConfigString = useMemo(() => JSON.stringify(adminConfig), [adminConfig]);
+
   useEffect(() => {
     if (isInitialMount.current) {
         isInitialMount.current = false;
@@ -103,7 +105,7 @@ export default function AdminPage() {
     return () => {
         clearTimeout(handler);
     }
-  }, [adminConfig]);
+  }, [adminConfigString]);
 
   const handleToggleRequired = (fieldId: string) => {
     if (!adminConfig) return;
@@ -223,21 +225,21 @@ export default function AdminPage() {
       return (
         <div 
           key={fieldId}
-          className="flex flex-col sm:flex-row items-start justify-between gap-4 rounded-lg border p-4 cursor-pointer bg-card hover:border-primary/50"
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-lg border p-4 cursor-pointer bg-card hover:border-primary/50"
           draggable={true}
           onDragStart={(e) => handleDragStart(e, fieldId)}
           onDragOver={handleDragOver}
           onDrop={() => handleDrop(fieldId)}
           onClick={() => handleOpenEditDialog(fieldDefinition)}
         >
-          <div className="flex items-start gap-4 flex-1">
-            <GripVertical className="h-6 w-6 text-muted-foreground mt-1 cursor-grab" />
+          <div className="flex items-center gap-4 flex-1">
+            <GripVertical className="h-6 w-6 text-muted-foreground cursor-grab shrink-0" />
               <div>
               <h3 className="font-semibold text-lg">{fieldDefinition.label}</h3>
               <p className="text-sm text-muted-foreground">{fieldDefinition.description}</p>
             </div>
           </div>
-          <div className="flex items-center gap-4 pt-2 sm:pt-0 shrink-0" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center gap-4 shrink-0" onClick={e => e.stopPropagation()}>
             <div className="flex items-center space-x-2">
                 <Switch
                   id={`required-${fieldId}`}
@@ -438,3 +440,5 @@ export default function AdminPage() {
     </TooltipProvider>
   );
 }
+
+    
