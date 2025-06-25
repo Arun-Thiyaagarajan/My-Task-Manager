@@ -329,7 +329,7 @@ export default function AdminPage() {
               {isSaving && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
             </CardTitle>
             <CardDescription>Drag and drop to reorder fields, or click to edit. Changes are saved automatically.</CardDescription>
-             <div className="relative pt-4">
+             <div className="relative mt-4">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input 
                     placeholder="Search fields..."
