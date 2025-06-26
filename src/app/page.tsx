@@ -81,6 +81,19 @@ export default function Home() {
     }
   };
 
+  // Load view mode from local storage on initial mount
+  useEffect(() => {
+    const savedViewMode = localStorage.getItem('taskflow_view_mode') as ViewMode;
+    if (savedViewMode) {
+      setViewMode(savedViewMode);
+    }
+  }, []);
+
+  // Save view mode to local storage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('taskflow_view_mode', viewMode);
+  }, [viewMode]);
+
   useEffect(() => {
     if (!activeCompanyId) {
       return;
