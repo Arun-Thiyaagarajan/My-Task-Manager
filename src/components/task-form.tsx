@@ -79,14 +79,19 @@ const getInitialTaskData = (task?: Partial<Task>) => {
     }
 }
 
-export function TaskForm({ task, onSubmit, submitButtonText, developersList }: TaskFormProps) {
+export function TaskForm({ task, onSubmit, submitButtonText, developersList: propDevelopersList }: TaskFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
+  const [developersList, setDevelopersList] = useState<string[]>(propDevelopersList);
 
   useEffect(() => {
     setUiConfig(getUiConfig());
   }, []);
+
+  useEffect(() => {
+    setDevelopersList(propDevelopersList);
+  }, [propDevelopersList]);
 
   const form = useForm<TaskFormData>({
     resolver: zodResolver(taskSchema),
@@ -108,7 +113,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
 
   const handleCreateDeveloper = (name: string) => {
     addDeveloper(name);
-    // You might want to update developersList here as well
+    setDevelopersList((prevList) => [...prevList, name]);
   };
 
   const handleFormSubmit = (data: TaskFormData) => {
@@ -186,7 +191,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                     />
                 );
             case 'tags':
-                const creatable = key === 'developers';
+                const isDeveloperField = key === 'developers';
                 return (
                      <MultiSelect
                         selected={field.value ?? []}
@@ -194,7 +199,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                         options={getFieldOptions(fieldConfig)}
                         placeholder={`Add ${label}...`}
                         creatable
-                        {...(creatable && { onCreate: handleCreateDeveloper })}
+                        {...(isDeveloperField && { onCreate: handleCreateDeveloper })}
                     />
                 );
             case 'checkbox':
