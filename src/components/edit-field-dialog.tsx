@@ -40,6 +40,7 @@ const fieldSchema = z.object({
   type: z.enum(FIELD_TYPES.map(t => t.value) as [FieldType, ...FieldType[]]),
   group: z.string().min(2, { message: 'Group must be at least 2 characters.' }),
   isRequired: z.boolean(),
+  isActive: z.boolean(),
   options: z.array(fieldOptionSchema).optional(),
 });
 
@@ -54,6 +55,7 @@ interface EditFieldDialogProps {
 
 export function EditFieldDialog({ isOpen, onOpenChange, onSave, field }: EditFieldDialogProps) {
   const isCreating = field === null;
+  const isCustomField = field?.isCustom ?? true;
 
   const form = useForm<FieldFormData>({
     resolver: zodResolver(fieldSchema),
@@ -62,6 +64,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field }: EditFie
       type: field?.type || 'text',
       group: field?.group || 'Custom',
       isRequired: field?.isRequired || false,
+      isActive: field?.isActive ?? true, // New fields default to active
       options: field?.options || [],
     },
   });
@@ -70,6 +73,14 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field }: EditFie
     control: form.control,
     name: 'options',
   });
+  
+  const isRequiredValue = form.watch('isRequired');
+  React.useEffect(() => {
+    if (isRequiredValue) {
+      form.setValue('isActive', true);
+    }
+  }, [isRequiredValue, form]);
+
 
   const selectedType = form.watch('type');
   const showOptions = selectedType === 'select' || selectedType === 'multiselect';
@@ -85,7 +96,6 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field }: EditFie
         key: '', // Key will be generated in parent
         order: 0, // Order will be set in parent
         isCustom: true,
-        isActive: false, // New fields start as inactive
       }),
       ...data,
     };
@@ -112,6 +122,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field }: EditFie
           type: field?.type || 'text',
           group: field?.group || 'Custom',
           isRequired: field?.isRequired || false,
+          isActive: field?.isActive ?? true,
           options: field?.options || [],
         });
         setGroupSearch(field?.group || '');
@@ -246,23 +257,46 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field }: EditFie
                             </FormItem>
                             )}
                         />
-                        <FormField
-                            control={form.control}
-                            name="isRequired"
-                            render={({ field }) => (
-                            <FormItem className="flex items-center space-x-2 pb-1.5">
-                                <FormControl>
-                                    <Switch
-                                        checked={field.value}
-                                        onCheckedChange={field.onChange}
-                                    />
-                                </FormControl>
-                                <Label htmlFor="isRequired" className="cursor-pointer">
-                                    Is Required?
-                                </Label>
-                            </FormItem>
-                            )}
-                        />
+                        <div className="flex items-center gap-x-6">
+                             <FormField
+                                control={form.control}
+                                name="isRequired"
+                                render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-2 pt-2">
+                                    <FormControl>
+                                        <Switch
+                                            id={field.name}
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                            disabled={!isCustomField}
+                                        />
+                                    </FormControl>
+                                    <Label htmlFor={field.name} className="cursor-pointer">
+                                        Required
+                                    </Label>
+                                </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="isActive"
+                                render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-2 pt-2">
+                                    <FormControl>
+                                        <Switch
+                                            id={field.name}
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                            disabled={isRequiredValue || !isCustomField}
+                                        />
+                                    </FormControl>
+                                    <Label htmlFor={field.name} className="cursor-pointer">
+                                        Active
+                                    </Label>
+                                </FormItem>
+                                )}
+                            />
+                        </div>
                     </div>
                     
                     {showOptions && (
@@ -323,3 +357,5 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field }: EditFie
     </Dialog>
   );
 }
+
+    
