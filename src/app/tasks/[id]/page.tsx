@@ -185,34 +185,37 @@ export default function TaskPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-3 text-sm">
-                        {allConfiguredEnvs.map(env => {
-                            const isSelected = task.deploymentStatus?.[env] ?? false;
-                            if (!isSelected) return null;
-                            
-                            const hasDate = task.deploymentDates && task.deploymentDates[env];
-                            const isDeployed = isSelected && (env === 'dev' || !!hasDate);
+                        {allConfiguredEnvs.length > 0 ? (
+                            allConfiguredEnvs.map(env => {
+                                const isSelected = task.deploymentStatus?.[env] ?? false;
+                                const hasDate = task.deploymentDates && task.deploymentDates[env];
+                                const isDeployed = isSelected && (env === 'dev' || !!hasDate);
 
-                            return (
-                                <div key={env} className="flex justify-between items-center">
-                                    <span className="capitalize text-foreground font-medium">
-                                        {env}
-                                    </span>
-                                    {isDeployed ? (
-                                        <div className="flex items-center gap-2 text-green-600 dark:text-green-500 font-medium">
-                                            <CheckCircle2 className="h-4 w-4" />
-                                            <span>Deployed</span>
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center gap-2 text-muted-foreground">
-                                            <Clock className="h-4 w-4" />
-                                            <span>Pending</span>
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                        {allConfiguredEnvs.every(env => !(task.deploymentStatus?.[env] ?? false)) && (
-                           <p className="text-muted-foreground text-center text-xs pt-2">No deployments recorded for this task.</p>
+                                return (
+                                    <div key={env} className="flex justify-between items-center">
+                                        <span className="capitalize text-foreground font-medium">
+                                            {env}
+                                        </span>
+                                        {isDeployed ? (
+                                            <div className="flex items-center gap-2 text-green-600 dark:text-green-500 font-medium">
+                                                <CheckCircle2 className="h-4 w-4" />
+                                                <span>Deployed</span>
+                                            </div>
+                                        ) : isSelected ? (
+                                            <div className="flex items-center gap-2 text-yellow-600 dark:text-yellow-500">
+                                                <Clock className="h-4 w-4" />
+                                                <span>Pending</span>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2 text-muted-foreground">
+                                                <span>Not Targeted</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        ) : (
+                           <p className="text-muted-foreground text-center text-xs pt-2">No environments configured in settings.</p>
                         )}
                     </div>
                 </CardContent>

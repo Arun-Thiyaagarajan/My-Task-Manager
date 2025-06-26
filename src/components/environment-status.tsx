@@ -1,9 +1,12 @@
 
+'use client';
+
 import { Badge } from '@/components/ui/badge';
 import type { Task } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ENVIRONMENTS } from '@/lib/constants';
+import { getUiConfig } from '@/lib/data';
+import { useState, useEffect } from 'react';
 
 interface EnvironmentStatusProps {
   deploymentStatus: Task['deploymentStatus'];
@@ -12,6 +15,15 @@ interface EnvironmentStatusProps {
 }
 
 export function EnvironmentStatus({ deploymentStatus, deploymentDates, size = 'default' }: EnvironmentStatusProps) {
+    const [configuredEnvs, setConfiguredEnvs] = useState<string[]>([]);
+    
+    useEffect(() => {
+        const uiConfig = getUiConfig();
+        if (uiConfig?.environments) {
+            setConfiguredEnvs(uiConfig.environments);
+        }
+    }, []);
+
 
   const getEnvInfo = (env: string) => {
     switch(env) {
@@ -37,30 +49,17 @@ export function EnvironmentStatus({ deploymentStatus, deploymentDates, size = 'd
         };
     }
   }
-
-  const standardEnvs = [...ENVIRONMENTS];
-  const customEnvs = Object.keys(deploymentStatus || {})
-    .filter(env => !standardEnvs.includes(env as any));
   
-  const envsToDisplay = [...new Set([...standardEnvs, ...customEnvs])].sort((a, b) => {
-      const aIndex = standardEnvs.indexOf(a as any);
-      const bIndex = standardEnvs.indexOf(b as any);
-      if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
-      if (aIndex !== -1) return -1;
-      if (bIndex !== -1) return 1;
-      return a.localeCompare(b);
-  });
-
   return (
     <TooltipProvider delayDuration={100}>
       <div className="flex flex-wrap items-center gap-1.5">
-        {envsToDisplay.map(env => {
+        {configuredEnvs.map(env => {
           const envInfo = getEnvInfo(env);
           const isSelected = deploymentStatus?.[env] ?? false;
           const hasDate = deploymentDates && deploymentDates[env];
           const isDeployed = isSelected && (env === 'dev' || !!hasDate);
           
-          const tooltipText = isDeployed ? "Deployed" : "Pending";
+          const tooltipText = isDeployed ? "Deployed" : isSelected ? "Pending" : "Not Targeted";
 
           return (
             <Tooltip key={env}>
@@ -68,10 +67,10 @@ export function EnvironmentStatus({ deploymentStatus, deploymentDates, size = 'd
                 <Badge
                   variant="outline"
                   className={cn(
-                    'capitalize font-medium',
+                    'capitalize font-medium transition-colors',
                     isDeployed
                       ? envInfo.color
-                      : 'border-dashed text-muted-foreground/80 dark:text-muted-foreground/50',
+                      : 'border-dashed text-muted-foreground/80 dark:text-muted-foreground/50 bg-background hover:bg-muted/50',
                     size === 'sm' && 'px-1.5 py-0 text-[10px] h-4'
                   )}
                 >
