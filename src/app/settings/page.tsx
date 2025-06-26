@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { getUiConfig, updateUiConfig } from '@/lib/data';
 import type { UiConfig, FieldConfig } from '@/lib/types';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Search, PlusCircle, ArrowUp, ArrowDown, Edit, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical } from 'lucide-react';
 import { EditFieldDialog } from '@/components/edit-field-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -24,17 +24,18 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { cn } from '@/lib/utils';
 
 
 export default function SettingsPage() {
   const [config, setConfig] = useState<UiConfig | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [initialLoad, setInitialLoad] = useState(true);
   const { toast } = useToast();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [fieldToEdit, setFieldToEdit] = useState<FieldConfig | null>(null);
+  const isInitialLoad = useRef(true);
 
   useEffect(() => {
     document.title = 'Settings | My Task Manager';
@@ -45,11 +46,11 @@ export default function SettingsPage() {
   const debouncedConfig = useDebounce(config, 1000);
 
   useEffect(() => {
-    if (!debouncedConfig) return;
-    if (initialLoad) {
-      setInitialLoad(false);
-      return;
+    if (isInitialLoad.current) {
+        isInitialLoad.current = false;
+        return;
     }
+    if (!debouncedConfig) return;
     
     setIsSaving(true);
     updateUiConfig(debouncedConfig);
@@ -65,33 +66,7 @@ export default function SettingsPage() {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [debouncedConfig, toast, initialLoad]);
-  
-  const handleMoveField = (fieldId: string, direction: 'up' | 'down') => {
-    setConfig(prevConfig => {
-        if (!prevConfig) return null;
-        
-        const fields = [...prevConfig.fields];
-        const activeFields = fields.filter(f => f.isActive).sort((a,b) => a.order - b.order);
-        const fieldIndex = activeFields.findIndex(f => f.id === fieldId);
-
-        if (fieldIndex === -1) return prevConfig;
-
-        const newIndex = direction === 'up' ? fieldIndex - 1 : fieldIndex + 1;
-
-        if (newIndex < 0 || newIndex >= activeFields.length) return prevConfig;
-
-        // Swap order properties
-        const originalOrder = activeFields[fieldIndex].order;
-        activeFields[fieldIndex].order = activeFields[newIndex].order;
-        activeFields[newIndex].order = originalOrder;
-
-        // Re-sort the original fields array by the new order
-        fields.sort((a,b) => a.order - b.order);
-
-        return { ...prevConfig, fields };
-    });
-  };
+  }, [debouncedConfig, toast]);
   
   const handleToggleActive = (fieldId: string) => {
     setConfig(prevConfig => {
@@ -102,7 +77,17 @@ export default function SettingsPage() {
             }
             return f;
         });
-        return { ...prevConfig, fields };
+
+        // Re-calculate order
+        const activeFields = fields.filter(f => f.isActive).sort((a,b) => a.order - b.order);
+        const inactiveFields = fields.filter(f => !f.isActive).sort((a,b) => a.label.localeCompare(b.label));
+        
+        const newOrderedFields = [...activeFields, ...inactiveFields].map((field, index) => ({
+            ...field,
+            order: index
+        }));
+
+        return { ...prevConfig, fields: newOrderedFields };
     });
   }
 
@@ -139,11 +124,58 @@ export default function SettingsPage() {
     });
   };
 
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>, targetField: FieldConfig) => {
+    const draggedFieldId = e.dataTransfer.getData('fieldId');
+    const dropTarget = e.currentTarget;
+    dropTarget.classList.remove('drag-over-top', 'drag-over-bottom');
+    if (!draggedFieldId || draggedFieldId === targetField.id) return;
+    
+    setConfig(prevConfig => {
+      if (!prevConfig) return null;
+
+      let activeFields = prevConfig.fields.filter(f => f.isActive).sort((a, b) => a.order - b.order);
+      const otherFields = prevConfig.fields.filter(f => !f.isActive);
+
+      const draggedIndex = activeFields.findIndex(f => f.id === draggedFieldId);
+      const targetIndex = activeFields.findIndex(f => f.id === targetField.id);
+
+      if (draggedIndex === -1 || targetIndex === -1) return prevConfig;
+
+      const [removed] = activeFields.splice(draggedIndex, 1);
+      activeFields.splice(targetIndex, 0, removed);
+      
+      const newFields = [...activeFields, ...otherFields].map((field, index) => ({
+        ...field,
+        order: index
+      }));
+
+      return { ...prevConfig, fields: newFields };
+    });
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const dropTarget = e.currentTarget;
+    const rect = dropTarget.getBoundingClientRect();
+    const midpoint = rect.top + rect.height / 2;
+
+    if (e.clientY < midpoint) {
+        dropTarget.classList.add('drag-over-top');
+        dropTarget.classList.remove('drag-over-bottom');
+    } else {
+        dropTarget.classList.add('drag-over-bottom');
+        dropTarget.classList.remove('drag-over-top');
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.currentTarget.classList.remove('drag-over-top', 'drag-over-bottom');
+  };
 
   const filteredFields = useMemo(() => {
     if (!config) return { active: [], inactive: [] };
     const query = searchQuery.toLowerCase();
-    const allFields = config.fields.filter(f => f.label.toLowerCase().includes(query));
+    const allFields = config.fields.filter(f => f.label.toLowerCase().includes(query) || f.group.toLowerCase().includes(query));
     return {
         active: allFields.filter(f => f.isActive).sort((a,b) => a.order - b.order),
         inactive: allFields.filter(f => !f.isActive).sort((a,b) => a.label.localeCompare(b.label)),
@@ -156,23 +188,34 @@ export default function SettingsPage() {
 
   const renderFieldList = (fields: FieldConfig[], isActiveList: boolean) => (
     <div className="space-y-2">
-        {fields.map((field, index) => (
-            <div key={field.id} className="flex items-center gap-2 p-3 border rounded-lg bg-card hover:bg-muted/50 transition-colors">
+        {fields.map((field) => (
+            <div 
+              key={field.id}
+              draggable={isActiveList}
+              onDragStart={e => {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('fieldId', field.id);
+              }}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={e => handleDrop(e, field)}
+              className={cn(
+                  "flex items-center gap-4 p-3 pr-2 border rounded-lg bg-card transition-all group",
+                  isActiveList && "hover:bg-muted/50 hover:shadow-sm cursor-grab active:cursor-grabbing"
+              )}
+            >
+                {isActiveList && <GripVertical className="h-5 w-5 text-muted-foreground" />}
+                {!isActiveList && <div className="w-5 h-5" />}
+
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
                     <span className="font-medium text-foreground">{field.label} {field.isRequired && !isActiveList && <span className="text-destructive">*</span>}</span>
                     <Badge variant="outline" className="w-fit">{field.type}</Badge>
                     <span className="text-sm text-muted-foreground">{field.group}</span>
                 </div>
-                <div className="flex items-center gap-1">
-                    {isActiveList && (
-                        <>
-                         <Button variant="ghost" size="icon" className="h-8 w-8" disabled={index === 0} onClick={() => handleMoveField(field.id, 'up')}><ArrowUp className="h-4 w-4" /></Button>
-                         <Button variant="ghost" size="icon" className="h-8 w-8" disabled={index === fields.length - 1} onClick={() => handleMoveField(field.id, 'down')}><ArrowDown className="h-4 w-4" /></Button>
-                        </>
-                    )}
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100">
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenDialog(field)}><Edit className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleToggleActive(field.id)}>
-                        {isActiveList ? <ToggleLeft className="h-5 w-5 text-muted-foreground" /> : <ToggleRight className="h-5 w-5 text-primary"/>}
+                        {isActiveList ? <ToggleLeft className="h-5 w-5 text-muted-foreground" title="Deactivate"/> : <ToggleRight className="h-5 w-5 text-primary" title="Activate"/>}
                     </Button>
                     {field.isCustom && (
                         <AlertDialog>
@@ -196,7 +239,7 @@ export default function SettingsPage() {
                 </div>
             </div>
         ))}
-        {fields.length === 0 && <p className="text-muted-foreground text-center py-4">No fields in this section.</p>}
+        {fields.length === 0 && <p className="text-muted-foreground text-center py-4">No fields match your search in this section.</p>}
     </div>
   );
 
@@ -220,14 +263,14 @@ export default function SettingsPage() {
         <CardHeader>
             <CardTitle>Field Configuration</CardTitle>
             <CardDescription>
-                Drag and drop active fields to reorder them. Edit, activate, or deactivate fields as needed.
+                Drag active fields to reorder them on the forms. Edit, activate, or deactivate fields as needed.
             </CardDescription>
         </CardHeader>
         <CardContent>
             <div className="relative mb-6">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                    placeholder="Search fields by label..."
+                    placeholder="Search fields by label or group..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10 w-full max-w-sm"

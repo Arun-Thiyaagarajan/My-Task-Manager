@@ -86,3 +86,12 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+    .drag-over-top {
+        @apply border-t-2 border-t-primary;
+    }
+    .drag-over-bottom {
+        @apply border-b-2 border-b-primary;
+    }
+}
