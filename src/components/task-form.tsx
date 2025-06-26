@@ -36,6 +36,13 @@ interface TaskFormProps {
   developersList: string[];
 }
 
+const safeParseDate = (d: any): Date | undefined => {
+    if (!d) return undefined;
+    // Attempt to create a date. If it's an invalid date, getTime() will be NaN.
+    const date = new Date(d);
+    return isNaN(date.getTime()) ? undefined : date;
+};
+
 const getInitialTaskData = (task?: Partial<Task>) => {
     if (!task) {
         return {
@@ -52,24 +59,19 @@ const getInitialTaskData = (task?: Partial<Task>) => {
         };
     }
     
-    const deploymentDatesAsDates: { [key: string]: Date | undefined | null } = {};
+    const deploymentDatesAsDates: { [key: string]: Date | undefined } = {};
     if (task.deploymentDates) {
         for (const key in task.deploymentDates) {
-            const dateVal = task.deploymentDates[key];
-            if(dateVal) {
-                deploymentDatesAsDates[key] = new Date(dateVal);
-            } else {
-                deploymentDatesAsDates[key] = null;
-            }
+            deploymentDatesAsDates[key] = safeParseDate(task.deploymentDates[key]);
         }
     }
     
     return {
         ...task,
-        devStartDate: task.devStartDate ? new Date(task.devStartDate) : undefined,
-        devEndDate: task.devEndDate ? new Date(task.devEndDate) : undefined,
-        qaStartDate: task.qaStartDate ? new Date(task.qaStartDate) : undefined,
-        qaEndDate: task.qaEndDate ? new Date(task.qaEndDate) : undefined,
+        devStartDate: safeParseDate(task.devStartDate),
+        devEndDate: safeParseDate(task.devEndDate),
+        qaStartDate: safeParseDate(task.qaStartDate),
+        qaEndDate: safeParseDate(task.qaEndDate),
         deploymentDates: deploymentDatesAsDates,
         attachments: task.attachments || [],
         customFields: task.customFields || {},
@@ -351,7 +353,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                                                 <PopoverTrigger asChild>
                                                     <FormControl>
                                                         <Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                            {field.value ? format(new Date(field.value), "PPP") : <span>Deployment Date</span>}
+                                                            {field.value ? format(field.value, "PPP") : <span>Deployment Date</span>}
                                                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                                         </Button>
                                                     </FormControl>
