@@ -401,6 +401,35 @@ export function addDeveloper(name: string): Developer {
     return newDeveloper;
 }
 
+export function deleteDeveloper(name: string): boolean {
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    const companyData = data.companyData[activeCompanyId];
+
+    if (!companyData) return false;
+
+    // Remove from the main list of developers
+    const developerIndex = companyData.developers.indexOf(name);
+    if (developerIndex === -1) {
+        return false; // Developer not found
+    }
+    companyData.developers.splice(developerIndex, 1);
+
+    // Remove from all tasks they are assigned to
+    companyData.tasks.forEach(task => {
+        if (task.developers) {
+            const taskDevIndex = task.developers.indexOf(name);
+            if (taskDevIndex > -1) {
+                task.developers.splice(taskDevIndex, 1);
+                task.updatedAt = new Date().toISOString();
+            }
+        }
+    });
+
+    setAppData(data);
+    return true;
+}
+
 // Comment Functions
 export function addComment(taskId: string, comment: string): Task | undefined {
   const task = getTaskById(taskId);

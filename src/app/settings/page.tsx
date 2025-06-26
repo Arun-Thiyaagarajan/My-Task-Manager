@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { getUiConfig, updateUiConfig, updateEnvironmentName } from '@/lib/data';
+import { getUiConfig, updateUiConfig, updateEnvironmentName, getDevelopers, deleteDeveloper } from '@/lib/data';
 import type { UiConfig, FieldConfig } from '@/lib/types';
 import { useDebounce } from '@/hooks/use-debounce';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X } from 'lucide-react';
+import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Users } from 'lucide-react';
 import { EditFieldDialog } from '@/components/edit-field-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -40,11 +40,17 @@ export default function SettingsPage() {
 
   const [editingEnv, setEditingEnv] = useState<string | null>(null);
   const [editingEnvText, setEditingEnvText] = useState('');
+  const [developers, setDevelopers] = useState<string[]>([]);
+
+  const refreshDevelopers = () => {
+    setDevelopers(getDevelopers());
+  };
 
   useEffect(() => {
     document.title = 'Settings | My Task Manager';
     const loadedConfig = getUiConfig();
     setConfig(loadedConfig);
+    refreshDevelopers();
   }, []);
 
   const debouncedConfig = useDebounce(config, 1000);
@@ -240,6 +246,15 @@ export default function SettingsPage() {
     setEditingEnvText('');
   }
 
+  const handleDeleteDeveloper = (name: string) => {
+    if (deleteDeveloper(name)) {
+        toast({ variant: 'success', title: 'Developer Removed', description: `${name} has been removed from the system.` });
+        refreshDevelopers();
+    } else {
+        toast({ variant: 'destructive', title: 'Error', description: `Could not remove ${name}.` });
+    }
+  }
+
 
   const filteredAndGroupedFields = useMemo(() => {
     if (!config) return { active: {}, inactive: {} };
@@ -399,7 +414,7 @@ export default function SettingsPage() {
                 </CardContent>
             </Card>
         </div>
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 space-y-8">
             <Card>
                 <CardHeader>
                     <CardTitle>Environment Management</CardTitle>
@@ -454,6 +469,46 @@ export default function SettingsPage() {
                         />
                         <Button variant="outline" size="sm" onClick={handleAddEnvironment}>Add</Button>
                     </div>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Users className="h-5 w-5" />
+                        Developer Management
+                    </CardTitle>
+                    <CardDescription>Remove developers from the system. This will also unassign them from all tasks.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2 max-h-96 overflow-y-auto">
+                    {(developers || []).map(dev => {
+                        return (
+                            <div key={dev} className="flex items-center justify-between p-2 border rounded-md bg-card group">
+                                <span className="font-medium">{dev}</span>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Delete {dev}?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This will permanently remove {dev} from the list of available developers and unassign them from all tasks. This action cannot be undone.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDeleteDeveloper(dev)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </div>
+                        )
+                    })}
+                    {(developers || []).length === 0 && (
+                         <p className="text-sm text-center text-muted-foreground py-4">No developers to manage. Add them via the task form.</p>
+                    )}
                 </CardContent>
             </Card>
         </div>
