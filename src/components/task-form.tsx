@@ -97,11 +97,29 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
     resolver: zodResolver(taskSchema),
     defaultValues: getInitialTaskData(task),
   });
+
+  const { formState: { isDirty } } = form;
   
   useEffect(() => {
     const defaultValues = getInitialTaskData(task);
     form.reset(defaultValues);
   }, [task, form]);
+  
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = ''; // For modern browsers
+        return ''; // For older browsers
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isDirty]);
   
   const { fields: attachments, append: appendAttachment, remove: removeAttachment } = useFieldArray({
     control: form.control,
@@ -420,7 +438,20 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
         )}
 
         <div className="flex justify-end gap-4 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={() => router.back()} disabled={isPending}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                if (isDirty) {
+                  if (window.confirm('You have unsaved changes. Are you sure you want to leave?')) {
+                    router.back();
+                  }
+                } else {
+                  router.back();
+                }
+              }}
+              disabled={isPending}
+            >
                 Cancel
             </Button>
             <Button type="submit" disabled={isPending}>
