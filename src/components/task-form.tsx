@@ -103,7 +103,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
   useEffect(() => {
     const defaultValues = getInitialTaskData(task);
     form.reset(defaultValues);
-  }, [task, form]);
+  }, [task, form.reset]);
   
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -141,9 +141,6 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
   };
 
   const getFieldOptions = (field: FieldConfig): {value: string, label: string}[] => {
-    if (field.key === 'developers') {
-        return developersList.map(d => ({ value: d, label: d }));
-    }
     if (field.key === 'repositories') {
         return REPOSITORIES.map(d => ({ value: d, label: d }));
     }
@@ -151,7 +148,10 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
       return TASK_STATUSES.map(s => ({ value: s, label: s}));
     }
     if(field.type === 'tags') {
-      return []; // Return empty array, user creates options
+        if(field.key === 'developers') {
+            return developersList.map(d => ({ value: d, label: d }));
+        }
+        return field.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
     }
     return field.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
   }
