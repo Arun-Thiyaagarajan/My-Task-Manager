@@ -83,7 +83,7 @@ export default function SettingsPage() {
         if (!field?.isCustom) {
             toast({
                 variant: 'warning',
-                title: 'Cannot Deactivate Built-in Field',
+                title: 'Cannot Change Built-in Field',
                 description: `The "${field?.label}" field is part of the core system and cannot be deactivated.`,
             });
             return prevConfig;
@@ -265,7 +265,7 @@ export default function SettingsPage() {
                           className="h-8 w-8"
                           onClick={() => handleToggleActive(field.id)}
                           disabled={isToggleDisabled}
-                          title={isToggleDisabled ? "Built-in fields cannot be deactivated" : (isActiveList ? 'Deactivate' : 'Activate')}
+                          title={isToggleDisabled ? "Built-in fields cannot be modified" : (isActiveList ? 'Deactivate' : 'Activate')}
                         >
                             {field.isActive ? <ToggleRight className="h-5 w-5 text-primary" /> : <ToggleLeft className="h-5 w-5 text-muted-foreground"/>}
                         </Button>

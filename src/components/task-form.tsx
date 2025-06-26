@@ -157,7 +157,9 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                 return (
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                            <SelectTrigger><SelectValue placeholder={`Select ${label}`} /></SelectTrigger>
+                            <SelectTrigger>
+                                <SelectValue placeholder={`Select ${label}`} />
+                            </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                             {getFieldOptions(fieldConfig).map(opt => (
@@ -359,7 +361,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                                     </FormItem>
                                 )}
                             />
-                            {deploymentStatus?.[env] && (
+                            {deploymentStatus?.[env] && env !== 'dev' && (
                                 <FormField
                                     control={form.control}
                                     name={`deploymentDates.${env}`}
