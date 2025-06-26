@@ -101,11 +101,6 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
   const { formState: { isDirty } } = form;
   
   useEffect(() => {
-    const defaultValues = getInitialTaskData(task);
-    form.reset(defaultValues);
-  }, [task, form.reset]);
-  
-  useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isDirty) {
         e.preventDefault();
