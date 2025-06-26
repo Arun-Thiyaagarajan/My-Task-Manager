@@ -50,18 +50,26 @@ export function MultiSelect({
     [onChange, selected]
   );
   
-  const handleSelectCreatable = () => {
-    const newValue = query.trim();
-    if (newValue) {
-      if (!selected.includes(newValue)) {
-          if (onCreate) {
-            onCreate(newValue);
-          }
-          onChange([...selected, newValue]);
+  const filteredOptions = options.filter(
+    (option) => !selected.includes(option.value)
+  );
+
+  const showCreatable = creatable && query.trim() && !options.some(opt => opt.label.toLowerCase() === query.trim().toLowerCase());
+  
+  const handleSelectCreatable = React.useCallback(() => {
+    if (showCreatable) {
+      const newValue = query.trim();
+      if (newValue) {
+        if (!selected.includes(newValue)) {
+            if (onCreate) {
+              onCreate(newValue);
+            }
+            onChange([...selected, newValue]);
+        }
+        setQuery('');
       }
-      setQuery('');
     }
-  }
+  }, [query, showCreatable, selected, onCreate, onChange]);
 
   const handleKeyDown = React.useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -73,19 +81,17 @@ export function MultiSelect({
             handleUnselect(selected[selected.length - 1]);
           }
         }
+        if (e.key === 'Enter' && showCreatable) {
+          e.preventDefault();
+          handleSelectCreatable();
+        }
         if (e.key === 'Escape') {
           input.blur();
         }
       }
     },
-    [handleUnselect, selected]
+    [handleUnselect, selected, showCreatable, handleSelectCreatable]
   );
-  
-  const filteredOptions = options.filter(
-    (option) => !selected.includes(option.value)
-  );
-
-  const showCreatable = creatable && query.trim() && !options.some(opt => opt.label.toLowerCase() === query.trim().toLowerCase());
 
   return (
     <Command onKeyDown={handleKeyDown} className={cn('overflow-visible bg-transparent', className)}>
