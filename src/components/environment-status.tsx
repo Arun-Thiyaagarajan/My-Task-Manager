@@ -2,7 +2,7 @@
 import { Badge } from '@/components/ui/badge';
 import type { Task } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ENVIRONMENTS } from '@/lib/constants';
 
 interface EnvironmentStatusProps {
@@ -40,7 +40,7 @@ export function EnvironmentStatus({ deploymentStatus, deploymentDates, size = 'd
 
   const standardEnvs = [...ENVIRONMENTS];
   const customEnvs = Object.keys(deploymentStatus || {})
-    .filter(env => !standardEnvs.includes(env as any) && deploymentStatus?.[env]);
+    .filter(env => !standardEnvs.includes(env as any));
   
   const envsToDisplay = [...new Set([...standardEnvs, ...customEnvs])].sort((a, b) => {
       const aIndex = standardEnvs.indexOf(a as any);
