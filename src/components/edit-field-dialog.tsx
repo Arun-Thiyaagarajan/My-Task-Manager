@@ -55,7 +55,6 @@ interface EditFieldDialogProps {
 
 export function EditFieldDialog({ isOpen, onOpenChange, onSave, field }: EditFieldDialogProps) {
   const isCreating = field === null;
-  const isCustomField = field?.isCustom ?? true;
 
   const form = useForm<FieldFormData>({
     resolver: zodResolver(fieldSchema),
@@ -83,11 +82,16 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field }: EditFie
 
 
   const selectedType = form.watch('type');
-  const showOptions = selectedType === 'select' || selectedType === 'multiselect';
+  const showOptions = selectedType === 'select' || selectedType === 'multiselect' || selectedType === 'tags';
   
   const [allGroups, setAllGroups] = React.useState<string[]>([]);
   const [isGroupPopoverOpen, setIsGroupPopoverOpen] = React.useState(false);
   const [groupSearch, setGroupSearch] = React.useState('');
+
+  const nonConfigurableBuiltInKeys = [
+    'title', 'description', 'status', 'repositories', 'developers', 'azureWorkItemId', 'deploymentStatus'
+  ];
+  const isConfigurable = isCreating || (field !== null && (field.isCustom || !nonConfigurableBuiltInKeys.includes(field.key)));
 
   const onSubmit = (data: FieldFormData) => {
     const finalField: FieldConfig = {
@@ -207,6 +211,16 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field }: EditFie
                                             placeholder="Search or create..." 
                                             value={groupSearch}
                                             onValueChange={setGroupSearch}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && groupSearch.trim() && !allGroups.some(g => g.toLowerCase() === groupSearch.trim().toLowerCase())) {
+                                                    e.preventDefault();
+                                                    const newGroup = groupSearch.trim();
+                                                    form.setValue("group", newGroup);
+                                                    setAllGroups(prev => [...prev, newGroup].sort());
+                                                    setIsGroupPopoverOpen(false);
+                                                    setGroupSearch(newGroup);
+                                                }
+                                            }}
                                         />
                                         <CommandList>
                                             <CommandEmpty>No results.</CommandEmpty>
@@ -268,7 +282,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field }: EditFie
                                             id={field.name}
                                             checked={field.value}
                                             onCheckedChange={field.onChange}
-                                            disabled={!isCustomField}
+                                            disabled={!isConfigurable}
                                         />
                                     </FormControl>
                                     <Label htmlFor={field.name} className="cursor-pointer">
@@ -287,7 +301,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field }: EditFie
                                             id={field.name}
                                             checked={field.value}
                                             onCheckedChange={field.onChange}
-                                            disabled={isRequiredValue || !isCustomField}
+                                            disabled={isRequiredValue || !isConfigurable}
                                         />
                                     </FormControl>
                                     <Label htmlFor={field.name} className="cursor-pointer">
@@ -357,5 +371,3 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field }: EditFie
     </Dialog>
   );
 }
-
-    
