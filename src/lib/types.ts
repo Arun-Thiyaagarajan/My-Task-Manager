@@ -5,6 +5,8 @@ export type TaskStatus = (typeof TASK_STATUSES)[number];
 export type Repository = string;
 export type Environment = (typeof ENVIRONMENTS)[number];
 export type Developer = string;
+export type FieldType = 'text' | 'textarea' | 'number' | 'url' | 'date' | 'select' | 'multiselect' | 'checkbox';
+
 
 export interface Company {
   id: string;
@@ -12,7 +14,7 @@ export interface Company {
 }
 
 export interface Attachment {
-  name: string;
+  name:string;
   url: string;
   type: 'link' | 'file';
 }
@@ -44,18 +46,29 @@ export interface Task {
   devEndDate?: string | null;
   qaStartDate?: string | null;
   qaEndDate?: string | null;
+
+  customFields?: Record<string, any>;
 }
 
-// New types for Admin/Settings
-export interface FieldConfig {
+export interface FieldOption {
+  id: string;
   label: string;
+  value: string;
+}
+
+export interface FieldConfig {
+  id: string;
+  key: string;
+  label: string;
+  type: FieldType;
+  group: string;
   isActive: boolean;
   isRequired: boolean;
-  group: string;
+  isCustom: boolean;
+  order: number;
+  options?: FieldOption[];
 }
 
-export type FieldName = keyof Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'comments'>;
-
 export interface UiConfig {
-  fields: Record<FieldName, FieldConfig>;
+  fields: FieldConfig[];
 }

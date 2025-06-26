@@ -36,6 +36,8 @@ export const taskSchema = z.object({
   qaStartDate: z.coerce.date().optional().nullable(),
   qaEndDate: z.coerce.date().optional().nullable(),
 
+  customFields: z.record(z.any()).optional(),
+
 }).refine(
     (data) => {
       if (data.devStartDate && data.devEndDate) {

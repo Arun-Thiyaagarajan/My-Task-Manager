@@ -1,30 +1,16 @@
 
 'use client';
 
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
 import { taskSchema } from '@/lib/validators';
-import type { Task } from '@/lib/types';
+import type { Task, FieldConfig, FieldType, FieldOption } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2, CalendarIcon, GitPullRequest, Trash2, Paperclip, PlusCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTransition, useEffect, useState } from 'react';
@@ -34,9 +20,10 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { MultiSelect } from './ui/multi-select';
 import { Checkbox } from './ui/checkbox';
-import { addDeveloper } from '@/lib/data';
+import { addDeveloper, getUiConfig } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { TASK_STATUSES, REPOSITORIES, ENVIRONMENTS } from '@/lib/constants';
+import { ENVIRONMENTS, REPOSITORIES, TASK_STATUSES } from '@/lib/constants';
+import { LoadingSpinner } from './ui/loading-spinner';
 
 type TaskFormData = z.infer<typeof taskSchema>;
 
@@ -59,10 +46,10 @@ const getInitialTaskData = (task?: Partial<Task>) => {
             deploymentStatus: {},
             attachments: [],
             deploymentDates: {},
+            customFields: {},
         };
     }
     
-    // Ensure deployment dates are Date objects if they exist
     const deploymentDatesAsDates: { [key: string]: Date | undefined } = {};
     if (task.deploymentDates) {
         for (const key in task.deploymentDates) {
@@ -81,12 +68,18 @@ const getInitialTaskData = (task?: Partial<Task>) => {
         qaEndDate: task.qaEndDate ? new Date(task.qaEndDate) : undefined,
         deploymentDates: deploymentDatesAsDates,
         attachments: task.attachments || [],
+        customFields: task.customFields || {},
     }
 }
 
 export function TaskForm({ task, onSubmit, submitButtonText, developersList }: TaskFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [uiConfig, setUiConfig] = useState<FieldConfig[] | null>(null);
+
+  useEffect(() => {
+    setUiConfig(getUiConfig().fields);
+  }, []);
   
   const [customEnvironments, setCustomEnvironments] = useState<string[]>([]);
   const [newEnvName, setNewEnvName] = useState('');
@@ -95,7 +88,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
     resolver: zodResolver(taskSchema),
     defaultValues: getInitialTaskData(task),
   });
-  
+
   const { fields: attachmentFields, append: appendAttachment, remove: removeAttachment } = useFieldArray({
     control: form.control,
     name: 'attachments',
@@ -135,144 +128,130 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
   };
 
   const selectedRepos = form.watch('repositories') || [];
-  const deploymentStatus = form.watch('deploymentStatus') || {};
   const allEnvs = [...ENVIRONMENTS, ...customEnvironments];
+  
+  const getFieldOptions = (field: FieldConfig): {value: string, label: string}[] => {
+    if (field.key === 'developers') {
+        return developersList.map(d => ({ value: d, label: d }));
+    }
+    return field.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
+  }
+  
+  const renderField = (fieldConfig: FieldConfig) => {
+    const { key, type, label, isCustom, isRequired, options } = fieldConfig;
+    const fieldName = isCustom ? `customFields.${key}` : key;
 
-  const dateFields = [
-    { name: 'devStartDate', label: 'Dev Start Date'},
-    { name: 'devEndDate', label: 'Dev End Date'},
-    { name: 'qaStartDate', label: 'QA Start Date'},
-    { name: 'qaEndDate', label: 'QA End Date'},
-  ] as const;
+    const renderInput = (fieldType: FieldType, field: any) => {
+        switch (fieldType) {
+            case 'text':
+            case 'number':
+            case 'url':
+                return <Input type={fieldType === 'text' ? 'text' : fieldType} placeholder={label} {...field} />;
+            case 'textarea':
+                return <Textarea placeholder={`Details for ${label}...`} {...field} />;
+            case 'date':
+                return (
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <FormControl>
+                                <Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                    {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                            </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                        </PopoverContent>
+                    </Popover>
+                );
+            case 'select':
+                return (
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                            <SelectTrigger><SelectValue placeholder={`Select ${label}`} /></SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            {getFieldOptions(fieldConfig).map(opt => (
+                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                );
+            case 'multiselect':
+                return (
+                     <MultiSelect
+                        selected={field.value ?? []}
+                        onChange={field.onChange}
+                        options={getFieldOptions(fieldConfig)}
+                        placeholder={`Select ${label}...`}
+                        {...(key === 'developers' && { onCreate: handleCreateDeveloper })}
+                    />
+                );
+            case 'checkbox':
+                return (
+                    <div className="flex items-center space-x-2 h-10">
+                        <Checkbox checked={field.value} onCheckedChange={field.onChange} id={fieldName} />
+                        <label htmlFor={fieldName} className="text-sm font-normal text-muted-foreground">
+                            Enable {label}
+                        </label>
+                    </div>
+                );
+            default:
+                return <Input placeholder={label} {...field} />;
+        }
+    }
 
-  const deploymentDateFields = allEnvs
-    .filter(env => env !== 'dev' && deploymentStatus[env])
-    .map(env => ({
-      name: `deploymentDates.${env}`,
-      label: `${env.charAt(0).toUpperCase() + env.slice(1)} Deployment Date`,
-    })) as { name: `deploymentDates.${string}`; label: string }[];
+    // Hide fields that are handled manually in other cards
+    if (['prLinks', 'attachments', 'deploymentStatus', 'deploymentDates'].includes(key)) return null;
+
+    return (
+        <FormField
+            key={key}
+            control={form.control}
+            name={fieldName as any}
+            rules={{ required: isRequired }}
+            render={({ field }) => (
+                <FormItem>
+                    <FormLabel>{label} {isRequired && '*'}</FormLabel>
+                    {renderInput(type, field)}
+                    <FormMessage />
+                </FormItem>
+            )}
+        />
+    )
+  }
+
+  if (!uiConfig) {
+      return <LoadingSpinner text="Loading form configuration..." />;
+  }
+
+  const groupedFields = uiConfig
+    .filter(f => f.isActive)
+    .sort((a,b) => a.order - b.order)
+    .reduce((acc, field) => {
+        const group = field.group || 'Other';
+        if (!acc[group]) acc[group] = [];
+        acc[group].push(field);
+        return acc;
+    }, {} as Record<string, FieldConfig[]>);
+    
+  const groupOrder = Object.keys(groupedFields);
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
         
-        <Card>
-            <CardHeader>
-                <CardTitle>Core Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <FormField
-                    control={form.control}
-                    name="title"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Title *</FormLabel>
-                        <FormControl>
-                        <Input placeholder="E.g. Fix login button" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Description *</FormLabel>
-                        <FormControl>
-                        <Textarea placeholder="Describe the task in detail..." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Status</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                            <SelectTrigger>
-                            <SelectValue placeholder="Select a status" />
-                            </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                            {TASK_STATUSES.map((status) => (
-                            <SelectItem key={status} value={status}>
-                                {status}
-                            </SelectItem>
-                            ))}
-                        </SelectContent>
-                        </Select>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-            </CardContent>
-        </Card>
-
-        <Card>
-            <CardHeader>
-                <CardTitle>Assignment & Tracking</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <FormField
-                    control={form.control}
-                    name="developers"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Developers</FormLabel>
-                        <FormControl>
-                            <MultiSelect
-                            selected={field.value ?? []}
-                            onChange={field.onChange}
-                            options={developersList.map(dev => ({ value: dev, label: dev }))}
-                            placeholder="Select developers..."
-                            onCreate={handleCreateDeveloper}
-                            />
-                        </FormControl>
-                        <FormDescription>Assign one or more developers to this task.</FormDescription>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="repositories"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Repositories</FormLabel>
-                        <FormControl>
-                            <MultiSelect
-                            selected={field.value ?? []}
-                            onChange={field.onChange}
-                            options={REPOSITORIES.map(repo => ({ value: repo, label: repo }))}
-                            placeholder="Select repositories..."
-                            />
-                        </FormControl>
-                         <FormDescription>Which code repositories are affected?</FormDescription>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                 <FormField
-                    control={form.control}
-                    name="azureWorkItemId"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Azure Work Item ID</FormLabel>
-                        <FormControl>
-                            <Input placeholder="e.g., 12345" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-            </CardContent>
-        </Card>
+        {groupOrder.map(groupName => (
+            <Card key={groupName}>
+                <CardHeader>
+                    <CardTitle>{groupName}</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {groupedFields[groupName].map(field => renderField(field))}
+                </CardContent>
+            </Card>
+        ))}
         
         <Card>
             <CardHeader>
@@ -428,105 +407,6 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                         <PlusCircle className="mr-2 h-4 w-4"/> Add
                     </Button>
                 </div>
-            </CardContent>
-        </Card>
-
-        <Card>
-            <CardHeader>
-                <CardTitle>Important Dates</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {dateFields.map(dateField => (
-                        <FormField
-                            key={dateField.name}
-                            control={form.control}
-                            name={dateField.name}
-                            render={({ field }) => (
-                                <FormItem className="flex flex-col">
-                                    <FormLabel>{dateField.label}</FormLabel>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <FormControl>
-                                                <Button
-                                                variant={"outline"}
-                                                className={cn(
-                                                    "w-full pl-3 text-left font-normal",
-                                                    !field.value && "text-muted-foreground"
-                                                )}
-                                                >
-                                                {field.value ? format(field.value as Date, "PPP") : (
-                                                    <span>Pick a date</span>
-                                                )}
-                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                </Button>
-                                            </FormControl>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
-                                            <Calendar
-                                                mode="single"
-                                                selected={field.value as Date | undefined}
-                                                onSelect={field.onChange}
-                                                initialFocus
-                                            />
-                                        </PopoverContent>
-                                    </Popover>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    ))}
-                </div>
-                
-                {deploymentDateFields.length > 0 && (
-                    <>
-                        <div className="pt-4 mt-4 border-t">
-                            <h4 className="text-sm font-medium text-muted-foreground">Deployment Dates</h4>
-                             { form.formState.errors.deploymentDates && <p className="text-sm font-medium text-destructive">{form.formState.errors.deploymentDates.message}</p>}
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {deploymentDateFields.map(dateField => (
-                                <FormField
-                                    key={dateField.name}
-                                    control={form.control}
-                                    name={dateField.name}
-                                    render={({ field }) => (
-                                        <FormItem className="flex flex-col">
-                                            <FormLabel>{dateField.label}</FormLabel>
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <FormControl>
-                                                        <Button
-                                                        variant={"outline"}
-                                                        className={cn(
-                                                            "w-full pl-3 text-left font-normal",
-                                                            !field.value && "text-muted-foreground"
-                                                        )}
-                                                        >
-                                                        {field.value ? format(field.value as Date, "PPP") : (
-                                                            <span>Pick a date</span>
-                                                        )}
-                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                        </Button>
-                                                    </FormControl>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-auto p-0" align="start">
-                                                    <Calendar
-                                                        mode="single"
-                                                        selected={field.value as Date | undefined}
-                                                        onSelect={field.onChange}
-                                                        initialFocus
-                                                    />
-                                                </PopoverContent>
-                                            </Popover>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            ))}
-                        </div>
-                    </>
-                )}
             </CardContent>
         </Card>
 

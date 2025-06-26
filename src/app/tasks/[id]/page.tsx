@@ -2,12 +2,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getTaskById } from '@/lib/data';
+import { getTaskById, getUiConfig } from '@/lib/data';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box } from 'lucide-react';
 import { TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -16,7 +16,7 @@ import { PrLinksGroup } from '@/components/pr-links-group';
 import { Badge } from '@/components/ui/badge';
 import { getInitials, getAvatarColor } from '@/lib/utils';
 import { format } from 'date-fns';
-import type { Task } from '@/lib/types';
+import type { Task, FieldConfig } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
 import { ENVIRONMENTS } from '@/lib/constants';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -25,6 +25,7 @@ export default function TaskPage() {
   const params = useParams();
   const router = useRouter();
   const [task, setTask] = useState<Task | null>(null);
+  const [uiConfig, setUiConfig] = useState<FieldConfig[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const taskId = params.id as string;
@@ -33,6 +34,7 @@ export default function TaskPage() {
     if (taskId) {
       const foundTask = getTaskById(taskId);
       setTask(foundTask || null);
+      setUiConfig(getUiConfig().fields);
       setIsLoading(false);
       if (foundTask) {
         document.title = `${foundTask.title} | My Task Manager`;
@@ -47,6 +49,28 @@ export default function TaskPage() {
       setTask({ ...task, comments: newComments });
     }
   };
+
+  const renderCustomFieldValue = (key: string, value: any) => {
+      const fieldConfig = uiConfig.find(f => f.key === key);
+      if (!fieldConfig) return <span className="text-muted-foreground">N/A</span>;
+      
+      switch (fieldConfig.type) {
+          case 'date':
+              return value ? format(new Date(value), 'PPP') : 'Not set';
+          case 'checkbox':
+              return value ? 'Yes' : 'No';
+          case 'url':
+              return <a href={value} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">{value}</a>
+          case 'multiselect':
+              return Array.isArray(value) ? (
+                  <div className="flex flex-wrap gap-1">
+                      {value.map(v => <Badge key={v} variant="secondary">{v}</Badge>)}
+                  </div>
+              ) : String(value);
+          default:
+              return String(value);
+      }
+  }
 
   if (isLoading) {
     return <LoadingSpinner text="Loading task details..." />;
@@ -73,24 +97,21 @@ export default function TaskPage() {
 
   const hasDevQaDates = task.devStartDate || task.devEndDate || task.qaStartDate || task.qaEndDate;
   
-  const standardEnvs = [...ENVIRONMENTS];
-  const customEnvs = Object.keys(task.deploymentStatus || {})
-    .filter(env => !standardEnvs.includes(env as any));
-
-  const environmentsToDisplay = [...new Set([...standardEnvs, ...customEnvs])].sort((a, b) => {
-      const aIndex = standardEnvs.indexOf(a as any);
-      const bIndex = standardEnvs.indexOf(b as any);
-      if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
-      if (aIndex !== -1) return -1;
-      if (bIndex !== -1) return 1;
-      return a.localeCompare(b);
-  });
+  const allPossibleEnvs = [...new Set([...ENVIRONMENTS, ...Object.keys(task.deploymentStatus || {})])];
   
-  const hasAnyDeploymentDate = environmentsToDisplay.some(env => {
+  const hasAnyDeploymentDate = allPossibleEnvs.some(env => {
     const isSelected = task.deploymentStatus?.[env] ?? false;
     const hasDate = task.deploymentDates && task.deploymentDates[env];
     return isSelected && hasDate;
   });
+
+  const customFields = uiConfig.filter(f => f.isCustom && f.isActive && task.customFields && task.customFields[f.key]);
+  const groupedCustomFields = customFields.reduce((acc, field) => {
+    const group = field.group || 'Other Custom Fields';
+    if (!acc[group]) acc[group] = [];
+    acc[group].push(field);
+    return acc;
+  }, {} as Record<string, FieldConfig[]>);
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -135,6 +156,25 @@ export default function TaskPage() {
               </p>
             </CardContent>
           </Card>
+
+          {Object.keys(groupedCustomFields).map(groupName => (
+            <Card key={groupName}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-xl">
+                    <Box className="h-5 w-5" />
+                    {groupName}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                  {groupedCustomFields[groupName].map(field => (
+                      <div key={field.key}>
+                          <h4 className="text-sm font-semibold text-muted-foreground mb-1">{field.label}</h4>
+                          <div className="text-sm text-foreground">{renderCustomFieldValue(field.key, task.customFields?.[field.key])}</div>
+                      </div>
+                  ))}
+              </CardContent>
+            </Card>
+          ))}
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
@@ -146,32 +186,33 @@ export default function TaskPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-3 text-sm">
-                        {environmentsToDisplay.length > 0 ? (
-                            environmentsToDisplay.map(env => {
-                                const isSelected = task.deploymentStatus?.[env] ?? false;
-                                const hasDate = task.deploymentDates && task.deploymentDates[env];
-                                const isDeployed = isSelected && (env === 'dev' || !!hasDate);
+                        {allPossibleEnvs.map(env => {
+                            const isSelected = task.deploymentStatus?.[env] ?? false;
+                            if (!isSelected) return null;
+                            
+                            const hasDate = task.deploymentDates && task.deploymentDates[env];
+                            const isDeployed = isSelected && (env === 'dev' || !!hasDate);
 
-                                return (
-                                    <div key={env} className="flex justify-between items-center">
-                                        <span className="capitalize text-foreground font-medium">
-                                            {env}
-                                        </span>
-                                        {isDeployed ? (
-                                            <div className="flex items-center gap-2 text-green-600 dark:text-green-500 font-medium">
-                                                <CheckCircle2 className="h-4 w-4" />
-                                                <span>Deployed</span>
-                                            </div>
-                                        ) : (
-                                            <div className="flex items-center gap-2 text-muted-foreground">
-                                                <Clock className="h-4 w-4" />
-                                                <span>Pending</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })
-                        ) : (
+                            return (
+                                <div key={env} className="flex justify-between items-center">
+                                    <span className="capitalize text-foreground font-medium">
+                                        {env}
+                                    </span>
+                                    {isDeployed ? (
+                                        <div className="flex items-center gap-2 text-green-600 dark:text-green-500 font-medium">
+                                            <CheckCircle2 className="h-4 w-4" />
+                                            <span>Deployed</span>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-2 text-muted-foreground">
+                                            <Clock className="h-4 w-4" />
+                                            <span>Pending</span>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                        {allPossibleEnvs.every(env => !(task.deploymentStatus?.[env] ?? false)) && (
                            <p className="text-muted-foreground text-center text-xs pt-2">No deployments recorded for this task.</p>
                         )}
                     </div>

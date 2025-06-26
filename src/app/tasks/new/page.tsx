@@ -22,6 +22,7 @@ export default function NewTaskPage() {
     document.title = 'New Task | My Task Manager';
     setDevelopersList(getDevelopers());
     
+    // This logic stays to handle failed imports
     const failedImportRowString = sessionStorage.getItem('failed_import_row');
     if (failedImportRowString) {
       try {

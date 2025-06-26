@@ -27,7 +27,7 @@ const getInitialData = (): MyTaskManagerData => {
             [defaultCompanyId]: {
                 tasks: [],
                 developers: ['Arun', 'Samantha', 'Rajesh'],
-                uiConfig: { fields: INITIAL_UI_CONFIG as any },
+                uiConfig: { fields: INITIAL_UI_CONFIG },
             },
         },
     };
@@ -35,6 +35,7 @@ const getInitialData = (): MyTaskManagerData => {
 
 const getAppData = (): MyTaskManagerData => {
     if (typeof window === 'undefined') {
+        const defaultConfig = { fields: INITIAL_UI_CONFIG };
         return {
             companies: [{ id: 'company-placeholder', name: 'Default Company' }],
             activeCompanyId: 'company-placeholder',
@@ -42,7 +43,7 @@ const getAppData = (): MyTaskManagerData => {
                 'company-placeholder': {
                     tasks: [],
                     developers: ['Arun', 'Samantha', 'Rajesh'],
-                    uiConfig: { fields: INITIAL_UI_CONFIG as any },
+                    uiConfig: defaultConfig,
                 },
             },
         };
@@ -87,7 +88,7 @@ export function addCompany(name: string): Company {
     data.companyData[newCompanyId] = { 
         tasks: [], 
         developers: ['Arun', 'Samantha', 'Rajesh'],
-        uiConfig: { fields: INITIAL_UI_CONFIG as any },
+        uiConfig: { fields: INITIAL_UI_CONFIG },
     };
     data.activeCompanyId = newCompanyId;
 
@@ -140,17 +141,51 @@ export function getUiConfig(): UiConfig {
     const data = getAppData();
     const activeCompanyId = getActiveCompanyId();
     if (!activeCompanyId || !data.companyData[activeCompanyId]) {
-        return { fields: INITIAL_UI_CONFIG as any };
+        return { fields: INITIAL_UI_CONFIG };
     }
-    const config = data.companyData[activeCompanyId].uiConfig || { fields: {} };
-    const mergedFields = { ...INITIAL_UI_CONFIG, ...config.fields };
-    return { fields: mergedFields as any };
+    const companyConfig = data.companyData[activeCompanyId].uiConfig;
+
+    // Migration logic: If config is in old format or missing, reset to new default.
+    if (!companyConfig || !Array.isArray(companyConfig.fields)) {
+        const newConfig = { fields: INITIAL_UI_CONFIG };
+        data.companyData[activeCompanyId].uiConfig = newConfig;
+        setAppData(data);
+        return newConfig;
+    }
+
+    // Ensure all core fields exist, adding them if they were somehow deleted.
+    const coreFieldKeys = new Set(INITIAL_UI_CONFIG.map(f => f.key));
+    const presentCoreFieldKeys = new Set(companyConfig.fields.filter(f => !f.isCustom).map(f => f.key));
+    
+    let needsUpdate = false;
+    for (const key of coreFieldKeys) {
+        if (!presentCoreFieldKeys.has(key)) {
+            const missingField = INITIAL_UI_CONFIG.find(f => f.key === key);
+            if (missingField) {
+                companyConfig.fields.push(missingField);
+                needsUpdate = true;
+            }
+        }
+    }
+    
+    if (needsUpdate) {
+        // Re-sort and save if we added missing fields
+        companyConfig.fields.sort((a, b) => a.order - b.order);
+        setAppData(data);
+    }
+
+    return companyConfig;
 }
 
 export function updateUiConfig(newConfig: UiConfig): UiConfig {
     const data = getAppData();
     const activeCompanyId = getActiveCompanyId();
     if (data.companyData[activeCompanyId]) {
+        // Ensure order is sequential before saving
+        newConfig.fields.sort((a, b) => a.order - b.order);
+        for (let i = 0; i < newConfig.fields.length; i++) {
+            newConfig.fields[i].order = i;
+        }
         data.companyData[activeCompanyId].uiConfig = newConfig;
         setAppData(data);
     }
@@ -203,6 +238,7 @@ export function addTask(taskData: Partial<Task>): Task {
     qaEndDate: taskData.qaEndDate || null,
     comments: taskData.comments || [],
     attachments: taskData.attachments || [],
+    customFields: taskData.customFields || {},
   };
   
   data.companyData[activeCompanyId].tasks = [newTask, ...companyTasks];
