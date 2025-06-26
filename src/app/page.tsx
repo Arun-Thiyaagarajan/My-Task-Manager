@@ -69,6 +69,7 @@ export default function Home() {
   const [dateFilter, setDateFilter] = useState<DateRange | undefined>(
     undefined
   );
+  const [sortDescriptor, setSortDescriptor] = useState('status-asc');
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [isLoading, setIsLoading] = useState(true);
@@ -141,6 +142,30 @@ export default function Home() {
       (task.deploymentStatus?.[deploymentFilter as string] ?? false);
 
     return statusMatch && repoMatch && searchMatch && dateMatch && deploymentMatch;
+  });
+
+  const sortedTasks = [...filteredTasks].sort((a, b) => {
+    const [sortBy, sortDirection] = sortDescriptor.split('-');
+
+    if (sortBy === 'title') {
+      if (sortDirection === 'asc') {
+        return a.title.localeCompare(b.title);
+      } else {
+        return b.title.localeCompare(a.title);
+      }
+    }
+
+    if (sortBy === 'status') {
+      const aIndex = TASK_STATUSES.indexOf(a.status);
+      const bIndex = TASK_STATUSES.indexOf(b.status);
+      if (sortDirection === 'asc') {
+        return aIndex - bIndex;
+      } else {
+        return bIndex - aIndex;
+      }
+    }
+
+    return 0;
   });
 
   const handleExport = (tasksToExport: Task[], fileName: string) => {
@@ -258,7 +283,7 @@ export default function Home() {
                 </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                <DropdownMenuItem onSelect={() => handleExport(filteredTasks, 'MyTaskManager_Export.json')}>
+                <DropdownMenuItem onSelect={() => handleExport(sortedTasks, 'MyTaskManager_Export.json')}>
                     Export Current View
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={handleDownloadTemplate}>
@@ -444,6 +469,18 @@ export default function Home() {
         </div>
 
         <div className="flex items-center gap-2">
+            <Select value={sortDescriptor} onValueChange={setSortDescriptor}>
+                <SelectTrigger className="w-full sm:w-[180px] bg-card">
+                    <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="status-asc">Status (Asc)</SelectItem>
+                    <SelectItem value="status-desc">Status (Desc)</SelectItem>
+                    <SelectItem value="title-asc">Title (A-Z)</SelectItem>
+                    <SelectItem value="title-desc">Title (Z-A)</SelectItem>
+                </SelectContent>
+            </Select>
+
           <Button
             variant="outline"
             size="icon"
@@ -471,11 +508,11 @@ export default function Home() {
         </div>
       </div>
 
-      {filteredTasks.length > 0 ? (
+      {sortedTasks.length > 0 ? (
         viewMode === 'grid' ? (
-          <TasksGrid tasks={filteredTasks} onTaskDelete={refreshData} />
+          <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} />
         ) : (
-          <TasksTable tasks={filteredTasks} onTaskDelete={refreshData} />
+          <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} />
         )
       ) : (
         <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg">
