@@ -59,7 +59,7 @@ export function EnvironmentStatus({ deploymentStatus, deploymentDates, size = 'd
           const hasDate = deploymentDates && deploymentDates[env];
           const isDeployed = isSelected && (env === 'dev' || !!hasDate);
           
-          const tooltipText = isDeployed ? "Deployed" : isSelected ? "Pending" : "Not Targeted";
+          const tooltipText = isDeployed ? "Deployed" : "Pending";
 
           return (
             <Tooltip key={env}>
