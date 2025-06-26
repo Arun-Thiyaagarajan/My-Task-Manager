@@ -26,7 +26,6 @@ import {
   LayoutGrid,
   List,
   Plus,
-  Loader2,
   Search,
   Calendar as CalendarIcon,
   Download,
@@ -55,6 +54,7 @@ import { useActiveCompany } from '@/hooks/use-active-company';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { taskSchema } from '@/lib/validators';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 type ViewMode = 'grid' | 'table';
 
@@ -240,16 +240,7 @@ export default function Home() {
 
 
   if (isLoading) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <div className="flex flex-col items-center gap-4 text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          <p className="text-lg font-semibold text-muted-foreground">
-            Loading tasks...
-          </p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner text="Loading tasks..." />;
   }
 
   return (

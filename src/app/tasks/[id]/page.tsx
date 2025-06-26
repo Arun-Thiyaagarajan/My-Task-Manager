@@ -7,18 +7,20 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, Loader2, ListChecks, Paperclip, CheckCircle2, Clock } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock } from 'lucide-react';
 import { TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { DeleteTaskButton } from '@/components/delete-task-button';
 import { PrLinksGroup } from '@/components/pr-links-group';
 import { Badge } from '@/components/ui/badge';
-import { getInitials, getAvatarColor } from '@/lib/utils';
+import { getInitials, getAvatarColor, cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import type { Task } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
 import { ENVIRONMENTS } from '@/lib/constants';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 export default function TaskPage() {
   const params = useParams();
@@ -48,14 +50,7 @@ export default function TaskPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <div className="flex flex-col items-center gap-4 text-center">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            <p className="text-lg font-semibold text-muted-foreground">Loading task details...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner text="Loading task details..." />;
   }
 
   if (!task) {
@@ -78,11 +73,10 @@ export default function TaskPage() {
     : null;
 
   const hasDevQaDates = task.devStartDate || task.devEndDate || task.qaStartDate || task.qaEndDate;
-  const hasAnyDeploymentDate = task.deploymentDates && Object.values(task.deploymentDates).some(d => d);
-
+  
   const standardEnvs = [...ENVIRONMENTS];
   const customEnvs = Object.keys(task.deploymentStatus || {})
-    .filter(env => !standardEnvs.includes(env as any) && task.deploymentStatus?.[env]);
+    .filter(env => !standardEnvs.includes(env as any));
 
   const environmentsToDisplay = [...new Set([...standardEnvs, ...customEnvs])].sort((a, b) => {
       const aIndex = standardEnvs.indexOf(a as any);
@@ -91,6 +85,12 @@ export default function TaskPage() {
       if (aIndex !== -1) return -1;
       if (bIndex !== -1) return 1;
       return a.localeCompare(b);
+  });
+  
+  const hasAnyDeploymentDate = environmentsToDisplay.some(env => {
+    const isSelected = task.deploymentStatus?.[env] ?? false;
+    const hasDate = task.deploymentDates && task.deploymentDates[env];
+    return isSelected && hasDate;
   });
 
   return (
@@ -148,16 +148,19 @@ export default function TaskPage() {
                 <CardContent>
                     <div className="space-y-3 text-sm">
                         {environmentsToDisplay.length > 0 ? environmentsToDisplay.map(env => {
-                            const isSelected = task.deploymentStatus?.[env];
+                            const isSelected = task.deploymentStatus?.[env] ?? false;
                             const hasDate = task.deploymentDates && task.deploymentDates[env];
-                            const isDeployed = isSelected && (env === 'dev' || !!hasDate);
-                            
+                            const isDeployed = isSelected && hasDate;
+
+                            // Special case for dev: considered deployed if selected.
+                            const isDevDeployed = isSelected && env === 'dev';
+
                             return (
                                 <div key={env} className="flex justify-between items-center">
                                     <span className="capitalize text-foreground font-medium">
                                         {env}
                                     </span>
-                                    {isDeployed ? (
+                                    {(isDeployed || isDevDeployed) ? (
                                         <div className="flex items-center gap-2 text-green-600 dark:text-green-500 font-medium">
                                             <CheckCircle2 className="h-4 w-4" />
                                             <span>Deployed</span>
@@ -169,7 +172,7 @@ export default function TaskPage() {
                                         </div>
                                     )}
                                 </div>
-                            )
+                            );
                         }) : (
                             <p className="text-muted-foreground text-center text-xs pt-2">No deployments recorded.</p>
                         )}

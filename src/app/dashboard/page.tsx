@@ -6,10 +6,11 @@ import { getTasks } from '@/lib/data';
 import type { Task, Developer } from '@/lib/types';
 import { TASK_STATUSES } from '@/lib/constants';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, BarChart, PieChartIcon } from 'lucide-react';
+import { BarChart, PieChartIcon } from 'lucide-react';
 import { Bar, Pie, PieChart, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, Cell } from 'recharts';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { getAvatarColor } from '@/lib/utils';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export default function DashboardPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -22,16 +23,7 @@ export default function DashboardPage() {
   }, []);
 
   if (isLoading) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <div className="flex flex-col items-center gap-4 text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          <p className="text-lg font-semibold text-muted-foreground">
-            Loading dashboard...
-          </p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner text="Loading dashboard..." />;
   }
 
   const tasksByStatusData = TASK_STATUSES.map(status => ({

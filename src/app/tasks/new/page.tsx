@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import type { Task } from '@/lib/types';
 import { taskSchema } from '@/lib/validators';
-import { Loader2 } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export default function NewTaskPage() {
   const router = useRouter();
@@ -101,14 +101,7 @@ export default function NewTaskPage() {
   };
 
   if (isLoading) {
-    return (
-       <div className="flex flex-1 items-center justify-center">
-        <div className="flex flex-col items-center gap-4 text-center">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            <p className="text-lg font-semibold text-muted-foreground">Loading form...</p>
-        </div>
-      </div>
-    )
+    return <LoadingSpinner text="Loading form..." />;
   }
 
   return (

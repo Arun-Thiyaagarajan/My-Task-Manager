@@ -8,9 +8,10 @@ import { TaskForm } from '@/components/task-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Task, Environment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { taskSchema } from '@/lib/validators';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export default function EditTaskPage() {
   const params = useParams();
@@ -97,14 +98,7 @@ export default function EditTaskPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <div className="flex flex-col items-center gap-4 text-center">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            <p className="text-lg font-semibold text-muted-foreground">Loading task...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner text="Loading task..." />;
   }
 
   if (!task) {
