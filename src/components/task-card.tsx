@@ -31,18 +31,20 @@ export function TaskCard({ task, onTaskDelete }: TaskCardProps) {
 
   return (
     <Card
-      className="flex flex-col h-full transition-all duration-300 hover:shadow-lg hover:-translate-y-1 bg-card hover:border-primary"
+      className="flex flex-col h-full transition-all duration-300 hover:shadow-lg hover:-translate-y-1 bg-card hover:border-primary group"
     >
-      <Link href={`/tasks/${task.id}`} className="flex flex-col flex-grow cursor-pointer">
+      <div className="flex flex-col flex-grow">
         <CardHeader className="p-4 pb-2">
-          <div className="flex items-start justify-between gap-2">
-            <CardTitle className="text-base font-semibold leading-snug line-clamp-3">
-              {task.title}
-            </CardTitle>
-            <div className="flex-shrink-0">
-              <TaskStatusBadge status={task.status} />
-            </div>
-          </div>
+           <Link href={`/tasks/${task.id}`} className="flex-grow cursor-pointer">
+              <div className="flex items-start justify-between gap-2">
+                <CardTitle className="text-base font-semibold leading-snug line-clamp-3 group-hover:text-primary">
+                  {task.title}
+                </CardTitle>
+                <div className="flex-shrink-0">
+                  <TaskStatusBadge status={task.status} />
+                </div>
+              </div>
+          </Link>
         </CardHeader>
         <CardContent className="flex-grow flex flex-col p-4 pt-2">
           <div className="flex-grow space-y-3">
@@ -57,23 +59,22 @@ export function TaskCard({ task, onTaskDelete }: TaskCardProps) {
               </div>
             </div>
             {azureWorkItemUrl && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+               <a 
+                  href={azureWorkItemUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
                 <ExternalLink className="h-4 w-4 shrink-0" />
                 <span
                   role="link"
                   aria-label={`View Azure Work Item ${task.azureWorkItemId}`}
-                  className="hover:text-primary transition-colors line-clamp-1 cursor-pointer"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    if (azureWorkItemUrl) {
-                      window.open(azureWorkItemUrl, '_blank', 'noopener,noreferrer');
-                    }
-                  }}
+                  className="line-clamp-1"
                 >
                   Azure ID: {task.azureWorkItemId}
                 </span>
-              </div>
+              </a>
             )}
           </div>
           
@@ -88,7 +89,7 @@ export function TaskCard({ task, onTaskDelete }: TaskCardProps) {
             />
           </div>
         </CardContent>
-      </Link>
+      </div>
       <CardFooter className="flex items-center justify-between p-4 border-t">
         <div className="flex items-center gap-2">
           {task.developers && task.developers.length > 0 ? (
@@ -128,3 +129,5 @@ export function TaskCard({ task, onTaskDelete }: TaskCardProps) {
     </Card>
   );
 }
+
+    

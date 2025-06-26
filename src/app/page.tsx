@@ -30,6 +30,7 @@ import {
   Calendar as CalendarIcon,
   Download,
   Upload,
+  FolderSearch,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task, Environment } from '@/lib/types';
@@ -47,7 +48,6 @@ import {
   startOfMonth,
   endOfMonth,
   startOfYear,
-  endOfYear,
 } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { useActiveCompany } from '@/hooks/use-active-company';
@@ -55,6 +55,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { taskSchema } from '@/lib/validators';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Card, CardContent } from '@/components/ui/card';
 
 type ViewMode = 'grid' | 'table';
 
@@ -82,7 +83,6 @@ export default function Home() {
     }
   };
 
-  // Load view mode from local storage on initial mount
   useEffect(() => {
     const savedViewMode = localStorage.getItem('taskflow_view_mode') as ViewMode;
     if (savedViewMode) {
@@ -90,7 +90,6 @@ export default function Home() {
     }
   }, []);
 
-  // Save view mode to local storage whenever it changes
   useEffect(() => {
     localStorage.setItem('taskflow_view_mode', viewMode);
   }, [viewMode]);
@@ -270,14 +269,14 @@ export default function Home() {
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <h1 className="text-3xl font-bold tracking-tight text-foreground">
           Tasks
         </h1>
         <div className="flex items-center gap-2">
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                <Button variant="outline">
+                <Button variant="outline" size="sm">
                     <Upload className="mr-2 h-4 w-4" />
                     Export
                 </Button>
@@ -292,7 +291,7 @@ export default function Home() {
                 </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
                 <Download className="mr-2 h-4 w-4" />
                 Import
             </Button>
@@ -304,7 +303,7 @@ export default function Home() {
                 accept=".json"
             />
             
-            <Button asChild>
+            <Button asChild size="sm">
             <Link href="/tasks/new">
                 <Plus className="mr-2 h-4 w-4" />
                 New Task
@@ -313,174 +312,175 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto flex-1 flex-wrap">
-          <div className="relative w-full sm:w-auto md:flex-grow">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search tasks..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-card"
-            />
-          </div>
-
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-[180px] bg-card">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              {TASK_STATUSES.map((status) => (
-                <SelectItem key={status} value={status}>
-                  {status}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={repoFilter} onValueChange={setRepoFilter}>
-            <SelectTrigger className="w-full sm:w-[180px] bg-card">
-              <SelectValue placeholder="Filter by repository" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Repositories</SelectItem>
-              {REPOSITORIES.map((repo) => (
-                <SelectItem key={repo} value={repo}>
-                  {repo}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          <Select value={deploymentFilter} onValueChange={setDeploymentFilter}>
-              <SelectTrigger className="w-full sm:w-[190px] bg-card">
-              <SelectValue placeholder="Filter by deployment" />
+      <Card className="mb-6">
+        <CardContent className="p-4 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="relative sm:col-span-2 lg:col-span-3 xl:col-span-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                placeholder="Search tasks..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 w-full"
+                />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
-              <SelectItem value="all">Any Deployment</SelectItem>
-              <SelectItem value="dev">Deployed to Dev</SelectItem>
-              <SelectItem value="stage">Deployed to Stage</SelectItem>
-              <SelectItem value="production">Deployed to Production</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
+                {TASK_STATUSES.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {status}
+                  </SelectItem>
+                ))}
               </SelectContent>
-          </Select>
-          
-          <Popover
-            open={isDatePopoverOpen}
-            onOpenChange={setIsDatePopoverOpen}
-          >
-            <PopoverTrigger asChild>
-              <Button
-                id="date"
-                variant={'outline'}
-                className={cn(
-                  'w-full sm:w-[260px] justify-start text-left font-normal bg-card',
-                  !dateFilter && 'text-muted-foreground'
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateFilter?.from ? (
-                  dateFilter.to ? (
-                    <>
-                      {format(dateFilter.from, 'LLL dd, y')} -{' '}
-                      {format(dateFilter.to, 'LLL dd, y')}
-                    </>
-                  ) : (
-                    format(dateFilter.from, 'LLL dd, y')
-                  )
-                ) : (
-                  <span>Filter by Dev End Date</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 flex" align="start">
-              <div className="flex flex-col space-y-1 p-2 border-r">
-                <Button
-                  variant="ghost"
-                  className="justify-start px-2 font-normal text-sm"
-                  onClick={() => {
-                    setDateFilter(undefined);
-                    setIsDatePopoverOpen(false);
-                  }}
-                >
-                  Any time
-                </Button>
-                <Button
-                  variant="ghost"
-                  className="justify-start px-2 font-normal text-sm"
-                  onClick={() => {
-                    setDateFilter({ from: new Date(), to: new Date() });
-                    setIsDatePopoverOpen(false);
-                  }}
-                >
-                  Today
-                </Button>
-                <Button
-                  variant="ghost"
-                  className="justify-start px-2 font-normal text-sm"
-                  onClick={() => {
-                    setDateFilter({
-                      from: subDays(new Date(), 6),
-                      to: new Date(),
-                    });
-                    setIsDatePopoverOpen(false);
-                  }}
-                >
-                  Last 7 days
-                </Button>
-                <Button
-                  variant="ghost"
-                  className="justify-start px-2 font-normal text-sm"
-                  onClick={() => {
-                    setDateFilter({
-                      from: startOfMonth(new Date()),
-                      to: endOfMonth(new Date()),
-                    });
-                    setIsDatePopoverOpen(false);
-                  }}
-                >
-                  This month
-                </Button>
-                <Button
-                  variant="ghost"
-                  className="justify-start px-2 font-normal text-sm"
-                  onClick={() => {
-                    setDateFilter({
-                      from: startOfYear(new Date()),
-                      to: endOfYear(new Date()),
-                    });
-                    setIsDatePopoverOpen(false);
-                  }}
-                >
-                  This year
-                </Button>
-              </div>
-              <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={dateFilter?.from}
-                selected={dateFilter}
-                onSelect={setDateFilter}
-                numberOfMonths={1}
-              />
-            </PopoverContent>
-          </Popover>
-
-        </div>
-
-        <div className="flex items-center gap-2">
-            <Select value={sortDescriptor} onValueChange={setSortDescriptor}>
-                <SelectTrigger className="w-full sm:w-[180px] bg-card">
-                    <SelectValue placeholder="Sort by" />
+            </Select>
+            <Select value={repoFilter} onValueChange={setRepoFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by repository" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Repositories</SelectItem>
+                {REPOSITORIES.map((repo) => (
+                  <SelectItem key={repo} value={repo}>
+                    {repo}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={deploymentFilter} onValueChange={setDeploymentFilter}>
+                <SelectTrigger>
+                <SelectValue placeholder="Filter by deployment" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="status-asc">Status (Asc)</SelectItem>
-                    <SelectItem value="status-desc">Status (Desc)</SelectItem>
-                    <SelectItem value="title-asc">Title (A-Z)</SelectItem>
-                    <SelectItem value="title-desc">Title (Z-A)</SelectItem>
+                <SelectItem value="all">Any Deployment</SelectItem>
+                <SelectItem value="dev">Deployed to Dev</SelectItem>
+                <SelectItem value="stage">Deployed to Stage</SelectItem>
+                <SelectItem value="production">Deployed to Production</SelectItem>
                 </SelectContent>
             </Select>
+          </div>
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+             <Popover
+                open={isDatePopoverOpen}
+                onOpenChange={setIsDatePopoverOpen}
+              >
+                <PopoverTrigger asChild>
+                  <Button
+                    id="date"
+                    variant={'outline'}
+                    className={cn(
+                      'w-full sm:w-auto justify-start text-left font-normal',
+                      !dateFilter && 'text-muted-foreground'
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateFilter?.from ? (
+                      dateFilter.to ? (
+                        <>
+                          {format(dateFilter.from, 'LLL dd, y')} -{' '}
+                          {format(dateFilter.to, 'LLL dd, y')}
+                        </>
+                      ) : (
+                        format(dateFilter.from, 'LLL dd, y')
+                      )
+                    ) : (
+                      <span>Filter by Dev End Date</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 flex" align="start">
+                  <div className="flex flex-col space-y-1 p-2 border-r">
+                    <Button
+                      variant="ghost"
+                      className="justify-start px-2 font-normal text-sm"
+                      onClick={() => {
+                        setDateFilter(undefined);
+                        setIsDatePopoverOpen(false);
+                      }}
+                    >
+                      Any time
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="justify-start px-2 font-normal text-sm"
+                      onClick={() => {
+                        setDateFilter({ from: new Date(), to: new Date() });
+                        setIsDatePopoverOpen(false);
+                      }}
+                    >
+                      Today
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="justify-start px-2 font-normal text-sm"
+                      onClick={() => {
+                        setDateFilter({
+                          from: subDays(new Date(), 6),
+                          to: new Date(),
+                        });
+                        setIsDatePopoverOpen(false);
+                      }}
+                    >
+                      Last 7 days
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="justify-start px-2 font-normal text-sm"
+                      onClick={() => {
+                        setDateFilter({
+                          from: startOfMonth(new Date()),
+                          to: endOfMonth(new Date()),
+                        });
+                        setIsDatePopoverOpen(false);
+                      }}
+                    >
+                      This month
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="justify-start px-2 font-normal text-sm"
+                      onClick={() => {
+                        setDateFilter({
+                          from: startOfYear(new Date()),
+                          to: endOfYear(new Date()),
+                        });
+                        setIsDatePopoverOpen(false);
+                      }}
+                    >
+                      This year
+                    </Button>
+                  </div>
+                  <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={dateFilter?.from}
+                    selected={dateFilter}
+                    onSelect={setDateFilter}
+                    numberOfMonths={1}
+                  />
+                </PopoverContent>
+              </Popover>
+          </div>
+        </CardContent>
+      </Card>
+      
+      <div className="flex justify-end items-center gap-4 mb-6">
+          <Select value={sortDescriptor} onValueChange={setSortDescriptor}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                  <SelectItem value="status-asc">Status (Asc)</SelectItem>
+                  <SelectItem value="status-desc">Status (Desc)</SelectItem>
+                  <SelectItem value="title-asc">Title (A-Z)</SelectItem>
+                  <SelectItem value="title-desc">Title (Z-A)</SelectItem>
+              </SelectContent>
+          </Select>
 
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="icon"
@@ -515,19 +515,22 @@ export default function Home() {
           <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} />
         )
       ) : (
-        <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg">
-          <p className="text-lg font-semibold">No tasks found.</p>
-          <p className="mt-1">
-            Try adjusting your filters or create a new task.
-          </p>
-          <Button asChild className="mt-4">
-            <Link href="/tasks/new">
-              <Plus className="mr-2 h-4 w-4" />
-              Create First Task
-            </Link>
-          </Button>
+        <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg flex flex-col items-center justify-center">
+            <FolderSearch className="h-16 w-16 mb-4 text-muted-foreground/50"/>
+            <p className="text-lg font-semibold">No tasks found.</p>
+            <p className="mt-1">
+                Try adjusting your filters or create a new task.
+            </p>
+            <Button asChild className="mt-4" size="sm">
+                <Link href="/tasks/new">
+                <Plus className="mr-2 h-4 w-4" />
+                Create Task
+                </Link>
+            </Button>
         </div>
       )}
     </div>
   );
 }
+
+    
