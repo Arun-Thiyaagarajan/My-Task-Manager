@@ -98,7 +98,7 @@ export default function Home() {
     if (!activeCompanyId) {
       return;
     }
-    document.title = 'Tasks | TaskFlow';
+    document.title = 'Tasks | My Task Manager';
     refreshData();
     setIsLoading(false);
     
@@ -165,7 +165,7 @@ export default function Home() {
       )}`;
       const link = document.createElement("a");
       link.href = jsonString;
-      link.download = "TaskFlow_Import_Template.json";
+      link.download = "MyTaskManager_Import_Template.json";
       link.click();
   };
 
@@ -258,7 +258,7 @@ export default function Home() {
                 </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                <DropdownMenuItem onSelect={() => handleExport(filteredTasks, 'TaskFlow_Export.json')}>
+                <DropdownMenuItem onSelect={() => handleExport(filteredTasks, 'MyTaskManager_Export.json')}>
                     Export Current View
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={handleDownloadTemplate}>

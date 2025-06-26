@@ -17,7 +17,7 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    document.title = 'Dashboard | TaskFlow';
+    document.title = 'Dashboard | My Task Manager';
     setTasks(getTasks());
     setIsLoading(false);
   }, []);

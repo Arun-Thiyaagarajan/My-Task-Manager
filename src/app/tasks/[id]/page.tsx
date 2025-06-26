@@ -14,13 +14,12 @@ import { Separator } from '@/components/ui/separator';
 import { DeleteTaskButton } from '@/components/delete-task-button';
 import { PrLinksGroup } from '@/components/pr-links-group';
 import { Badge } from '@/components/ui/badge';
-import { getInitials, getAvatarColor, cn } from '@/lib/utils';
+import { getInitials, getAvatarColor } from '@/lib/utils';
 import { format } from 'date-fns';
 import type { Task } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
 import { ENVIRONMENTS } from '@/lib/constants';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { TooltipProvider } from '@/components/ui/tooltip';
 
 export default function TaskPage() {
   const params = useParams();
@@ -36,9 +35,9 @@ export default function TaskPage() {
       setTask(foundTask || null);
       setIsLoading(false);
       if (foundTask) {
-        document.title = `${foundTask.title} | TaskFlow`;
+        document.title = `${foundTask.title} | My Task Manager`;
       } else {
-        document.title = 'Task Not Found | TaskFlow';
+        document.title = 'Task Not Found | My Task Manager';
       }
     }
   }, [taskId]);
@@ -147,34 +146,33 @@ export default function TaskPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-3 text-sm">
-                        {environmentsToDisplay.length > 0 ? environmentsToDisplay.map(env => {
-                            const isSelected = task.deploymentStatus?.[env] ?? false;
-                            const hasDate = task.deploymentDates && task.deploymentDates[env];
-                            const isDeployed = isSelected && hasDate;
+                        {environmentsToDisplay.length > 0 ? (
+                            environmentsToDisplay.map(env => {
+                                const isSelected = task.deploymentStatus?.[env] ?? false;
+                                const hasDate = task.deploymentDates && task.deploymentDates[env];
+                                const isDeployed = isSelected && (env === 'dev' || !!hasDate);
 
-                            // Special case for dev: considered deployed if selected.
-                            const isDevDeployed = isSelected && env === 'dev';
-
-                            return (
-                                <div key={env} className="flex justify-between items-center">
-                                    <span className="capitalize text-foreground font-medium">
-                                        {env}
-                                    </span>
-                                    {(isDeployed || isDevDeployed) ? (
-                                        <div className="flex items-center gap-2 text-green-600 dark:text-green-500 font-medium">
-                                            <CheckCircle2 className="h-4 w-4" />
-                                            <span>Deployed</span>
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center gap-2 text-muted-foreground">
-                                            <Clock className="h-4 w-4" />
-                                            <span>Pending</span>
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        }) : (
-                            <p className="text-muted-foreground text-center text-xs pt-2">No deployments recorded.</p>
+                                return (
+                                    <div key={env} className="flex justify-between items-center">
+                                        <span className="capitalize text-foreground font-medium">
+                                            {env}
+                                        </span>
+                                        {isDeployed ? (
+                                            <div className="flex items-center gap-2 text-green-600 dark:text-green-500 font-medium">
+                                                <CheckCircle2 className="h-4 w-4" />
+                                                <span>Deployed</span>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2 text-muted-foreground">
+                                                <Clock className="h-4 w-4" />
+                                                <span>Pending</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        ) : (
+                           <p className="text-muted-foreground text-center text-xs pt-2">No deployments recorded for this task.</p>
                         )}
                     </div>
                 </CardContent>

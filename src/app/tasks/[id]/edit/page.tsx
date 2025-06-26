@@ -33,9 +33,9 @@ export default function EditTaskPage() {
       setIsLoading(false);
       
       if (foundTask) {
-        document.title = `Edit: ${foundTask.title} | TaskFlow`;
+        document.title = `Edit: ${foundTask.title} | My Task Manager`;
       } else {
-        document.title = 'Task Not Found | TaskFlow';
+        document.title = 'Task Not Found | My Task Manager';
       }
     }
   }, [taskId]);

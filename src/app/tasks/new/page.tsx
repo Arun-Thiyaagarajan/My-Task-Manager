@@ -19,7 +19,7 @@ export default function NewTaskPage() {
   const [initialData, setInitialData] = useState<Partial<Task> | undefined>(undefined);
   
   useEffect(() => {
-    document.title = 'New Task | TaskFlow';
+    document.title = 'New Task | My Task Manager';
     setDevelopersList(getDevelopers());
     
     const failedImportRowString = sessionStorage.getItem('failed_import_row');
