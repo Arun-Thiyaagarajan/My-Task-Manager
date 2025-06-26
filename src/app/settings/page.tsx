@@ -24,13 +24,17 @@ export default function SettingsPage() {
     document.title = 'Settings | My Task Manager';
     const loadedConfig = getUiConfig();
     setConfig(loadedConfig);
-    setInitialLoad(false);
   }, []);
 
   const debouncedConfig = useDebounce(config, 1000);
 
   useEffect(() => {
-    if (initialLoad || !debouncedConfig) {
+    if (!debouncedConfig) {
+      return;
+    }
+
+    if (initialLoad) {
+      setInitialLoad(false);
       return;
     }
     
@@ -49,8 +53,7 @@ export default function SettingsPage() {
 
     return () => clearTimeout(timer);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedConfig, toast]);
+  }, [debouncedConfig, toast, initialLoad]);
 
   const handleFieldChange = (fieldName: string, fieldConfig: Partial<FieldConfig>) => {
     setConfig(prevConfig => {
