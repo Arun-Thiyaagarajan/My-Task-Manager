@@ -37,14 +37,20 @@ export function EnvironmentStatus({ deploymentStatus, deploymentDates, size = 'd
     }
   }
 
-  const allEnvs = Object.keys(deploymentStatus || {}).filter(env => deploymentStatus?.[env]).sort();
+  const standardEnvs = ['dev', 'stage', 'production'];
+  const customEnvs = Object.keys(deploymentStatus || {})
+    .filter(env => !standardEnvs.includes(env) && deploymentStatus?.[env]);
+  
+  const envsToDisplay = [...standardEnvs, ...customEnvs];
 
   return (
     <TooltipProvider delayDuration={100}>
       <div className="flex flex-wrap items-center gap-1.5">
-        {allEnvs.map(env => {
+        {envsToDisplay.map(env => {
           const envInfo = getEnvInfo(env);
-          const isComplete = env === 'dev' || (deploymentDates && deploymentDates[env]);
+          const isSelected = deploymentStatus?.[env] ?? false;
+          const hasDate = deploymentDates && deploymentDates[env];
+          const isDeployed = isSelected && (env === 'dev' || !!hasDate);
           
           return (
             <Tooltip key={env}>
@@ -53,7 +59,7 @@ export function EnvironmentStatus({ deploymentStatus, deploymentDates, size = 'd
                   variant="outline"
                   className={cn(
                     'capitalize font-medium',
-                    isComplete
+                    isDeployed
                       ? envInfo.color
                       : 'border-dashed text-muted-foreground/80 dark:text-muted-foreground/50',
                     size === 'sm' && 'px-1.5 py-0 text-[10px] h-4'
@@ -63,7 +69,7 @@ export function EnvironmentStatus({ deploymentStatus, deploymentDates, size = 'd
                 </Badge>
               </TooltipTrigger>
               <TooltipContent>
-                <p className="capitalize">{envInfo.label}: {isComplete ? 'Deployed' : 'Pending'}</p>
+                <p className="capitalize">{envInfo.label}: {isDeployed ? 'Deployed' : (isSelected ? 'Pending' : 'Not in pipeline')}</p>
               </TooltipContent>
             </Tooltip>
           );

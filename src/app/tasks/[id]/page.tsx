@@ -79,9 +79,17 @@ export default function TaskPage() {
   const hasDevQaDates = task.devStartDate || task.devEndDate || task.qaStartDate || task.qaEndDate;
   const hasAnyDeploymentDate = task.deploymentDates && Object.values(task.deploymentDates).some(d => d);
 
-  const deployedEnvs = Object.keys(task.deploymentStatus || {})
+  const environmentsInPipeline = Object.keys(task.deploymentStatus || {})
     .filter(env => task.deploymentStatus?.[env])
-    .sort();
+    .sort((a, b) => {
+        const order = ['dev', 'stage', 'production'];
+        const aIndex = order.indexOf(a);
+        const bIndex = order.indexOf(b);
+        if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+        if (aIndex !== -1) return -1;
+        if (bIndex !== -1) return 1;
+        return a.localeCompare(b);
+    });
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -137,16 +145,16 @@ export default function TaskPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-3 text-sm">
-                        {deployedEnvs.length > 0 ? deployedEnvs.map(env => {
+                        {environmentsInPipeline.length > 0 ? environmentsInPipeline.map(env => {
                             const isDateSet = task.deploymentDates && task.deploymentDates[env];
-                            const isComplete = env === 'dev' || !!isDateSet;
+                            const isDeployed = env === 'dev' || !!isDateSet;
                             
                             return (
                                 <div key={env} className="flex justify-between items-center">
                                     <span className="capitalize text-foreground font-medium">
                                         {env}
                                     </span>
-                                    {isComplete ? (
+                                    {isDeployed ? (
                                         <div className="flex items-center gap-2">
                                             <CheckCircle2 className="h-4 w-4 text-green-500" />
                                             <span className="text-foreground">Deployed</span>
