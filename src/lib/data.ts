@@ -188,9 +188,10 @@ export function getUiConfig(): UiConfig {
     companyConfig.fields.forEach(field => {
         if (!field.isCustom) {
             const coreField = coreFieldsMap.get(field.key);
-            if (coreField && (field.isRequired !== coreField.isRequired || field.isCustom !== coreField.isCustom)) {
+            if (coreField && (field.isRequired !== coreField.isRequired || field.isCustom !== coreField.isCustom || field.type !== coreField.type)) {
                 field.isRequired = coreField.isRequired;
                 field.isCustom = coreField.isCustom;
+                field.type = coreField.type;
                 needsUpdate = true;
             }
         }
@@ -204,6 +205,13 @@ export function getUiConfig(): UiConfig {
         }
     }
     
+    // Ensure the 'developers' field is always of type 'tags'.
+    const developersField = companyConfig.fields.find(f => f.key === 'developers');
+    if (developersField && developersField.type !== 'tags') {
+        developersField.type = 'tags';
+        needsUpdate = true;
+    }
+
     if (needsUpdate) {
         // Re-sort and save if we made any changes
         companyConfig.fields.sort((a, b) => a.order - b.order);
