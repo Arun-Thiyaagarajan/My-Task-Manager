@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
 import { taskSchema } from '@/lib/validators';
@@ -10,8 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, CalendarIcon, GitPullRequest, Trash2, Paperclip } from 'lucide-react';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Loader2, CalendarIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTransition, useEffect, useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -87,11 +87,6 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
     resolver: zodResolver(taskSchema),
     defaultValues: getInitialTaskData(task),
   });
-
-  const { fields: attachmentFields, append: appendAttachment, remove: removeAttachment } = useFieldArray({
-    control: form.control,
-    name: 'attachments',
-  });
   
   useEffect(() => {
     const defaultValues = getInitialTaskData(task);
@@ -100,6 +95,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
 
   const handleCreateDeveloper = (name: string) => {
     addDeveloper(name);
+    // You might want to update developersList here as well
   };
 
   const handleFormSubmit = (data: TaskFormData) => {
@@ -108,10 +104,6 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
     });
   };
 
-  const selectedRepos = form.watch('repositories') || [];
-  const allEnvs = uiConfig?.environments || [];
-  const deploymentStatus = form.watch('deploymentStatus');
-  
   const getFieldOptions = (field: FieldConfig): {value: string, label: string}[] => {
     if (field.key === 'developers') {
         return developersList.map(d => ({ value: d, label: d }));
@@ -123,7 +115,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
       return TASK_STATUSES.map(s => ({ value: s, label: s}));
     }
     if(field.type === 'tags') {
-      return [];
+      return []; // Return empty array, user creates options
     }
     return field.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
   }
@@ -172,13 +164,15 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                     </Select>
                 );
             case 'multiselect':
-                return (
+                 const creatable = key === 'developers';
+                 return (
                      <MultiSelect
                         selected={field.value ?? []}
                         onChange={field.onChange}
                         options={getFieldOptions(fieldConfig)}
                         placeholder={`Select ${label}...`}
-                        {...(key === 'developers' && { onCreate: handleCreateDeveloper })}
+                        creatable={creatable}
+                        {...(creatable && { onCreate: handleCreateDeveloper })}
                     />
                 );
             case 'tags':
@@ -205,7 +199,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
         }
     }
 
-    // Hide fields that are handled manually in other cards
+    // Hide fields that are handled manually elsewhere or removed from form
     if (['prLinks', 'attachments', 'deploymentStatus', 'deploymentDates'].includes(key)) return null;
 
     return (
@@ -263,168 +257,6 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                 </CardContent>
             </Card>
         ))}
-        
-        <Card>
-            <CardHeader>
-                <CardTitle>Pull Request Links</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-               {selectedRepos.length > 0 ? allEnvs.map(env => (
-                   <div key={env}>
-                       <h4 className="font-medium text-sm capitalize mb-2">{env} PRs</h4>
-                        <div className="space-y-2">
-                            {selectedRepos.map(repo => (
-                                <FormField
-                                    key={`${env}-${repo}`}
-                                    control={form.control}
-                                    name={`prLinks.${env}.${repo}` as any}
-                                    render={({ field }) => (
-                                        <FormItem className="flex items-center gap-2 space-y-0">
-                                            <GitPullRequest className="h-4 w-4 text-muted-foreground"/>
-                                            <FormLabel className="w-32 shrink-0">{repo}</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="PR ID(s), comma separated" {...field} />
-                                            </FormControl>
-                                        </FormItem>
-                                    )}
-                                />
-                            ))}
-                        </div>
-                   </div>
-               )) : (
-                <p className="text-sm text-muted-foreground text-center py-4">Select at least one repository to add PR links.</p>
-               )}
-            </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Attachments</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {attachmentFields.map((field, index) => (
-              <div key={field.id} className="flex items-end gap-2 p-3 border rounded-md bg-muted/20">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-grow">
-                  <FormField
-                    control={form.control}
-                    name={`attachments.${index}.name`}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Attachment Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Design Mockup" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name={`attachments.${index}.url`}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Attachment URL</FormLabel>
-                        <FormControl>
-                          <Input placeholder="https://..." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="icon"
-                  className="shrink-0"
-                  onClick={() => removeAttachment(index)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  <span className="sr-only">Remove Attachment</span>
-                </Button>
-              </div>
-            ))}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => appendAttachment({ name: '', url: '', type: 'link' })}
-            >
-              <Paperclip className="mr-2 h-4 w-4" />
-              Add Attachment
-            </Button>
-          </CardContent>
-        </Card>
-        
-        <Card>
-            <CardHeader>
-                <CardTitle>Deployments</CardTitle>
-                <FormDescription>Select environments and set their deployment dates.</FormDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {allEnvs.map(env => (
-                        <div key={env} className="flex flex-col gap-3 p-3 border rounded-md bg-muted/20">
-                            <FormField
-                                control={form.control}
-                                name={`deploymentStatus.${env}`}
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                                        <FormControl>
-                                            <Checkbox
-                                                checked={field.value}
-                                                onCheckedChange={field.onChange}
-                                                id={`deploy-check-${env}`}
-                                            />
-                                        </FormControl>
-                                        <FormLabel htmlFor={`deploy-check-${env}`} className="capitalize font-medium text-sm flex-1 cursor-pointer">
-                                            {env}
-                                        </FormLabel>
-                                    </FormItem>
-                                )}
-                            />
-                            {deploymentStatus?.[env] && env !== 'dev' && (
-                                <FormField
-                                    control={form.control}
-                                    name={`deploymentDates.${env}`}
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <FormControl>
-                                                        <Button
-                                                          variant={"outline"}
-                                                          className={cn(
-                                                            "w-full pl-3 text-left font-normal bg-card",
-                                                            !field.value && "text-muted-foreground"
-                                                          )}
-                                                        >
-                                                            {field.value ? format(field.value, "PPP") : <span>Deployment Date</span>}
-                                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                        </Button>
-                                                    </FormControl>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-auto p-0" align="start">
-                                                    <Calendar
-                                                        mode="single"
-                                                        selected={field.value}
-                                                        onSelect={field.onChange}
-                                                        initialFocus
-                                                    />
-                                                </PopoverContent>
-                                            </Popover>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            )}
-                        </div>
-                    ))}
-                </div>
-                 {allEnvs.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-4">No environments configured. Please add environments in the settings page.</p>
-                )}
-            </CardContent>
-        </Card>
 
         <div className="flex justify-end gap-4 pt-4 border-t">
             <Button type="button" variant="outline" onClick={() => router.back()} disabled={isPending}>
