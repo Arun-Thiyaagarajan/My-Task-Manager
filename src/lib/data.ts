@@ -1,9 +1,11 @@
 
-import type { Task, Developer, Company, Attachment } from './types';
+import { INITIAL_UI_CONFIG } from './constants';
+import type { Task, Developer, Company, Attachment, UiConfig } from './types';
 
 interface CompanyData {
     tasks: Task[];
     developers: Developer[];
+    uiConfig: UiConfig;
 }
 
 interface MyTaskManagerData {
@@ -25,6 +27,7 @@ const getInitialData = (): MyTaskManagerData => {
             [defaultCompanyId]: {
                 tasks: [],
                 developers: ['Arun', 'Samantha', 'Rajesh'],
+                uiConfig: { fields: INITIAL_UI_CONFIG as any },
             },
         },
     };
@@ -39,6 +42,7 @@ const getAppData = (): MyTaskManagerData => {
                 'company-placeholder': {
                     tasks: [],
                     developers: ['Arun', 'Samantha', 'Rajesh'],
+                    uiConfig: { fields: INITIAL_UI_CONFIG as any },
                 },
             },
         };
@@ -80,7 +84,11 @@ export function addCompany(name: string): Company {
     const newCompany: Company = { id: newCompanyId, name };
     
     data.companies.push(newCompany);
-    data.companyData[newCompanyId] = { tasks: [], developers: ['Arun', 'Samantha', 'Rajesh'] };
+    data.companyData[newCompanyId] = { 
+        tasks: [], 
+        developers: ['Arun', 'Samantha', 'Rajesh'],
+        uiConfig: { fields: INITIAL_UI_CONFIG as any },
+    };
     data.activeCompanyId = newCompanyId;
 
     setAppData(data);
@@ -125,6 +133,28 @@ export function setActiveCompanyId(id: string) {
         data.activeCompanyId = id;
         setAppData(data);
     }
+}
+
+// UI Config Functions
+export function getUiConfig(): UiConfig {
+    const data = getAppData();
+    const activeCompanyId = getActiveCompanyId();
+    if (!activeCompanyId || !data.companyData[activeCompanyId]) {
+        return { fields: INITIAL_UI_CONFIG as any };
+    }
+    const config = data.companyData[activeCompanyId].uiConfig || { fields: {} };
+    const mergedFields = { ...INITIAL_UI_CONFIG, ...config.fields };
+    return { fields: mergedFields as any };
+}
+
+export function updateUiConfig(newConfig: UiConfig): UiConfig {
+    const data = getAppData();
+    const activeCompanyId = getActiveCompanyId();
+    if (data.companyData[activeCompanyId]) {
+        data.companyData[activeCompanyId].uiConfig = newConfig;
+        setAppData(data);
+    }
+    return newConfig;
 }
 
 // Task Functions

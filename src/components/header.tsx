@@ -22,7 +22,7 @@ import {
   deleteCompany,
 } from '@/lib/data';
 import type { Company } from '@/lib/types';
-import { Building, PlusCircle, Trash2, Edit, LayoutDashboard } from 'lucide-react';
+import { Building, PlusCircle, Trash2, Edit, LayoutDashboard, Cog } from 'lucide-react';
 import { CompaniesManager } from './companies-manager';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -99,6 +99,10 @@ export function Header() {
                <Link href="/dashboard" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                   <LayoutDashboard className="mr-2 h-4 w-4" />
                   Dashboard
+               </Link>
+               <Link href="/settings" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  <Cog className="mr-2 h-4 w-4" />
+                  Settings
                </Link>
             </nav>
           </div>

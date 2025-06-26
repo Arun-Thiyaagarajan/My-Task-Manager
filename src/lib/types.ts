@@ -45,3 +45,17 @@ export interface Task {
   qaStartDate?: string | null;
   qaEndDate?: string | null;
 }
+
+// New types for Admin/Settings
+export interface FieldConfig {
+  label: string;
+  isActive: boolean;
+  isRequired: boolean;
+  group: string;
+}
+
+export type FieldName = keyof Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'comments'>;
+
+export interface UiConfig {
+  fields: Record<FieldName, FieldConfig>;
+}
