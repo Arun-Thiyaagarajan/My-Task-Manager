@@ -88,10 +88,10 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field }: EditFie
   const [isGroupPopoverOpen, setIsGroupPopoverOpen] = React.useState(false);
   const [groupSearch, setGroupSearch] = React.useState('');
 
-  const nonConfigurableBuiltInKeys = [
-    'title', 'description', 'status', 'repositories', 'developers', 'azureWorkItemId', 'deploymentStatus'
-  ];
-  const isConfigurable = isCreating || (field !== null && (field.isCustom || !nonConfigurableBuiltInKeys.includes(field.key)));
+  const unchangeableRequiredKeys = ['title', 'description', 'status', 'repositories', 'developers', 'azureWorkItemId', 'deploymentStatus'];
+  const isRequiredToggleDisabled = field !== null && !field.isCustom && unchangeableRequiredKeys.includes(field.key);
+  const isActiveToggleDisabled = field !== null && !field.isCustom;
+
 
   const onSubmit = (data: FieldFormData) => {
     const finalField: FieldConfig = {
@@ -282,7 +282,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field }: EditFie
                                             id={field.name}
                                             checked={field.value}
                                             onCheckedChange={field.onChange}
-                                            disabled={!isConfigurable}
+                                            disabled={isRequiredToggleDisabled}
                                         />
                                     </FormControl>
                                     <Label htmlFor={field.name} className="cursor-pointer">
@@ -301,7 +301,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field }: EditFie
                                             id={field.name}
                                             checked={field.value}
                                             onCheckedChange={field.onChange}
-                                            disabled={isRequiredValue || !isConfigurable}
+                                            disabled={isRequiredValue || isActiveToggleDisabled}
                                         />
                                     </FormControl>
                                     <Label htmlFor={field.name} className="cursor-pointer">

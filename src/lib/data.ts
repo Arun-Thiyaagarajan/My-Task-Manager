@@ -175,23 +175,37 @@ export function getUiConfig(): UiConfig {
         needsUpdate = true;
     }
 
+    // Remove obsolete 'deploymentDates' field from config if it exists
+    const initialFieldCount = companyConfig.fields.length;
+    companyConfig.fields = companyConfig.fields.filter(f => f.key !== 'deploymentDates');
+    if (companyConfig.fields.length !== initialFieldCount) {
+        needsUpdate = true;
+    }
 
-    // Ensure all core fields exist, adding them if they were somehow deleted.
-    const coreFieldKeys = new Set(INITIAL_UI_CONFIG.map(f => f.key));
-    const presentCoreFieldKeys = new Set(companyConfig.fields.filter(f => !f.isCustom).map(f => f.key));
+    // Ensure all core fields exist and have correct properties, adding/updating them if they were somehow modified or deleted.
+    const coreFieldsMap = new Map(INITIAL_UI_CONFIG.map(f => [f.key, f]));
     
-    for (const key of coreFieldKeys) {
-        if (!presentCoreFieldKeys.has(key)) {
-            const missingField = INITIAL_UI_CONFIG.find(f => f.key === key);
-            if (missingField) {
-                companyConfig.fields.push(missingField);
+    companyConfig.fields.forEach(field => {
+        if (!field.isCustom) {
+            const coreField = coreFieldsMap.get(field.key);
+            if (coreField && (field.isRequired !== coreField.isRequired || field.isCustom !== coreField.isCustom)) {
+                field.isRequired = coreField.isRequired;
+                field.isCustom = coreField.isCustom;
                 needsUpdate = true;
             }
+        }
+    });
+
+    const presentCoreFieldKeys = new Set(companyConfig.fields.filter(f => !f.isCustom).map(f => f.key));
+    for (const coreField of INITIAL_UI_CONFIG) {
+        if (!presentCoreFieldKeys.has(coreField.key)) {
+            companyConfig.fields.push(coreField);
+            needsUpdate = true;
         }
     }
     
     if (needsUpdate) {
-        // Re-sort and save if we added missing fields
+        // Re-sort and save if we made any changes
         companyConfig.fields.sort((a, b) => a.order - b.order);
         setAppData(data);
     }
