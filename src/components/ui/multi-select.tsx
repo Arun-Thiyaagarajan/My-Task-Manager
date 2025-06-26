@@ -10,7 +10,7 @@ import {
   CommandGroup,
   CommandItem,
   CommandList,
-  CommandEmpty
+  CommandEmpty,
 } from '@/components/ui/command';
 import { Command as CommandPrimitive } from 'cmdk';
 import { cn } from '@/lib/utils';
@@ -50,27 +50,29 @@ export function MultiSelect({
     [onChange, selected]
   );
   
+  // Options that are not already selected.
   const filteredOptions = options.filter(
     (option) => !selected.includes(option.value)
   );
 
-  const showCreatable = creatable && query.trim() && !options.some(opt => opt.label.toLowerCase() === query.trim().toLowerCase());
-  
-  const handleSelectCreatable = React.useCallback(() => {
-    if (showCreatable) {
-      const newValue = query.trim();
-      if (newValue) {
-        if (!selected.includes(newValue)) {
-            if (onCreate) {
-              onCreate(newValue);
-            }
-            onChange([...selected, newValue]);
-        }
-        setQuery('');
-      }
-    }
-  }, [query, showCreatable, selected, onCreate, onChange]);
+  const lowerCaseQuery = query.trim().toLowerCase();
+  // Determine if the "creatable" option should be shown.
+  const showCreatable = 
+      creatable && 
+      lowerCaseQuery.length > 0 && 
+      !options.some(opt => opt.label.toLowerCase() === lowerCaseQuery);
 
+  const handleSelectCreatable = React.useCallback(() => {
+    if (!showCreatable) return;
+
+    const newValue = query.trim();
+    if (onCreate) {
+      onCreate(newValue);
+    }
+    onChange([...selected, newValue]);
+    setQuery('');
+  }, [showCreatable, query, onCreate, onChange, selected]);
+  
   const handleKeyDown = React.useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
       const input = inputRef.current;
@@ -137,12 +139,12 @@ export function MultiSelect({
                         key={option.value}
                         value={option.label}
                         onMouseDown={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
+                          e.preventDefault();
+                          e.stopPropagation();
                         }}
                         onSelect={() => {
-                        onChange([...selected, option.value]);
-                        setQuery('');
+                          onChange([...selected, option.value]);
+                          setQuery('');
                         }}
                         className="cursor-pointer"
                     >
@@ -151,24 +153,21 @@ export function MultiSelect({
                     ))}
                 </CommandGroup>
                 {showCreatable && (
-                    <React.Fragment>
-                        <CommandPrimitive.Separator />
-                        <CommandGroup>
-                            <CommandItem
-                                key={query}
-                                value={query}
-                                onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                }}
-                                onSelect={handleSelectCreatable}
-                                className="cursor-pointer text-primary"
-                            >
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Create "{query}"
-                            </CommandItem>
-                        </CommandGroup>
-                    </React.Fragment>
+                  <CommandGroup>
+                    <CommandItem
+                        key={query}
+                        value={query}
+                        onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        }}
+                        onSelect={handleSelectCreatable}
+                        className="cursor-pointer text-primary"
+                    >
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Create "{query.trim()}"
+                    </CommandItem>
+                  </CommandGroup>
                 )}
             </CommandList>
           </div>
