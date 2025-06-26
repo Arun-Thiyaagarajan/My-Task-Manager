@@ -50,12 +50,14 @@ const getInitialTaskData = (task?: Partial<Task>) => {
         };
     }
     
-    const deploymentDatesAsDates: { [key: string]: Date | undefined } = {};
+    const deploymentDatesAsDates: { [key: string]: Date | undefined | null } = {};
     if (task.deploymentDates) {
         for (const key in task.deploymentDates) {
             const dateVal = task.deploymentDates[key];
             if(dateVal) {
                 deploymentDatesAsDates[key] = new Date(dateVal);
+            } else {
+                deploymentDatesAsDates[key] = null;
             }
         }
     }
@@ -108,6 +110,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
 
   const selectedRepos = form.watch('repositories') || [];
   const allEnvs = uiConfig?.environments || [];
+  const deploymentStatus = form.watch('deploymentStatus');
   
   const getFieldOptions = (field: FieldConfig): {value: string, label: string}[] => {
     if (field.key === 'developers') {
@@ -115,6 +118,9 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
     }
     if (field.key === 'repositories') {
         return REPOSITORIES.map(d => ({ value: d, label: d }));
+    }
+    if (field.key === 'status') {
+      return TASK_STATUSES.map(s => ({ value: s, label: s}));
     }
     return field.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
   }
@@ -328,33 +334,72 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
         
         <Card>
             <CardHeader>
-                <CardTitle>Deployment Status</CardTitle>
-                <FormDescription>Select which environments this task will be deployed to.</FormDescription>
+                <CardTitle>Deployments</CardTitle>
+                <FormDescription>Select environments and set their deployment dates.</FormDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {allEnvs.map(env => (
-                        <FormField
-                            key={env}
-                            control={form.control}
-                            name={`deploymentStatus.${env}`}
-                            render={({ field }) => (
-                                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3">
-                                    <FormControl>
-                                        <Checkbox
-                                            checked={field.value}
-                                            onCheckedChange={field.onChange}
-                                            id={`deploy-check-${env}`}
-                                        />
-                                    </FormControl>
-                                    <FormLabel htmlFor={`deploy-check-${env}`} className="capitalize font-normal flex-1 cursor-pointer">
-                                        {env}
-                                    </FormLabel>
-                                </FormItem>
+                        <div key={env} className="flex flex-col gap-3 p-3 border rounded-md bg-muted/20">
+                            <FormField
+                                control={form.control}
+                                name={`deploymentStatus.${env}`}
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                                        <FormControl>
+                                            <Checkbox
+                                                checked={field.value}
+                                                onCheckedChange={field.onChange}
+                                                id={`deploy-check-${env}`}
+                                            />
+                                        </FormControl>
+                                        <FormLabel htmlFor={`deploy-check-${env}`} className="capitalize font-medium text-sm flex-1 cursor-pointer">
+                                            {env}
+                                        </FormLabel>
+                                    </FormItem>
+                                )}
+                            />
+                            {deploymentStatus?.[env] && (
+                                <FormField
+                                    control={form.control}
+                                    name={`deploymentDates.${env}`}
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <FormControl>
+                                                        <Button
+                                                          variant={"outline"}
+                                                          className={cn(
+                                                            "w-full pl-3 text-left font-normal bg-card",
+                                                            !field.value && "text-muted-foreground"
+                                                          )}
+                                                        >
+                                                            {field.value ? format(field.value, "PPP") : <span>Deployment Date</span>}
+                                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                        </Button>
+                                                    </FormControl>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-auto p-0" align="start">
+                                                    <Calendar
+                                                        mode="single"
+                                                        selected={field.value}
+                                                        onSelect={field.onChange}
+                                                        initialFocus
+                                                    />
+                                                </PopoverContent>
+                                            </Popover>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
                             )}
-                        />
+                        </div>
                     ))}
                 </div>
+                 {allEnvs.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">No environments configured. Please add environments in the settings page.</p>
+                )}
             </CardContent>
         </Card>
 

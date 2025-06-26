@@ -48,16 +48,14 @@ export default function SettingsPage() {
   const debouncedConfig = useDebounce(config, 1000);
 
   useEffect(() => {
-    // Do not run on the initial render or if config is not yet loaded.
-    if (!debouncedConfig) {
-      return;
+    if (isInitialMount.current) {
+        if (debouncedConfig) {
+            isInitialMount.current = false;
+        }
+        return;
     }
     
-    // On the first run after data is loaded, `isInitialMount` will be true.
-    // We flip the ref to false and skip the save.
-    // Any subsequent run of this effect is due to a real user change.
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
+    if (!debouncedConfig) {
       return;
     }
     
@@ -82,11 +80,11 @@ export default function SettingsPage() {
         if (!prevConfig) return null;
         
         const field = prevConfig.fields.find(f => f.id === fieldId);
-        if (field?.isRequired) {
+        if (!field?.isCustom) {
             toast({
                 variant: 'warning',
-                title: 'Cannot Deactivate Required Field',
-                description: `The "${field.label}" field is essential and cannot be deactivated.`,
+                title: 'Cannot Deactivate Built-in Field',
+                description: `The "${field?.label}" field is part of the core system and cannot be deactivated.`,
             });
             return prevConfig;
         }
@@ -235,11 +233,11 @@ export default function SettingsPage() {
   const renderFieldList = (fields: FieldConfig[], isActiveList: boolean) => (
     <div className="space-y-2">
         {fields.map((field) => {
-            const isToggleDisabled = field.isRequired;
+            const isToggleDisabled = !field.isCustom;
             return (
                 <div 
                   key={field.id}
-                  draggable={isActiveList}
+                  draggable={isActiveList && !field.isRequired}
                   onDragStart={e => {
                     e.dataTransfer.effectAllowed = 'move';
                     e.dataTransfer.setData('fieldId', field.id);
@@ -249,11 +247,10 @@ export default function SettingsPage() {
                   onDrop={e => handleDrop(e, field)}
                   className={cn(
                       "flex items-center gap-4 p-3 pr-2 border rounded-lg bg-card transition-all group",
-                      isActiveList && "hover:bg-muted/50 hover:shadow-sm cursor-grab active:cursor-grabbing"
+                      (isActiveList && !field.isRequired) && "hover:bg-muted/50 hover:shadow-sm cursor-grab active:cursor-grabbing"
                   )}
                 >
-                    {isActiveList && <GripVertical className="h-5 w-5 text-muted-foreground" />}
-                    {!isActiveList && <div className="w-5 h-5" />}
+                    {(isActiveList && !field.isRequired) ? <GripVertical className="h-5 w-5 text-muted-foreground" /> : <div className="w-5 h-5" />}
 
                     <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
                         <span className="font-medium text-foreground">{field.label} {field.isRequired && <span className="text-destructive">*</span>}</span>
@@ -268,9 +265,9 @@ export default function SettingsPage() {
                           className="h-8 w-8"
                           onClick={() => handleToggleActive(field.id)}
                           disabled={isToggleDisabled}
-                          title={isActiveList ? 'Deactivate' : 'Activate'}
+                          title={isToggleDisabled ? "Built-in fields cannot be deactivated" : (isActiveList ? 'Deactivate' : 'Activate')}
                         >
-                            {isActiveList ? <ToggleRight className="h-5 w-5 text-primary" /> : <ToggleLeft className="h-5 w-5 text-muted-foreground"/>}
+                            {field.isActive ? <ToggleRight className="h-5 w-5 text-primary" /> : <ToggleLeft className="h-5 w-5 text-muted-foreground"/>}
                         </Button>
                         {field.isCustom && (
                             <AlertDialog>
@@ -322,7 +319,7 @@ export default function SettingsPage() {
                 <CardHeader>
                     <CardTitle>Field Configuration</CardTitle>
                     <CardDescription>
-                        Drag active fields to reorder them. Edit, activate, or deactivate fields as needed. Required fields cannot be deactivated.
+                        Drag active fields to reorder them. Edit, activate, or deactivate fields as needed. Required fields cannot be deactivated or reordered. Custom fields are the only fields that can be deleted.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
