@@ -37,7 +37,7 @@ export default function SettingsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [fieldToEdit, setFieldToEdit] = useState<FieldConfig | null>(null);
   const [newEnv, setNewEnv] = useState('');
-  const isInitialLoad = useRef(true);
+  const isInitialMount = useRef(true);
 
   useEffect(() => {
     document.title = 'Settings | My Task Manager';
@@ -48,11 +48,18 @@ export default function SettingsPage() {
   const debouncedConfig = useDebounce(config, 1000);
 
   useEffect(() => {
-    if (isInitialLoad.current) {
-        isInitialLoad.current = false;
-        return;
+    // Do not run on the initial render or if config is not yet loaded.
+    if (!debouncedConfig) {
+      return;
     }
-    if (!debouncedConfig) return;
+    
+    // On the first run after data is loaded, `isInitialMount` will be true.
+    // We flip the ref to false and skip the save.
+    // Any subsequent run of this effect is due to a real user change.
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     
     setIsSaving(true);
     updateUiConfig(debouncedConfig);
@@ -74,12 +81,12 @@ export default function SettingsPage() {
     setConfig(prevConfig => {
         if (!prevConfig) return null;
         
-        const fieldIndex = prevConfig.fields.findIndex(f => f.id === fieldId);
-        if (fieldIndex > -1 && prevConfig.fields[fieldIndex].isRequired) {
+        const field = prevConfig.fields.find(f => f.id === fieldId);
+        if (field?.isRequired) {
             toast({
                 variant: 'warning',
                 title: 'Cannot Deactivate Required Field',
-                description: `The "${prevConfig.fields[fieldIndex].label}" field is essential and cannot be deactivated.`,
+                description: `The "${field.label}" field is essential and cannot be deactivated.`,
             });
             return prevConfig;
         }
