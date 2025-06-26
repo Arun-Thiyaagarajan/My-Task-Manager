@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import type { Task } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { ENVIRONMENTS } from '@/lib/constants';
 
 interface EnvironmentStatusProps {
   deploymentStatus: Task['deploymentStatus'];
@@ -37,11 +38,18 @@ export function EnvironmentStatus({ deploymentStatus, deploymentDates, size = 'd
     }
   }
 
-  const standardEnvs = ['dev', 'stage', 'production'];
+  const standardEnvs = [...ENVIRONMENTS];
   const customEnvs = Object.keys(deploymentStatus || {})
-    .filter(env => !standardEnvs.includes(env) && deploymentStatus?.[env]);
+    .filter(env => !standardEnvs.includes(env as any) && deploymentStatus?.[env]);
   
-  const envsToDisplay = [...standardEnvs, ...customEnvs];
+  const envsToDisplay = [...new Set([...standardEnvs, ...customEnvs])].sort((a, b) => {
+      const aIndex = standardEnvs.indexOf(a as any);
+      const bIndex = standardEnvs.indexOf(b as any);
+      if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+      if (aIndex !== -1) return -1;
+      if (bIndex !== -1) return 1;
+      return a.localeCompare(b);
+  });
 
   return (
     <TooltipProvider delayDuration={100}>
@@ -52,6 +60,8 @@ export function EnvironmentStatus({ deploymentStatus, deploymentDates, size = 'd
           const hasDate = deploymentDates && deploymentDates[env];
           const isDeployed = isSelected && (env === 'dev' || !!hasDate);
           
+          const tooltipText = isDeployed ? "Deployed" : "Pending";
+
           return (
             <Tooltip key={env}>
               <TooltipTrigger>
@@ -69,7 +79,7 @@ export function EnvironmentStatus({ deploymentStatus, deploymentDates, size = 'd
                 </Badge>
               </TooltipTrigger>
               <TooltipContent>
-                <p className="capitalize">{envInfo.label}: {isDeployed ? 'Deployed' : (isSelected ? 'Pending' : 'Not in pipeline')}</p>
+                <p className="capitalize">{envInfo.label}: {tooltipText}</p>
               </TooltipContent>
             </Tooltip>
           );

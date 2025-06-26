@@ -18,6 +18,7 @@ import { getInitials, getAvatarColor } from '@/lib/utils';
 import { format } from 'date-fns';
 import type { Task } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
+import { ENVIRONMENTS } from '@/lib/constants';
 
 export default function TaskPage() {
   const params = useParams();
@@ -79,17 +80,18 @@ export default function TaskPage() {
   const hasDevQaDates = task.devStartDate || task.devEndDate || task.qaStartDate || task.qaEndDate;
   const hasAnyDeploymentDate = task.deploymentDates && Object.values(task.deploymentDates).some(d => d);
 
-  const environmentsInPipeline = Object.keys(task.deploymentStatus || {})
-    .filter(env => task.deploymentStatus?.[env])
-    .sort((a, b) => {
-        const order = ['dev', 'stage', 'production'];
-        const aIndex = order.indexOf(a);
-        const bIndex = order.indexOf(b);
-        if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
-        if (aIndex !== -1) return -1;
-        if (bIndex !== -1) return 1;
-        return a.localeCompare(b);
-    });
+  const standardEnvs = [...ENVIRONMENTS];
+  const customEnvs = Object.keys(task.deploymentStatus || {})
+    .filter(env => !standardEnvs.includes(env as any) && task.deploymentStatus?.[env]);
+
+  const environmentsToDisplay = [...new Set([...standardEnvs, ...customEnvs])].sort((a, b) => {
+      const aIndex = standardEnvs.indexOf(a as any);
+      const bIndex = standardEnvs.indexOf(b as any);
+      if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+      if (aIndex !== -1) return -1;
+      if (bIndex !== -1) return 1;
+      return a.localeCompare(b);
+  });
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -145,9 +147,10 @@ export default function TaskPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-3 text-sm">
-                        {environmentsInPipeline.length > 0 ? environmentsInPipeline.map(env => {
-                            const isDateSet = task.deploymentDates && task.deploymentDates[env];
-                            const isDeployed = env === 'dev' || !!isDateSet;
+                        {environmentsToDisplay.length > 0 ? environmentsToDisplay.map(env => {
+                            const isSelected = task.deploymentStatus?.[env];
+                            const hasDate = task.deploymentDates && task.deploymentDates[env];
+                            const isDeployed = isSelected && (env === 'dev' || !!hasDate);
                             
                             return (
                                 <div key={env} className="flex justify-between items-center">
@@ -155,9 +158,9 @@ export default function TaskPage() {
                                         {env}
                                     </span>
                                     {isDeployed ? (
-                                        <div className="flex items-center gap-2">
-                                            <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                            <span className="text-foreground">Deployed</span>
+                                        <div className="flex items-center gap-2 text-green-600 dark:text-green-500 font-medium">
+                                            <CheckCircle2 className="h-4 w-4" />
+                                            <span>Deployed</span>
                                         </div>
                                     ) : (
                                         <div className="flex items-center gap-2 text-muted-foreground">
