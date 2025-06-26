@@ -241,83 +241,111 @@ export default function SettingsPage() {
   }
 
 
-  const filteredFields = useMemo(() => {
-    if (!config) return { active: [], inactive: [] };
+  const filteredAndGroupedFields = useMemo(() => {
+    if (!config) return { active: {}, inactive: {} };
+    
     const query = searchQuery.toLowerCase();
     const allFields = config.fields.filter(f => f.label.toLowerCase().includes(query) || f.group.toLowerCase().includes(query));
-    return {
-        active: allFields.filter(f => f.isActive).sort((a,b) => a.order - b.order),
-        inactive: allFields.filter(f => !f.isActive).sort((a,b) => a.label.localeCompare(b.label)),
-    }
+
+    const activeFields = allFields
+        .filter(f => f.isActive)
+        .sort((a,b) => a.order - b.order)
+        .reduce((acc, field) => {
+            const group = field.group || 'General';
+            if (!acc[group]) acc[group] = [];
+            acc[group].push(field);
+            return acc;
+        }, {} as Record<string, FieldConfig[]>);
+
+    const inactiveFields = allFields
+        .filter(f => !f.isActive)
+        .sort((a,b) => a.label.localeCompare(b.label))
+        .reduce((acc, field) => {
+            const group = field.group || 'General';
+            if (!acc[group]) acc[group] = [];
+            acc[group].push(field);
+            return acc;
+        }, {} as Record<string, FieldConfig[]>);
+        
+    return { active: activeFields, inactive: inactiveFields };
   }, [config, searchQuery]);
 
   if (!config) {
     return <LoadingSpinner text="Loading settings..." />;
   }
 
-  const renderFieldList = (fields: FieldConfig[], isActiveList: boolean) => (
-    <div className="space-y-2">
-        {fields.map((field) => {
-            const isToggleDisabled = !field.isCustom;
-            return (
-                <div 
-                  key={field.id}
-                  draggable={isActiveList && !field.isRequired}
-                  onDragStart={e => {
-                    e.dataTransfer.effectAllowed = 'move';
-                    e.dataTransfer.setData('fieldId', field.id);
-                  }}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={e => handleDrop(e, field)}
-                  className={cn(
-                      "flex items-center gap-4 p-3 pr-2 border rounded-lg bg-card transition-all group",
-                      (isActiveList && !field.isRequired) && "hover:bg-muted/50 hover:shadow-sm cursor-grab active:cursor-grabbing"
-                  )}
-                >
-                    {(isActiveList && !field.isRequired) ? <GripVertical className="h-5 w-5 text-muted-foreground" /> : <div className="w-5 h-5" />}
+  const renderFieldRow = (field: FieldConfig, isActiveList: boolean) => {
+    const isToggleDisabled = !field.isCustom;
+    return (
+        <div 
+          key={field.id}
+          draggable={isActiveList && !field.isRequired}
+          onDragStart={e => {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('fieldId', field.id);
+          }}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={e => handleDrop(e, field)}
+          className={cn(
+              "flex items-center gap-4 p-3 pr-2 border rounded-lg bg-card transition-all group",
+              (isActiveList && !field.isRequired) && "hover:bg-muted/50 hover:shadow-sm cursor-grab active:cursor-grabbing"
+          )}
+        >
+            {(isActiveList && !field.isRequired) ? <GripVertical className="h-5 w-5 text-muted-foreground" /> : <div className="w-5 h-5" />}
 
-                    <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
-                        <span className="font-medium text-foreground">{field.label} {field.isRequired && <span className="text-destructive">*</span>}</span>
-                        <Badge variant="outline" className="w-fit">{field.type}</Badge>
-                        <span className="text-sm text-muted-foreground">{field.group}</span>
-                    </div>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenDialog(field)}><Edit className="h-4 w-4" /></Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => handleToggleActive(field.id)}
-                          disabled={isToggleDisabled}
-                          title={isToggleDisabled ? "Built-in fields cannot be modified" : (isActiveList ? 'Deactivate' : 'Activate')}
-                        >
-                            {field.isActive ? <ToggleRight className="h-5 w-5 text-primary" /> : <ToggleLeft className="h-5 w-5 text-muted-foreground"/>}
-                        </Button>
-                        {field.isCustom && (
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Delete Custom Field?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            This will permanently delete the "{field.label}" field and all associated data from your tasks. This action cannot be undone.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleDeleteField(field.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        )}
-                    </div>
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
+                <span className="font-medium text-foreground">{field.label} {field.isRequired && <span className="text-destructive">*</span>}</span>
+                <Badge variant="outline" className="w-fit">{field.type}</Badge>
+                <span className="text-sm text-muted-foreground">{field.group}</span>
+            </div>
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenDialog(field)}><Edit className="h-4 w-4" /></Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => handleToggleActive(field.id)}
+                  disabled={isToggleDisabled}
+                  title={isToggleDisabled ? "Built-in fields cannot be modified" : (isActiveList ? 'Deactivate' : 'Activate')}
+                >
+                    {field.isActive ? <ToggleRight className="h-5 w-5 text-primary" /> : <ToggleLeft className="h-5 w-5 text-muted-foreground"/>}
+                </Button>
+                {field.isCustom && (
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Custom Field?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This will permanently delete the "{field.label}" field and all associated data from your tasks. This action cannot be undone.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteField(field.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                )}
+            </div>
+        </div>
+    )
+  };
+
+  const renderFieldList = (groupedFields: Record<string, FieldConfig[]>, isActiveList: boolean) => (
+      <div className="space-y-6">
+        {Object.keys(groupedFields).sort().map(groupName => (
+            <div key={groupName}>
+                <h3 className="text-md font-semibold text-muted-foreground mb-3">{groupName}</h3>
+                <div className="space-y-2">
+                    {groupedFields[groupName].map(field => renderFieldRow(field, isActiveList))}
                 </div>
-            )
-        })}
-        {fields.length === 0 && <p className="text-muted-foreground text-center py-4">No fields match your search in this section.</p>}
+            </div>
+        ))}
+        {Object.keys(groupedFields).length === 0 && <p className="text-muted-foreground text-center py-4">No fields match your search in this section.</p>}
     </div>
   );
 
@@ -361,11 +389,11 @@ export default function SettingsPage() {
                     <div className="space-y-8">
                         <div>
                             <h2 className="text-xl font-semibold tracking-tight mb-4 pb-2 border-b">Active Fields</h2>
-                            {renderFieldList(filteredFields.active, true)}
+                            {renderFieldList(filteredAndGroupedFields.active, true)}
                         </div>
                         <div>
                             <h2 className="text-xl font-semibold tracking-tight mb-4 pb-2 border-b">Inactive Fields</h2>
-                            {renderFieldList(filteredFields.inactive, false)}
+                            {renderFieldList(filteredAndGroupedFields.inactive, false)}
                         </div>
                     </div>
                 </CardContent>

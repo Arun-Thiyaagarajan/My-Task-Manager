@@ -122,6 +122,9 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
     if (field.key === 'status') {
       return TASK_STATUSES.map(s => ({ value: s, label: s}));
     }
+    if(field.type === 'tags') {
+      return [];
+    }
     return field.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
   }
   
@@ -178,6 +181,16 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                         {...(key === 'developers' && { onCreate: handleCreateDeveloper })}
                     />
                 );
+            case 'tags':
+                return (
+                     <MultiSelect
+                        selected={field.value ?? []}
+                        onChange={field.onChange}
+                        options={getFieldOptions(fieldConfig)}
+                        placeholder={`Add ${label}...`}
+                        creatable
+                    />
+                );
             case 'checkbox':
                 return (
                     <div className="flex items-center space-x-2 h-10">
@@ -204,7 +217,9 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
             render={({ field }) => (
                 <FormItem>
                     <FormLabel>{label} {isRequired && '*'}</FormLabel>
-                    {renderInput(type, field)}
+                    <FormControl>
+                        {renderInput(type, field)}
+                    </FormControl>
                     <FormMessage />
                 </FormItem>
             )}
@@ -226,7 +241,13 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
         return acc;
     }, {} as Record<string, FieldConfig[]>);
     
-  const groupOrder = Object.keys(groupedFields);
+  const groupOrder = Object.keys(groupedFields).sort((a, b) => {
+      const aFields = groupedFields[a];
+      const bFields = groupedFields[b];
+      const aMinOrder = Math.min(...aFields.map(f => f.order));
+      const bMinOrder = Math.min(...bFields.map(f => f.order));
+      return aMinOrder - bMinOrder;
+  });
 
   return (
     <Form {...form}>

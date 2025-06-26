@@ -5,7 +5,7 @@ export type TaskStatus = (typeof TASK_STATUSES)[number];
 export type Repository = string;
 export type Environment = (typeof ENVIRONMENTS)[number];
 export type Developer = string;
-export type FieldType = 'text' | 'textarea' | 'number' | 'url' | 'date' | 'select' | 'multiselect' | 'checkbox';
+export type FieldType = 'text' | 'textarea' | 'number' | 'url' | 'date' | 'select' | 'multiselect' | 'checkbox' | 'tags';
 
 
 export interface Company {

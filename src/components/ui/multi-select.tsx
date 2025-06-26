@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -26,6 +27,7 @@ interface MultiSelectProps {
   onCreate?: (value: string) => void;
   placeholder?: string;
   className?: string;
+  creatable?: boolean;
 }
 
 export function MultiSelect({
@@ -35,6 +37,7 @@ export function MultiSelect({
   onCreate,
   placeholder = 'Select...',
   className,
+  creatable = false,
 }: MultiSelectProps) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [isOpen, setIsOpen] = React.useState(false);
@@ -47,16 +50,18 @@ export function MultiSelect({
     [onChange, selected]
   );
   
-  const handleCreate = () => {
-    if (onCreate && query.trim()) {
-      const newOptionValue = query.trim();
-      if (!options.some(o => o.label.toLowerCase() === newOptionValue.toLowerCase()) && !selected.includes(newOptionValue)) {
-        onCreate(newOptionValue);
+  const handleSelectCreatable = () => {
+    const newValue = query.trim();
+    if (newValue) {
+      if (!selected.includes(newValue)) {
+          if (onCreate) {
+            onCreate(newValue);
+          }
+          onChange([...selected, newValue]);
       }
-      onChange([...selected, newOptionValue]);
       setQuery('');
     }
-  };
+  }
 
   const handleKeyDown = React.useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -79,6 +84,8 @@ export function MultiSelect({
   const filteredOptions = options.filter(
     (option) => !selected.includes(option.value)
   );
+
+  const showCreatable = creatable && query.trim() && !options.some(opt => opt.label.toLowerCase() === query.trim().toLowerCase());
 
   return (
     <Command onKeyDown={handleKeyDown} className={cn('overflow-visible bg-transparent', className)}>
@@ -136,7 +143,7 @@ export function MultiSelect({
                     {option.label}
                   </CommandItem>
                 ))}
-                {onCreate && query.trim() && !options.some(o => o.label.toLowerCase() === query.trim().toLowerCase()) && (
+                {showCreatable && (
                   <CommandItem
                     key={query}
                     value={query}
@@ -144,7 +151,7 @@ export function MultiSelect({
                       e.preventDefault();
                       e.stopPropagation();
                     }}
-                    onSelect={handleCreate}
+                    onSelect={handleSelectCreatable}
                     className="cursor-pointer"
                   >
                     Create "{query}"

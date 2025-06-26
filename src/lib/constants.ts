@@ -13,6 +13,7 @@ export const FIELD_TYPES: {value: FieldType, label: string}[] = [
     { value: 'date', label: 'Date' },
     { value: 'select', label: 'Single Select' },
     { value: 'multiselect', label: 'Multi Select' },
+    { value: 'tags', label: 'Tag Selection' },
     { value: 'checkbox', label: 'Checkbox' },
 ]
 
