@@ -18,10 +18,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, PlusCircle, Trash2 } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check } from 'lucide-react';
 import type { FieldConfig, FieldOption, FieldType } from '@/lib/types';
 import { FIELD_TYPES } from '@/lib/constants';
 import * as React from 'react';
+import { getUiConfig } from '@/lib/data';
+import { cn } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+
 
 const fieldOptionSchema = z.object({
     id: z.string(),
@@ -67,6 +73,10 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field }: EditFie
 
   const selectedType = form.watch('type');
   const showOptions = selectedType === 'select' || selectedType === 'multiselect';
+  
+  const [allGroups, setAllGroups] = React.useState<string[]>([]);
+  const [isGroupPopoverOpen, setIsGroupPopoverOpen] = React.useState(false);
+  const [groupSearch, setGroupSearch] = React.useState('');
 
   const onSubmit = (data: FieldFormData) => {
     const finalField: FieldConfig = {
@@ -86,18 +96,26 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field }: EditFie
   const handleDialogChange = (open: boolean) => {
     if (!open) {
         form.reset();
+        setGroupSearch('');
     }
     onOpenChange(open);
   }
   
   React.useEffect(() => {
-    form.reset({
-      label: field?.label || '',
-      type: field?.type || 'text',
-      group: field?.group || 'Custom',
-      isRequired: field?.isRequired || false,
-      options: field?.options || [],
-    });
+    if (isOpen) {
+        const config = getUiConfig();
+        const uniqueGroups = [...new Set(config.fields.map(f => f.group).filter(Boolean))].sort();
+        setAllGroups(uniqueGroups);
+
+        form.reset({
+          label: field?.label || '',
+          type: field?.type || 'text',
+          group: field?.group || 'Custom',
+          isRequired: field?.isRequired || false,
+          options: field?.options || [],
+        });
+        setGroupSearch(field?.group || '');
+    }
   }, [field, form, isOpen]);
 
   return (
@@ -112,37 +130,138 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field }: EditFie
         <div className="flex-grow overflow-y-auto -mx-6 px-6">
             <form id="edit-field-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <Label htmlFor="label">Field Label</Label>
-                        <Input id="label" {...form.register('label')} />
-                        {form.formState.errors.label && <p className="text-sm text-destructive mt-1">{form.formState.errors.label.message}</p>}
-                    </div>
-                    <div>
-                        <Label htmlFor="type">Field Type</Label>
-                        <Select value={form.getValues('type')} onValueChange={(v) => form.setValue('type', v as FieldType)} disabled={!isCreating}>
-                            <SelectTrigger id="type">
-                                <SelectValue placeholder="Select a type" />
-                            </SelectTrigger>
-                            <SelectContent>
+                    <FormField
+                        control={form.control}
+                        name="label"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Field Label</FormLabel>
+                            <FormControl>
+                                <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="type"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Field Type</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value} disabled={!isCreating}>
+                                <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a type" />
+                                </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
                                 {FIELD_TYPES.map(type => (
                                     <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
                                 ))}
-                            </SelectContent>
-                        </Select>
-                        {!isCreating && <p className="text-xs text-muted-foreground mt-1">Field type cannot be changed after creation.</p>}
-                    </div>
+                                </SelectContent>
+                            </Select>
+                            {!isCreating && <p className="text-xs text-muted-foreground mt-1">Field type cannot be changed after creation.</p>}
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
                 </div>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
-                    <div>
-                        <Label htmlFor="group">Group Name</Label>
-                        <Input id="group" {...form.register('group')} />
-                        {form.formState.errors.group && <p className="text-sm text-destructive mt-1">{form.formState.errors.group.message}</p>}
-                    </div>
-                    <div className="flex items-center space-x-2 pb-1.5">
-                        <Switch id="isRequired" checked={form.watch('isRequired')} onCheckedChange={(c) => form.setValue('isRequired', c)} />
-                        <Label htmlFor="isRequired" className="cursor-pointer">Is Required?</Label>
-                    </div>
+                    <FormField
+                        control={form.control}
+                        name="group"
+                        render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                            <FormLabel>Group Name</FormLabel>
+                            <Popover open={isGroupPopoverOpen} onOpenChange={setIsGroupPopoverOpen}>
+                            <PopoverTrigger asChild>
+                                <FormControl>
+                                <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    aria-expanded={isGroupPopoverOpen}
+                                    className="w-full justify-between"
+                                >
+                                    {field.value || "Select or create group..."}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                                </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="p-0" style={{ width: 'var(--radix-popover-trigger-width)' }}>
+                                <Command>
+                                    <CommandInput 
+                                        placeholder="Search or create..." 
+                                        value={groupSearch}
+                                        onValueChange={setGroupSearch}
+                                    />
+                                    <CommandList>
+                                        <CommandEmpty>No results.</CommandEmpty>
+                                        <CommandGroup>
+                                            {allGroups.map((groupName) => (
+                                                <CommandItem
+                                                    value={groupName}
+                                                    key={groupName}
+                                                    onSelect={() => {
+                                                        form.setValue("group", groupName);
+                                                        setGroupSearch(groupName);
+                                                        setIsGroupPopoverOpen(false);
+                                                    }}
+                                                >
+                                                    <Check
+                                                        className={cn(
+                                                            "mr-2 h-4 w-4",
+                                                            groupName === field.value ? "opacity-100" : "opacity-0"
+                                                        )}
+                                                    />
+                                                    {groupName}
+                                                </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                        {groupSearch.trim() && !allGroups.some(g => g.toLowerCase() === groupSearch.trim().toLowerCase()) && (
+                                            <CommandGroup>
+                                                <CommandItem
+                                                    value={groupSearch}
+                                                    onSelect={() => {
+                                                        const newGroup = groupSearch.trim();
+                                                        form.setValue("group", newGroup);
+                                                        setAllGroups(prev => [...prev, newGroup].sort());
+                                                        setIsGroupPopoverOpen(false);
+                                                        setGroupSearch(newGroup);
+                                                    }}
+                                                    className="text-primary hover:!text-primary"
+                                                >
+                                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                                    Create "{groupSearch.trim()}"
+                                                </CommandItem>
+                                            </CommandGroup>
+                                        )}
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="isRequired"
+                        render={({ field }) => (
+                        <FormItem className="flex items-center space-x-2 pb-1.5">
+                            <FormControl>
+                                <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                />
+                            </FormControl>
+                            <Label htmlFor="isRequired" className="cursor-pointer">
+                                Is Required?
+                            </Label>
+                        </FormItem>
+                        )}
+                    />
                 </div>
                 
                 {showOptions && (
@@ -151,18 +270,37 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field }: EditFie
                         {options.map((option, index) => (
                             <div key={option.id} className="flex items-end gap-2 p-3 border rounded-md bg-muted/50">
                                 <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
-                                    <div>
-                                        <Label className="text-xs">Label</Label>
-                                        <Input {...form.register(`options.${index}.label`)} placeholder="e.g. High Priority" />
-                                    </div>
-                                    <div>
-                                        <Label className="text-xs">Value</Label>
-                                        <Input {...form.register(`options.${index}.value`)} placeholder="e.g. high_priority" />
-                                    </div>
+                                    <FormField
+                                        control={form.control}
+                                        name={`options.${index}.label`}
+                                        render={({ field }) => (
+                                            <FormItem>
+                                            <FormLabel className="text-xs">Label</FormLabel>
+                                            <FormControl>
+                                                <Input {...field} placeholder="e.g. High Priority" />
+                                            </FormControl>
+                                            <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name={`options.${index}.value`}
+                                        render={({ field }) => (
+                                            <FormItem>
+                                            <FormLabel className="text-xs">Value</FormLabel>
+                                            <FormControl>
+                                                <Input {...field} placeholder="e.g. high_priority" />
+                                            </FormControl>
+                                            <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
                                 </div>
                                 <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)} className="shrink-0"><Trash2 className="h-4 w-4" /></Button>
                             </div>
                         ))}
+                         {form.formState.errors.options && <p className="text-sm text-destructive mt-1">{form.formState.errors.options.message}</p>}
                         <Button type="button" variant="outline" size="sm" onClick={() => append({id: `option_${Date.now()}`, label: '', value: ''})}>
                             <PlusCircle className="h-4 w-4 mr-2" /> Add Option
                         </Button>
