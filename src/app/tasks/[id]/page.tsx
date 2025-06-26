@@ -201,14 +201,10 @@ export default function TaskPage() {
                                                 <CheckCircle2 className="h-4 w-4" />
                                                 <span>Deployed</span>
                                             </div>
-                                        ) : isSelected ? (
+                                        ) : (
                                             <div className="flex items-center gap-2 text-yellow-600 dark:text-yellow-500">
                                                 <Clock className="h-4 w-4" />
                                                 <span>Pending</span>
-                                            </div>
-                                        ) : (
-                                            <div className="flex items-center gap-2 text-muted-foreground">
-                                                <span>Not Targeted</span>
                                             </div>
                                         )}
                                     </div>

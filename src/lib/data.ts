@@ -30,6 +30,7 @@ const getInitialData = (): MyTaskManagerData => {
                 uiConfig: { 
                     fields: INITIAL_UI_CONFIG,
                     environments: [...ENVIRONMENTS],
+                    coreEnvironments: [...ENVIRONMENTS],
                 },
             },
         },
@@ -41,6 +42,7 @@ const getAppData = (): MyTaskManagerData => {
         const defaultConfig: UiConfig = { 
             fields: INITIAL_UI_CONFIG,
             environments: [...ENVIRONMENTS],
+            coreEnvironments: [...ENVIRONMENTS],
         };
         return {
             companies: [{ id: 'company-placeholder', name: 'Default Company' }],
@@ -97,6 +99,7 @@ export function addCompany(name: string): Company {
         uiConfig: { 
             fields: INITIAL_UI_CONFIG,
             environments: [...ENVIRONMENTS],
+            coreEnvironments: [...ENVIRONMENTS],
         },
     };
     data.activeCompanyId = newCompanyId;
@@ -150,26 +153,33 @@ export function getUiConfig(): UiConfig {
     const data = getAppData();
     const activeCompanyId = getActiveCompanyId();
     if (!activeCompanyId || !data.companyData[activeCompanyId]) {
-        return { fields: INITIAL_UI_CONFIG, environments: [...ENVIRONMENTS] };
+        return { fields: INITIAL_UI_CONFIG, environments: [...ENVIRONMENTS], coreEnvironments: [...ENVIRONMENTS] };
     }
     const companyConfig = data.companyData[activeCompanyId].uiConfig;
 
+    let needsUpdate = false;
     // Migration logic
     if (!companyConfig || !Array.isArray(companyConfig.fields) || !companyConfig.environments) {
         const newConfig = { 
             fields: companyConfig?.fields || INITIAL_UI_CONFIG,
             environments: companyConfig?.environments || [...ENVIRONMENTS],
+            coreEnvironments: companyConfig?.coreEnvironments || [...ENVIRONMENTS],
         };
         data.companyData[activeCompanyId].uiConfig = newConfig;
         setAppData(data);
         return newConfig;
     }
+    
+    if (!companyConfig.coreEnvironments) {
+        companyConfig.coreEnvironments = companyConfig.environments.filter(e => (ENVIRONMENTS as readonly string[]).includes(e));
+        needsUpdate = true;
+    }
+
 
     // Ensure all core fields exist, adding them if they were somehow deleted.
     const coreFieldKeys = new Set(INITIAL_UI_CONFIG.map(f => f.key));
     const presentCoreFieldKeys = new Set(companyConfig.fields.filter(f => !f.isCustom).map(f => f.key));
     
-    let needsUpdate = false;
     for (const key of coreFieldKeys) {
         if (!presentCoreFieldKeys.has(key)) {
             const missingField = INITIAL_UI_CONFIG.find(f => f.key === key);
@@ -202,6 +212,57 @@ export function updateUiConfig(newConfig: UiConfig): UiConfig {
         setAppData(data);
     }
     return newConfig;
+}
+
+export function updateEnvironmentName(oldName: string, newName: string): boolean {
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    const companyData = data.companyData[activeCompanyId];
+
+    if (!companyData || !companyData.uiConfig.environments?.includes(oldName) || newName.trim() === '' || companyData.uiConfig.environments.includes(newName)) {
+        return false;
+    }
+
+    const { uiConfig, tasks } = companyData;
+
+    // Update environments array
+    const envIndex = uiConfig.environments.indexOf(oldName);
+    uiConfig.environments[envIndex] = newName;
+
+    // Update coreEnvironments array if needed
+    if (uiConfig.coreEnvironments) {
+        const coreEnvIndex = uiConfig.coreEnvironments.indexOf(oldName);
+        if (coreEnvIndex > -1) {
+            uiConfig.coreEnvironments[coreEnvIndex] = newName;
+        }
+    }
+    
+    // Migrate task data
+    tasks.forEach(task => {
+        let changed = false;
+        
+        if (task.deploymentStatus && oldName in task.deploymentStatus) {
+            task.deploymentStatus[newName] = task.deploymentStatus[oldName];
+            delete task.deploymentStatus[oldName];
+            changed = true;
+        }
+        if (task.deploymentDates && oldName in task.deploymentDates) {
+            task.deploymentDates[newName] = task.deploymentDates[oldName];
+            delete task.deploymentDates[oldName];
+            changed = true;
+        }
+        if (task.prLinks && oldName in task.prLinks) {
+            task.prLinks[newName] = task.prLinks[oldName];
+            delete task.prLinks[oldName];
+            changed = true;
+        }
+        if(changed) {
+          task.updatedAt = new Date().toISOString();
+        }
+    });
+
+    setAppData(data);
+    return true;
 }
 
 // Task Functions

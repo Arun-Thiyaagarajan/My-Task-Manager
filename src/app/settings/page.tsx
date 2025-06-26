@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { getUiConfig, updateUiConfig } from '@/lib/data';
+import { getUiConfig, updateUiConfig, updateEnvironmentName } from '@/lib/data';
 import type { UiConfig, FieldConfig } from '@/lib/types';
 import { useDebounce } from '@/hooks/use-debounce';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical } from 'lucide-react';
+import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X } from 'lucide-react';
 import { EditFieldDialog } from '@/components/edit-field-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -25,7 +25,6 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
-import { ENVIRONMENTS } from '@/lib/constants';
 
 
 export default function SettingsPage() {
@@ -38,6 +37,9 @@ export default function SettingsPage() {
   const [fieldToEdit, setFieldToEdit] = useState<FieldConfig | null>(null);
   const [newEnv, setNewEnv] = useState('');
   const isInitialMount = useRef(true);
+
+  const [editingEnv, setEditingEnv] = useState<string | null>(null);
+  const [editingEnvText, setEditingEnvText] = useState('');
 
   useEffect(() => {
     document.title = 'Settings | My Task Manager';
@@ -84,7 +86,7 @@ export default function SettingsPage() {
             toast({
                 variant: 'warning',
                 title: 'Cannot Change Built-in Field',
-                description: `The "${field?.label}" field is part of the core system and cannot be deactivated.`,
+                description: `Built-in fields cannot be activated or deactivated.`,
             });
             return prevConfig;
         }
@@ -213,6 +215,29 @@ export default function SettingsPage() {
         ...config,
         environments: config.environments?.filter(env => env !== envToDelete) || [],
     });
+  }
+
+  const handleStartEditEnv = (env: string) => {
+    setEditingEnv(env);
+    setEditingEnvText(env);
+  }
+
+  const handleSaveEnvName = () => {
+    if (!editingEnv || !editingEnvText.trim() || !config) return;
+
+    if (editingEnvText.trim() !== editingEnv && config.environments?.includes(editingEnvText.trim())) {
+      toast({ variant: 'destructive', title: 'Name already exists' });
+      return;
+    }
+
+    if (updateEnvironmentName(editingEnv, editingEnvText.trim())) {
+        setConfig(getUiConfig());
+        toast({ variant: 'success', title: 'Environment Renamed' });
+    } else {
+        toast({ variant: 'destructive', title: 'Failed to rename environment' });
+    }
+    setEditingEnv(null);
+    setEditingEnvText('');
   }
 
 
@@ -355,14 +380,38 @@ export default function SettingsPage() {
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
                         {(config.environments || []).map(env => {
-                            const isDefault = ENVIRONMENTS.includes(env as any);
+                            const isDefault = (config.coreEnvironments || []).includes(env);
                             return (
                                 <div key={env} className="flex items-center justify-between p-2 border rounded-md bg-card">
-                                    <span className="font-medium capitalize">{env}</span>
-                                    {!isDefault && (
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDeleteEnvironment(env)}>
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
+                                    {editingEnv === env ? (
+                                        <div className="flex-1 flex items-center gap-2">
+                                            <Input
+                                                value={editingEnvText}
+                                                onChange={(e) => setEditingEnvText(e.target.value)}
+                                                className="h-8"
+                                                onKeyDown={(e) => { if(e.key === 'Enter') handleSaveEnvName()}}
+                                            />
+                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleSaveEnvName()}>
+                                                <Check className="h-4 w-4" />
+                                            </Button>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingEnv(null)}>
+                                                <X className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <span className="font-medium capitalize">{env}</span>
+                                            <div className="flex items-center">
+                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleStartEditEnv(env)}>
+                                                    <Edit className="h-4 w-4" />
+                                                </Button>
+                                                {!isDefault && (
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDeleteEnvironment(env)}>
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </>
                                     )}
                                 </div>
                             )
