@@ -14,16 +14,16 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Loader2, CalendarIcon, GitPullRequest, Trash2, Paperclip } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTransition, useEffect, useState } from 'react';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Calendar } from './ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { MultiSelect } from './ui/multi-select';
-import { Checkbox } from './ui/checkbox';
+import { MultiSelect } from '@/components/ui/multi-select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { addDeveloper, getUiConfig } from '@/lib/data';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TASK_STATUSES, REPOSITORIES } from '@/lib/constants';
-import { LoadingSpinner } from './ui/loading-spinner';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 type TaskFormData = z.infer<typeof taskSchema>;
 
