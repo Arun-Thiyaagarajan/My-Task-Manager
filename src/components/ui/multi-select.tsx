@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { X } from 'lucide-react';
+import { X, PlusCircle } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import {
@@ -131,39 +131,45 @@ export function MultiSelect({
           <div className="absolute top-0 z-10 w-full rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in">
             <CommandList>
                 <CommandEmpty>No results found.</CommandEmpty>
-              <CommandGroup>
-                {filteredOptions.map((option) => (
-                  <CommandItem
-                    key={option.value}
-                    value={option.label}
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                    }}
-                    onSelect={() => {
-                      onChange([...selected, option.value]);
-                      setQuery('');
-                    }}
-                    className="cursor-pointer"
-                  >
-                    {option.label}
-                  </CommandItem>
-                ))}
+                <CommandGroup>
+                    {filteredOptions.map((option) => (
+                    <CommandItem
+                        key={option.value}
+                        value={option.label}
+                        onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        }}
+                        onSelect={() => {
+                        onChange([...selected, option.value]);
+                        setQuery('');
+                        }}
+                        className="cursor-pointer"
+                    >
+                        {option.label}
+                    </CommandItem>
+                    ))}
+                </CommandGroup>
                 {showCreatable && (
-                  <CommandItem
-                    key={query}
-                    value={query}
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                    }}
-                    onSelect={handleSelectCreatable}
-                    className="cursor-pointer"
-                  >
-                    Create "{query}"
-                  </CommandItem>
+                    <React.Fragment>
+                        <CommandPrimitive.Separator />
+                        <CommandGroup>
+                            <CommandItem
+                                key={query}
+                                value={query}
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                }}
+                                onSelect={handleSelectCreatable}
+                                className="cursor-pointer text-primary"
+                            >
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Create "{query}"
+                            </CommandItem>
+                        </CommandGroup>
+                    </React.Fragment>
                 )}
-              </CommandGroup>
             </CommandList>
           </div>
         ) : null}
