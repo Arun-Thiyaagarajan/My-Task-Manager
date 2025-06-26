@@ -16,16 +16,15 @@ import { PrLinksGroup } from '@/components/pr-links-group';
 import { Badge } from '@/components/ui/badge';
 import { getInitials, getAvatarColor } from '@/lib/utils';
 import { format } from 'date-fns';
-import type { Task, FieldConfig } from '@/lib/types';
+import type { Task, FieldConfig, UiConfig } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
-import { ENVIRONMENTS } from '@/lib/constants';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export default function TaskPage() {
   const params = useParams();
   const router = useRouter();
   const [task, setTask] = useState<Task | null>(null);
-  const [uiConfig, setUiConfig] = useState<FieldConfig[]>([]);
+  const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const taskId = params.id as string;
@@ -34,7 +33,7 @@ export default function TaskPage() {
     if (taskId) {
       const foundTask = getTaskById(taskId);
       setTask(foundTask || null);
-      setUiConfig(getUiConfig().fields);
+      setUiConfig(getUiConfig());
       setIsLoading(false);
       if (foundTask) {
         document.title = `${foundTask.title} | My Task Manager`;
@@ -51,7 +50,7 @@ export default function TaskPage() {
   };
 
   const renderCustomFieldValue = (key: string, value: any) => {
-      const fieldConfig = uiConfig.find(f => f.key === key);
+      const fieldConfig = uiConfig?.fields.find(f => f.key === key);
       if (!fieldConfig) return <span className="text-muted-foreground">N/A</span>;
       
       switch (fieldConfig.type) {
@@ -72,7 +71,7 @@ export default function TaskPage() {
       }
   }
 
-  if (isLoading) {
+  if (isLoading || !uiConfig) {
     return <LoadingSpinner text="Loading task details..." />;
   }
 
@@ -97,15 +96,15 @@ export default function TaskPage() {
 
   const hasDevQaDates = task.devStartDate || task.devEndDate || task.qaStartDate || task.qaEndDate;
   
-  const allPossibleEnvs = [...new Set([...ENVIRONMENTS, ...Object.keys(task.deploymentStatus || {})])];
+  const allConfiguredEnvs = uiConfig.environments || [];
   
-  const hasAnyDeploymentDate = allPossibleEnvs.some(env => {
+  const hasAnyDeploymentDate = allConfiguredEnvs.some(env => {
     const isSelected = task.deploymentStatus?.[env] ?? false;
     const hasDate = task.deploymentDates && task.deploymentDates[env];
     return isSelected && hasDate;
   });
 
-  const customFields = uiConfig.filter(f => f.isCustom && f.isActive && task.customFields && task.customFields[f.key]);
+  const customFields = uiConfig.fields.filter(f => f.isCustom && f.isActive && task.customFields && task.customFields[f.key]);
   const groupedCustomFields = customFields.reduce((acc, field) => {
     const group = field.group || 'Other Custom Fields';
     if (!acc[group]) acc[group] = [];
@@ -186,7 +185,7 @@ export default function TaskPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-3 text-sm">
-                        {allPossibleEnvs.map(env => {
+                        {allConfiguredEnvs.map(env => {
                             const isSelected = task.deploymentStatus?.[env] ?? false;
                             if (!isSelected) return null;
                             
@@ -212,7 +211,7 @@ export default function TaskPage() {
                                 </div>
                             );
                         })}
-                        {allPossibleEnvs.every(env => !(task.deploymentStatus?.[env] ?? false)) && (
+                        {allConfiguredEnvs.every(env => !(task.deploymentStatus?.[env] ?? false)) && (
                            <p className="text-muted-foreground text-center text-xs pt-2">No deployments recorded for this task.</p>
                         )}
                     </div>
@@ -227,7 +226,11 @@ export default function TaskPage() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} />
+                    <PrLinksGroup 
+                      prLinks={task.prLinks} 
+                      repositories={task.repositories}
+                      configuredEnvs={uiConfig.environments}
+                    />
                 </CardContent>
             </Card>
           </div>

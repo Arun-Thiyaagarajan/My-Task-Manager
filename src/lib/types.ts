@@ -71,4 +71,5 @@ export interface FieldConfig {
 
 export interface UiConfig {
   fields: FieldConfig[];
+  environments?: string[];
 }

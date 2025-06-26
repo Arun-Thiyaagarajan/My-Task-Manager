@@ -25,6 +25,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
+import { ENVIRONMENTS } from '@/lib/constants';
 
 
 export default function SettingsPage() {
@@ -35,6 +36,7 @@ export default function SettingsPage() {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [fieldToEdit, setFieldToEdit] = useState<FieldConfig | null>(null);
+  const [newEnv, setNewEnv] = useState('');
   const isInitialLoad = useRef(true);
 
   useEffect(() => {
@@ -71,6 +73,17 @@ export default function SettingsPage() {
   const handleToggleActive = (fieldId: string) => {
     setConfig(prevConfig => {
         if (!prevConfig) return null;
+        
+        const fieldIndex = prevConfig.fields.findIndex(f => f.id === fieldId);
+        if (fieldIndex > -1 && prevConfig.fields[fieldIndex].isRequired) {
+            toast({
+                variant: 'warning',
+                title: 'Cannot Deactivate Required Field',
+                description: `The "${prevConfig.fields[fieldIndex].label}" field is essential and cannot be deactivated.`,
+            });
+            return prevConfig;
+        }
+
         const fields = prevConfig.fields.map(f => {
             if (f.id === fieldId) {
                 return { ...f, isActive: !f.isActive };
@@ -171,6 +184,32 @@ export default function SettingsPage() {
   const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
     e.currentTarget.classList.remove('drag-over-top', 'drag-over-bottom');
   };
+  
+  const handleAddEnvironment = () => {
+    if (!config || !newEnv.trim()) return;
+    const newEnvLower = newEnv.trim().toLowerCase();
+    if (config.environments?.includes(newEnvLower)) {
+        toast({
+            variant: 'warning',
+            title: 'Environment already exists.',
+        })
+        return;
+    }
+    setConfig({
+        ...config,
+        environments: [...(config.environments || []), newEnvLower],
+    });
+    setNewEnv('');
+  }
+
+  const handleDeleteEnvironment = (envToDelete: string) => {
+    if (!config) return;
+    setConfig({
+        ...config,
+        environments: config.environments?.filter(env => env !== envToDelete) || [],
+    });
+  }
+
 
   const filteredFields = useMemo(() => {
     if (!config) return { active: [], inactive: [] };
@@ -188,67 +227,77 @@ export default function SettingsPage() {
 
   const renderFieldList = (fields: FieldConfig[], isActiveList: boolean) => (
     <div className="space-y-2">
-        {fields.map((field) => (
-            <div 
-              key={field.id}
-              draggable={isActiveList}
-              onDragStart={e => {
-                e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('fieldId', field.id);
-              }}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={e => handleDrop(e, field)}
-              className={cn(
-                  "flex items-center gap-4 p-3 pr-2 border rounded-lg bg-card transition-all group",
-                  isActiveList && "hover:bg-muted/50 hover:shadow-sm cursor-grab active:cursor-grabbing"
-              )}
-            >
-                {isActiveList && <GripVertical className="h-5 w-5 text-muted-foreground" />}
-                {!isActiveList && <div className="w-5 h-5" />}
+        {fields.map((field) => {
+            const isToggleDisabled = field.isRequired;
+            return (
+                <div 
+                  key={field.id}
+                  draggable={isActiveList}
+                  onDragStart={e => {
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('fieldId', field.id);
+                  }}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={e => handleDrop(e, field)}
+                  className={cn(
+                      "flex items-center gap-4 p-3 pr-2 border rounded-lg bg-card transition-all group",
+                      isActiveList && "hover:bg-muted/50 hover:shadow-sm cursor-grab active:cursor-grabbing"
+                  )}
+                >
+                    {isActiveList && <GripVertical className="h-5 w-5 text-muted-foreground" />}
+                    {!isActiveList && <div className="w-5 h-5" />}
 
-                <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
-                    <span className="font-medium text-foreground">{field.label} {field.isRequired && !isActiveList && <span className="text-destructive">*</span>}</span>
-                    <Badge variant="outline" className="w-fit">{field.type}</Badge>
-                    <span className="text-sm text-muted-foreground">{field.group}</span>
+                    <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
+                        <span className="font-medium text-foreground">{field.label} {field.isRequired && <span className="text-destructive">*</span>}</span>
+                        <Badge variant="outline" className="w-fit">{field.type}</Badge>
+                        <span className="text-sm text-muted-foreground">{field.group}</span>
+                    </div>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenDialog(field)}><Edit className="h-4 w-4" /></Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleToggleActive(field.id)}
+                          disabled={isToggleDisabled}
+                          title={isActiveList ? 'Deactivate' : 'Activate'}
+                        >
+                            {isActiveList ? <ToggleRight className="h-5 w-5 text-primary" /> : <ToggleLeft className="h-5 w-5 text-muted-foreground"/>}
+                        </Button>
+                        {field.isCustom && (
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Delete Custom Field?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This will permanently delete the "{field.label}" field and all associated data from your tasks. This action cannot be undone.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteField(field.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        )}
+                    </div>
                 </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenDialog(field)}><Edit className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleToggleActive(field.id)}>
-                        {isActiveList ? <ToggleLeft className="h-5 w-5 text-muted-foreground" title="Deactivate"/> : <ToggleRight className="h-5 w-5 text-primary" title="Activate"/>}
-                    </Button>
-                    {field.isCustom && (
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Custom Field?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        This will permanently delete the "{field.label}" field and all associated data from your tasks. This action cannot be undone.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeleteField(field.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                    )}
-                </div>
-            </div>
-        ))}
+            )
+        })}
         {fields.length === 0 && <p className="text-muted-foreground text-center py-4">No fields match your search in this section.</p>}
     </div>
   );
 
   return (
-    <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+    <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
             <h1 className="text-3xl font-bold tracking-tight text-foreground">Application Settings</h1>
-            <p className="text-muted-foreground mt-1">Manage and customize fields across your application.</p>
+            <p className="text-muted-foreground mt-1">Manage and customize fields and environments across your application.</p>
         </div>
         <div className="flex items-center gap-2">
              <div className="text-sm text-muted-foreground whitespace-nowrap">
@@ -259,36 +308,76 @@ export default function SettingsPage() {
             </Button>
         </div>
       </div>
-      <Card>
-        <CardHeader>
-            <CardTitle>Field Configuration</CardTitle>
-            <CardDescription>
-                Drag active fields to reorder them on the forms. Edit, activate, or deactivate fields as needed.
-            </CardDescription>
-        </CardHeader>
-        <CardContent>
-            <div className="relative mb-6">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                    placeholder="Search fields by label or group..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 w-full max-w-sm"
-                />
-            </div>
-            
-            <div className="space-y-8">
-                <div>
-                    <h2 className="text-xl font-semibold tracking-tight mb-4 pb-2 border-b">Active Fields</h2>
-                    {renderFieldList(filteredFields.active, true)}
-                </div>
-                 <div>
-                    <h2 className="text-xl font-semibold tracking-tight mb-4 pb-2 border-b">Inactive Fields</h2>
-                    {renderFieldList(filteredFields.inactive, false)}
-                </div>
-            </div>
-        </CardContent>
-      </Card>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Field Configuration</CardTitle>
+                    <CardDescription>
+                        Drag active fields to reorder them. Edit, activate, or deactivate fields as needed. Required fields cannot be deactivated.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="relative mb-6">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Search fields by label or group..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10 w-full max-w-sm"
+                        />
+                    </div>
+                    
+                    <div className="space-y-8">
+                        <div>
+                            <h2 className="text-xl font-semibold tracking-tight mb-4 pb-2 border-b">Active Fields</h2>
+                            {renderFieldList(filteredFields.active, true)}
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-semibold tracking-tight mb-4 pb-2 border-b">Inactive Fields</h2>
+                            {renderFieldList(filteredFields.inactive, false)}
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+        <div className="lg:col-span-1">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Environment Management</CardTitle>
+                    <CardDescription>Add or remove deployment environments. Default environments cannot be removed.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                        {(config.environments || []).map(env => {
+                            const isDefault = ENVIRONMENTS.includes(env as any);
+                            return (
+                                <div key={env} className="flex items-center justify-between p-2 border rounded-md bg-card">
+                                    <span className="font-medium capitalize">{env}</span>
+                                    {!isDefault && (
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDeleteEnvironment(env)}>
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    )}
+                                </div>
+                            )
+                        })}
+                    </div>
+                    <div className="flex items-center gap-2 pt-4 border-t">
+                        <Input 
+                            placeholder="Add new environment..."
+                            value={newEnv}
+                            onChange={(e) => setNewEnv(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddEnvironment(); }}}
+                        />
+                        <Button variant="outline" size="sm" onClick={handleAddEnvironment}>Add</Button>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+      </div>
+
       {isDialogOpen && (
         <EditFieldDialog 
             isOpen={isDialogOpen}

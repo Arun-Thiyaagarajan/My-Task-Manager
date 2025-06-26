@@ -10,12 +10,13 @@ import { ScrollArea, ScrollBar } from './ui/scroll-area';
 interface PrLinksGroupProps {
   prLinks: Task['prLinks'];
   repositories: Repository[] | undefined;
+  configuredEnvs: string[] | undefined;
 }
 
-export function PrLinksGroup({ prLinks, repositories }: PrLinksGroupProps) {
+export function PrLinksGroup({ prLinks, repositories, configuredEnvs }: PrLinksGroupProps) {
   const baseUrl = 'https://dev.azure.com/ideaelan/Infinity/_git/';
 
-  const displayRepos = repositories?.filter(repo => repo !== 'Other') || [];
+  const displayRepos = repositories || [];
 
   if (!displayRepos || displayRepos.length === 0) {
     return (
@@ -25,12 +26,12 @@ export function PrLinksGroup({ prLinks, repositories }: PrLinksGroupProps) {
     );
   }
 
-  const allEnvs = Object.keys(prLinks || {}).sort();
+  const allEnvs = configuredEnvs || [];
   
   if (allEnvs.length === 0) {
      return (
       <p className="text-muted-foreground text-sm py-4 text-center">
-        No pull request links have been added.
+        No environments configured.
       </p>
     );
   }

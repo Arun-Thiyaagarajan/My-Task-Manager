@@ -3,7 +3,7 @@ import type { FieldConfig, FieldType } from './types';
 
 export const TASK_STATUSES = ['To Do', 'In Progress', 'Code Review', 'QA', 'Done'] as const;
 export const ENVIRONMENTS = ['dev', 'stage', 'production'] as const;
-export const REPOSITORIES = ['UI-Dashboard', 'UI-Admin', 'Templates', 'API-Export', 'Other'] as const;
+export const REPOSITORIES = ['UI-Dashboard', 'UI-Admin', 'Templates', 'API-Export'] as const;
 
 export const FIELD_TYPES: {value: FieldType, label: string}[] = [
     { value: 'text', label: 'Text' },

@@ -5,13 +5,13 @@ import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
 import { taskSchema } from '@/lib/validators';
-import type { Task, FieldConfig, FieldType, FieldOption } from '@/lib/types';
+import type { Task, FieldConfig, FieldType, UiConfig } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, CalendarIcon, GitPullRequest, Trash2, Paperclip, PlusCircle } from 'lucide-react';
+import { Loader2, CalendarIcon, GitPullRequest, Trash2, Paperclip } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTransition, useEffect, useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
@@ -22,7 +22,7 @@ import { MultiSelect } from './ui/multi-select';
 import { Checkbox } from './ui/checkbox';
 import { addDeveloper, getUiConfig } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { ENVIRONMENTS, REPOSITORIES, TASK_STATUSES } from '@/lib/constants';
+import { TASK_STATUSES, REPOSITORIES } from '@/lib/constants';
 import { LoadingSpinner } from './ui/loading-spinner';
 
 type TaskFormData = z.infer<typeof taskSchema>;
@@ -75,14 +75,11 @@ const getInitialTaskData = (task?: Partial<Task>) => {
 export function TaskForm({ task, onSubmit, submitButtonText, developersList }: TaskFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [uiConfig, setUiConfig] = useState<FieldConfig[] | null>(null);
+  const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
 
   useEffect(() => {
-    setUiConfig(getUiConfig().fields);
+    setUiConfig(getUiConfig());
   }, []);
-  
-  const [customEnvironments, setCustomEnvironments] = useState<string[]>([]);
-  const [newEnvName, setNewEnvName] = useState('');
 
   const form = useForm<TaskFormData>({
     resolver: zodResolver(taskSchema),
@@ -97,9 +94,6 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
   useEffect(() => {
     const defaultValues = getInitialTaskData(task);
     form.reset(defaultValues);
-    const allEnvs = Object.keys(defaultValues.deploymentStatus || {});
-    const custom = allEnvs.filter(env => !ENVIRONMENTS.includes(env as any));
-    setCustomEnvironments(custom);
   }, [task, form]);
 
   const handleCreateDeveloper = (name: string) => {
@@ -111,34 +105,22 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
         onSubmit(data);
     });
   };
-  
-  const handleAddCustomEnv = () => {
-    const trimmedName = newEnvName.trim();
-    if (trimmedName && !ENVIRONMENTS.includes(trimmedName as any) && !customEnvironments.includes(trimmedName)) {
-        setCustomEnvironments([...customEnvironments, trimmedName]);
-        setNewEnvName('');
-    }
-  }
-
-  const handleRemoveCustomEnv = (envToRemove: string) => {
-    setCustomEnvironments(customEnvironments.filter(env => env !== envToRemove));
-    form.unregister(`deploymentStatus.${envToRemove}`);
-    form.unregister(`deploymentDates.${envToRemove}`);
-    form.unregister(`prLinks.${envToRemove}`);
-  };
 
   const selectedRepos = form.watch('repositories') || [];
-  const allEnvs = [...ENVIRONMENTS, ...customEnvironments];
+  const allEnvs = uiConfig?.environments || [];
   
   const getFieldOptions = (field: FieldConfig): {value: string, label: string}[] => {
     if (field.key === 'developers') {
         return developersList.map(d => ({ value: d, label: d }));
     }
+    if (field.key === 'repositories') {
+        return REPOSITORIES.map(d => ({ value: d, label: d }));
+    }
     return field.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
   }
   
   const renderField = (fieldConfig: FieldConfig) => {
-    const { key, type, label, isCustom, isRequired, options } = fieldConfig;
+    const { key, type, label, isCustom, isRequired } = fieldConfig;
     const fieldName = isCustom ? `customFields.${key}` : key;
 
     const renderInput = (fieldType: FieldType, field: any) => {
@@ -226,7 +208,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
       return <LoadingSpinner text="Loading form configuration..." />;
   }
 
-  const groupedFields = uiConfig
+  const groupedFields = uiConfig.fields
     .filter(f => f.isActive)
     .sort((a,b) => a.order - b.order)
     .reduce((acc, field) => {
@@ -347,16 +329,17 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
         <Card>
             <CardHeader>
                 <CardTitle>Deployment Status</CardTitle>
+                <FormDescription>Select which environments this task will be deployed to.</FormDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                <div className="space-y-3">
-                    {ENVIRONMENTS.map(env => (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                    {allEnvs.map(env => (
                         <FormField
                             key={env}
                             control={form.control}
                             name={`deploymentStatus.${env}`}
                             render={({ field }) => (
-                                <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3">
                                     <FormControl>
                                         <Checkbox
                                             checked={field.value}
@@ -364,48 +347,13 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList }: T
                                             id={`deploy-check-${env}`}
                                         />
                                     </FormControl>
-                                    <FormLabel htmlFor={`deploy-check-${env}`} className="capitalize font-normal">
+                                    <FormLabel htmlFor={`deploy-check-${env}`} className="capitalize font-normal flex-1 cursor-pointer">
                                         {env}
                                     </FormLabel>
                                 </FormItem>
                             )}
                         />
                     ))}
-                    {customEnvironments.map((env) => (
-                        <FormField
-                            key={env}
-                            control={form.control}
-                            name={`deploymentStatus.${env}`}
-                            render={({ field }) => (
-                                <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                                    <FormControl>
-                                        <Checkbox
-                                            checked={field.value}
-                                            onCheckedChange={field.onChange}
-                                            id={`deploy-check-${env}`}
-                                        />
-                                    </FormControl>
-                                    <FormLabel htmlFor={`deploy-check-${env}`} className="capitalize font-normal flex-1">
-                                        {env}
-                                    </FormLabel>
-                                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRemoveCustomEnv(env)}>
-                                        <Trash2 className="h-4 w-4 text-destructive"/>
-                                    </Button>
-                                </FormItem>
-                            )}
-                        />
-                    ))}
-                </div>
-                 <div className="flex items-center gap-2 pt-4 border-t mt-4">
-                    <Input 
-                        placeholder="New environment name..." 
-                        value={newEnvName}
-                        onChange={(e) => setNewEnvName(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddCustomEnv(); }}}
-                    />
-                    <Button type="button" onClick={handleAddCustomEnv}>
-                        <PlusCircle className="mr-2 h-4 w-4"/> Add
-                    </Button>
                 </div>
             </CardContent>
         </Card>

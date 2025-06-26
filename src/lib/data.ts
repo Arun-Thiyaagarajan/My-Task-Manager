@@ -1,5 +1,5 @@
 
-import { INITIAL_UI_CONFIG } from './constants';
+import { INITIAL_UI_CONFIG, ENVIRONMENTS } from './constants';
 import type { Task, Developer, Company, Attachment, UiConfig } from './types';
 
 interface CompanyData {
@@ -27,7 +27,10 @@ const getInitialData = (): MyTaskManagerData => {
             [defaultCompanyId]: {
                 tasks: [],
                 developers: ['Arun', 'Samantha', 'Rajesh'],
-                uiConfig: { fields: INITIAL_UI_CONFIG },
+                uiConfig: { 
+                    fields: INITIAL_UI_CONFIG,
+                    environments: [...ENVIRONMENTS],
+                },
             },
         },
     };
@@ -35,7 +38,10 @@ const getInitialData = (): MyTaskManagerData => {
 
 const getAppData = (): MyTaskManagerData => {
     if (typeof window === 'undefined') {
-        const defaultConfig = { fields: INITIAL_UI_CONFIG };
+        const defaultConfig: UiConfig = { 
+            fields: INITIAL_UI_CONFIG,
+            environments: [...ENVIRONMENTS],
+        };
         return {
             companies: [{ id: 'company-placeholder', name: 'Default Company' }],
             activeCompanyId: 'company-placeholder',
@@ -88,7 +94,10 @@ export function addCompany(name: string): Company {
     data.companyData[newCompanyId] = { 
         tasks: [], 
         developers: ['Arun', 'Samantha', 'Rajesh'],
-        uiConfig: { fields: INITIAL_UI_CONFIG },
+        uiConfig: { 
+            fields: INITIAL_UI_CONFIG,
+            environments: [...ENVIRONMENTS],
+        },
     };
     data.activeCompanyId = newCompanyId;
 
@@ -141,13 +150,16 @@ export function getUiConfig(): UiConfig {
     const data = getAppData();
     const activeCompanyId = getActiveCompanyId();
     if (!activeCompanyId || !data.companyData[activeCompanyId]) {
-        return { fields: INITIAL_UI_CONFIG };
+        return { fields: INITIAL_UI_CONFIG, environments: [...ENVIRONMENTS] };
     }
     const companyConfig = data.companyData[activeCompanyId].uiConfig;
 
-    // Migration logic: If config is in old format or missing, reset to new default.
-    if (!companyConfig || !Array.isArray(companyConfig.fields)) {
-        const newConfig = { fields: INITIAL_UI_CONFIG };
+    // Migration logic
+    if (!companyConfig || !Array.isArray(companyConfig.fields) || !companyConfig.environments) {
+        const newConfig = { 
+            fields: companyConfig?.fields || INITIAL_UI_CONFIG,
+            environments: companyConfig?.environments || [...ENVIRONMENTS],
+        };
         data.companyData[activeCompanyId].uiConfig = newConfig;
         setAppData(data);
         return newConfig;
