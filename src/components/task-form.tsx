@@ -253,6 +253,8 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
       return <LoadingSpinner text="Loading form configuration..." />;
   }
 
+  const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
+
   const groupedFields = uiConfig.fields
     .filter(f => f.isActive)
     .sort((a,b) => a.order - b.order)
@@ -303,7 +305,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
         {/* Attachments Card */}
         {uiConfig.fields.find(f => f.key === 'attachments' && f.isActive) && (
             <Card>
-                <CardHeader><CardTitle>Attachments</CardTitle></CardHeader>
+                <CardHeader><CardTitle>{fieldLabels.get('attachments') || 'Attachments'}</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                     {attachments.map((item, index) => (
                         <div key={item.id} className="flex items-end gap-2 p-3 border rounded-md bg-muted/50">
@@ -345,7 +347,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
         {/* Deployment Card */}
         {uiConfig.fields.find(f => f.key === 'deploymentStatus' && f.isActive) && (
             <Card>
-                <CardHeader><CardTitle>Deployment</CardTitle></CardHeader>
+                <CardHeader><CardTitle>{fieldLabels.get('deploymentStatus') || 'Deployment'}</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                     {allConfiguredEnvs.map(env => (
                         <div key={env} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-3 border rounded-md">
@@ -394,7 +396,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
         {/* Pull Requests Card */}
         {uiConfig.fields.find(f => f.key === 'prLinks' && f.isActive) && (
             <Card>
-                <CardHeader><CardTitle>Pull Requests</CardTitle></CardHeader>
+                <CardHeader><CardTitle>{fieldLabels.get('prLinks') || 'Pull Requests'}</CardTitle></CardHeader>
                 <CardContent>
                     {watchedRepositories && watchedRepositories.length > 0 ? (
                          <Tabs defaultValue={watchedRepositories[0]} className="w-full">

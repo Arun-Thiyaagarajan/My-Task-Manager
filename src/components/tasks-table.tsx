@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { TaskStatusBadge } from '@/components/task-status-badge';
 import { ArrowRight } from 'lucide-react';
-import type { Task } from '@/lib/types';
+import type { Task, UiConfig } from '@/lib/types';
 import { EnvironmentStatus } from './environment-status';
 import { Badge } from './ui/badge';
 import { DeleteTaskButton } from './delete-task-button';
@@ -19,18 +19,25 @@ import { DeleteTaskButton } from './delete-task-button';
 interface TasksTableProps {
   tasks: Task[];
   onTaskDelete: () => void;
+  uiConfig: UiConfig | null;
 }
 
-export function TasksTable({ tasks, onTaskDelete }: TasksTableProps) {
+export function TasksTable({ tasks, onTaskDelete, uiConfig }: TasksTableProps) {
+  if (!uiConfig) {
+    return null;
+  }
+  
+  const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
+
   return (
     <div className="border rounded-lg bg-card">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Title</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Repositories</TableHead>
-            <TableHead>Deployments</TableHead>
+            <TableHead>{fieldLabels.get('title') || 'Title'}</TableHead>
+            <TableHead>{fieldLabels.get('status') || 'Status'}</TableHead>
+            <TableHead>{fieldLabels.get('repositories') || 'Repositories'}</TableHead>
+            <TableHead>{fieldLabels.get('deploymentStatus') || 'Deployments'}</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>

@@ -2,8 +2,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getTasks } from '@/lib/data';
-import type { Task, Developer } from '@/lib/types';
+import { getTasks, getUiConfig } from '@/lib/data';
+import type { Task, Developer, UiConfig } from '@/lib/types';
 import { TASK_STATUSES, REPOSITORIES, ENVIRONMENTS } from '@/lib/constants';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { BarChart, PieChartIcon, ListChecks, CheckCircle2, Loader2, Bug, GitMerge, Server } from 'lucide-react';
@@ -15,16 +15,20 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 export default function DashboardPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
 
   useEffect(() => {
     document.title = 'Dashboard | My Task Manager';
     setTasks(getTasks());
+    setUiConfig(getUiConfig());
     setIsLoading(false);
   }, []);
 
-  if (isLoading) {
+  if (isLoading || !uiConfig) {
     return <LoadingSpinner text="Loading dashboard..." />;
   }
+
+  const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
 
   // Key Stats
   const totalTasks = tasks.length;
@@ -139,7 +143,7 @@ export default function DashboardPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <BarChart className="h-5 w-5" />
-                            Tasks by Status
+                            Tasks by {fieldLabels.get('status') || 'Status'}
                         </CardTitle>
                         <CardDescription>Distribution of tasks across all statuses.</CardDescription>
                     </CardHeader>
@@ -165,7 +169,7 @@ export default function DashboardPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <PieChartIcon className="h-5 w-5" />
-                            Tasks per Developer
+                            Tasks per {fieldLabels.get('developers') || 'Developer'}
                         </CardTitle>
                          <CardDescription>Breakdown of task assignments to developers.</CardDescription>
                     </CardHeader>
@@ -197,7 +201,7 @@ export default function DashboardPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <GitMerge className="h-5 w-5" />
-                            Tasks by Repository
+                            Tasks by {fieldLabels.get('repositories') || 'Repository'}
                         </CardTitle>
                         <CardDescription>Distribution of tasks across repositories.</CardDescription>
                     </CardHeader>
@@ -224,7 +228,7 @@ export default function DashboardPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Server className="h-5 w-5" />
-                            Deployments by Environment
+                            {fieldLabels.get('deploymentStatus') || 'Deployments'} by Environment
                         </CardTitle>
                         <CardDescription>Count of completed deployments per environment.</CardDescription>
                     </CardHeader>

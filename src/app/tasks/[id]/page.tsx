@@ -90,6 +90,8 @@ export default function TaskPage() {
     );
   }
 
+  const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
+
   const azureWorkItemUrl = task.azureWorkItemId 
     ? `https://dev.azure.com/ideaelan/Infinity/_workitems/edit/${task.azureWorkItemId}` 
     : null;
@@ -180,7 +182,7 @@ export default function TaskPage() {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-xl">
                         <CheckCircle2 className="h-5 w-5" />
-                        Deployments
+                        {fieldLabels.get('deploymentStatus') || 'Deployments'}
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -221,7 +223,7 @@ export default function TaskPage() {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-xl">
                         <GitMerge className="h-5 w-5" />
-                        Pull Requests
+                        {fieldLabels.get('prLinks') || 'Pull Requests'}
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -239,7 +241,7 @@ export default function TaskPage() {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Paperclip className="h-5 w-5" />
-                        Attachments
+                        {fieldLabels.get('attachments') || 'Attachments'}
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -280,7 +282,7 @@ export default function TaskPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div>
-                        <h4 className="text-sm font-semibold text-muted-foreground mb-2">Assigned Developers</h4>
+                        <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('developers') || 'Assigned Developers'}</h4>
                         <div className="flex flex-wrap gap-4">
                             {task.developers && task.developers.length > 0 ? (
                                 task.developers.map((dev) => (
@@ -311,7 +313,7 @@ export default function TaskPage() {
                     <Separator />
 
                     <div>
-                        <h4 className="text-sm font-semibold text-muted-foreground mb-2">Repositories</h4>
+                        <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('repositories') || 'Repositories'}</h4>
                         <div className="flex flex-wrap gap-1">
                           {(task.repositories && task.repositories.length > 0) ? (task.repositories || []).map(repo => (
                             <Badge key={repo} variant="secondary">{repo}</Badge>
@@ -325,7 +327,7 @@ export default function TaskPage() {
                         <>
                             <Separator />
                             <div>
-                                <h4 className="text-sm font-semibold text-muted-foreground mb-2">Azure DevOps</h4>
+                                <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('azureWorkItemId') || 'Azure DevOps'}</h4>
                                 <a href={azureWorkItemUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline text-sm">
                                     <ExternalLink className="h-4 w-4" />
                                     <span>Work Item #{task.azureWorkItemId}</span>
@@ -341,26 +343,26 @@ export default function TaskPage() {
                         <div className="space-y-2 text-sm">
                             {task.devStartDate && (
                                 <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Dev Start</span>
+                                    <span className="text-muted-foreground">{fieldLabels.get('devStartDate') || 'Dev Start Date'}</span>
                                     <span>{format(new Date(task.devStartDate), 'PPP')}</span>
                                 </div>
                             )}
                             {task.devEndDate && (
                                 <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Dev End</span>
+                                    <span className="text-muted-foreground">{fieldLabels.get('devEndDate') || 'Dev End Date'}</span>
                                     <span>{format(new Date(task.devEndDate), 'PPP')}</span>
                                 </div>
                             )}
                             {(task.devStartDate || task.devEndDate) && (task.qaStartDate || task.qaEndDate) && <Separator className="my-1"/>}
                             {task.qaStartDate && (
                                 <div className="flex justify-between">
-                                    <span className="text-muted-foreground">QA Start</span>
+                                    <span className="text-muted-foreground">{fieldLabels.get('qaStartDate') || 'QA Start Date'}</span>
                                     <span>{format(new Date(task.qaStartDate), 'PPP')}</span>
                                 </div>
                             )}
                             {task.qaEndDate && (
                                 <div className="flex justify-between">
-                                    <span className="text-muted-foreground">QA End</span>
+                                    <span className="text-muted-foreground">{fieldLabels.get('qaEndDate') || 'QA End Date'}</span>
                                     <span>{format(new Date(task.qaEndDate), 'PPP')}</span>
                                 </div>
                             )}

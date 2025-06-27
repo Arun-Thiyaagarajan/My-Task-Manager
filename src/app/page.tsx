@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { getTasks, addTask, addDeveloper, getDevelopers } from '@/lib/data';
+import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,7 @@ import {
   FolderSearch,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Task, Environment } from '@/lib/types';
+import type { Task, Environment, UiConfig } from '@/lib/types';
 import {
   Popover,
   PopoverContent,
@@ -74,12 +74,14 @@ export default function Home() {
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [isLoading, setIsLoading] = useState(true);
+  const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const refreshData = () => {
     if (activeCompanyId) {
         setTasks(getTasks());
+        setUiConfig(getUiConfig());
     }
   };
 
@@ -263,9 +265,11 @@ export default function Home() {
   };
 
 
-  if (isLoading) {
+  if (isLoading || !uiConfig) {
     return <LoadingSpinner text="Loading tasks..." />;
   }
+  
+  const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -326,7 +330,7 @@ export default function Home() {
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger>
-                <SelectValue placeholder="Filter by status" />
+                <SelectValue placeholder={`Filter by ${fieldLabels.get('status') || 'Status'}`} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
@@ -339,7 +343,7 @@ export default function Home() {
             </Select>
             <Select value={repoFilter} onValueChange={setRepoFilter}>
               <SelectTrigger>
-                <SelectValue placeholder="Filter by repository" />
+                <SelectValue placeholder={`Filter by ${fieldLabels.get('repositories') || 'Repository'}`} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Repositories</SelectItem>
@@ -352,7 +356,7 @@ export default function Home() {
             </Select>
             <Select value={deploymentFilter} onValueChange={setDeploymentFilter}>
                 <SelectTrigger>
-                <SelectValue placeholder="Filter by deployment" />
+                <SelectValue placeholder={`Filter by ${fieldLabels.get('deploymentStatus') || 'Deployment'}`} />
                 </SelectTrigger>
                 <SelectContent>
                 <SelectItem value="all">Any Deployment</SelectItem>
@@ -512,7 +516,7 @@ export default function Home() {
         viewMode === 'grid' ? (
           <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} />
         ) : (
-          <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} />
+          <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} />
         )
       ) : (
         <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg flex flex-col items-center justify-center">
@@ -532,5 +536,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
