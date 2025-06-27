@@ -95,16 +95,13 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
 
   const form = useForm<TaskFormData>({
     resolver: zodResolver(taskSchema),
+    defaultValues: getInitialTaskData(task),
   });
 
   const { formState: { isDirty } } = form;
   
   useEffect(() => {
-    if (task) {
-        form.reset(getInitialTaskData(task));
-    } else {
-        form.reset(getInitialTaskData(undefined));
-    }
+    form.reset(getInitialTaskData(task));
   }, [task, form.reset]);
   
   useEffect(() => {
