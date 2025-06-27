@@ -38,6 +38,21 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useActiveCompany } from '@/hooks/use-active-company';
 import { ThemeToggle } from './theme-toggle';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
+import { useRouter } from 'next/navigation';
+
+const HeaderLink = ({ href, children, className }: { href: string; children: React.ReactNode, className?: string; }) => {
+    const router = useRouter();
+    const { prompt } = useUnsavedChanges();
+
+    const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+        e.preventDefault();
+        prompt(() => router.push(href));
+    };
+
+    return <a href={href} onClick={handleClick} className={className}>{children}</a>;
+}
+
 
 export function Header() {
   const { toast } = useToast();
@@ -91,19 +106,19 @@ export function Header() {
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-14 max-w-screen-2xl items-center justify-between">
           <div className="flex items-center gap-6">
-            <Link href="/" className="flex items-center space-x-2">
+            <HeaderLink href="/" className="flex items-center space-x-2">
               <Icons.logo className="h-6 w-6 text-primary" />
               <span className="font-bold sm:inline-block">My Task Manager</span>
-            </Link>
+            </HeaderLink>
             <nav className="flex items-center gap-4">
-               <Link href="/dashboard" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+               <HeaderLink href="/dashboard" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                   <LayoutDashboard className="mr-2 h-4 w-4" />
                   Dashboard
-               </Link>
-               <Link href="/settings" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+               </HeaderLink>
+               <HeaderLink href="/settings" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                   <Cog className="mr-2 h-4 w-4" />
                   Settings
-               </Link>
+               </HeaderLink>
             </nav>
           </div>
           <div className="flex items-center gap-2">

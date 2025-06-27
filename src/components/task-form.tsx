@@ -26,16 +26,7 @@ import { TASK_STATUSES, REPOSITORIES } from '@/lib/constants';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 
 
 type TaskFormData = z.infer<typeof taskSchema>;
@@ -95,7 +86,8 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
   const [isPending, startTransition] = useTransition();
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
   const [developersList, setDevelopersList] = useState<string[]>(propDevelopersList);
-  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+
+  const { setIsDirty, prompt } = useUnsavedChanges();
 
   useEffect(() => {
     setUiConfig(getUiConfig());
@@ -113,8 +105,15 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
   const { formState: { isDirty } } = form;
   
   useEffect(() => {
+    setIsDirty(isDirty);
+    return () => {
+      setIsDirty(false);
+    };
+  }, [isDirty, setIsDirty]);
+  
+  useEffect(() => {
     form.reset(getInitialTaskData(task));
-  }, [task]);
+  }, [task, form.reset]);
   
   
   const { fields: attachments, append: appendAttachment, remove: removeAttachment } = useFieldArray({
@@ -132,6 +131,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
 
   const handleFormSubmit = (data: TaskFormData) => {
     startTransition(() => {
+        setIsDirty(false);
         onSubmit(data);
     });
   };
@@ -440,11 +440,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
               type="button"
               variant="outline"
               onClick={() => {
-                if (isDirty) {
-                  setShowUnsavedDialog(true);
-                } else {
-                  router.back();
-                }
+                prompt(() => router.back());
               }}
               disabled={isPending}
             >
@@ -456,22 +452,6 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
             </Button>
         </div>
       </form>
-
-      <AlertDialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
-        <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>You have unsaved changes</AlertDialogTitle>
-                <AlertDialogDescription>
-                    Are you sure you want to leave this page? Your changes will not be saved.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel>Stay</AlertDialogCancel>
-                <AlertDialogAction onClick={() => router.back()}>Leave</AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-    </AlertDialog>
-
     </Form>
   );
 }
