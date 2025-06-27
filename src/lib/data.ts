@@ -305,15 +305,10 @@ export function addTask(taskData: Partial<Task>): Task {
   const data = getAppData();
   const activeCompanyId = data.activeCompanyId;
   const companyTasks = data.companyData[activeCompanyId]?.tasks || [];
-  const existingTaskIds = new Set(companyTasks.map(t => t.id));
-
-  let taskId = taskData.id;
-
-  if (!taskId || existingTaskIds.has(taskId)) {
-    taskId = `task-${crypto.randomUUID()}`;
-  }
   
   const now = new Date().toISOString();
+  const taskId = taskData.id || `task-${crypto.randomUUID()}`;
+
   const newTask: Task = {
     id: taskId,
     createdAt: taskData.createdAt || now,

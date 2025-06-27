@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig } from '@/lib/data';
+import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -209,8 +209,11 @@ export default function Home() {
                   throw new Error("Invalid format: JSON file must contain an array of tasks.");
               }
 
-              let importedCount = 0;
+              let createdCount = 0;
+              let updatedCount = 0;
               const existingDevelopers = getDevelopers();
+              const allTasks = getTasks();
+              const existingTaskIds = new Set(allTasks.map(t => t.id));
 
               for (const taskData of importedTasks) {
                   const validationResult = taskSchema.safeParse(taskData);
@@ -227,7 +230,9 @@ export default function Home() {
                       return; 
                   }
                   
-                  const developers = validationResult.data.developers || [];
+                  const validatedData = validationResult.data;
+
+                  const developers = validatedData.developers || [];
                   developers.forEach(dev => {
                       if (!existingDevelopers.includes(dev)) {
                           addDeveloper(dev);
@@ -235,17 +240,38 @@ export default function Home() {
                       }
                   });
                   
-                  addTask(validationResult.data);
-                  importedCount++;
+                  if (validatedData.id && existingTaskIds.has(validatedData.id)) {
+                      updateTask(validatedData.id, validatedData);
+                      updatedCount++;
+                  } else {
+                      const newTask = addTask(validatedData);
+                      existingTaskIds.add(newTask.id); 
+                      createdCount++;
+                  }
               }
               
-              if(importedCount > 0) {
+              if(createdCount > 0 || updatedCount > 0) {
                 refreshData();
+                let description = '';
+                if (createdCount > 0) description += `${createdCount} tasks created. `;
+                if (updatedCount > 0) description += `${updatedCount} tasks updated.`;
                 toast({
                     variant: 'success',
                     title: 'Import Complete',
-                    description: `${importedCount} tasks imported successfully.`
+                    description: description.trim()
                 });
+              } else if (importedTasks.length > 0) {
+                 toast({
+                    variant: 'default',
+                    title: 'Import Complete',
+                    description: 'No new tasks were created or updated.',
+                 });
+              } else {
+                 toast({
+                    variant: 'warning',
+                    title: 'Empty File',
+                    description: 'The imported file contained no tasks.',
+                 });
               }
 
           } catch (error: any) {
@@ -288,6 +314,9 @@ export default function Home() {
                 <DropdownMenuContent>
                 <DropdownMenuItem onSelect={() => handleExport(sortedTasks, 'MyTaskManager_Export.json')}>
                     Export Current View
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => handleExport(getTasks(), 'MyTaskManager_All_Tasks.json')}>
+                    Export All Tasks
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={handleDownloadTemplate}>
                     Download Import Template
