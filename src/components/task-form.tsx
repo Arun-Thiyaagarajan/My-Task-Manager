@@ -26,6 +26,17 @@ import { TASK_STATUSES, REPOSITORIES } from '@/lib/constants';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+
 
 type TaskFormData = z.infer<typeof taskSchema>;
 
@@ -84,6 +95,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
   const [isPending, startTransition] = useTransition();
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
   const [developersList, setDevelopersList] = useState<string[]>(propDevelopersList);
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
 
   useEffect(() => {
     setUiConfig(getUiConfig());
@@ -102,23 +114,8 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
   
   useEffect(() => {
     form.reset(getInitialTaskData(task));
-  }, [task, form.reset]);
+  }, [task]);
   
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isDirty) {
-        e.preventDefault();
-        e.returnValue = ''; // For modern browsers
-        return ''; // For older browsers
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, [isDirty]);
   
   const { fields: attachments, append: appendAttachment, remove: removeAttachment } = useFieldArray({
     control: form.control,
@@ -442,9 +439,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
               variant="outline"
               onClick={() => {
                 if (isDirty) {
-                  if (window.confirm('You have unsaved changes. Are you sure you want to leave?')) {
-                    router.back();
-                  }
+                  setShowUnsavedDialog(true);
                 } else {
                   router.back();
                 }
@@ -459,6 +454,22 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
             </Button>
         </div>
       </form>
+
+      <AlertDialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>You have unsaved changes</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Are you sure you want to leave this page? Your changes will not be saved.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Stay</AlertDialogCancel>
+                <AlertDialogAction onClick={() => router.back()}>Leave</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+
     </Form>
   );
 }
