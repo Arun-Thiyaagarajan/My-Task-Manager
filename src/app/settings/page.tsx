@@ -41,6 +41,9 @@ export default function SettingsPage() {
   const [editingEnv, setEditingEnv] = useState<string | null>(null);
   const [editingEnvText, setEditingEnvText] = useState('');
   const [developers, setDevelopers] = useState<string[]>([]);
+  
+  const [editingGroup, setEditingGroup] = useState<string | null>(null);
+  const [editingGroupText, setEditingGroupText] = useState('');
 
   const refreshDevelopers = () => {
     setDevelopers(getDevelopers());
@@ -255,6 +258,39 @@ export default function SettingsPage() {
     }
   }
 
+  const handleRenameGroup = (oldName: string, newName: string) => {
+    const trimmedNewName = newName.trim();
+    if (!trimmedNewName || oldName === trimmedNewName) {
+        setEditingGroup(null);
+        return;
+    }
+
+    const existingGroupNames = [...new Set(config?.fields.map(f => f.group.toLowerCase()))];
+    if (existingGroupNames.includes(trimmedNewName.toLowerCase()) && trimmedNewName.toLowerCase() !== oldName.toLowerCase()) {
+        toast({
+            variant: 'destructive',
+            title: 'Group name already exists.',
+            description: 'Please choose a different name.',
+        });
+        return;
+    }
+
+    setConfig(prevConfig => {
+        if (!prevConfig) return null;
+
+        const newFields = prevConfig.fields.map(f => {
+            if (f.group === oldName) {
+                return { ...f, group: trimmedNewName };
+            }
+            return f;
+        });
+
+        return { ...prevConfig, fields: newFields };
+    });
+    
+    setEditingGroup(null);
+  };
+
 
   const filteredAndGroupedFields = useMemo(() => {
     if (!config) return { active: {}, inactive: {} };
@@ -354,7 +390,33 @@ export default function SettingsPage() {
       <div className="space-y-6">
         {Object.keys(groupedFields).sort().map(groupName => (
             <div key={groupName}>
-                <h3 className="text-md font-semibold text-muted-foreground mb-3">{groupName}</h3>
+                {editingGroup === groupName ? (
+                    <div className="flex items-center gap-2 mb-3">
+                       <Input 
+                           value={editingGroupText}
+                           onChange={(e) => setEditingGroupText(e.target.value)}
+                           onKeyDown={(e) => { if (e.key === 'Enter') handleRenameGroup(groupName, editingGroupText); }}
+                           className="h-9"
+                       />
+                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleRenameGroup(groupName, editingGroupText)}>
+                           <Check className="h-4 w-4" />
+                       </Button>
+                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingGroup(null)}>
+                           <X className="h-4 w-4" />
+                       </Button>
+                   </div>
+                ) : (
+                   <div className="flex items-center gap-2 mb-3 group/header">
+                       <h3 className="text-md font-semibold text-muted-foreground">{groupName}</h3>
+                       <Button 
+                           variant="ghost" size="icon" 
+                           className="h-7 w-7 opacity-0 group-hover/header:opacity-100 focus-within:opacity-100 transition-opacity" 
+                           onClick={() => { setEditingGroup(groupName); setEditingGroupText(groupName); }}
+                       >
+                           <Edit className="h-4 w-4"/>
+                       </Button>
+                   </div>
+                )}
                 <div className="space-y-2">
                     {groupedFields[groupName].map(field => renderFieldRow(field, isActiveList))}
                 </div>
