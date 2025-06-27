@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Badge } from '@/components/ui/badge';
@@ -35,8 +34,8 @@ export function EnvironmentStatus({ deploymentStatus, deploymentDates, size = 'd
         };
       case 'stage':
         return { 
-          deployedColor: 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border-yellow-700/80',
-          pendingColor: 'border-dashed text-yellow-600/80 border-yellow-400/50 dark:text-yellow-400/70 dark:border-yellow-500/30 bg-background hover:bg-yellow-500/5',
+          deployedColor: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700/80',
+          pendingColor: 'border-dashed text-amber-600/80 border-amber-400/50 dark:text-amber-400/70 dark:border-amber-500/30 bg-background hover:bg-amber-500/5',
           label: 'Staging'
          };
       case 'production':
