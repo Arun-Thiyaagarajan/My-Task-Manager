@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { BarChart, PieChartIcon, ListChecks, CheckCircle2, Loader2, Bug, GitMerge, Server } from 'lucide-react';
 import { Bar, Pie, PieChart, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, Cell } from 'recharts';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { getAvatarColor } from '@/lib/utils';
+import { getAvatarColor, cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export default function DashboardPage() {
@@ -37,10 +37,10 @@ export default function DashboardPage() {
   const qaTasks = tasks.filter(task => task.status === 'QA').length;
 
   const summaryStats = [
-    { title: 'Total Tasks', value: totalTasks, icon: ListChecks },
-    { title: 'Completed', value: completedTasks, icon: CheckCircle2 },
-    { title: 'In Progress', value: inProgressTasks, icon: Loader2 },
-    { title: 'In QA', value: qaTasks, icon: Bug },
+    { title: 'Total Tasks', value: totalTasks, icon: ListChecks, color: 'text-muted-foreground', borderColor: 'border-border' },
+    { title: 'Completed', value: completedTasks, icon: CheckCircle2, color: 'text-chart-2', borderColor: 'border-chart-2' },
+    { title: 'In Progress', value: inProgressTasks, icon: Loader2, color: 'text-primary', borderColor: 'border-primary' },
+    { title: 'In QA', value: qaTasks, icon: Bug, color: 'text-chart-4', borderColor: 'border-chart-4' },
   ];
 
   // Chart data calculations
@@ -110,9 +110,12 @@ export default function DashboardPage() {
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <h1 className="text-3xl font-bold tracking-tight text-foreground mb-8">
+      <h1 className="text-4xl font-extrabold tracking-tight text-foreground mb-2">
         Dashboard
       </h1>
+      <p className="text-lg text-muted-foreground mb-8">
+        An overview of your team's progress and activity.
+      </p>
       {tasks.length === 0 ? (
          <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg">
           <p className="text-lg font-semibold">No data to display.</p>
@@ -125,13 +128,13 @@ export default function DashboardPage() {
             {/* Key Stats Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {summaryStats.map((stat, index) => (
-                    <Card key={index}>
+                    <Card key={index} className={cn("border-t-4 transition-all hover:shadow-xl hover:-translate-y-1", stat.borderColor)}>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-                             <stat.icon className="h-4 w-4 text-muted-foreground" />
+                             <stat.icon className={cn("h-5 w-5", stat.color)} />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{stat.value}</div>
+                            <div className="text-3xl font-bold">{stat.value}</div>
                         </CardContent>
                     </Card>
                 ))}
@@ -142,7 +145,7 @@ export default function DashboardPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            <BarChart className="h-5 w-5" />
+                            <BarChart className="h-5 w-5 text-chart-1" />
                             Tasks by {fieldLabels.get('status') || 'Status'}
                         </CardTitle>
                         <CardDescription>Distribution of tasks across all statuses.</CardDescription>
@@ -168,7 +171,7 @@ export default function DashboardPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            <PieChartIcon className="h-5 w-5" />
+                            <PieChartIcon className="h-5 w-5 text-chart-5" />
                             Tasks per {fieldLabels.get('developers') || 'Developer'}
                         </CardTitle>
                          <CardDescription>Breakdown of task assignments to developers.</CardDescription>
@@ -200,7 +203,7 @@ export default function DashboardPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            <GitMerge className="h-5 w-5" />
+                            <GitMerge className="h-5 w-5 text-chart-3" />
                             Tasks by {fieldLabels.get('repositories') || 'Repository'}
                         </CardTitle>
                         <CardDescription>Distribution of tasks across repositories.</CardDescription>
@@ -227,7 +230,7 @@ export default function DashboardPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            <Server className="h-5 w-5" />
+                            <Server className="h-5 w-5 text-chart-2" />
                             {fieldLabels.get('deploymentStatus') || 'Deployments'} by Environment
                         </CardTitle>
                         <CardDescription>Count of completed deployments per environment.</CardDescription>
