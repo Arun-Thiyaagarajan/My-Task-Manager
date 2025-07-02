@@ -135,16 +135,30 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
 
   const handleCreateDeveloper = (name: string) => {
     const newDev = addDeveloper(name);
-    setDevelopersList((prevList) => [...(prevList || []), newDev]);
+    setDevelopersList((prevList) => {
+      if (prevList.some(p => p.id === newDev.id)) {
+        return prevList;
+      }
+      return [...prevList, newDev];
+    });
     const currentDevs = form.getValues('developers') || [];
-    form.setValue('developers', [...currentDevs, newDev.id], { shouldDirty: true });
+    if (!currentDevs.includes(newDev.id)) {
+      form.setValue('developers', [...currentDevs, newDev.id], { shouldDirty: true });
+    }
   };
 
   const handleCreateTester = (name: string) => {
     const newTester = addTester(name);
-    setTestersList((prevList) => [...(prevList || []), newTester]);
+    setTestersList((prevList) => {
+      if (prevList.some(p => p.id === newTester.id)) {
+        return prevList;
+      }
+      return [...prevList, newTester];
+    });
     const currentTesters = form.getValues('testers') || [];
-    form.setValue('testers', [...currentTesters, newTester.id], { shouldDirty: true });
+    if (!currentTesters.includes(newTester.id)) {
+      form.setValue('testers', [...currentTesters, newTester.id], { shouldDirty: true });
+    }
   };
 
   const handleFormSubmit = (data: TaskFormData) => {

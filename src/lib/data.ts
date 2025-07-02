@@ -468,13 +468,24 @@ function getPeople(type: 'developers' | 'testers'): Person[] {
 function addPerson(type: 'developers' | 'testers', name: string): Person {
     const data = getAppData();
     const activeCompanyId = data.activeCompanyId;
-    const people = data.companyData[activeCompanyId]?.[type] || [];
-    
-    const newPerson: Person = { id: `${type.slice(0, -1)}-${crypto.randomUUID()}`, name };
-    if (!people.some(p => p.name === name)) {
-        data.companyData[activeCompanyId][type] = [...people, newPerson];
-        setAppData(data);
+    const companyData = data.companyData[activeCompanyId];
+
+    if (!companyData) {
+        return { id: `temp-${crypto.randomUUID()}`, name };
     }
+    
+    const people = companyData[type] || [];
+    
+    const trimmedName = name.trim();
+    const existingPerson = people.find(p => p.name.toLowerCase() === trimmedName.toLowerCase());
+    if (existingPerson) {
+        return existingPerson;
+    }
+
+    const newPerson: Person = { id: `${type.slice(0, -1)}-${crypto.randomUUID()}`, name: trimmedName };
+    companyData[type] = [...people, newPerson];
+    setAppData(data);
+    
     return newPerson;
 }
 
@@ -503,16 +514,11 @@ function deletePerson(type: 'developers' | 'testers', id: string): boolean {
     const personIndex = people.findIndex(p => p.id === id);
 
     if (personIndex === -1) {
-        // This case shouldn't happen if the UI is correct, but as a fallback,
-        // we can still try to remove from tasks if needed.
-        // For now, we'll consider it a failure if the person isn't in the main list.
         return false;
     }
 
-    // Use filter for immutability which is safer.
     companyData[type] = people.filter(p => p.id !== id);
 
-    // Unassign the person from all tasks.
     companyData.tasks.forEach(task => {
         const assignments = task[type];
         if (assignments && assignments.includes(id)) {
