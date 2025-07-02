@@ -82,6 +82,7 @@ const getInitialTaskData = (task?: Partial<Task>) => {
         deploymentStatus: task.deploymentStatus || {},
         developers: task.developers || [],
         testers: task.testers || [],
+        azureWorkItemId: task.azureWorkItemId || '',
     }
 }
 
@@ -403,12 +404,21 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                                 control={form.control}
                                 name={`deploymentStatus.${env}`}
                                 render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center gap-3 w-full sm:w-auto">
+                                    <div className="flex items-center space-x-3 w-full sm:w-auto">
                                         <FormControl>
-                                            <Checkbox checked={field.value} onCheckedChange={field.onChange} id={`deploy-check-${env}`} />
+                                            <Checkbox
+                                                checked={field.value ?? false}
+                                                onCheckedChange={field.onChange}
+                                                id={`deploy-check-${env}`}
+                                            />
                                         </FormControl>
-                                        <label htmlFor={`deploy-check-${env}`} className="text-sm font-medium leading-none capitalize cursor-pointer flex-1">Deployed to {env}</label>
-                                    </FormItem>
+                                        <label
+                                            htmlFor={`deploy-check-${env}`}
+                                            className="text-sm font-medium leading-none capitalize cursor-pointer"
+                                        >
+                                            Deployed to {env}
+                                        </label>
+                                    </div>
                                 )}
                             />
                             {form.watch(`deploymentStatus.${env}`) && env !== 'dev' && (
