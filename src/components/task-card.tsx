@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { statusConfig, TaskStatusBadge } from './task-status-badge';
 import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck } from 'lucide-react';
 import { Badge } from './ui/badge';
