@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getTaskById, getDevelopers, updateTask, addDeveloper } from '@/lib/data';
+import { getTaskById, getDevelopers, updateTask, addDeveloper, getTesters, addTester } from '@/lib/data';
 import { useParams, useRouter } from 'next/navigation';
 import { TaskForm } from '@/components/task-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,15 +21,18 @@ export default function EditTaskPage() {
   const taskId = params.id as string;
   const [task, setTask] = useState<Task | null>(null);
   const [developersList, setDevelopersList] = useState<string[]>([]);
+  const [testersList, setTestersList] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (taskId) {
       const foundTask = getTaskById(taskId);
       const devs = getDevelopers();
+      const testers = getTesters();
 
       setTask(foundTask || null);
       setDevelopersList(devs);
+      setTestersList(testers);
       setIsLoading(false);
       
       if (foundTask) {
@@ -60,6 +63,15 @@ export default function EditTaskPage() {
       validationResult.data.developers.forEach((dev: string) => {
           if (!existingDevelopers.includes(dev)) {
               addDeveloper(dev);
+          }
+      });
+    }
+
+    if (validationResult.data.testers) {
+      const existingTesters = getTesters();
+      validationResult.data.testers.forEach((tester: string) => {
+          if (!existingTesters.includes(tester)) {
+              addTester(tester);
           }
       });
     }
@@ -128,6 +140,7 @@ export default function EditTaskPage() {
             onSubmit={handleUpdateTask}
             submitButtonText="Save Changes"
             developersList={developersList}
+            testersList={testersList}
           />
         </CardContent>
       </Card>

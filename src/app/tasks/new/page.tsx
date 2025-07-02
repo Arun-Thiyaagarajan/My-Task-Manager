@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { TaskForm } from '@/components/task-form';
-import { addTask, getDevelopers, addDeveloper } from '@/lib/data';
+import { addTask, getDevelopers, addDeveloper, getTesters, addTester } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -15,12 +15,14 @@ export default function NewTaskPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [developersList, setDevelopersList] = useState<string[]>([]);
+  const [testersList, setTestersList] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [initialData, setInitialData] = useState<Partial<Task> | undefined>(undefined);
   
   useEffect(() => {
     document.title = 'New Task | My Task Manager';
     setDevelopersList(getDevelopers());
+    setTestersList(getTesters());
     
     // This logic stays to handle failed imports
     const failedImportRowString = sessionStorage.getItem('failed_import_row');
@@ -64,6 +66,15 @@ export default function NewTaskPage() {
       validationResult.data.developers.forEach((dev: string) => {
           if (!existingDevelopers.includes(dev)) {
               addDeveloper(dev);
+          }
+      });
+    }
+
+    if (validationResult.data.testers) {
+      const existingTesters = getTesters();
+      validationResult.data.testers.forEach((tester: string) => {
+          if (!existingTesters.includes(tester)) {
+              addTester(tester);
           }
       });
     }
@@ -117,6 +128,7 @@ export default function NewTaskPage() {
             onSubmit={handleCreateTask}
             submitButtonText="Create Task"
             developersList={developersList}
+            testersList={testersList}
           />
         </CardContent>
       </Card>

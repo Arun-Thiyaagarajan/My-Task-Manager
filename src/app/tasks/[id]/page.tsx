@@ -371,6 +371,37 @@ export default function TaskPage() {
                             )}
                         </div>
                     </div>
+
+                    <Separator />
+                    
+                    <div>
+                        <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('testers') || 'Assigned Testers'}</h4>
+                        <div className="flex flex-wrap gap-4">
+                            {task.testers && task.testers.length > 0 ? (
+                                task.testers.map((tester) => (
+                                <div key={tester} className="flex items-center gap-2">
+                                    <Avatar className="h-7 w-7">
+                                    <AvatarFallback
+                                        className="font-semibold text-white text-[10px]"
+                                        style={{
+                                        backgroundColor: `#${getAvatarColor(tester)}`,
+                                        }}
+                                    >
+                                        {getInitials(tester)}
+                                    </AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-sm font-medium text-foreground">
+                                    {tester}
+                                    </span>
+                                </div>
+                                ))
+                            ) : (
+                            <p className="text-sm text-muted-foreground">
+                                No testers assigned.
+                            </p>
+                            )}
+                        </div>
+                    </div>
                     
                     <Separator />
 

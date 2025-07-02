@@ -215,31 +215,55 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate }: Task
       </div>
       <CardFooter className="flex items-center justify-between p-4 border-t">
         <div className="flex items-center gap-2">
-          {task.developers && task.developers.length > 0 ? (
-            <div className="flex -space-x-2">
-                <TooltipProvider>
-                  {task.developers.map((dev) => (
-                    <Tooltip key={dev}>
-                      <TooltipTrigger>
-                        <Avatar className="h-7 w-7 border-2 border-card">
-                          <AvatarFallback 
-                            className="text-xs font-semibold text-white"
-                            style={{ backgroundColor: `#${getAvatarColor(dev)}` }}
-                          >
-                            {getInitials(dev)}
-                          </AvatarFallback>
-                        </Avatar>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{dev}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  ))}
-                </TooltipProvider>
-            </div>
-          ) : (
-            <div className="text-xs text-muted-foreground italic">No assignees</div>
-          )}
+            {task.developers && task.developers.length > 0 && (
+                <div className="flex -space-x-2">
+                    <TooltipProvider>
+                      {task.developers.map((dev) => (
+                        <Tooltip key={dev}>
+                          <TooltipTrigger>
+                            <Avatar className="h-7 w-7 border-2 border-card">
+                              <AvatarFallback 
+                                className="text-xs font-semibold text-white"
+                                style={{ backgroundColor: `#${getAvatarColor(dev)}` }}
+                              >
+                                {getInitials(dev)}
+                              </AvatarFallback>
+                            </Avatar>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{dev}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      ))}
+                    </TooltipProvider>
+                </div>
+            )}
+            {task.testers && task.testers.length > 0 && (
+                <div className="flex -space-x-2 ml-2">
+                    <TooltipProvider>
+                      {task.testers.map((tester) => (
+                        <Tooltip key={tester}>
+                          <TooltipTrigger>
+                            <Avatar className="h-7 w-7 border-2 border-card ring-1 ring-inset ring-amber-400">
+                               <AvatarFallback 
+                                className="text-xs font-semibold text-white"
+                                style={{ backgroundColor: `#${getAvatarColor(tester)}` }}
+                              >
+                                {getInitials(tester)}
+                              </AvatarFallback>
+                            </Avatar>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{tester} (Tester)</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      ))}
+                    </TooltipProvider>
+                </div>
+            )}
+            {(!task.developers || task.developers.length === 0) && (!task.testers || task.testers.length === 0) && (
+                 <div className="text-xs text-muted-foreground italic">No assignees</div>
+            )}
         </div>
         <div>
           <DeleteTaskButton

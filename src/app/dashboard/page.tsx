@@ -6,7 +6,7 @@ import { getTasks, getUiConfig } from '@/lib/data';
 import type { Task, Developer, UiConfig } from '@/lib/types';
 import { TASK_STATUSES, REPOSITORIES, ENVIRONMENTS } from '@/lib/constants';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { BarChart, PieChartIcon, ListChecks, CheckCircle2, Loader2, Bug, GitMerge, Server } from 'lucide-react';
+import { BarChart, PieChartIcon, ListChecks, CheckCircle2, Loader2, Bug, GitMerge, Server, TestTube2 } from 'lucide-react';
 import { Bar, Pie, PieChart, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, Cell } from 'recharts';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { getAvatarColor, cn } from '@/lib/utils';
@@ -75,19 +75,24 @@ export default function DashboardPage() {
       return acc;
   }, {} as ChartConfig);
   
-  // New Chart: Tasks by Repository
-  const tasksByRepoData = REPOSITORIES.map(repo => ({
-    name: repo,
-    count: tasks.filter(task => task.repositories?.includes(repo)).length,
-  })).filter(item => item.count > 0);
+  const testersWithTasks = tasks.reduce((acc, task) => {
+    (task.testers || []).forEach(tester => {
+        acc[tester] = (acc[tester] || 0) + 1;
+    });
+    return acc;
+  }, {} as Record<string, number>);
 
-  const tasksByRepoConfig = {
-    count: {
-      label: 'Tasks',
-      color: 'hsl(var(--chart-2))',
-    },
-  } satisfies ChartConfig;
-  
+  const tasksByTesterData = Object.entries(testersWithTasks).map(([name, value]) => ({
+      name,
+      value,
+      fill: `#${getAvatarColor(name)}`,
+  }));
+
+  const tasksByTesterConfig = tasksByTesterData.reduce((acc, item) => {
+      acc[item.name] = { label: item.name, color: item.fill };
+      return acc;
+  }, {} as ChartConfig);
+
   // New Chart: Deployments by Environment
   const deploymentsByEnvData = ENVIRONMENTS.map(env => ({
     name: env,
@@ -203,26 +208,31 @@ export default function DashboardPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            <GitMerge className="h-5 w-5 text-chart-3" />
-                            Tasks by {fieldLabels.get('repositories') || 'Repository'}
+                            <TestTube2 className="h-5 w-5 text-chart-3" />
+                            Tasks per {fieldLabels.get('testers') || 'Tester'}
                         </CardTitle>
-                        <CardDescription>Distribution of tasks across repositories.</CardDescription>
+                        <CardDescription>Breakdown of task assignments to testers.</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <ChartContainer config={tasksByRepoConfig} className="h-[300px] w-full">
-                            <RechartsBarChart data={tasksByRepoData} layout="vertical" accessibilityLayer>
-                                 <XAxis type="number" tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} hide />
-                                 <YAxis
-                                    type="category"
-                                    dataKey="name"
-                                    tickLine={false}
-                                    axisLine={false}
-                                    tickMargin={8}
-                                    width={100}
-                                 />
-                                 <ChartTooltip content={<ChartTooltipContent />} />
-                                 <Bar dataKey="count" fill="var(--color-count)" radius={4} />
-                            </RechartsBarChart>
+                    <CardContent className="flex items-center justify-center">
+                       <ChartContainer config={tasksByTesterConfig} className="h-[300px] w-full">
+                            <PieChart>
+                                <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
+                                <Pie data={tasksByTesterData} dataKey="value" nameKey="name" innerRadius={60}>
+                                    {tasksByTesterData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                                    ))}
+                                </Pie>
+                                <Legend content={({ payload }) => (
+                                    <div className="flex flex-wrap gap-x-4 gap-y-1 justify-center mt-4 text-sm">
+                                    {payload?.map((entry, index) => (
+                                        <div key={`item-${index}`} className="flex items-center gap-1.5">
+                                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                                            <span>{entry.value}</span>
+                                        </div>
+                                    ))}
+                                    </div>
+                                )} />
+                            </PieChart>
                         </ChartContainer>
                     </CardContent>
                 </Card>

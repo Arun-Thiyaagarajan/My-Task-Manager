@@ -5,6 +5,7 @@ import type { Task, Developer, Company, Attachment, UiConfig } from './types';
 interface CompanyData {
     tasks: Task[];
     developers: Developer[];
+    testers: Developer[];
     uiConfig: UiConfig;
 }
 
@@ -27,6 +28,7 @@ const getInitialData = (): MyTaskManagerData => {
             [defaultCompanyId]: {
                 tasks: [],
                 developers: ['Arun', 'Samantha', 'Rajesh'],
+                testers: ['Chloe', 'David'],
                 uiConfig: { 
                     fields: INITIAL_UI_CONFIG,
                     environments: [...ENVIRONMENTS],
@@ -51,6 +53,7 @@ const getAppData = (): MyTaskManagerData => {
                 'company-placeholder': {
                     tasks: [],
                     developers: ['Arun', 'Samantha', 'Rajesh'],
+                    testers: ['Chloe', 'David'],
                     uiConfig: defaultConfig,
                 },
             },
@@ -96,6 +99,7 @@ export function addCompany(name: string): Company {
     data.companyData[newCompanyId] = { 
         tasks: [], 
         developers: ['Arun', 'Samantha', 'Rajesh'],
+        testers: ['Chloe', 'David'],
         uiConfig: { 
             fields: INITIAL_UI_CONFIG,
             environments: [...ENVIRONMENTS],
@@ -205,10 +209,15 @@ export function getUiConfig(): UiConfig {
         }
     }
     
-    // Ensure the 'developers' field is always of type 'tags'.
+    // Ensure the 'developers' and 'testers' field is always of type 'tags'.
     const developersField = companyConfig.fields.find(f => f.key === 'developers');
     if (developersField && developersField.type !== 'tags') {
         developersField.type = 'tags';
+        needsUpdate = true;
+    }
+    const testersField = companyConfig.fields.find(f => f.key === 'testers');
+    if (testersField && testersField.type !== 'tags') {
+        testersField.type = 'tags';
         needsUpdate = true;
     }
 
@@ -318,6 +327,7 @@ export function addTask(taskData: Partial<Task>): Task {
     status: taskData.status || 'To Do',
     repositories: taskData.repositories || [],
     developers: taskData.developers || [],
+    testers: taskData.testers || [],
     azureWorkItemId: taskData.azureWorkItemId || '',
     deploymentStatus: taskData.deploymentStatus || {},
     deploymentDates: taskData.deploymentDates || {},
@@ -416,6 +426,58 @@ export function deleteDeveloper(name: string): boolean {
             const taskDevIndex = task.developers.indexOf(name);
             if (taskDevIndex > -1) {
                 task.developers.splice(taskDevIndex, 1);
+                task.updatedAt = new Date().toISOString();
+            }
+        }
+    });
+
+    setAppData(data);
+    return true;
+}
+
+// Tester Functions
+export function getTesters(): Developer[] {
+    const data = getAppData();
+    const activeCompanyId = getActiveCompanyId();
+    if (!activeCompanyId || !data.companyData[activeCompanyId]) {
+      return [];
+    }
+    return data.companyData[activeCompanyId].testers;
+}
+
+export function addTester(name: string): Developer {
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    const testers = data.companyData[activeCompanyId]?.testers || [];
+    
+    const newTester: Developer = name;
+    if (!testers.includes(newTester)) {
+        data.companyData[activeCompanyId].testers = [...testers, newTester];
+        setAppData(data);
+    }
+    return newTester;
+}
+
+export function deleteTester(name: string): boolean {
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    const companyData = data.companyData[activeCompanyId];
+
+    if (!companyData) return false;
+
+    // Remove from the main list of testers
+    const testerIndex = companyData.testers.indexOf(name);
+    if (testerIndex === -1) {
+        return false; // Tester not found
+    }
+    companyData.testers.splice(testerIndex, 1);
+
+    // Remove from all tasks they are assigned to
+    companyData.tasks.forEach(task => {
+        if (task.testers) {
+            const taskTesterIndex = task.testers.indexOf(name);
+            if (taskTesterIndex > -1) {
+                task.testers.splice(taskTesterIndex, 1);
                 task.updatedAt = new Date().toISOString();
             }
         }

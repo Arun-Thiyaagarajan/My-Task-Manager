@@ -22,6 +22,7 @@ export const taskSchema = z.object({
   status: z.enum(TASK_STATUSES),
   repositories: z.array(z.string()).optional(),
   developers: z.array(z.string()).optional(),
+  testers: z.array(z.string()).optional(),
   azureWorkItemId: z.string().regex(/^\d*$/, { message: "Please enter a valid work item ID." }).optional().or(z.literal('')),
   
   deploymentStatus: z.record(z.string(), z.boolean().optional()).optional(),

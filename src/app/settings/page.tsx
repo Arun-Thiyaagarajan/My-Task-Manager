@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { getUiConfig, updateUiConfig, updateEnvironmentName, getDevelopers, deleteDeveloper } from '@/lib/data';
+import { getUiConfig, updateUiConfig, updateEnvironmentName, getDevelopers, deleteDeveloper, getTesters, deleteTester } from '@/lib/data';
 import type { UiConfig, FieldConfig } from '@/lib/types';
 import { useDebounce } from '@/hooks/use-debounce';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Users } from 'lucide-react';
+import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Users, TestTube2 } from 'lucide-react';
 import { EditFieldDialog } from '@/components/edit-field-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -41,6 +41,7 @@ export default function SettingsPage() {
   const [editingEnv, setEditingEnv] = useState<string | null>(null);
   const [editingEnvText, setEditingEnvText] = useState('');
   const [developers, setDevelopers] = useState<string[]>([]);
+  const [testers, setTesters] = useState<string[]>([]);
   
   const [editingGroup, setEditingGroup] = useState<string | null>(null);
   const [editingGroupText, setEditingGroupText] = useState('');
@@ -49,11 +50,16 @@ export default function SettingsPage() {
     setDevelopers(getDevelopers());
   };
 
+  const refreshTesters = () => {
+    setTesters(getTesters());
+  };
+
   useEffect(() => {
     document.title = 'Settings | My Task Manager';
     const loadedConfig = getUiConfig();
     setConfig(loadedConfig);
     refreshDevelopers();
+    refreshTesters();
   }, []);
 
   const debouncedConfig = useDebounce(config, 1000);
@@ -253,6 +259,15 @@ export default function SettingsPage() {
     if (deleteDeveloper(name)) {
         toast({ variant: 'success', title: 'Developer Removed', description: `${name} has been removed from the system.` });
         refreshDevelopers();
+    } else {
+        toast({ variant: 'destructive', title: 'Error', description: `Could not remove ${name}.` });
+    }
+  }
+
+  const handleDeleteTester = (name: string) => {
+    if (deleteTester(name)) {
+        toast({ variant: 'success', title: 'Tester Removed', description: `${name} has been removed from the system.` });
+        refreshTesters();
     } else {
         toast({ variant: 'destructive', title: 'Error', description: `Could not remove ${name}.` });
     }
@@ -570,6 +585,46 @@ export default function SettingsPage() {
                     })}
                     {(developers || []).length === 0 && (
                          <p className="text-sm text-center text-muted-foreground py-4">No developers to manage. Add them via the task form.</p>
+                    )}
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <TestTube2 className="h-5 w-5" />
+                        Tester Management
+                    </CardTitle>
+                    <CardDescription>Remove testers from the system. This will also unassign them from all tasks.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2 max-h-96 overflow-y-auto">
+                    {(testers || []).map(tester => {
+                        return (
+                            <div key={tester} className="flex items-center justify-between p-2 border rounded-md bg-card group">
+                                <span className="font-medium">{tester}</span>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Delete {tester}?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This will permanently remove {tester} from the list of available testers and unassign them from all tasks. This action cannot be undone.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDeleteTester(tester)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </div>
+                        )
+                    })}
+                    {(testers || []).length === 0 && (
+                         <p className="text-sm text-center text-muted-foreground py-4">No testers to manage. Add them via the task form.</p>
                     )}
                 </CardContent>
             </Card>

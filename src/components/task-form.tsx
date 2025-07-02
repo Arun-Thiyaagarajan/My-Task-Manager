@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { addDeveloper, getUiConfig } from '@/lib/data';
+import { addDeveloper, getUiConfig, addTester } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TASK_STATUSES, REPOSITORIES } from '@/lib/constants';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -36,6 +36,7 @@ interface TaskFormProps {
   onSubmit: (data: TaskFormData) => void;
   submitButtonText: string;
   developersList: string[];
+  testersList: string[];
 }
 
 const safeParseDate = (d: any): Date | undefined => {
@@ -52,6 +53,7 @@ const getInitialTaskData = (task?: Partial<Task>) => {
             status: 'To Do',
             repositories: [],
             developers: [],
+            testers: [],
             prLinks: {},
             deploymentStatus: {},
             attachments: [],
@@ -78,14 +80,16 @@ const getInitialTaskData = (task?: Partial<Task>) => {
         customFields: task.customFields || {},
         prLinks: task.prLinks || {},
         deploymentStatus: task.deploymentStatus || {},
+        testers: task.testers || [],
     }
 }
 
-export function TaskForm({ task, onSubmit, submitButtonText, developersList: propDevelopersList }: TaskFormProps) {
+export function TaskForm({ task, onSubmit, submitButtonText, developersList: propDevelopersList, testersList: propTestersList }: TaskFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
   const [developersList, setDevelopersList] = useState<string[]>(propDevelopersList);
+  const [testersList, setTestersList] = useState<string[]>(propTestersList);
 
   const { setIsDirty, prompt } = useUnsavedChanges();
 
@@ -96,6 +100,10 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
   useEffect(() => {
     setDevelopersList(propDevelopersList);
   }, [propDevelopersList]);
+
+  useEffect(() => {
+    setTestersList(propTestersList);
+  }, [propTestersList]);
 
   const form = useForm<TaskFormData>({
     resolver: zodResolver(taskSchema),
@@ -129,6 +137,11 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
     setDevelopersList((prevList) => [...prevList, name]);
   };
 
+  const handleCreateTester = (name: string) => {
+    addTester(name);
+    setTestersList((prevList) => [...prevList, name]);
+  };
+
   const handleFormSubmit = (data: TaskFormData) => {
     startTransition(() => {
         setIsDirty(false);
@@ -146,6 +159,9 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
     if(field.type === 'tags') {
         if(field.key === 'developers') {
             return developersList.map(d => ({ value: d, label: d }));
+        }
+        if(field.key === 'testers') {
+            return testersList.map(t => ({ value: t, label: t }));
         }
         return field.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
     }
@@ -206,6 +222,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                 );
             case 'tags':
                 const isDeveloperField = key === 'developers';
+                const isTesterField = key === 'testers';
                 return (
                      <MultiSelect
                         selected={field.value ?? []}
@@ -214,6 +231,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                         placeholder={`Add ${label}...`}
                         creatable
                         {...(isDeveloperField && { onCreate: handleCreateDeveloper })}
+                        {...(isTesterField && { onCreate: handleCreateTester })}
                     />
                 );
             case 'checkbox':

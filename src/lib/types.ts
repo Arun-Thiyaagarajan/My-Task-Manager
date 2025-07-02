@@ -39,6 +39,7 @@ export interface Task {
     [key: string]: string | null | undefined;
   };
   developers?: Developer[];
+  testers?: string[];
   comments?: string[];
   attachments?: Attachment[];
   
