@@ -84,14 +84,20 @@ const getAppData = (): MyTaskManagerData => {
         for (const companyId in data.companyData) {
             const company = data.companyData[companyId];
 
-            if (!company.developers) {
-                company.developers = [];
-                needsSave = true;
-            }
+            if (!company.developers) company.developers = [];
+            if (!company.testers) company.testers = [];
+            
+            // Check if developer migration is needed
+            const needsDevMigration = (company.developers.length > 0 && typeof company.developers[0] === 'string') || 
+                                      company.tasks.some(t => t.developers && t.developers.length > 0 && typeof t.developers[0] === 'string');
 
-            // Migrate developers if they are still strings
-            if (company.developers && company.developers.length > 0 && typeof company.developers[0] === 'string') {
-                const allDeveloperNames = new Set<string>(company.developers as unknown as string[]);
+            if (needsDevMigration) {
+                const allDeveloperNames = new Set<string>();
+                
+                if (company.developers.length > 0 && typeof company.developers[0] === 'string') {
+                    (company.developers as unknown as string[]).forEach(name => allDeveloperNames.add(name));
+                }
+                
                 company.tasks.forEach(task => {
                     if (task.developers && task.developers.length > 0 && typeof task.developers[0] === 'string') {
                         (task.developers as unknown as string[]).forEach(name => allDeveloperNames.add(name));
@@ -114,14 +120,17 @@ const getAppData = (): MyTaskManagerData => {
                 needsSave = true;
             }
 
-            if (!company.testers) {
-                company.testers = [];
-                needsSave = true;
-            }
+            // Check if tester migration is needed
+            const needsTesterMigration = (company.testers.length > 0 && typeof company.testers[0] === 'string') ||
+                                         company.tasks.some(t => t.testers && t.testers.length > 0 && typeof t.testers[0] === 'string');
 
-            // Migrate testers if they are still strings
-            if (company.testers && company.testers.length > 0 && typeof company.testers[0] === 'string') {
-                const allTesterNames = new Set<string>(company.testers as unknown as string[]);
+            if (needsTesterMigration) {
+                const allTesterNames = new Set<string>();
+
+                if (company.testers.length > 0 && typeof company.testers[0] === 'string') {
+                    (company.testers as unknown as string[]).forEach(name => allTesterNames.add(name));
+                }
+
                 company.tasks.forEach(task => {
                     if (task.testers && task.testers.length > 0 && typeof task.testers[0] === 'string') {
                         (task.testers as unknown as string[]).forEach(name => allTesterNames.add(name));
