@@ -91,8 +91,15 @@ const getAppData = (): MyTaskManagerData => {
 
             // Migrate developers if they are still strings
             if (company.developers && company.developers.length > 0 && typeof company.developers[0] === 'string') {
+                const allDeveloperNames = new Set<string>(company.developers as unknown as string[]);
+                company.tasks.forEach(task => {
+                    if (task.developers && task.developers.length > 0 && typeof task.developers[0] === 'string') {
+                        (task.developers as unknown as string[]).forEach(name => allDeveloperNames.add(name));
+                    }
+                });
+
                 const devNameMap = new Map<string, string>();
-                const newDevelopers: Person[] = (company.developers as unknown as string[]).map(name => {
+                const newDevelopers: Person[] = Array.from(allDeveloperNames).map(name => {
                     const newId = `dev-${crypto.randomUUID()}`;
                     devNameMap.set(name, newId);
                     return { id: newId, name };
@@ -114,8 +121,15 @@ const getAppData = (): MyTaskManagerData => {
 
             // Migrate testers if they are still strings
             if (company.testers && company.testers.length > 0 && typeof company.testers[0] === 'string') {
+                const allTesterNames = new Set<string>(company.testers as unknown as string[]);
+                company.tasks.forEach(task => {
+                    if (task.testers && task.testers.length > 0 && typeof task.testers[0] === 'string') {
+                        (task.testers as unknown as string[]).forEach(name => allTesterNames.add(name));
+                    }
+                });
+                
                 const testerNameMap = new Map<string, string>();
-                const newTesters: Person[] = (company.testers as unknown as string[]).map(name => {
+                const newTesters: Person[] = Array.from(allTesterNames).map(name => {
                     const newId = `tester-${crypto.randomUUID()}`;
                     testerNameMap.set(name, newId);
                     return { id: newId, name };
