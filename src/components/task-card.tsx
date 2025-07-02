@@ -203,7 +203,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate }: Task
                             </Badge>
                         </TooltipTrigger>
                         <TooltipContent>
-                            <p className="capitalize">{envInfo.label}: {isDeployed ? "Deployed" : "Pending"}. Click to toggle.</p>
+                            <p className="capitalize">{envInfo.label}: {isDeployed ? "Deployed" : "Pending"}</p>
                         </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
