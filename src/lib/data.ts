@@ -313,6 +313,7 @@ export function addTask(taskData: Partial<Task>): Task {
     title: taskData.title || 'Untitled Task',
     description: taskData.description || '',
     status: taskData.status || 'To Do',
+    summary: taskData.summary || null,
     repositories: taskData.repositories || [],
     developers: taskData.developers || [],
     testers: taskData.testers || [],

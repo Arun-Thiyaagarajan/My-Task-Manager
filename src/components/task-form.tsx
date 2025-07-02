@@ -61,6 +61,7 @@ const getInitialTaskData = (task?: Partial<Task>) => {
             deploymentDates: {},
             customFields: {},
             azureWorkItemId: '',
+            summary: null,
         };
     }
     
@@ -85,6 +86,7 @@ const getInitialTaskData = (task?: Partial<Task>) => {
         developers: task.developers || [],
         testers: task.testers || [],
         azureWorkItemId: task.azureWorkItemId || '',
+        summary: task.summary || null,
     }
 }
 

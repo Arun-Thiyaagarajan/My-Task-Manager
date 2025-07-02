@@ -40,6 +40,7 @@ export interface Task {
   status: TaskStatus;
   createdAt: string;
   updatedAt: string;
+  summary?: string | null;
   
   repositories?: Repository[];
   azureWorkItemId?: string;

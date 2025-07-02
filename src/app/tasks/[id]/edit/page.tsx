@@ -71,6 +71,10 @@ export default function EditTaskPage() {
         deploymentDates: {}
     };
 
+    if (taskDataToUpdate.description !== task.description) {
+      taskDataToUpdate.summary = null;
+    }
+
     if (deploymentDates) {
         taskDataToUpdate.deploymentDates = Object.entries(deploymentDates).reduce((acc, [key, value]) => {
             if (value) {

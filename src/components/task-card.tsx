@@ -79,13 +79,10 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   const { toast } = useToast();
   const [configuredEnvs, setConfiguredEnvs] = useState<string[]>([]);
   const [personInView, setPersonInView] = useState<{person: Person, type: 'Developer' | 'Tester'} | null>(null);
-  const [summary, setSummary] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   
   useEffect(() => {
     setTask(initialTask);
-    setSummary(null);
-    setIsSummarizing(false);
   }, [initialTask]);
 
   useEffect(() => {
@@ -94,25 +91,28 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
       }
   }, [uiConfig]);
 
-  const handleSummarize = async () => {
-    if (isSummarizing || !task.description) return;
-    
-    setIsSummarizing(true);
-    try {
-        const result = await summarizeText({ textToSummarize: task.description });
-        setSummary(result.summary);
-    } catch (error) {
-        console.error("Failed to summarize:", error);
-    } finally {
-        setIsSummarizing(false);
-    }
-  };
-  
   useEffect(() => {
-    if (task.description && !summary) {
-      handleSummarize();
-    }
-  }, [task.description, summary]);
+    const summarize = async () => {
+      if (task.description && !task.summary && !isSummarizing) {
+        setIsSummarizing(true);
+        try {
+          const result = await summarizeText({ textToSummarize: task.description });
+          const updatedTask = updateTask(task.id, { summary: result.summary });
+          if (updatedTask) {
+            setTask(updatedTask);
+            onTaskUpdate();
+          }
+        } catch (error) {
+          console.error("Failed to summarize:", error);
+          // Do not show toast for this, as it could be noisy
+        } finally {
+          setIsSummarizing(false);
+        }
+      }
+    };
+
+    summarize();
+  }, [task.id, task.description, task.summary, isSummarizing, onTaskUpdate]);
 
   const handleStatusChange = (newStatus: TaskStatus) => {
     const updatedTask = updateTask(task.id, { status: newStatus });
@@ -239,14 +239,14 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
             </CardHeader>
             <CardContent className="flex-grow flex flex-col p-4 pt-2">
               <div className="relative mb-3 text-sm text-muted-foreground min-h-[40px]">
-                {isSummarizing ? (
+                {isSummarizing || (task.description && !task.summary) ? (
                   <div className="space-y-1.5">
                     <Skeleton className="h-4 w-5/6" />
                     <Skeleton className="h-4 w-4/6" />
                   </div>
                 ) : (
-                  <p className={cn("line-clamp-2", summary && "italic")}>
-                    {summary || task.description}
+                  <p className={cn("line-clamp-2", task.summary && "italic")}>
+                    {task.summary || task.description}
                   </p>
                 )}
               </div>
