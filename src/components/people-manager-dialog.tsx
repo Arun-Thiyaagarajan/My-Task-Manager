@@ -175,13 +175,6 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
             updatePerson(personToEdit.id, data);
             toast({ variant: 'success', title: `${title} Updated` });
         } else { // Adding
-            const currentPeople = getPeople();
-            const existingPerson = currentPeople.find(p => p.name.toLowerCase() === data.name.trim().toLowerCase());
-            if (existingPerson) {
-                toast({ variant: 'destructive', title: 'Name already exists' });
-                setIsPending(false);
-                return;
-            }
             createPerson(data);
             toast({ variant: 'success', title: `${title} Added` });
         }

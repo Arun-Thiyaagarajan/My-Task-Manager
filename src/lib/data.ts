@@ -74,7 +74,6 @@ const getAppData = (): MyTaskManagerData => {
         }
 
         // One-time cleanup of old default developers/testers.
-        // This can be removed in a future version.
         let dataWasModified = false;
         const defaultNamesToRemove = new Set(["Samantha", "Arun", "Rajesh", "Chloe"]);
         
@@ -97,97 +96,8 @@ const getAppData = (): MyTaskManagerData => {
                 }
             }
         }
-        // End of one-time cleanup.
-
-        // This block for data migration can be removed in a future version
-        // once user data is stable.
-        let needsSave = false;
-        for (const companyId in data.companyData) {
-            const company = data.companyData[companyId];
-
-            if (!company.developers) company.developers = [];
-            if (!company.testers) company.testers = [];
-            
-            const migratePeople = (list: (Person | string)[], type: 'developer' | 'tester'): [Person[], boolean] => {
-                let changed = false;
-                const nameMap = new Map<string, string>(); // name -> id
-                const finalPeople: Person[] = [];
-
-                // First pass: process valid objects and collect names
-                list.forEach(p => {
-                    if (typeof p !== 'string' && p.id && p.name) {
-                        if (!nameMap.has(p.name.toLowerCase())) {
-                            nameMap.set(p.name.toLowerCase(), p.id);
-                        }
-                    }
-                });
-                
-                // Second pass: create final list, creating new people as needed
-                list.forEach(p => {
-                    let nameToAdd: string | undefined;
-                    if (typeof p === 'string') {
-                        nameToAdd = p;
-                    } else if (p.name) {
-                        nameToAdd = p.name;
-                    }
-
-                    if (nameToAdd) {
-                        const existingId = nameMap.get(nameToAdd.toLowerCase());
-                        if (existingId) {
-                            const existingPerson = finalPeople.find(fp => fp.id === existingId);
-                            if (!existingPerson) {
-                                finalPeople.push({ id: existingId, name: nameToAdd, email: (p as Person).email || '', phone: (p as Person).phone || '' });
-                            }
-                        } else {
-                            const newId = `${type.slice(0, -1)}-${crypto.randomUUID()}`;
-                            nameMap.set(nameToAdd.toLowerCase(), newId);
-                            finalPeople.push({ id: newId, name: nameToAdd, email: (p as Person).email || '', phone: (p as Person).phone || '' });
-                            changed = true;
-                        }
-                    }
-                });
-
-                // Update tasks
-                company.tasks.forEach(task => {
-                    const assignmentListKey = type === 'developer' ? 'developers' : 'testers';
-                    const assignments = task[assignmentListKey];
-                    if (assignments && assignments.length > 0) {
-                         const newAssignments = (assignments as (string | Person)[]).map(nameOrId => {
-                            if (typeof nameOrId === 'object' && nameOrId.id) return nameOrId.id;
-                            if (typeof nameOrId === 'string' && /^(dev|tester|developer)-/.test(nameOrId)) return nameOrId;
-                            
-                            let nameToLookup: string | undefined;
-                            if (typeof nameOrId === 'string') {
-                                nameToLookup = nameOrId;
-                            } else if (typeof nameOrId === 'object' && nameOrId.name) {
-                                nameToLookup = nameOrId.name;
-                            }
-                            
-                            return nameToLookup ? nameMap.get(nameToLookup.toLowerCase()) : undefined;
-                         }).filter((id): id is string => !!id);
-                         
-                         if (JSON.stringify(task[assignmentListKey]) !== JSON.stringify(newAssignments)) {
-                            task[assignmentListKey] = newAssignments;
-                            changed = true;
-                         }
-                    }
-                });
-
-                return [finalPeople, changed];
-            }
-
-            const [newDevelopers, devChanged] = migratePeople(company.developers, 'developer');
-            company.developers = newDevelopers;
-
-            const [newTesters, testerChanged] = migratePeople(company.testers, 'tester');
-            company.testers = newTesters;
-
-            if(devChanged || testerChanged) {
-                needsSave = true;
-            }
-        }
         
-        if (needsSave || dataWasModified) {
+        if (dataWasModified) {
             setAppData(data);
         }
 
@@ -509,27 +419,20 @@ function addPerson(type: 'developers' | 'testers', personData: Partial<Omit<Pers
     const people = companyData[type] || [];
     const trimmedName = personData.name.trim();
 
-    // Safeguard 1: If the "name" looks like an ID, treat it as an ID lookup.
-    // This prevents creating a person with an ID as a name.
-    const isLikelyId = /^(dev|tester|developer)-[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$/i.test(trimmedName);
-    if (isLikelyId) {
-        const personFoundById = people.find(p => p.id === trimmedName);
-        if (personFoundById) {
-            console.warn(`addPerson was called with an ID ("${trimmedName}") that matched an existing person. Returning existing person to prevent data corruption.`);
-            return personFoundById;
-        } else {
-             console.error(`CRITICAL: addPerson was called with an ID ("${trimmedName}") but no person with that ID exists. Rejecting creation.`);
-             throw new Error(`A person with ID "${trimmedName}" could not be found.`);
-        }
+    // Stricter Safeguard: Reject any name that looks like an ID. No exceptions.
+    const isIdFormat = /^(developer|tester)-[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$/i.test(trimmedName);
+    if (isIdFormat) {
+        console.error(`CRITICAL: Attempted to create a person with an ID as a name: "${trimmedName}". This is a data corruption bug.`);
+        throw new Error("A system error occurred. Could not create person with an invalid name format.");
     }
 
-    // Safeguard 2: Check for an existing person with the same name (case-insensitive).
+    // Check for existing person with the same name.
     const existingPersonByName = people.find(p => p.name.toLowerCase() === trimmedName.toLowerCase());
     if (existingPersonByName) {
         return existingPersonByName;
     }
 
-    // If all checks pass, create the new person.
+    // Create the new person.
     const newPerson: Person = {
         id: `${type.slice(0, -1)}-${crypto.randomUUID()}`,
         name: trimmedName,
@@ -548,16 +451,14 @@ function updatePerson(type: 'developers' | 'testers', id: string, personData: Pa
     const activeCompanyId = data.activeCompanyId;
     const people = data.companyData[activeCompanyId]?.[type] || [];
     
-    // Safeguard 1: Block updates that try to set the name to an ID format.
     if (personData.name) {
         const trimmedName = personData.name.trim();
-        const isLikelyId = /^(dev|tester|developer)-[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$/i.test(trimmedName);
-        if (isLikelyId) {
-            console.error(`CRITICAL: updatePerson was called with an ID-like name: "${trimmedName}". Aborting update to prevent data corruption.`);
-            throw new Error("A system error occurred. The person's name could not be updated to an ID.");
+        const isIdFormat = /^(developer|tester)-[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$/i.test(trimmedName);
+        if (isIdFormat) {
+             console.error(`CRITICAL: Attempted to update a person's name to an ID format: "${trimmedName}".`);
+             throw new Error("A system error occurred. The person's name could not be updated to an invalid format.");
         }
 
-        // Safeguard 2: Check for name collision
         const existingPerson = people.find(p => p.name.toLowerCase() === trimmedName.toLowerCase() && p.id !== id);
         if (existingPerson) {
             throw new Error(`${type === 'developers' ? 'Developer' : 'Tester'} with this name already exists.`);
@@ -603,19 +504,13 @@ function deletePerson(type: 'developers' | 'testers', id: string): boolean {
 
 // Developer Functions
 export const getDevelopers = () => getPeople('developers');
-export const addDeveloper = (data: string | Partial<Omit<Person, 'id'>>) => {
-    const personData = typeof data === 'string' ? { name: data } : data;
-    return addPerson('developers', personData);
-};
+export const addDeveloper = (data: Partial<Omit<Person, 'id'>>) => addPerson('developers', data);
 export const updateDeveloper = (id: string, data: Partial<Omit<Person, 'id'>>) => updatePerson('developers', id, data);
 export const deleteDeveloper = (id: string) => deletePerson('developers', id);
 
 // Tester Functions
 export const getTesters = () => getPeople('testers');
-export const addTester = (data: string | Partial<Omit<Person, 'id'>>) => {
-    const personData = typeof data === 'string' ? { name: data } : data;
-    return addPerson('testers', personData);
-};
+export const addTester = (data: Partial<Omit<Person, 'id'>>) => addPerson('testers', data);
 export const updateTester = (id: string, data: Partial<Omit<Person, 'id'>>) => updatePerson('testers', id, data);
 export const deleteTester = (id: string) => deletePerson('testers', id);
 

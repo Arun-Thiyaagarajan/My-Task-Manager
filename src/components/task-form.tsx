@@ -27,6 +27,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
+import { useToast } from '@/hooks/use-toast';
 
 
 type TaskFormData = z.infer<typeof taskSchema>;
@@ -93,6 +94,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
   const [developersList, setDevelopersList] = useState<Person[]>(propDevelopersList);
   const [testersList, setTestersList] = useState<Person[]>(propTestersList);
+  const { toast } = useToast();
 
   const { setIsDirty, prompt } = useUnsavedChanges();
 
@@ -135,22 +137,40 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
   const watchedRepositories = form.watch('repositories', []);
   const allConfiguredEnvs = uiConfig?.environments || [];
 
-  const handleCreateDeveloper = (name: string): string => {
-    const newDev = addDeveloper({ name });
-    setDevelopersList(prev => {
-        if (prev.some(d => d.id === newDev.id)) return prev;
-        return [...prev, newDev];
-    });
-    return newDev.id;
+  const handleCreateDeveloper = (name: string): string | undefined => {
+    try {
+        const newDev = addDeveloper({ name });
+        setDevelopersList(prev => {
+            if (prev.some(d => d.id === newDev.id)) return prev;
+            return [...prev, newDev];
+        });
+        return newDev.id;
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Could not add developer',
+            description: error.message || 'An unexpected error occurred.'
+        });
+        return undefined;
+    }
   };
 
-  const handleCreateTester = (name: string): string => {
-    const newTester = addTester({ name });
-    setTestersList(prev => {
-        if (prev.some(t => t.id === newTester.id)) return prev;
-        return [...prev, newTester];
-    });
-    return newTester.id;
+  const handleCreateTester = (name: string): string | undefined => {
+     try {
+        const newTester = addTester({ name });
+        setTestersList(prev => {
+            if (prev.some(t => t.id === newTester.id)) return prev;
+            return [...prev, newTester];
+        });
+        return newTester.id;
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Could not add tester',
+            description: error.message || 'An unexpected error occurred.'
+        });
+        return undefined;
+    }
   };
 
   const handleFormSubmit = (data: TaskFormData) => {
@@ -390,7 +410,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                                 control={form.control}
                                 name={`deploymentStatus.${env}`}
                                 render={({ field }) => (
-                                    <div className="flex items-center space-x-3 w-full sm:w-auto">
+                                    <FormItem className="flex items-center space-x-3">
                                         <FormControl>
                                             <Checkbox
                                                 checked={field.value ?? false}
@@ -404,7 +424,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                                         >
                                             Deployed to {env}
                                         </label>
-                                    </div>
+                                    </FormItem>
                                 )}
                             />
                             {form.watch(`deploymentStatus.${env}`) && env !== 'dev' && (
