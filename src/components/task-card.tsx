@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { statusConfig, TaskStatusBadge } from './task-status-badge';
-import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck } from 'lucide-react';
+import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck, Sparkles, Loader2 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { getInitials, getAvatarColor, cn } from '@/lib/utils';
@@ -32,6 +32,7 @@ import {
 import { TASK_STATUSES } from '@/lib/constants';
 import { Separator } from './ui/separator';
 import { PersonProfileCard } from './person-profile-card';
+import { summarizeText } from '@/ai/flows/summarize-flow';
 
 interface TaskCardProps {
   task: Task;
@@ -77,9 +78,12 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   const { toast } = useToast();
   const [configuredEnvs, setConfiguredEnvs] = useState<string[]>([]);
   const [personInView, setPersonInView] = useState<{person: Person, type: 'Developer' | 'Tester'} | null>(null);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [isSummarizing, setIsSummarizing] = useState(false);
   
   useEffect(() => {
     setTask(initialTask);
+    setSummary(null); // Reset summary when task changes
   }, [initialTask]);
 
   useEffect(() => {
@@ -87,6 +91,28 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
           setConfiguredEnvs(uiConfig.environments);
       }
   }, [uiConfig]);
+
+  const handleSummarize = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    if (isSummarizing || !task.description) return;
+    
+    setIsSummarizing(true);
+    try {
+        const result = await summarizeText({ textToSummarize: task.description });
+        setSummary(result.summary);
+    } catch (error) {
+        console.error("Failed to summarize:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Summarization Failed',
+            description: 'Could not generate a summary for this task.',
+        });
+    } finally {
+        setIsSummarizing(false);
+    }
+  };
 
   const handleStatusChange = (newStatus: TaskStatus) => {
     const updatedTask = updateTask(task.id, { status: newStatus });
@@ -212,6 +238,34 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                 </div>
             </CardHeader>
             <CardContent className="flex-grow flex flex-col p-4 pt-2">
+              <div className="relative mb-3 text-sm text-muted-foreground min-h-[40px]">
+                <p className={cn("pr-8 line-clamp-2", summary && "italic")}>
+                  {summary || task.description}
+                </p>
+                {task.description && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute -right-2 -top-1 h-7 w-7 text-muted-foreground hover:text-primary"
+                        onClick={handleSummarize}
+                        disabled={isSummarizing}
+                        aria-label={summary ? "Showing AI Summary" : "Generate Summary"}
+                      >
+                        {isSummarizing ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                        ) : (
+                          <Sparkles className={cn("h-4 w-4 transition-colors", summary && "text-primary fill-primary")} />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{summary ? "Showing AI Summary" : "Generate Summary"}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
               <div className="flex-grow space-y-3">
                 <div className="flex items-start gap-2 text-sm text-muted-foreground">
                   <GitMerge className="h-4 w-4 shrink-0 mt-0.5" />
