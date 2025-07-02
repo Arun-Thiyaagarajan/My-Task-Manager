@@ -85,6 +85,16 @@
   body {
     @apply bg-background text-foreground;
   }
+  @keyframes status-change-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
 }
 
 @layer utilities {
@@ -93,5 +103,8 @@
     }
     .drag-over-bottom {
         @apply border-b-2 border-b-primary;
+    }
+    .animate-status-in {
+      animation: status-change-in 0.2s ease-out;
     }
 }

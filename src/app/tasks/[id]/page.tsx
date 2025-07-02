@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getTaskById, getUiConfig } from '@/lib/data';
+import { getTaskById, getUiConfig, updateTask } from '@/lib/data';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -14,11 +14,12 @@ import { Separator } from '@/components/ui/separator';
 import { DeleteTaskButton } from '@/components/delete-task-button';
 import { PrLinksGroup } from '@/components/pr-links-group';
 import { Badge } from '@/components/ui/badge';
-import { getInitials, getAvatarColor } from '@/lib/utils';
+import { getInitials, getAvatarColor, cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import type { Task, FieldConfig, UiConfig } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { useToast } from '@/hooks/use-toast';
 
 export default function TaskPage() {
   const params = useParams();
@@ -26,6 +27,8 @@ export default function TaskPage() {
   const [task, setTask] = useState<Task | null>(null);
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
+  const [justUpdatedEnv, setJustUpdatedEnv] = useState<string | null>(null);
 
   const taskId = params.id as string;
 
@@ -46,6 +49,51 @@ export default function TaskPage() {
   const handleCommentsUpdate = (newComments: string[]) => {
     if (task) {
       setTask({ ...task, comments: newComments });
+    }
+  };
+
+  const handleToggleDeployment = (env: string) => {
+    if (!task) return;
+
+    const isSelected = task.deploymentStatus?.[env] ?? false;
+    const hasDate = task.deploymentDates && task.deploymentDates[env];
+    const isDeployed = isSelected && (env === 'dev' || !!hasDate);
+
+    const newIsDeployed = !isDeployed;
+
+    const newDeploymentStatus = { ...task.deploymentStatus };
+    const newDeploymentDates = { ...task.deploymentDates };
+
+    if (newIsDeployed) {
+      newDeploymentStatus[env] = true;
+      if (env !== 'dev') {
+        newDeploymentDates[env] = new Date().toISOString();
+      }
+    } else {
+      newDeploymentStatus[env] = false;
+      newDeploymentDates[env] = null;
+    }
+
+    const updatedTaskData = {
+        deploymentStatus: newDeploymentStatus,
+        deploymentDates: newDeploymentDates,
+    };
+    
+    const updatedTask = updateTask(task.id, updatedTaskData);
+    if(updatedTask) {
+        setTask(updatedTask);
+        setJustUpdatedEnv(env);
+        toast({
+            variant: 'success',
+            title: 'Deployment Status Updated',
+            description: `Status for ${env.charAt(0).toUpperCase() + env.slice(1)} set to ${newIsDeployed ? 'Deployed' : 'Pending'}.`,
+        });
+    } else {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Failed to update deployment status.',
+        });
     }
   };
 
@@ -186,7 +234,7 @@ export default function TaskPage() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="space-y-3 text-sm">
+                    <div className="space-y-1 text-sm">
                         {allConfiguredEnvs.length > 0 ? (
                             allConfiguredEnvs.map(env => {
                                 const isSelected = task.deploymentStatus?.[env] ?? false;
@@ -194,21 +242,35 @@ export default function TaskPage() {
                                 const isDeployed = isSelected && (env === 'dev' || !!hasDate);
 
                                 return (
-                                    <div key={env} className="flex justify-between items-center">
+                                    <div
+                                        key={env}
+                                        className="flex justify-between items-center p-2 -m-2 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                                        onClick={() => handleToggleDeployment(env)}
+                                    >
                                         <span className="capitalize text-foreground font-medium">
                                             {env}
                                         </span>
-                                        {isDeployed ? (
-                                            <div className="flex items-center gap-2 text-green-600 dark:text-green-500 font-medium">
-                                                <CheckCircle2 className="h-4 w-4" />
-                                                <span>Deployed</span>
-                                            </div>
-                                        ) : (
-                                            <div className="flex items-center gap-2 text-yellow-600 dark:text-yellow-500">
-                                                <Clock className="h-4 w-4" />
-                                                <span>Pending</span>
-                                            </div>
-                                        )}
+
+                                        <div
+                                            onAnimationEnd={() => setJustUpdatedEnv(null)}
+                                            className={cn(
+                                                'flex items-center gap-2 font-medium',
+                                                isDeployed ? 'text-green-600 dark:text-green-500' : 'text-yellow-600 dark:text-yellow-500',
+                                                justUpdatedEnv === env && 'animate-status-in'
+                                            )}
+                                        >
+                                            {isDeployed ? (
+                                                <>
+                                                    <CheckCircle2 className="h-4 w-4" />
+                                                    <span>Deployed</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Clock className="h-4 w-4" />
+                                                    <span>Pending</span>
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
                                 );
                             })
