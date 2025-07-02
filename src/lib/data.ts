@@ -84,6 +84,11 @@ const getAppData = (): MyTaskManagerData => {
         for (const companyId in data.companyData) {
             const company = data.companyData[companyId];
 
+            if (!company.developers) {
+                company.developers = [];
+                needsSave = true;
+            }
+
             // Migrate developers if they are still strings
             if (company.developers && company.developers.length > 0 && typeof company.developers[0] === 'string') {
                 const devNameMap = new Map<string, string>();
@@ -99,6 +104,11 @@ const getAppData = (): MyTaskManagerData => {
                         task.developers = (task.developers as unknown as string[]).map(name => devNameMap.get(name)).filter(Boolean) as string[];
                     }
                 });
+                needsSave = true;
+            }
+
+            if (!company.testers) {
+                company.testers = [];
                 needsSave = true;
             }
 
@@ -429,7 +439,7 @@ function getPeople(type: 'developers' | 'testers'): Person[] {
     if (!activeCompanyId || !data.companyData[activeCompanyId]) {
         return [];
     }
-    return data.companyData[activeCompanyId][type];
+    return data.companyData[activeCompanyId][type] || [];
 }
 
 function addPerson(type: 'developers' | 'testers', name: string): Person {
