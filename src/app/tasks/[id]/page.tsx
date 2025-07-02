@@ -224,7 +224,9 @@ export default function TaskPage() {
                 <div className="flex-shrink-0">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <TaskStatusBadge status={task.status} className="cursor-pointer hover:opacity-80 transition-opacity" />
+                      <Button variant="ghost" className="h-auto p-0">
+                        <TaskStatusBadge status={task.status} className="cursor-pointer hover:opacity-80 transition-opacity" />
+                      </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Set Status</DropdownMenuLabel>
@@ -340,6 +342,7 @@ export default function TaskPage() {
                       prLinks={task.prLinks} 
                       repositories={task.repositories}
                       configuredEnvs={uiConfig.environments}
+                      repositoryConfigs={uiConfig.repositoryConfigs}
                     />
                 </CardContent>
             </Card>

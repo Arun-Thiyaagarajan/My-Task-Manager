@@ -1,5 +1,5 @@
 
-import { INITIAL_UI_CONFIG, ENVIRONMENTS } from './constants';
+import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS } from './constants';
 import type { Task, Developer, Company, Attachment, UiConfig } from './types';
 
 interface CompanyData {
@@ -33,6 +33,7 @@ const getInitialData = (): MyTaskManagerData => {
                     fields: INITIAL_UI_CONFIG,
                     environments: [...ENVIRONMENTS],
                     coreEnvironments: [...ENVIRONMENTS],
+                    repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
                 },
             },
         },
@@ -45,6 +46,7 @@ const getAppData = (): MyTaskManagerData => {
             fields: INITIAL_UI_CONFIG,
             environments: [...ENVIRONMENTS],
             coreEnvironments: [...ENVIRONMENTS],
+            repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
         };
         return {
             companies: [{ id: 'company-placeholder', name: 'Default Company' }],
@@ -104,6 +106,7 @@ export function addCompany(name: string): Company {
             fields: INITIAL_UI_CONFIG,
             environments: [...ENVIRONMENTS],
             coreEnvironments: [...ENVIRONMENTS],
+            repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
         },
     };
     data.activeCompanyId = newCompanyId;
@@ -157,7 +160,7 @@ export function getUiConfig(): UiConfig {
     const data = getAppData();
     const activeCompanyId = getActiveCompanyId();
     if (!activeCompanyId || !data.companyData[activeCompanyId]) {
-        return { fields: INITIAL_UI_CONFIG, environments: [...ENVIRONMENTS], coreEnvironments: [...ENVIRONMENTS] };
+        return { fields: INITIAL_UI_CONFIG, environments: [...ENVIRONMENTS], coreEnvironments: [...ENVIRONMENTS], repositoryConfigs: INITIAL_REPOSITORY_CONFIGS };
     }
     const companyConfig = data.companyData[activeCompanyId].uiConfig;
 
@@ -168,6 +171,7 @@ export function getUiConfig(): UiConfig {
             fields: companyConfig?.fields || INITIAL_UI_CONFIG,
             environments: companyConfig?.environments || [...ENVIRONMENTS],
             coreEnvironments: companyConfig?.coreEnvironments || [...ENVIRONMENTS],
+            repositoryConfigs: companyConfig?.repositoryConfigs || INITIAL_REPOSITORY_CONFIGS,
         };
         data.companyData[activeCompanyId].uiConfig = newConfig;
         setAppData(data);
@@ -176,6 +180,11 @@ export function getUiConfig(): UiConfig {
     
     if (!companyConfig.coreEnvironments) {
         companyConfig.coreEnvironments = companyConfig.environments.filter(e => (ENVIRONMENTS as readonly string[]).includes(e));
+        needsUpdate = true;
+    }
+
+    if (!companyConfig.repositoryConfigs) {
+        companyConfig.repositoryConfigs = INITIAL_REPOSITORY_CONFIGS;
         needsUpdate = true;
     }
 

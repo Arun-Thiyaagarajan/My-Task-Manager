@@ -3,14 +3,14 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { getUiConfig, updateUiConfig, updateEnvironmentName, getDevelopers, deleteDeveloper, getTesters, deleteTester } from '@/lib/data';
-import type { UiConfig, FieldConfig } from '@/lib/types';
+import type { UiConfig, FieldConfig, RepositoryConfig } from '@/lib/types';
 import { useDebounce } from '@/hooks/use-debounce';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck } from 'lucide-react';
+import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck, FolderGit } from 'lucide-react';
 import { EditFieldDialog } from '@/components/edit-field-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -25,6 +25,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
+import { Label } from '@/components/ui/label';
 
 
 export default function SettingsPage() {
@@ -305,7 +306,35 @@ export default function SettingsPage() {
     
     setEditingGroup(null);
   };
+  
+  const handleRepoChange = (index: number, field: 'name' | 'baseUrl', value: string) => {
+      setConfig(prevConfig => {
+          if (!prevConfig) return null;
+          const newRepoConfigs = [...prevConfig.repositoryConfigs];
+          newRepoConfigs[index] = { ...newRepoConfigs[index], [field]: value };
+          return { ...prevConfig, repositoryConfigs: newRepoConfigs };
+      });
+  };
 
+  const handleAddRepo = () => {
+      setConfig(prevConfig => {
+          if (!prevConfig) return null;
+          const newRepo: RepositoryConfig = {
+              id: `repo_${Date.now()}`,
+              name: 'New-Repo',
+              baseUrl: 'https://github.com/my-org/',
+          };
+          return { ...prevConfig, repositoryConfigs: [...prevConfig.repositoryConfigs, newRepo] };
+      });
+  };
+
+  const handleDeleteRepo = (id: string) => {
+      setConfig(prevConfig => {
+          if (!prevConfig) return null;
+          const newRepoConfigs = prevConfig.repositoryConfigs.filter(r => r.id !== id);
+          return { ...prevConfig, repositoryConfigs: newRepoConfigs };
+      });
+  };
 
   const filteredAndGroupedFields = useMemo(() => {
     if (!config) return { active: {}, inactive: {} };
@@ -545,6 +574,68 @@ export default function SettingsPage() {
                             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddEnvironment(); }}}
                         />
                         <Button variant="outline" size="sm" onClick={handleAddEnvironment}>Add</Button>
+                    </div>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <FolderGit className="h-5 w-5" />
+                        Repository Management
+                    </CardTitle>
+                    <CardDescription>Manage repositories and their base URLs for PR links.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="space-y-3">
+                        {config.repositoryConfigs?.map((repo, index) => (
+                            <div key={repo.id} className="p-3 border rounded-md bg-card space-y-2 relative group">
+                                <div className="space-y-1">
+                                    <Label htmlFor={`repo-name-${index}`} className="text-xs font-semibold">Name</Label>
+                                    <Input
+                                        id={`repo-name-${index}`}
+                                        value={repo.name}
+                                        onChange={(e) => handleRepoChange(index, 'name', e.target.value)}
+                                        className="h-8"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label htmlFor={`repo-url-${index}`} className="text-xs font-semibold">Base PR URL</Label>
+                                    <Input
+                                        id={`repo-url-${index}`}
+                                        value={repo.baseUrl}
+                                        onChange={(e) => handleRepoChange(index, 'baseUrl', e.target.value)}
+                                        placeholder="e.g. https://github.com/org/repo/pull/"
+                                        className="h-8"
+                                    />
+                                </div>
+                                <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Delete {repo.name}?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This will remove the repository from the configuration. It will not delete any tasks.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDeleteRepo(repo.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="pt-4 border-t">
+                        <Button variant="outline" size="sm" onClick={handleAddRepo}>
+                           <PlusCircle className="h-4 w-4 mr-2" /> Add Repository
+                        </Button>
                     </div>
                 </CardContent>
             </Card>

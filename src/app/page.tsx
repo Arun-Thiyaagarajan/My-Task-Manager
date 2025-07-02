@@ -21,7 +21,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { TASK_STATUSES, REPOSITORIES } from '@/lib/constants';
+import { TASK_STATUSES, INITIAL_REPOSITORY_CONFIGS } from '@/lib/constants';
 import {
   LayoutGrid,
   List,
@@ -307,6 +307,7 @@ export default function Home() {
   }
   
   const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
+  const REPOSITORIES = uiConfig.repositoryConfigs?.map(r => r.name) ?? INITIAL_REPOSITORY_CONFIGS.map(r => r.name);
 
   const handleNewTaskClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();

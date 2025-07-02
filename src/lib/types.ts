@@ -19,6 +19,12 @@ export interface Attachment {
   type: 'link' | 'file';
 }
 
+export interface RepositoryConfig {
+  id: string;
+  name: string;
+  baseUrl: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -74,4 +80,5 @@ export interface UiConfig {
   fields: FieldConfig[];
   environments: string[];
   coreEnvironments: string[];
+  repositoryConfigs: RepositoryConfig[];
 }

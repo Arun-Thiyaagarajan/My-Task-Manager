@@ -3,7 +3,7 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { GitPullRequest } from 'lucide-react';
-import type { Task, Repository } from '@/lib/types';
+import type { Task, Repository, RepositoryConfig } from '@/lib/types';
 import { Badge } from './ui/badge';
 import { ScrollArea, ScrollBar } from './ui/scroll-area';
 
@@ -11,11 +11,11 @@ interface PrLinksGroupProps {
   prLinks: Task['prLinks'];
   repositories: Repository[] | undefined;
   configuredEnvs: string[] | undefined;
+  repositoryConfigs: RepositoryConfig[];
 }
 
-export function PrLinksGroup({ prLinks, repositories, configuredEnvs }: PrLinksGroupProps) {
-  const baseUrl = 'https://dev.azure.com/ideaelan/Infinity/_git/';
-
+export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repositoryConfigs }: PrLinksGroupProps) {
+  const repoConfigMap = new Map((repositoryConfigs || []).map(rc => [rc.name, rc]));
   const displayRepos = repositories || [];
 
   if (!displayRepos || displayRepos.length === 0) {
@@ -49,6 +49,7 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs }: PrLinksG
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
       {displayRepos.map((repo) => {
+        const repoConfig = repoConfigMap.get(repo);
         const linksForRepo = allEnvs.map(env => {
             const prIdString = prLinks?.[env]?.[repo] || '';
             const prIds = prIdString
@@ -75,7 +76,9 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs }: PrLinksG
                       </h4>
                       <div className="flex flex-wrap gap-2">
                         {linkData.prIds.map((id) => {
-                          const url = `${baseUrl}${repo}/pullrequest/${id}`;
+                          const baseUrl = repoConfig ? repoConfig.baseUrl : '';
+                          const url = baseUrl ? `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}${id}` : '#';
+
                           return (
                             <a
                               key={`${repo}-${linkData.env}-${id}`}
