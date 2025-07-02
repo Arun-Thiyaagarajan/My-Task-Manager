@@ -16,7 +16,6 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import {
   Table,
@@ -83,7 +82,7 @@ function EditPersonForm({ personToEdit, onSave, onCancel, isPending }: EditPerso
             email: personToEdit?.email || '',
             phone: personToEdit?.phone || '',
         })
-    }, [personToEdit, form.reset]);
+    }, [personToEdit, form]);
 
     return (
         <Form {...form}>
@@ -189,8 +188,8 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
         refreshPeople();
         onSuccess();
         handleCancelEdit();
-    } catch (e) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Something went wrong.' });
+    } catch (e: any) {
+        toast({ variant: 'destructive', title: 'Error', description: e.message || 'Something went wrong.' });
     } finally {
         setIsPending(false);
     }
