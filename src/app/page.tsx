@@ -56,6 +56,7 @@ import { useRouter } from 'next/navigation';
 import { taskSchema } from '@/lib/validators';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Card, CardContent } from '@/components/ui/card';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 
 type ViewMode = 'grid' | 'table';
 
@@ -77,6 +78,7 @@ export default function Home() {
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { prompt } = useUnsavedChanges();
 
   const refreshData = () => {
     if (activeCompanyId) {
@@ -297,6 +299,11 @@ export default function Home() {
   
   const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
 
+  const handleNewTaskClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    prompt(() => router.push('/tasks/new'));
+  };
+
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
@@ -337,10 +344,10 @@ export default function Home() {
             />
             
             <Button asChild size="sm">
-            <Link href="/tasks/new">
+            <a href="/tasks/new" onClick={handleNewTaskClick}>
                 <Plus className="mr-2 h-4 w-4" />
                 New Task
-            </Link>
+            </a>
             </Button>
         </div>
       </div>
@@ -543,7 +550,7 @@ export default function Home() {
 
       {sortedTasks.length > 0 ? (
         viewMode === 'grid' ? (
-          <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} />
+          <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} />
         ) : (
           <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} />
         )
@@ -555,10 +562,10 @@ export default function Home() {
                 Try adjusting your filters or create a new task.
             </p>
             <Button asChild className="mt-4" size="sm">
-                <Link href="/tasks/new">
-                <Plus className="mr-2 h-4 w-4" />
-                Create Task
-                </Link>
+                <a href="/tasks/new" onClick={handleNewTaskClick}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Task
+                </a>
             </Button>
         </div>
       )}
