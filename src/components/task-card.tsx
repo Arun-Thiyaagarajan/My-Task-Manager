@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { statusConfig, TaskStatusBadge } from './task-status-badge';
-import { GitMerge, ExternalLink, Check, Users, TestTube2 } from 'lucide-react';
+import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { getInitials, getAvatarColor, cn } from '@/lib/utils';
@@ -271,7 +271,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
               {hasDevelopers && (
                 <div className="flex items-center gap-1.5">
                   <Tooltip>
-                      <TooltipTrigger asChild><Users className="h-4 w-4 text-muted-foreground" /></TooltipTrigger>
+                      <TooltipTrigger asChild><Code2 className="h-4 w-4 text-muted-foreground" /></TooltipTrigger>
                       <TooltipContent><p>{developersLabel}</p></TooltipContent>
                   </Tooltip>
                   <div className="flex -space-x-2">
@@ -301,7 +301,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
               {hasTesters && (
                 <div className="flex items-center gap-1.5">
                   <Tooltip>
-                      <TooltipTrigger asChild><TestTube2 className="h-4 w-4 text-muted-foreground" /></TooltipTrigger>
+                      <TooltipTrigger asChild><ClipboardCheck className="h-4 w-4 text-muted-foreground" /></TooltipTrigger>
                       <TooltipContent><p>{testersLabel}</p></TooltipContent>
                   </Tooltip>
                   <div className="flex -space-x-2">

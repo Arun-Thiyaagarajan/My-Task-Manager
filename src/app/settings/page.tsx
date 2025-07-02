@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Users, TestTube2 } from 'lucide-react';
+import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck } from 'lucide-react';
 import { EditFieldDialog } from '@/components/edit-field-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -551,7 +551,7 @@ export default function SettingsPage() {
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                        <Users className="h-5 w-5" />
+                        <Code2 className="h-5 w-5" />
                         Developer Management
                     </CardTitle>
                     <CardDescription>Remove developers from the system. This will also unassign them from all tasks.</CardDescription>
@@ -591,7 +591,7 @@ export default function SettingsPage() {
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                        <TestTube2 className="h-5 w-5" />
+                        <ClipboardCheck className="h-5 w-5" />
                         Tester Management
                     </CardTitle>
                     <CardDescription>Remove testers from the system. This will also unassign them from all tasks.</CardDescription>

@@ -6,7 +6,7 @@ import { getTasks, getUiConfig } from '@/lib/data';
 import type { Task, Developer, UiConfig } from '@/lib/types';
 import { TASK_STATUSES, REPOSITORIES, ENVIRONMENTS } from '@/lib/constants';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { BarChart, PieChartIcon, ListChecks, CheckCircle2, Loader2, Bug, GitMerge, Server, TestTube2 } from 'lucide-react';
+import { BarChart, PieChartIcon, ListChecks, CheckCircle2, Loader2, Bug, GitMerge, Server, ClipboardCheck } from 'lucide-react';
 import { Bar, Pie, PieChart, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, Cell } from 'recharts';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { getAvatarColor, cn } from '@/lib/utils';
@@ -208,7 +208,7 @@ export default function DashboardPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            <TestTube2 className="h-5 w-5 text-chart-3" />
+                            <ClipboardCheck className="h-5 w-5 text-chart-3" />
                             Tasks per {fieldLabels.get('testers') || 'Tester'}
                         </CardTitle>
                         <CardDescription>Breakdown of task assignments to testers.</CardDescription>
