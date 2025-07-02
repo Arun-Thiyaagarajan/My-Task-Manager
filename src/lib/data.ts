@@ -423,13 +423,15 @@ function addPerson(type: 'developers' | 'testers', personData: Partial<Omit<Pers
     const isIdFormat = /^(developer|tester)-[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$/i.test(trimmedName);
     if (isIdFormat) {
         console.error(`CRITICAL: Attempted to create a person with an ID as a name: "${trimmedName}". This is a data corruption bug.`);
+        // If this happens, it's a bug in the calling code. Try to recover by finding the existing person.
+        const existingPerson = people.find(p => p.id === trimmedName);
+        if (existingPerson) return existingPerson;
         throw new Error("A system error occurred. Could not create person with an invalid name format.");
     }
 
-    // Check for existing person with the same name.
     const existingPersonByName = people.find(p => p.name.toLowerCase() === trimmedName.toLowerCase());
     if (existingPersonByName) {
-        return existingPersonByName;
+        throw new Error(`${type === 'developers' ? 'Developer' : 'Tester'} with this name already exists.`);
     }
 
     // Create the new person.
