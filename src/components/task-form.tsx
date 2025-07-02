@@ -158,10 +158,10 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
     }
     if(field.type === 'tags') {
         if(field.key === 'developers') {
-            return developersList.map(d => ({ value: d, label: d }));
+            return (developersList || []).map(d => ({ value: d, label: d }));
         }
         if(field.key === 'testers') {
-            return testersList.map(t => ({ value: t, label: t }));
+            return (testersList || []).map(t => ({ value: t, label: t }));
         }
         return field.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
     }
