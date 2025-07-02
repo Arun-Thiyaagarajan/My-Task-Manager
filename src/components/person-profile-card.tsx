@@ -4,6 +4,8 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Mail, Phone, Briefcase, UserCheck } from 'lucide-react';
@@ -40,8 +42,12 @@ export function PersonProfileCard({ person, type, isOpen, onOpenChange }: Person
                 </AvatarFallback>
             </Avatar>
             <div>
-              <h2 className="text-2xl font-bold">{person.name}</h2>
-              <Badge variant="secondary" className="mt-1">
+              <DialogTitle className="text-2xl font-bold">{person.name}</DialogTitle>
+              {/* The DialogDescription is for accessibility. The Badge provides the visual cue. */}
+              <DialogDescription className="sr-only">
+                {type}
+              </DialogDescription>
+              <Badge variant="secondary" className="mt-1" aria-hidden="true">
                 <TypeIcon className="h-3 w-3 mr-1.5"/>
                 {type}
               </Badge>
