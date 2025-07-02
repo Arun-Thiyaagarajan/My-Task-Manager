@@ -41,7 +41,7 @@ export function PersonProfileCard({ person, type, isOpen, onOpenChange }: Person
                     {getInitials(person.name)}
                 </AvatarFallback>
             </Avatar>
-            <div>
+            <div className="flex flex-col items-center">
               <DialogTitle className="text-2xl font-bold">{person.name}</DialogTitle>
               {/* The DialogDescription is for accessibility. The Badge provides the visual cue. */}
               <DialogDescription className="sr-only">
