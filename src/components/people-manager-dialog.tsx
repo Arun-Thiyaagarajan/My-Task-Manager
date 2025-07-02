@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -138,20 +138,15 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
   const title = type === 'developer' ? 'Developer' : 'Tester';
   const Icon = type === 'developer' ? Users : ClipboardCheck;
 
-  const getPeople = useCallback(() => (type === 'developer' ? getDevelopers() : getTesters()), [type]);
-  const updatePerson = useCallback((id: string, data: Partial<Omit<Person, 'id'>>) => (type === 'developer' ? updateDeveloper(id, data) : updateTester(id, data)), [type]);
-  const deletePerson = useCallback((id: string) => (type === 'developer' ? deleteDeveloper(id) : deleteTester(id)), [type]);
-  const createPerson = useCallback((data: Partial<Omit<Person, 'id'>>) => (type === 'developer' ? addDeveloper(data) : addTester(data)), [type]);
-
-  const refreshPeople = useCallback(() => {
-    setPeople(getPeople());
-  }, [getPeople]);
-
   useEffect(() => {
     if (isOpen) {
-      refreshPeople();
+      if (type === 'developer') {
+        setPeople(getDevelopers());
+      } else {
+        setPeople(getTesters());
+      }
     }
-  }, [isOpen, refreshPeople]);
+  }, [isOpen, type]);
 
   const handleOpenEdit = (person: Person) => {
     setPersonToEdit(person);
@@ -174,9 +169,17 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
       const isEditing = !!personToEdit;
 
       if (isEditing) {
-        updatePerson(personToEdit.id, data);
+        if (type === 'developer') {
+          updateDeveloper(personToEdit.id, data);
+        } else {
+          updateTester(personToEdit.id, data);
+        }
       } else {
-        createPerson(data);
+        if (type === 'developer') {
+          addDeveloper(data);
+        } else {
+          addTester(data);
+        }
       }
       
       toast({ 
@@ -184,7 +187,11 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
         title: isEditing ? `${title} Updated` : `${title} Added` 
       });
 
-      refreshPeople();
+      if (type === 'developer') {
+        setPeople(getDevelopers());
+      } else {
+        setPeople(getTesters());
+      }
       onSuccess();
       handleCancelEdit();
     } catch (e: any) {
@@ -199,9 +206,20 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
   };
 
   const handleDelete = (id: string) => {
-    if (deletePerson(id)) {
+    let success = false;
+    if (type === 'developer') {
+      success = deleteDeveloper(id);
+    } else {
+      success = deleteTester(id);
+    }
+
+    if (success) {
       toast({ variant: 'success', title: `${title} Removed` });
-      refreshPeople();
+      if (type === 'developer') {
+        setPeople(getDevelopers());
+      } else {
+        setPeople(getTesters());
+      }
       onSuccess();
     } else {
       toast({ variant: 'destructive', title: 'Error', description: `Could not remove ${title}.` });
