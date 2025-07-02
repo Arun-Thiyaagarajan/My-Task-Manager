@@ -73,6 +73,32 @@ const getAppData = (): MyTaskManagerData => {
             throw new Error("Invalid data structure");
         }
 
+        // One-time cleanup of old default developers/testers.
+        // This can be removed in a future version.
+        let dataWasModified = false;
+        const defaultNamesToRemove = new Set(["Samantha", "Arun", "Rajesh", "Chloe"]);
+        
+        for (const companyId in data.companyData) {
+            const company = data.companyData[companyId];
+
+            if (company.developers && company.developers.length > 0) {
+                const originalDevCount = company.developers.length;
+                company.developers = company.developers.filter(dev => typeof dev === 'object' && dev.name && !defaultNamesToRemove.has(dev.name));
+                if (company.developers.length !== originalDevCount) {
+                    dataWasModified = true;
+                }
+            }
+
+            if (company.testers && company.testers.length > 0) {
+                const originalTesterCount = company.testers.length;
+                company.testers = company.testers.filter(tester => typeof tester === 'object' && tester.name && !defaultNamesToRemove.has(tester.name));
+                if (company.testers.length !== originalTesterCount) {
+                    dataWasModified = true;
+                }
+            }
+        }
+        // End of one-time cleanup.
+
         // This block for data migration can be removed in a future version
         // once user data is stable.
         let needsSave = false;
@@ -113,7 +139,7 @@ const getAppData = (): MyTaskManagerData => {
                                 finalPeople.push({ id: existingId, name: nameToAdd, email: (p as Person).email || '', phone: (p as Person).phone || '' });
                             }
                         } else {
-                            const newId = `${type}-${crypto.randomUUID()}`;
+                            const newId = `${type.slice(0, -1)}-${crypto.randomUUID()}`;
                             nameMap.set(nameToAdd.toLowerCase(), newId);
                             finalPeople.push({ id: newId, name: nameToAdd, email: (p as Person).email || '', phone: (p as Person).phone || '' });
                             changed = true;
@@ -125,12 +151,19 @@ const getAppData = (): MyTaskManagerData => {
                 company.tasks.forEach(task => {
                     const assignmentListKey = type === 'developer' ? 'developers' : 'testers';
                     const assignments = task[assignmentListKey];
-                    if (assignments && assignments.length > 0 && typeof assignments[0] === 'string') {
-                         const newAssignments = (assignments as string[]).map(nameOrId => {
-                            // If it's already an ID, keep it.
-                            if (/^(dev|tester|developer)-/.test(nameOrId)) return nameOrId;
-                            // Otherwise, it's a name, so look up its new ID.
-                            return nameMap.get(nameOrId.toLowerCase());
+                    if (assignments && assignments.length > 0) {
+                         const newAssignments = (assignments as (string | Person)[]).map(nameOrId => {
+                            if (typeof nameOrId === 'object' && nameOrId.id) return nameOrId.id;
+                            if (typeof nameOrId === 'string' && /^(dev|tester|developer)-/.test(nameOrId)) return nameOrId;
+                            
+                            let nameToLookup: string | undefined;
+                            if (typeof nameOrId === 'string') {
+                                nameToLookup = nameOrId;
+                            } else if (typeof nameOrId === 'object' && nameOrId.name) {
+                                nameToLookup = nameOrId.name;
+                            }
+                            
+                            return nameToLookup ? nameMap.get(nameToLookup.toLowerCase()) : undefined;
                          }).filter((id): id is string => !!id);
                          
                          if (JSON.stringify(task[assignmentListKey]) !== JSON.stringify(newAssignments)) {
@@ -154,7 +187,7 @@ const getAppData = (): MyTaskManagerData => {
             }
         }
         
-        if (needsSave) {
+        if (needsSave || dataWasModified) {
             setAppData(data);
         }
 
@@ -472,7 +505,7 @@ function addPerson(type: 'developers' | 'testers', personData: Partial<Omit<Pers
 
     if (!companyData) throw new Error("Cannot add person, no active company data found.");
     if (!personData.name || personData.name.trim() === '') throw new Error("Person name cannot be empty.");
-
+    
     const people = companyData[type] || [];
     const trimmedName = personData.name.trim();
 
