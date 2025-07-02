@@ -19,7 +19,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check } from 'lucide-react';
-import type { FieldConfig, FieldOption, FieldType } from '@/lib/types';
+import type { FieldConfig, FieldOption, FieldType, RepositoryConfig } from '@/lib/types';
 import { FIELD_TYPES } from '@/lib/constants';
 import * as React from 'react';
 import { getUiConfig } from '@/lib/data';
@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 
 
 const fieldOptionSchema = z.object({
@@ -49,11 +50,12 @@ type FieldFormData = z.infer<typeof fieldSchema>;
 interface EditFieldDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (field: FieldConfig) => void;
+  onSave: (field: FieldConfig, repoConfigs?: RepositoryConfig[]) => void;
   field: FieldConfig | null;
+  repositoryConfigs?: RepositoryConfig[];
 }
 
-export function EditFieldDialog({ isOpen, onOpenChange, onSave, field }: EditFieldDialogProps) {
+export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositoryConfigs }: EditFieldDialogProps) {
   const isCreating = field === null;
 
   const form = useForm<FieldFormData>({
@@ -87,10 +89,30 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field }: EditFie
   const [allGroups, setAllGroups] = React.useState<string[]>([]);
   const [isGroupPopoverOpen, setIsGroupPopoverOpen] = React.useState(false);
   const [groupSearch, setGroupSearch] = React.useState('');
+  
+  const [localRepoConfigs, setLocalRepoConfigs] = React.useState<RepositoryConfig[]>([]);
+
+  const isRepoField = field?.key === 'repositories';
 
   const unchangeableRequiredKeys = ['title', 'description', 'status', 'repositories', 'developers', 'azureWorkItemId', 'deploymentStatus'];
   const isRequiredToggleDisabled = field !== null && !field.isCustom && unchangeableRequiredKeys.includes(field.key);
   const isActiveToggleDisabled = field !== null && !field.isCustom;
+
+  const handleRepoChange = (index: number, field: 'name' | 'baseUrl', value: string) => {
+    setLocalRepoConfigs(prev => {
+        const newConfigs = [...prev];
+        newConfigs[index] = { ...newConfigs[index], [field]: value };
+        return newConfigs;
+    });
+  };
+
+  const handleAddRepo = () => {
+    setLocalRepoConfigs(prev => [...prev, { id: `repo_${Date.now()}`, name: 'New-Repo', baseUrl: 'https://github.com/org/repo/pull/' }]);
+  };
+
+  const handleDeleteRepo = (id: string) => {
+    setLocalRepoConfigs(prev => prev.filter(r => r.id !== id));
+  };
 
 
   const onSubmit = (data: FieldFormData) => {
@@ -103,7 +125,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field }: EditFie
       }),
       ...data,
     };
-    onSave(finalField);
+    onSave(finalField, isRepoField ? localRepoConfigs : undefined);
     onOpenChange(false);
   };
   
@@ -130,8 +152,12 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field }: EditFie
           options: field?.options || [],
         });
         setGroupSearch(field?.group || '');
+
+        if(field?.key === 'repositories') {
+          setLocalRepoConfigs(repositoryConfigs || []);
+        }
     }
-  }, [field, form, isOpen]);
+  }, [field, form, isOpen, repositoryConfigs]);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogChange}>
@@ -313,7 +339,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field }: EditFie
                         </div>
                     </div>
                     
-                    {showOptions && (
+                    {showOptions && !isRepoField && (
                         <div className="space-y-3 pt-4 border-t">
                             <h4 className="font-medium">Options</h4>
                             {options.map((option, index) => (
@@ -352,6 +378,61 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field }: EditFie
                              {form.formState.errors.options && <p className="text-sm text-destructive mt-1">{form.formState.errors.options.message}</p>}
                             <Button type="button" variant="outline" size="sm" onClick={() => append({id: `option_${Date.now()}`, label: '', value: ''})}>
                                 <PlusCircle className="h-4 w-4 mr-2" /> Add Option
+                            </Button>
+                        </div>
+                    )}
+
+                    {isRepoField && (
+                        <div className="space-y-3 pt-4 border-t">
+                            <h4 className="font-medium">Repository Configurations</h4>
+                             <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                                {localRepoConfigs.map((repo, index) => (
+                                    <div key={repo.id} className="p-3 border rounded-md bg-muted/50 space-y-2 relative group">
+                                        <div className="space-y-1">
+                                            <Label htmlFor={`repo-name-${index}`} className="text-xs font-semibold">Name</Label>
+                                            <Input
+                                                id={`repo-name-${index}`}
+                                                value={repo.name}
+                                                onChange={(e) => handleRepoChange(index, 'name', e.target.value)}
+                                                className="h-8 bg-background"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label htmlFor={`repo-url-${index}`} className="text-xs font-semibold">Base PR URL</Label>
+                                            <Input
+                                                id={`repo-url-${index}`}
+                                                value={repo.baseUrl}
+                                                onChange={(e) => handleRepoChange(index, 'baseUrl', e.target.value)}
+                                                placeholder="e.g. https://github.com/org/repo/pull/"
+                                                className="h-8 bg-background"
+                                            />
+                                        </div>
+                                        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Delete {repo.name}?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            This will remove the repository from the configuration. It will not delete any tasks.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDeleteRepo(repo.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            <Button type="button" variant="outline" size="sm" onClick={handleAddRepo}>
+                                <PlusCircle className="h-4 w-4 mr-2" /> Add Repository
                             </Button>
                         </div>
                     )}

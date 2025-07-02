@@ -140,7 +140,7 @@ export default function SettingsPage() {
     setIsDialogOpen(true);
   };
 
-  const handleSaveField = (fieldData: FieldConfig) => {
+  const handleSaveField = (fieldData: FieldConfig, newRepoConfigs?: RepositoryConfig[]) => {
     setConfig(prevConfig => {
       if (!prevConfig) return null;
       const fields = [...prevConfig.fields];
@@ -152,11 +152,22 @@ export default function SettingsPage() {
         const newField = {
           ...fieldData,
           key: `custom_${fieldData.label.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}`,
-          order: fields.length, // Add to the end
+          order: fields.length,
         };
         fields.push(newField);
       }
-      return { ...prevConfig, fields };
+      
+      const finalRepoConfigs = newRepoConfigs ?? prevConfig.repositoryConfigs;
+      
+      // If repo configs changed, we need to update the options on the repositories field
+      if (newRepoConfigs) {
+          const repoField = fields.find(f => f.key === 'repositories');
+          if (repoField) {
+              repoField.options = finalRepoConfigs.map(r => ({ id: r.id, value: r.name, label: r.name }));
+          }
+      }
+
+      return { ...prevConfig, fields, repositoryConfigs: finalRepoConfigs };
     });
   };
 
@@ -307,35 +318,6 @@ export default function SettingsPage() {
     setEditingGroup(null);
   };
   
-  const handleRepoChange = (index: number, field: 'name' | 'baseUrl', value: string) => {
-      setConfig(prevConfig => {
-          if (!prevConfig) return null;
-          const newRepoConfigs = [...prevConfig.repositoryConfigs];
-          newRepoConfigs[index] = { ...newRepoConfigs[index], [field]: value };
-          return { ...prevConfig, repositoryConfigs: newRepoConfigs };
-      });
-  };
-
-  const handleAddRepo = () => {
-      setConfig(prevConfig => {
-          if (!prevConfig) return null;
-          const newRepo: RepositoryConfig = {
-              id: `repo_${Date.now()}`,
-              name: 'New-Repo',
-              baseUrl: 'https://github.com/my-org/',
-          };
-          return { ...prevConfig, repositoryConfigs: [...prevConfig.repositoryConfigs, newRepo] };
-      });
-  };
-
-  const handleDeleteRepo = (id: string) => {
-      setConfig(prevConfig => {
-          if (!prevConfig) return null;
-          const newRepoConfigs = prevConfig.repositoryConfigs.filter(r => r.id !== id);
-          return { ...prevConfig, repositoryConfigs: newRepoConfigs };
-      });
-  };
-
   const filteredAndGroupedFields = useMemo(() => {
     if (!config) return { active: {}, inactive: {} };
     
@@ -580,68 +562,6 @@ export default function SettingsPage() {
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                        <FolderGit className="h-5 w-5" />
-                        Repository Management
-                    </CardTitle>
-                    <CardDescription>Manage repositories and their base URLs for PR links.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-3">
-                        {config.repositoryConfigs?.map((repo, index) => (
-                            <div key={repo.id} className="p-3 border rounded-md bg-card space-y-2 relative group">
-                                <div className="space-y-1">
-                                    <Label htmlFor={`repo-name-${index}`} className="text-xs font-semibold">Name</Label>
-                                    <Input
-                                        id={`repo-name-${index}`}
-                                        value={repo.name}
-                                        onChange={(e) => handleRepoChange(index, 'name', e.target.value)}
-                                        className="h-8"
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label htmlFor={`repo-url-${index}`} className="text-xs font-semibold">Base PR URL</Label>
-                                    <Input
-                                        id={`repo-url-${index}`}
-                                        value={repo.baseUrl}
-                                        onChange={(e) => handleRepoChange(index, 'baseUrl', e.target.value)}
-                                        placeholder="e.g. https://github.com/org/repo/pull/"
-                                        className="h-8"
-                                    />
-                                </div>
-                                <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>Delete {repo.name}?</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                    This will remove the repository from the configuration. It will not delete any tasks.
-                                                </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                <AlertDialogAction onClick={() => handleDeleteRepo(repo.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                    <div className="pt-4 border-t">
-                        <Button variant="outline" size="sm" onClick={handleAddRepo}>
-                           <PlusCircle className="h-4 w-4 mr-2" /> Add Repository
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
                         <Code2 className="h-5 w-5" />
                         Developer Management
                     </CardTitle>
@@ -728,6 +648,7 @@ export default function SettingsPage() {
             onOpenChange={setIsDialogOpen}
             field={fieldToEdit}
             onSave={handleSaveField}
+            repositoryConfigs={config.repositoryConfigs}
         />
       )}
     </div>
