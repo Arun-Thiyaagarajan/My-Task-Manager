@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { statusConfig, TaskStatusBadge } from './task-status-badge';
-import { GitMerge, ExternalLink, Check } from 'lucide-react';
+import { GitMerge, ExternalLink, Check, Users, TestTube2 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { getInitials, getAvatarColor, cn } from '@/lib/utils';
@@ -29,6 +29,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { TASK_STATUSES } from '@/lib/constants';
+import { Separator } from './ui/separator';
 
 interface TaskCardProps {
   task: Task;
@@ -153,6 +154,9 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate }: Task
   const azureWorkItemUrl = task.azureWorkItemId
     ? `https://dev.azure.com/ideaelan/Infinity/_workitems/edit/${task.azureWorkItemId}`
     : null;
+    
+  const hasDevelopers = task.developers && task.developers.length > 0;
+  const hasTesters = task.testers && task.testers.length > 0;
 
   return (
     <Card
@@ -262,55 +266,73 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate }: Task
         </CardContent>
       </div>
       <CardFooter className="flex items-center justify-between p-4 border-t">
-        <div className="flex items-center gap-2">
-            {task.developers && task.developers.length > 0 && (
+        <div className="flex items-center gap-3">
+            {hasDevelopers && (
+              <div className="flex items-center gap-1.5">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild><Users className="h-4 w-4 text-muted-foreground" /></TooltipTrigger>
+                    <TooltipContent><p>Developers</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <div className="flex -space-x-2">
-                    <TooltipProvider>
-                      {task.developers.map((dev) => (
-                        <Tooltip key={dev}>
-                          <TooltipTrigger>
-                            <Avatar className="h-7 w-7 border-2 border-card">
-                              <AvatarFallback 
-                                className="text-xs font-semibold text-white"
-                                style={{ backgroundColor: `#${getAvatarColor(dev)}` }}
-                              >
-                                {getInitials(dev)}
-                              </AvatarFallback>
-                            </Avatar>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{dev}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      ))}
-                    </TooltipProvider>
+                  <TooltipProvider>
+                    {task.developers.map((dev) => (
+                      <Tooltip key={dev}>
+                        <TooltipTrigger asChild>
+                          <Avatar className="h-7 w-7 border-2 border-card cursor-default">
+                            <AvatarFallback 
+                              className="text-xs font-semibold text-white"
+                              style={{ backgroundColor: `#${getAvatarColor(dev)}` }}
+                            >
+                              {getInitials(dev)}
+                            </AvatarFallback>
+                          </Avatar>
+                        </TooltipTrigger>
+                        <TooltipContent><p>{dev}</p></TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </TooltipProvider>
                 </div>
+              </div>
             )}
-            {task.testers && task.testers.length > 0 && (
-                <div className="flex -space-x-2 ml-2">
-                    <TooltipProvider>
-                      {task.testers.map((tester) => (
-                        <Tooltip key={tester}>
-                          <TooltipTrigger>
-                            <Avatar className="h-7 w-7 border-2 border-card ring-1 ring-inset ring-amber-400">
-                               <AvatarFallback 
-                                className="text-xs font-semibold text-white"
-                                style={{ backgroundColor: `#${getAvatarColor(tester)}` }}
-                              >
-                                {getInitials(tester)}
-                              </AvatarFallback>
-                            </Avatar>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{tester} (Tester)</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      ))}
-                    </TooltipProvider>
+
+            {hasDevelopers && hasTesters && (
+              <Separator orientation="vertical" className="h-5" />
+            )}
+
+            {hasTesters && (
+               <div className="flex items-center gap-1.5">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild><TestTube2 className="h-4 w-4 text-muted-foreground" /></TooltipTrigger>
+                    <TooltipContent><p>Testers</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <div className="flex -space-x-2">
+                  <TooltipProvider>
+                    {task.testers.map((tester) => (
+                      <Tooltip key={tester}>
+                        <TooltipTrigger asChild>
+                          <Avatar className="h-7 w-7 border-2 border-card cursor-default">
+                             <AvatarFallback 
+                              className="text-xs font-semibold text-white"
+                              style={{ backgroundColor: `#${getAvatarColor(tester)}` }}
+                            >
+                              {getInitials(tester)}
+                            </AvatarFallback>
+                          </Avatar>
+                        </TooltipTrigger>
+                        <TooltipContent><p>{tester} (Tester)</p></TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </TooltipProvider>
                 </div>
+              </div>
             )}
-            {(!task.developers || task.developers.length === 0) && (!task.testers || task.testers.length === 0) && (
-                 <div className="text-xs text-muted-foreground italic">No assignees</div>
+            
+            {!hasDevelopers && !hasTesters && (
+               <div className="text-xs text-muted-foreground italic">No assignees</div>
             )}
         </div>
         <div>
