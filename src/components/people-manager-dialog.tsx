@@ -132,7 +132,6 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
   const Icon = type === 'developer' ? Users : ClipboardCheck;
 
   const getPeople = useCallback(() => (type === 'developer' ? getDevelopers() : getTesters()), [type]);
-  const addPerson = useCallback((name: string) => (type === 'developer' ? addDeveloper(name) : addTester(name)), [type]);
   const updatePerson = useCallback((id: string, data: Partial<Omit<Person, 'id'>>) => (type === 'developer' ? updateDeveloper(id, data) : updateTester(id, data)), [type]);
   const deletePerson = useCallback((id: string) => (type === 'developer' ? deleteDeveloper(id) : deleteTester(id)), [type]);
 
@@ -167,14 +166,18 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
             updatePerson(personToEdit.id, data);
             toast({ variant: 'success', title: `${title} Updated` });
         } else { // Adding
-            const existingPerson = people.find(p => p.name.toLowerCase() === data.name.toLowerCase());
+            const currentPeople = getPeople();
+            const existingPerson = currentPeople.find(p => p.name.toLowerCase() === data.name.trim().toLowerCase());
             if (existingPerson) {
                 toast({ variant: 'destructive', title: 'Name already exists' });
                 setIsPending(false);
                 return;
             }
-            const newPerson = addPerson(data.name);
-            updatePerson(newPerson.id, data);
+            if (type === 'developer') {
+                addDeveloper(data);
+            } else {
+                addTester(data);
+            }
             toast({ variant: 'success', title: `${title} Added` });
         }
         refreshPeople();

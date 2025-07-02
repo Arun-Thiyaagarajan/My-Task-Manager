@@ -465,24 +465,34 @@ function getPeople(type: 'developers' | 'testers'): Person[] {
     return data.companyData[activeCompanyId][type] || [];
 }
 
-function addPerson(type: 'developers' | 'testers', name: string): Person {
+function addPerson(type: 'developers' | 'testers', personData: Partial<Omit<Person, 'id'>>): Person {
     const data = getAppData();
     const activeCompanyId = data.activeCompanyId;
     const companyData = data.companyData[activeCompanyId];
 
     if (!companyData) {
-        return { id: `temp-${crypto.randomUUID()}`, name };
+        throw new Error("Cannot add person, no active company data found.");
     }
     
+    if (!personData.name || personData.name.trim() === '') {
+        throw new Error("Person name cannot be empty.");
+    }
+
     const people = companyData[type] || [];
     
-    const trimmedName = name.trim();
+    const trimmedName = personData.name.trim();
     const existingPerson = people.find(p => p.name.toLowerCase() === trimmedName.toLowerCase());
     if (existingPerson) {
         return existingPerson;
     }
 
-    const newPerson: Person = { id: `${type.slice(0, -1)}-${crypto.randomUUID()}`, name: trimmedName };
+    const newPerson: Person = {
+        id: `${type.slice(0, -1)}-${crypto.randomUUID()}`,
+        name: trimmedName,
+        email: personData.email || '',
+        phone: personData.phone || ''
+    };
+    
     companyData[type] = [...people, newPerson];
     setAppData(data);
     
@@ -533,13 +543,19 @@ function deletePerson(type: 'developers' | 'testers', id: string): boolean {
 
 // Developer Functions
 export const getDevelopers = () => getPeople('developers');
-export const addDeveloper = (name: string) => addPerson('developers', name);
+export const addDeveloper = (data: string | Partial<Omit<Person, 'id'>>) => {
+    const personData = typeof data === 'string' ? { name: data } : data;
+    return addPerson('developers', personData);
+};
 export const updateDeveloper = (id: string, data: Partial<Omit<Person, 'id'>>) => updatePerson('developers', id, data);
 export const deleteDeveloper = (id: string) => deletePerson('developers', id);
 
 // Tester Functions
 export const getTesters = () => getPeople('testers');
-export const addTester = (name: string) => addPerson('testers', name);
+export const addTester = (data: string | Partial<Omit<Person, 'id'>>) => {
+    const personData = typeof data === 'string' ? { name: data } : data;
+    return addPerson('testers', personData);
+};
 export const updateTester = (id: string, data: Partial<Omit<Person, 'id'>>) => updatePerson('testers', id, data);
 export const deleteTester = (id: string) => deletePerson('testers', id);
 
