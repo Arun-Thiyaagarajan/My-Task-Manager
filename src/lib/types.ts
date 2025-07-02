@@ -82,6 +82,7 @@ export interface FieldConfig {
   isCustom: boolean;
   order: number;
   options?: FieldOption[];
+  baseUrl?: string;
 }
 
 export interface UiConfig {

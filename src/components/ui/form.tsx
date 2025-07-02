@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -95,7 +96,7 @@ const FormLabel = React.forwardRef<
   return (
     <Label
       ref={ref}
-      className={cn(error && "text-destructive", className)}
+      className={cn(error && "text-destructive", "pb-0", className)}
       htmlFor={formItemId}
       {...props}
     />

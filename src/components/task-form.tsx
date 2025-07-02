@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Loader2, CalendarIcon, Trash2, PlusCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTransition, useEffect, useState } from 'react';
@@ -174,12 +174,18 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
   }
   
   const renderField = (fieldConfig: FieldConfig) => {
-    const { key, type, label, isCustom, isRequired } = fieldConfig;
+    const { key, type, label, isCustom, isRequired, baseUrl } = fieldConfig;
     const fieldName = isCustom ? `customFields.${key}` : key;
 
     const renderInput = (fieldType: FieldType, field: any) => {
         switch (fieldType) {
             case 'text':
+                return (
+                    <div>
+                        <Input type="text" placeholder={label} {...field} />
+                        {baseUrl && <FormDescription className="mt-1">The value will be appended to: {baseUrl}</FormDescription>}
+                    </div>
+                );
             case 'number':
             case 'url':
                 return <Input type={fieldType === 'text' ? 'text' : fieldType} placeholder={label} {...field} />;
@@ -373,12 +379,12 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                 <CardHeader><CardTitle>{fieldLabels.get('deploymentStatus') || 'Deployment'}</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                     {allConfiguredEnvs.map(env => (
-                        <div key={env} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-3 border rounded-md">
+                        <div key={env} className="flex flex-col sm:flex-row items-center gap-4 p-3 border rounded-md">
                             <FormField
                                 control={form.control}
                                 name={`deploymentStatus.${env}`}
                                 render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center space-x-3 w-full sm:w-auto">
+                                    <FormItem className="flex flex-row items-center gap-3 w-full sm:w-auto">
                                         <FormControl>
                                             <Checkbox checked={field.value} onCheckedChange={field.onChange} id={`deploy-check-${env}`} />
                                         </FormControl>

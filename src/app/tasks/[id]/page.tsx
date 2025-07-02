@@ -138,6 +138,11 @@ export default function TaskPage() {
       if (!fieldConfig) return <span className="text-muted-foreground">N/A</span>;
       
       switch (fieldConfig.type) {
+          case 'text':
+              if (fieldConfig.baseUrl && value) {
+                  return <a href={`${fieldConfig.baseUrl}${value}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate flex items-center gap-2"><ExternalLink className="h-4 w-4"/> {value}</a>
+              }
+              return String(value);
           case 'date':
               return value ? format(new Date(value), 'PPP') : 'Not set';
           case 'checkbox':
@@ -176,10 +181,6 @@ export default function TaskPage() {
 
   const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
 
-  const azureWorkItemUrl = task.azureWorkItemId 
-    ? `https://dev.azure.com/ideaelan/Infinity/_workitems/edit/${task.azureWorkItemId}` 
-    : null;
-
   const hasDevQaDates = task.devStartDate || task.devEndDate || task.qaStartDate || task.qaEndDate;
   
   const allConfiguredEnvs = uiConfig.environments || [];
@@ -203,6 +204,8 @@ export default function TaskPage() {
 
   const assignedDevelopers = (task.developers || []).map(id => developersById.get(id)).filter((d): d is Person => !!d);
   const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter((t): t is Person => !!t);
+
+  const azureFieldConfig = uiConfig.fields.find(f => f.key === 'azureWorkItemId');
 
   return (
     <>
@@ -487,15 +490,19 @@ export default function TaskPage() {
                           </div>
                       </div>
                       
-                      {azureWorkItemUrl && (
+                      {azureFieldConfig && azureFieldConfig.isActive && task.azureWorkItemId && (
                           <>
                               <Separator />
                               <div>
-                                  <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('azureWorkItemId') || 'Azure DevOps'}</h4>
-                                  <a href={azureWorkItemUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline text-sm">
+                                  <h4 className="text-sm font-semibold text-muted-foreground mb-2">{azureFieldConfig.label || 'Azure DevOps'}</h4>
+                                  {azureFieldConfig.baseUrl ? (
+                                    <a href={`${azureFieldConfig.baseUrl}${task.azureWorkItemId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline text-sm">
                                       <ExternalLink className="h-4 w-4" />
                                       <span>Work Item #{task.azureWorkItemId}</span>
-                                  </a>
+                                    </a>
+                                  ) : (
+                                    <span className="text-sm text-foreground">{task.azureWorkItemId}</span>
+                                  )}
                               </div>
                           </>
                       )}

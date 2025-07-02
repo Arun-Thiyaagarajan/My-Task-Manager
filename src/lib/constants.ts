@@ -30,7 +30,7 @@ export const INITIAL_UI_CONFIG: FieldConfig[] = [
   { id: 'field_repositories', key: 'repositories', label: 'Repositories', type: 'multiselect', group: 'Assignment & Tracking', isActive: true, isRequired: true, isCustom: false, order: 3, options: INITIAL_REPOSITORY_CONFIGS.map(r => ({id: r.id, value: r.name, label: r.name})) },
   { id: 'field_developers', key: 'developers', label: 'Developers', type: 'tags', group: 'Assignment & Tracking', isActive: true, isRequired: true, isCustom: false, order: 4, options: [] },
   { id: 'field_testers', key: 'testers', label: 'Testers', type: 'tags', group: 'Assignment & Tracking', isActive: true, isRequired: false, isCustom: false, order: 5, options: [] },
-  { id: 'field_azureWorkItemId', key: 'azureWorkItemId', label: 'Azure Work Item ID', type: 'text', group: 'Assignment & Tracking', isActive: true, isRequired: false, isCustom: false, order: 6 },
+  { id: 'field_azureWorkItemId', key: 'azureWorkItemId', label: 'Azure Work Item ID', type: 'text', group: 'Assignment & Tracking', isActive: true, isRequired: false, isCustom: false, order: 6, baseUrl: 'https://dev.azure.com/ideaelan/Infinity/_workitems/edit/' },
   { id: 'field_prLinks', key: 'prLinks', label: 'Pull Request Links', type: 'text', group: 'Pull Requests', isActive: true, isRequired: false, isCustom: false, order: 7 },
   { id: 'field_attachments', key: 'attachments', label: 'Attachments', type: 'text', group: 'Attachments', isActive: true, isRequired: false, isCustom: false, order: 8 },
   { id: 'field_deploymentStatus', key: 'deploymentStatus', label: 'Deployment Status', type: 'text', group: 'Deployment', isActive: true, isRequired: true, isCustom: false, order: 9 },

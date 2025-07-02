@@ -26,7 +26,7 @@ import { getUiConfig } from '@/lib/data';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 
 
@@ -43,6 +43,7 @@ const fieldSchema = z.object({
   isRequired: z.boolean(),
   isActive: z.boolean(),
   options: z.array(fieldOptionSchema).optional(),
+  baseUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
 });
 
 type FieldFormData = z.infer<typeof fieldSchema>;
@@ -67,6 +68,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
       isRequired: field?.isRequired || false,
       isActive: field?.isActive ?? true, // New fields default to active
       options: field?.options || [],
+      baseUrl: field?.baseUrl || '',
     },
   });
 
@@ -94,14 +96,14 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
 
   const isRepoField = field?.key === 'repositories';
 
-  const unchangeableRequiredKeys = ['title', 'description', 'status', 'repositories', 'developers', 'azureWorkItemId', 'deploymentStatus'];
+  const unchangeableRequiredKeys = ['title', 'description', 'status', 'repositories', 'developers', 'deploymentStatus'];
   const isRequiredToggleDisabled = field !== null && !field.isCustom && unchangeableRequiredKeys.includes(field.key);
-  const isActiveToggleDisabled = field !== null && !field.isCustom;
+  const isActiveToggleDisabled = isRequiredValue || (field !== null && field.isRequired);
 
-  const handleRepoChange = (index: number, field: 'name' | 'baseUrl', value: string) => {
+  const handleRepoChange = (index: number, fieldName: 'name' | 'baseUrl', value: string) => {
     setLocalRepoConfigs(prev => {
         const newConfigs = [...prev];
-        newConfigs[index] = { ...newConfigs[index], [field]: value };
+        newConfigs[index] = { ...newConfigs[index], [fieldName]: value };
         return newConfigs;
     });
   };
@@ -150,6 +152,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
           isRequired: field?.isRequired || false,
           isActive: field?.isActive ?? true,
           options: field?.options || [],
+          baseUrl: field?.baseUrl || '',
         });
         setGroupSearch(field?.group || '');
 
@@ -327,7 +330,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                                             id={field.name}
                                             checked={field.value}
                                             onCheckedChange={field.onChange}
-                                            disabled={isRequiredValue || isActiveToggleDisabled}
+                                            disabled={isActiveToggleDisabled}
                                         />
                                     </FormControl>
                                     <Label htmlFor={field.name} className="cursor-pointer">
@@ -338,6 +341,23 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                             />
                         </div>
                     </div>
+
+                     {selectedType === 'text' && (
+                        <FormField
+                            control={form.control}
+                            name="baseUrl"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Base URL (Optional)</FormLabel>
+                                <FormControl>
+                                    <Input {...field} placeholder="e.g. https://example.com/items/" />
+                                </FormControl>
+                                <FormDescription>If provided, the field value will be appended to this URL to create a link.</FormDescription>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                     )}
                     
                     {showOptions && !isRepoField && (
                         <div className="space-y-3 pt-4 border-t">

@@ -93,11 +93,11 @@ export default function SettingsPage() {
         if (!prevConfig) return null;
         
         const field = prevConfig.fields.find(f => f.id === fieldId);
-        if (!field?.isCustom) {
+        if (field?.isRequired) {
             toast({
                 variant: 'warning',
-                title: 'Cannot Change Built-in Field',
-                description: `Built-in fields cannot be activated or deactivated.`,
+                title: 'Cannot Deactivate Required Field',
+                description: `The "${field.label}" field is required and cannot be deactivated.`,
             });
             return prevConfig;
         }
@@ -341,7 +341,7 @@ export default function SettingsPage() {
   }
 
   const renderFieldRow = (field: FieldConfig, isActiveList: boolean) => {
-    const isToggleDisabled = !field.isCustom;
+    const isToggleDisabled = field.isRequired;
     return (
         <div 
           key={field.id}
@@ -373,7 +373,7 @@ export default function SettingsPage() {
                   className="h-8 w-8"
                   onClick={() => handleToggleActive(field.id)}
                   disabled={isToggleDisabled}
-                  title={isToggleDisabled ? "Built-in fields cannot be modified" : (isActiveList ? 'Deactivate' : 'Activate')}
+                  title={isToggleDisabled ? "Required fields cannot be deactivated" : (isActiveList ? 'Deactivate' : 'Activate')}
                 >
                     {field.isActive ? <ToggleRight className="h-5 w-5 text-primary" /> : <ToggleLeft className="h-5 w-5 text-muted-foreground"/>}
                 </Button>
