@@ -7,8 +7,8 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box } from 'lucide-react';
-import { TaskStatusBadge } from '@/components/task-status-badge';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check } from 'lucide-react';
+import { statusConfig, TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { DeleteTaskButton } from '@/components/delete-task-button';
@@ -16,10 +16,20 @@ import { PrLinksGroup } from '@/components/pr-links-group';
 import { Badge } from '@/components/ui/badge';
 import { getInitials, getAvatarColor, cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import type { Task, FieldConfig, UiConfig } from '@/lib/types';
+import type { Task, FieldConfig, UiConfig, TaskStatus } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useToast } from '@/hooks/use-toast';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { TASK_STATUSES } from '@/lib/constants';
+
 
 export default function TaskPage() {
   const params = useParams();
@@ -49,6 +59,26 @@ export default function TaskPage() {
   const handleCommentsUpdate = (newComments: string[]) => {
     if (task) {
       setTask({ ...task, comments: newComments });
+    }
+  };
+
+  const handleStatusChange = (newStatus: TaskStatus) => {
+    if (!task) return;
+
+    const updatedTask = updateTask(task.id, { status: newStatus });
+    if(updatedTask) {
+        setTask(updatedTask);
+        toast({
+            variant: 'success',
+            title: 'Status Updated',
+            description: `Task status changed to "${newStatus}".`,
+        });
+    } else {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Failed to update task status.',
+        });
     }
   };
 
@@ -192,7 +222,24 @@ export default function TaskPage() {
                   {task.title}
                 </CardTitle>
                 <div className="flex-shrink-0">
-                  <TaskStatusBadge status={task.status} />
+                  <DropdownMenu>
+                    <DropdownMenuTrigger>
+                      <TaskStatusBadge status={task.status} className="cursor-pointer hover:opacity-80 transition-opacity" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>Set Status</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {TASK_STATUSES.map(s => (
+                        <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)}>
+                          <div className="flex items-center gap-2">
+                            {statusConfig[s].icon}
+                            <span>{s}</span>
+                          </div>
+                          {task.status === s && <Check className="ml-auto h-4 w-4" />}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
               <CardDescription>

@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import type { Task } from '@/lib/types';
+import type { Task, TaskStatus } from '@/lib/types';
 import {
   Card,
   CardContent,
@@ -11,8 +11,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { TaskStatusBadge } from './task-status-badge';
-import { GitMerge, ExternalLink } from 'lucide-react';
+import { statusConfig, TaskStatusBadge } from './task-status-badge';
+import { GitMerge, ExternalLink, Check } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { getInitials, getAvatarColor, cn } from '@/lib/utils';
@@ -20,6 +20,15 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { DeleteTaskButton } from './delete-task-button';
 import { getUiConfig, updateTask } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { TASK_STATUSES } from '@/lib/constants';
 
 interface TaskCardProps {
   task: Task;
@@ -72,6 +81,26 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate }: Task
           setConfiguredEnvs(uiConfig.environments);
       }
   }, []);
+
+  const handleStatusChange = (newStatus: TaskStatus) => {
+    const updatedTask = updateTask(task.id, { status: newStatus });
+    if (updatedTask) {
+      setTask(updatedTask);
+      onTaskUpdate();
+      toast({
+        variant: 'success',
+        title: 'Status Updated',
+        description: `Task status changed to "${newStatus}".`,
+        duration: 3000,
+      });
+    } else {
+       toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to update task status.',
+      });
+    }
+  };
 
   const handleToggleDeployment = (e: React.MouseEvent, env: string) => {
     e.stopPropagation();
@@ -131,16 +160,33 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate }: Task
     >
       <div className="flex flex-col flex-grow">
         <CardHeader className="p-4 pb-2">
-           <Link href={`/tasks/${task.id}`} className="flex-grow cursor-pointer">
-              <div className="flex items-start justify-between gap-2">
-                <CardTitle className="text-base font-semibold leading-snug line-clamp-3 group-hover:text-primary">
-                  {task.title}
-                </CardTitle>
+            <div className="flex items-start justify-between gap-2">
+                <Link href={`/tasks/${task.id}`} className="flex-grow cursor-pointer">
+                    <CardTitle className="text-base font-semibold leading-snug line-clamp-3 group-hover:text-primary">
+                    {task.title}
+                    </CardTitle>
+                </Link>
                 <div className="flex-shrink-0">
-                  <TaskStatusBadge status={task.status} />
+                    <DropdownMenu>
+                        <DropdownMenuTrigger>
+                            <TaskStatusBadge status={task.status} className="cursor-pointer hover:opacity-80 transition-opacity" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Set Status</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {TASK_STATUSES.map(s => (
+                            <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)}>
+                                <div className="flex items-center gap-2">
+                                {statusConfig[s].icon}
+                                <span>{s}</span>
+                                </div>
+                                {task.status === s && <Check className="ml-auto h-4 w-4" />}
+                            </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
-              </div>
-          </Link>
+            </div>
         </CardHeader>
         <CardContent className="flex-grow flex flex-col p-4 pt-2">
           <div className="flex-grow space-y-3">
