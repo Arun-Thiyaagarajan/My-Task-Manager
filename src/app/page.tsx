@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask } from '@/lib/data';
+import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -214,6 +214,7 @@ export default function Home() {
               let createdCount = 0;
               let updatedCount = 0;
               const existingDevelopers = getDevelopers();
+              const existingTesters = getTesters();
               const allTasks = getTasks();
               const existingTaskIds = new Set(allTasks.map(t => t.id));
 
@@ -239,6 +240,14 @@ export default function Home() {
                       if (!existingDevelopers.includes(dev)) {
                           addDeveloper(dev);
                           existingDevelopers.push(dev);
+                      }
+                  });
+                  
+                  const testers = validatedData.testers || [];
+                  testers.forEach(tester => {
+                      if (!existingTesters.includes(tester)) {
+                          addTester(tester);
+                          existingTesters.push(tester);
                       }
                   });
                   
