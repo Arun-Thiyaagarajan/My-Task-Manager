@@ -171,20 +171,30 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
   const handleSave = (data: PersonFormData) => {
     setIsPending(true);
     try {
-        if (personToEdit) { // Editing
-            updatePerson(personToEdit.id, data);
-            toast({ variant: 'success', title: `${title} Updated` });
-        } else { // Adding
-            createPerson(data);
-            toast({ variant: 'success', title: `${title} Added` });
-        }
-        refreshPeople();
-        onSuccess();
-        handleCancelEdit();
+      const isEditing = !!personToEdit;
+
+      if (isEditing) {
+        updatePerson(personToEdit.id, data);
+      } else {
+        createPerson(data);
+      }
+      
+      toast({ 
+        variant: 'success', 
+        title: isEditing ? `${title} Updated` : `${title} Added` 
+      });
+
+      refreshPeople();
+      onSuccess();
+      handleCancelEdit();
     } catch (e: any) {
-        toast({ variant: 'destructive', title: 'Error', description: e.message || 'Something went wrong.' });
+      toast({ 
+        variant: 'destructive', 
+        title: 'Error', 
+        description: e.message || 'Something went wrong.' 
+      });
     } finally {
-        setIsPending(false);
+      setIsPending(false);
     }
   };
 

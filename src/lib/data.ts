@@ -425,7 +425,7 @@ function addPerson(type: 'developers' | 'testers', personData: Partial<Omit<Pers
         console.error(`CRITICAL: Attempted to create a person with an ID as a name: "${trimmedName}". This is a data corruption bug.`);
         throw new Error("A system error occurred. The person's name cannot be in an ID format.");
     }
-
+    
     const existingPersonByName = people.find(p => p.name.toLowerCase() === trimmedName.toLowerCase());
     if (existingPersonByName) {
         throw new Error(`${type === 'developers' ? 'Developer' : 'Tester'} with this name already exists.`);
