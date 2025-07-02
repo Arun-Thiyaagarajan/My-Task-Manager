@@ -234,8 +234,8 @@ export default function TaskPage() {
                 <div className="flex-shrink-0">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-auto p-0">
-                        <TaskStatusBadge status={task.status} className="cursor-pointer hover:opacity-80 transition-opacity" />
+                      <Button variant="ghost" className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0">
+                        <TaskStatusBadge status={task.status} />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">

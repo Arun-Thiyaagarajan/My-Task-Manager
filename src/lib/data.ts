@@ -501,17 +501,23 @@ function deletePerson(type: 'developers' | 'testers', id: string): boolean {
 
     const people = companyData[type];
     const personIndex = people.findIndex(p => p.id === id);
-    if (personIndex === -1) return false;
 
-    people.splice(personIndex, 1);
+    if (personIndex === -1) {
+        // This case shouldn't happen if the UI is correct, but as a fallback,
+        // we can still try to remove from tasks if needed.
+        // For now, we'll consider it a failure if the person isn't in the main list.
+        return false;
+    }
 
+    // Use filter for immutability which is safer.
+    companyData[type] = people.filter(p => p.id !== id);
+
+    // Unassign the person from all tasks.
     companyData.tasks.forEach(task => {
-        if (task[type]) {
-            const taskPersonIndex = task[type]!.indexOf(id);
-            if (taskPersonIndex > -1) {
-                task[type]!.splice(taskPersonIndex, 1);
-                task.updatedAt = new Date().toISOString();
-            }
+        const assignments = task[type];
+        if (assignments && assignments.includes(id)) {
+            task[type] = assignments.filter(personId => personId !== id);
+            task.updatedAt = new Date().toISOString();
         }
     });
 
