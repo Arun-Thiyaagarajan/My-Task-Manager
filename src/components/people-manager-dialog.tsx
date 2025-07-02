@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -131,20 +131,20 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
   const title = type === 'developer' ? 'Developer' : 'Tester';
   const Icon = type === 'developer' ? Users : ClipboardCheck;
 
-  const getPeople = type === 'developer' ? getDevelopers : getTesters;
-  const addPerson = type === 'developer' ? (name: string) => addDeveloper(name) : (name: string) => addTester(name);
-  const updatePerson = type === 'developer' ? updateDeveloper : updateTester;
-  const deletePerson = type === 'developer' ? deleteDeveloper : deleteTester;
+  const getPeople = useCallback(() => (type === 'developer' ? getDevelopers() : getTesters()), [type]);
+  const addPerson = useCallback((name: string) => (type === 'developer' ? addDeveloper(name) : addTester(name)), [type]);
+  const updatePerson = useCallback((id: string, data: Partial<Omit<Person, 'id'>>) => (type === 'developer' ? updateDeveloper(id, data) : updateTester(id, data)), [type]);
+  const deletePerson = useCallback((id: string) => (type === 'developer' ? deleteDeveloper(id) : deleteTester(id)), [type]);
 
-  const refreshPeople = () => {
+  const refreshPeople = useCallback(() => {
     setPeople(getPeople());
-  };
+  }, [getPeople]);
 
   useEffect(() => {
     if (isOpen) {
       refreshPeople();
     }
-  }, [isOpen, type]);
+  }, [isOpen, refreshPeople]);
 
   const handleOpenEdit = (person: Person) => {
     setPersonToEdit(person);
