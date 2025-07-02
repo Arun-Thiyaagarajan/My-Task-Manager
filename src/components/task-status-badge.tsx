@@ -1,3 +1,4 @@
+import * as React from "react"
 import type { TaskStatus } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -9,9 +10,8 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 
-interface TaskStatusBadgeProps {
+interface TaskStatusBadgeProps extends React.ComponentPropsWithoutRef<typeof Badge> {
   status: TaskStatus;
-  className?: string;
 }
 
 export const statusConfig: Record<
@@ -46,16 +46,22 @@ export const statusConfig: Record<
 };
 
 
-export function TaskStatusBadge({ status, className }: TaskStatusBadgeProps) {
+export const TaskStatusBadge = React.forwardRef<
+  React.ElementRef<typeof Badge>,
+  TaskStatusBadgeProps
+>(({ status, className, ...props }, ref) => {
   const config = statusConfig[status];
 
   return (
     <Badge
+      ref={ref}
       variant="outline"
       className={cn('gap-1.5 font-medium capitalize', config.className, className)}
+      {...props}
     >
       {config.icon}
       <span>{status}</span>
     </Badge>
   );
-}
+});
+TaskStatusBadge.displayName = 'TaskStatusBadge';

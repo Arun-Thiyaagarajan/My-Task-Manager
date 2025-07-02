@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck } from 'lucide-react';
 import { statusConfig, TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -223,7 +223,7 @@ export default function TaskPage() {
                 </CardTitle>
                 <div className="flex-shrink-0">
                   <DropdownMenu>
-                    <DropdownMenuTrigger>
+                    <DropdownMenuTrigger asChild>
                       <TaskStatusBadge status={task.status} className="cursor-pointer hover:opacity-80 transition-opacity" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -391,7 +391,7 @@ export default function TaskPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div>
-                        <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('developers') || 'Assigned Developers'}</h4>
+                        <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('developers') || 'Developers'}</h4>
                         <div className="flex flex-wrap gap-4">
                             {task.developers && task.developers.length > 0 ? (
                                 task.developers.map((dev) => (
@@ -422,7 +422,7 @@ export default function TaskPage() {
                     <Separator />
                     
                     <div>
-                        <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('testers') || 'Assigned Testers'}</h4>
+                        <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('testers') || 'Testers'}</h4>
                         <div className="flex flex-wrap gap-4">
                             {task.testers && task.testers.length > 0 ? (
                                 task.testers.map((tester) => (
