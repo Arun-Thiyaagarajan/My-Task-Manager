@@ -134,13 +134,10 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
   const allConfiguredEnvs = uiConfig?.environments || [];
 
   const handleCreateDeveloper = (name: string) => {
-    const newDev = addDeveloper(name);
-    setDevelopersList((prevList) => {
-      if (prevList.some(p => p.id === newDev.id)) {
-        return prevList;
-      }
-      return [...prevList, newDev];
-    });
+    const newDev = addDeveloper({ name });
+    if (!developersList.some(d => d.id === newDev.id)) {
+        setDevelopersList(prev => [...prev, newDev]);
+    }
     const currentDevs = form.getValues('developers') || [];
     if (!currentDevs.includes(newDev.id)) {
       form.setValue('developers', [...currentDevs, newDev.id], { shouldDirty: true });
@@ -148,13 +145,10 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
   };
 
   const handleCreateTester = (name: string) => {
-    const newTester = addTester(name);
-    setTestersList((prevList) => {
-      if (prevList.some(p => p.id === newTester.id)) {
-        return prevList;
-      }
-      return [...prevList, newTester];
-    });
+    const newTester = addTester({ name });
+     if (!testersList.some(t => t.id === newTester.id)) {
+        setTestersList(prev => [...prev, newTester]);
+    }
     const currentTesters = form.getValues('testers') || [];
     if (!currentTesters.includes(newTester.id)) {
       form.setValue('testers', [...currentTesters, newTester.id], { shouldDirty: true });
@@ -402,7 +396,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                                         <FormControl>
                                             <Checkbox checked={field.value} onCheckedChange={field.onChange} id={`deploy-check-${env}`} />
                                         </FormControl>
-                                        <FormLabel htmlFor={`deploy-check-${env}`} className="font-medium capitalize cursor-pointer flex-1">Deployed to {env}</FormLabel>
+                                        <label htmlFor={`deploy-check-${env}`} className="text-sm font-medium leading-none capitalize cursor-pointer flex-1">Deployed to {env}</label>
                                     </FormItem>
                                 )}
                             />
