@@ -27,15 +27,8 @@ const getInitialData = (): MyTaskManagerData => {
         companyData: {
             [defaultCompanyId]: {
                 tasks: [],
-                developers: [
-                    { id: `developer-${crypto.randomUUID()}`, name: 'Arun' },
-                    { id: `developer-${crypto.randomUUID()}`, name: 'Samantha' },
-                    { id: `developer-${crypto.randomUUID()}`, name: 'Rajesh' },
-                ],
-                testers: [
-                    { id: `tester-${crypto.randomUUID()}`, name: 'Chloe' },
-                    { id: `tester-${crypto.randomUUID()}`, name: 'David' },
-                ],
+                developers: [],
+                testers: [],
                 uiConfig: { 
                     fields: INITIAL_UI_CONFIG,
                     environments: [...ENVIRONMENTS],
