@@ -1,11 +1,11 @@
 
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS } from './constants';
-import type { Task, Developer, Company, Attachment, UiConfig } from './types';
+import type { Task, Person, Company, Attachment, UiConfig } from './types';
 
 interface CompanyData {
     tasks: Task[];
-    developers: Developer[];
-    testers: Developer[];
+    developers: Person[];
+    testers: Person[];
     uiConfig: UiConfig;
 }
 
@@ -27,8 +27,15 @@ const getInitialData = (): MyTaskManagerData => {
         companyData: {
             [defaultCompanyId]: {
                 tasks: [],
-                developers: ['Arun', 'Samantha', 'Rajesh'],
-                testers: ['Chloe', 'David'],
+                developers: [
+                    { id: `dev-${crypto.randomUUID()}`, name: 'Arun' },
+                    { id: `dev-${crypto.randomUUID()}`, name: 'Samantha' },
+                    { id: `dev-${crypto.randomUUID()}`, name: 'Rajesh' },
+                ],
+                testers: [
+                    { id: `tester-${crypto.randomUUID()}`, name: 'Chloe' },
+                    { id: `tester-${crypto.randomUUID()}`, name: 'David' },
+                ],
                 uiConfig: { 
                     fields: INITIAL_UI_CONFIG,
                     environments: [...ENVIRONMENTS],
@@ -54,8 +61,8 @@ const getAppData = (): MyTaskManagerData => {
             companyData: {
                 'company-placeholder': {
                     tasks: [],
-                    developers: ['Arun', 'Samantha', 'Rajesh'],
-                    testers: ['Chloe', 'David'],
+                    developers: [],
+                    testers: [],
                     uiConfig: defaultConfig,
                 },
             },
@@ -68,10 +75,56 @@ const getAppData = (): MyTaskManagerData => {
         return initialData;
     }
     try {
-        const data = JSON.parse(stored);
+        const data: MyTaskManagerData = JSON.parse(stored);
         if (!data.companies || !data.activeCompanyId || !data.companyData) {
             throw new Error("Invalid data structure");
         }
+
+        let needsSave = false;
+        for (const companyId in data.companyData) {
+            const company = data.companyData[companyId];
+
+            // Migrate developers if they are still strings
+            if (company.developers && company.developers.length > 0 && typeof company.developers[0] === 'string') {
+                const devNameMap = new Map<string, string>();
+                const newDevelopers: Person[] = (company.developers as unknown as string[]).map(name => {
+                    const newId = `dev-${crypto.randomUUID()}`;
+                    devNameMap.set(name, newId);
+                    return { id: newId, name };
+                });
+                company.developers = newDevelopers;
+
+                company.tasks.forEach(task => {
+                    if (task.developers && task.developers.length > 0 && typeof task.developers[0] === 'string') {
+                        task.developers = (task.developers as unknown as string[]).map(name => devNameMap.get(name)).filter(Boolean) as string[];
+                    }
+                });
+                needsSave = true;
+            }
+
+            // Migrate testers if they are still strings
+            if (company.testers && company.testers.length > 0 && typeof company.testers[0] === 'string') {
+                const testerNameMap = new Map<string, string>();
+                const newTesters: Person[] = (company.testers as unknown as string[]).map(name => {
+                    const newId = `tester-${crypto.randomUUID()}`;
+                    testerNameMap.set(name, newId);
+                    return { id: newId, name };
+                });
+                company.testers = newTesters;
+
+                company.tasks.forEach(task => {
+                    if (task.testers && task.testers.length > 0 && typeof task.testers[0] === 'string') {
+                        task.testers = (task.testers as unknown as string[]).map(name => testerNameMap.get(name)).filter(Boolean) as string[];
+                    }
+                });
+                needsSave = true;
+            }
+        }
+
+        if (needsSave) {
+            setAppData(data);
+        }
+
         return data;
     } catch (e) {
         console.error(`Error parsing localStorage key "${DATA_KEY}":`, e);
@@ -98,17 +151,7 @@ export function addCompany(name: string): Company {
     const newCompany: Company = { id: newCompanyId, name };
     
     data.companies.push(newCompany);
-    data.companyData[newCompanyId] = { 
-        tasks: [], 
-        developers: ['Arun', 'Samantha', 'Rajesh'],
-        testers: ['Chloe', 'David'],
-        uiConfig: { 
-            fields: INITIAL_UI_CONFIG,
-            environments: [...ENVIRONMENTS],
-            coreEnvironments: [...ENVIRONMENTS],
-            repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
-        },
-    };
+    data.companyData[newCompanyId] = getInitialData().companyData[Object.keys(getInitialData().companyData)[0]];
     data.activeCompanyId = newCompanyId;
 
     setAppData(data);
@@ -165,7 +208,6 @@ export function getUiConfig(): UiConfig {
     const companyConfig = data.companyData[activeCompanyId].uiConfig;
 
     let needsUpdate = false;
-    // Migration logic
     if (!companyConfig || !Array.isArray(companyConfig.fields) || !companyConfig.environments) {
         const newConfig = { 
             fields: companyConfig?.fields || INITIAL_UI_CONFIG,
@@ -188,14 +230,12 @@ export function getUiConfig(): UiConfig {
         needsUpdate = true;
     }
 
-    // Remove obsolete 'deploymentDates' field from config if it exists
     const initialFieldCount = companyConfig.fields.length;
     companyConfig.fields = companyConfig.fields.filter(f => f.key !== 'deploymentDates');
     if (companyConfig.fields.length !== initialFieldCount) {
         needsUpdate = true;
     }
 
-    // Ensure all core fields exist and have correct properties, adding/updating them if they were somehow modified or deleted.
     const coreFieldsMap = new Map(INITIAL_UI_CONFIG.map(f => [f.key, f]));
     
     companyConfig.fields.forEach(field => {
@@ -218,7 +258,6 @@ export function getUiConfig(): UiConfig {
         }
     }
     
-    // Ensure the 'developers' and 'testers' field is always of type 'tags'.
     const developersField = companyConfig.fields.find(f => f.key === 'developers');
     if (developersField && developersField.type !== 'tags') {
         developersField.type = 'tags';
@@ -231,7 +270,6 @@ export function getUiConfig(): UiConfig {
     }
 
     if (needsUpdate) {
-        // Re-sort and save if we made any changes
         companyConfig.fields.sort((a, b) => a.order - b.order);
         setAppData(data);
     }
@@ -243,7 +281,6 @@ export function updateUiConfig(newConfig: UiConfig): UiConfig {
     const data = getAppData();
     const activeCompanyId = getActiveCompanyId();
     if (data.companyData[activeCompanyId]) {
-        // Ensure order is sequential before saving
         newConfig.fields.sort((a, b) => a.order - b.order);
         for (let i = 0; i < newConfig.fields.length; i++) {
             newConfig.fields[i].order = i;
@@ -264,12 +301,9 @@ export function updateEnvironmentName(oldName: string, newName: string): boolean
     }
 
     const { uiConfig, tasks } = companyData;
-
-    // Update environments array
     const envIndex = uiConfig.environments.indexOf(oldName);
     uiConfig.environments[envIndex] = newName;
 
-    // Update coreEnvironments array if needed
     if (uiConfig.coreEnvironments) {
         const coreEnvIndex = uiConfig.coreEnvironments.indexOf(oldName);
         if (coreEnvIndex > -1) {
@@ -277,10 +311,8 @@ export function updateEnvironmentName(oldName: string, newName: string): boolean
         }
     }
     
-    // Migrate task data
     tasks.forEach(task => {
         let changed = false;
-        
         if (task.deploymentStatus && oldName in task.deploymentStatus) {
             task.deploymentStatus[newName] = task.deploymentStatus[oldName];
             delete task.deploymentStatus[oldName];
@@ -391,110 +423,80 @@ export function deleteTask(id: string): boolean {
   return true;
 }
 
+function getPeople(type: 'developers' | 'testers'): Person[] {
+    const data = getAppData();
+    const activeCompanyId = getActiveCompanyId();
+    if (!activeCompanyId || !data.companyData[activeCompanyId]) {
+        return [];
+    }
+    return data.companyData[activeCompanyId][type];
+}
+
+function addPerson(type: 'developers' | 'testers', name: string): Person {
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    const people = data.companyData[activeCompanyId]?.[type] || [];
+    
+    const newPerson: Person = { id: `${type.slice(0, -1)}-${crypto.randomUUID()}`, name };
+    if (!people.some(p => p.name === name)) {
+        data.companyData[activeCompanyId][type] = [...people, newPerson];
+        setAppData(data);
+    }
+    return newPerson;
+}
+
+function updatePerson(type: 'developers' | 'testers', id: string, personData: Partial<Omit<Person, 'id'>>): Person | undefined {
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    const people = data.companyData[activeCompanyId]?.[type] || [];
+    
+    const personIndex = people.findIndex(p => p.id === id);
+    if (personIndex === -1) return undefined;
+
+    const updatedPerson = { ...people[personIndex], ...personData };
+    data.companyData[activeCompanyId][type][personIndex] = updatedPerson;
+    setAppData(data);
+    return updatedPerson;
+}
+
+function deletePerson(type: 'developers' | 'testers', id: string): boolean {
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    const companyData = data.companyData[activeCompanyId];
+
+    if (!companyData) return false;
+
+    const people = companyData[type];
+    const personIndex = people.findIndex(p => p.id === id);
+    if (personIndex === -1) return false;
+
+    people.splice(personIndex, 1);
+
+    companyData.tasks.forEach(task => {
+        if (task[type]) {
+            const taskPersonIndex = task[type]!.indexOf(id);
+            if (taskPersonIndex > -1) {
+                task[type]!.splice(taskPersonIndex, 1);
+                task.updatedAt = new Date().toISOString();
+            }
+        }
+    });
+
+    setAppData(data);
+    return true;
+}
 
 // Developer Functions
-export function getDevelopers(): Developer[] {
-    const data = getAppData();
-    const activeCompanyId = getActiveCompanyId();
-    if (!activeCompanyId || !data.companyData[activeCompanyId]) {
-      return [];
-    }
-    return data.companyData[activeCompanyId].developers;
-}
-
-export function addDeveloper(name: string): Developer {
-    const data = getAppData();
-    const activeCompanyId = data.activeCompanyId;
-    const developers = data.companyData[activeCompanyId]?.developers || [];
-    
-    const newDeveloper: Developer = name;
-    if (!developers.includes(newDeveloper)) {
-        data.companyData[activeCompanyId].developers = [...developers, newDeveloper];
-        setAppData(data);
-    }
-    return newDeveloper;
-}
-
-export function deleteDeveloper(name: string): boolean {
-    const data = getAppData();
-    const activeCompanyId = data.activeCompanyId;
-    const companyData = data.companyData[activeCompanyId];
-
-    if (!companyData) return false;
-
-    // Remove from the main list of developers
-    const developerIndex = companyData.developers.indexOf(name);
-    if (developerIndex === -1) {
-        return false; // Developer not found
-    }
-    companyData.developers.splice(developerIndex, 1);
-
-    // Remove from all tasks they are assigned to
-    companyData.tasks.forEach(task => {
-        if (task.developers) {
-            const taskDevIndex = task.developers.indexOf(name);
-            if (taskDevIndex > -1) {
-                task.developers.splice(taskDevIndex, 1);
-                task.updatedAt = new Date().toISOString();
-            }
-        }
-    });
-
-    setAppData(data);
-    return true;
-}
+export const getDevelopers = () => getPeople('developers');
+export const addDeveloper = (name: string) => addPerson('developers', name);
+export const updateDeveloper = (id: string, data: Partial<Omit<Person, 'id'>>) => updatePerson('developers', id, data);
+export const deleteDeveloper = (id: string) => deletePerson('developers', id);
 
 // Tester Functions
-export function getTesters(): Developer[] {
-    const data = getAppData();
-    const activeCompanyId = getActiveCompanyId();
-    if (!activeCompanyId || !data.companyData[activeCompanyId]) {
-      return [];
-    }
-    return data.companyData[activeCompanyId].testers;
-}
-
-export function addTester(name: string): Developer {
-    const data = getAppData();
-    const activeCompanyId = data.activeCompanyId;
-    const testers = data.companyData[activeCompanyId]?.testers || [];
-    
-    const newTester: Developer = name;
-    if (!testers.includes(newTester)) {
-        data.companyData[activeCompanyId].testers = [...testers, newTester];
-        setAppData(data);
-    }
-    return newTester;
-}
-
-export function deleteTester(name: string): boolean {
-    const data = getAppData();
-    const activeCompanyId = data.activeCompanyId;
-    const companyData = data.companyData[activeCompanyId];
-
-    if (!companyData) return false;
-
-    // Remove from the main list of testers
-    const testerIndex = companyData.testers.indexOf(name);
-    if (testerIndex === -1) {
-        return false; // Tester not found
-    }
-    companyData.testers.splice(testerIndex, 1);
-
-    // Remove from all tasks they are assigned to
-    companyData.tasks.forEach(task => {
-        if (task.testers) {
-            const taskTesterIndex = task.testers.indexOf(name);
-            if (taskTesterIndex > -1) {
-                task.testers.splice(taskTesterIndex, 1);
-                task.updatedAt = new Date().toISOString();
-            }
-        }
-    });
-
-    setAppData(data);
-    return true;
-}
+export const getTesters = () => getPeople('testers');
+export const addTester = (name: string) => addPerson('testers', name);
+export const updateTester = (id: string, data: Partial<Omit<Person, 'id'>>) => updatePerson('testers', id, data);
+export const deleteTester = (id: string) => deletePerson('testers', id);
 
 // Comment Functions
 export function addComment(taskId: string, comment: string): Task | undefined {

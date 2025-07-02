@@ -7,15 +7,15 @@ import { addTask, getDevelopers, addDeveloper, getTesters, addTester } from '@/l
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import type { Task } from '@/lib/types';
+import type { Task, Person } from '@/lib/types';
 import { taskSchema } from '@/lib/validators';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export default function NewTaskPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [developersList, setDevelopersList] = useState<string[]>([]);
-  const [testersList, setTestersList] = useState<string[]>([]);
+  const [developersList, setDevelopersList] = useState<Person[]>([]);
+  const [testersList, setTestersList] = useState<Person[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [initialData, setInitialData] = useState<Partial<Task> | undefined>(undefined);
   
@@ -61,23 +61,7 @@ export default function NewTaskPage() {
       return;
     }
   
-    if (validationResult.data.developers) {
-      const existingDevelopers = getDevelopers();
-      validationResult.data.developers.forEach((dev: string) => {
-          if (!existingDevelopers.includes(dev)) {
-              addDeveloper(dev);
-          }
-      });
-    }
-
-    if (validationResult.data.testers) {
-      const existingTesters = getTesters();
-      validationResult.data.testers.forEach((tester: string) => {
-          if (!existingTesters.includes(tester)) {
-              addTester(tester);
-          }
-      });
-    }
+    // Developer and tester creation is handled inside the form's MultiSelect component.
 
     const { deploymentDates, devStartDate, devEndDate, qaStartDate, qaEndDate, ...otherData } = validationResult.data;
 

@@ -4,8 +4,16 @@ import type { TASK_STATUSES, ENVIRONMENTS } from './constants';
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 export type Repository = string;
 export type Environment = (typeof ENVIRONMENTS)[number];
-export type Developer = string;
 export type FieldType = 'text' | 'textarea' | 'number' | 'url' | 'date' | 'select' | 'multiselect' | 'checkbox' | 'tags';
+
+export interface Person {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+}
+export type Developer = Person;
+export type Tester = Person;
 
 
 export interface Company {
@@ -44,8 +52,8 @@ export interface Task {
   deploymentDates?: {
     [key: string]: string | null | undefined;
   };
-  developers?: Developer[];
-  testers?: string[];
+  developers?: string[]; // Storing Person IDs
+  testers?: string[]; // Storing Person IDs
   comments?: string[];
   attachments?: Attachment[];
   

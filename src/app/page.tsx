@@ -33,7 +33,7 @@ import {
   FolderSearch,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Task, Environment, UiConfig } from '@/lib/types';
+import type { Task, Person, UiConfig } from '@/lib/types';
 import {
   Popover,
   PopoverContent,
@@ -64,6 +64,8 @@ export default function Home() {
   const activeCompanyId = useActiveCompany();
   const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [developers, setDevelopers] = useState<Person[]>([]);
+  const [testers, setTesters] = useState<Person[]>([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [repoFilter, setRepoFilter] = useState('all');
   const [deploymentFilter, setDeploymentFilter] = useState('all');
@@ -83,6 +85,8 @@ export default function Home() {
   const refreshData = () => {
     if (activeCompanyId) {
         setTasks(getTasks());
+        setDevelopers(getDevelopers());
+        setTesters(getTesters());
         setUiConfig(getUiConfig());
     }
   };
@@ -115,13 +119,17 @@ export default function Home() {
     
     const repoMatch = repoFilter === 'all' || task.repositories?.includes(repoFilter);
 
+    const developersById = new Map(developers.map(d => [d.id, d.name]));
+    const testersById = new Map(testers.map(t => [t.id, t.name]));
+
     const searchLower = searchQuery.toLowerCase();
     const searchMatch =
       searchQuery.trim() === '' ||
       task.title.toLowerCase().includes(searchLower) ||
       task.id.toLowerCase().includes(searchLower) ||
       (task.azureWorkItemId && task.azureWorkItemId.includes(searchQuery)) ||
-      task.developers?.some((dev) => dev.toLowerCase().includes(searchLower)) ||
+      task.developers?.some((devId) => (developersById.get(devId) || '').toLowerCase().includes(searchLower)) ||
+      task.testers?.some((testerId) => (testersById.get(testerId) || '').toLowerCase().includes(searchLower)) ||
       task.repositories?.some((repo) =>
         repo.toLowerCase().includes(searchLower)
       );
@@ -213,12 +221,11 @@ export default function Home() {
 
               let createdCount = 0;
               let updatedCount = 0;
-              const existingDevelopers = getDevelopers();
-              const existingTesters = getTesters();
               const allTasks = getTasks();
               const existingTaskIds = new Set(allTasks.map(t => t.id));
 
               for (const taskData of importedTasks) {
+                  // This is a superficial check, the main validation is in the form
                   const validationResult = taskSchema.safeParse(taskData);
                   
                   if (!validationResult.success) {
@@ -235,21 +242,23 @@ export default function Home() {
                   
                   const validatedData = validationResult.data;
 
-                  const developers = validatedData.developers || [];
-                  developers.forEach(dev => {
-                      if (!existingDevelopers.includes(dev)) {
-                          addDeveloper(dev);
-                          existingDevelopers.push(dev);
-                      }
-                  });
+                  const existingDevelopers = getDevelopers();
+                  if (validatedData.developers) {
+                    validatedData.developers.forEach(devNameOrId => {
+                        if (!existingDevelopers.some(d => d.id === devNameOrId || d.name === devNameOrId)) {
+                            addDeveloper(devNameOrId);
+                        }
+                    });
+                  }
                   
-                  const testers = validatedData.testers || [];
-                  testers.forEach(tester => {
-                      if (!existingTesters.includes(tester)) {
-                          addTester(tester);
-                          existingTesters.push(tester);
-                      }
-                  });
+                  const existingTesters = getTesters();
+                   if (validatedData.testers) {
+                    validatedData.testers.forEach(testerNameOrId => {
+                        if (!existingTesters.some(t => t.id === testerNameOrId || t.name === testerNameOrId)) {
+                            addTester(testerNameOrId);
+                        }
+                    });
+                  }
                   
                   if (validatedData.id && existingTaskIds.has(validatedData.id)) {
                       updateTask(validatedData.id, validatedData);
@@ -560,7 +569,7 @@ export default function Home() {
 
       {sortedTasks.length > 0 ? (
         viewMode === 'grid' ? (
-          <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} />
+          <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} />
         ) : (
           <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} />
         )

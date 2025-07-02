@@ -2,11 +2,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getTasks, getUiConfig } from '@/lib/data';
-import type { Task, Developer, UiConfig } from '@/lib/types';
+import { getTasks, getUiConfig, getDevelopers, getTesters } from '@/lib/data';
+import type { Task, Person, UiConfig } from '@/lib/types';
 import { TASK_STATUSES, REPOSITORIES, ENVIRONMENTS } from '@/lib/constants';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { BarChart, PieChartIcon, ListChecks, CheckCircle2, Loader2, Bug, GitMerge, Server, ClipboardCheck } from 'lucide-react';
+import { BarChart, PieChartIcon, ListChecks, CheckCircle2, Loader2, Bug, GitMerge, Server, Code2, ClipboardCheck } from 'lucide-react';
 import { Bar, Pie, PieChart, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, Cell } from 'recharts';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { getAvatarColor, cn } from '@/lib/utils';
@@ -14,12 +14,16 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export default function DashboardPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [developers, setDevelopers] = useState<Person[]>([]);
+  const [testers, setTesters] = useState<Person[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
 
   useEffect(() => {
     document.title = 'Dashboard | My Task Manager';
     setTasks(getTasks());
+    setDevelopers(getDevelopers());
+    setTesters(getTesters());
     setUiConfig(getUiConfig());
     setIsLoading(false);
   }, []);
@@ -56,37 +60,46 @@ export default function DashboardPage() {
     },
   } satisfies ChartConfig;
 
-
-  const developersWithTasks = tasks.reduce((acc, task) => {
-    (task.developers || []).forEach(dev => {
-      acc[dev] = (acc[dev] || 0) + 1;
+  const developersById = new Map(developers.map(d => [d.id, d]));
+  const tasksByDeveloperId = tasks.reduce((acc, task) => {
+    (task.developers || []).forEach(devId => {
+      acc[devId] = (acc[devId] || 0) + 1;
     });
     return acc;
-  }, {} as Record<Developer, number>);
+  }, {} as Record<string, number>);
 
-  const tasksByDeveloperData = Object.entries(developersWithTasks).map(([name, value]) => ({
-    name,
-    value,
-    fill: `#${getAvatarColor(name)}`,
-  }));
+  const tasksByDeveloperData = Object.entries(tasksByDeveloperId).map(([devId, value]) => {
+      const developer = developersById.get(devId);
+      const name = developer ? developer.name : 'Unknown';
+      return {
+          name,
+          value,
+          fill: `#${getAvatarColor(name)}`,
+      };
+  });
 
   const tasksByDeveloperConfig = tasksByDeveloperData.reduce((acc, item) => {
       acc[item.name] = { label: item.name, color: item.fill };
       return acc;
   }, {} as ChartConfig);
-  
-  const testersWithTasks = tasks.reduce((acc, task) => {
-    (task.testers || []).forEach(tester => {
-        acc[tester] = (acc[tester] || 0) + 1;
+
+  const testersById = new Map(testers.map(t => [t.id, t]));
+  const tasksByTesterId = tasks.reduce((acc, task) => {
+    (task.testers || []).forEach(testerId => {
+        acc[testerId] = (acc[testerId] || 0) + 1;
     });
     return acc;
   }, {} as Record<string, number>);
 
-  const tasksByTesterData = Object.entries(testersWithTasks).map(([name, value]) => ({
-      name,
-      value,
-      fill: `#${getAvatarColor(name)}`,
-  }));
+  const tasksByTesterData = Object.entries(tasksByTesterId).map(([testerId, value]) => {
+      const tester = testersById.get(testerId);
+      const name = tester ? tester.name : 'Unknown';
+      return {
+          name,
+          value,
+          fill: `#${getAvatarColor(name)}`,
+      };
+  });
 
   const tasksByTesterConfig = tasksByTesterData.reduce((acc, item) => {
       acc[item.name] = { label: item.name, color: item.fill };
@@ -176,7 +189,7 @@ export default function DashboardPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            <PieChartIcon className="h-5 w-5 text-chart-5" />
+                            <Code2 className="h-5 w-5 text-chart-5" />
                             Tasks per {fieldLabels.get('developers') || 'Developer'}
                         </CardTitle>
                          <CardDescription>Breakdown of task assignments to developers.</CardDescription>

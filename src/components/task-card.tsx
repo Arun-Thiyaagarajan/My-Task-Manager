@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import type { Task, TaskStatus, UiConfig } from '@/lib/types';
+import type { Task, TaskStatus, UiConfig, Person } from '@/lib/types';
 import {
   Card,
   CardContent,
@@ -36,6 +36,8 @@ interface TaskCardProps {
   onTaskDelete: () => void;
   onTaskUpdate: () => void;
   uiConfig: UiConfig | null;
+  developers: Person[];
+  testers: Person[];
 }
 
 const getEnvInfo = (env: string) => {
@@ -67,7 +69,7 @@ const getEnvInfo = (env: string) => {
   }
 };
 
-export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConfig }: TaskCardProps) {
+export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConfig, developers, testers }: TaskCardProps) {
   const [task, setTask] = useState(initialTask);
   const [justUpdatedEnv, setJustUpdatedEnv] = useState<string | null>(null);
   const { toast } = useToast();
@@ -159,8 +161,14 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
     ? `https://dev.azure.com/ideaelan/Infinity/_workitems/edit/${task.azureWorkItemId}`
     : null;
     
-  const hasDevelopers = task.developers && task.developers.length > 0;
-  const hasTesters = task.testers && task.testers.length > 0;
+  const developersById = new Map(developers.map(d => [d.id, d]));
+  const testersById = new Map(testers.map(t => [t.id, t]));
+
+  const assignedDevelopers = (task.developers || []).map(id => developersById.get(id)).filter((d): d is Person => !!d);
+  const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter((t): t is Person => !!t);
+
+  const hasDevelopers = assignedDevelopers.length > 0;
+  const hasTesters = assignedTesters.length > 0;
 
   return (
     <TooltipProvider delayDuration={100}>
@@ -178,7 +186,9 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                   <div className="flex-shrink-0">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <TaskStatusBadge status={task.status} className="cursor-pointer hover:opacity-80 transition-opacity" />
+                          <Button asChild variant="ghost" className="p-0 h-auto">
+                            <TaskStatusBadge status={task.status} className="cursor-pointer hover:opacity-80 transition-opacity" />
+                          </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Set Status</DropdownMenuLabel>
@@ -275,19 +285,19 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                       <TooltipContent><p>{developersLabel}</p></TooltipContent>
                   </Tooltip>
                   <div className="flex -space-x-2">
-                      {task.developers.map((dev) => (
-                        <Tooltip key={dev}>
+                      {assignedDevelopers.map((dev) => (
+                        <Tooltip key={dev.id}>
                           <TooltipTrigger asChild>
                             <Avatar className="h-7 w-7 border-2 border-card cursor-default">
                               <AvatarFallback 
                                 className="text-xs font-semibold text-white"
-                                style={{ backgroundColor: `#${getAvatarColor(dev)}` }}
+                                style={{ backgroundColor: `#${getAvatarColor(dev.name)}` }}
                               >
-                                {getInitials(dev)}
+                                {getInitials(dev.name)}
                               </AvatarFallback>
                             </Avatar>
                           </TooltipTrigger>
-                          <TooltipContent><p>{dev}</p></TooltipContent>
+                          <TooltipContent><p>{dev.name}</p></TooltipContent>
                         </Tooltip>
                       ))}
                   </div>
@@ -305,19 +315,19 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                       <TooltipContent><p>{testersLabel}</p></TooltipContent>
                   </Tooltip>
                   <div className="flex -space-x-2">
-                      {task.testers.map((tester) => (
-                        <Tooltip key={tester}>
+                      {assignedTesters.map((tester) => (
+                        <Tooltip key={tester.id}>
                           <TooltipTrigger asChild>
                             <Avatar className="h-7 w-7 border-2 border-card cursor-default">
                               <AvatarFallback 
                                 className="text-xs font-semibold text-white"
-                                style={{ backgroundColor: `#${getAvatarColor(tester)}` }}
+                                style={{ backgroundColor: `#${getAvatarColor(tester.name)}` }}
                               >
-                                {getInitials(tester)}
+                                {getInitials(tester.name)}
                               </AvatarFallback>
                             </Avatar>
                           </TooltipTrigger>
-                          <TooltipContent><p>{tester} ({testersLabel})</p></TooltipContent>
+                          <TooltipContent><p>{tester.name} ({testersLabel})</p></TooltipContent>
                         </Tooltip>
                       ))}
                   </div>

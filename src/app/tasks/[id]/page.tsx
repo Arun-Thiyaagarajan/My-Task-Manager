@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getTaskById, getUiConfig, updateTask } from '@/lib/data';
+import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters } from '@/lib/data';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ import { PrLinksGroup } from '@/components/pr-links-group';
 import { Badge } from '@/components/ui/badge';
 import { getInitials, getAvatarColor, cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import type { Task, FieldConfig, UiConfig, TaskStatus } from '@/lib/types';
+import type { Task, FieldConfig, UiConfig, TaskStatus, Person } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useToast } from '@/hooks/use-toast';
@@ -36,6 +36,8 @@ export default function TaskPage() {
   const router = useRouter();
   const [task, setTask] = useState<Task | null>(null);
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
+  const [developers, setDevelopers] = useState<Person[]>([]);
+  const [testers, setTesters] = useState<Person[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const [justUpdatedEnv, setJustUpdatedEnv] = useState<string | null>(null);
@@ -47,6 +49,8 @@ export default function TaskPage() {
       const foundTask = getTaskById(taskId);
       setTask(foundTask || null);
       setUiConfig(getUiConfig());
+      setDevelopers(getDevelopers());
+      setTesters(getTesters());
       setIsLoading(false);
       if (foundTask) {
         document.title = `${foundTask.title} | My Task Manager`;
@@ -191,6 +195,12 @@ export default function TaskPage() {
     acc[group].push(field);
     return acc;
   }, {} as Record<string, FieldConfig[]>);
+
+  const developersById = new Map(developers.map(d => [d.id, d]));
+  const testersById = new Map(testers.map(t => [t.id, t]));
+
+  const assignedDevelopers = (task.developers || []).map(id => developersById.get(id)).filter((d): d is Person => !!d);
+  const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter((t): t is Person => !!t);
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -396,21 +406,21 @@ export default function TaskPage() {
                     <div>
                         <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('developers') || 'Developers'}</h4>
                         <div className="flex flex-wrap gap-4">
-                            {task.developers && task.developers.length > 0 ? (
-                                task.developers.map((dev) => (
-                                <div key={dev} className="flex items-center gap-2">
+                            {assignedDevelopers.length > 0 ? (
+                                assignedDevelopers.map((dev) => (
+                                <div key={dev.id} className="flex items-center gap-2">
                                     <Avatar className="h-7 w-7">
                                     <AvatarFallback
                                         className="font-semibold text-white text-[10px]"
                                         style={{
-                                        backgroundColor: `#${getAvatarColor(dev)}`,
+                                        backgroundColor: `#${getAvatarColor(dev.name)}`,
                                         }}
                                     >
-                                        {getInitials(dev)}
+                                        {getInitials(dev.name)}
                                     </AvatarFallback>
                                     </Avatar>
                                     <span className="text-sm font-medium text-foreground">
-                                    {dev}
+                                    {dev.name}
                                     </span>
                                 </div>
                                 ))
@@ -427,21 +437,21 @@ export default function TaskPage() {
                     <div>
                         <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('testers') || 'Testers'}</h4>
                         <div className="flex flex-wrap gap-4">
-                            {task.testers && task.testers.length > 0 ? (
-                                task.testers.map((tester) => (
-                                <div key={tester} className="flex items-center gap-2">
+                            {assignedTesters.length > 0 ? (
+                                assignedTesters.map((tester) => (
+                                <div key={tester.id} className="flex items-center gap-2">
                                     <Avatar className="h-7 w-7">
                                     <AvatarFallback
                                         className="font-semibold text-white text-[10px]"
                                         style={{
-                                        backgroundColor: `#${getAvatarColor(tester)}`,
+                                        backgroundColor: `#${getAvatarColor(tester.name)}`,
                                         }}
                                     >
-                                        {getInitials(tester)}
+                                        {getInitials(tester.name)}
                                     </AvatarFallback>
                                     </Avatar>
                                     <span className="text-sm font-medium text-foreground">
-                                    {tester}
+                                    {tester.name}
                                     </span>
                                 </div>
                                 ))

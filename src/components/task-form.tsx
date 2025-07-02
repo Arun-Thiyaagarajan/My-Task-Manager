@@ -5,7 +5,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
 import { taskSchema } from '@/lib/validators';
-import type { Task, FieldConfig, FieldType, UiConfig, Attachment } from '@/lib/types';
+import type { Task, FieldConfig, FieldType, UiConfig, Attachment, Person } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -35,8 +35,8 @@ interface TaskFormProps {
   task?: Partial<Task>;
   onSubmit: (data: TaskFormData) => void;
   submitButtonText: string;
-  developersList: string[];
-  testersList: string[];
+  developersList: Person[];
+  testersList: Person[];
 }
 
 const safeParseDate = (d: any): Date | undefined => {
@@ -80,6 +80,7 @@ const getInitialTaskData = (task?: Partial<Task>) => {
         customFields: task.customFields || {},
         prLinks: task.prLinks || {},
         deploymentStatus: task.deploymentStatus || {},
+        developers: task.developers || [],
         testers: task.testers || [],
     }
 }
@@ -88,8 +89,8 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
-  const [developersList, setDevelopersList] = useState<string[]>(propDevelopersList);
-  const [testersList, setTestersList] = useState<string[]>(propTestersList);
+  const [developersList, setDevelopersList] = useState<Person[]>(propDevelopersList);
+  const [testersList, setTestersList] = useState<Person[]>(propTestersList);
 
   const { setIsDirty, prompt } = useUnsavedChanges();
 
@@ -133,13 +134,17 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
   const allConfiguredEnvs = uiConfig?.environments || [];
 
   const handleCreateDeveloper = (name: string) => {
-    addDeveloper(name);
-    setDevelopersList((prevList) => [...(prevList || []), name]);
+    const newDev = addDeveloper(name);
+    setDevelopersList((prevList) => [...(prevList || []), newDev]);
+    const currentDevs = form.getValues('developers') || [];
+    form.setValue('developers', [...currentDevs, newDev.id], { shouldDirty: true });
   };
 
   const handleCreateTester = (name: string) => {
-    addTester(name);
-    setTestersList((prevList) => [...(prevList || []), name]);
+    const newTester = addTester(name);
+    setTestersList((prevList) => [...(prevList || []), newTester]);
+    const currentTesters = form.getValues('testers') || [];
+    form.setValue('testers', [...currentTesters, newTester.id], { shouldDirty: true });
   };
 
   const handleFormSubmit = (data: TaskFormData) => {
@@ -158,10 +163,10 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
     }
     if(field.type === 'tags') {
         if(field.key === 'developers') {
-            return (developersList || []).map(d => ({ value: d, label: d }));
+            return (developersList || []).map(d => ({ value: d.id, label: d.name }));
         }
         if(field.key === 'testers') {
-            return (testersList || []).map(t => ({ value: t, label: t }));
+            return (testersList || []).map(t => ({ value: t.id, label: t.name }));
         }
         return field.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
     }

@@ -6,7 +6,7 @@ import { getTaskById, getDevelopers, updateTask, addDeveloper, getTesters, addTe
 import { useParams, useRouter } from 'next/navigation';
 import { TaskForm } from '@/components/task-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { Task, Environment } from '@/lib/types';
+import type { Task, Person } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,8 +20,8 @@ export default function EditTaskPage() {
   
   const taskId = params.id as string;
   const [task, setTask] = useState<Task | null>(null);
-  const [developersList, setDevelopersList] = useState<string[]>([]);
-  const [testersList, setTestersList] = useState<string[]>([]);
+  const [developersList, setDevelopersList] = useState<Person[]>([]);
+  const [testersList, setTestersList] = useState<Person[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -58,23 +58,7 @@ export default function EditTaskPage() {
       return;
     }
     
-    if (validationResult.data.developers) {
-      const existingDevelopers = getDevelopers();
-      validationResult.data.developers.forEach((dev: string) => {
-          if (!existingDevelopers.includes(dev)) {
-              addDeveloper(dev);
-          }
-      });
-    }
-
-    if (validationResult.data.testers) {
-      const existingTesters = getTesters();
-      validationResult.data.testers.forEach((tester: string) => {
-          if (!existingTesters.includes(tester)) {
-              addTester(tester);
-          }
-      });
-    }
+    // Developer and tester creation is now handled inside the form's MultiSelect component.
     
     const { deploymentDates, devStartDate, devEndDate, qaStartDate, qaEndDate, ...otherData } = validationResult.data;
 

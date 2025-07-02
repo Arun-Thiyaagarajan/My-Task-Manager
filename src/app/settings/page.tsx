@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { getUiConfig, updateUiConfig, updateEnvironmentName, getDevelopers, deleteDeveloper, getTesters, deleteTester } from '@/lib/data';
+import { getUiConfig, updateUiConfig, updateEnvironmentName } from '@/lib/data';
 import type { UiConfig, FieldConfig, RepositoryConfig } from '@/lib/types';
 import { useDebounce } from '@/hooks/use-debounce';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck, FolderGit } from 'lucide-react';
+import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck } from 'lucide-react';
 import { EditFieldDialog } from '@/components/edit-field-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -25,7 +25,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
-import { Label } from '@/components/ui/label';
+import { PeopleManagerDialog } from '@/components/people-manager-dialog';
 
 
 export default function SettingsPage() {
@@ -34,33 +34,24 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isFieldDialogOpen, setIsFieldDialogOpen] = useState(false);
   const [fieldToEdit, setFieldToEdit] = useState<FieldConfig | null>(null);
   const [newEnv, setNewEnv] = useState('');
   const isInitialMount = useRef(true);
 
   const [editingEnv, setEditingEnv] = useState<string | null>(null);
   const [editingEnvText, setEditingEnvText] = useState('');
-  const [developers, setDevelopers] = useState<string[]>([]);
-  const [testers, setTesters] = useState<string[]>([]);
   
   const [editingGroup, setEditingGroup] = useState<string | null>(null);
   const [editingGroupText, setEditingGroupText] = useState('');
 
-  const refreshDevelopers = () => {
-    setDevelopers(getDevelopers());
-  };
-
-  const refreshTesters = () => {
-    setTesters(getTesters());
-  };
+  const [isPeopleManagerOpen, setIsPeopleManagerOpen] = useState(false);
+  const [peopleManagerType, setPeopleManagerType] = useState<'developer' | 'tester'>('developer');
 
   useEffect(() => {
     document.title = 'Settings | My Task Manager';
     const loadedConfig = getUiConfig();
     setConfig(loadedConfig);
-    refreshDevelopers();
-    refreshTesters();
   }, []);
 
   const debouncedConfig = useDebounce(config, 1000);
@@ -137,7 +128,7 @@ export default function SettingsPage() {
 
   const handleOpenDialog = (field: FieldConfig | null) => {
     setFieldToEdit(field);
-    setIsDialogOpen(true);
+    setIsFieldDialogOpen(true);
   };
 
   const handleSaveField = (fieldData: FieldConfig, newRepoConfigs?: RepositoryConfig[]) => {
@@ -159,7 +150,6 @@ export default function SettingsPage() {
       
       const finalRepoConfigs = newRepoConfigs ?? prevConfig.repositoryConfigs;
       
-      // If repo configs changed, we need to update the options on the repositories field
       if (newRepoConfigs) {
           const repoField = fields.find(f => f.key === 'repositories');
           if (repoField) {
@@ -267,24 +257,6 @@ export default function SettingsPage() {
     setEditingEnvText('');
   }
 
-  const handleDeleteDeveloper = (name: string) => {
-    if (deleteDeveloper(name)) {
-        toast({ variant: 'success', title: 'Developer Removed', description: `${name} has been removed from the system.` });
-        refreshDevelopers();
-    } else {
-        toast({ variant: 'destructive', title: 'Error', description: `Could not remove ${name}.` });
-    }
-  }
-
-  const handleDeleteTester = (name: string) => {
-    if (deleteTester(name)) {
-        toast({ variant: 'success', title: 'Tester Removed', description: `${name} has been removed from the system.` });
-        refreshTesters();
-    } else {
-        toast({ variant: 'destructive', title: 'Error', description: `Could not remove ${name}.` });
-    }
-  }
-
   const handleRenameGroup = (oldName: string, newName: string) => {
     const trimmedNewName = newName.trim();
     if (!trimmedNewName || oldName === trimmedNewName) {
@@ -346,6 +318,11 @@ export default function SettingsPage() {
         
     return { active: activeFields, inactive: inactiveFields };
   }, [config, searchQuery]);
+
+  const openPeopleManager = (type: 'developer' | 'tester') => {
+    setPeopleManagerType(type);
+    setIsPeopleManagerOpen(true);
+  };
 
   if (!config) {
     return <LoadingSpinner text="Loading settings..." />;
@@ -561,94 +538,40 @@ export default function SettingsPage() {
             </Card>
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Code2 className="h-5 w-5" />
-                        Developer Management
-                    </CardTitle>
-                    <CardDescription>Remove developers from the system. This will also unassign them from all tasks.</CardDescription>
+                    <CardTitle className="flex items-center gap-2"><Code2 className="h-5 w-5" />Developer Management</CardTitle>
+                    <CardDescription>Manage developer names, contact info, and assignments.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-2 max-h-96 overflow-y-auto">
-                    {(developers || []).map(dev => {
-                        return (
-                            <div key={dev} className="flex items-center justify-between p-2 border rounded-md bg-card group">
-                                <span className="font-medium">{dev}</span>
-                                <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle>Delete {dev}?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                                This will permanently remove {dev} from the list of available developers and unassign them from all tasks. This action cannot be undone.
-                                            </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDeleteDeveloper(dev)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-                            </div>
-                        )
-                    })}
-                    {(developers || []).length === 0 && (
-                         <p className="text-sm text-center text-muted-foreground py-4">No developers to manage. Add them via the task form.</p>
-                    )}
+                <CardContent>
+                    <Button onClick={() => openPeopleManager('developer')} className="w-full">Manage Developers</Button>
                 </CardContent>
             </Card>
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <ClipboardCheck className="h-5 w-5" />
-                        Tester Management
-                    </CardTitle>
-                    <CardDescription>Remove testers from the system. This will also unassign them from all tasks.</CardDescription>
+                    <CardTitle className="flex items-center gap-2"><ClipboardCheck className="h-5 w-5" />Tester Management</CardTitle>
+                    <CardDescription>Manage tester names, contact info, and assignments.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-2 max-h-96 overflow-y-auto">
-                    {(testers || []).map(tester => {
-                        return (
-                            <div key={tester} className="flex items-center justify-between p-2 border rounded-md bg-card group">
-                                <span className="font-medium">{tester}</span>
-                                <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle>Delete {tester}?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                                This will permanently remove {tester} from the list of available testers and unassign them from all tasks. This action cannot be undone.
-                                            </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDeleteTester(tester)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-                            </div>
-                        )
-                    })}
-                    {(testers || []).length === 0 && (
-                         <p className="text-sm text-center text-muted-foreground py-4">No testers to manage. Add them via the task form.</p>
-                    )}
+                <CardContent>
+                    <Button onClick={() => openPeopleManager('tester')} className="w-full">Manage Testers</Button>
                 </CardContent>
             </Card>
         </div>
       </div>
 
-      {isDialogOpen && (
+      {isFieldDialogOpen && (
         <EditFieldDialog 
-            isOpen={isDialogOpen}
-            onOpenChange={setIsDialogOpen}
+            isOpen={isFieldDialogOpen}
+            onOpenChange={setIsFieldDialogOpen}
             field={fieldToEdit}
             onSave={handleSaveField}
             repositoryConfigs={config.repositoryConfigs}
+        />
+      )}
+      {isPeopleManagerOpen && (
+        <PeopleManagerDialog 
+            type={peopleManagerType}
+            isOpen={isPeopleManagerOpen}
+            onOpenChange={setIsPeopleManagerOpen}
+            onSuccess={() => { /* Data is re-fetched inside dialog, could trigger global refresh if needed */ }}
         />
       )}
     </div>
