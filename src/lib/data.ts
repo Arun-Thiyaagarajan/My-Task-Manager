@@ -483,16 +483,16 @@ function addPerson(type: 'developers' | 'testers', personData: Partial<Omit<Pers
     const trimmedName = personData.name.trim();
 
     // Prevent data corruption: if the name looks like an ID, it's a bug from the caller.
-    const isLikelyId = /^(dev|tester)-[a-f0-9]{8}/.test(trimmedName);
+    const isLikelyId = /^(dev|tester)-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmedName);
     if (isLikelyId) {
-        console.error(`BUG: Attempted to create a person with an ID-like name: "${trimmedName}".`);
-        // Try to find the person by ID to recover.
+        console.error(`BUG: Attempted to create a person with an ID-like name: "${trimmedName}". This is a UI bug.`);
+        // Try to find the person by ID to recover, which is the most likely user intent.
         const personFoundById = people.find(p => p.id === trimmedName);
         if (personFoundById) {
             return personFoundById;
         }
         // If no person is found by that ID, we cannot proceed with creation as it would corrupt data.
-        // We return a dummy object that won't be saved.
+        // We return a dummy object that won't be saved, but has a readable name.
         return { id: trimmedName, name: 'Invalid Entry (Unsaved)' };
     }
 

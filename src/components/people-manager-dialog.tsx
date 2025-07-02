@@ -76,6 +76,14 @@ function EditPersonForm({ personToEdit, onSave, onCancel, isPending }: EditPerso
             phone: personToEdit?.phone || '',
         },
     });
+    
+    useEffect(() => {
+        form.reset({
+            name: personToEdit?.name || '',
+            email: personToEdit?.email || '',
+            phone: personToEdit?.phone || '',
+        })
+    }, [personToEdit, form.reset]);
 
     return (
         <Form {...form}>
@@ -134,6 +142,7 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
   const getPeople = useCallback(() => (type === 'developer' ? getDevelopers() : getTesters()), [type]);
   const updatePerson = useCallback((id: string, data: Partial<Omit<Person, 'id'>>) => (type === 'developer' ? updateDeveloper(id, data) : updateTester(id, data)), [type]);
   const deletePerson = useCallback((id: string) => (type === 'developer' ? deleteDeveloper(id) : deleteTester(id)), [type]);
+  const createPerson = useCallback((data: Partial<Omit<Person, 'id'>>) => (type === 'developer' ? addDeveloper(data) : addTester(data)), [type]);
 
   const refreshPeople = useCallback(() => {
     setPeople(getPeople());
@@ -147,6 +156,7 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
 
   const handleOpenEdit = (person: Person) => {
     setPersonToEdit(person);
+    setIsAdding(false);
   };
   
   const handleOpenAdd = () => {
@@ -173,11 +183,7 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
                 setIsPending(false);
                 return;
             }
-            if (type === 'developer') {
-                addDeveloper(data);
-            } else {
-                addTester(data);
-            }
+            createPerson(data);
             toast({ variant: 'success', title: `${title} Added` });
         }
         refreshPeople();
