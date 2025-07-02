@@ -24,7 +24,7 @@ interface MultiSelectProps {
   options: SelectOption[];
   selected: string[];
   onChange: (selected: string[]) => void;
-  onCreate?: (value: string) => void;
+  onCreate?: (value: string) => string | undefined;
   placeholder?: string;
   className?: string;
   creatable?: boolean;
@@ -67,10 +67,11 @@ export function MultiSelect({
 
     const newValue = query.trim();
     if (onCreate) {
-      // The parent component handles the creation and state update.
-      onCreate(newValue);
+      const newId = onCreate(newValue);
+      if (newId) {
+        onChange([...selected, newId]);
+      }
     } else {
-      // Default behavior if no `onCreate` is provided.
       onChange([...selected, newValue]);
     }
     setQuery('');

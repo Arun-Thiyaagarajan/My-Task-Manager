@@ -59,6 +59,7 @@ const getInitialTaskData = (task?: Partial<Task>) => {
             attachments: [],
             deploymentDates: {},
             customFields: {},
+            azureWorkItemId: '',
         };
     }
     
@@ -134,37 +135,22 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
   const watchedRepositories = form.watch('repositories', []);
   const allConfiguredEnvs = uiConfig?.environments || [];
 
-  const handleCreateDeveloper = (name: string) => {
+  const handleCreateDeveloper = (name: string): string => {
     const newDev = addDeveloper({ name });
-    // Update the local list that feeds the dropdown options
     setDevelopersList(prev => {
-        // Prevent adding duplicates if for some reason it's triggered multiple times
         if (prev.some(d => d.id === newDev.id)) return prev;
         return [...prev, newDev];
     });
-    // Use a timeout to schedule the form update. This allows React to process
-    // the developersList state update first, ensuring the dropdown `options` are
-    // up-to-date before the form's `selected` values change. This avoids the race condition.
-    setTimeout(() => {
-        const currentDevs = form.getValues('developers') || [];
-        if (!currentDevs.includes(newDev.id)) {
-            form.setValue('developers', [...currentDevs, newDev.id], { shouldDirty: true });
-        }
-    }, 0);
+    return newDev.id;
   };
 
-  const handleCreateTester = (name: string) => {
+  const handleCreateTester = (name: string): string => {
     const newTester = addTester({ name });
     setTestersList(prev => {
         if (prev.some(t => t.id === newTester.id)) return prev;
         return [...prev, newTester];
     });
-    setTimeout(() => {
-        const currentTesters = form.getValues('testers') || [];
-        if (!currentTesters.includes(newTester.id)) {
-            form.setValue('testers', [...currentTesters, newTester.id], { shouldDirty: true });
-        }
-    }, 0);
+    return newTester.id;
   };
 
   const handleFormSubmit = (data: TaskFormData) => {
@@ -426,7 +412,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                                     control={form.control}
                                     name={`deploymentDates.${env}`}
                                     render={({ field }) => (
-                                        <FormItem className="flex-1 w-full">
+                                        <FormItem className="w-full sm:w-auto sm:min-w-[250px]">
                                              <Popover>
                                                 <PopoverTrigger asChild>
                                                     <FormControl>
