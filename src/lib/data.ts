@@ -28,9 +28,9 @@ const getInitialData = (): MyTaskManagerData => {
             [defaultCompanyId]: {
                 tasks: [],
                 developers: [
-                    { id: `dev-${crypto.randomUUID()}`, name: 'Arun' },
-                    { id: `dev-${crypto.randomUUID()}`, name: 'Samantha' },
-                    { id: `dev-${crypto.randomUUID()}`, name: 'Rajesh' },
+                    { id: `developer-${crypto.randomUUID()}`, name: 'Arun' },
+                    { id: `developer-${crypto.randomUUID()}`, name: 'Samantha' },
+                    { id: `developer-${crypto.randomUUID()}`, name: 'Rajesh' },
                 ],
                 testers: [
                     { id: `tester-${crypto.randomUUID()}`, name: 'Chloe' },
@@ -80,6 +80,8 @@ const getAppData = (): MyTaskManagerData => {
             throw new Error("Invalid data structure");
         }
 
+        // This block for data migration can be removed in a future version
+        // once user data is stable.
         let needsSave = false;
         for (const companyId in data.companyData) {
             const company = data.companyData[companyId];
@@ -87,115 +89,78 @@ const getAppData = (): MyTaskManagerData => {
             if (!company.developers) company.developers = [];
             if (!company.testers) company.testers = [];
             
-            // Check if developer migration is needed
-            const anyTaskNeedsDevMigration = company.tasks.some(t => t.developers && t.developers.length > 0 && typeof t.developers[0] === 'string');
-            const devListNeedsMigration = company.developers.length > 0 && typeof company.developers[0] === 'string';
+            const migratePeople = (list: (Person | string)[], type: 'developer' | 'tester'): [Person[], boolean] => {
+                let changed = false;
+                const nameMap = new Map<string, string>(); // name -> id
+                const finalPeople: Person[] = [];
 
-            if (anyTaskNeedsDevMigration || devListNeedsMigration) {
-                const allDeveloperNames = new Set<string>();
-                const devNameMap = new Map<string, string>(); // name -> id
-
-                // Populate from existing Person objects first to preserve IDs
-                company.developers.forEach(p => {
-                    if (typeof p !== 'string') {
-                        allDeveloperNames.add(p.name);
-                        if (!devNameMap.has(p.name)) {
-                            devNameMap.set(p.name, p.id);
+                // First pass: process valid objects and collect names
+                list.forEach(p => {
+                    if (typeof p !== 'string' && p.id && p.name) {
+                        if (!nameMap.has(p.name.toLowerCase())) {
+                            nameMap.set(p.name.toLowerCase(), p.id);
                         }
-                    } else { // It's a string name
-                        allDeveloperNames.add(p);
-                    }
-                });
-
-                company.tasks.forEach(task => {
-                    if (task.developers) {
-                        task.developers.forEach(dev => {
-                            if (typeof dev === 'string' && !/^(dev)-[0-9a-f]{8}/i.test(dev)) {
-                                allDeveloperNames.add(dev);
-                            }
-                        });
                     }
                 });
                 
-                // Assign IDs to any names that don't have one
-                allDeveloperNames.forEach(name => {
-                    if (!devNameMap.has(name)) {
-                        const newId = `dev-${crypto.randomUUID()}`;
-                        devNameMap.set(name, newId);
+                // Second pass: create final list, creating new people as needed
+                list.forEach(p => {
+                    let nameToAdd: string | undefined;
+                    if (typeof p === 'string') {
+                        nameToAdd = p;
+                    } else if (p.name) {
+                        nameToAdd = p.name;
+                    }
+
+                    if (nameToAdd) {
+                        const existingId = nameMap.get(nameToAdd.toLowerCase());
+                        if (existingId) {
+                            const existingPerson = finalPeople.find(fp => fp.id === existingId);
+                            if (!existingPerson) {
+                                finalPeople.push({ id: existingId, name: nameToAdd, email: (p as Person).email || '', phone: (p as Person).phone || '' });
+                            }
+                        } else {
+                            const newId = `${type}-${crypto.randomUUID()}`;
+                            nameMap.set(nameToAdd.toLowerCase(), newId);
+                            finalPeople.push({ id: newId, name: nameToAdd, email: (p as Person).email || '', phone: (p as Person).phone || '' });
+                            changed = true;
+                        }
                     }
                 });
 
-                // Rebuild the developers list
-                company.developers = Array.from(devNameMap.entries()).map(([name, id]) => ({ id, name }));
-
-                // Update all tasks
+                // Update tasks
                 company.tasks.forEach(task => {
-                    if (task.developers && task.developers.length > 0 && typeof task.developers[0] === 'string') {
-                        task.developers = (task.developers as unknown as string[]).map(nameOrId => {
-                           if (/^(dev)-[0-9a-f]{8}/i.test(nameOrId)) return nameOrId; // already an ID
-                           return devNameMap.get(nameOrId); // map name to ID
-                        }).filter(Boolean) as string[];
+                    const assignmentListKey = type === 'developer' ? 'developers' : 'testers';
+                    const assignments = task[assignmentListKey];
+                    if (assignments && assignments.length > 0 && typeof assignments[0] === 'string') {
+                         const newAssignments = (assignments as string[]).map(nameOrId => {
+                            // If it's already an ID, keep it.
+                            if (/^(dev|tester|developer)-/.test(nameOrId)) return nameOrId;
+                            // Otherwise, it's a name, so look up its new ID.
+                            return nameMap.get(nameOrId.toLowerCase());
+                         }).filter((id): id is string => !!id);
+                         
+                         if (JSON.stringify(task[assignmentListKey]) !== JSON.stringify(newAssignments)) {
+                            task[assignmentListKey] = newAssignments;
+                            changed = true;
+                         }
                     }
                 });
 
-                needsSave = true;
+                return [finalPeople, changed];
             }
 
-            // Check if tester migration is needed
-            const anyTaskNeedsTesterMigration = company.tasks.some(t => t.testers && t.testers.length > 0 && typeof t.testers[0] === 'string');
-            const testerListNeedsMigration = company.testers.length > 0 && typeof company.testers[0] === 'string';
+            const [newDevelopers, devChanged] = migratePeople(company.developers, 'developer');
+            company.developers = newDevelopers;
 
-            if (anyTaskNeedsTesterMigration || testerListNeedsMigration) {
-                const allTesterNames = new Set<string>();
-                const testerNameMap = new Map<string, string>(); // name -> id
+            const [newTesters, testerChanged] = migratePeople(company.testers, 'tester');
+            company.testers = newTesters;
 
-                // Populate from existing Person objects first to preserve IDs
-                company.testers.forEach(p => {
-                    if (typeof p !== 'string') {
-                        allTesterNames.add(p.name);
-                        if (!testerNameMap.has(p.name)) {
-                            testerNameMap.set(p.name, p.id);
-                        }
-                    } else { // It's a string name
-                        allTesterNames.add(p);
-                    }
-                });
-
-                company.tasks.forEach(task => {
-                    if (task.testers) {
-                        task.testers.forEach(tester => {
-                             if (typeof tester === 'string' && !/^(tester)-[0-9a-f]{8}/i.test(tester)) {
-                                allTesterNames.add(tester);
-                            }
-                        });
-                    }
-                });
-                
-                // Assign IDs to any names that don't have one
-                allTesterNames.forEach(name => {
-                    if (!testerNameMap.has(name)) {
-                        const newId = `tester-${crypto.randomUUID()}`;
-                        testerNameMap.set(name, newId);
-                    }
-                });
-
-                // Rebuild the testers list
-                company.testers = Array.from(testerNameMap.entries()).map(([name, id]) => ({ id, name }));
-
-                // Update all tasks
-                company.tasks.forEach(task => {
-                    if (task.testers && task.testers.length > 0 && typeof task.testers[0] === 'string') {
-                        task.testers = (task.testers as unknown as string[]).map(nameOrId => {
-                           if (/^(tester)-[0-9a-f]{8}/i.test(nameOrId)) return nameOrId; // already an ID
-                           return testerNameMap.get(nameOrId); // map name to ID
-                        }).filter(Boolean) as string[];
-                    }
-                });
-
+            if(devChanged || testerChanged) {
                 needsSave = true;
             }
         }
-
+        
         if (needsSave) {
             setAppData(data);
         }
@@ -512,37 +477,33 @@ function addPerson(type: 'developers' | 'testers', personData: Partial<Omit<Pers
     const activeCompanyId = data.activeCompanyId;
     const companyData = data.companyData[activeCompanyId];
 
-    if (!companyData) {
-        throw new Error("Cannot add person, no active company data found.");
-    }
-    
-    if (!personData.name || personData.name.trim() === '') {
-        throw new Error("Person name cannot be empty.");
-    }
+    if (!companyData) throw new Error("Cannot add person, no active company data found.");
+    if (!personData.name || personData.name.trim() === '') throw new Error("Person name cannot be empty.");
 
     const people = companyData[type] || [];
-    
     const trimmedName = personData.name.trim();
 
-    // Prevent data corruption: if the name looks like an ID, it's a bug from the caller.
-    const isLikelyId = /^(dev|tester|developer)-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/i.test(trimmedName);
+    // Safeguard 1: If the "name" looks like an ID, treat it as an ID lookup.
+    // This prevents creating a person with an ID as a name.
+    const isLikelyId = /^(dev|tester|developer)-[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$/i.test(trimmedName);
     if (isLikelyId) {
-        console.error(`BUG: Attempted to create a person with an ID-like name: "${trimmedName}". This is a UI bug. Creation rejected.`);
-        // Try to find the person by ID to recover, which is the most likely user intent.
         const personFoundById = people.find(p => p.id === trimmedName);
         if (personFoundById) {
+            console.warn(`addPerson was called with an ID ("${trimmedName}") that matched an existing person. Returning existing person to prevent data corruption.`);
             return personFoundById;
+        } else {
+             console.error(`CRITICAL: addPerson was called with an ID ("${trimmedName}") but no person with that ID exists. Rejecting creation.`);
+             throw new Error(`A person with ID "${trimmedName}" could not be found.`);
         }
-        // If no person is found by that ID, we cannot proceed with creation as it would corrupt data.
-        // We return a dummy object that won't be saved, but has a readable name.
-        throw new Error("A system error occurred. Cannot create a person whose name is an ID.")
     }
 
-    const existingPerson = people.find(p => p.name.toLowerCase() === trimmedName.toLowerCase());
-    if (existingPerson) {
-        return existingPerson;
+    // Safeguard 2: Check for an existing person with the same name (case-insensitive).
+    const existingPersonByName = people.find(p => p.name.toLowerCase() === trimmedName.toLowerCase());
+    if (existingPersonByName) {
+        return existingPersonByName;
     }
 
+    // If all checks pass, create the new person.
     const newPerson: Person = {
         id: `${type.slice(0, -1)}-${crypto.randomUUID()}`,
         name: trimmedName,
@@ -561,15 +522,16 @@ function updatePerson(type: 'developers' | 'testers', id: string, personData: Pa
     const activeCompanyId = data.activeCompanyId;
     const people = data.companyData[activeCompanyId]?.[type] || [];
     
-    // Defend against UI bug: If the name looks like an ID, abort the update.
-    if (personData.name && /^(dev|tester|developer)-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/i.test(personData.name)) {
-        console.error(`BUG: updatePerson was called with an ID-like name: "${personData.name}". Aborting update to prevent data corruption.`);
-        throw new Error("A system error occurred. The person's name could not be updated to an ID.");
-    }
-
-    // Check for name collision
+    // Safeguard 1: Block updates that try to set the name to an ID format.
     if (personData.name) {
         const trimmedName = personData.name.trim();
+        const isLikelyId = /^(dev|tester|developer)-[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$/i.test(trimmedName);
+        if (isLikelyId) {
+            console.error(`CRITICAL: updatePerson was called with an ID-like name: "${trimmedName}". Aborting update to prevent data corruption.`);
+            throw new Error("A system error occurred. The person's name could not be updated to an ID.");
+        }
+
+        // Safeguard 2: Check for name collision
         const existingPerson = people.find(p => p.name.toLowerCase() === trimmedName.toLowerCase() && p.id !== id);
         if (existingPerson) {
             throw new Error(`${type === 'developers' ? 'Developer' : 'Tester'} with this name already exists.`);
