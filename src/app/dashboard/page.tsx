@@ -190,9 +190,9 @@ export default function DashboardPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Code2 className="h-5 w-5 text-chart-5" />
-                            Tasks per {fieldLabels.get('developers') || 'Developer'}
+                            Tasks per {fieldLabels.get('developers') || 'Developers'}
                         </CardTitle>
-                         <CardDescription>Breakdown of task assignments to developers.</CardDescription>
+                         <CardDescription>Breakdown of task assignments to Developers.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex items-center justify-center">
                        <ChartContainer config={tasksByDeveloperConfig} className="h-[300px] w-full">
@@ -222,9 +222,9 @@ export default function DashboardPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <ClipboardCheck className="h-5 w-5 text-chart-3" />
-                            Tasks per {fieldLabels.get('testers') || 'Tester'}
+                            Tasks per {fieldLabels.get('testers') || 'Testers'}
                         </CardTitle>
-                        <CardDescription>Breakdown of task assignments to testers.</CardDescription>
+                        <CardDescription>Breakdown of task assignments to Testers.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex items-center justify-center">
                        <ChartContainer config={tasksByTesterConfig} className="h-[300px] w-full">

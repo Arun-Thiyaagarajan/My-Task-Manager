@@ -217,7 +217,7 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
             Manage {title}s
           </DialogTitle>
           <DialogDescription>
-            Add, edit, or remove {title.toLowerCase()}s from your organization.
+            Add, edit, or remove {title}s from your organization.
           </DialogDescription>
         </DialogHeader>
 
@@ -277,7 +277,7 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
                         ))}
                         </TableBody>
                     </Table>
-                    {people.length === 0 && <p className="text-center text-muted-foreground py-8">No {title.toLowerCase()}s found.</p>}
+                    {people.length === 0 && <p className="text-center text-muted-foreground py-8">No {title}s found.</p>}
                 </div>
                 <DialogFooter>
                     <Button onClick={handleOpenAdd}>

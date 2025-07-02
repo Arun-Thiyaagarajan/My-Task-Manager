@@ -349,7 +349,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                                 </Avatar>
                               </button>
                             </TooltipTrigger>
-                            <TooltipContent><p>{tester.name} ({testersLabel})</p></TooltipContent>
+                            <TooltipContent><p>{tester.name}</p></TooltipContent>
                           </Tooltip>
                         ))}
                     </div>

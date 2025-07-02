@@ -436,7 +436,7 @@ export default function TaskPage() {
                                   ))
                               ) : (
                               <p className="text-sm text-muted-foreground">
-                                  No developers assigned.
+                                  No Developers assigned.
                               </p>
                               )}
                           </div>
@@ -471,7 +471,7 @@ export default function TaskPage() {
                                   ))
                               ) : (
                               <p className="text-sm text-muted-foreground">
-                                  No testers assigned.
+                                  No Testers assigned.
                               </p>
                               )}
                           </div>
