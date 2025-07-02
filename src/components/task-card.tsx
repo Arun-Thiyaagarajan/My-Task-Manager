@@ -159,190 +159,182 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate }: Task
   const hasTesters = task.testers && task.testers.length > 0;
 
   return (
-    <Card
-      className="flex flex-col h-full transition-all duration-300 hover:shadow-lg hover:-translate-y-1 bg-card hover:border-primary group"
-    >
-      <div className="flex flex-col flex-grow">
-        <CardHeader className="p-4 pb-2">
-            <div className="flex items-start justify-between gap-2">
-                <Link href={`/tasks/${task.id}`} className="flex-grow cursor-pointer">
-                    <CardTitle className="text-base font-semibold leading-snug line-clamp-3 group-hover:text-primary">
-                    {task.title}
-                    </CardTitle>
-                </Link>
-                <div className="flex-shrink-0">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <div className="cursor-pointer">
-                                <TaskStatusBadge status={task.status} />
-                            </div>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Set Status</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            {TASK_STATUSES.map(s => (
-                            <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)}>
-                                <div className="flex items-center gap-2">
-                                {statusConfig[s].icon}
-                                <span>{s}</span>
-                                </div>
-                                {task.status === s && <Check className="ml-auto h-4 w-4" />}
-                            </DropdownMenuItem>
-                            ))}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+    <TooltipProvider delayDuration={100}>
+      <Card
+        className="flex flex-col h-full transition-all duration-300 hover:shadow-lg hover:-translate-y-1 bg-card hover:border-primary group"
+      >
+        <div className="flex flex-col flex-grow">
+          <CardHeader className="p-4 pb-2">
+              <div className="flex items-start justify-between gap-2">
+                  <Link href={`/tasks/${task.id}`} className="flex-grow cursor-pointer">
+                      <CardTitle className="text-base font-semibold leading-snug line-clamp-3 group-hover:text-primary">
+                      {task.title}
+                      </CardTitle>
+                  </Link>
+                  <div className="flex-shrink-0">
+                      <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                              <div className="cursor-pointer">
+                                  <TaskStatusBadge status={task.status} />
+                              </div>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Set Status</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              {TASK_STATUSES.map(s => (
+                              <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)}>
+                                  <div className="flex items-center gap-2">
+                                  {statusConfig[s].icon}
+                                  <span>{s}</span>
+                                  </div>
+                                  {task.status === s && <Check className="ml-auto h-4 w-4" />}
+                              </DropdownMenuItem>
+                              ))}
+                          </DropdownMenuContent>
+                      </DropdownMenu>
+                  </div>
+              </div>
+          </CardHeader>
+          <CardContent className="flex-grow flex flex-col p-4 pt-2">
+            <div className="flex-grow space-y-3">
+              <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                <GitMerge className="h-4 w-4 shrink-0 mt-0.5" />
+                <div className="flex flex-wrap gap-1">
+                  {(task.repositories || []).map((repo) => (
+                    <Badge variant="secondary" key={repo} className="text-xs">
+                      {repo}
+                    </Badge>
+                  ))}
                 </div>
+              </div>
+              {azureWorkItemUrl && (
+                <a 
+                    href={azureWorkItemUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                  <ExternalLink className="h-4 w-4 shrink-0" />
+                  <span
+                    role="link"
+                    aria-label={`View Azure Work Item ${task.azureWorkItemId}`}
+                    className="line-clamp-1"
+                  >
+                    Azure ID: {task.azureWorkItemId}
+                  </span>
+                </a>
+              )}
             </div>
-        </CardHeader>
-        <CardContent className="flex-grow flex flex-col p-4 pt-2">
-          <div className="flex-grow space-y-3">
-            <div className="flex items-start gap-2 text-sm text-muted-foreground">
-              <GitMerge className="h-4 w-4 shrink-0 mt-0.5" />
-              <div className="flex flex-wrap gap-1">
-                {(task.repositories || []).map((repo) => (
-                  <Badge variant="secondary" key={repo} className="text-xs">
-                    {repo}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-            {azureWorkItemUrl && (
-               <a 
-                  href={azureWorkItemUrl} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                <ExternalLink className="h-4 w-4 shrink-0" />
-                <span
-                  role="link"
-                  aria-label={`View Azure Work Item ${task.azureWorkItemId}`}
-                  className="line-clamp-1"
-                >
-                  Azure ID: {task.azureWorkItemId}
-                </span>
-              </a>
-            )}
-          </div>
-          
-          <div className="mt-4">
-            <p className="text-xs font-medium text-muted-foreground mb-1.5">
-              Deployments
-            </p>
-             <div className="flex flex-wrap items-center gap-1.5" onAnimationEnd={() => setJustUpdatedEnv(null)}>
-                {configuredEnvs.map(env => {
-                  const envInfo = getEnvInfo(env);
-                  const isSelected = task.deploymentStatus?.[env] ?? false;
-                  const hasDate = task.deploymentDates && task.deploymentDates[env];
-                  const isDeployed = isSelected && (env === 'dev' || !!hasDate);
-
-                  return (
-                    <TooltipProvider key={env} delayDuration={100}>
-                        <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Badge
-                                variant="outline"
-                                onClick={(e) => handleToggleDeployment(e, env)}
-                                className={cn(
-                                    'capitalize font-medium transition-colors cursor-pointer',
-                                    isDeployed ? envInfo.deployedColor : envInfo.pendingColor,
-                                    'px-1.5 py-0 text-[10px] h-4',
-                                    justUpdatedEnv === env && 'animate-status-in'
-                                )}
-                            >
-                                {env}
-                            </Badge>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p className="capitalize">{envInfo.label}: {isDeployed ? "Deployed" : "Pending"}</p>
-                        </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-                  );
-                })}
-              </div>
-          </div>
-        </CardContent>
-      </div>
-      <CardFooter className="flex items-center justify-between p-4 border-t">
-        <div className="flex items-center gap-3">
-            {hasDevelopers && (
-              <div className="flex items-center gap-1.5">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild><Users className="h-4 w-4 text-muted-foreground" /></TooltipTrigger>
-                    <TooltipContent><p>Developers</p></TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <div className="flex -space-x-2">
-                  <TooltipProvider>
-                    {task.developers.map((dev) => (
-                      <Tooltip key={dev}>
-                        <TooltipTrigger asChild>
-                          <Avatar className="h-7 w-7 border-2 border-card cursor-default">
-                            <AvatarFallback 
-                              className="text-xs font-semibold text-white"
-                              style={{ backgroundColor: `#${getAvatarColor(dev)}` }}
-                            >
-                              {getInitials(dev)}
-                            </AvatarFallback>
-                          </Avatar>
-                        </TooltipTrigger>
-                        <TooltipContent><p>{dev}</p></TooltipContent>
-                      </Tooltip>
-                    ))}
-                  </TooltipProvider>
-                </div>
-              </div>
-            )}
-
-            {hasDevelopers && hasTesters && (
-              <Separator orientation="vertical" className="h-5" />
-            )}
-
-            {hasTesters && (
-               <div className="flex items-center gap-1.5">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild><TestTube2 className="h-4 w-4 text-muted-foreground" /></TooltipTrigger>
-                    <TooltipContent><p>Testers</p></TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <div className="flex -space-x-2">
-                  <TooltipProvider>
-                    {task.testers.map((tester) => (
-                      <Tooltip key={tester}>
-                        <TooltipTrigger asChild>
-                          <Avatar className="h-7 w-7 border-2 border-card cursor-default">
-                             <AvatarFallback 
-                              className="text-xs font-semibold text-white"
-                              style={{ backgroundColor: `#${getAvatarColor(tester)}` }}
-                            >
-                              {getInitials(tester)}
-                            </AvatarFallback>
-                          </Avatar>
-                        </TooltipTrigger>
-                        <TooltipContent><p>{tester} (Tester)</p></TooltipContent>
-                      </Tooltip>
-                    ))}
-                  </TooltipProvider>
-                </div>
-              </div>
-            )}
             
-            {!hasDevelopers && !hasTesters && (
-               <div className="text-xs text-muted-foreground italic">No assignees</div>
-            )}
+            <div className="mt-4">
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                Deployments
+              </p>
+              <div className="flex flex-wrap items-center gap-1.5" onAnimationEnd={() => setJustUpdatedEnv(null)}>
+                  {configuredEnvs.map(env => {
+                    const envInfo = getEnvInfo(env);
+                    const isSelected = task.deploymentStatus?.[env] ?? false;
+                    const hasDate = task.deploymentDates && task.deploymentDates[env];
+                    const isDeployed = isSelected && (env === 'dev' || !!hasDate);
+
+                    return (
+                      <Tooltip key={env}>
+                          <TooltipTrigger asChild>
+                              <Badge
+                                  variant="outline"
+                                  onClick={(e) => handleToggleDeployment(e, env)}
+                                  className={cn(
+                                      'capitalize font-medium transition-colors cursor-pointer',
+                                      isDeployed ? envInfo.deployedColor : envInfo.pendingColor,
+                                      'px-1.5 py-0 text-[10px] h-4',
+                                      justUpdatedEnv === env && 'animate-status-in'
+                                  )}
+                              >
+                                  {env}
+                              </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                              <p className="capitalize">{envInfo.label}: {isDeployed ? "Deployed" : "Pending"}</p>
+                          </TooltipContent>
+                      </Tooltip>
+                    );
+                  })}
+                </div>
+            </div>
+          </CardContent>
         </div>
-        <div>
-          <DeleteTaskButton
-            taskId={task.id}
-            onSuccess={onTaskDelete}
-            iconOnly
-          />
-        </div>
-      </CardFooter>
-    </Card>
+        <CardFooter className="flex items-center justify-between p-4 border-t">
+          <div className="flex items-center gap-3">
+              {hasDevelopers && (
+                <div className="flex items-center gap-1.5">
+                  <Tooltip>
+                      <TooltipTrigger asChild><Users className="h-4 w-4 text-muted-foreground" /></TooltipTrigger>
+                      <TooltipContent><p>Developers</p></TooltipContent>
+                  </Tooltip>
+                  <div className="flex -space-x-2">
+                      {task.developers.map((dev) => (
+                        <Tooltip key={dev}>
+                          <TooltipTrigger asChild>
+                            <Avatar className="h-7 w-7 border-2 border-card cursor-default">
+                              <AvatarFallback 
+                                className="text-xs font-semibold text-white"
+                                style={{ backgroundColor: `#${getAvatarColor(dev)}` }}
+                              >
+                                {getInitials(dev)}
+                              </AvatarFallback>
+                            </Avatar>
+                          </TooltipTrigger>
+                          <TooltipContent><p>{dev}</p></TooltipContent>
+                        </Tooltip>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {hasDevelopers && hasTesters && (
+                <Separator orientation="vertical" className="h-5" />
+              )}
+
+              {hasTesters && (
+                <div className="flex items-center gap-1.5">
+                  <Tooltip>
+                      <TooltipTrigger asChild><TestTube2 className="h-4 w-4 text-muted-foreground" /></TooltipTrigger>
+                      <TooltipContent><p>Testers</p></TooltipContent>
+                  </Tooltip>
+                  <div className="flex -space-x-2">
+                      {task.testers.map((tester) => (
+                        <Tooltip key={tester}>
+                          <TooltipTrigger asChild>
+                            <Avatar className="h-7 w-7 border-2 border-card cursor-default">
+                              <AvatarFallback 
+                                className="text-xs font-semibold text-white"
+                                style={{ backgroundColor: `#${getAvatarColor(tester)}` }}
+                              >
+                                {getInitials(tester)}
+                              </AvatarFallback>
+                            </Avatar>
+                          </TooltipTrigger>
+                          <TooltipContent><p>{tester} (Tester)</p></TooltipContent>
+                        </Tooltip>
+                      ))}
+                  </div>
+                </div>
+              )}
+              
+              {!hasDevelopers && !hasTesters && (
+                <div className="text-xs text-muted-foreground italic">No assignees</div>
+              )}
+          </div>
+          <div>
+            <DeleteTaskButton
+              taskId={task.id}
+              onSuccess={onTaskDelete}
+              iconOnly
+            />
+          </div>
+        </CardFooter>
+      </Card>
+    </TooltipProvider>
   );
 }
