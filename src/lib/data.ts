@@ -481,6 +481,21 @@ function addPerson(type: 'developers' | 'testers', personData: Partial<Omit<Pers
     const people = companyData[type] || [];
     
     const trimmedName = personData.name.trim();
+
+    // Prevent data corruption: if the name looks like an ID, it's a bug from the caller.
+    const isLikelyId = /^(dev|tester)-[a-f0-9]{8}/.test(trimmedName);
+    if (isLikelyId) {
+        console.error(`BUG: Attempted to create a person with an ID-like name: "${trimmedName}".`);
+        // Try to find the person by ID to recover.
+        const personFoundById = people.find(p => p.id === trimmedName);
+        if (personFoundById) {
+            return personFoundById;
+        }
+        // If no person is found by that ID, we cannot proceed with creation as it would corrupt data.
+        // We return a dummy object that won't be saved.
+        return { id: trimmedName, name: 'Invalid Entry (Unsaved)' };
+    }
+
     const existingPerson = people.find(p => p.name.toLowerCase() === trimmedName.toLowerCase());
     if (existingPerson) {
         return existingPerson;
