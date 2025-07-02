@@ -550,8 +550,11 @@ export default function SettingsPage() {
             </Card>
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Code2 className="h-5 w-5" />Developer Management</CardTitle>
-                    <CardDescription>You have {developers.length} {developers.length === 1 ? 'developer' : 'developers'}. Manage their names, contact info, and assignments.</CardDescription>
+                    <CardTitle className="flex items-center justify-between">
+                        <span className="flex items-center gap-2"><Code2 className="h-5 w-5" />Developer Management</span>
+                        <Badge variant="outline">{developers.length}</Badge>
+                    </CardTitle>
+                    <CardDescription>Manage their names, contact info, and assignments.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Button onClick={() => openPeopleManager('developer')} className="w-full">Manage Developers</Button>
@@ -559,8 +562,11 @@ export default function SettingsPage() {
             </Card>
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><ClipboardCheck className="h-5 w-5" />Tester Management</CardTitle>
-                    <CardDescription>You have {testers.length} {testers.length === 1 ? 'tester' : 'testers'}. Manage their names, contact info, and assignments.</CardDescription>
+                    <CardTitle className="flex items-center justify-between">
+                        <span className="flex items-center gap-2"><ClipboardCheck className="h-5 w-5" />Tester Management</span>
+                        <Badge variant="outline">{testers.length}</Badge>
+                    </CardTitle>
+                    <CardDescription>Manage their names, contact info, and assignments.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Button onClick={() => openPeopleManager('tester')} className="w-full">Manage Testers</Button>
