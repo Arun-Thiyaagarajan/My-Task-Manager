@@ -98,9 +98,10 @@ export default function Home() {
     }
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem('taskflow_view_mode', viewMode);
-  }, [viewMode]);
+  const handleViewModeChange = (mode: ViewMode) => {
+    localStorage.setItem('taskflow_view_mode', mode);
+    setViewMode(mode);
+  };
 
   useEffect(() => {
     if (!activeCompanyId) {
@@ -246,7 +247,7 @@ export default function Home() {
                   if (validatedData.developers) {
                     validatedData.developers.forEach(devNameOrId => {
                         if (!existingDevelopers.some(d => d.id === devNameOrId || d.name === devNameOrId)) {
-                            addDeveloper(devNameOrId);
+                            addDeveloper({ name: devNameOrId });
                         }
                     });
                   }
@@ -255,7 +256,7 @@ export default function Home() {
                    if (validatedData.testers) {
                     validatedData.testers.forEach(testerNameOrId => {
                         if (!existingTesters.some(t => t.id === testerNameOrId || t.name === testerNameOrId)) {
-                            addTester(testerNameOrId);
+                            addTester({ name: testerNameOrId });
                         }
                     });
                   }
@@ -543,7 +544,7 @@ export default function Home() {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setViewMode('grid')}
+            onClick={() => handleViewModeChange('grid')}
             className={cn(
               viewMode === 'grid' &&
                 'bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground'
@@ -555,7 +556,7 @@ export default function Home() {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setViewMode('table')}
+            onClick={() => handleViewModeChange('table')}
             className={cn(
               viewMode === 'table' &&
                 'bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground'
