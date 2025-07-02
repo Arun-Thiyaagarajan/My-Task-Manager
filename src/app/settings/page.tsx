@@ -2,8 +2,8 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { getUiConfig, updateUiConfig, updateEnvironmentName } from '@/lib/data';
-import type { UiConfig, FieldConfig, RepositoryConfig } from '@/lib/types';
+import { getUiConfig, updateUiConfig, updateEnvironmentName, getDevelopers, getTesters } from '@/lib/data';
+import type { UiConfig, FieldConfig, RepositoryConfig, Person } from '@/lib/types';
 import { useDebounce } from '@/hooks/use-debounce';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -30,6 +30,8 @@ import { PeopleManagerDialog } from '@/components/people-manager-dialog';
 
 export default function SettingsPage() {
   const [config, setConfig] = useState<UiConfig | null>(null);
+  const [developers, setDevelopers] = useState<Person[]>([]);
+  const [testers, setTesters] = useState<Person[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
@@ -52,6 +54,8 @@ export default function SettingsPage() {
     document.title = 'Settings | My Task Manager';
     const loadedConfig = getUiConfig();
     setConfig(loadedConfig);
+    setDevelopers(getDevelopers());
+    setTesters(getTesters());
   }, []);
 
   const debouncedConfig = useDebounce(config, 1000);
@@ -324,6 +328,14 @@ export default function SettingsPage() {
     setIsPeopleManagerOpen(true);
   };
 
+  const handlePeopleManagerSuccess = () => {
+    if (peopleManagerType === 'developer') {
+        setDevelopers(getDevelopers());
+    } else {
+        setTesters(getTesters());
+    }
+  }
+
   if (!config) {
     return <LoadingSpinner text="Loading settings..." />;
   }
@@ -539,7 +551,7 @@ export default function SettingsPage() {
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Code2 className="h-5 w-5" />Developer Management</CardTitle>
-                    <CardDescription>Manage developer names, contact info, and assignments.</CardDescription>
+                    <CardDescription>You have {developers.length} {developers.length === 1 ? 'developer' : 'developers'}. Manage their names, contact info, and assignments.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Button onClick={() => openPeopleManager('developer')} className="w-full">Manage Developers</Button>
@@ -548,7 +560,7 @@ export default function SettingsPage() {
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><ClipboardCheck className="h-5 w-5" />Tester Management</CardTitle>
-                    <CardDescription>Manage tester names, contact info, and assignments.</CardDescription>
+                    <CardDescription>You have {testers.length} {testers.length === 1 ? 'tester' : 'testers'}. Manage their names, contact info, and assignments.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Button onClick={() => openPeopleManager('tester')} className="w-full">Manage Testers</Button>
@@ -571,7 +583,7 @@ export default function SettingsPage() {
             type={peopleManagerType}
             isOpen={isPeopleManagerOpen}
             onOpenChange={setIsPeopleManagerOpen}
-            onSuccess={() => { /* Data is re-fetched inside dialog, could trigger global refresh if needed */ }}
+            onSuccess={handlePeopleManagerSuccess}
         />
       )}
     </div>
