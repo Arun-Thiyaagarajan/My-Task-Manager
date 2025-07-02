@@ -134,12 +134,12 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
 
   const handleCreateDeveloper = (name: string) => {
     addDeveloper(name);
-    setDevelopersList((prevList) => [...prevList, name]);
+    setDevelopersList((prevList) => [...(prevList || []), name]);
   };
 
   const handleCreateTester = (name: string) => {
     addTester(name);
-    setTestersList((prevList) => [...prevList, name]);
+    setTestersList((prevList) => [...(prevList || []), name]);
   };
 
   const handleFormSubmit = (data: TaskFormData) => {
