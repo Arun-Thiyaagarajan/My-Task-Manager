@@ -67,9 +67,12 @@ export function MultiSelect({
 
     const newValue = query.trim();
     if (onCreate) {
+      // The parent component handles the creation and state update.
       onCreate(newValue);
+    } else {
+      // Default behavior if no `onCreate` is provided.
+      onChange([...selected, newValue]);
     }
-    onChange([...selected, newValue]);
     setQuery('');
   }, [showCreatable, query, onCreate, onChange, selected]);
   
