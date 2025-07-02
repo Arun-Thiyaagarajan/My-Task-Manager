@@ -399,100 +399,89 @@ export function deleteTask(id: string): boolean {
   return true;
 }
 
-function getPeople(type: 'developers' | 'testers'): Person[] {
+
+// Developer Functions
+export function getDevelopers(): Person[] {
     const data = getAppData();
     const activeCompanyId = getActiveCompanyId();
     if (!activeCompanyId || !data.companyData[activeCompanyId]) {
         return [];
     }
-    return data.companyData[activeCompanyId][type] || [];
+    return data.companyData[activeCompanyId].developers || [];
 }
 
-function addPerson(type: 'developers' | 'testers', personData: Partial<Omit<Person, 'id'>>): Person {
+export function addDeveloper(personData: Partial<Omit<Person, 'id'>>): Person {
     const data = getAppData();
     const activeCompanyId = data.activeCompanyId;
     const companyData = data.companyData[activeCompanyId];
 
-    if (!companyData) throw new Error("Cannot add person, no active company data found.");
-    if (!personData.name || personData.name.trim() === '') throw new Error("Person name cannot be empty.");
-    
-    const people = companyData[type] || [];
+    if (!companyData) throw new Error("Cannot add developer, no active company data found.");
+    if (!personData.name || personData.name.trim() === '') throw new Error("Developer name cannot be empty.");
+
+    const developers = companyData.developers || [];
     const trimmedName = personData.name.trim();
 
-    // Stricter Safeguard: Reject any name that looks like an ID.
-    const isIdFormat = /^(developer|tester)-[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$/i.test(trimmedName);
-    if (isIdFormat) {
-        console.error(`CRITICAL: Attempted to create a person with an ID as a name: "${trimmedName}". This is a data corruption bug.`);
-        throw new Error("A system error occurred. The person's name cannot be in an ID format.");
-    }
-    
-    const existingPersonByName = people.find(p => p.name.toLowerCase() === trimmedName.toLowerCase());
-    if (existingPersonByName) {
-        throw new Error(`${type === 'developers' ? 'Developer' : 'Tester'} with this name already exists.`);
+    const existingDeveloper = developers.find(d => d.name.toLowerCase() === trimmedName.toLowerCase());
+    if (existingDeveloper) {
+        throw new Error(`Developer with this name already exists.`);
     }
 
-    // Create the new person.
-    const newPerson: Person = {
-        id: `${type.slice(0, -1)}-${crypto.randomUUID()}`,
+    const newDeveloper: Person = {
+        id: `developer-${crypto.randomUUID()}`,
         name: trimmedName,
         email: personData.email || '',
         phone: personData.phone || ''
     };
-    
-    companyData[type] = [...people, newPerson];
+
+    companyData.developers = [...developers, newDeveloper];
     setAppData(data);
-    
-    return newPerson;
+
+    return newDeveloper;
 }
 
-function updatePerson(type: 'developers' | 'testers', id: string, personData: Partial<Omit<Person, 'id'>>): Person | undefined {
+
+export function updateDeveloper(id: string, personData: Partial<Omit<Person, 'id'>>): Person | undefined {
     const data = getAppData();
     const activeCompanyId = data.activeCompanyId;
-    const people = data.companyData[activeCompanyId]?.[type] || [];
-    
+    const companyData = data.companyData[activeCompanyId];
+
+    if (!companyData) return undefined;
+
+    const developers = companyData.developers || [];
+
     if (personData.name) {
         const trimmedName = personData.name.trim();
-        const isIdFormat = /^(developer|tester)-[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$/i.test(trimmedName);
-        if (isIdFormat) {
-             console.error(`CRITICAL: Attempted to update a person's name to an ID format: "${trimmedName}".`);
-             throw new Error("A system error occurred. The person's name could not be updated to an invalid format.");
-        }
-
-        const existingPerson = people.find(p => p.name.toLowerCase() === trimmedName.toLowerCase() && p.id !== id);
+        const existingPerson = developers.find(p => p.name.toLowerCase() === trimmedName.toLowerCase() && p.id !== id);
         if (existingPerson) {
-            throw new Error(`${type === 'developers' ? 'Developer' : 'Tester'} with this name already exists.`);
+            throw new Error("Developer with this name already exists.");
         }
     }
-    
-    const personIndex = people.findIndex(p => p.id === id);
+
+    const personIndex = developers.findIndex(p => p.id === id);
     if (personIndex === -1) return undefined;
 
-    const updatedPerson = { ...people[personIndex], ...personData };
-    data.companyData[activeCompanyId][type][personIndex] = updatedPerson;
+    const updatedPerson = { ...developers[personIndex], ...personData };
+    companyData.developers[personIndex] = updatedPerson;
     setAppData(data);
     return updatedPerson;
 }
 
-function deletePerson(type: 'developers' | 'testers', id: string): boolean {
+export function deleteDeveloper(id: string): boolean {
     const data = getAppData();
     const activeCompanyId = data.activeCompanyId;
     const companyData = data.companyData[activeCompanyId];
 
     if (!companyData) return false;
 
-    const people = companyData[type];
+    const people = companyData.developers;
     const personIndex = people.findIndex(p => p.id === id);
+    if (personIndex === -1) return false;
 
-    if (personIndex === -1) {
-        return false;
-    }
-
-    companyData[type] = people.filter(p => p.id !== id);
+    companyData.developers = people.filter(p => p.id !== id);
 
     companyData.tasks.forEach(task => {
-        const assignments = task[type];
-        if (assignments && assignments.includes(id)) {
-            task[type] = assignments.filter(personId => personId !== id);
+        if (task.developers && task.developers.includes(id)) {
+            task.developers = task.developers.filter(personId => personId !== id);
             task.updatedAt = new Date().toISOString();
         }
     });
@@ -501,17 +490,95 @@ function deletePerson(type: 'developers' | 'testers', id: string): boolean {
     return true;
 }
 
-// Developer Functions
-export const getDevelopers = () => getPeople('developers');
-export const addDeveloper = (data: Partial<Omit<Person, 'id'>>) => addPerson('developers', data);
-export const updateDeveloper = (id: string, data: Partial<Omit<Person, 'id'>>) => updatePerson('developers', id, data);
-export const deleteDeveloper = (id: string) => deletePerson('developers', id);
-
 // Tester Functions
-export const getTesters = () => getPeople('testers');
-export const addTester = (data: Partial<Omit<Person, 'id'>>) => addPerson('testers', data);
-export const updateTester = (id: string, data: Partial<Omit<Person, 'id'>>) => updatePerson('testers', id, data);
-export const deleteTester = (id: string) => deletePerson('testers', id);
+export function getTesters(): Person[] {
+    const data = getAppData();
+    const activeCompanyId = getActiveCompanyId();
+    if (!activeCompanyId || !data.companyData[activeCompanyId]) {
+        return [];
+    }
+    return data.companyData[activeCompanyId].testers || [];
+}
+
+export function addTester(personData: Partial<Omit<Person, 'id'>>): Person {
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    const companyData = data.companyData[activeCompanyId];
+
+    if (!companyData) throw new Error("Cannot add tester, no active company data found.");
+    if (!personData.name || personData.name.trim() === '') throw new Error("Tester name cannot be empty.");
+
+    const testers = companyData.testers || [];
+    const trimmedName = personData.name.trim();
+
+    const existingTester = testers.find(t => t.name.toLowerCase() === trimmedName.toLowerCase());
+    if (existingTester) {
+        throw new Error(`Tester with this name already exists.`);
+    }
+
+    const newTester: Person = {
+        id: `tester-${crypto.randomUUID()}`,
+        name: trimmedName,
+        email: personData.email || '',
+        phone: personData.phone || ''
+    };
+
+    companyData.testers = [...testers, newTester];
+    setAppData(data);
+
+    return newTester;
+}
+
+export function updateTester(id: string, personData: Partial<Omit<Person, 'id'>>): Person | undefined {
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    const companyData = data.companyData[activeCompanyId];
+
+    if (!companyData) return undefined;
+
+    const testers = companyData.testers || [];
+
+    if (personData.name) {
+        const trimmedName = personData.name.trim();
+        const existingPerson = testers.find(p => p.name.toLowerCase() === trimmedName.toLowerCase() && p.id !== id);
+        if (existingPerson) {
+            throw new Error("Tester with this name already exists.");
+        }
+    }
+
+    const personIndex = testers.findIndex(p => p.id === id);
+    if (personIndex === -1) return undefined;
+
+    const updatedPerson = { ...testers[personIndex], ...personData };
+    companyData.testers[personIndex] = updatedPerson;
+    setAppData(data);
+    return updatedPerson;
+}
+
+export function deleteTester(id: string): boolean {
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    const companyData = data.companyData[activeCompanyId];
+
+    if (!companyData) return false;
+
+    const people = companyData.testers;
+    const personIndex = people.findIndex(p => p.id === id);
+    if (personIndex === -1) return false;
+
+    companyData.testers = people.filter(p => p.id !== id);
+
+    companyData.tasks.forEach(task => {
+        if (task.testers && task.testers.includes(id)) {
+            task.testers = task.testers.filter(personId => personId !== id);
+            task.updatedAt = new Date().toISOString();
+        }
+    });
+
+    setAppData(data);
+    return true;
+}
+
 
 // Comment Functions
 export function addComment(taskId: string, comment: string): Task | undefined {
