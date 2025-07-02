@@ -135,24 +135,35 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
 
   const handleCreateDeveloper = (name: string) => {
     const newDev = addDeveloper({ name });
-    if (!developersList.some(d => d.id === newDev.id)) {
-        setDevelopersList(prev => [...prev, newDev]);
-    }
-    const currentDevs = form.getValues('developers') || [];
-    if (!currentDevs.includes(newDev.id)) {
-      form.setValue('developers', [...currentDevs, newDev.id], { shouldDirty: true });
-    }
+    // Update the local list that feeds the dropdown options
+    setDevelopersList(prev => {
+        // Prevent adding duplicates if for some reason it's triggered multiple times
+        if (prev.some(d => d.id === newDev.id)) return prev;
+        return [...prev, newDev];
+    });
+    // Use a timeout to schedule the form update. This allows React to process
+    // the developersList state update first, ensuring the dropdown `options` are
+    // up-to-date before the form's `selected` values change. This avoids the race condition.
+    setTimeout(() => {
+        const currentDevs = form.getValues('developers') || [];
+        if (!currentDevs.includes(newDev.id)) {
+            form.setValue('developers', [...currentDevs, newDev.id], { shouldDirty: true });
+        }
+    }, 0);
   };
 
   const handleCreateTester = (name: string) => {
     const newTester = addTester({ name });
-     if (!testersList.some(t => t.id === newTester.id)) {
-        setTestersList(prev => [...prev, newTester]);
-    }
-    const currentTesters = form.getValues('testers') || [];
-    if (!currentTesters.includes(newTester.id)) {
-      form.setValue('testers', [...currentTesters, newTester.id], { shouldDirty: true });
-    }
+    setTestersList(prev => {
+        if (prev.some(t => t.id === newTester.id)) return prev;
+        return [...prev, newTester];
+    });
+    setTimeout(() => {
+        const currentTesters = form.getValues('testers') || [];
+        if (!currentTesters.includes(newTester.id)) {
+            form.setValue('testers', [...currentTesters, newTester.id], { shouldDirty: true });
+        }
+    }, 0);
   };
 
   const handleFormSubmit = (data: TaskFormData) => {

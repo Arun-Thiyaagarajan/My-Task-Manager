@@ -525,7 +525,7 @@ function addPerson(type: 'developers' | 'testers', personData: Partial<Omit<Pers
     const trimmedName = personData.name.trim();
 
     // Prevent data corruption: if the name looks like an ID, it's a bug from the caller.
-    const isLikelyId = /^(dev|tester)-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmedName);
+    const isLikelyId = /^(dev|tester|developer)-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmedName);
     if (isLikelyId) {
         console.error(`BUG: Attempted to create a person with an ID-like name: "${trimmedName}". This is a UI bug.`);
         // Try to find the person by ID to recover, which is the most likely user intent.
@@ -562,7 +562,7 @@ function updatePerson(type: 'developers' | 'testers', id: string, personData: Pa
     const people = data.companyData[activeCompanyId]?.[type] || [];
     
     // Defend against UI bug: If the name looks like an ID, abort the update.
-    if (personData.name && /^(dev|tester)-[0-9a-f]{8}/i.test(personData.name)) {
+    if (personData.name && /^(developer|tester)-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(personData.name)) {
         console.error(`BUG: updatePerson was called with an ID-like name: "${personData.name}". Aborting update to prevent data corruption.`);
         throw new Error("A system error occurred. The person's name could not be updated.");
     }

@@ -106,7 +106,7 @@ export function MultiSelect({
              const option = options.find(o => o.value === value);
              return (
               <Badge key={value} variant="secondary">
-                {option ? option.label : value}
+                {option ? option.label : ''}
                 <button
                   className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
                   onMouseDown={(e) => {
