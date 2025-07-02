@@ -550,7 +550,7 @@ export default function Home() {
 
       {sortedTasks.length > 0 ? (
         viewMode === 'grid' ? (
-          <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} />
+          <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} />
         ) : (
           <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} />
         )

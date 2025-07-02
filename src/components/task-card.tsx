@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import type { Task, TaskStatus } from '@/lib/types';
+import type { Task, TaskStatus, UiConfig } from '@/lib/types';
 import {
   Card,
   CardContent,
@@ -18,7 +18,7 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 import { getInitials, getAvatarColor, cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DeleteTaskButton } from './delete-task-button';
-import { getUiConfig, updateTask } from '@/lib/data';
+import { updateTask } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import {
   DropdownMenu,
@@ -35,6 +35,7 @@ interface TaskCardProps {
   task: Task;
   onTaskDelete: () => void;
   onTaskUpdate: () => void;
+  uiConfig: UiConfig | null;
 }
 
 const getEnvInfo = (env: string) => {
@@ -66,7 +67,7 @@ const getEnvInfo = (env: string) => {
   }
 };
 
-export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate }: TaskCardProps) {
+export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConfig }: TaskCardProps) {
   const [task, setTask] = useState(initialTask);
   const [justUpdatedEnv, setJustUpdatedEnv] = useState<string | null>(null);
   const { toast } = useToast();
@@ -77,11 +78,10 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate }: Task
   }, [initialTask]);
 
   useEffect(() => {
-      const uiConfig = getUiConfig();
       if (uiConfig?.environments) {
           setConfiguredEnvs(uiConfig.environments);
       }
-  }, []);
+  }, [uiConfig]);
 
   const handleStatusChange = (newStatus: TaskStatus) => {
     const updatedTask = updateTask(task.id, { status: newStatus });
@@ -151,6 +151,10 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate }: Task
     }
   };
 
+  const fieldLabels = new Map(uiConfig?.fields.map(f => [f.key, f.label]));
+  const developersLabel = fieldLabels.get('developers') || 'Developers';
+  const testersLabel = fieldLabels.get('testers') || 'Testers';
+
   const azureWorkItemUrl = task.azureWorkItemId
     ? `https://dev.azure.com/ideaelan/Infinity/_workitems/edit/${task.azureWorkItemId}`
     : null;
@@ -173,24 +177,22 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate }: Task
                   </Link>
                   <div className="flex-shrink-0">
                       <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                              <div className="cursor-pointer">
-                                  <TaskStatusBadge status={task.status} />
+                        <DropdownMenuTrigger asChild>
+                          <TaskStatusBadge status={task.status} className="cursor-pointer hover:opacity-80 transition-opacity" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Set Status</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          {TASK_STATUSES.map(s => (
+                            <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)}>
+                              <div className="flex items-center gap-2">
+                                {statusConfig[s].icon}
+                                <span>{s}</span>
                               </div>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Set Status</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              {TASK_STATUSES.map(s => (
-                              <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)}>
-                                  <div className="flex items-center gap-2">
-                                  {statusConfig[s].icon}
-                                  <span>{s}</span>
-                                  </div>
-                                  {task.status === s && <Check className="ml-auto h-4 w-4" />}
-                              </DropdownMenuItem>
-                              ))}
-                          </DropdownMenuContent>
+                              {task.status === s && <Check className="ml-auto h-4 w-4" />}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
                       </DropdownMenu>
                   </div>
               </div>
@@ -270,7 +272,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate }: Task
                 <div className="flex items-center gap-1.5">
                   <Tooltip>
                       <TooltipTrigger asChild><Users className="h-4 w-4 text-muted-foreground" /></TooltipTrigger>
-                      <TooltipContent><p>Developers</p></TooltipContent>
+                      <TooltipContent><p>{developersLabel}</p></TooltipContent>
                   </Tooltip>
                   <div className="flex -space-x-2">
                       {task.developers.map((dev) => (
@@ -300,7 +302,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate }: Task
                 <div className="flex items-center gap-1.5">
                   <Tooltip>
                       <TooltipTrigger asChild><TestTube2 className="h-4 w-4 text-muted-foreground" /></TooltipTrigger>
-                      <TooltipContent><p>Testers</p></TooltipContent>
+                      <TooltipContent><p>{testersLabel}</p></TooltipContent>
                   </Tooltip>
                   <div className="flex -space-x-2">
                       {task.testers.map((tester) => (
@@ -315,7 +317,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate }: Task
                               </AvatarFallback>
                             </Avatar>
                           </TooltipTrigger>
-                          <TooltipContent><p>{tester} (Tester)</p></TooltipContent>
+                          <TooltipContent><p>{tester} ({testersLabel})</p></TooltipContent>
                         </Tooltip>
                       ))}
                   </div>
