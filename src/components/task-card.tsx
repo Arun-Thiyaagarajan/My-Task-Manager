@@ -168,8 +168,10 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate }: Task
                 </Link>
                 <div className="flex-shrink-0">
                     <DropdownMenu>
-                        <DropdownMenuTrigger>
-                            <TaskStatusBadge status={task.status} className="cursor-pointer hover:opacity-80 transition-opacity" />
+                        <DropdownMenuTrigger asChild>
+                            <div className="cursor-pointer">
+                                <TaskStatusBadge status={task.status} />
+                            </div>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Set Status</DropdownMenuLabel>
