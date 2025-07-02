@@ -190,15 +190,15 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
             case 'text':
                 return (
                     <div>
-                        <Input type="text" placeholder={label} {...field} />
+                        <Input type="text" placeholder={label} {...field} value={field.value ?? ''} />
                         {baseUrl && <FormDescription className="mt-1">The value will be appended to: {baseUrl}</FormDescription>}
                     </div>
                 );
             case 'number':
             case 'url':
-                return <Input type={fieldType === 'text' ? 'text' : fieldType} placeholder={label} {...field} />;
+                return <Input type={fieldType === 'text' ? 'text' : fieldType} placeholder={label} {...field} value={field.value ?? ''} />;
             case 'textarea':
-                return <Textarea placeholder={`Details for ${label}...`} {...field} />;
+                return <Textarea placeholder={`Details for ${label}...`} {...field} value={field.value ?? ''} />;
             case 'date':
                 return (
                     <Popover>
@@ -263,7 +263,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                     </div>
                 );
             default:
-                return <Input placeholder={label} {...field} />;
+                return <Input placeholder={label} {...field} value={field.value ?? ''} />;
         }
     }
 
@@ -456,7 +456,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                                                 <FormItem>
                                                     <FormLabel className="capitalize">PR IDs for {env}</FormLabel>
                                                     <FormControl>
-                                                        <Input {...field} placeholder="e.g. 12345, 67890" />
+                                                        <Input {...field} value={field.value ?? ''} placeholder="e.g. 12345, 67890" />
                                                     </FormControl>
                                                     <FormMessage />
                                                 </FormItem>
