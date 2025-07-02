@@ -571,7 +571,7 @@ export default function Home() {
         viewMode === 'grid' ? (
           <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} />
         ) : (
-          <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} />
+          <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} />
         )
       ) : (
         <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg flex flex-col items-center justify-center">
