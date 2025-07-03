@@ -236,8 +236,7 @@ export default function TaskPage() {
               <Icon
                 className={cn(
                   'absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none transition-transform duration-300 ease-in-out',
-                  iconColorClassName,
-                  task.status === 'In Progress' && 'animate-spin'
+                  iconColorClassName
                 )}
               />
               <div className="relative z-10">

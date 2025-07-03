@@ -211,8 +211,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
       >
         <Icon className={cn(
           "absolute -bottom-8 -right-8 h-36 w-36 pointer-events-none transition-transform duration-300 ease-in-out group-hover/card:scale-110 group-hover/card:-rotate-6",
-          iconColorClassName,
-          task.status === 'In Progress' && 'animate-spin'
+          iconColorClassName
         )} />
         <div className="flex flex-col flex-grow z-10">
           <CardHeader className="p-4 pb-2">
