@@ -158,6 +158,7 @@ export default function Home() {
     const searchMatch =
       searchQuery.trim() === '' ||
       task.title.toLowerCase().includes(searchLower) ||
+      task.description.toLowerCase().includes(searchLower) ||
       task.id.toLowerCase().includes(searchLower) ||
       (task.azureWorkItemId && task.azureWorkItemId.includes(searchQuery)) ||
       task.developers?.some((devId) => (developersById.get(devId) || '').toLowerCase().includes(searchLower)) ||
