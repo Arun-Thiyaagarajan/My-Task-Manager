@@ -164,15 +164,18 @@ function TasksTableRow({
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Set Status</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {TASK_STATUSES.map((s) => (
-              <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)}>
-                <div className="flex items-center gap-2">
-                  {statusConfig[s].icon}
-                  <span>{s}</span>
-                </div>
-                {task.status === s && <Check className="ml-auto h-4 w-4" />}
-              </DropdownMenuItem>
-            ))}
+            {TASK_STATUSES.map((s) => {
+              const { Icon } = statusConfig[s];
+              return (
+                <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)}>
+                  <div className="flex items-center gap-2">
+                    <Icon className={cn("h-3 w-3", s === 'In Progress' && 'animate-spin')} />
+                    <span>{s}</span>
+                  </div>
+                  {task.status === s && <Check className="ml-auto h-4 w-4" />}
+                </DropdownMenuItem>
+              )
+            })}
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>

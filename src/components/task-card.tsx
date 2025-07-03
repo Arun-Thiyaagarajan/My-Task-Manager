@@ -49,25 +49,25 @@ const getEnvInfo = (env: string) => {
     case 'dev':
       return {
         deployedColor: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-700/80',
-        pendingColor: 'border-dashed text-blue-600/80 border-blue-400/50 dark:text-blue-400/70 dark:border-blue-500/30 bg-background hover:bg-blue-500/5',
+        pendingColor: 'border-dashed text-blue-600/80 border-blue-400/50 dark:text-blue-400/70 dark:border-blue-500/30 bg-transparent hover:bg-blue-500/5',
         label: 'Development',
       };
     case 'stage':
       return {
         deployedColor: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700/80',
-        pendingColor: 'border-dashed text-amber-600/80 border-amber-400/50 dark:text-amber-400/70 dark:border-amber-500/30 bg-background hover:bg-amber-500/5',
+        pendingColor: 'border-dashed text-amber-600/80 border-amber-400/50 dark:text-amber-400/70 dark:border-amber-500/30 bg-transparent hover:bg-amber-500/5',
         label: 'Staging',
       };
     case 'production':
       return {
         deployedColor: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700/80',
-        pendingColor: 'border-dashed text-green-600/80 border-green-400/50 dark:text-green-400/70 dark:border-green-500/30 bg-background hover:bg-green-500/5',
+        pendingColor: 'border-dashed text-green-600/80 border-green-400/50 dark:text-green-400/70 dark:border-green-500/30 bg-transparent hover:bg-green-500/5',
         label: 'Production',
       };
     default:
       return {
         deployedColor: 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-700/50 dark:text-gray-300 dark:border-gray-600/80',
-        pendingColor: 'border-dashed text-gray-500 border-gray-300 dark:text-gray-400 dark:border-gray-600 bg-background hover:bg-gray-500/5',
+        pendingColor: 'border-dashed text-gray-500 border-gray-300 dark:text-gray-400 dark:border-gray-600 bg-transparent hover:bg-gray-500/5',
         label: env,
       };
   }
@@ -199,17 +199,27 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   const hasDevelopers = assignedDevelopers.length > 0;
   const hasTesters = assignedTesters.length > 0;
 
+  const { Icon, cardClassName, iconColorClassName } = statusConfig[task.status];
+
   return (
     <>
       <TooltipProvider delayDuration={100}>
         <Card
-          className="flex flex-col h-full transition-all duration-300 hover:shadow-lg hover:-translate-y-1 bg-card hover:border-primary group"
+          className={cn(
+            "flex flex-col h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative overflow-hidden group/card rounded-lg",
+            cardClassName
+          )}
         >
-          <div className="flex flex-col flex-grow">
+          <Icon className={cn(
+            "absolute -bottom-8 -right-8 h-36 w-36 pointer-events-none transition-transform duration-300 ease-in-out group-hover/card:scale-110 group-hover/card:-rotate-6",
+            iconColorClassName,
+            task.status === 'In Progress' && 'animate-spin'
+          )} />
+          <div className="flex flex-col flex-grow z-10">
             <CardHeader className="p-4 pb-2">
                 <div className="flex items-start justify-between gap-2">
                     <Link href={`/tasks/${task.id}`} className="flex-grow cursor-pointer">
-                        <CardTitle className="text-base font-semibold leading-snug line-clamp-3 group-hover:text-primary">
+                        <CardTitle className="text-base font-semibold leading-snug line-clamp-3 text-foreground group-hover/card:text-primary">
                         {task.title}
                         </CardTitle>
                     </Link>
@@ -223,15 +233,18 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Set Status</DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            {TASK_STATUSES.map(s => (
-                              <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)}>
-                                <div className="flex items-center gap-2">
-                                  {statusConfig[s].icon}
-                                  <span>{s}</span>
-                                </div>
-                                {task.status === s && <Check className="ml-auto h-4 w-4" />}
-                              </DropdownMenuItem>
-                            ))}
+                            {TASK_STATUSES.map(s => {
+                              const { Icon } = statusConfig[s];
+                              return (
+                                <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)}>
+                                  <div className="flex items-center gap-2">
+                                    <Icon className={cn("h-3 w-3", s === 'In Progress' && 'animate-spin')} />
+                                    <span>{s}</span>
+                                  </div>
+                                  {task.status === s && <Check className="ml-auto h-4 w-4" />}
+                                </DropdownMenuItem>
+                              )
+                            })}
                           </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
@@ -318,7 +331,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
               </div>
             </CardContent>
           </div>
-          <CardFooter className="flex items-center justify-between p-4 border-t">
+          <CardFooter className="flex items-center justify-between p-4 border-t border-black/5 dark:border-white/5 z-10">
             <div className="flex items-center gap-3">
                 {hasDevelopers && (
                   <div className="flex items-center gap-1.5">
@@ -338,7 +351,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                                   }}
                                   className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
                               >
-                                <Avatar className="h-7 w-7 border-2 border-card cursor-pointer">
+                                <Avatar className="h-7 w-7 border-2 border-background cursor-pointer">
                                   <AvatarFallback 
                                     className="text-xs font-semibold text-white"
                                     style={{ backgroundColor: `#${getAvatarColor(dev.name)}` }}
@@ -377,7 +390,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                                   }}
                                   className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
                               >
-                                <Avatar className="h-7 w-7 border-2 border-card cursor-pointer">
+                                <Avatar className="h-7 w-7 border-2 border-background cursor-pointer">
                                   <AvatarFallback 
                                     className="text-xs font-semibold text-white"
                                     style={{ backgroundColor: `#${getAvatarColor(tester.name)}` }}
