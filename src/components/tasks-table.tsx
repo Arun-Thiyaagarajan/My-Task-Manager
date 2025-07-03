@@ -137,7 +137,7 @@ function TasksTableRow({
     .map((id) => testersById.get(id))
     .filter((t): t is Person => !!t);
 
-  const { Icon, cardClassName, iconColorClassName } = statusConfig[task.status];
+  const { Icon, cardClassName, iconColorClassName, titleBgClassName } = statusConfig[task.status];
 
   return (
     <TableRow key={task.id} className={cn(cardClassName, 'group/row')}>
@@ -147,7 +147,10 @@ function TasksTableRow({
           iconColorClassName,
           task.status !== 'In Progress' && 'group-hover/row:scale-110 group-hover/row:rotate-6'
         )} />
-        <div className="relative z-10">
+        <div className={cn(
+            "relative z-10 p-2 -m-2 rounded-md transition-colors",
+            titleBgClassName
+        )}>
             <Link
               href={`/tasks/${task.id}`}
               className="hover:text-primary transition-colors font-semibold block truncate"
