@@ -547,8 +547,8 @@ export default function TaskPage() {
             </div>
             
             {uiConfig.fields.find(f => f.key === 'attachments' && f.isActive) && (
-              <Card>
-                  <CardHeader>
+              <Card className={cn((!task.attachments || task.attachments.length === 0) && !isEditingAttachments && 'border-0 shadow-none p-0')}>
+                  <CardHeader className={cn((!task.attachments || task.attachments.length === 0) && !isEditingAttachments && 'p-0')}>
                       <div className="flex justify-between items-center">
                         <CardTitle className="flex items-center gap-2">
                             <Paperclip className="h-5 w-5" />
@@ -571,9 +571,9 @@ export default function TaskPage() {
                                       </Button>
                                     )}
                                     {att.type === 'image' ? (
-                                        <button onClick={() => setPreviewImage({ url: att.url, name: att.name })} className="block relative group aspect-square w-full">
-                                            <img src={att.url} alt={att.name} className="rounded-lg object-cover w-full h-full transition-all group-hover:brightness-75" />
-                                            {!isEditingAttachments && <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
+                                        <button onClick={() => setPreviewImage({ url: att.url, name: att.name })} className="block relative group aspect-square w-full border rounded-lg overflow-hidden">
+                                            <img src={att.url} alt={att.name} className="object-cover w-full h-full transition-all group-hover:brightness-75" />
+                                            {!isEditingAttachments && <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                                 <ZoomIn className="h-8 w-8 text-white" />
                                             </div>}
                                         </button>
@@ -646,7 +646,7 @@ export default function TaskPage() {
 
           </div>
 
-          <div className="lg:col-span-1 space-y-6">
+          <div className="lg:col-span-1 space-y-6 lg:pt-16">
               <Card>
                   <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-xl">
