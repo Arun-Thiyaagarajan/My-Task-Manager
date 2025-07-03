@@ -22,7 +22,7 @@ import {
   deleteCompany,
 } from '@/lib/data';
 import type { Company } from '@/lib/types';
-import { Building, PlusCircle, Trash2, Edit, LayoutDashboard, Cog } from 'lucide-react';
+import { Building, PlusCircle, Trash2, Edit, LayoutDashboard, Cog, Menu } from 'lucide-react';
 import { CompaniesManager } from './companies-manager';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -105,12 +105,12 @@ export function Header() {
     <>
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-14 max-w-screen-2xl items-center justify-between">
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4 md:gap-6">
             <HeaderLink href="/" className="flex items-center space-x-2">
               <Icons.logo className="h-6 w-6 text-primary" />
-              <span className="font-bold sm:inline-block">My Task Manager</span>
+              <span className="font-bold hidden sm:inline-block">My Task Manager</span>
             </HeaderLink>
-            <nav className="flex items-center gap-4">
+            <nav className="hidden md:flex items-center gap-4">
                <HeaderLink href="/dashboard" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                   <LayoutDashboard className="mr-2 h-4 w-4" />
                   Dashboard
@@ -125,9 +125,9 @@ export function Header() {
             {activeCompany && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline">
-                      <Building className="mr-2 h-4 w-4" />
-                      {activeCompany.name}
+                  <Button variant="outline" className="px-2 sm:px-4">
+                      <Building className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">{activeCompany.name}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-60">
@@ -185,6 +185,28 @@ export function Header() {
               </DropdownMenu>
             )}
             <ThemeToggle />
+            <div className="md:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <Menu className="h-5 w-5" />
+                    <span className="sr-only">Open menu</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <HeaderLink href="/dashboard" className="w-full flex items-center gap-2">
+                      <LayoutDashboard className="h-4 w-4" /> Dashboard
+                    </HeaderLink>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <HeaderLink href="/settings" className="w-full flex items-center gap-2">
+                       <Cog className="h-4 w-4" /> Settings
+                    </HeaderLink>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
       </header>
