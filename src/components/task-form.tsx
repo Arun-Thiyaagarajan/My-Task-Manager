@@ -407,7 +407,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                 <CardHeader><CardTitle>{fieldLabels.get('deploymentStatus') || 'Deployment'}</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                     {allConfiguredEnvs.map(env => (
-                        <div key={env} className="flex flex-col sm:flex-row items-center gap-4 p-3 border rounded-md">
+                        <div key={env} className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4 p-3 border rounded-md">
                             <FormField
                                 control={form.control}
                                 name={`deploymentStatus.${env}`}
