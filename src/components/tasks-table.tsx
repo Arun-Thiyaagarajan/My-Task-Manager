@@ -135,7 +135,7 @@ function TasksTableRow({
     .filter((d): d is Person => !!d);
   const assignedTesters = (task.testers || [])
     .map((id) => testersById.get(id))
-    .filter((t): t is Person => !!d);
+    .filter((t): t is Person => !!t);
 
   const { listClassName } = statusConfig[task.status];
 
