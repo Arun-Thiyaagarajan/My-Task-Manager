@@ -6,9 +6,10 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogClose,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ImagePreviewDialogProps {
@@ -98,7 +99,7 @@ export function ImagePreviewDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-4xl w-full h-[90vh] flex flex-col p-0 border-0 bg-card/80 backdrop-blur-sm">
+      <DialogContent hideClose className="max-w-4xl w-full h-[90vh] flex flex-col p-0 border-0 bg-card/80 backdrop-blur-sm">
         <DialogHeader className="p-4 border-b flex-row items-center justify-between space-y-0 text-card-foreground">
           <DialogTitle className="truncate pr-4">{imageName}</DialogTitle>
           <div className="flex items-center gap-1">
@@ -111,6 +112,11 @@ export function ImagePreviewDialog({
             <Button variant="ghost" size="icon" onClick={resetTransform} className="h-8 w-8">
               <RotateCcw className="h-4 w-4" />
             </Button>
+            <DialogClose asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <X className="h-4 w-4" />
+                </Button>
+            </DialogClose>
           </div>
         </DialogHeader>
         <div 
