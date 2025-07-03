@@ -236,7 +236,7 @@ export default function Home() {
       if (sortDirection === 'asc') {
         return scoreA - scoreB;
       } else {
-        return scoreB - aIndex;
+        return scoreB - scoreA;
       }
     }
 
@@ -767,8 +767,8 @@ export default function Home() {
             </CardContent>
           </Card>
           
-           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 my-6">
-                <div className="space-y-2">
+           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 my-6">
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
                     {mainView === 'monthly' && (
                         <div className="flex items-center gap-2 sm:gap-4">
                             <Button variant="outline" size="icon" onClick={handlePreviousMonth} aria-label="Previous month">
@@ -779,7 +779,7 @@ export default function Home() {
                                 <PopoverTrigger asChild>
                                     <Button
                                         variant="ghost"
-                                        className="text-xl font-semibold text-foreground text-center sm:w-48 whitespace-nowrap flex items-center gap-1 hover:bg-muted"
+                                        className="text-lg font-semibold text-foreground text-center sm:w-48 whitespace-nowrap flex items-center gap-1 hover:bg-muted"
                                     >
                                         {format(selectedMonth, 'MMMM yyyy')}
                                         <ChevronDown className="h-4 w-4 opacity-50" />
@@ -835,10 +835,10 @@ export default function Home() {
                         </div>
                     )}
                     <div>
-                        <h2 className="text-lg font-semibold text-foreground">
+                        <h2 className="text-base font-semibold text-foreground">
                             {sortedTasks.length} {sortedTasks.length === 1 ? 'Result' : 'Results'}
                         </h2>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                             {resultsDescription}
                         </p>
                     </div>
