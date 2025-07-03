@@ -137,10 +137,10 @@ function TasksTableRow({
     .map((id) => testersById.get(id))
     .filter((t): t is Person => !!t);
 
-  const { Icon, cardClassName, iconColorClassName, titleBgClassName } = statusConfig[task.status];
+  const { Icon, iconColorClassName } = statusConfig[task.status];
 
   return (
-    <TableRow key={task.id} className={cn(cardClassName, 'group/row')}>
+    <TableRow key={task.id} className={cn('group/row')}>
       <TableCell className="font-medium max-w-xs relative overflow-hidden align-top">
         <Icon className={cn(
           "absolute -bottom-8 -left-8 h-24 w-24 pointer-events-none transition-transform duration-300 ease-in-out z-0",
@@ -153,8 +153,7 @@ function TasksTableRow({
               className="font-semibold block truncate group/title"
             >
               <span className={cn(
-                "px-2 py-1 rounded-md transition-colors group-hover/title:text-primary",
-                titleBgClassName
+                "px-2 py-1 rounded-md transition-colors group-hover/title:text-primary"
                 )}>
                 {task.title}
               </span>
@@ -201,7 +200,7 @@ function TasksTableRow({
                   onClick={() => onAvatarClick(dev, 'Developer')}
                   className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
                 >
-                  <Avatar className="h-8 w-8 border-2 border-card bg-background cursor-pointer">
+                  <Avatar className="h-8 w-8 border-2 border-background cursor-pointer">
                     <AvatarFallback
                       className="text-xs font-semibold text-white"
                       style={{
@@ -229,7 +228,7 @@ function TasksTableRow({
                   onClick={() => onAvatarClick(tester, 'Tester')}
                   className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
                 >
-                  <Avatar className="h-8 w-8 border-2 border-card bg-background cursor-pointer">
+                  <Avatar className="h-8 w-8 border-2 border-background cursor-pointer">
                     <AvatarFallback
                       className="text-xs font-semibold text-white"
                       style={{
