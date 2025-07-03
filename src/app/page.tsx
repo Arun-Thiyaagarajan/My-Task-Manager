@@ -317,16 +317,12 @@ export default function Home() {
               importedDevelopers.forEach(dev => {
                   if (!dev.name) return;
                   const existingDev = existingDevsByName.get(dev.name.toLowerCase());
+                  const personData = { name: dev.name, email: dev.email, phone: dev.phone };
                   if (!existingDev) {
-                      addDeveloper({ name: dev.name, email: dev.email, phone: dev.phone });
+                      addDeveloper(personData);
                   } else {
-                      // Update if local data is missing info
-                      const updates: Partial<Person> = {};
-                      if (dev.email && !existingDev.email) updates.email = dev.email;
-                      if (dev.phone && !existingDev.phone) updates.phone = dev.phone;
-                      if (Object.keys(updates).length > 0) {
-                          updateDeveloper(existingDev.id, updates);
-                      }
+                      // Always update with data from the imported file.
+                      updateDeveloper(existingDev.id, personData);
                   }
               });
 
@@ -335,15 +331,12 @@ export default function Home() {
               importedTesters.forEach(tester => {
                   if (!tester.name) return;
                   const existingTester = existingTestersByName.get(tester.name.toLowerCase());
+                  const personData = { name: tester.name, email: tester.email, phone: tester.phone };
                   if (!existingTester) {
-                      addTester({ name: tester.name, email: tester.email, phone: tester.phone });
+                      addTester(personData);
                   } else {
-                      const updates: Partial<Person> = {};
-                      if (tester.email && !existingTester.email) updates.email = tester.email;
-                      if (tester.phone && !existingTester.phone) updates.phone = tester.phone;
-                      if (Object.keys(updates).length > 0) {
-                          updateTester(existingTester.id, updates);
-                      }
+                      // Always update with data from the imported file.
+                      updateTester(existingTester.id, personData);
                   }
               });
 
