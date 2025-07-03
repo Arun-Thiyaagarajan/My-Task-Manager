@@ -141,23 +141,25 @@ function TasksTableRow({
 
   return (
     <TableRow key={task.id} className={cn(cardClassName, 'group/row')}>
-      <TableCell className="font-medium max-w-xs relative overflow-hidden">
+      <TableCell className="font-medium max-w-xs relative overflow-hidden align-top">
         <Icon className={cn(
           "absolute -bottom-8 -left-8 h-24 w-24 pointer-events-none transition-transform duration-300 ease-in-out z-0",
           iconColorClassName,
           task.status !== 'In Progress' && 'group-hover/row:scale-110 group-hover/row:rotate-6'
         )} />
-        <div className={cn(
-            "relative z-10 p-2 -m-2 rounded-md transition-colors",
-            titleBgClassName
-        )}>
+        <div className="relative z-10">
             <Link
               href={`/tasks/${task.id}`}
-              className="hover:text-primary transition-colors font-semibold block truncate"
+              className="font-semibold block truncate group/title"
             >
-              {task.title}
+              <span className={cn(
+                "px-2 py-1 rounded-md transition-colors group-hover/title:text-primary",
+                titleBgClassName
+                )}>
+                {task.title}
+              </span>
             </Link>
-            <p className="text-muted-foreground text-sm truncate">
+            <p className="text-muted-foreground text-sm truncate mt-1">
               {task.summary || task.description}
             </p>
         </div>
