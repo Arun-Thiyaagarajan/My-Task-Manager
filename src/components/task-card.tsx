@@ -170,14 +170,13 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   const hasDevelopers = assignedDevelopers.length > 0;
   const hasTesters = assignedTesters.length > 0;
 
-  const { Icon, cardClassName, iconColorClassName } = statusConfig[task.status];
+  const { Icon, iconColorClassName } = statusConfig[task.status];
 
   return (
     <>
       <Card
         className={cn(
-          "flex flex-col h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative overflow-hidden group/card rounded-lg",
-          cardClassName
+          "flex flex-col h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative overflow-hidden group/card rounded-lg"
         )}
       >
         <Icon className={cn(
