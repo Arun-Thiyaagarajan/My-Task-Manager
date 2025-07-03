@@ -250,7 +250,7 @@ export default function TaskPage() {
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0">
-                            <TaskStatusBadge status={task.status} />
+                            <TaskStatusBadge status={task.status} variant="prominent" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
