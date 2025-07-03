@@ -115,9 +115,9 @@ export default function TaskPage() {
         deploymentDates: newDeploymentDates,
     };
     
-    const updatedTask = updateTask(task.id, updatedTaskData);
-    if(updatedTask) {
-        setTask(updatedTask);
+    const updatedTaskResult = updateTask(task.id, updatedTaskData);
+    if(updatedTaskResult) {
+        setTask(updatedTaskResult);
         setJustUpdatedEnv(env);
         toast({
             variant: 'success',
@@ -132,6 +132,27 @@ export default function TaskPage() {
         });
     }
   };
+
+  const handlePrLinksUpdate = (newPrLinks: Task['prLinks']) => {
+    if (!task) return;
+
+    const updatedTask = updateTask(task.id, { prLinks: newPrLinks });
+    if(updatedTask) {
+        setTask(updatedTask);
+        toast({
+            variant: 'success',
+            title: 'Pull Requests Updated',
+            description: `Your changes to PR links have been saved.`,
+        });
+    } else {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Failed to update pull request links.',
+        });
+    }
+  };
+
 
   const renderCustomFieldValue = (key: string, value: any) => {
       const fieldConfig = uiConfig?.fields.find(f => f.key === key);
@@ -371,6 +392,7 @@ export default function TaskPage() {
                         repositories={task.repositories}
                         configuredEnvs={uiConfig.environments}
                         repositoryConfigs={uiConfig.repositoryConfigs}
+                        onUpdate={handlePrLinksUpdate}
                       />
                   </CardContent>
               </Card>
