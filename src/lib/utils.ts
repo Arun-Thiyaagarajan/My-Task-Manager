@@ -95,26 +95,26 @@ export const getEnvInfo = (env: string) => {
   switch (env) {
     case 'dev':
       return {
-        deployedColor: 'bg-blue-200/70 text-blue-900 border-blue-300/80 dark:bg-blue-800/40 dark:text-blue-200 dark:border-blue-700/60',
-        pendingColor: 'border-dashed text-blue-700/90 border-blue-400/70 dark:text-blue-400/80 dark:border-blue-500/50 bg-transparent hover:bg-blue-500/10',
+        deployedColor: 'border-transparent bg-blue-600 text-blue-50 dark:bg-blue-700 dark:text-blue-100',
+        pendingColor: 'border-blue-300/70 bg-blue-100/80 text-blue-700 dark:border-blue-700/50 dark:bg-blue-900/50 dark:text-blue-300',
         label: 'Development',
       };
     case 'stage':
       return {
-        deployedColor: 'bg-amber-200/70 text-amber-900 border-amber-300/80 dark:bg-amber-800/40 dark:text-amber-200 dark:border-amber-700/60',
-        pendingColor: 'border-dashed text-amber-700/90 border-amber-400/70 dark:text-amber-400/80 dark:border-amber-500/50 bg-transparent hover:bg-amber-500/10',
+        deployedColor: 'border-transparent bg-amber-500 text-white dark:bg-amber-600 dark:text-amber-50',
+        pendingColor: 'border-amber-300/70 bg-amber-100/80 text-amber-700 dark:border-amber-600/50 dark:bg-amber-900/50 dark:text-amber-300',
         label: 'Staging',
       };
     case 'production':
       return {
-        deployedColor: 'bg-green-200/70 text-green-900 border-green-300/80 dark:bg-green-800/40 dark:text-green-200 dark:border-green-700/60',
-        pendingColor: 'border-dashed text-green-700/90 border-green-400/70 dark:text-green-400/80 dark:border-green-500/50 bg-transparent hover:bg-green-500/10',
+        deployedColor: 'border-transparent bg-green-600 text-green-50 dark:bg-green-700 dark:text-green-100',
+        pendingColor: 'border-green-300/70 bg-green-100/80 text-green-700 dark:border-green-700/50 dark:bg-green-900/50 dark:text-green-300',
         label: 'Production',
       };
     default:
       return {
-        deployedColor: 'bg-gray-200/70 text-gray-900 border-gray-300/80 dark:bg-gray-700/40 dark:text-gray-200 dark:border-gray-600/60',
-        pendingColor: 'border-dashed text-gray-600/90 border-gray-400/70 dark:text-gray-400/80 dark:border-gray-500/50 bg-transparent hover:bg-gray-500/10',
+        deployedColor: 'border-transparent bg-slate-600 text-slate-50 dark:bg-slate-700 dark:text-slate-100',
+        pendingColor: 'border-slate-300/70 bg-slate-100/80 text-slate-700 dark:border-slate-700/50 dark:bg-slate-900/50 dark:text-slate-300',
         label: env,
       };
   }
