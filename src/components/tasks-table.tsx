@@ -137,10 +137,10 @@ function TasksTableRow({
     .map((id) => testersById.get(id))
     .filter((t): t is Person => !!t);
 
-  const { listClassName } = statusConfig[task.status];
+  const { Icon, cardClassName, iconColorClassName } = statusConfig[task.status];
 
   return (
-    <TableRow key={task.id} className={cn(listClassName)}>
+    <TableRow key={task.id} className={cn(cardClassName, 'group/row')}>
       <TableCell className="font-medium max-w-xs">
         <Link
           href={`/tasks/${task.id}`}
@@ -293,8 +293,13 @@ function TasksTableRow({
           })}
         </div>
       </TableCell>
-      <TableCell>
-        <div className="flex items-center justify-end gap-2">
+      <TableCell className="relative overflow-hidden">
+        <Icon className={cn(
+          "absolute -bottom-8 -right-8 h-24 w-24 pointer-events-none transition-transform duration-300 ease-in-out z-0",
+          iconColorClassName,
+          task.status !== 'In Progress' && 'group-hover/row:scale-110 group-hover/row:-rotate-6'
+        )} />
+        <div className="relative z-10 flex items-center justify-end gap-2">
           <Button asChild variant="ghost" size="sm">
             <Link href={`/tasks/${task.id}`}>
               View
