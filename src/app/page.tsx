@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester } from '@/lib/data';
+import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -182,9 +182,29 @@ export default function Home() {
     return 0;
   });
 
-  const handleExport = (tasksToExport: Task[], fileName: string) => {
+  const handleExport = (tasksToExport: Task[], fileName: string, exportAllPeople: boolean) => {
     const allDevelopers = getDevelopers();
     const allTesters = getTesters();
+    
+    let developersToExport: Person[];
+    let testersToExport: Person[];
+
+    if (exportAllPeople) {
+        developersToExport = allDevelopers;
+        testersToExport = allTesters;
+    } else {
+        const devIdsInExport = new Set<string>();
+        const testerIdsInExport = new Set<string>();
+        tasksToExport.forEach(task => {
+            (task.developers || []).forEach(id => devIdsInExport.add(id));
+            (task.testers || []).forEach(id => testerIdsInExport.add(id));
+        });
+
+        developersToExport = allDevelopers.filter(d => devIdsInExport.has(d.id));
+        testersToExport = allTesters.filter(t => testerIdsInExport.has(t.id));
+    }
+
+    // Still map IDs to names inside task objects for portability between systems
     const devIdToName = new Map(allDevelopers.map(d => [d.id, d.name]));
     const testerIdToName = new Map(allTesters.map(t => [t.id, t.name]));
 
@@ -196,9 +216,18 @@ export default function Home() {
             testers: (testers || []).map(id => testerIdToName.get(id) || id),
         };
     });
+    
+    // Remove IDs from exported people to avoid collisions, we'll match by name on import
+    const cleanPerson = (p: Person) => ({ name: p.name, email: p.email || '', phone: p.phone || '' });
+
+    const exportData = {
+        developers: developersToExport.map(cleanPerson),
+        testers: testersToExport.map(cleanPerson),
+        tasks: tasksWithNames,
+    };
 
     const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
-      JSON.stringify(tasksWithNames, null, 2)
+      JSON.stringify(exportData, null, 2)
     )}`;
     const link = document.createElement("a");
     link.href = jsonString;
@@ -213,17 +242,27 @@ export default function Home() {
   };
 
   const handleDownloadTemplate = () => {
-      const templateTask = {
-          title: "Sample Task: Refactor Login Page",
-          description: "Update the login page to use the new authentication service and improve UI responsiveness.",
-          status: "To Do",
-          repositories: ["UI-Dashboard"],
-          developers: ["Grace Hopper"],
-          testers: ["Ada Lovelace"],
-          azureWorkItemId: "101",
+      const templateData = {
+          developers: [
+              { name: "Grace Hopper", email: "grace@example.com", phone: "111-222-3333" }
+          ],
+          testers: [
+              { name: "Ada Lovelace", email: "ada@example.com", phone: "444-555-6666" }
+          ],
+          tasks: [
+            {
+              title: "Sample Task: Refactor Login Page",
+              description: "Update the login page to use the new authentication service and improve UI responsiveness.",
+              status: "To Do",
+              repositories: ["UI-Dashboard"],
+              developers: ["Grace Hopper"],
+              testers: ["Ada Lovelace"],
+              azureWorkItemId: "101",
+            }
+          ]
       };
       const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
-        JSON.stringify([templateTask], null, 2)
+        JSON.stringify(templateData, null, 2)
       )}`;
       const link = document.createElement("a");
       link.href = jsonString;
@@ -239,60 +278,88 @@ export default function Home() {
       reader.onload = (e) => {
           try {
               const text = e.target?.result as string;
-              const importedTasks: Partial<Task>[] = JSON.parse(text);
+              const parsedJson = JSON.parse(text);
 
-              if (!Array.isArray(importedTasks)) {
-                  throw new Error("Invalid format: JSON file must contain an array of tasks.");
+              let importedTasks: Partial<Task>[];
+              let importedDevelopers: Partial<Omit<Person, 'id'>>[] = [];
+              let importedTesters: Partial<Omit<Person, 'id'>>[] = [];
+
+              if (Array.isArray(parsedJson)) {
+                  // Legacy format: array of tasks
+                  importedTasks = parsedJson;
+                  // In legacy, we have to extract names from tasks
+                  const devNames = new Set<string>();
+                  const testerNames = new Set<string>();
+                  const isIdRegex = /^[a-z]+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                  importedTasks.forEach(task => {
+                      (task.developers || []).forEach(nameOrId => {
+                          if (typeof nameOrId === 'string' && !isIdRegex.test(nameOrId)) devNames.add(nameOrId);
+                      });
+                      (task.testers || []).forEach(nameOrId => {
+                          if (typeof nameOrId === 'string' && !isIdRegex.test(nameOrId)) testerNames.add(nameOrId);
+                      });
+                  });
+                  devNames.forEach(name => importedDevelopers.push({ name }));
+                  testerNames.forEach(name => importedTesters.push({ name }));
+
+              } else if (parsedJson && Array.isArray(parsedJson.tasks)) {
+                  // New format: object with tasks, developers, testers
+                  importedTasks = parsedJson.tasks;
+                  importedDevelopers = parsedJson.developers || [];
+                  importedTesters = parsedJson.testers || [];
+              } else {
+                   throw new Error("Invalid format: JSON file must contain an array of tasks or an object with a 'tasks' array.");
               }
 
-              // --- Pre-process to create missing people ---
-              const isIdRegex = /^[a-z]+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-              const newDeveloperNames = new Set<string>();
-              const newTesterNames = new Set<string>();
-
-              for (const taskData of importedTasks) {
-                  (taskData.developers || []).forEach(nameOrId => {
-                      if (typeof nameOrId === 'string' && !isIdRegex.test(nameOrId)) {
-                          newDeveloperNames.add(nameOrId);
+              // --- Pre-process people ---
+              const allExistingDevs = getDevelopers();
+              const existingDevsByName = new Map(allExistingDevs.map(d => [d.name.toLowerCase(), d]));
+              importedDevelopers.forEach(dev => {
+                  if (!dev.name) return;
+                  const existingDev = existingDevsByName.get(dev.name.toLowerCase());
+                  if (!existingDev) {
+                      addDeveloper({ name: dev.name, email: dev.email, phone: dev.phone });
+                  } else {
+                      // Update if local data is missing info
+                      const updates: Partial<Person> = {};
+                      if (dev.email && !existingDev.email) updates.email = dev.email;
+                      if (dev.phone && !existingDev.phone) updates.phone = dev.phone;
+                      if (Object.keys(updates).length > 0) {
+                          updateDeveloper(existingDev.id, updates);
                       }
-                  });
-                  (taskData.testers || []).forEach(nameOrId => {
-                      if (typeof nameOrId === 'string' && !isIdRegex.test(nameOrId)) {
-                          newTesterNames.add(nameOrId);
-                      }
-                  });
-              }
-
-              const existingDevelopers = getDevelopers();
-              const existingDevNames = new Set(existingDevelopers.map(d => d.name));
-              newDeveloperNames.forEach(name => {
-                  if (!existingDevNames.has(name)) {
-                      addDeveloper({ name });
                   }
               });
 
-              const existingTesters = getTesters();
-              const existingTesterNames = new Set(existingTesters.map(t => t.name));
-              newTesterNames.forEach(name => {
-                  if (!existingTesterNames.has(name)) {
-                      addTester({ name });
+              const allExistingTesters = getTesters();
+              const existingTestersByName = new Map(allExistingTesters.map(t => [t.name.toLowerCase(), t]));
+              importedTesters.forEach(tester => {
+                  if (!tester.name) return;
+                  const existingTester = existingTestersByName.get(tester.name.toLowerCase());
+                  if (!existingTester) {
+                      addTester({ name: tester.name, email: tester.email, phone: tester.phone });
+                  } else {
+                      const updates: Partial<Person> = {};
+                      if (tester.email && !existingTester.email) updates.email = tester.email;
+                      if (tester.phone && !existingTester.phone) updates.phone = tester.phone;
+                      if (Object.keys(updates).length > 0) {
+                          updateTester(existingTester.id, updates);
+                      }
                   }
               });
-              // --- End pre-processing ---
 
-
+              // --- Process tasks ---
               let createdCount = 0;
               let updatedCount = 0;
               const allTasks = getTasks();
               const existingTaskIds = new Set(allTasks.map(t => t.id));
 
               // Get all people once after potential additions
-              const allDevs = getDevelopers();
-              const allTesters = getTesters();
-              const devsByName = new Map(allDevs.map(d => [d.name.toLowerCase(), d.id]));
-              const allDevIds = new Set(allDevs.map(d => d.id));
-              const testersByName = new Map(allTesters.map(t => [t.name.toLowerCase(), t.id]));
-              const allTesterIds = new Set(allTesters.map(t => t.id));
+              const finalAllDevs = getDevelopers();
+              const finalAllTesters = getTesters();
+              const devsByName = new Map(finalAllDevs.map(d => [d.name.toLowerCase(), d.id]));
+              const allDevIds = new Set(finalAllDevs.map(d => d.id));
+              const testersByName = new Map(finalAllTesters.map(t => [t.name.toLowerCase(), t.id]));
+              const allTesterIds = new Set(finalAllTesters.map(t => t.id));
 
               for (const taskData of importedTasks) {
                   const validationResult = taskSchema.safeParse(taskData);
@@ -315,8 +382,8 @@ export default function Home() {
                   if (validatedData.developers) {
                     validatedData.developers = validatedData.developers
                         .map(nameOrId => {
-                            if (allDevIds.has(nameOrId)) return nameOrId;
-                            return devsByName.get(nameOrId.toLowerCase()) || null;
+                            if (allDevIds.has(nameOrId)) return nameOrId; // It's already an ID
+                            return devsByName.get((nameOrId as string).toLowerCase()) || null;
                         })
                         .filter((id): id is string => !!id);
                   }
@@ -324,8 +391,8 @@ export default function Home() {
                   if (validatedData.testers) {
                     validatedData.testers = validatedData.testers
                         .map(nameOrId => {
-                            if (allTesterIds.has(nameOrId)) return nameOrId;
-                            return testersByName.get(nameOrId.toLowerCase()) || null;
+                            if (allTesterIds.has(nameOrId)) return nameOrId; // It's already an ID
+                            return testersByName.get((nameOrId as string).toLowerCase()) || null;
                         })
                         .filter((id): id is string => !!id);
                   }
@@ -408,10 +475,10 @@ export default function Home() {
                 </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                <DropdownMenuItem onSelect={() => handleExport(sortedTasks, 'MyTaskManager_Export.json')}>
+                <DropdownMenuItem onSelect={() => handleExport(sortedTasks, 'MyTaskManager_Export.json', false)}>
                     Export Current View
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => handleExport(getTasks(), 'MyTaskManager_All_Tasks.json')}>
+                <DropdownMenuItem onSelect={() => handleExport(getTasks(), 'MyTaskManager_All_Tasks.json', true)}>
                     Export All Tasks
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={handleDownloadTemplate}>
@@ -661,3 +728,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
