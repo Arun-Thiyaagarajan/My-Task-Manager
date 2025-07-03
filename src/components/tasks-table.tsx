@@ -158,12 +158,12 @@ function TasksTableRow({
                 {task.title}
               </span>
             </Link>
-            <p className="text-muted-foreground text-sm truncate mt-1">
+            <p className="text-muted-foreground text-sm truncate mt-1 px-2">
               {task.summary || task.description}
             </p>
         </div>
       </TableCell>
-      <TableCell>
+      <TableCell className="align-top">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -191,7 +191,7 @@ function TasksTableRow({
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>
-      <TableCell>
+      <TableCell className="align-top">
         <div className="flex -space-x-2">
           {assignedDevelopers.map((dev) => (
             <Tooltip key={dev.id}>
@@ -219,7 +219,7 @@ function TasksTableRow({
           ))}
         </div>
       </TableCell>
-      <TableCell>
+      <TableCell className="align-top">
         <div className="flex -space-x-2">
           {assignedTesters.map((tester) => (
             <Tooltip key={tester.id}>
@@ -247,7 +247,7 @@ function TasksTableRow({
           ))}
         </div>
       </TableCell>
-      <TableCell>
+      <TableCell className="align-top">
         <div className="flex flex-wrap gap-1">
           {(task.repositories || []).map((repo) => (
             <Badge
@@ -261,7 +261,7 @@ function TasksTableRow({
           ))}
         </div>
       </TableCell>
-      <TableCell>
+      <TableCell className="align-top">
         <div
           className="flex flex-wrap items-center gap-1.5"
           onAnimationEnd={() => setJustUpdatedEnv(null)}
@@ -304,7 +304,7 @@ function TasksTableRow({
           })}
         </div>
       </TableCell>
-      <TableCell>
+      <TableCell className="align-top">
         <div className="flex items-center justify-end gap-2">
           <Button asChild variant="ghost" size="sm">
             <Link href={`/tasks/${task.id}`}>
