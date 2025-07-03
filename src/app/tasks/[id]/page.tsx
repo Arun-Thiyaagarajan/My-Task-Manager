@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters } from '@/lib/data';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, PlusCircle } from 'lucide-react';
 import { statusConfig, TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -15,7 +15,7 @@ import { PrLinksGroup } from '@/components/pr-links-group';
 import { Badge } from '@/components/ui/badge';
 import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
 import { format } from 'date-fns';
-import type { Task, FieldConfig, UiConfig, TaskStatus, Person } from '@/lib/types';
+import type { Task, FieldConfig, UiConfig, TaskStatus, Person, Attachment } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useToast } from '@/hooks/use-toast';
@@ -27,9 +27,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { TASK_STATUSES } from '@/lib/constants';
 import { PersonProfileCard } from '@/components/person-profile-card';
 import { ImagePreviewDialog } from '@/components/image-preview-dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { attachmentSchema } from '@/lib/validators';
 
 
 export default function TaskPage() {
@@ -45,7 +49,10 @@ export default function TaskPage() {
   const [personInView, setPersonInView] = useState<{person: Person, type: 'Developer' | 'Tester'} | null>(null);
   const [isEditingPrLinks, setIsEditingPrLinks] = useState(false);
   const [previewImage, setPreviewImage] = useState<{url: string; name: string} | null>(null);
-
+  const [isEditingAttachments, setIsEditingAttachments] = useState(false);
+  const [isAddLinkPopoverOpen, setIsAddLinkPopoverOpen] = useState(false);
+  const [newLink, setNewLink] = useState({ name: '', url: '' });
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const taskId = params.id as string;
 
@@ -155,6 +162,60 @@ export default function TaskPage() {
         });
     }
   };
+
+  const updateAttachments = (newAttachments: Attachment[]) => {
+      if (!task) return;
+      const updatedTask = updateTask(task.id, { attachments: newAttachments });
+      if (updatedTask) {
+          setTask(updatedTask);
+      }
+      return updatedTask;
+  };
+
+  const handleDeleteAttachment = (index: number) => {
+      const newAttachments = [...(task?.attachments || [])];
+      newAttachments.splice(index, 1);
+      if(updateAttachments(newAttachments)) {
+        toast({ variant: 'success', title: 'Attachment removed.' });
+      }
+  };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) { // 2MB limit
+        toast({ variant: 'destructive', title: 'Image too large', description: 'Please upload an image smaller than 2MB.' });
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const dataUri = e.target?.result as string;
+        const newAttachment: Attachment = { name: file.name, url: dataUri, type: 'image' };
+        if(updateAttachments([...(task?.attachments || []), newAttachment])) {
+          toast({ variant: 'success', title: 'Image added.' });
+        }
+    };
+    reader.readAsDataURL(file);
+
+    if (event.target) event.target.value = '';
+  };
+  
+  const handleSaveLink = () => {
+      const validationResult = attachmentSchema.safeParse({ ...newLink, type: 'link' });
+      if(!validationResult.success) {
+          const errors = validationResult.error.flatten().fieldErrors;
+          toast({ variant: 'destructive', title: 'Invalid Link', description: errors.url?.[0] || errors.name?.[0] || 'Please check your inputs.' });
+          return;
+      }
+      const newAttachment: Attachment = { ...validationResult.data, type: 'link' };
+      if(updateAttachments([...(task?.attachments || []), newAttachment])) {
+        toast({ variant: 'success', title: 'Link added.' });
+        setNewLink({ name: '', url: '' });
+        setIsAddLinkPopoverOpen(false);
+      }
+  }
 
 
   const renderCustomFieldValue = (key: string, value: any) => {
@@ -412,40 +473,93 @@ export default function TaskPage() {
               </Card>
             </div>
             
-            {task.attachments && task.attachments.length > 0 && (
+            {uiConfig.fields.find(f => f.key === 'attachments' && f.isActive) && (
               <Card>
                   <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                          <Paperclip className="h-5 w-5" />
-                          {fieldLabels.get('attachments') || 'Attachments'}
-                      </CardTitle>
+                      <div className="flex justify-between items-center">
+                        <CardTitle className="flex items-center gap-2">
+                            <Paperclip className="h-5 w-5" />
+                            {fieldLabels.get('attachments') || 'Attachments'}
+                        </CardTitle>
+                        <Button variant="ghost" size="sm" onClick={() => setIsEditingAttachments(!isEditingAttachments)}>
+                            {isEditingAttachments ? 'Done' : <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>}
+                        </Button>
+                      </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                      {task.attachments.map((att, index) => (
-                          <div key={index} className="space-y-1.5">
-                            {att.type === 'image' ? (
-                                <button onClick={() => setPreviewImage({ url: att.url, name: att.name })} className="block relative group aspect-square w-full">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={att.url} alt={att.name} className="rounded-lg object-cover w-full h-full transition-all group-hover:brightness-75" />
-                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-                                        <ZoomIn className="h-8 w-8 text-white" />
-                                    </div>
-                                </button>
-                            ) : (
-                                <a
-                                  href={att.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="group flex flex-col items-center justify-center gap-2 h-full border rounded-lg p-4 aspect-square hover:bg-muted/50 transition-colors"
-                                >
-                                  <Link2 className="h-8 w-8 text-muted-foreground transition-transform group-hover:scale-110" />
-                                </a>
-                            )}
-                            <p className="text-xs text-muted-foreground truncate" title={att.name}>{att.name}</p>
-                          </div>
-                      ))}
-                    </div>
+                    {(task.attachments && task.attachments.length > 0) || isEditingAttachments ? (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                          {task.attachments?.map((att, index) => (
+                              <div key={index} className="space-y-1.5 relative group/attachment">
+                                {isEditingAttachments && (
+                                  <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 z-10 rounded-full" onClick={() => handleDeleteAttachment(index)}>
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                {att.type === 'image' ? (
+                                    <button onClick={() => setPreviewImage({ url: att.url, name: att.name })} className="block relative group aspect-square w-full">
+                                        <img src={att.url} alt={att.name} className="rounded-lg object-cover w-full h-full transition-all group-hover:brightness-75" />
+                                        {!isEditingAttachments && <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
+                                            <ZoomIn className="h-8 w-8 text-white" />
+                                        </div>}
+                                    </button>
+                                ) : (
+                                    <a
+                                      href={att.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="group flex flex-col items-center justify-center gap-2 h-full border rounded-lg p-4 aspect-square hover:bg-muted/50 transition-colors"
+                                    >
+                                      <Link2 className="h-8 w-8 text-muted-foreground transition-transform group-hover:scale-110" />
+                                    </a>
+                                )}
+                                <p className="text-xs text-muted-foreground truncate" title={att.name}>{att.name}</p>
+                              </div>
+                          ))}
+                        </div>
+                        {isEditingAttachments && (
+                            <div className="flex gap-2 pt-4 border-t">
+                                <Popover open={isAddLinkPopoverOpen} onOpenChange={setIsAddLinkPopoverOpen}>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" size="sm"><Link2 className="h-4 w-4 mr-2" /> Add Link</Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-80">
+                                        <div className="grid gap-4">
+                                            <div className="space-y-2">
+                                                <h4 className="font-medium leading-none">Add Link</h4>
+                                                <p className="text-sm text-muted-foreground">Add an external link as an attachment.</p>
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <div className="grid grid-cols-3 items-center gap-4">
+                                                    <Label htmlFor="link-name">Name</Label>
+                                                    <Input id="link-name" value={newLink.name} onChange={(e) => setNewLink(p => ({...p, name: e.target.value}))} className="col-span-2 h-8" />
+                                                </div>
+                                                <div className="grid grid-cols-3 items-center gap-4">
+                                                    <Label htmlFor="link-url">URL</Label>
+                                                    <Input id="link-url" value={newLink.url} onChange={(e) => setNewLink(p => ({...p, url: e.target.value}))} className="col-span-2 h-8" />
+                                                </div>
+                                            </div>
+                                            <Button size="sm" onClick={handleSaveLink}>Save Link</Button>
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
+                                <Button type="button" variant="outline" size="sm" onClick={() => imageInputRef.current?.click()}>
+                                    <Image className="h-4 w-4 mr-2" /> Add Image
+                                </Button>
+                                <input
+                                    type="file"
+                                    ref={imageInputRef}
+                                    onChange={handleImageUpload}
+                                    className="hidden"
+                                    accept="image/*"
+                                />
+                            </div>
+                        )}
+                      </div>
+                    ) : (
+                        <p className="text-sm text-center text-muted-foreground py-4">No attachments. Edit to add some.</p>
+                    )}
                   </CardContent>
               </Card>
             )}
