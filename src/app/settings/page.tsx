@@ -341,12 +341,19 @@ export default function SettingsPage() {
   }
 
   const renderFieldRow = (field: FieldConfig, isActiveList: boolean) => {
-    const isToggleDisabled = field.isRequired;
+    const protectedDateFields = ['devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate'];
+    const isProtected = protectedDateFields.includes(field.key);
+    const isToggleDisabled = field.isRequired || isProtected;
+
     return (
         <div 
           key={field.id}
-          draggable={isActiveList && !field.isRequired}
+          draggable={isActiveList && !field.isRequired && !isProtected}
           onDragStart={e => {
+            if (isProtected) {
+              e.preventDefault();
+              return;
+            }
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('fieldId', field.id);
           }}
@@ -355,10 +362,10 @@ export default function SettingsPage() {
           onDrop={e => handleDrop(e, field)}
           className={cn(
               "flex items-center gap-4 p-3 pr-2 border rounded-lg bg-card transition-all group",
-              (isActiveList && !field.isRequired) && "hover:bg-muted/50 hover:shadow-sm cursor-grab active:cursor-grabbing"
+              (isActiveList && !field.isRequired && !isProtected) && "hover:bg-muted/50 hover:shadow-sm cursor-grab active:cursor-grabbing"
           )}
         >
-            {(isActiveList && !field.isRequired) ? <GripVertical className="h-5 w-5 text-muted-foreground" /> : <div className="w-5 h-5" />}
+            {(isActiveList && !field.isRequired && !isProtected) ? <GripVertical className="h-5 w-5 text-muted-foreground" /> : <div className="w-5 h-5" />}
 
             <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
                 <span className="font-medium text-foreground">{field.label} {field.isRequired && <span className="text-destructive">*</span>}</span>
@@ -366,18 +373,18 @@ export default function SettingsPage() {
                 <span className="text-sm text-muted-foreground">{field.group}</span>
             </div>
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100">
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenDialog(field)}><Edit className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenDialog(field)} disabled={isProtected}><Edit className="h-4 w-4" /></Button>
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
                   onClick={() => handleToggleActive(field.id)}
                   disabled={isToggleDisabled}
-                  title={isToggleDisabled ? "Required fields cannot be deactivated" : (isActiveList ? 'Deactivate' : 'Activate')}
+                  title={isToggleDisabled ? "This field cannot be deactivated" : (isActiveList ? 'Deactivate' : 'Activate')}
                 >
                     {field.isActive ? <ToggleRight className="h-5 w-5 text-primary" /> : <ToggleLeft className="h-5 w-5 text-muted-foreground"/>}
                 </Button>
-                {field.isCustom && (
+                {field.isCustom && !isProtected && (
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>

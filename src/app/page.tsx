@@ -31,6 +31,8 @@ import {
   Download,
   Upload,
   FolderSearch,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig } from '@/lib/types';
@@ -48,6 +50,8 @@ import {
   startOfMonth,
   endOfMonth,
   startOfYear,
+  subMonths,
+  addMonths
 } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { useActiveCompany } from '@/hooks/use-active-company';
@@ -57,8 +61,11 @@ import { taskSchema } from '@/lib/validators';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Card, CardContent } from '@/components/ui/card';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 
 type ViewMode = 'grid' | 'table';
+type MainView = 'all' | 'monthly';
 
 export default function Home() {
   const activeCompanyId = useActiveCompany();
@@ -81,6 +88,11 @@ export default function Home() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { prompt } = useUnsavedChanges();
+  const [mainView, setMainView] = useState<MainView>('all');
+  const [selectedMonth, setSelectedMonth] = useState(new Date());
+
+  const handlePreviousMonth = () => setSelectedMonth(subMonths(selectedMonth, 1));
+  const handleNextMonth = () => setSelectedMonth(addMonths(selectedMonth, 1));
 
   const refreshData = () => {
     if (activeCompanyId) {
@@ -138,10 +150,18 @@ export default function Home() {
       );
 
     const dateMatch = (() => {
+      if (mainView === 'monthly') {
+        if (!task.devStartDate) return false;
+        const taskDate = new Date(task.devStartDate);
+        const start = startOfMonth(selectedMonth);
+        const end = endOfMonth(selectedMonth);
+        return taskDate >= start && taskDate <= end;
+      }
+      // 'all' view
       if (!dateFilter?.from) return true;
-      if (!task.devEndDate) return false;
+      if (!task.devStartDate) return false;
 
-      const taskDate = new Date(task.devEndDate);
+      const taskDate = new Date(task.devStartDate);
 
       const from = startOfDay(dateFilter.from);
       const to = dateFilter.to
@@ -519,6 +539,10 @@ export default function Home() {
     prompt(() => router.push('/tasks/new'));
   };
 
+  const resultsDescription = mainView === 'all'
+    ? 'Based on your current filters.'
+    : `Tasks with a start date in ${format(selectedMonth, 'MMMM yyyy')}.`;
+
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
@@ -566,236 +590,262 @@ export default function Home() {
             </Button>
         </div>
       </div>
-
-      <Card className="mb-6">
-        <CardContent className="p-4 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            <div className="relative sm:col-span-2 lg:col-span-3 xl:col-span-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                placeholder="Search tasks..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 w-full"
-                />
-            </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder={`Filter by ${fieldLabels.get('status') || 'Status'}`} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                {TASK_STATUSES.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {status}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={repoFilter} onValueChange={setRepoFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder={`Filter by ${fieldLabels.get('repositories') || 'Repository'}`} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Repositories</SelectItem>
-                {REPOSITORIES.map((repo) => (
-                  <SelectItem key={repo} value={repo}>
-                    {repo}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={deploymentFilter} onValueChange={setDeploymentFilter}>
-                <SelectTrigger>
-                <SelectValue placeholder={`Filter by ${fieldLabels.get('deploymentStatus') || 'Deployment'}`} />
-                </SelectTrigger>
-                <SelectContent>
-                <SelectItem value="all">Any Deployment</SelectItem>
-                <SelectItem value="dev">Deployed to Dev</SelectItem>
-                <SelectItem value="stage">Deployed to Stage</SelectItem>
-                <SelectItem value="production">Deployed to Production</SelectItem>
-                </SelectContent>
-            </Select>
-          </div>
-          <div className="flex flex-col sm:flex-row items-center gap-4">
-             <Popover
-                open={isDatePopoverOpen}
-                onOpenChange={setIsDatePopoverOpen}
-              >
-                <PopoverTrigger asChild>
-                  <Button
-                    id="date"
-                    variant={'outline'}
-                    className={cn(
-                      'w-full sm:w-auto justify-start text-left font-normal',
-                      !dateFilter && 'text-muted-foreground'
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateFilter?.from ? (
-                      dateFilter.to ? (
-                        <>
-                          {format(dateFilter.from, 'LLL dd, y')} -{' '}
-                          {format(dateFilter.to, 'LLL dd, y')}
-                        </>
-                      ) : (
-                        format(dateFilter.from, 'LLL dd, y')
-                      )
-                    ) : (
-                      <span>Filter by Dev End Date</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 flex" align="start">
-                  <div className="flex flex-col space-y-1 p-2 border-r">
-                    <Button
-                      variant="ghost"
-                      className="justify-start px-2 font-normal text-sm"
-                      onClick={() => {
-                        setDateFilter(undefined);
-                        setIsDatePopoverOpen(false);
-                      }}
-                    >
-                      Any time
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className="justify-start px-2 font-normal text-sm"
-                      onClick={() => {
-                        setDateFilter({ from: new Date(), to: new Date() });
-                        setIsDatePopoverOpen(false);
-                      }}
-                    >
-                      Today
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className="justify-start px-2 font-normal text-sm"
-                      onClick={() => {
-                        setDateFilter({
-                          from: subDays(new Date(), 6),
-                          to: new Date(),
-                        });
-                        setIsDatePopoverOpen(false);
-                      }}
-                    >
-                      Last 7 days
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className="justify-start px-2 font-normal text-sm"
-                      onClick={() => {
-                        setDateFilter({
-                          from: startOfMonth(new Date()),
-                          to: endOfMonth(new Date()),
-                        });
-                        setIsDatePopoverOpen(false);
-                      }}
-                    >
-                      This month
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className="justify-start px-2 font-normal text-sm"
-                      onClick={() => {
-                        setDateFilter({
-                          from: startOfYear(new Date()),
-                          to: endOfYear(new Date()),
-                        });
-                        setIsDatePopoverOpen(false);
-                      }}
-                    >
-                      This year
-                    </Button>
-                  </div>
-                  <Calendar
-                    initialFocus
-                    mode="range"
-                    defaultMonth={dateFilter?.from}
-                    selected={dateFilter}
-                    onSelect={setDateFilter}
-                    numberOfMonths={1}
-                  />
-                </PopoverContent>
-              </Popover>
-          </div>
-        </CardContent>
-      </Card>
       
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">
-            {sortedTasks.length} {sortedTasks.length === 1 ? 'Result' : 'Results'}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Based on your current filters.
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <Select value={sortDescriptor} onValueChange={setSortDescriptor}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                  <SelectItem value="status-asc">Status (Asc)</SelectItem>
-                  <SelectItem value="status-desc">Status (Desc)</SelectItem>
-                  <SelectItem value="title-asc">Title (A-Z)</SelectItem>
-                  <SelectItem value="title-desc">Title (Z-A)</SelectItem>
-                  <SelectItem value="deployment-desc">Deployment (Desc)</SelectItem>
-                  <SelectItem value="deployment-asc">Deployment (Asc)</SelectItem>
-              </SelectContent>
-          </Select>
+      <Tabs value={mainView} onValueChange={(value) => setMainView(value as MainView)} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2 sm:max-w-xs">
+              <TabsTrigger value="all">All Tasks</TabsTrigger>
+              <TabsTrigger value="monthly">Monthly</TabsTrigger>
+          </TabsList>
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => handleViewModeChange('grid')}
-              className={cn(
-                viewMode === 'grid' &&
-                  'bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground'
+          <Card>
+            <CardContent className="p-4 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="relative sm:col-span-2 lg:col-span-3 xl:col-span-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                    placeholder="Search tasks..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 w-full"
+                    />
+                </div>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={`Filter by ${fieldLabels.get('status') || 'Status'}`} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {TASK_STATUSES.map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {status}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={repoFilter} onValueChange={setRepoFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={`Filter by ${fieldLabels.get('repositories') || 'Repository'}`} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Repositories</SelectItem>
+                    {REPOSITORIES.map((repo) => (
+                      <SelectItem key={repo} value={repo}>
+                        {repo}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={deploymentFilter} onValueChange={setDeploymentFilter}>
+                    <SelectTrigger>
+                    <SelectValue placeholder={`Filter by ${fieldLabels.get('deploymentStatus') || 'Deployment'}`} />
+                    </SelectTrigger>
+                    <SelectContent>
+                    <SelectItem value="all">Any Deployment</SelectItem>
+                    <SelectItem value="dev">Deployed to Dev</SelectItem>
+                    <SelectItem value="stage">Deployed to Stage</SelectItem>
+                    <SelectItem value="production">Deployed to Production</SelectItem>
+                    </SelectContent>
+                </Select>
+              </div>
+              
+              {mainView === 'all' && (
+                  <div className="flex flex-col sm:flex-row items-center gap-4">
+                    <Popover
+                        open={isDatePopoverOpen}
+                        onOpenChange={setIsDatePopoverOpen}
+                      >
+                        <PopoverTrigger asChild>
+                          <Button
+                            id="date"
+                            variant={'outline'}
+                            className={cn(
+                              'w-full sm:w-auto justify-start text-left font-normal',
+                              !dateFilter && 'text-muted-foreground'
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {dateFilter?.from ? (
+                              dateFilter.to ? (
+                                <>
+                                  {format(dateFilter.from, 'LLL dd, y')} -{' '}
+                                  {format(dateFilter.to, 'LLL dd, y')}
+                                </>
+                              ) : (
+                                format(dateFilter.from, 'LLL dd, y')
+                              )
+                            ) : (
+                              <span>Filter by Dev Start Date</span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0 flex" align="start">
+                          <div className="flex flex-col space-y-1 p-2 border-r">
+                            <Button
+                              variant="ghost"
+                              className="justify-start px-2 font-normal text-sm"
+                              onClick={() => {
+                                setDateFilter(undefined);
+                                setIsDatePopoverOpen(false);
+                              }}
+                            >
+                              Any time
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              className="justify-start px-2 font-normal text-sm"
+                              onClick={() => {
+                                setDateFilter({ from: new Date(), to: new Date() });
+                                setIsDatePopoverOpen(false);
+                              }}
+                            >
+                              Today
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              className="justify-start px-2 font-normal text-sm"
+                              onClick={() => {
+                                setDateFilter({
+                                  from: subDays(new Date(), 6),
+                                  to: new Date(),
+                                });
+                                setIsDatePopoverOpen(false);
+                              }}
+                            >
+                              Last 7 days
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              className="justify-start px-2 font-normal text-sm"
+                              onClick={() => {
+                                setDateFilter({
+                                  from: startOfMonth(new Date()),
+                                  to: endOfMonth(new Date()),
+                                });
+                                setIsDatePopoverOpen(false);
+                              }}
+                            >
+                              This month
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              className="justify-start px-2 font-normal text-sm"
+                              onClick={() => {
+                                setDateFilter({
+                                  from: startOfYear(new Date()),
+                                  to: endOfYear(new Date()),
+                                });
+                                setIsDatePopoverOpen(false);
+                              }}
+                            >
+                              This year
+                            </Button>
+                          </div>
+                          <Calendar
+                            initialFocus
+                            mode="range"
+                            defaultMonth={dateFilter?.from}
+                            selected={dateFilter}
+                            onSelect={setDateFilter}
+                            numberOfMonths={1}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                  </div>
               )}
-            >
-              <LayoutGrid className="h-4 w-4" />
-              <span className="sr-only">Grid View</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => handleViewModeChange('table')}
-              className={cn(
-                viewMode === 'table' &&
-                  'bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground'
-              )}
-            >
-              <List className="h-4 w-4" />
-              <span className="sr-only">Table View</span>
-            </Button>
+            </CardContent>
+          </Card>
+          
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            {mainView === 'monthly' ? (
+                <div className="flex items-center gap-2 sm:gap-4">
+                    <Button variant="outline" size="icon" onClick={handlePreviousMonth} aria-label="Previous month">
+                        <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <h2 className="text-xl font-semibold text-foreground text-center sm:w-48 whitespace-nowrap">
+                        {format(selectedMonth, 'MMMM yyyy')}
+                    </h2>
+                    <Button variant="outline" size="icon" onClick={handleNextMonth} aria-label="Next month">
+                        <ChevronRight className="h-4 w-4" />
+                    </Button>
+                </div>
+            ) : <div />}
+
+            <div className={cn("flex items-center gap-4", mainView === 'monthly' ? 'self-end sm:self-center' : 'w-full justify-between')}>
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground">
+                    {sortedTasks.length} {sortedTasks.length === 1 ? 'Result' : 'Results'}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    {resultsDescription}
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                    <Select value={sortDescriptor} onValueChange={setSortDescriptor}>
+                        <SelectTrigger className="w-full sm:w-[180px]">
+                            <SelectValue placeholder="Sort by" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="status-asc">Status (Asc)</SelectItem>
+                            <SelectItem value="status-desc">Status (Desc)</SelectItem>
+                            <SelectItem value="title-asc">Title (A-Z)</SelectItem>
+                            <SelectItem value="title-desc">Title (Z-A)</SelectItem>
+                            <SelectItem value="deployment-desc">Deployment (Desc)</SelectItem>
+                            <SelectItem value="deployment-asc">Deployment (Asc)</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    <div className="flex items-center gap-2">
+                        <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleViewModeChange('grid')}
+                        className={cn(
+                            viewMode === 'grid' &&
+                            'bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground'
+                        )}
+                        >
+                        <LayoutGrid className="h-4 w-4" />
+                        <span className="sr-only">Grid View</span>
+                        </Button>
+                        <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleViewModeChange('table')}
+                        className={cn(
+                            viewMode === 'table' &&
+                            'bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground'
+                        )}
+                        >
+                        <List className="h-4 w-4" />
+                        <span className="sr-only">Table View</span>
+                        </Button>
+                    </div>
+                </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {sortedTasks.length > 0 ? (
-        viewMode === 'grid' ? (
-          <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} />
-        ) : (
-          <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} />
-        )
-      ) : (
-        <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg flex flex-col items-center justify-center">
-            <FolderSearch className="h-16 w-16 mb-4 text-muted-foreground/50"/>
-            <p className="text-lg font-semibold">No tasks found.</p>
-            <p className="mt-1">
-                Try adjusting your filters or create a new task.
-            </p>
-            <Button asChild className="mt-4" size="sm">
-                <a href="/tasks/new" onClick={handleNewTaskClick}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create Task
-                </a>
-            </Button>
-        </div>
-      )}
+          {sortedTasks.length > 0 ? (
+            viewMode === 'grid' ? (
+              <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} />
+            ) : (
+              <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} />
+            )
+          ) : (
+            <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg flex flex-col items-center justify-center">
+                <FolderSearch className="h-16 w-16 mb-4 text-muted-foreground/50"/>
+                <p className="text-lg font-semibold">No tasks found.</p>
+                <p className="mt-1">
+                    Try adjusting your filters or create a new task.
+                </p>
+                <Button asChild className="mt-4" size="sm">
+                    <a href="/tasks/new" onClick={handleNewTaskClick}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Create Task
+                    </a>
+                </Button>
+            </div>
+          )}
+      </Tabs>
     </div>
   );
 }
