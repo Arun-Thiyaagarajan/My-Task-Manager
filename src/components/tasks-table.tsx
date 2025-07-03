@@ -28,7 +28,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
+import { getInitials, getAvatarColor, cn, getRepoBadgeStyle, getEnvInfo } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -140,7 +140,7 @@ function TasksTableRow({
   const { Icon, iconColorClassName } = statusConfig[task.status];
 
   return (
-    <TableRow key={task.id} className={cn('group/row')}>
+    <TableRow key={task.id} className="group/row">
       <TableCell className="font-medium max-w-xs relative overflow-hidden align-top">
         <Icon className={cn(
           "absolute -bottom-8 -left-8 h-24 w-24 pointer-events-none transition-transform duration-300 ease-in-out z-0",
@@ -152,13 +152,9 @@ function TasksTableRow({
               href={`/tasks/${task.id}`}
               className="font-semibold block truncate group/title"
             >
-              <span className={cn(
-                "px-2 py-1 rounded-md transition-colors group-hover/title:text-primary"
-                )}>
-                {task.title}
-              </span>
+              <span className="group-hover/title:text-primary transition-colors">{task.title}</span>
             </Link>
-            <p className="text-muted-foreground text-sm truncate mt-1 px-2">
+            <p className="text-muted-foreground text-sm truncate mt-1">
               {task.summary || task.description}
             </p>
         </div>
@@ -267,6 +263,7 @@ function TasksTableRow({
           onAnimationEnd={() => setJustUpdatedEnv(null)}
         >
           {(uiConfig.environments || []).map((env) => {
+            const envInfo = getEnvInfo(env);
             const isSelected = task.deploymentStatus?.[env] ?? false;
             const hasDate = task.deploymentDates && task.deploymentDates[env];
             const isDeployed = isSelected && (env === 'dev' || !!hasDate);
@@ -280,8 +277,8 @@ function TasksTableRow({
                     className={cn(
                       'capitalize font-medium transition-colors cursor-pointer',
                       isDeployed
-                        ? 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700/80'
-                        : 'border-dashed text-yellow-600/80 border-yellow-400/50 dark:text-yellow-400/70 dark:border-yellow-500/30 bg-background hover:bg-yellow-500/5',
+                        ? envInfo.deployedColor
+                        : envInfo.pendingColor,
                       'px-1.5 py-0 text-[10px] h-4',
                       justUpdatedEnv === env && 'animate-status-in'
                     )}

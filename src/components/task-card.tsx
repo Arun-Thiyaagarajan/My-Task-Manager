@@ -16,7 +16,7 @@ import { statusConfig, TaskStatusBadge } from './task-status-badge';
 import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
-import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
+import { getInitials, getAvatarColor, cn, getRepoBadgeStyle, getEnvInfo } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { DeleteTaskButton } from './delete-task-button';
 import { updateTask } from '@/lib/data';
@@ -43,35 +43,6 @@ interface TaskCardProps {
   developers: Person[];
   testers: Person[];
 }
-
-const getEnvInfo = (env: string) => {
-  switch (env) {
-    case 'dev':
-      return {
-        deployedColor: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-700/80',
-        pendingColor: 'border-dashed text-blue-600/80 border-blue-400/50 dark:text-blue-400/70 dark:border-blue-500/30 bg-transparent hover:bg-blue-500/5',
-        label: 'Development',
-      };
-    case 'stage':
-      return {
-        deployedColor: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700/80',
-        pendingColor: 'border-dashed text-amber-600/80 border-amber-400/50 dark:text-amber-400/70 dark:border-amber-500/30 bg-transparent hover:bg-amber-500/5',
-        label: 'Staging',
-      };
-    case 'production':
-      return {
-        deployedColor: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700/80',
-        pendingColor: 'border-dashed text-green-600/80 border-green-400/50 dark:text-green-400/70 dark:border-green-500/30 bg-transparent hover:bg-green-500/5',
-        label: 'Production',
-      };
-    default:
-      return {
-        deployedColor: 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-700/50 dark:text-gray-300 dark:border-gray-600/80',
-        pendingColor: 'border-dashed text-gray-500 border-gray-300 dark:text-gray-400 dark:border-gray-600 bg-transparent hover:bg-gray-500/5',
-        label: env,
-      };
-  }
-};
 
 export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConfig, developers, testers }: TaskCardProps) {
   const [task, setTask] = useState(initialTask);

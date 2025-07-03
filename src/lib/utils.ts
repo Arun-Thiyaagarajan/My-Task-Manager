@@ -62,7 +62,7 @@ export function getAvatarColor(name: string): string {
 }
 
 const REPO_COLORS = [
-  { bg: 'hsl(358 98% 95%)', text: 'hsl(358 78% 50%)', border: 'hsl(358 98% 88%)', darkBg: 'hsl(358 50% 20%)', darkText: 'hsl(358 90% 70%)', darkBorder: 'hsl(358 50% 30%)'},
+  { bg: 'hsl(215 40% 95%)', text: 'hsl(215 60% 45%)', border: 'hsl(215 40% 88%)', darkBg: 'hsl(215 30% 20%)', darkText: 'hsl(215 60% 75%)', darkBorder: 'hsl(215 30% 30%)'},
   { bg: 'hsl(25 95% 95%)', text: 'hsl(25 85% 48%)', border: 'hsl(25 95% 88%)', darkBg: 'hsl(25 50% 20%)', darkText: 'hsl(25 90% 70%)', darkBorder: 'hsl(25 50% 30%)'},
   { bg: 'hsl(45 95% 95%)', text: 'hsl(45 85% 45%)', border: 'hsl(45 95% 88%)', darkBg: 'hsl(45 50% 20%)', darkText: 'hsl(45 90% 70%)', darkBorder: 'hsl(45 50% 30%)'},
   { bg: 'hsl(140 80% 95%)', text: 'hsl(140 60% 35%)', border: 'hsl(140 80% 88%)', darkBg: 'hsl(140 50% 20%)', darkText: 'hsl(140 90% 70%)', darkBorder: 'hsl(140 50% 30%)'},
@@ -70,7 +70,7 @@ const REPO_COLORS = [
   { bg: 'hsl(200 98% 95%)', text: 'hsl(200 88% 48%)', border: 'hsl(200 98% 88%)', darkBg: 'hsl(200 50% 20%)', darkText: 'hsl(200 90% 70%)', darkBorder: 'hsl(200 50% 30%)'},
   { bg: 'hsl(240 95% 96%)', text: 'hsl(240 75% 55%)', border: 'hsl(240 95% 90%)', darkBg: 'hsl(240 50% 20%)', darkText: 'hsl(240 90% 75%)', darkBorder: 'hsl(240 50% 30%)'},
   { bg: 'hsl(270 95% 96%)', text: 'hsl(270 70% 55%)', border: 'hsl(270 95% 90%)', darkBg: 'hsl(270 50% 20%)', darkText: 'hsl(270 90% 75%)', darkBorder: 'hsl(270 50% 30%)'},
-  { bg: 'hsl(215 40% 95%)', text: 'hsl(215 60% 45%)', border: 'hsl(215 40% 88%)', darkBg: 'hsl(215 30% 20%)', darkText: 'hsl(215 60% 75%)', darkBorder: 'hsl(215 30% 30%)'},
+  { bg: 'hsl(358 98% 95%)', text: 'hsl(358 78% 50%)', border: 'hsl(358 98% 88%)', darkBg: 'hsl(358 50% 20%)', darkText: 'hsl(358 90% 70%)', darkBorder: 'hsl(358 50% 30%)'},
 ];
 
 export function getRepoBadgeStyle(name: string): CSSProperties {
@@ -90,3 +90,32 @@ export function getRepoBadgeStyle(name: string): CSSProperties {
     '--dark-repo-border': colors.darkBorder,
   } as CSSProperties;
 }
+
+export const getEnvInfo = (env: string) => {
+  switch (env) {
+    case 'dev':
+      return {
+        deployedColor: 'bg-blue-200/70 text-blue-900 border-blue-300/80 dark:bg-blue-800/40 dark:text-blue-200 dark:border-blue-700/60',
+        pendingColor: 'border-dashed text-blue-700/90 border-blue-400/70 dark:text-blue-400/80 dark:border-blue-500/50 bg-transparent hover:bg-blue-500/10',
+        label: 'Development',
+      };
+    case 'stage':
+      return {
+        deployedColor: 'bg-amber-200/70 text-amber-900 border-amber-300/80 dark:bg-amber-800/40 dark:text-amber-200 dark:border-amber-700/60',
+        pendingColor: 'border-dashed text-amber-700/90 border-amber-400/70 dark:text-amber-400/80 dark:border-amber-500/50 bg-transparent hover:bg-amber-500/10',
+        label: 'Staging',
+      };
+    case 'production':
+      return {
+        deployedColor: 'bg-green-200/70 text-green-900 border-green-300/80 dark:bg-green-800/40 dark:text-green-200 dark:border-green-700/60',
+        pendingColor: 'border-dashed text-green-700/90 border-green-400/70 dark:text-green-400/80 dark:border-green-500/50 bg-transparent hover:bg-green-500/10',
+        label: 'Production',
+      };
+    default:
+      return {
+        deployedColor: 'bg-gray-200/70 text-gray-900 border-gray-300/80 dark:bg-gray-700/40 dark:text-gray-200 dark:border-gray-600/60',
+        pendingColor: 'border-dashed text-gray-600/90 border-gray-400/70 dark:text-gray-400/80 dark:border-gray-500/50 bg-transparent hover:bg-gray-500/10',
+        label: env,
+      };
+  }
+};
