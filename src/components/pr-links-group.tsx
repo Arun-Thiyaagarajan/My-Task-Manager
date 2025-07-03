@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { GitPullRequest, Plus, X } from 'lucide-react';
+import { GitPullRequest, Plus, X, Pencil } from 'lucide-react';
 import type { Task, Repository, RepositoryConfig } from '@/lib/types';
 import { Badge } from './ui/badge';
 import { ScrollArea, ScrollBar } from './ui/scroll-area';
@@ -22,6 +22,7 @@ interface PrLinksGroupProps {
 
 export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repositoryConfigs, onUpdate }: PrLinksGroupProps) {
   const [newPrIds, setNewPrIds] = useState<Record<string, Record<string, string>>>({});
+  const [isEditing, setIsEditing] = useState(false);
   
   const repoConfigMap = new Map((repositoryConfigs || []).map(rc => [rc.name, rc]));
   const displayRepos = repositories || [];
@@ -87,112 +88,127 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repository
   }
 
   return (
-    <Tabs defaultValue={displayRepos[0]} className="w-full">
-      <ScrollArea className="w-full whitespace-nowrap">
-        <TabsList>
-          {displayRepos.map((repo) => (
-            <TabsTrigger key={repo} value={repo}>
-              {repo}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
-      {displayRepos.map((repo) => {
-        const repoConfig = repoConfigMap.get(repo);
-        
-        const linksForRepo = allEnvs.map(env => {
-            const prIdString = prLinks?.[env]?.[repo] || '';
-            const prIds = prIdString.split(',').map((id) => id.trim()).filter(Boolean);
+    <div className="w-full">
+        {isEditable && (
+            <div className="flex justify-end mb-2 -mt-2">
+                <Button variant="ghost" size="sm" onClick={() => setIsEditing(!isEditing)}>
+                    {isEditing ? (
+                        'Done'
+                    ) : (
+                        <>
+                            <Pencil className="h-3 w-3 mr-1.5" /> Edit
+                        </>
+                    )}
+                </Button>
+            </div>
+        )}
+        <Tabs defaultValue={displayRepos[0]} className="w-full">
+        <ScrollArea className="w-full whitespace-nowrap">
+            <TabsList>
+            {displayRepos.map((repo) => (
+                <TabsTrigger key={repo} value={repo}>
+                {repo}
+                </TabsTrigger>
+            ))}
+            </TabsList>
+            <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+        {displayRepos.map((repo) => {
+            const repoConfig = repoConfigMap.get(repo);
             
-            return { env, prIds };
-        });
+            const linksForRepo = allEnvs.map(env => {
+                const prIdString = prLinks?.[env]?.[repo] || '';
+                const prIds = prIdString.split(',').map((id) => id.trim()).filter(Boolean);
+                
+                return { env, prIds };
+            });
 
-        return (
-            <TabsContent key={repo} value={repo}>
-              <div className="mt-4 space-y-4">
-                {linksForRepo.map(({ env, prIds }) => (
-                    <div key={env}>
-                      <h4 className="font-semibold mb-2 text-sm text-foreground capitalize">
-                        {env}
-                      </h4>
-                      {prIds.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {prIds.map((id) => {
-                            const baseUrl = repoConfig ? repoConfig.baseUrl : '';
-                            const url = baseUrl ? `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}${id}` : '#';
+            return (
+                <TabsContent key={repo} value={repo}>
+                <div className="mt-4 space-y-4">
+                    {linksForRepo.map(({ env, prIds }) => (
+                        <div key={env}>
+                        <h4 className="font-semibold mb-2 text-sm text-foreground capitalize">
+                            {env}
+                        </h4>
+                        {prIds.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                            {prIds.map((id) => {
+                                const baseUrl = repoConfig ? repoConfig.baseUrl : '';
+                                const url = baseUrl ? `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}${id}` : '#';
 
-                            return (
-                              <Badge
-                                key={`${repo}-${env}-${id}`}
-                                variant="outline"
-                                className={cn(
-                                  "font-normal py-1 px-2.5 group/badge relative",
-                                  isEditable ? "pr-6 hover:bg-muted/50" : "hover:bg-accent"
-                                )}
-                              >
-                                <a
-                                  href={url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center"
-                                  onClick={(e) => { if(isEditable) e.preventDefault()}}
+                                return (
+                                <Badge
+                                    key={`${repo}-${env}-${id}`}
+                                    variant="outline"
+                                    className={cn(
+                                    "font-normal py-1 px-2.5 group/badge relative",
+                                    isEditing ? "pr-6 hover:bg-muted/50" : "hover:bg-accent"
+                                    )}
                                 >
-                                  <GitPullRequest className="h-3 w-3 mr-1.5 text-muted-foreground" />
-                                  <span>PR #{id}</span>
-                                </a>
-                                {isEditable && (
-                                   <button 
-                                      onClick={() => handleRemovePr(repo, env, id)} 
-                                      className="absolute top-1/2 -translate-y-1/2 right-0.5 rounded-full p-0.5 opacity-50 group-hover/badge:opacity-100 hover:!opacity-100 hover:bg-destructive/20 transition-opacity"
-                                   >
-                                      <X className="h-3 w-3 text-destructive" />
-                                   </button>
-                                )}
-                              </Badge>
-                            );
-                          })}
+                                    <a
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center"
+                                    onClick={(e) => { if(isEditing) e.preventDefault()}}
+                                    >
+                                    <GitPullRequest className="h-3 w-3 mr-1.5 text-muted-foreground" />
+                                    <span>PR #{id}</span>
+                                    </a>
+                                    {isEditing && (
+                                    <button 
+                                        onClick={() => handleRemovePr(repo, env, id)} 
+                                        className="absolute top-1/2 -translate-y-1/2 right-0.5 rounded-full p-0.5 opacity-50 group-hover/badge:opacity-100 hover:!opacity-100 hover:bg-destructive/20 transition-opacity"
+                                    >
+                                        <X className="h-3 w-3 text-destructive" />
+                                    </button>
+                                    )}
+                                </Badge>
+                                );
+                            })}
+                            </div>
+                        ) : (
+                            <p className="text-muted-foreground text-xs italic">No PRs for this environment.</p>
+                        )}
+                        
+                        {isEditing && (
+                            <div className="flex items-center gap-2 mt-3 animate-in fade-in-50 duration-300">
+                            <Input
+                                placeholder="Add PR ID(s), comma separated"
+                                className="h-8 text-xs"
+                                value={newPrIds[repo]?.[env] || ''}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setNewPrIds(prev => {
+                                        const updated = cloneDeep(prev);
+                                        if (!updated[repo]) {
+                                            updated[repo] = {};
+                                        }
+                                        updated[repo][env] = val;
+                                        return updated;
+                                    });
+                                }}
+                                onKeyDown={(e) => { if(e.key === 'Enter') { e.preventDefault(); handleAddPr(repo, env)}}}
+                            />
+                            <Button size="sm" variant="outline" className="h-8" onClick={() => handleAddPr(repo, env)} disabled={!(newPrIds[repo]?.[env] || '').trim()}>
+                                <Plus className="h-4 w-4" />
+                                <span className="sr-only">Add</span>
+                            </Button>
+                            </div>
+                        )}
                         </div>
-                      ) : (
-                         <p className="text-muted-foreground text-xs italic">No PRs for this environment.</p>
-                      )}
-                      
-                      {isEditable && (
-                        <div className="flex items-center gap-2 mt-3">
-                           <Input
-                             placeholder="Add PR ID(s), comma separated"
-                             className="h-8 text-xs"
-                             value={newPrIds[repo]?.[env] || ''}
-                             onChange={(e) => {
-                                 const val = e.target.value;
-                                 setNewPrIds(prev => {
-                                     const updated = cloneDeep(prev);
-                                     if (!updated[repo]) {
-                                         updated[repo] = {};
-                                     }
-                                     updated[repo][env] = val;
-                                     return updated;
-                                 });
-                             }}
-                             onKeyDown={(e) => { if(e.key === 'Enter') { e.preventDefault(); handleAddPr(repo, env)}}}
-                           />
-                           <Button size="sm" variant="outline" className="h-8" onClick={() => handleAddPr(repo, env)} disabled={!(newPrIds[repo]?.[env] || '').trim()}>
-                               <Plus className="h-4 w-4" />
-                               <span className="sr-only">Add</span>
-                           </Button>
-                        </div>
-                      )}
-                    </div>
-                ))}
-                 {linksForRepo.length === 0 && !isEditable && (
-                     <p className="text-muted-foreground text-sm py-4 text-center">
-                        No pull request links have been added for the {repo} repository.
-                     </p>
-                 )}
-              </div>
-            </TabsContent>
-        )
-      })}
-    </Tabs>
+                    ))}
+                    {linksForRepo.length === 0 && !isEditing && (
+                        <p className="text-muted-foreground text-sm py-4 text-center">
+                            No pull request links have been added for the {repo} repository.
+                        </p>
+                    )}
+                </div>
+                </TabsContent>
+            )
+        })}
+        </Tabs>
+    </div>
   );
 }
