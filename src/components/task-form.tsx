@@ -130,6 +130,8 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
     form.reset(getInitialTaskData(task));
   }, [task, form.reset]);
   
+  const devStartDate = form.watch('devStartDate');
+  const qaStartDate = form.watch('qaStartDate');
   
   const { fields: attachments, append: appendAttachment, remove: removeAttachment } = useFieldArray({
     control: form.control,
@@ -220,6 +222,16 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
             case 'textarea':
                 return <Textarea placeholder={`Details for ${label}...`} {...field} value={field.value ?? ''} />;
             case 'date':
+                const getDisabledDates = () => {
+                    if (fieldName === 'devEndDate' && devStartDate) {
+                        return { before: devStartDate };
+                    }
+                    if (fieldName === 'qaEndDate' && qaStartDate) {
+                        return { before: qaStartDate };
+                    }
+                    return undefined;
+                };
+
                 return (
                     <Popover>
                         <PopoverTrigger asChild>
@@ -231,7 +243,29 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                             </FormControl>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar mode="single" selected={field.value instanceof Date && !isNaN(field.value.getTime()) ? field.value : undefined} onSelect={field.onChange} initialFocus />
+                            <Calendar
+                                mode="single"
+                                selected={field.value instanceof Date && !isNaN(field.value.getTime()) ? field.value : undefined}
+                                onSelect={(date) => {
+                                    field.onChange(date);
+                                    // If a start date is changed, check if the corresponding end date is still valid.
+                                    // If not, clear it to prevent validation errors.
+                                    if (fieldName === 'devStartDate') {
+                                        const devEndDate = form.getValues('devEndDate');
+                                        if (devEndDate && date && devEndDate < date) {
+                                            form.setValue('devEndDate', undefined);
+                                        }
+                                    }
+                                    if (fieldName === 'qaStartDate') {
+                                        const qaEndDate = form.getValues('qaEndDate');
+                                        if (qaEndDate && date && qaEndDate < date) {
+                                            form.setValue('qaEndDate', undefined);
+                                        }
+                                    }
+                                }}
+                                initialFocus
+                                disabled={getDisabledDates()}
+                            />
                         </PopoverContent>
                     </Popover>
                 );
@@ -422,7 +456,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                                         </FormControl>
                                         <FormLabel
                                             htmlFor={`deploy-check-${env}`}
-                                            className="text-sm font-normal capitalize cursor-pointer"
+                                            className="font-normal capitalize cursor-pointer"
                                         >
                                             Deployed to {env}
                                         </FormLabel>
