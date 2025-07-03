@@ -179,6 +179,7 @@ export default function TaskPage() {
     );
   }
 
+  const { Icon, cardClassName, iconColorClassName } = statusConfig[task.status];
   const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
 
   const hasDevQaDates = task.devStartDate || task.devEndDate || task.qaStartDate || task.qaEndDate;
@@ -231,47 +232,56 @@ export default function TaskPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
           <div className="lg:col-span-2 space-y-6">
-            <Card>
-              <CardHeader>
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <CardTitle className="text-3xl font-bold flex-1">
-                    {task.title}
-                  </CardTitle>
-                  <div className="flex-shrink-0">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0">
-                          <TaskStatusBadge status={task.status} />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Set Status</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        {TASK_STATUSES.map(s => {
-                          const { Icon } = statusConfig[s];
-                          return (
-                            <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)}>
-                              <div className="flex items-center gap-2">
-                                <Icon className={cn("h-3 w-3", s === 'In Progress' && 'animate-spin')} />
-                                <span>{s}</span>
-                              </div>
-                              {task.status === s && <Check className="ml-auto h-4 w-4" />}
-                            </DropdownMenuItem>
-                          )
-                        })}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+            <Card className={cn("relative overflow-hidden", cardClassName)}>
+              <Icon
+                className={cn(
+                  'absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none transition-transform duration-300 ease-in-out',
+                  iconColorClassName,
+                  task.status === 'In Progress' && 'animate-spin'
+                )}
+              />
+              <div className="relative z-10">
+                <CardHeader>
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <CardTitle className="text-3xl font-bold flex-1">
+                      {task.title}
+                    </CardTitle>
+                    <div className="flex-shrink-0">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0">
+                            <TaskStatusBadge status={task.status} />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Set Status</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          {TASK_STATUSES.map(s => {
+                            const { Icon } = statusConfig[s];
+                            return (
+                              <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)}>
+                                <div className="flex items-center gap-2">
+                                  <Icon className={cn("h-3 w-3", s === 'In Progress' && 'animate-spin')} />
+                                  <span>{s}</span>
+                                </div>
+                                {task.status === s && <Check className="ml-auto h-4 w-4" />}
+                              </DropdownMenuItem>
+                            )
+                          })}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
-                </div>
-                <CardDescription>
-                  Last updated on {format(new Date(task.updatedAt), 'PPP')}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-foreground/80 whitespace-pre-wrap">
-                  {task.description}
-                </p>
-              </CardContent>
+                  <CardDescription>
+                    Last updated on {format(new Date(task.updatedAt), 'PPP')}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-foreground/80 whitespace-pre-wrap">
+                    {task.description}
+                  </p>
+                </CardContent>
+              </div>
             </Card>
 
             {Object.keys(groupedCustomFields).map(groupName => (
