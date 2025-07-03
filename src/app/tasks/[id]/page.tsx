@@ -547,8 +547,8 @@ export default function TaskPage() {
             </div>
             
             {uiConfig.fields.find(f => f.key === 'attachments' && f.isActive) && (
-              <Card className={cn((!task.attachments || task.attachments.length === 0) && !isEditingAttachments && 'border-0 shadow-none p-0')}>
-                  <CardHeader className={cn((!task.attachments || task.attachments.length === 0) && !isEditingAttachments && 'p-0')}>
+              <Card>
+                  <CardHeader>
                       <div className="flex justify-between items-center">
                         <CardTitle className="flex items-center gap-2">
                             <Paperclip className="h-5 w-5" />
@@ -571,7 +571,7 @@ export default function TaskPage() {
                                       </Button>
                                     )}
                                     {att.type === 'image' ? (
-                                        <div className="p-px bg-muted-foreground/40 rounded-lg group aspect-square w-full">
+                                        <div className="p-px bg-border rounded-lg group aspect-square w-full">
                                             <button onClick={() => setPreviewImage({ url: att.url, name: att.name })} className="block relative group/img aspect-square w-full rounded-md overflow-hidden">
                                                 <img src={att.url} alt={att.name} className="object-cover w-full h-full transition-all group-hover/img:brightness-75" />
                                                 {!isEditingAttachments && <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
@@ -580,7 +580,7 @@ export default function TaskPage() {
                                             </button>
                                         </div>
                                     ) : (
-                                        <div className="p-px bg-muted-foreground/40 rounded-lg group aspect-square w-full">
+                                        <div className="p-px bg-border rounded-lg group aspect-square w-full">
                                             <a
                                               href={att.url}
                                               target="_blank"
