@@ -431,7 +431,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                 <CardContent className="space-y-4">
                     <div className="space-y-3">
                         {attachments.map((item, index) => (
-                            <div key={item.id} className="flex items-start gap-4 p-3 border rounded-md bg-muted/50">
+                            <div key={item.id} className="flex items-center gap-4 p-3 border rounded-md bg-muted/50">
                                 {item.type === 'image' ? (
                                     <img src={item.url} alt={item.name} className="h-20 w-20 rounded-md object-cover flex-shrink-0" />
                                 ) : (
@@ -465,7 +465,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                                         />
                                     )}
                                 </div>
-                                <Button type="button" variant="destructive" size="icon" onClick={() => removeAttachment(index)} className="shrink-0 self-center"><Trash2 className="h-4 w-4" /></Button>
+                                <Button type="button" variant="destructive" size="icon" onClick={() => removeAttachment(index)} className="shrink-0"><Trash2 className="h-4 w-4" /></Button>
                             </div>
                         ))}
                     </div>
