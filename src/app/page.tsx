@@ -183,8 +183,22 @@ export default function Home() {
   });
 
   const handleExport = (tasksToExport: Task[], fileName: string) => {
+    const allDevelopers = getDevelopers();
+    const allTesters = getTesters();
+    const devIdToName = new Map(allDevelopers.map(d => [d.id, d.name]));
+    const testerIdToName = new Map(allTesters.map(t => [t.id, t.name]));
+
+    const tasksWithNames = tasksToExport.map(task => {
+        const { developers, testers, ...restOfTask } = task;
+        return {
+            ...restOfTask,
+            developers: (developers || []).map(id => devIdToName.get(id) || id),
+            testers: (testers || []).map(id => testerIdToName.get(id) || id),
+        };
+    });
+
     const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
-      JSON.stringify(tasksToExport, null, 2)
+      JSON.stringify(tasksWithNames, null, 2)
     )}`;
     const link = document.createElement("a");
     link.href = jsonString;
@@ -199,8 +213,17 @@ export default function Home() {
   };
 
   const handleDownloadTemplate = () => {
+      const templateTask = {
+          title: "Sample Task: Refactor Login Page",
+          description: "Update the login page to use the new authentication service and improve UI responsiveness.",
+          status: "To Do",
+          repositories: ["UI-Dashboard"],
+          developers: ["Grace Hopper"],
+          testers: ["Ada Lovelace"],
+          azureWorkItemId: "101",
+      };
       const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
-        JSON.stringify([], null, 2)
+        JSON.stringify([templateTask], null, 2)
       )}`;
       const link = document.createElement("a");
       link.href = jsonString;
