@@ -43,6 +43,7 @@ export default function TaskPage() {
   const { toast } = useToast();
   const [justUpdatedEnv, setJustUpdatedEnv] = useState<string | null>(null);
   const [personInView, setPersonInView] = useState<{person: Person, type: 'Developer' | 'Tester'} | null>(null);
+  const [isEditingPrLinks, setIsEditingPrLinks] = useState(false);
 
   const taskId = params.id as string;
 
@@ -257,7 +258,8 @@ export default function TaskPage() {
               <Icon
                 className={cn(
                   'absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none transition-transform duration-300 ease-in-out',
-                  iconColorClassName
+                  iconColorClassName,
+                  task.status !== 'In Progress' && 'group-hover/card:scale-110 group-hover/card:-rotate-6'
                 )}
               />
               <div className="relative z-10">
@@ -381,10 +383,19 @@ export default function TaskPage() {
 
               <Card>
                   <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-xl">
-                          <GitMerge className="h-5 w-5" />
-                          {fieldLabels.get('prLinks') || 'Pull Requests'}
-                      </CardTitle>
+                      <div className="flex justify-between items-center">
+                        <CardTitle className="flex items-center gap-2 text-xl">
+                            <GitMerge className="h-5 w-5" />
+                            {fieldLabels.get('prLinks') || 'Pull Requests'}
+                        </CardTitle>
+                        {task.repositories && task.repositories.length > 0 && allConfiguredEnvs.length > 0 && (
+                            <Button variant="ghost" size="sm" onClick={() => setIsEditingPrLinks(!isEditingPrLinks)}>
+                                {isEditingPrLinks ? 'Done' : (
+                                    <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>
+                                )}
+                            </Button>
+                        )}
+                      </div>
                   </CardHeader>
                   <CardContent>
                       <PrLinksGroup 
@@ -393,6 +404,7 @@ export default function TaskPage() {
                         configuredEnvs={uiConfig.environments}
                         repositoryConfigs={uiConfig.repositoryConfigs}
                         onUpdate={handlePrLinksUpdate}
+                        isEditing={isEditingPrLinks}
                       />
                   </CardContent>
               </Card>

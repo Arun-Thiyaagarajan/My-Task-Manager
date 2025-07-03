@@ -18,16 +18,14 @@ interface PrLinksGroupProps {
   configuredEnvs: string[] | undefined;
   repositoryConfigs: RepositoryConfig[];
   onUpdate?: (newPrLinks: Task['prLinks']) => void;
+  isEditing: boolean;
 }
 
-export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repositoryConfigs, onUpdate }: PrLinksGroupProps) {
+export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repositoryConfigs, onUpdate, isEditing }: PrLinksGroupProps) {
   const [newPrIds, setNewPrIds] = useState<Record<string, Record<string, string>>>({});
-  const [isEditing, setIsEditing] = useState(false);
   
   const repoConfigMap = new Map((repositoryConfigs || []).map(rc => [rc.name, rc]));
   const displayRepos = repositories || [];
-
-  const isEditable = !!onUpdate;
 
   const handleRemovePr = (repo: string, env: string, prIdToRemove: string) => {
     if (!onUpdate) return;
@@ -89,19 +87,6 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repository
 
   return (
     <div className="w-full">
-        {isEditable && (
-            <div className="flex justify-end mb-2 -mt-2">
-                <Button variant="ghost" size="sm" onClick={() => setIsEditing(!isEditing)}>
-                    {isEditing ? (
-                        'Done'
-                    ) : (
-                        <>
-                            <Pencil className="h-3 w-3 mr-1.5" /> Edit
-                        </>
-                    )}
-                </Button>
-            </div>
-        )}
         <Tabs defaultValue={displayRepos[0]} className="w-full">
         <ScrollArea className="w-full whitespace-nowrap">
             <TabsList>
