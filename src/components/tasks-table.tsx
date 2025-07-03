@@ -135,10 +135,12 @@ function TasksTableRow({
     .filter((d): d is Person => !!d);
   const assignedTesters = (task.testers || [])
     .map((id) => testersById.get(id))
-    .filter((t): t is Person => !!t);
+    .filter((t): t is Person => !!d);
+
+  const { listClassName } = statusConfig[task.status];
 
   return (
-    <TableRow key={task.id}>
+    <TableRow key={task.id} className={cn(listClassName)}>
       <TableCell className="font-medium max-w-xs">
         <Link
           href={`/tasks/${task.id}`}
@@ -147,7 +149,7 @@ function TasksTableRow({
           {task.title}
         </Link>
         <p className="text-muted-foreground text-sm truncate">
-          {task.description}
+          {task.summary || task.description}
         </p>
       </TableCell>
       <TableCell>
@@ -187,7 +189,7 @@ function TasksTableRow({
                   onClick={() => onAvatarClick(dev, 'Developer')}
                   className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
                 >
-                  <Avatar className="h-8 w-8 border-2 border-card cursor-pointer">
+                  <Avatar className="h-8 w-8 border-2 border-card bg-background cursor-pointer">
                     <AvatarFallback
                       className="text-xs font-semibold text-white"
                       style={{
@@ -215,7 +217,7 @@ function TasksTableRow({
                   onClick={() => onAvatarClick(tester, 'Tester')}
                   className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
                 >
-                  <Avatar className="h-8 w-8 border-2 border-card cursor-pointer">
+                  <Avatar className="h-8 w-8 border-2 border-card bg-background cursor-pointer">
                     <AvatarFallback
                       className="text-xs font-semibold text-white"
                       style={{
