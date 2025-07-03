@@ -236,7 +236,7 @@ export default function Home() {
       if (sortDirection === 'asc') {
         return scoreA - scoreB;
       } else {
-        return scoreB - scoreA;
+        return scoreB - aIndex;
       }
     }
 
@@ -767,9 +767,9 @@ export default function Home() {
             </CardContent>
           </Card>
           
-           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 my-6">
-                <div className="flex-shrink-0">
-                    {mainView === 'monthly' ? (
+           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 my-6">
+                <div className="space-y-2">
+                    {mainView === 'monthly' && (
                         <div className="flex items-center gap-2 sm:gap-4">
                             <Button variant="outline" size="icon" onClick={handlePreviousMonth} aria-label="Previous month">
                                 <ChevronLeft className="h-4 w-4" />
@@ -833,16 +833,15 @@ export default function Home() {
                                 <ChevronRight className="h-4 w-4" />
                             </Button>
                         </div>
-                    ) : (
-                        <div>
-                            <h2 className="text-lg font-semibold text-foreground">
-                                {sortedTasks.length} {sortedTasks.length === 1 ? 'Result' : 'Results'}
-                            </h2>
-                            <p className="text-sm text-muted-foreground">
-                                {resultsDescription}
-                            </p>
-                        </div>
                     )}
+                    <div>
+                        <h2 className="text-lg font-semibold text-foreground">
+                            {sortedTasks.length} {sortedTasks.length === 1 ? 'Result' : 'Results'}
+                        </h2>
+                        <p className="text-sm text-muted-foreground">
+                            {resultsDescription}
+                        </p>
+                    </div>
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap justify-start md:justify-end w-full md:w-auto">
