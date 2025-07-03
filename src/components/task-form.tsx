@@ -412,7 +412,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                                 control={form.control}
                                 name={`deploymentStatus.${env}`}
                                 render={({ field }) => (
-                                    <FormItem className="flex items-center space-x-3">
+                                    <FormItem className="flex flex-row items-center space-x-3 space-y-0">
                                         <FormControl>
                                             <Checkbox
                                                 checked={field.value ?? false}
@@ -420,12 +420,12 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                                                 id={`deploy-check-${env}`}
                                             />
                                         </FormControl>
-                                        <label
+                                        <FormLabel
                                             htmlFor={`deploy-check-${env}`}
-                                            className="text-sm font-medium leading-none capitalize cursor-pointer"
+                                            className="text-sm font-normal capitalize cursor-pointer"
                                         >
                                             Deployed to {env}
-                                        </label>
+                                        </FormLabel>
                                     </FormItem>
                                 )}
                             />
