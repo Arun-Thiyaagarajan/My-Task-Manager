@@ -158,6 +158,19 @@ export default function Home() {
     return statusMatch && repoMatch && searchMatch && dateMatch && deploymentMatch;
   });
 
+  const getDeploymentScore = (task: Task) => {
+    // The order of importance for sorting
+    const deploymentOrder = ['production', 'stage', 'dev'];
+    for (let i = 0; i < deploymentOrder.length; i++) {
+      const env = deploymentOrder[i];
+      if (task.deploymentStatus?.[env]) {
+        // Higher score for more important environments
+        return deploymentOrder.length - i;
+      }
+    }
+    return 0; // No deployment
+  };
+
   const sortedTasks = [...filteredTasks].sort((a, b) => {
     const [sortBy, sortDirection] = sortDescriptor.split('-');
 
@@ -176,6 +189,17 @@ export default function Home() {
         return aIndex - bIndex;
       } else {
         return bIndex - aIndex;
+      }
+    }
+
+    if (sortBy === 'deployment') {
+      const scoreA = getDeploymentScore(a);
+      const scoreB = getDeploymentScore(b);
+
+      if (sortDirection === 'asc') {
+        return scoreA - scoreB;
+      } else {
+        return scoreB - scoreA;
       }
     }
 
@@ -717,6 +741,8 @@ export default function Home() {
                   <SelectItem value="status-desc">Status (Desc)</SelectItem>
                   <SelectItem value="title-asc">Title (A-Z)</SelectItem>
                   <SelectItem value="title-desc">Title (Z-A)</SelectItem>
+                  <SelectItem value="deployment-desc">Deployment (Desc)</SelectItem>
+                  <SelectItem value="deployment-asc">Deployment (Asc)</SelectItem>
               </SelectContent>
           </Select>
 
@@ -773,5 +799,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
