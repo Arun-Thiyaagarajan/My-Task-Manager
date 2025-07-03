@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -558,89 +559,81 @@ export default function TaskPage() {
                         </Button>
                       </div>
                   </CardHeader>
-                  <CardContent>
-                    {(task.attachments && task.attachments.length > 0) || isEditingAttachments ? (
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                          {task.attachments?.map((att, index) => (
-                              <div key={index} className="space-y-1.5 relative group/attachment">
-                                {isEditingAttachments && (
-                                  <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 z-10 rounded-full" onClick={() => handleDeleteAttachment(index)}>
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                )}
-                                {att.type === 'image' ? (
-                                    <button onClick={() => setPreviewImage({ url: att.url, name: att.name })} className="block relative group aspect-square w-full">
-                                        <img src={att.url} alt={att.name} className="rounded-lg object-cover w-full h-full transition-all group-hover:brightness-75" />
-                                        {!isEditingAttachments && <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-                                            <ZoomIn className="h-8 w-8 text-white" />
-                                        </div>}
-                                    </button>
-                                ) : (
-                                    <a
-                                      href={att.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="group flex flex-col items-center justify-center gap-2 h-full border rounded-lg p-4 aspect-square hover:bg-muted/50 transition-colors"
-                                    >
-                                      <Link2 className="h-8 w-8 text-muted-foreground transition-transform group-hover:scale-110" />
-                                    </a>
-                                )}
-                                <p className="text-xs text-muted-foreground truncate" title={att.name}>{att.name}</p>
-                              </div>
-                          ))}
-                        </div>
-                        {isEditingAttachments && (
-                            <div className="flex gap-2 pt-4 border-t">
-                                <Popover open={isAddLinkPopoverOpen} onOpenChange={setIsAddLinkPopoverOpen}>
-                                    <PopoverTrigger asChild>
-                                        <Button variant="outline" size="sm"><Link2 className="h-4 w-4 mr-2" /> Add Link</Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-80">
-                                        <div className="grid gap-4">
-                                            <div className="space-y-2">
-                                                <h4 className="font-medium leading-none">Add Link</h4>
-                                                <p className="text-sm text-muted-foreground">Add an external link as an attachment.</p>
-                                            </div>
-                                            <div className="grid gap-2">
-                                                <div className="grid grid-cols-3 items-center gap-4">
-                                                    <Label htmlFor="link-name">Name</Label>
-                                                    <Input id="link-name" value={newLink.name} onChange={(e) => setNewLink(p => ({...p, name: e.target.value}))} className="col-span-2 h-8" />
-                                                </div>
-                                                <div className="grid grid-cols-3 items-center gap-4">
-                                                    <Label htmlFor="link-url">URL</Label>
-                                                    <Input id="link-url" value={newLink.url} onChange={(e) => setNewLink(p => ({...p, url: e.target.value}))} className="col-span-2 h-8" />
-                                                </div>
-                                            </div>
-                                            <Button size="sm" onClick={handleSaveLink}>Save Link</Button>
-                                        </div>
-                                    </PopoverContent>
-                                </Popover>
-                                <Button type="button" variant="outline" size="sm" onClick={() => imageInputRef.current?.click()}>
-                                    <Image className="h-4 w-4 mr-2" /> Add Image
-                                </Button>
-                                <input
-                                    type="file"
-                                    ref={imageInputRef}
-                                    onChange={handleImageUpload}
-                                    className="hidden"
-                                    accept="image/*"
-                                />
+                  {((task.attachments && task.attachments.length > 0) || isEditingAttachments) && (
+                      <CardContent>
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                              {task.attachments?.map((att, index) => (
+                                  <div key={index} className="space-y-1.5 relative group/attachment">
+                                    {isEditingAttachments && (
+                                      <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 z-10 rounded-full" onClick={() => handleDeleteAttachment(index)}>
+                                        <X className="h-4 w-4" />
+                                      </Button>
+                                    )}
+                                    {att.type === 'image' ? (
+                                        <button onClick={() => setPreviewImage({ url: att.url, name: att.name })} className="block relative group aspect-square w-full">
+                                            <img src={att.url} alt={att.name} className="rounded-lg object-cover w-full h-full transition-all group-hover:brightness-75" />
+                                            {!isEditingAttachments && <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
+                                                <ZoomIn className="h-8 w-8 text-white" />
+                                            </div>}
+                                        </button>
+                                    ) : (
+                                        <a
+                                          href={att.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="group flex flex-col items-center justify-center gap-2 h-full border rounded-lg p-4 aspect-square hover:bg-muted/50 transition-colors"
+                                        >
+                                          <Link2 className="h-8 w-8 text-muted-foreground transition-transform group-hover:scale-110" />
+                                        </a>
+                                    )}
+                                    <p className="text-xs text-muted-foreground truncate" title={att.name}>{att.name}</p>
+                                  </div>
+                              ))}
                             </div>
-                        )}
-                      </div>
-                    ) : (
-                        <p className="text-sm text-center text-muted-foreground py-4">No attachments. Edit to add some.</p>
-                    )}
-                  </CardContent>
+                            {isEditingAttachments && (
+                                <div className="flex gap-2 pt-4 border-t">
+                                    <Popover open={isAddLinkPopoverOpen} onOpenChange={setIsAddLinkPopoverOpen}>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" size="sm"><Link2 className="h-4 w-4 mr-2" /> Add Link</Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-80">
+                                            <div className="grid gap-4">
+                                                <div className="space-y-2">
+                                                    <h4 className="font-medium leading-none">Add Link</h4>
+                                                    <p className="text-sm text-muted-foreground">Add an external link as an attachment.</p>
+                                                </div>
+                                                <div className="grid gap-2">
+                                                    <div className="grid grid-cols-3 items-center gap-4">
+                                                        <Label htmlFor="link-name">Name</Label>
+                                                        <Input id="link-name" value={newLink.name} onChange={(e) => setNewLink(p => ({...p, name: e.target.value}))} className="col-span-2 h-8" />
+                                                    </div>
+                                                    <div className="grid grid-cols-3 items-center gap-4">
+                                                        <Label htmlFor="link-url">URL</Label>
+                                                        <Input id="link-url" value={newLink.url} onChange={(e) => setNewLink(p => ({...p, url: e.target.value}))} className="col-span-2 h-8" />
+                                                    </div>
+                                                </div>
+                                                <Button size="sm" onClick={handleSaveLink}>Save Link</Button>
+                                            </div>
+                                        </PopoverContent>
+                                    </Popover>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => imageInputRef.current?.click()}>
+                                        <Image className="h-4 w-4 mr-2" /> Add Image
+                                    </Button>
+                                    <input
+                                        type="file"
+                                        ref={imageInputRef}
+                                        onChange={handleImageUpload}
+                                        className="hidden"
+                                        accept="image/*"
+                                    />
+                                </div>
+                            )}
+                        </div>
+                      </CardContent>
+                  )}
               </Card>
             )}
-            
-             <CommentsSection
-                taskId={task.id}
-                comments={task.comments || []}
-                onCommentsUpdate={handleCommentsUpdate}
-             />
             
              <RelatedTasksSection
                 title={relatedTasksTitle}
@@ -815,6 +808,11 @@ export default function TaskPage() {
                       </div>
                   </CardContent>
               </Card>
+              <CommentsSection
+                  taskId={task.id}
+                  comments={task.comments || []}
+                  onCommentsUpdate={handleCommentsUpdate}
+              />
           </div>
         </div>
       </div>
