@@ -15,6 +15,7 @@ const badgeVariants = cva(
         destructive:
           "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
         outline: "text-foreground",
+        repo: "border-[var(--repo-border)] bg-[var(--repo-bg)] text-[var(--repo-text)] dark:border-[var(--dark-repo-border)] dark:bg-[var(--dark-repo-bg)] dark:text-[var(--dark-repo-text)]",
       },
     },
     defaultVariants: {

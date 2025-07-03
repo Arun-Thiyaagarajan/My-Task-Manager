@@ -16,7 +16,7 @@ import { statusConfig, TaskStatusBadge } from './task-status-badge';
 import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
-import { getInitials, getAvatarColor, cn } from '@/lib/utils';
+import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DeleteTaskButton } from './delete-task-button';
 import { updateTask } from '@/lib/data';
@@ -268,7 +268,12 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                   <GitMerge className="h-4 w-4 shrink-0 mt-0.5" />
                   <div className="flex flex-wrap gap-1">
                     {(task.repositories || []).map((repo) => (
-                      <Badge variant="secondary" key={repo} className="text-xs">
+                      <Badge 
+                        variant="repo" 
+                        key={repo} 
+                        className="text-xs"
+                        style={getRepoBadgeStyle(repo)}
+                      >
                         {repo}
                       </Badge>
                     ))}

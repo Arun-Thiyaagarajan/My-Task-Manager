@@ -29,7 +29,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { getInitials, getAvatarColor, cn } from '@/lib/utils';
+import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -243,9 +243,10 @@ function TasksTableRow({
         <div className="flex flex-wrap gap-1">
           {(task.repositories || []).map((repo) => (
             <Badge
-              variant="secondary"
+              variant="repo"
               key={repo}
               className="text-xs font-normal"
+              style={getRepoBadgeStyle(repo)}
             >
               {repo}
             </Badge>

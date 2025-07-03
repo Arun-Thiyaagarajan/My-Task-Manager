@@ -14,7 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import { DeleteTaskButton } from '@/components/delete-task-button';
 import { PrLinksGroup } from '@/components/pr-links-group';
 import { Badge } from '@/components/ui/badge';
-import { getInitials, getAvatarColor, cn } from '@/lib/utils';
+import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
 import { format } from 'date-fns';
 import type { Task, FieldConfig, UiConfig, TaskStatus, Person } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
@@ -486,7 +486,13 @@ export default function TaskPage() {
                           <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('repositories') || 'Repositories'}</h4>
                           <div className="flex flex-wrap gap-1">
                             {(task.repositories && task.repositories.length > 0) ? (task.repositories || []).map(repo => (
-                              <Badge key={repo} variant="secondary">{repo}</Badge>
+                              <Badge
+                                key={repo}
+                                variant="repo"
+                                style={getRepoBadgeStyle(repo)}
+                              >
+                                {repo}
+                              </Badge>
                             )) : (
                               <p className="text-sm text-muted-foreground">No repositories assigned.</p>
                             )}
