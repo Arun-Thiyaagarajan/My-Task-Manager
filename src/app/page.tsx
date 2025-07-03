@@ -698,7 +698,16 @@ export default function Home() {
         </CardContent>
       </Card>
       
-      <div className="flex justify-end items-center gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">
+            {sortedTasks.length} {sortedTasks.length === 1 ? 'Result' : 'Results'}
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Based on your current filters.
+          </p>
+        </div>
+        <div className="flex items-center gap-4">
           <Select value={sortDescriptor} onValueChange={setSortDescriptor}>
               <SelectTrigger className="w-full sm:w-[180px]">
                   <SelectValue placeholder="Sort by" />
@@ -711,31 +720,32 @@ export default function Home() {
               </SelectContent>
           </Select>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => handleViewModeChange('grid')}
-            className={cn(
-              viewMode === 'grid' &&
-                'bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground'
-            )}
-          >
-            <LayoutGrid className="h-4 w-4" />
-            <span className="sr-only">Grid View</span>
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => handleViewModeChange('table')}
-            className={cn(
-              viewMode === 'table' &&
-                'bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground'
-            )}
-          >
-            <List className="h-4 w-4" />
-            <span className="sr-only">Table View</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => handleViewModeChange('grid')}
+              className={cn(
+                viewMode === 'grid' &&
+                  'bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground'
+              )}
+            >
+              <LayoutGrid className="h-4 w-4" />
+              <span className="sr-only">Grid View</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => handleViewModeChange('table')}
+              className={cn(
+                viewMode === 'table' &&
+                  'bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground'
+              )}
+            >
+              <List className="h-4 w-4" />
+              <span className="sr-only">Table View</span>
+            </Button>
+          </div>
         </div>
       </div>
 
