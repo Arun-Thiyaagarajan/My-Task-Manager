@@ -7,6 +7,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Inter } from 'next/font/google';
 import { UnsavedChangesProvider } from '@/hooks/use-unsaved-changes';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -43,11 +44,13 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <UnsavedChangesProvider>
-            <div className="relative flex min-h-screen flex-col">
-              <Header />
-              <main className="flex-1">{children}</main>
-            </div>
-            <Toaster />
+            <TooltipProvider>
+              <div className="relative flex min-h-screen flex-col">
+                <Header />
+                <main className="flex-1">{children}</main>
+              </div>
+              <Toaster />
+            </TooltipProvider>
           </UnsavedChangesProvider>
         </ThemeProvider>
       </body>

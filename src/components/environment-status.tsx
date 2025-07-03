@@ -1,9 +1,10 @@
+
 'use client';
 
 import { Badge } from '@/components/ui/badge';
 import type { Task } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { getUiConfig } from '@/lib/data';
 import { useState, useEffect } from 'react';
 
@@ -54,39 +55,37 @@ export function EnvironmentStatus({ deploymentStatus, deploymentDates, size = 'd
   }
   
   return (
-    <TooltipProvider delayDuration={100}>
-      <div className="flex flex-wrap items-center gap-1.5">
-        {configuredEnvs.map(env => {
-          const envInfo = getEnvInfo(env);
-          const isSelected = deploymentStatus?.[env] ?? false;
-          const hasDate = deploymentDates && deploymentDates[env];
-          const isDeployed = isSelected && (env === 'dev' || !!hasDate);
-          
-          const tooltipText = isDeployed ? "Deployed" : "Pending";
+    <div className="flex flex-wrap items-center gap-1.5">
+      {configuredEnvs.map(env => {
+        const envInfo = getEnvInfo(env);
+        const isSelected = deploymentStatus?.[env] ?? false;
+        const hasDate = deploymentDates && deploymentDates[env];
+        const isDeployed = isSelected && (env === 'dev' || !!hasDate);
+        
+        const tooltipText = isDeployed ? "Deployed" : "Pending";
 
-          return (
-            <Tooltip key={env}>
-              <TooltipTrigger>
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    'capitalize font-medium transition-colors',
-                    isDeployed
-                      ? envInfo.deployedColor
-                      : envInfo.pendingColor,
-                    size === 'sm' && 'px-1.5 py-0 text-[10px] h-4'
-                  )}
-                >
-                  {env}
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="capitalize">{envInfo.label}: {tooltipText}</p>
-              </TooltipContent>
-            </Tooltip>
-          );
-        })}
-      </div>
-    </TooltipProvider>
+        return (
+          <Tooltip key={env}>
+            <TooltipTrigger>
+              <Badge
+                variant="outline"
+                className={cn(
+                  'capitalize font-medium transition-colors',
+                  isDeployed
+                    ? envInfo.deployedColor
+                    : envInfo.pendingColor,
+                  size === 'sm' && 'px-1.5 py-0 text-[10px] h-4'
+                )}
+              >
+                {env}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="capitalize">{envInfo.label}: {tooltipText}</p>
+            </TooltipContent>
+          </Tooltip>
+        );
+      })}
+    </div>
   );
 }

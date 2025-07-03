@@ -26,7 +26,6 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
@@ -182,60 +181,56 @@ function TasksTableRow({
       <TableCell>
         <div className="flex -space-x-2">
           {assignedDevelopers.map((dev) => (
-            <TooltipProvider key={dev.id} delayDuration={100}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => onAvatarClick(dev, 'Developer')}
-                    className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
-                  >
-                    <Avatar className="h-8 w-8 border-2 border-card cursor-pointer">
-                      <AvatarFallback
-                        className="text-xs font-semibold text-white"
-                        style={{
-                          backgroundColor: `#${getAvatarColor(dev.name)}`,
-                        }}
-                      >
-                        {getInitials(dev.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{dev.name}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Tooltip key={dev.id}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => onAvatarClick(dev, 'Developer')}
+                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
+                >
+                  <Avatar className="h-8 w-8 border-2 border-card cursor-pointer">
+                    <AvatarFallback
+                      className="text-xs font-semibold text-white"
+                      style={{
+                        backgroundColor: `#${getAvatarColor(dev.name)}`,
+                      }}
+                    >
+                      {getInitials(dev.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{dev.name}</p>
+              </TooltipContent>
+            </Tooltip>
           ))}
         </div>
       </TableCell>
       <TableCell>
         <div className="flex -space-x-2">
           {assignedTesters.map((tester) => (
-            <TooltipProvider key={tester.id} delayDuration={100}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => onAvatarClick(tester, 'Tester')}
-                    className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
-                  >
-                    <Avatar className="h-8 w-8 border-2 border-card cursor-pointer">
-                      <AvatarFallback
-                        className="text-xs font-semibold text-white"
-                        style={{
-                          backgroundColor: `#${getAvatarColor(tester.name)}`,
-                        }}
-                      >
-                        {getInitials(tester.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{tester.name}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Tooltip key={tester.id}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => onAvatarClick(tester, 'Tester')}
+                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
+                >
+                  <Avatar className="h-8 w-8 border-2 border-card cursor-pointer">
+                    <AvatarFallback
+                      className="text-xs font-semibold text-white"
+                      style={{
+                        backgroundColor: `#${getAvatarColor(tester.name)}`,
+                      }}
+                    >
+                      {getInitials(tester.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{tester.name}</p>
+              </TooltipContent>
+            </Tooltip>
           ))}
         </div>
       </TableCell>
@@ -264,36 +259,34 @@ function TasksTableRow({
             const isDeployed = isSelected && (env === 'dev' || !!hasDate);
 
             return (
-              <TooltipProvider key={env} delayDuration={100}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Badge
-                      variant="outline"
-                      onClick={() => handleToggleDeployment(env)}
-                      className={cn(
-                        'capitalize font-medium transition-colors cursor-pointer',
-                        isDeployed
-                          ? 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700/80'
-                          : 'border-dashed text-yellow-600/80 border-yellow-400/50 dark:text-yellow-400/70 dark:border-yellow-500/30 bg-background hover:bg-yellow-500/5',
-                        'px-1.5 py-0 text-[10px] h-4',
-                        justUpdatedEnv === env && 'animate-status-in'
-                      )}
-                    >
-                      {env}
-                    </Badge>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="capitalize flex items-center gap-1.5">
-                      {isDeployed ? (
-                        <CheckCircle2 className="h-3 w-3 text-green-500" />
-                      ) : (
-                        <Clock className="h-3 w-3 text-yellow-500" />
-                      )}
-                      {env}: {isDeployed ? 'Deployed' : 'Pending'}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Tooltip key={env}>
+                <TooltipTrigger asChild>
+                  <Badge
+                    variant="outline"
+                    onClick={() => handleToggleDeployment(env)}
+                    className={cn(
+                      'capitalize font-medium transition-colors cursor-pointer',
+                      isDeployed
+                        ? 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700/80'
+                        : 'border-dashed text-yellow-600/80 border-yellow-400/50 dark:text-yellow-400/70 dark:border-yellow-500/30 bg-background hover:bg-yellow-500/5',
+                      'px-1.5 py-0 text-[10px] h-4',
+                      justUpdatedEnv === env && 'animate-status-in'
+                    )}
+                  >
+                    {env}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="capitalize flex items-center gap-1.5">
+                    {isDeployed ? (
+                      <CheckCircle2 className="h-3 w-3 text-green-500" />
+                    ) : (
+                      <Clock className="h-3 w-3 text-yellow-500" />
+                    )}
+                    {env}: {isDeployed ? 'Deployed' : 'Pending'}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
             );
           })}
         </div>

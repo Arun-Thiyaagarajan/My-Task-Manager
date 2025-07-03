@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester } from '@/lib/data';
+import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester, updateUiConfig } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,7 @@ import {
   FolderSearch,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Task, Person, UiConfig } from '@/lib/types';
+import type { Task, Person, UiConfig, RepositoryConfig } from '@/lib/types';
 import {
   Popover,
   PopoverContent,
@@ -185,6 +185,7 @@ export default function Home() {
   const handleExport = (tasksToExport: Task[], fileName: string, exportAllPeople: boolean) => {
     const allDevelopers = getDevelopers();
     const allTesters = getTesters();
+    const currentUiConfig = getUiConfig();
     
     let developersToExport: Person[];
     let testersToExport: Person[];
@@ -221,6 +222,7 @@ export default function Home() {
     const cleanPerson = (p: Person) => ({ name: p.name, email: p.email || '', phone: p.phone || '' });
 
     const exportData = {
+        repositoryConfigs: currentUiConfig.repositoryConfigs,
         developers: developersToExport.map(cleanPerson),
         testers: testersToExport.map(cleanPerson),
         tasks: tasksWithNames,
@@ -243,6 +245,10 @@ export default function Home() {
 
   const handleDownloadTemplate = () => {
       const templateData = {
+          repositoryConfigs: [
+              { name: "UI-Dashboard", baseUrl: "https://github.com/org/ui-dashboard/pull/" },
+              { name: "Backend-API", baseUrl: "https://github.com/org/backend-api/pull/" }
+          ],
           developers: [
               { name: "Grace Hopper", email: "grace@example.com", phone: "111-222-3333" }
           ],
@@ -283,6 +289,7 @@ export default function Home() {
               let importedTasks: Partial<Task>[];
               let importedDevelopers: Partial<Omit<Person, 'id'>>[] = [];
               let importedTesters: Partial<Omit<Person, 'id'>>[] = [];
+              let importedRepoConfigs: RepositoryConfig[] | undefined = undefined;
 
               if (Array.isArray(parsedJson)) {
                   // Legacy format: array of tasks
@@ -307,8 +314,43 @@ export default function Home() {
                   importedTasks = parsedJson.tasks;
                   importedDevelopers = parsedJson.developers || [];
                   importedTesters = parsedJson.testers || [];
+                  importedRepoConfigs = parsedJson.repositoryConfigs;
               } else {
                    throw new Error("Invalid format: JSON file must contain an array of tasks or an object with a 'tasks' array.");
+              }
+
+              // --- Pre-process Repository Configs ---
+              if (importedRepoConfigs) {
+                  const currentUiConfig = getUiConfig();
+                  const existingRepoConfigsByName = new Map(currentUiConfig.repositoryConfigs.map(r => [r.name, r]));
+
+                  importedRepoConfigs.forEach(importedRepo => {
+                      if (!importedRepo.name || !importedRepo.baseUrl) return; // Skip invalid entries
+                      const existingRepo = existingRepoConfigsByName.get(importedRepo.name);
+                      if (existingRepo) {
+                          // Update existing
+                          existingRepo.baseUrl = importedRepo.baseUrl;
+                      } else {
+                          // Add new
+                          currentUiConfig.repositoryConfigs.push({
+                              id: `repo_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+                              name: importedRepo.name,
+                              baseUrl: importedRepo.baseUrl,
+                          });
+                      }
+                  });
+                  
+                  const repoField = currentUiConfig.fields.find(f => f.key === 'repositories');
+                  if (repoField) {
+                      repoField.options = currentUiConfig.repositoryConfigs.map(r => ({ id: r.id, value: r.name, label: r.name }));
+                  }
+
+                  updateUiConfig(currentUiConfig);
+                  toast({
+                      title: 'Repositories Updated',
+                      description: 'Repository configurations have been imported.',
+                      variant: 'success'
+                  });
               }
 
               // --- Pre-process people ---
