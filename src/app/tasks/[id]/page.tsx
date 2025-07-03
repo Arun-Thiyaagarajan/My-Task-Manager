@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -7,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2 } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn } from 'lucide-react';
 import { statusConfig, TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -30,6 +29,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { TASK_STATUSES } from '@/lib/constants';
 import { PersonProfileCard } from '@/components/person-profile-card';
+import { ImagePreviewDialog } from '@/components/image-preview-dialog';
 
 
 export default function TaskPage() {
@@ -44,6 +44,8 @@ export default function TaskPage() {
   const [justUpdatedEnv, setJustUpdatedEnv] = useState<string | null>(null);
   const [personInView, setPersonInView] = useState<{person: Person, type: 'Developer' | 'Tester'} | null>(null);
   const [isEditingPrLinks, setIsEditingPrLinks] = useState(false);
+  const [previewImage, setPreviewImage] = useState<{url: string; name: string} | null>(null);
+
 
   const taskId = params.id as string;
 
@@ -423,12 +425,13 @@ export default function TaskPage() {
                       {task.attachments.map((att, index) => (
                           <div key={index} className="space-y-1.5">
                             {att.type === 'image' ? (
-                                <a href={att.url} target="_blank" rel="noopener noreferrer" className="block relative group aspect-square">
+                                <button onClick={() => setPreviewImage({ url: att.url, name: att.name })} className="block relative group aspect-square w-full">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img src={att.url} alt={att.name} className="rounded-lg object-cover w-full h-full transition-all group-hover:brightness-75" />
                                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-                                        <ExternalLink className="h-8 w-8 text-white" />
+                                        <ZoomIn className="h-8 w-8 text-white" />
                                     </div>
-                                </a>
+                                </button>
                             ) : (
                                 <a
                                   href={att.url}
@@ -625,6 +628,16 @@ export default function TaskPage() {
         type={personInView?.type ?? 'Developer'}
         isOpen={!!personInView}
         onOpenChange={(isOpen) => !isOpen && setPersonInView(null)}
+      />
+      <ImagePreviewDialog
+        isOpen={!!previewImage}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setPreviewImage(null);
+          }
+        }}
+        imageUrl={previewImage?.url ?? null}
+        imageName={previewImage?.name ?? null}
       />
     </>
   );
