@@ -127,8 +127,8 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repository
                                     key={`${repo}-${env}-${id}`}
                                     variant="outline"
                                     className={cn(
-                                    "font-normal py-1 px-2.5 group/badge relative",
-                                    isEditing ? "pr-6 hover:bg-muted/50" : "hover:bg-accent"
+                                    "font-normal py-1 px-2.5 group/badge relative hover:bg-muted/50",
+                                    isEditing && "pr-6"
                                     )}
                                 >
                                     <a
