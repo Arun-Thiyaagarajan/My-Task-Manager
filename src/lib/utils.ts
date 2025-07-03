@@ -70,7 +70,7 @@ const REPO_COLORS = [
   { bg: 'hsl(200 98% 95%)', text: 'hsl(200 88% 48%)', border: 'hsl(200 98% 88%)', darkBg: 'hsl(200 50% 20%)', darkText: 'hsl(200 90% 70%)', darkBorder: 'hsl(200 50% 30%)'},
   { bg: 'hsl(240 95% 96%)', text: 'hsl(240 75% 55%)', border: 'hsl(240 95% 90%)', darkBg: 'hsl(240 50% 20%)', darkText: 'hsl(240 90% 75%)', darkBorder: 'hsl(240 50% 30%)'},
   { bg: 'hsl(270 95% 96%)', text: 'hsl(270 70% 55%)', border: 'hsl(270 95% 90%)', darkBg: 'hsl(270 50% 20%)', darkText: 'hsl(270 90% 75%)', darkBorder: 'hsl(270 50% 30%)'},
-  { bg: 'hsl(330 95% 96%)', text: 'hsl(330 80% 55%)', border: 'hsl(330 95% 90%)', darkBg: 'hsl(330 50% 20%)', darkText: 'hsl(330 90% 75%)', darkBorder: 'hsl(330 50% 30%)'},
+  { bg: 'hsl(215 40% 95%)', text: 'hsl(215 60% 45%)', border: 'hsl(215 40% 88%)', darkBg: 'hsl(215 30% 20%)', darkText: 'hsl(215 60% 75%)', darkBorder: 'hsl(215 30% 30%)'},
 ];
 
 export function getRepoBadgeStyle(name: string): CSSProperties {
