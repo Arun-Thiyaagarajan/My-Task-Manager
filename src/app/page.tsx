@@ -33,6 +33,7 @@ import {
   FolderSearch,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig } from '@/lib/types';
@@ -51,7 +52,12 @@ import {
   endOfMonth,
   startOfYear,
   subMonths,
-  addMonths
+  addMonths,
+  subYears,
+  addYears,
+  setMonth,
+  getYear,
+  getMonth,
 } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { useActiveCompany } from '@/hooks/use-active-company';
@@ -90,6 +96,7 @@ export default function Home() {
   const { prompt } = useUnsavedChanges();
   const [mainView, setMainView] = useState<MainView>('all');
   const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
 
   const handlePreviousMonth = () => setSelectedMonth(subMonths(selectedMonth, 1));
   const handleNextMonth = () => setSelectedMonth(addMonths(selectedMonth, 1));
@@ -758,15 +765,67 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             {mainView === 'monthly' ? (
                 <div className="flex items-center gap-2 sm:gap-4">
-                    <Button variant="outline" size="icon" onClick={handlePreviousMonth} aria-label="Previous month">
-                        <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <h2 className="text-xl font-semibold text-foreground text-center sm:w-48 whitespace-nowrap">
-                        {format(selectedMonth, 'MMMM yyyy')}
-                    </h2>
-                    <Button variant="outline" size="icon" onClick={handleNextMonth} aria-label="Next month">
-                        <ChevronRight className="h-4 w-4" />
-                    </Button>
+                  <Button variant="outline" size="icon" onClick={handlePreviousMonth} aria-label="Previous month">
+                      <ChevronLeft className="h-4 w-4" />
+                  </Button>
+
+                  <Popover open={isMonthPickerOpen} onOpenChange={setIsMonthPickerOpen}>
+                      <PopoverTrigger asChild>
+                          <Button
+                              variant="ghost"
+                              className="text-xl font-semibold text-foreground text-center sm:w-48 whitespace-nowrap flex items-center gap-1 hover:bg-muted"
+                          >
+                              {format(selectedMonth, 'MMMM yyyy')}
+                              <ChevronDown className="h-4 w-4 opacity-50" />
+                          </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="center">
+                          <div className="p-2">
+                              <div className="flex justify-between items-center pb-2">
+                                  <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7"
+                                      onClick={() => setSelectedMonth(subYears(selectedMonth, 1))}
+                                  >
+                                      <ChevronLeft className="h-4 w-4" />
+                                  </Button>
+                                  <span className="font-semibold text-sm">{getYear(selectedMonth)}</span>
+                                  <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7"
+                                      onClick={() => setSelectedMonth(addYears(selectedMonth, 1))}
+                                  >
+                                      <ChevronRight className="h-4 w-4" />
+                                  </Button>
+                              </div>
+                              <div className="grid grid-cols-4 gap-1">
+                                  {Array.from({ length: 12 }).map((_, i) => {
+                                      const monthDate = setMonth(new Date(getYear(selectedMonth), 0, 1), i);
+                                      return (
+                                          <Button
+                                              key={i}
+                                              variant={getMonth(selectedMonth) === i ? 'default' : 'ghost'}
+                                              size="sm"
+                                              className="w-full justify-center"
+                                              onClick={() => {
+                                                  setSelectedMonth(monthDate);
+                                                  setIsMonthPickerOpen(false);
+                                              }}
+                                          >
+                                              {format(monthDate, 'MMM')}
+                                          </Button>
+                                      );
+                                  })}
+                              </div>
+                          </div>
+                      </PopoverContent>
+                  </Popover>
+                  
+                  <Button variant="outline" size="icon" onClick={handleNextMonth} aria-label="Next month">
+                      <ChevronRight className="h-4 w-4" />
+                  </Button>
                 </div>
             ) : <div />}
 
