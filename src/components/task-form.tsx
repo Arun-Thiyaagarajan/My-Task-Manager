@@ -11,9 +11,9 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
-import { Loader2, CalendarIcon, Trash2, PlusCircle } from 'lucide-react';
+import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useTransition, useEffect, useState } from 'react';
+import { useTransition, useEffect, useState, useRef } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -97,6 +97,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
   const [developersList, setDevelopersList] = useState<Person[]>(propDevelopersList);
   const [testersList, setTestersList] = useState<Person[]>(propTestersList);
   const { toast } = useToast();
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const { setIsDirty, prompt } = useUnsavedChanges();
 
@@ -137,6 +138,36 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
     control: form.control,
     name: 'attachments',
   });
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) { // 2MB limit
+        toast({
+            variant: 'destructive',
+            title: 'Image too large',
+            description: 'Please upload an image smaller than 2MB.',
+        });
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const dataUri = e.target?.result as string;
+        appendAttachment({
+            name: file.name,
+            url: dataUri,
+            type: 'image',
+        });
+    };
+    reader.readAsDataURL(file);
+
+    // Reset file input
+    if (event.target) {
+        event.target.value = '';
+    }
+  };
 
   const watchedRepositories = form.watch('repositories', []);
   const allConfiguredEnvs = uiConfig?.environments || [];
@@ -398,39 +429,65 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
             <Card>
                 <CardHeader><CardTitle>{fieldLabels.get('attachments') || 'Attachments'}</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
-                    {attachments.map((item, index) => (
-                        <div key={item.id} className="flex items-end gap-2 p-3 border rounded-md bg-muted/50">
-                            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
-                                 <FormField
-                                    control={form.control}
-                                    name={`attachments.${index}.name`}
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Name</FormLabel>
-                                            <FormControl><Input {...field} placeholder="e.g. Design Mockup" /></FormControl>
-                                            <FormMessage />
-                                        </FormItem>
+                    <div className="space-y-3">
+                        {attachments.map((item, index) => (
+                            <div key={item.id} className="flex items-start gap-4 p-3 border rounded-md bg-muted/50">
+                                {item.type === 'image' ? (
+                                    <img src={item.url} alt={item.name} className="h-20 w-20 rounded-md object-cover flex-shrink-0" />
+                                ) : (
+                                    <div className="h-20 w-20 flex-shrink-0 flex items-center justify-center bg-secondary rounded-md">
+                                        <Link2 className="h-8 w-8 text-muted-foreground" />
+                                    </div>
+                                )}
+                                <div className="flex-1 space-y-2">
+                                    <FormField
+                                        control={form.control}
+                                        name={`attachments.${index}.name`}
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel className="text-xs font-normal">Name</FormLabel>
+                                                <FormControl><Input {...field} placeholder="Attachment name" /></FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    {item.type === 'link' && (
+                                        <FormField
+                                            control={form.control}
+                                            name={`attachments.${index}.url`}
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-xs font-normal">URL</FormLabel>
+                                                    <FormControl><Input {...field} placeholder="https://example.com/file" /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
                                     )}
-                                />
-                                 <FormField
-                                    control={form.control}
-                                    name={`attachments.${index}.url`}
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>URL</FormLabel>
-                                            <FormControl><Input {...field} placeholder="https://example.com/file" /></FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
+                                </div>
+                                <Button type="button" variant="destructive" size="icon" onClick={() => removeAttachment(index)} className="shrink-0 self-center"><Trash2 className="h-4 w-4" /></Button>
                             </div>
-                            <Button type="button" variant="destructive" size="icon" onClick={() => removeAttachment(index)} className="shrink-0"><Trash2 className="h-4 w-4" /></Button>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
+
                     {form.formState.errors.attachments && <FormMessage>{form.formState.errors.attachments.message}</FormMessage>}
-                    <Button type="button" variant="outline" size="sm" onClick={() => appendAttachment({ name: '', url: '', type: 'link' })}>
-                        <PlusCircle className="h-4 w-4 mr-2" /> Add Attachment
-                    </Button>
+                    
+                    <div className="flex gap-2 pt-2 border-t">
+                        <Button type="button" variant="outline" size="sm" onClick={() => appendAttachment({ name: '', url: '', type: 'link' })}>
+                            <Link2 className="h-4 w-4 mr-2" /> Add Link
+                        </Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => imageInputRef.current?.click()}>
+                            <Image className="h-4 w-4 mr-2" /> Add Image
+                        </Button>
+                    </div>
+
+                    <input
+                        type="file"
+                        ref={imageInputRef}
+                        onChange={handleImageUpload}
+                        className="hidden"
+                        accept="image/*"
+                    />
                 </CardContent>
             </Card>
         )}

@@ -7,8 +7,21 @@ export const environmentPrLinksSchema = z.record(prLinkSchema.optional());
 
 export const attachmentSchema = z.object({
   name: z.string().min(1, 'Attachment name is required.'),
-  url: z.string().url('Please enter a valid URL.'),
-  type: z.enum(['link', 'file']),
+  url: z.string().min(1, "URL or image data is required."),
+  type: z.enum(['link', 'image']),
+}).refine(data => {
+    if (data.type === 'link') {
+        try {
+            const url = new URL(data.url)
+            return url.protocol === 'http:' || url.protocol === 'https:'
+        } catch (_) {
+            return false
+        }
+    }
+    return true;
+}, {
+    message: 'Please enter a valid URL for links.',
+    path: ['url'],
 });
 
 export const taskSchema = z.object({

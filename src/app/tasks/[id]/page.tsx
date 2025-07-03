@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2 } from 'lucide-react';
 import { statusConfig, TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -419,21 +419,30 @@ export default function TaskPage() {
                       </CardTitle>
                   </CardHeader>
                   <CardContent>
-                  <ul className="space-y-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                       {task.attachments.map((att, index) => (
-                      <li key={index}>
-                          <a
-                          href={att.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2 text-sm text-primary hover:underline"
-                          >
-                          <ExternalLink className="h-4 w-4" />
-                          <span className="truncate">{att.name}</span>
-                          </a>
-                      </li>
+                          <div key={index} className="space-y-1.5">
+                            {att.type === 'image' ? (
+                                <a href={att.url} target="_blank" rel="noopener noreferrer" className="block relative group aspect-square">
+                                    <img src={att.url} alt={att.name} className="rounded-lg object-cover w-full h-full transition-all group-hover:brightness-75" />
+                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
+                                        <ExternalLink className="h-8 w-8 text-white" />
+                                    </div>
+                                </a>
+                            ) : (
+                                <a
+                                  href={att.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="group flex flex-col items-center justify-center gap-2 h-full border rounded-lg p-4 aspect-square hover:bg-muted/50 transition-colors"
+                                >
+                                  <Link2 className="h-8 w-8 text-muted-foreground transition-transform group-hover:scale-110" />
+                                </a>
+                            )}
+                            <p className="text-xs text-muted-foreground truncate" title={att.name}>{att.name}</p>
+                          </div>
                       ))}
-                  </ul>
+                    </div>
                   </CardContent>
               </Card>
             )}

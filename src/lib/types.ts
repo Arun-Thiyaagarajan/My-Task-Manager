@@ -22,9 +22,9 @@ export interface Company {
 }
 
 export interface Attachment {
-  name:string;
-  url: string;
-  type: 'link' | 'file';
+  name: string;
+  url: string; // Will hold the link URL or the image Data URI
+  type: 'link' | 'image';
 }
 
 export interface RepositoryConfig {
