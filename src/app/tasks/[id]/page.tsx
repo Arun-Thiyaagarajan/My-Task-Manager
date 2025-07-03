@@ -571,21 +571,25 @@ export default function TaskPage() {
                                       </Button>
                                     )}
                                     {att.type === 'image' ? (
-                                        <button onClick={() => setPreviewImage({ url: att.url, name: att.name })} className="block relative group aspect-square w-full border rounded-lg overflow-hidden">
-                                            <img src={att.url} alt={att.name} className="object-cover w-full h-full transition-all group-hover:brightness-75" />
-                                            {!isEditingAttachments && <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                <ZoomIn className="h-8 w-8 text-white" />
-                                            </div>}
-                                        </button>
+                                        <div className="p-px bg-muted-foreground/40 rounded-lg group aspect-square w-full">
+                                            <button onClick={() => setPreviewImage({ url: att.url, name: att.name })} className="block relative group/img aspect-square w-full rounded-md overflow-hidden">
+                                                <img src={att.url} alt={att.name} className="object-cover w-full h-full transition-all group-hover/img:brightness-75" />
+                                                {!isEditingAttachments && <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
+                                                    <ZoomIn className="h-8 w-8 text-white" />
+                                                </div>}
+                                            </button>
+                                        </div>
                                     ) : (
-                                        <a
-                                          href={att.url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="group flex flex-col items-center justify-center gap-2 h-full border rounded-lg p-4 aspect-square hover:bg-muted/50 transition-colors"
-                                        >
-                                          <Link2 className="h-8 w-8 text-muted-foreground transition-transform group-hover:scale-110" />
-                                        </a>
+                                        <div className="p-px bg-muted-foreground/40 rounded-lg group aspect-square w-full">
+                                            <a
+                                              href={att.url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="group/link bg-card flex flex-col items-center justify-center gap-2 h-full rounded-md p-4 aspect-square hover:bg-muted/50 transition-colors"
+                                            >
+                                              <Link2 className="h-8 w-8 text-muted-foreground transition-transform group-hover/link:scale-110" />
+                                            </a>
+                                        </div>
                                     )}
                                     <p className="text-xs text-muted-foreground truncate" title={att.name}>{att.name}</p>
                                   </div>
@@ -646,7 +650,7 @@ export default function TaskPage() {
 
           </div>
 
-          <div className="lg:col-span-1 space-y-6 lg:pt-16">
+          <div className="lg:col-span-1 space-y-6">
               <Card>
                   <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-xl">
