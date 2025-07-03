@@ -99,8 +99,10 @@ export default function Home() {
   }, []);
 
   const handleViewModeChange = (mode: ViewMode) => {
-    localStorage.setItem('taskflow_view_mode', mode);
-    setViewMode(mode);
+    if (mode === 'grid' || mode === 'table') {
+      localStorage.setItem('taskflow_view_mode', mode);
+      setViewMode(mode);
+    }
   };
 
   useEffect(() => {
@@ -220,13 +222,56 @@ export default function Home() {
                   throw new Error("Invalid format: JSON file must contain an array of tasks.");
               }
 
+              // --- Pre-process to create missing people ---
+              const isIdRegex = /^[a-z]+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+              const newDeveloperNames = new Set<string>();
+              const newTesterNames = new Set<string>();
+
+              for (const taskData of importedTasks) {
+                  (taskData.developers || []).forEach(nameOrId => {
+                      if (typeof nameOrId === 'string' && !isIdRegex.test(nameOrId)) {
+                          newDeveloperNames.add(nameOrId);
+                      }
+                  });
+                  (taskData.testers || []).forEach(nameOrId => {
+                      if (typeof nameOrId === 'string' && !isIdRegex.test(nameOrId)) {
+                          newTesterNames.add(nameOrId);
+                      }
+                  });
+              }
+
+              const existingDevelopers = getDevelopers();
+              const existingDevNames = new Set(existingDevelopers.map(d => d.name));
+              newDeveloperNames.forEach(name => {
+                  if (!existingDevNames.has(name)) {
+                      addDeveloper({ name });
+                  }
+              });
+
+              const existingTesters = getTesters();
+              const existingTesterNames = new Set(existingTesters.map(t => t.name));
+              newTesterNames.forEach(name => {
+                  if (!existingTesterNames.has(name)) {
+                      addTester({ name });
+                  }
+              });
+              // --- End pre-processing ---
+
+
               let createdCount = 0;
               let updatedCount = 0;
               const allTasks = getTasks();
               const existingTaskIds = new Set(allTasks.map(t => t.id));
 
+              // Get all people once after potential additions
+              const allDevs = getDevelopers();
+              const allTesters = getTesters();
+              const devsByName = new Map(allDevs.map(d => [d.name.toLowerCase(), d.id]));
+              const allDevIds = new Set(allDevs.map(d => d.id));
+              const testersByName = new Map(allTesters.map(t => [t.name.toLowerCase(), t.id]));
+              const allTesterIds = new Set(allTesters.map(t => t.id));
+
               for (const taskData of importedTasks) {
-                  // This is a superficial check, the main validation is in the form
                   const validationResult = taskSchema.safeParse(taskData);
                   
                   if (!validationResult.success) {
@@ -242,25 +287,26 @@ export default function Home() {
                   }
                   
                   const validatedData = validationResult.data;
-
-                  const existingDevelopers = getDevelopers();
+                  
+                  // Convert names to IDs before saving
                   if (validatedData.developers) {
-                    validatedData.developers.forEach(devNameOrId => {
-                        if (!existingDevelopers.some(d => d.id === devNameOrId || d.name === devNameOrId)) {
-                            addDeveloper({ name: devNameOrId });
-                        }
-                    });
+                    validatedData.developers = validatedData.developers
+                        .map(nameOrId => {
+                            if (allDevIds.has(nameOrId)) return nameOrId;
+                            return devsByName.get(nameOrId.toLowerCase()) || null;
+                        })
+                        .filter((id): id is string => !!id);
                   }
-                  
-                  const existingTesters = getTesters();
-                   if (validatedData.testers) {
-                    validatedData.testers.forEach(testerNameOrId => {
-                        if (!existingTesters.some(t => t.id === testerNameOrId || t.name === testerNameOrId)) {
-                            addTester({ name: testerNameOrId });
-                        }
-                    });
+
+                  if (validatedData.testers) {
+                    validatedData.testers = validatedData.testers
+                        .map(nameOrId => {
+                            if (allTesterIds.has(nameOrId)) return nameOrId;
+                            return testersByName.get(nameOrId.toLowerCase()) || null;
+                        })
+                        .filter((id): id is string => !!id);
                   }
-                  
+
                   if (validatedData.id && existingTaskIds.has(validatedData.id)) {
                       updateTask(validatedData.id, validatedData);
                       updatedCount++;
