@@ -67,7 +67,7 @@ import { taskSchema } from '@/lib/validators';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Card, CardContent } from '@/components/ui/card';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 
 type ViewMode = 'grid' | 'table';
@@ -112,9 +112,14 @@ export default function Home() {
 
   useEffect(() => {
     const savedViewMode = localStorage.getItem('taskflow_view_mode') as ViewMode;
-    if (savedViewMode) {
-      setViewMode(savedViewMode);
-    }
+    if (savedViewMode) setViewMode(savedViewMode);
+    
+    const savedMainView = localStorage.getItem('taskflow_main_view') as MainView;
+    if (savedMainView) setMainView(savedMainView);
+
+    const savedMonth = localStorage.getItem('taskflow_selected_month');
+    if (savedMonth) setSelectedMonth(new Date(savedMonth));
+
   }, []);
 
   const handleViewModeChange = (mode: ViewMode) => {
@@ -123,6 +128,11 @@ export default function Home() {
       setViewMode(mode);
     }
   };
+
+  useEffect(() => {
+    localStorage.setItem('taskflow_main_view', mainView);
+    localStorage.setItem('taskflow_selected_month', selectedMonth.toISOString());
+  }, [mainView, selectedMonth]);
 
   useEffect(() => {
     if (!activeCompanyId) {
@@ -598,12 +608,7 @@ export default function Home() {
         </div>
       </div>
       
-      <Tabs value={mainView} onValueChange={(value) => setMainView(value as MainView)} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 sm:max-w-xs">
-              <TabsTrigger value="all">All Tasks</TabsTrigger>
-              <TabsTrigger value="monthly">Monthly</TabsTrigger>
-          </TabsList>
-
+      <div className="space-y-6">
           <Card>
             <CardContent className="p-4 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -762,83 +767,92 @@ export default function Home() {
             </CardContent>
           </Card>
           
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-            {mainView === 'monthly' ? (
-                <div className="flex items-center gap-2 sm:gap-4">
-                  <Button variant="outline" size="icon" onClick={handlePreviousMonth} aria-label="Previous month">
-                      <ChevronLeft className="h-4 w-4" />
-                  </Button>
+           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 my-6">
+                <div className="flex-shrink-0">
+                    {mainView === 'monthly' ? (
+                        <div className="flex items-center gap-2 sm:gap-4">
+                            <Button variant="outline" size="icon" onClick={handlePreviousMonth} aria-label="Previous month">
+                                <ChevronLeft className="h-4 w-4" />
+                            </Button>
 
-                  <Popover open={isMonthPickerOpen} onOpenChange={setIsMonthPickerOpen}>
-                      <PopoverTrigger asChild>
-                          <Button
-                              variant="ghost"
-                              className="text-xl font-semibold text-foreground text-center sm:w-48 whitespace-nowrap flex items-center gap-1 hover:bg-muted"
-                          >
-                              {format(selectedMonth, 'MMMM yyyy')}
-                              <ChevronDown className="h-4 w-4 opacity-50" />
-                          </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="center">
-                          <div className="p-2">
-                              <div className="flex justify-between items-center pb-2">
-                                  <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-7 w-7"
-                                      onClick={() => setSelectedMonth(subYears(selectedMonth, 1))}
-                                  >
-                                      <ChevronLeft className="h-4 w-4" />
-                                  </Button>
-                                  <span className="font-semibold text-sm">{getYear(selectedMonth)}</span>
-                                  <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-7 w-7"
-                                      onClick={() => setSelectedMonth(addYears(selectedMonth, 1))}
-                                  >
-                                      <ChevronRight className="h-4 w-4" />
-                                  </Button>
-                              </div>
-                              <div className="grid grid-cols-4 gap-1">
-                                  {Array.from({ length: 12 }).map((_, i) => {
-                                      const monthDate = setMonth(new Date(getYear(selectedMonth), 0, 1), i);
-                                      return (
-                                          <Button
-                                              key={i}
-                                              variant={getMonth(selectedMonth) === i ? 'default' : 'ghost'}
-                                              size="sm"
-                                              className="w-full justify-center"
-                                              onClick={() => {
-                                                  setSelectedMonth(monthDate);
-                                                  setIsMonthPickerOpen(false);
-                                              }}
-                                          >
-                                              {format(monthDate, 'MMM')}
-                                          </Button>
-                                      );
-                                  })}
-                              </div>
-                          </div>
-                      </PopoverContent>
-                  </Popover>
-                  
-                  <Button variant="outline" size="icon" onClick={handleNextMonth} aria-label="Next month">
-                      <ChevronRight className="h-4 w-4" />
-                  </Button>
+                            <Popover open={isMonthPickerOpen} onOpenChange={setIsMonthPickerOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        className="text-xl font-semibold text-foreground text-center sm:w-48 whitespace-nowrap flex items-center gap-1 hover:bg-muted"
+                                    >
+                                        {format(selectedMonth, 'MMMM yyyy')}
+                                        <ChevronDown className="h-4 w-4 opacity-50" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="center">
+                                    <div className="p-2">
+                                        <div className="flex justify-between items-center pb-2">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7"
+                                                onClick={() => setSelectedMonth(subYears(selectedMonth, 1))}
+                                            >
+                                                <ChevronLeft className="h-4 w-4" />
+                                            </Button>
+                                            <span className="font-semibold text-sm">{getYear(selectedMonth)}</span>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7"
+                                                onClick={() => setSelectedMonth(addYears(selectedMonth, 1))}
+                                            >
+                                                <ChevronRight className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                        <div className="grid grid-cols-4 gap-1">
+                                            {Array.from({ length: 12 }).map((_, i) => {
+                                                const monthDate = setMonth(new Date(getYear(selectedMonth), 0, 1), i);
+                                                return (
+                                                    <Button
+                                                        key={i}
+                                                        variant={getMonth(selectedMonth) === i ? 'default' : 'ghost'}
+                                                        size="sm"
+                                                        className="w-full justify-center"
+                                                        onClick={() => {
+                                                            setSelectedMonth(monthDate);
+                                                            setIsMonthPickerOpen(false);
+                                                        }}
+                                                    >
+                                                        {format(monthDate, 'MMM')}
+                                                    </Button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+                            
+                            <Button variant="outline" size="icon" onClick={handleNextMonth} aria-label="Next month">
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    ) : (
+                        <div>
+                            <h2 className="text-lg font-semibold text-foreground">
+                                {sortedTasks.length} {sortedTasks.length === 1 ? 'Result' : 'Results'}
+                            </h2>
+                            <p className="text-sm text-muted-foreground">
+                                {resultsDescription}
+                            </p>
+                        </div>
+                    )}
                 </div>
-            ) : <div />}
 
-            <div className={cn("flex items-center gap-4", mainView === 'monthly' ? 'self-end sm:self-center' : 'w-full justify-between')}>
-                <div>
-                  <h2 className="text-lg font-semibold text-foreground">
-                    {sortedTasks.length} {sortedTasks.length === 1 ? 'Result' : 'Results'}
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    {resultsDescription}
-                  </p>
-                </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 flex-wrap justify-start md:justify-end w-full md:w-auto">
+                    <Tabs value={mainView} onValueChange={(v) => setMainView(v as MainView)}>
+                        <TabsList>
+                            <TabsTrigger value="all">All Tasks</TabsTrigger>
+                            <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+                    
                     <Select value={sortDescriptor} onValueChange={setSortDescriptor}>
                         <SelectTrigger className="w-full sm:w-[180px]">
                             <SelectValue placeholder="Sort by" />
@@ -881,7 +895,6 @@ export default function Home() {
                     </div>
                 </div>
             </div>
-          </div>
 
           {sortedTasks.length > 0 ? (
             viewMode === 'grid' ? (
@@ -904,7 +917,7 @@ export default function Home() {
                 </Button>
             </div>
           )}
-      </Tabs>
+      </div>
     </div>
   );
 }
