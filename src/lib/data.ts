@@ -160,7 +160,7 @@ export function setActiveCompanyId(id: string) {
 export function getUiConfig(): UiConfig {
     const data = getAppData();
     const activeCompanyId = getActiveCompanyId();
-    const defaultConfig = { 
+    const defaultConfig: UiConfig = { 
         fields: INITIAL_UI_CONFIG,
         environments: [...ENVIRONMENTS],
         coreEnvironments: [...ENVIRONMENTS],
@@ -172,91 +172,94 @@ export function getUiConfig(): UiConfig {
     if (!activeCompanyId || !data.companyData[activeCompanyId]) {
         return defaultConfig;
     }
-    const companyConfig = data.companyData[activeCompanyId].uiConfig;
+    
+    // Start with a clone of the stored config or the default config
+    let config = JSON.parse(JSON.stringify(data.companyData[activeCompanyId].uiConfig || defaultConfig));
+    let needsUpdate = !data.companyData[activeCompanyId].uiConfig;
+    
+    // --- Start Migration & Validation ---
+    
+    // Migrate task statuses
+    if (!config.taskStatuses || !Array.isArray(config.taskStatuses)) {
+        config.taskStatuses = [...TASK_STATUSES];
+        needsUpdate = true;
+    }
+    if (!config.coreTaskStatuses || !Array.isArray(config.coreTaskStatuses)) {
+        config.coreTaskStatuses = [...TASK_STATUSES];
+        needsUpdate = true;
+    }
 
-    let needsUpdate = false;
-    if (!companyConfig || !Array.isArray(companyConfig.fields) || !companyConfig.environments) {
-        data.companyData[activeCompanyId].uiConfig = defaultConfig;
-        setAppData(data);
-        return defaultConfig;
+    // Migrate other properties
+    if (!config.fields || !Array.isArray(config.fields)) {
+        config.fields = INITIAL_UI_CONFIG;
+        needsUpdate = true;
+    }
+    if (!config.environments || !Array.isArray(config.environments)) {
+        config.environments = [...ENVIRONMENTS];
+        needsUpdate = true;
+    }
+    if (!config.coreEnvironments || !Array.isArray(config.coreEnvironments)) {
+        config.coreEnvironments = [...ENVIRONMENTS];
+        needsUpdate = true;
+    }
+    if (!config.repositoryConfigs || !Array.isArray(config.repositoryConfigs)) {
+        config.repositoryConfigs = INITIAL_REPOSITORY_CONFIGS;
+        needsUpdate = true;
     }
     
-    if (!companyConfig.coreEnvironments) {
-        companyConfig.coreEnvironments = companyConfig.environments.filter(e => (ENVIRONMENTS as readonly string[]).includes(e));
-        needsUpdate = true;
-    }
+    // Ensure all core fields from INITIAL_UI_CONFIG exist
+    const coreFieldsMap = new Map(INITIAL_UI_CONFIG.map(f => [f.key, f]));
+    const presentFieldKeys = new Set(config.fields.map((f: { key: any; }) => f.key));
 
-    if (!companyConfig.repositoryConfigs) {
-        companyConfig.repositoryConfigs = INITIAL_REPOSITORY_CONFIGS;
-        needsUpdate = true;
+    for (const coreField of INITIAL_UI_CONFIG) {
+        if (!presentFieldKeys.has(coreField.key)) {
+            config.fields.push(coreField); // Add missing core field
+            needsUpdate = true;
+        } else {
+            // Ensure existing core fields have correct non-configurable properties
+            const fieldToSync = config.fields.find((f: { key: string; }) => f.key === coreField.key);
+            if (fieldToSync) {
+                let fieldModified = false;
+                if (fieldToSync.isRequired !== coreField.isRequired) { fieldToSync.isRequired = coreField.isRequired; fieldModified = true; }
+                if (fieldToSync.isCustom !== coreField.isCustom) { fieldToSync.isCustom = coreField.isCustom; fieldModified = true; }
+                if (fieldToSync.type !== coreField.type) { fieldToSync.type = coreField.type; fieldModified = true; }
+                if (fieldModified) needsUpdate = true;
+            }
+        }
     }
     
-    // ** THE FIX IS HERE **
-    // Check for taskStatuses and coreTaskStatuses separately to avoid data loss on migration
-    if (!companyConfig.taskStatuses) {
-        companyConfig.taskStatuses = [...TASK_STATUSES];
-        needsUpdate = true;
-    }
-    if (!companyConfig.coreTaskStatuses) {
-        companyConfig.coreTaskStatuses = [...TASK_STATUSES];
-        needsUpdate = true;
-    }
-
-    const statusField = companyConfig.fields.find(f => f.key === 'status');
+    // Sync the status field options with the master taskStatuses array
+    const statusField = config.fields.find((f: { key: string; }) => f.key === 'status');
     if (statusField) {
-        const statusOptions = companyConfig.taskStatuses.map(s => ({ id: s, value: s, label: s }));
+        const statusOptions = config.taskStatuses.map((s: string) => ({ id: s, value: s, label: s }));
         if (JSON.stringify(statusField.options) !== JSON.stringify(statusOptions)) {
             statusField.options = statusOptions;
             needsUpdate = true;
         }
     }
-
-
-    const initialFieldCount = companyConfig.fields.length;
-    companyConfig.fields = companyConfig.fields.filter(f => f.key !== 'deploymentDates');
-    if (companyConfig.fields.length !== initialFieldCount) {
-        needsUpdate = true;
-    }
-
-    const coreFieldsMap = new Map(INITIAL_UI_CONFIG.map(f => [f.key, f]));
     
-    companyConfig.fields.forEach(field => {
-        if (!field.isCustom) {
-            const coreField = coreFieldsMap.get(field.key);
-            if (coreField && (field.isRequired !== coreField.isRequired || field.isCustom !== coreField.isCustom || field.type !== coreField.type)) {
-                field.isRequired = coreField.isRequired;
-                field.isCustom = coreField.isCustom;
-                field.type = coreField.type;
-                needsUpdate = true;
-            }
-        }
-    });
-
-    const presentCoreFieldKeys = new Set(companyConfig.fields.filter(f => !f.isCustom).map(f => f.key));
-    for (const coreField of INITIAL_UI_CONFIG) {
-        if (!presentCoreFieldKeys.has(coreField.key)) {
-            companyConfig.fields.push(coreField);
-            needsUpdate = true;
-        }
-    }
-    
-    const developersField = companyConfig.fields.find(f => f.key === 'developers');
+    // Final sanity checks
+    const developersField = config.fields.find((f: { key: string; }) => f.key === 'developers');
     if (developersField && developersField.type !== 'tags') {
         developersField.type = 'tags';
         needsUpdate = true;
     }
-    const testersField = companyConfig.fields.find(f => f.key === 'testers');
+    const testersField = config.fields.find((f: { key: string; }) => f.key === 'testers');
     if (testersField && testersField.type !== 'tags') {
         testersField.type = 'tags';
         needsUpdate = true;
     }
-
+    
+    // Sort fields by order if an update happened
     if (needsUpdate) {
-        companyConfig.fields.sort((a, b) => a.order - b.order);
+        config.fields.sort((a: { order: number; }, b: { order: number; }) => a.order - b.order);
+        config.fields.forEach((field: { order: number; }, index: number) => field.order = index);
+        
+        data.companyData[activeCompanyId].uiConfig = config;
         setAppData(data);
     }
-
-    return companyConfig;
+    
+    return config;
 }
 
 export function updateUiConfig(newConfig: UiConfig): UiConfig {
