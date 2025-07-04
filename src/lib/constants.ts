@@ -1,7 +1,7 @@
 
 import type { FieldConfig, FieldType, RepositoryConfig } from './types';
 
-export const TASK_STATUSES = ['To Do', 'In Progress', 'Code Review', 'QA', 'Done'] as const;
+export const TASK_STATUSES = ['To Do', 'In Progress', 'Code Review', 'QA', 'Hold', 'Done'] as const;
 export const ENVIRONMENTS = ['dev', 'stage', 'production'] as const;
 
 export const INITIAL_REPOSITORY_CONFIGS: RepositoryConfig[] = [
@@ -39,3 +39,4 @@ export const INITIAL_UI_CONFIG: FieldConfig[] = [
   { id: 'field_qaStartDate', key: 'qaStartDate', label: 'QA Start Date', type: 'date', group: 'Dates', isActive: true, isRequired: false, isCustom: false, order: 12 },
   { id: 'field_qaEndDate', key: 'qaEndDate', label: 'QA End Date', type: 'date', group: 'Dates', isActive: true, isRequired: false, isCustom: false, order: 13 },
 ];
+

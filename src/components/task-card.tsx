@@ -16,7 +16,7 @@ import { getStatusConfig, TaskStatusBadge } from './task-status-badge';
 import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
-import { getInitials, getAvatarColor, cn, getRepoBadgeStyle, getEnvInfo, getStatusStyle } from '@/lib/utils';
+import { getInitials, getAvatarColor, cn, getRepoBadgeStyle, getEnvInfo } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { DeleteTaskButton } from './delete-task-button';
 import { updateTask } from '@/lib/data';
@@ -175,7 +175,6 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
 
   const statusConfig = getStatusConfig(task.status);
   const { Icon, cardClassName, iconColorClassName } = statusConfig;
-  const customStatusStyle = statusConfig.isCustom ? getStatusStyle(task.status) : {};
 
   return (
     <>
@@ -184,7 +183,6 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
           "flex flex-col h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative overflow-hidden group/card rounded-lg",
           cardClassName
         )}
-        style={customStatusStyle}
       >
         <Icon className={cn(
           "absolute -bottom-8 -right-8 h-36 w-36 pointer-events-none transition-transform duration-300 ease-in-out",

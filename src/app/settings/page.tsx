@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { getUiConfig, updateUiConfig, updateEnvironmentName, getDevelopers, getTesters, addTaskStatus, updateTaskStatus, deleteTaskStatus } from '@/lib/data';
+import { getUiConfig, updateUiConfig, updateEnvironmentName } from '@/lib/data';
 import type { UiConfig, FieldConfig, RepositoryConfig, Person } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { PeopleManagerDialog } from '@/components/people-manager-dialog';
+import { getDevelopers, getTesters } from '@/lib/data';
 
 
 export default function SettingsPage() {
@@ -40,10 +41,6 @@ export default function SettingsPage() {
   const [newEnv, setNewEnv] = useState('');
   const [editingEnv, setEditingEnv] = useState<string | null>(null);
   const [editingEnvText, setEditingEnvText] = useState('');
-  
-  const [newStatus, setNewStatus] = useState('');
-  const [editingStatus, setEditingStatus] = useState<string | null>(null);
-  const [editingStatusText, setEditingStatusText] = useState('');
   
   const [editingGroup, setEditingGroup] = useState<string | null>(null);
   const [editingGroupText, setEditingGroupText] = useState('');
@@ -233,44 +230,6 @@ export default function SettingsPage() {
     }
     setEditingEnv(null); setEditingEnvText('');
   }
-
-  // Status Handlers
-  const handleAddStatus = () => {
-    if (!newStatus.trim()) return;
-    try {
-        const newConfig = addTaskStatus(newStatus.trim());
-        setConfig(newConfig);
-        setNewStatus('');
-        toast({ variant: 'success', title: 'Status Added' });
-    } catch (error: any) {
-        toast({ variant: 'destructive', title: 'Error', description: error.message });
-    }
-  };
-
-  const handleStartEditStatus = (status: string) => { setEditingStatus(status); setEditingStatusText(status); };
-  
-  const handleSaveStatusName = () => {
-    if (!editingStatus || !editingStatusText.trim()) return;
-    try {
-        const newConfig = updateTaskStatus(editingStatus, editingStatusText.trim());
-        setConfig(newConfig);
-        toast({ variant: 'success', title: 'Status Renamed' });
-    } catch (error: any) {
-        toast({ variant: 'destructive', title: 'Error', description: error.message });
-    }
-    setEditingStatus(null); setEditingStatusText('');
-  };
-
-  const handleDeleteStatus = (statusToDelete: string) => {
-    try {
-        const newConfig = deleteTaskStatus(statusToDelete);
-        setConfig(newConfig);
-        toast({ variant: 'success', title: 'Status Deleted' });
-    } catch (error: any) {
-        toast({ variant: 'destructive', title: 'Error', description: error.message });
-    }
-  };
-
 
   const handleRenameGroup = (oldName: string, newName: string) => {
     const trimmedNewName = newName.trim();
@@ -469,38 +428,16 @@ export default function SettingsPage() {
                 </CardContent>
             </Card>
              <Card>
-                <CardHeader><CardTitle className="flex items-center gap-2"><ListTodo className="h-5 w-5" />Task Status Management</CardTitle><CardDescription>Add or remove task statuses. Core statuses cannot be removed.</CardDescription></CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        {(config.taskStatuses || []).map(status => {
-                            const isDefault = (config.coreTaskStatuses || []).includes(status);
-                            return (
-                                <div key={status} className="flex items-center justify-between p-2 border rounded-md bg-card">
-                                    {editingStatus === status ? (
-                                        <div className="flex-1 flex items-center gap-2">
-                                            <Input value={editingStatusText} onChange={(e) => setEditingStatusText(e.target.value)} className="h-8" onKeyDown={(e) => { if(e.key === 'Enter') handleSaveStatusName()}} />
-                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleSaveStatusName()}><Check className="h-4 w-4" /></Button>
-                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingStatus(null)}><X className="h-4 w-4" /></Button>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <span className="font-medium">{status}</span>
-                                            <div className="flex items-center">
-                                                {!isDefault && (<>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleStartEditStatus(status)}><Edit className="h-4 w-4" /></Button>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDeleteStatus(status)}><Trash2 className="h-4 w-4" /></Button>
-                                                </>)}
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                            )
-                        })}
-                    </div>
-                    <div className="flex items-center gap-2 pt-4 border-t">
-                        <Input placeholder="Add new status..." value={newStatus} onChange={(e) => setNewStatus(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddStatus(); }}}/>
-                        <Button variant="outline" size="sm" onClick={handleAddStatus}>Add</Button>
-                    </div>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><ListTodo className="h-5 w-5" />Task Status Management</CardTitle>
+                    <CardDescription>The following statuses are predefined and cannot be changed.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                    {(config.taskStatuses || []).map(status => (
+                        <div key={status} className="flex items-center justify-between p-2 border rounded-md bg-card">
+                            <span className="font-medium">{status}</span>
+                        </div>
+                    ))}
                 </CardContent>
             </Card>
             <Card>

@@ -182,18 +182,14 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
 
     // Merge arrays, prioritizing saved data if it's a valid array.
     if (Array.isArray(savedConfig.environments)) resultConfig.environments = cloneDeep(savedConfig.environments);
-    if (Array.isArray(savedConfig.taskStatuses)) resultConfig.taskStatuses = cloneDeep(savedConfig.taskStatuses);
     if (Array.isArray(savedConfig.repositoryConfigs)) resultConfig.repositoryConfigs = cloneDeep(savedConfig.repositoryConfigs);
-    
-    // Also merge core lists, just in case they are customized (though not typical)
     if (Array.isArray(savedConfig.coreEnvironments)) resultConfig.coreEnvironments = cloneDeep(savedConfig.coreEnvironments);
-    if (Array.isArray(savedConfig.coreTaskStatuses)) resultConfig.coreTaskStatuses = cloneDeep(savedConfig.coreTaskStatuses);
+    
+    // For statuses, we prioritize the default list now to enforce the predefined set.
+    resultConfig.taskStatuses = [...TASK_STATUSES];
+    resultConfig.coreTaskStatuses = [...TASK_STATUSES];
 
-    // Ensure core values are always present in the main lists without removing user additions.
-    const finalStatuses = new Set(resultConfig.taskStatuses);
-    resultConfig.coreTaskStatuses.forEach(status => finalStatuses.add(status));
-    resultConfig.taskStatuses = Array.from(finalStatuses);
-
+    // Ensure core envs are always present in the main envs list without removing user additions.
     const finalEnvs = new Set(resultConfig.environments);
     resultConfig.coreEnvironments.forEach(env => finalEnvs.add(env));
     resultConfig.environments = Array.from(finalEnvs);
@@ -318,90 +314,6 @@ export function updateEnvironmentName(oldName: string, newName: string): boolean
     window.dispatchEvent(new Event('config-changed'));
     return true;
 }
-
-// Task Status Functions
-export function addTaskStatus(name: string): UiConfig {
-    const currentUiConfig = getUiConfig();
-
-    if (currentUiConfig.taskStatuses.find(s => s.toLowerCase() === name.toLowerCase())) {
-        throw new Error("Status already exists.");
-    }
-
-    const newStatuses = [...currentUiConfig.taskStatuses, name];
-    
-    const newUiConfig = {
-        ...currentUiConfig,
-        taskStatuses: newStatuses,
-    };
-    
-    return updateUiConfig(newUiConfig);
-}
-
-export function updateTaskStatus(oldName: string, newName: string): UiConfig {
-    const data = getAppData();
-    const activeCompanyId = data.activeCompanyId;
-    const companyData = data.companyData[activeCompanyId];
-    const { uiConfig, tasks } = companyData;
-
-    if (uiConfig.coreTaskStatuses.includes(oldName)) {
-        throw new Error("Cannot rename a core status.");
-    }
-    if (!uiConfig.taskStatuses.includes(oldName) || (uiConfig.taskStatuses.includes(newName) && oldName.toLowerCase() !== newName.toLowerCase())) {
-        throw new Error("Invalid status name or new name already exists.");
-    }
-
-    const statusIndex = uiConfig.taskStatuses.indexOf(oldName);
-    
-    const newStatuses = [...uiConfig.taskStatuses];
-    newStatuses[statusIndex] = newName;
-    
-    const newUiConfig = {
-        ...uiConfig,
-        taskStatuses: newStatuses,
-    };
-
-    const updatedTasks = tasks.map(task => {
-        if (task.status === oldName) {
-            return {
-                ...task,
-                status: newName,
-                updatedAt: new Date().toISOString(),
-            };
-        }
-        return task;
-    });
-    
-    data.companyData[activeCompanyId].tasks = updatedTasks;
-    setAppData(data);
-    return updateUiConfig(newUiConfig);
-}
-
-export function deleteTaskStatus(name: string): UiConfig {
-    const data = getAppData();
-    const activeCompanyId = data.activeCompanyId;
-    const companyData = data.companyData[activeCompanyId];
-    
-    const { uiConfig, tasks } = companyData;
-
-    if (uiConfig.coreTaskStatuses.includes(name)) {
-        throw new Error("Cannot delete a core status.");
-    }
-
-    const isUsed = tasks.some(task => task.status === name);
-    if (isUsed) {
-        throw new Error("Cannot delete status as it is currently in use by one or more tasks.");
-    }
-    
-    const newStatuses = uiConfig.taskStatuses.filter(s => s !== name);
-    
-    const newUiConfig = {
-        ...uiConfig,
-        taskStatuses: newStatuses,
-    };
-    
-    return updateUiConfig(newUiConfig);
-}
-
 
 // Task Functions
 export function getTasks(): Task[] {

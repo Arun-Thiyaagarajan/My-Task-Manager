@@ -92,44 +92,6 @@ export function getRepoBadgeStyle(name: string): CSSProperties {
   } as CSSProperties;
 }
 
-export function getStatusStyle(name: string): CSSProperties {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    hash = hash & hash;
-  }
-  const h = Math.abs(hash % 360);
-  
-  return {
-    '--status-badge-bg': `hsl(${h} 100% 95%)`,
-    '--status-badge-text': `hsl(${h} 80% 30%)`,
-    '--status-badge-border': `hsl(${h} 100% 90%)`,
-    '--dark-status-badge-bg': `hsl(${h} 30% 20%)`,
-    '--dark-status-badge-text': `hsl(${h} 80% 85%)`,
-    '--dark-status-badge-border': `hsl(${h} 30% 30%)`,
-
-    '--status-badge-prominent-bg': `hsl(${h} 60% 50%)`,
-    '--status-badge-prominent-text': `hsl(${h} 100% 98%)`,
-
-    '--status-card-bg': `hsl(${h} 80% 98%)`,
-    '--dark-status-card-bg': `hsl(${h} 20% 12%)`,
-    '--status-card-border': `hsl(${h} 60% 90%)`,
-    '--dark-status-card-border': `hsl(${h} 20% 18%)`,
-    '--status-card-border-hover': `hsl(${h} 60% 85%)`,
-    '--dark-status-card-border-hover': `hsl(${h} 20% 25%)`,
-
-    '--status-icon-color': `hsla(${h}, 50%, 50%, 0.2)`,
-    '--dark-status-icon-color': `hsla(${h}, 50%, 50%, 0.15)`,
-    
-    '--status-list-border': `hsl(${h} 60% 50%)`,
-    '--dark-status-list-border': `hsl(${h} 60% 60%)`,
-
-    '--status-title-bg': `hsla(${h}, 100%, 50%, 0.1)`,
-    '--dark-status-title-bg': `hsla(${h}, 100%, 50%, 0.15)`,
-  } as CSSProperties;
-}
-
-
 export const getEnvInfo = (env: string) => {
   switch (env) {
     case 'dev':

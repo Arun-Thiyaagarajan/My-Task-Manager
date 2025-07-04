@@ -28,7 +28,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { getInitials, getAvatarColor, cn, getRepoBadgeStyle, getEnvInfo, getStatusStyle } from '@/lib/utils';
+import { getInitials, getAvatarColor, cn, getRepoBadgeStyle, getEnvInfo } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -138,11 +138,10 @@ function TasksTableRow({
 
   const statusConfig = getStatusConfig(task.status);
   const { Icon, iconColorClassName } = statusConfig;
-  const customStatusStyle = statusConfig.isCustom ? getStatusStyle(task.status) : {};
 
   return (
     <TableRow key={task.id} className="group/row">
-      <TableCell className="font-medium max-w-xs relative overflow-hidden align-top" style={customStatusStyle}>
+      <TableCell className="font-medium max-w-xs relative overflow-hidden align-top">
         <Icon className={cn(
           "absolute -bottom-8 -left-8 h-24 w-24 pointer-events-none transition-transform duration-300 ease-in-out z-0",
           iconColorClassName,

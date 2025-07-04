@@ -2,19 +2,14 @@
 import * as React from "react"
 import type { TaskStatus } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
-import { cn, getStatusStyle } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import {
   Circle,
   Loader2,
   GitPullRequest,
   Bug,
   CheckCircle2,
-  Tag,
   PauseCircle,
-  Eye,
-  Rocket,
-  XCircle,
-  Lightbulb,
 } from 'lucide-react';
 
 interface TaskStatusBadgeProps extends React.ComponentPropsWithoutRef<typeof Badge> {
@@ -70,6 +65,15 @@ const coreStatusConfig: Record<string, StatusConfig> = {
     listClassName: 'border-l-4 border-amber-500 dark:border-amber-600',
     titleBgClassName: 'bg-yellow-200/50 dark:bg-yellow-500/20'
   },
+  'Hold': {
+    Icon: PauseCircle, isCustom: false,
+    className: 'bg-orange-100 text-orange-800 border-orange-200 hover:bg-orange-200 dark:bg-orange-900/50 dark:text-orange-300 dark:border-orange-700/80 dark:hover:bg-orange-900/60',
+    prominentClassName: 'border-transparent bg-orange-500 text-white hover:bg-orange-500/80 dark:bg-orange-600 dark:hover:bg-orange-600/80',
+    cardClassName: 'bg-orange-100/50 dark:bg-orange-500/10 border-orange-200/80 dark:border-orange-800 hover:border-orange-300 dark:hover:border-orange-700',
+    iconColorClassName: 'text-orange-500/20 dark:text-orange-500/15',
+    listClassName: 'border-l-4 border-orange-500 dark:border-orange-600',
+    titleBgClassName: 'bg-orange-200/50 dark:bg-orange-500/20'
+  },
   'Done': {
     Icon: CheckCircle2, isCustom: false,
     className: 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700/80 dark:hover:bg-green-900/60',
@@ -81,49 +85,8 @@ const coreStatusConfig: Record<string, StatusConfig> = {
   },
 };
 
-const customStatusConfig: StatusConfig = {
-    Icon: Tag, isCustom: true,
-    className: 'bg-[var(--status-badge-bg)] text-[var(--status-badge-text)] border-[var(--status-badge-border)] hover:opacity-80 dark:bg-[var(--dark-status-badge-bg)] dark:text-[var(--dark-status-badge-text)] dark:border-[var(--dark-status-badge-border)]',
-    prominentClassName: 'border-transparent bg-[var(--status-badge-prominent-bg)] text-[var(--status-badge-prominent-text)] hover:opacity-80',
-    cardClassName: 'bg-[var(--status-card-bg)] dark:bg-[var(--dark-status-card-bg)] border-[var(--status-card-border)] dark:border-[var(--dark-status-card-border)] hover:border-[var(--status-card-border-hover)] dark:hover:border-[var(--dark-status-card-border-hover)]',
-    iconColorClassName: 'text-[var(--status-icon-color)] dark:text-[var(--dark-status-icon-color)]',
-    listClassName: 'border-l-4 border-[var(--status-list-border)] dark:border-[var(--dark-status-list-border)]',
-    titleBgClassName: 'bg-[var(--status-title-bg)] dark:bg-[var(--dark-status-title-bg)]'
-};
-
-const customIconMap: { [keyword: string]: React.ComponentType<{ className?: string }> } = {
-    'hold': PauseCircle,
-    'pause': PauseCircle,
-    'blocked': PauseCircle,
-    'review': Eye,
-    'approve': Eye,
-    'deploy': Rocket,
-    'release': Rocket,
-    'reject': XCircle,
-    'fail': XCircle,
-    'backlog': Lightbulb,
-    'idea': Lightbulb,
-};
-
-function getCustomIcon(status: string): React.ComponentType<{ className?: string }> {
-    const lowerStatus = status.toLowerCase();
-    for (const keyword in customIconMap) {
-        if (lowerStatus.includes(keyword)) {
-            return customIconMap[keyword];
-        }
-    }
-    return Tag; // Default custom icon
-}
-
 export function getStatusConfig(status: TaskStatus): StatusConfig {
-  if (coreStatusConfig[status]) {
-    return coreStatusConfig[status];
-  }
-
-  // For custom statuses
-  const config = { ...customStatusConfig };
-  config.Icon = getCustomIcon(status);
-  return config;
+  return coreStatusConfig[status] || coreStatusConfig['To Do'];
 }
 
 export const TaskStatusBadge = React.forwardRef<
@@ -134,7 +97,6 @@ export const TaskStatusBadge = React.forwardRef<
 
   const config = getStatusConfig(status);
   const { Icon } = config;
-  const customStyle = config.isCustom ? getStatusStyle(status) : {};
   const configClassName = variant === 'prominent' ? config.prominentClassName : config.className;
   
   return (
@@ -142,7 +104,6 @@ export const TaskStatusBadge = React.forwardRef<
       ref={ref}
       variant="outline"
       className={cn('gap-1.5 font-medium capitalize', configClassName, className)}
-      style={customStyle}
       {...props}
     >
       <Icon className={cn("h-3 w-3", status === 'In Progress' && 'animate-spin')} />
