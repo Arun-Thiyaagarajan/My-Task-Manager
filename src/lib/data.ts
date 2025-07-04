@@ -191,8 +191,13 @@ export function getUiConfig(): UiConfig {
         needsUpdate = true;
     }
     
-    if (!companyConfig.taskStatuses || !companyConfig.coreTaskStatuses) {
+    // ** THE FIX IS HERE **
+    // Check for taskStatuses and coreTaskStatuses separately to avoid data loss on migration
+    if (!companyConfig.taskStatuses) {
         companyConfig.taskStatuses = [...TASK_STATUSES];
+        needsUpdate = true;
+    }
+    if (!companyConfig.coreTaskStatuses) {
         companyConfig.coreTaskStatuses = [...TASK_STATUSES];
         needsUpdate = true;
     }
