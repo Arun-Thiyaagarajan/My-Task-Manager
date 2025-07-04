@@ -173,68 +173,80 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
         coreTaskStatuses: [...TASK_STATUSES],
     };
 
-    if (!savedConfig) {
+    if (!savedConfig || Object.keys(savedConfig).length === 0) {
         return defaultConfig;
     }
 
-    // Start with the user's config and fill in missing top-level keys from the default.
-    // This shallow merge prioritizes the user's saved data.
-    const mergedConfig: UiConfig = {
-        ...defaultConfig,
-        ...savedConfig,
+    // --- NON-DESTRUCTIVE MERGE ---
+    
+    // 1. Start with a result object. Prioritize user's saved lists.
+    const result: UiConfig = {
+        coreEnvironments: defaultConfig.coreEnvironments,
+        coreTaskStatuses: defaultConfig.coreTaskStatuses,
+        taskStatuses: savedConfig.taskStatuses && savedConfig.taskStatuses.length > 0 ? [...savedConfig.taskStatuses] : [...defaultConfig.taskStatuses],
+        environments: savedConfig.environments && savedConfig.environments.length > 0 ? [...savedConfig.environments] : [...defaultConfig.environments],
+        repositoryConfigs: savedConfig.repositoryConfigs && savedConfig.repositoryConfigs.length > 0 ? JSON.parse(JSON.stringify(savedConfig.repositoryConfigs)) : JSON.parse(JSON.stringify(defaultConfig.repositoryConfigs)),
+        fields: [] // Will be populated next
     };
-    
-    // For nested arrays, ensure the user's array is used if it exists, otherwise use the default.
-    // This is the key change to prevent data loss.
-    mergedConfig.fields = savedConfig.fields || defaultConfig.fields;
-    mergedConfig.environments = savedConfig.environments || defaultConfig.environments;
-    mergedConfig.repositoryConfigs = savedConfig.repositoryConfigs || defaultConfig.repositoryConfigs;
-    mergedConfig.taskStatuses = savedConfig.taskStatuses || defaultConfig.taskStatuses;
 
+    // 2. Intelligently merge fields to preserve user customizations and add new default fields.
+    const savedFieldsMap = new Map((savedConfig.fields || []).map(f => [f.key, f]));
+    const finalFields: FieldConfig[] = [];
 
-    // --- Data Integrity Checks ---
-
-    // 1. Ensure all core fields from the base config exist. Add them if missing.
-    const userFieldsMap = new Map(mergedConfig.fields.map(f => [f.key, f]));
+    // Iterate through default fields to establish a base and add any new fields from updates.
     for (const defaultField of defaultConfig.fields) {
-        if (!userFieldsMap.has(defaultField.key)) {
-            mergedConfig.fields.push(defaultField);
+        const savedField = savedFieldsMap.get(defaultField.key);
+        if (savedField) {
+            // A saved version exists. Use it, but ensure all properties from default are present.
+            finalFields.push({ ...defaultField, ...savedField });
+            savedFieldsMap.delete(defaultField.key); // Mark as processed
+        } else {
+            // This is a new default field not present in the user's saved config. Add it.
+            finalFields.push(defaultField);
         }
     }
+    // Add any remaining fields from the user's config (these are purely custom fields).
+    savedFieldsMap.forEach(customField => finalFields.push(customField));
+    result.fields = finalFields;
 
-    // 2. Ensure all core statuses exist in the list.
-    const userStatusesSet = new Set(mergedConfig.taskStatuses);
-    for (const coreStatus of defaultConfig.coreTaskStatuses) {
+
+    // --- DATA INTEGRITY CHECKS ---
+    // These now operate on the safely merged 'result' object.
+    
+    // 3. Ensure all core statuses exist in the list.
+    const userStatusesSet = new Set(result.taskStatuses);
+    for (const coreStatus of result.coreTaskStatuses) {
         if (!userStatusesSet.has(coreStatus)) {
-            mergedConfig.taskStatuses.push(coreStatus);
+            result.taskStatuses.push(coreStatus);
         }
     }
     
-    // 3. Ensure all core environments exist in the list.
-    const userEnvironmentsSet = new Set(mergedConfig.environments);
-    for (const coreEnv of defaultConfig.coreEnvironments) {
+    // 4. Ensure all core environments exist in the list.
+    const userEnvironmentsSet = new Set(result.environments);
+    for (const coreEnv of result.coreEnvironments) {
         if (!userEnvironmentsSet.has(coreEnv)) {
-            mergedConfig.environments.push(coreEnv);
+            result.environments.push(coreEnv);
         }
     }
 
-    // 4. Re-sync dropdown options with the master lists
-    const statusField = mergedConfig.fields.find(f => f.key === 'status');
+    // 5. Re-sync dropdown options with the master lists.
+    const statusField = result.fields.find(f => f.key === 'status');
     if (statusField) {
-        statusField.options = mergedConfig.taskStatuses.map(s => ({ id: s, value: s, label: s }));
+        statusField.options = result.taskStatuses.map(s => ({ id: s, value: s, label: s }));
     }
 
-    const repoField = mergedConfig.fields.find(f => f.key === 'repositories');
+    const repoField = result.fields.find(f => f.key === 'repositories');
     if (repoField) {
-        repoField.options = mergedConfig.repositoryConfigs.map(r => ({ id: r.id, value: r.name, label: r.name }));
+        repoField.options = result.repositoryConfigs.map(r => ({ id: r.id, value: r.name, label: r.name }));
     }
     
-    // 5. Re-apply sorting order
-    mergedConfig.fields.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
-    mergedConfig.fields.forEach((f, i) => f.order = i);
+    // 6. Re-apply a consistent sorting order to fields.
+    result.fields.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+    result.fields.forEach((f, i) => f.order = i);
     
-    return mergedConfig;
+    return result;
 }
+
 
 
 // UI Config Functions
