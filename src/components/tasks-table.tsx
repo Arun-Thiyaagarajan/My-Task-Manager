@@ -51,6 +51,7 @@ interface TasksTableRowProps {
   onAvatarClick: (person: Person, type: 'Developer' | 'Tester') => void;
   isSelected: boolean;
   onToggleSelection: (taskId: string, checked: boolean) => void;
+  isSelectMode: boolean;
 }
 
 function TasksTableRow({
@@ -62,6 +63,7 @@ function TasksTableRow({
   onAvatarClick,
   isSelected,
   onToggleSelection,
+  isSelectMode,
 }: TasksTableRowProps) {
   const [task, setTask] = useState(initialTask);
   const [justUpdatedEnv, setJustUpdatedEnv] = useState<string | null>(null);
@@ -146,13 +148,15 @@ function TasksTableRow({
 
   return (
     <TableRow key={task.id} className="group/row" data-state={isSelected ? 'selected' : undefined}>
-       <TableCell>
-        <Checkbox
-          checked={isSelected}
-          onCheckedChange={(checked) => onToggleSelection(task.id, !!checked)}
-          aria-label={`Select task ${task.title}`}
-        />
-      </TableCell>
+       {isSelectMode && (
+         <TableCell>
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={(checked) => onToggleSelection(task.id, !!checked)}
+              aria-label={`Select task ${task.title}`}
+            />
+        </TableCell>
+       )}
       <TableCell className="font-medium max-w-xs relative overflow-hidden align-top">
         <Icon className={cn(
           "absolute -bottom-8 -left-8 h-24 w-24 pointer-events-none transition-transform duration-300 ease-in-out z-0",
@@ -337,6 +341,7 @@ export function TasksTable({
   testers,
   selectedTaskIds,
   setSelectedTaskIds,
+  isSelectMode,
 }: {
   tasks: Task[];
   onTaskDelete: () => void;
@@ -345,6 +350,7 @@ export function TasksTable({
   testers: Person[];
   selectedTaskIds: string[];
   setSelectedTaskIds: (ids: string[]) => void;
+  isSelectMode: boolean;
 }) {
   const [personInView, setPersonInView] = useState<{
     person: Person;
@@ -382,13 +388,15 @@ export function TasksTable({
       <Table>
         <TableHeader>
           <TableRow>
-             <TableHead className="w-[50px]">
-                <Checkbox
-                  checked={numSelected === numTasks ? true : (numSelected > 0 ? 'indeterminate' : false)}
-                  onCheckedChange={handleToggleAll}
-                  aria-label="Select all"
-                />
-            </TableHead>
+             {isSelectMode && (
+                <TableHead className="w-[50px]">
+                    <Checkbox
+                    checked={numSelected === numTasks ? true : (numSelected > 0 ? 'indeterminate' : false)}
+                    onCheckedChange={handleToggleAll}
+                    aria-label="Select all"
+                    />
+                </TableHead>
+             )}
             <TableHead>{fieldLabels.get('title') || 'Title'}</TableHead>
             <TableHead>{fieldLabels.get('status') || 'Status'}</TableHead>
             <TableHead>Developers</TableHead>
@@ -414,6 +422,7 @@ export function TasksTable({
               onAvatarClick={handleAvatarClick}
               isSelected={selectedTaskIds.includes(task.id)}
               onToggleSelection={handleToggleSelection}
+              isSelectMode={isSelectMode}
             />
           ))}
         </TableBody>

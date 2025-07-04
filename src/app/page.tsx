@@ -35,6 +35,7 @@ import {
   ChevronRight,
   ChevronDown,
   Trash2,
+  CheckSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig } from '@/lib/types';
@@ -110,6 +111,7 @@ export default function Home() {
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+  const [isSelectMode, setIsSelectMode] = useState(false);
 
   const handlePreviousMonth = () => setSelectedMonth(subMonths(selectedMonth, 1));
   const handleNextMonth = () => setSelectedMonth(addMonths(selectedMonth, 1));
@@ -141,6 +143,11 @@ export default function Home() {
       localStorage.setItem('taskflow_view_mode', mode);
       setViewMode(mode);
     }
+  };
+  
+  const handleToggleSelectMode = () => {
+    setIsSelectMode(prev => !prev);
+    setSelectedTaskIds([]); // Clear selection when toggling mode
   };
 
   useEffect(() => {
@@ -571,6 +578,7 @@ export default function Home() {
         description: `${selectedTaskIds.length} tasks have been moved to the bin.`,
     });
     refreshData();
+    setIsSelectMode(false);
   };
 
 
@@ -899,6 +907,15 @@ export default function Home() {
 
                     <div className="flex items-center gap-2">
                         <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={handleToggleSelectMode}
+                          className={cn(isSelectMode && 'bg-accent text-accent-foreground')}
+                        >
+                            <CheckSquare className="h-4 w-4" />
+                            <span className="sr-only">Select Tasks</span>
+                        </Button>
+                        <Button
                         variant="outline"
                         size="icon"
                         onClick={() => handleViewModeChange('grid')}
@@ -926,7 +943,7 @@ export default function Home() {
                 </div>
             </div>
 
-            {selectedTaskIds.length > 0 && (
+            {isSelectMode && selectedTaskIds.length > 0 && (
                 <Card className="bg-muted border-primary/50">
                     <CardContent className="p-3 flex items-center justify-between">
                         <span className="text-sm font-medium">{selectedTaskIds.length} task(s) selected</span>
@@ -953,9 +970,9 @@ export default function Home() {
 
           {sortedTasks.length > 0 ? (
             viewMode === 'grid' ? (
-              <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} />
+              <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} />
             ) : (
-              <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} />
+              <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} />
             )
           ) : (
             <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg flex flex-col items-center justify-center">

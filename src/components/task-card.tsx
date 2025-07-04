@@ -45,9 +45,10 @@ interface TaskCardProps {
   testers: Person[];
   selectedTaskIds?: string[];
   setSelectedTaskIds?: (ids: string[]) => void;
+  isSelectMode?: boolean;
 }
 
-export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConfig, developers, testers, selectedTaskIds, setSelectedTaskIds }: TaskCardProps) {
+export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConfig, developers, testers, selectedTaskIds, setSelectedTaskIds, isSelectMode }: TaskCardProps) {
   const [task, setTask] = useState(initialTask);
   const { toast } = useToast();
   const [taskStatuses, setTaskStatuses] = useState<string[]>([]);
@@ -189,19 +190,19 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   return (
     <>
       <Card
-        onClick={isSelectable ? handleSelectionChange : undefined}
+        onClick={isSelectMode ? handleSelectionChange : undefined}
         className={cn(
           "flex flex-col h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative overflow-hidden group/card rounded-lg",
           cardClassName,
-          isSelectable && "cursor-pointer",
+          isSelectMode && "cursor-pointer",
           isSelected && "ring-2 ring-primary ring-offset-2"
         )}
       >
-        {isSelectable && (
+        {isSelectable && isSelectMode && (
           <Checkbox
             checked={isSelected}
             onCheckedChange={handleSelectionChange}
-            className="absolute top-3 right-3 z-20 h-5 w-5 bg-background/80"
+            className="absolute top-3 left-3 z-20 h-5 w-5 bg-background/80"
             aria-label={`Select task ${task.title}`}
           />
         )}
