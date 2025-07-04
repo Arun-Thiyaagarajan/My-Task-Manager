@@ -21,11 +21,24 @@ export default function DashboardPage() {
 
   useEffect(() => {
     document.title = 'Dashboard | My Task Manager';
-    setTasks(getTasks());
-    setDevelopers(getDevelopers());
-    setTesters(getTesters());
-    setUiConfig(getUiConfig());
-    setIsLoading(false);
+    
+    const refreshData = () => {
+        setTasks(getTasks());
+        setDevelopers(getDevelopers());
+        setTesters(getTesters());
+        setUiConfig(getUiConfig());
+        setIsLoading(false);
+    };
+    
+    refreshData();
+
+    window.addEventListener('storage', refreshData);
+    window.addEventListener('config-changed', refreshData);
+
+    return () => {
+      window.removeEventListener('storage', refreshData);
+      window.removeEventListener('config-changed', refreshData);
+    };
   }, []);
 
   if (isLoading || !uiConfig) {

@@ -143,7 +143,11 @@ export default function Home() {
     setIsLoading(false);
     
     window.addEventListener('storage', refreshData);
-    return () => window.removeEventListener('storage', refreshData);
+    window.addEventListener('config-changed', refreshData);
+    return () => {
+      window.removeEventListener('storage', refreshData);
+      window.removeEventListener('config-changed', refreshData);
+    };
   }, [activeCompanyId]);
 
   const filteredTasks = tasks.filter((task: Task) => {
@@ -238,7 +242,7 @@ export default function Home() {
       if (sortDirection === 'asc') {
         return scoreA - scoreB;
       } else {
-        return scoreB - scoreA;
+        return scoreB - aIndex;
       }
     }
 

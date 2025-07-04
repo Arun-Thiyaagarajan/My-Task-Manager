@@ -264,6 +264,8 @@ export function updateUiConfig(newConfig: UiConfig): UiConfig {
         }
         data.companyData[activeCompanyId].uiConfig = newConfig;
         setAppData(data);
+        // Dispatch an event to notify other components of the change
+        window.dispatchEvent(new Event('config-changed'));
     }
     return newConfig;
 }
@@ -311,6 +313,8 @@ export function updateEnvironmentName(oldName: string, newName: string): boolean
     });
 
     setAppData(data);
+    // Dispatch an event to notify other components of the change
+    window.dispatchEvent(new Event('config-changed'));
     return true;
 }
 
