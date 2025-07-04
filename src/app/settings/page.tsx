@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck, ListTodo } from 'lucide-react';
+import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck, ListTodo, PauseCircle } from 'lucide-react';
 import { EditFieldDialog } from '@/components/edit-field-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -37,10 +37,6 @@ export default function SettingsPage() {
 
   const [isFieldDialogOpen, setIsFieldDialogOpen] = useState(false);
   const [fieldToEdit, setFieldToEdit] = useState<FieldConfig | null>(null);
-  
-  const [newEnv, setNewEnv] = useState('');
-  const [editingEnv, setEditingEnv] = useState<string | null>(null);
-  const [editingEnvText, setEditingEnvText] = useState('');
   
   const [editingGroup, setEditingGroup] = useState<string | null>(null);
   const [editingGroupText, setEditingGroupText] = useState('');
@@ -92,6 +88,11 @@ export default function SettingsPage() {
 
         const newConfig = { ...prevConfig, fields: newOrderedFields };
         updateUiConfig(newConfig);
+        toast({
+          variant: 'success',
+          title: 'Field Updated',
+          description: `The "${field?.label}" field has been ${field?.isActive ? 'deactivated' : 'activated'}.`,
+        });
         return newConfig;
     });
   }
@@ -99,9 +100,15 @@ export default function SettingsPage() {
   const handleDeleteField = (fieldId: string) => {
     setConfig(prevConfig => {
         if (!prevConfig) return null;
+        const fieldToDelete = prevConfig.fields.find(f => f.id === fieldId);
         const fields = prevConfig.fields.filter(f => f.id !== fieldId);
         const newConfig = { ...prevConfig, fields };
         updateUiConfig(newConfig);
+        toast({
+          variant: 'success',
+          title: 'Field Deleted',
+          description: `The "${fieldToDelete?.label}" field has been deleted.`,
+        });
         return newConfig;
     });
   };
@@ -139,6 +146,11 @@ export default function SettingsPage() {
 
       const newConfig = { ...prevConfig, fields, repositoryConfigs: finalRepoConfigs };
       updateUiConfig(newConfig);
+      toast({
+          variant: 'success',
+          title: 'Field Saved',
+          description: `The "${fieldData.label}" field has been saved.`,
+      });
       return newConfig;
     });
   };
@@ -170,6 +182,11 @@ export default function SettingsPage() {
       
       const newConfig = { ...prevConfig, fields: newFields };
       updateUiConfig(newConfig);
+      toast({
+          variant: 'success',
+          title: 'Fields Reordered',
+          description: 'The active fields order has been updated.',
+      });
       return newConfig;
     });
   };
@@ -192,44 +209,6 @@ export default function SettingsPage() {
   const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
     e.currentTarget.classList.remove('drag-over-top', 'drag-over-bottom');
   };
-  
-  // Environment Handlers
-  const handleAddEnvironment = () => {
-    if (!config || !newEnv.trim()) return;
-    const newEnvLower = newEnv.trim().toLowerCase();
-    if (config.environments?.includes(newEnvLower)) {
-        toast({ variant: 'warning', title: 'Environment already exists.' })
-        return;
-    }
-    const newConfig = { ...config, environments: [...(config.environments || []), newEnvLower] };
-    updateUiConfig(newConfig);
-    setConfig(newConfig);
-    setNewEnv('');
-  }
-
-  const handleDeleteEnvironment = (envToDelete: string) => {
-    if (!config) return;
-    const newConfig = { ...config, environments: config.environments?.filter(env => env !== envToDelete) || [] };
-    updateUiConfig(newConfig);
-    setConfig(newConfig);
-  }
-
-  const handleStartEditEnv = (env: string) => { setEditingEnv(env); setEditingEnvText(env); }
-
-  const handleSaveEnvName = () => {
-    if (!editingEnv || !editingEnvText.trim() || !config) return;
-    if (editingEnvText.trim() !== editingEnv && config.environments?.includes(editingEnvText.trim())) {
-      toast({ variant: 'destructive', title: 'Name already exists' });
-      return;
-    }
-    if (updateEnvironmentName(editingEnv, editingEnvText.trim())) {
-        setConfig(getUiConfig());
-        toast({ variant: 'success', title: 'Environment Renamed' });
-    } else {
-        toast({ variant: 'destructive', title: 'Failed to rename environment' });
-    }
-    setEditingEnv(null); setEditingEnvText('');
-  }
 
   const handleRenameGroup = (oldName: string, newName: string) => {
     const trimmedNewName = newName.trim();
@@ -253,6 +232,11 @@ export default function SettingsPage() {
         });
         const newConfig = { ...prevConfig, fields: newFields };
         updateUiConfig(newConfig);
+        toast({
+          variant: 'success',
+          title: 'Group Renamed',
+          description: `Group "${oldName}" has been renamed to "${trimmedNewName}".`,
+        });
         return newConfig;
     });
     setEditingGroup(null);
@@ -305,28 +289,28 @@ export default function SettingsPage() {
     return (
         <div 
           key={field.id}
-          draggable={isActiveList && !field.isRequired && !isProtected}
+          draggable={isActiveList && !field.isRequired}
           onDragStart={e => {
-            if (isProtected) { e.preventDefault(); return; }
+            if (field.isRequired) { e.preventDefault(); return; }
             e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('fieldId', field.id);
           }}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={e => handleDrop(e, field)}
-          className={cn("flex items-center gap-4 p-3 pr-2 border rounded-lg bg-card transition-all group", (isActiveList && !field.isRequired && !isProtected) && "hover:bg-muted/50 hover:shadow-sm cursor-grab active:cursor-grabbing")}
+          className={cn("flex items-center gap-4 p-3 pr-2 border rounded-lg bg-card transition-all group", (isActiveList && !field.isRequired) && "hover:bg-muted/50 hover:shadow-sm cursor-grab active:cursor-grabbing")}
         >
-            {(isActiveList && !field.isRequired && !isProtected) ? <GripVertical className="h-5 w-5 text-muted-foreground" /> : <div className="w-5 h-5" />}
+            {(isActiveList && !field.isRequired) ? <GripVertical className="h-5 w-5 text-muted-foreground" /> : <div className="w-5 h-5" />}
             <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
                 <span className="font-medium text-foreground">{field.label} {field.isRequired && <span className="text-destructive">*</span>}</span>
                 <Badge variant="outline" className="w-fit">{field.type}</Badge>
                 <span className="text-sm text-muted-foreground">{field.group}</span>
             </div>
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100">
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenDialog(field)} disabled={isProtected}><Edit className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenDialog(field)}><Edit className="h-4 w-4" /></Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleToggleActive(field.id)} disabled={isToggleDisabled} title={isToggleDisabled ? "This field cannot be deactivated" : (isActiveList ? 'Deactivate' : 'Activate')}>
                     {field.isActive ? <ToggleRight className="h-5 w-5 text-primary" /> : <ToggleLeft className="h-5 w-5 text-muted-foreground"/>}
                 </Button>
-                {field.isCustom && !isProtected && (
+                {field.isCustom && (
                     <AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
                         <AlertDialogContent>
                             <AlertDialogHeader><AlertDialogTitle>Delete Custom Field?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the "{field.label}" field and all associated data from your tasks. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
@@ -394,39 +378,6 @@ export default function SettingsPage() {
             </Card>
         </div>
         <div className="lg:col-span-1 space-y-8">
-            <Card>
-                <CardHeader><CardTitle>Environment Management</CardTitle><CardDescription>Add or remove deployment environments. Default environments cannot be removed.</CardDescription></CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        {(config.environments || []).map(env => {
-                            const isDefault = (config.coreEnvironments || []).includes(env);
-                            return (
-                                <div key={env} className="flex items-center justify-between p-2 border rounded-md bg-card">
-                                    {editingEnv === env ? (
-                                        <div className="flex-1 flex items-center gap-2">
-                                            <Input value={editingEnvText} onChange={(e) => setEditingEnvText(e.target.value)} className="h-8" onKeyDown={(e) => { if(e.key === 'Enter') handleSaveEnvName()}} />
-                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleSaveEnvName()}><Check className="h-4 w-4" /></Button>
-                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingEnv(null)}><X className="h-4 w-4" /></Button>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <span className="font-medium capitalize">{env}</span>
-                                            <div className="flex items-center">
-                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleStartEditEnv(env)}><Edit className="h-4 w-4" /></Button>
-                                                {!isDefault && (<Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDeleteEnvironment(env)}><Trash2 className="h-4 w-4" /></Button>)}
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                            )
-                        })}
-                    </div>
-                    <div className="flex items-center gap-2 pt-4 border-t">
-                        <Input placeholder="Add new environment..." value={newEnv} onChange={(e) => setNewEnv(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddEnvironment(); }}} />
-                        <Button variant="outline" size="sm" onClick={handleAddEnvironment}>Add</Button>
-                    </div>
-                </CardContent>
-            </Card>
              <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><ListTodo className="h-5 w-5" />Task Status Management</CardTitle>
