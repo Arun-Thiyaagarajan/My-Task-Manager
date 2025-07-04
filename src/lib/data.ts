@@ -165,74 +165,84 @@ export function setActiveCompanyId(id: string) {
  * @returns A complete, valid, and safe UiConfig object.
  */
 function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): UiConfig {
-    const defaultConfig: UiConfig = {
-        fields: cloneDeep(INITIAL_UI_CONFIG),
+    // 1. Start with a deep copy of the default configuration. This ensures we have all necessary properties.
+    const result: UiConfig = cloneDeep({
+        fields: INITIAL_UI_CONFIG,
         environments: [...ENVIRONMENTS],
         coreEnvironments: [...ENVIRONMENTS],
-        repositoryConfigs: cloneDeep(INITIAL_REPOSITORY_CONFIGS),
+        repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
         taskStatuses: [...TASK_STATUSES],
         coreTaskStatuses: [...TASK_STATUSES],
-    };
+    });
 
-    if (!savedConfig || typeof savedConfig !== 'object' || Object.keys(savedConfig).length === 0) {
-        return defaultConfig;
+    // 2. If there's no saved config, return the fresh default.
+    if (!savedConfig || typeof savedConfig !== 'object') {
+        return result;
     }
 
-    const result: UiConfig = cloneDeep(defaultConfig);
+    // 3. Carefully merge saved properties onto the result.
+    // We check if the saved property is a valid array before overwriting the default.
+    if (Array.isArray(savedConfig.taskStatuses)) {
+        result.taskStatuses = cloneDeep(savedConfig.taskStatuses);
+    }
+    if (Array.isArray(savedConfig.environments)) {
+        result.environments = cloneDeep(savedConfig.environments);
+    }
+    if (Array.isArray(savedConfig.repositoryConfigs)) {
+        result.repositoryConfigs = cloneDeep(savedConfig.repositoryConfigs);
+    }
+    if (Array.isArray(savedConfig.coreTaskStatuses)) {
+        result.coreTaskStatuses = cloneDeep(savedConfig.coreTaskStatuses);
+    }
+    if (Array.isArray(savedConfig.coreEnvironments)) {
+        result.coreEnvironments = cloneDeep(savedConfig.coreEnvironments);
+    }
 
-    // --- MERGE SCALAR & ARRAY PROPERTIES ---
-    // User's saved lists take full precedence.
-    result.taskStatuses = savedConfig.taskStatuses && Array.isArray(savedConfig.taskStatuses) ? cloneDeep(savedConfig.taskStatuses) : result.taskStatuses;
-    result.environments = savedConfig.environments && Array.isArray(savedConfig.environments) ? cloneDeep(savedConfig.environments) : result.environments;
-    result.repositoryConfigs = savedConfig.repositoryConfigs && Array.isArray(savedConfig.repositoryConfigs) ? cloneDeep(savedConfig.repositoryConfigs) : result.repositoryConfigs;
-    result.coreTaskStatuses = savedConfig.coreTaskStatuses && Array.isArray(savedConfig.coreTaskStatuses) ? cloneDeep(savedConfig.coreTaskStatuses) : result.coreTaskStatuses;
-    result.coreEnvironments = savedConfig.coreEnvironments && Array.isArray(savedConfig.coreEnvironments) ? cloneDeep(savedConfig.coreEnvironments) : result.coreEnvironments;
-
-
-    // --- MERGE FIELDS CAREFULLY ---
+    // 4. Merge the fields array carefully.
     if (savedConfig.fields && Array.isArray(savedConfig.fields)) {
         const finalFields: FieldConfig[] = [];
         const savedFieldsMap = new Map(savedConfig.fields.map(f => [f.key, f]));
-        const defaultFieldsMap = new Map(defaultConfig.fields.map(f => [f.key, f]));
 
-        // 1. Iterate through saved fields. This preserves user order and customizations.
-        savedConfig.fields.forEach(savedField => {
-            const defaultField = defaultFieldsMap.get(savedField.key);
-            if (defaultField) {
-                // It's a default field the user might have customized. Prioritize saved values.
+        // Iterate through the default fields to ensure all core fields are present and in a base order.
+        result.fields.forEach(defaultField => {
+            const savedField = savedFieldsMap.get(defaultField.key);
+            if (savedField) {
+                // A saved version of a default field exists. Merge them, prioritizing saved values.
                 finalFields.push({ ...defaultField, ...savedField });
-            } else if (savedField.isCustom) {
-                // It's a custom field. Keep it.
-                finalFields.push(cloneDeep(savedField));
+                savedFieldsMap.delete(defaultField.key); // Remove from map to track remaining custom fields
+            } else {
+                // This default field was not in the saved config (e.g., a new field from an app update). Add it.
+                finalFields.push(defaultField);
             }
         });
 
-        // 2. Add any *new* default fields that aren't in the saved configuration.
-        defaultConfig.fields.forEach(defaultField => {
-            if (!savedFieldsMap.has(defaultField.key)) {
-                finalFields.push(cloneDeep(defaultField));
+        // Add any remaining fields from the saved map. These are custom fields.
+        savedFieldsMap.forEach(customField => {
+            if (customField.isCustom) {
+                 finalFields.push(cloneDeep(customField));
             }
         });
-        
+
         result.fields = finalFields;
     }
 
-    // --- POST-MERGE DATA SYNCHRONIZATION ---
+    // 5. Post-merge synchronization to ensure consistency.
+    // Make sure dropdown options reflect the master lists.
     const statusField = result.fields.find(f => f.key === 'status');
     if (statusField) {
         statusField.options = result.taskStatuses.map(s => ({ id: s, value: s, label: s }));
     }
-
     const repoField = result.fields.find(f => f.key === 'repositories');
     if (repoField) {
         repoField.options = result.repositoryConfigs.map(r => ({ id: r.id, value: r.name, label: r.name }));
     }
-    
-    const orderedFields = result.fields
-        .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
-        .map((field, index) => ({ ...field, order: index }));
 
-    result.fields = orderedFields;
+    // Finally, ensure the order property is sequential and correct for all fields.
+    result.fields
+        .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
+        .forEach((field, index) => {
+            field.order = index;
+        });
 
     return result;
 }
@@ -245,7 +255,15 @@ export function getUiConfig(): UiConfig {
     const activeCompanyId = getActiveCompanyId();
     const companyData = data.companyData[activeCompanyId];
     
-    return _validateAndMigrateConfig(companyData?.uiConfig);
+    const validatedConfig = _validateAndMigrateConfig(companyData?.uiConfig);
+
+    // If the validated config is different from what was saved, it means migration/fixing happened.
+    // Let's save the clean version back to prevent this process on every load.
+    if (JSON.stringify(validatedConfig) !== JSON.stringify(companyData?.uiConfig)) {
+        updateUiConfig(validatedConfig);
+    }
+    
+    return validatedConfig;
 }
 
 export function updateUiConfig(newConfig: UiConfig): UiConfig {
@@ -253,7 +271,7 @@ export function updateUiConfig(newConfig: UiConfig): UiConfig {
     const activeCompanyId = getActiveCompanyId();
     if (data.companyData[activeCompanyId]) {
         // Ensure order is consistent before saving
-        newConfig.fields.sort((a, b) => a.order - b.order);
+        newConfig.fields.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
         for (let i = 0; i < newConfig.fields.length; i++) {
             newConfig.fields[i].order = i;
         }
@@ -366,6 +384,7 @@ export function updateTaskStatus(oldName: string, newName: string): UiConfig {
     });
     
     data.companyData[activeCompanyId].tasks = updatedTasks;
+    setAppData(data);
     return updateUiConfig(newUiConfig);
 }
 
