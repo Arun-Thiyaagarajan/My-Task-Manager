@@ -91,5 +91,4 @@ export interface UiConfig {
   environments: string[];
   repositoryConfigs: RepositoryConfig[];
   taskStatuses: string[];
-  coreTaskStatuses: string[];
 }

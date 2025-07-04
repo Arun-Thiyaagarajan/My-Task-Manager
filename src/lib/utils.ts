@@ -92,6 +92,16 @@ export function getRepoBadgeStyle(name: string): CSSProperties {
   } as CSSProperties;
 }
 
+const ENV_COLORS = [
+  { deployed: 'border-transparent bg-purple-600 text-purple-50 dark:bg-purple-700 dark:text-purple-100', pending: 'border-dashed border-purple-500/80 text-purple-600 dark:border-purple-500/70 dark:text-purple-400 bg-transparent' },
+  { deployed: 'border-transparent bg-pink-600 text-pink-50 dark:bg-pink-700 dark:text-pink-100', pending: 'border-dashed border-pink-500/80 text-pink-600 dark:border-pink-500/70 dark:text-pink-400 bg-transparent' },
+  { deployed: 'border-transparent bg-teal-600 text-teal-50 dark:bg-teal-700 dark:text-teal-100', pending: 'border-dashed border-teal-500/80 text-teal-600 dark:border-teal-500/70 dark:text-teal-400 bg-transparent' },
+  { deployed: 'border-transparent bg-indigo-600 text-indigo-50 dark:bg-indigo-700 dark:text-indigo-100', pending: 'border-dashed border-indigo-500/80 text-indigo-600 dark:border-indigo-500/70 dark:text-indigo-400 bg-transparent' },
+  { deployed: 'border-transparent bg-cyan-600 text-cyan-50 dark:bg-cyan-700 dark:text-cyan-100', pending: 'border-dashed border-cyan-500/80 text-cyan-600 dark:border-cyan-500/70 dark:text-cyan-400 bg-transparent' },
+  { deployed: 'border-transparent bg-rose-600 text-rose-50 dark:bg-rose-700 dark:text-rose-100', pending: 'border-dashed border-rose-500/80 text-rose-600 dark:border-rose-500/70 dark:text-rose-400 bg-transparent' },
+  { deployed: 'border-transparent bg-sky-600 text-sky-50 dark:bg-sky-700 dark:text-sky-100', pending: 'border-dashed border-sky-500/80 text-sky-600 dark:border-sky-500/70 dark:text-sky-400 bg-transparent' },
+];
+
 export const getEnvInfo = (env: string) => {
   switch (env.toLowerCase()) {
     case 'dev':
@@ -113,9 +123,15 @@ export const getEnvInfo = (env: string) => {
         label: 'Production',
       };
     default:
+      let hash = 0;
+      for (let i = 0; i < env.length; i++) {
+        hash = env.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      const index = Math.abs(hash % ENV_COLORS.length);
+      const colors = ENV_COLORS[index];
       return {
-        deployedColor: 'border-transparent bg-slate-600 text-slate-50 dark:bg-slate-700 dark:text-slate-100',
-        pendingColor: 'border-dashed border-slate-500/80 text-slate-600 dark:border-slate-500/70 dark:text-slate-400 bg-transparent',
+        deployedColor: colors.deployed,
+        pendingColor: colors.pending,
         label: env,
       };
   }
