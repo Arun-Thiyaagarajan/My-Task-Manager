@@ -50,6 +50,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   const [taskStatuses, setTaskStatuses] = useState<string[]>([]);
   const [personInView, setPersonInView] = useState<{person: Person, type: 'Developer' | 'Tester'} | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
+  const [justUpdatedEnv, setJustUpdatedEnv] = useState<string | null>(null);
   
   useEffect(() => {
     setTask(initialTask);
@@ -104,12 +105,59 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
     }
   };
 
+  const handleToggleDeployment = (env: string) => {
+    if (!task) return;
+
+    const isSelected = task.deploymentStatus?.[env] ?? false;
+    const hasDate = task.deploymentDates && task.deploymentDates[env];
+    const isDeployed = isSelected && (env === 'dev' || !!hasDate);
+
+    const newIsDeployed = !isDeployed;
+
+    const newDeploymentStatus = { ...(task.deploymentStatus || {}) };
+    const newDeploymentDates = { ...(task.deploymentDates || {}) };
+
+    if (newIsDeployed) {
+      newDeploymentStatus[env] = true;
+      if (env !== 'dev') {
+        newDeploymentDates[env] = new Date().toISOString();
+      }
+    } else {
+      newDeploymentStatus[env] = false;
+      newDeploymentDates[env] = null;
+    }
+
+    const updatedTaskData = {
+        deploymentStatus: newDeploymentStatus,
+        deploymentDates: newDeploymentDates,
+    };
+    
+    const updatedTaskResult = updateTask(task.id, updatedTaskData);
+    if(updatedTaskResult) {
+        setTask(updatedTaskResult);
+        setJustUpdatedEnv(env);
+        onTaskUpdate();
+        toast({
+            variant: 'success',
+            title: 'Deployment Status Updated',
+            description: `Status for ${env.charAt(0).toUpperCase() + env.slice(1)} set to ${newIsDeployed ? 'Deployed' : 'Pending'}.`,
+        });
+    } else {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Failed to update deployment status.',
+        });
+    }
+  };
+
+
   const fieldLabels = new Map(uiConfig?.fields.map(f => [f.key, f.label]));
   const developersLabel = fieldLabels.get('developers') || 'Developers';
   const testersLabel = fieldLabels.get('testers') || 'Testers';
 
-  const azureWorkItemUrl = task.azureWorkItemId
-    ? `https://dev.azure.com/ideaelan/Infinity/_workitems/edit/${task.azureWorkItemId}`
+  const azureWorkItemUrl = task.azureWorkItemId && uiConfig?.fields.find(f => f.key === 'azureWorkItemId')?.baseUrl
+    ? `${uiConfig.fields.find(f => f.key === 'azureWorkItemId')?.baseUrl}${task.azureWorkItemId}`
     : null;
     
   const developersById = new Map(developers.map(d => [d.id, d]));
@@ -230,6 +278,10 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                 deploymentStatus={task.deploymentStatus}
                 deploymentDates={task.deploymentDates}
                 size="sm"
+                interactive={true}
+                onToggle={handleToggleDeployment}
+                justUpdatedEnv={justUpdatedEnv}
+                onAnimationEnd={() => setJustUpdatedEnv(null)}
               />
             </div>
           </CardContent>

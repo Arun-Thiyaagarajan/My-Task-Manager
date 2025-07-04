@@ -93,29 +93,29 @@ export function getRepoBadgeStyle(name: string): CSSProperties {
 }
 
 export const getEnvInfo = (env: string) => {
-  switch (env) {
+  switch (env.toLowerCase()) {
     case 'dev':
       return {
         deployedColor: 'border-transparent bg-blue-600 text-blue-50 dark:bg-blue-700 dark:text-blue-100',
-        pendingColor: 'border-blue-300/70 bg-blue-100/80 text-blue-700 dark:border-blue-700/50 dark:bg-blue-900/50 dark:text-blue-300',
+        pendingColor: 'border-dashed border-blue-500/80 text-blue-600 dark:border-blue-500/70 dark:text-blue-400 bg-transparent',
         label: 'Development',
       };
     case 'stage':
       return {
         deployedColor: 'border-transparent bg-amber-500 text-white dark:bg-amber-600 dark:text-amber-50',
-        pendingColor: 'border-amber-300/70 bg-amber-100/80 text-amber-700 dark:border-amber-600/50 dark:bg-amber-900/50 dark:text-amber-300',
+        pendingColor: 'border-dashed border-amber-500/80 text-amber-600 dark:border-amber-500/70 dark:text-amber-400 bg-transparent',
         label: 'Staging',
       };
     case 'production':
       return {
         deployedColor: 'border-transparent bg-green-600 text-green-50 dark:bg-green-700 dark:text-green-100',
-        pendingColor: 'border-green-300/70 bg-green-100/80 text-green-700 dark:border-green-700/50 dark:bg-green-900/50 dark:text-green-300',
+        pendingColor: 'border-dashed border-green-500/80 text-green-600 dark:border-green-500/70 dark:text-green-400 bg-transparent',
         label: 'Production',
       };
     default:
       return {
         deployedColor: 'border-transparent bg-slate-600 text-slate-50 dark:bg-slate-700 dark:text-slate-100',
-        pendingColor: 'border-slate-300/70 bg-slate-100/80 text-slate-700 dark:border-slate-700/50 dark:bg-slate-900/50 dark:text-slate-300',
+        pendingColor: 'border-dashed border-slate-500/80 text-slate-600 dark:border-slate-500/70 dark:text-slate-400 bg-transparent',
         label: env,
       };
   }
