@@ -353,6 +353,10 @@ export function TasksTable({
   if (!uiConfig) {
     return null;
   }
+  
+  const priorityStatuses = ['To Do', 'In Progress', 'QA'];
+  const priorityTasks = tasks.filter(task => priorityStatuses.includes(task.status));
+  const otherTasks = tasks.filter(task => !priorityStatuses.includes(task.status));
 
   const fieldLabels = new Map(uiConfig.fields.map((f) => [f.key, f.label]));
   const developersById = new Map(developers.map((d) => [d.id, d]));
@@ -375,6 +379,25 @@ export function TasksTable({
   
   const numSelected = selectedTaskIds.length;
   const numTasks = tasks.length;
+  const colSpan = isSelectMode ? 8 : 7;
+  
+  const renderTaskRows = (tasksToRender: Task[]) => {
+    return tasksToRender.map((task) => (
+      <TasksTableRow
+        key={task.id}
+        task={task}
+        onTaskUpdate={onTaskDelete}
+        uiConfig={uiConfig}
+        developersById={developersById}
+        testersById={testersById}
+        onAvatarClick={handleAvatarClick}
+        isSelected={selectedTaskIds.includes(task.id)}
+        onToggleSelection={handleToggleSelection}
+        isSelectMode={isSelectMode}
+      />
+    ));
+  };
+
 
   return (
     <div className="border rounded-lg bg-card">
@@ -404,20 +427,15 @@ export function TasksTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {tasks.map((task) => (
-            <TasksTableRow
-              key={task.id}
-              task={task}
-              onTaskUpdate={onTaskDelete}
-              uiConfig={uiConfig}
-              developersById={developersById}
-              testersById={testersById}
-              onAvatarClick={handleAvatarClick}
-              isSelected={selectedTaskIds.includes(task.id)}
-              onToggleSelection={handleToggleSelection}
-              isSelectMode={isSelectMode}
-            />
-          ))}
+          {renderTaskRows(priorityTasks)}
+          {priorityTasks.length > 0 && otherTasks.length > 0 && (
+            <TableRow className="hover:bg-transparent data-[state=selected]:bg-transparent">
+              <TableCell colSpan={colSpan} className="p-0 h-4">
+                  <div className="border-t border-dashed w-full h-full"></div>
+              </TableCell>
+            </TableRow>
+          )}
+          {renderTaskRows(otherTasks)}
         </TableBody>
       </Table>
       <PersonProfileCard
