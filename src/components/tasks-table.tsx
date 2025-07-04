@@ -381,6 +381,16 @@ export function TasksTable({
   const numTasks = tasks.length;
   const colSpan = isSelectMode ? 8 : 7;
   
+  const getPriorityTitle = () => {
+    if (priorityTasks.length === 0) return null;
+    const allStatuses = new Set(priorityTasks.map(t => t.status));
+    if (allStatuses.size === 1) {
+      return `${[...allStatuses][0]} Tasks`;
+    }
+    return "Active Tasks";
+  }
+  const priorityTitle = getPriorityTitle();
+
   const renderTaskRows = (tasksToRender: Task[]) => {
     return tasksToRender.map((task) => (
       <TasksTableRow
@@ -427,6 +437,13 @@ export function TasksTable({
           </TableRow>
         </TableHeader>
         <TableBody>
+          {priorityTasks.length > 0 && priorityTitle && (
+             <TableRow className="bg-muted/30 hover:bg-muted/30">
+                <TableCell colSpan={colSpan} className="py-2 px-4 font-semibold text-muted-foreground">
+                    {priorityTitle}
+                </TableCell>
+            </TableRow>
+          )}
           {renderTaskRows(priorityTasks)}
           {priorityTasks.length > 0 && otherTasks.length > 0 && (
             <TableRow className="hover:bg-transparent data-[state=selected]:bg-transparent">

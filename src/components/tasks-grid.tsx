@@ -20,6 +20,17 @@ export function TasksGrid({ tasks, onTaskDelete, onTaskUpdate, uiConfig, develop
   const priorityTasks = tasks.filter(task => priorityStatuses.includes(task.status));
   const otherTasks = tasks.filter(task => !priorityStatuses.includes(task.status));
 
+  const getPriorityTitle = () => {
+    if (priorityTasks.length === 0) return null;
+    const allStatuses = new Set(priorityTasks.map(t => t.status));
+    if (allStatuses.size === 1) {
+      return `${[...allStatuses][0]} Tasks`;
+    }
+    return "Active Tasks";
+  }
+
+  const priorityTitle = getPriorityTitle();
+
   const renderGrid = (tasksToRender: Task[]) => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {tasksToRender.map(task => (
@@ -41,7 +52,12 @@ export function TasksGrid({ tasks, onTaskDelete, onTaskUpdate, uiConfig, develop
 
   return (
     <div className="space-y-6">
-      {priorityTasks.length > 0 && renderGrid(priorityTasks)}
+      {priorityTasks.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">{priorityTitle}</h2>
+          {renderGrid(priorityTasks)}
+        </div>
+      )}
       
       {priorityTasks.length > 0 && otherTasks.length > 0 && (
         <Separator />
