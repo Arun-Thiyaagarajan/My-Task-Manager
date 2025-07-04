@@ -322,38 +322,81 @@ export function updateEnvironmentName(oldName: string, newName: string): boolean
 export function addTaskStatus(name: string): UiConfig {
     const data = getAppData();
     const activeCompanyId = data.activeCompanyId;
-    const uiConfig = data.companyData[activeCompanyId].uiConfig;
-    if (uiConfig.taskStatuses.includes(name)) {
+    const currentUiConfig = data.companyData[activeCompanyId].uiConfig;
+    if (currentUiConfig.taskStatuses.includes(name)) {
         throw new Error("Status already exists.");
     }
-    uiConfig.taskStatuses.push(name);
-    updateUiConfig(uiConfig);
-    return uiConfig;
+
+    const newStatuses = [...currentUiConfig.taskStatuses, name];
+    
+    const newUiConfig = {
+        ...currentUiConfig,
+        taskStatuses: newStatuses,
+        fields: currentUiConfig.fields.map(field => {
+            if (field.key === 'status') {
+                return {
+                    ...field,
+                    options: newStatuses.map(s => ({ id: s, value: s, label: s })),
+                };
+            }
+            return field;
+        }),
+    };
+    
+    updateUiConfig(newUiConfig);
+    return newUiConfig;
 }
 
 export function updateTaskStatus(oldName: string, newName: string): UiConfig {
     const data = getAppData();
     const activeCompanyId = data.activeCompanyId;
     const companyData = data.companyData[activeCompanyId];
-
     const { uiConfig, tasks } = companyData;
-    if (!uiConfig.taskStatuses.includes(oldName) || uiConfig.taskStatuses.includes(newName)) {
+
+    if (uiConfig.coreTaskStatuses.includes(oldName)) {
+        throw new Error("Cannot rename a core status.");
+    }
+    if (!uiConfig.taskStatuses.includes(oldName) || (uiConfig.taskStatuses.includes(newName) && oldName !== newName)) {
         throw new Error("Invalid status name or new name already exists.");
     }
 
     const statusIndex = uiConfig.taskStatuses.indexOf(oldName);
-    uiConfig.taskStatuses[statusIndex] = newName;
+    
+    const newStatuses = [...uiConfig.taskStatuses];
+    newStatuses[statusIndex] = newName;
+    
+    const newUiConfig = {
+        ...uiConfig,
+        taskStatuses: newStatuses,
+        fields: uiConfig.fields.map(field => {
+            if (field.key === 'status') {
+                return {
+                    ...field,
+                    options: newStatuses.map(s => ({ id: s, value: s, label: s })),
+                };
+            }
+            return field;
+        }),
+    };
 
-    tasks.forEach(task => {
+    const updatedTasks = tasks.map(task => {
         if (task.status === oldName) {
-            task.status = newName;
-            task.updatedAt = new Date().toISOString();
+            return {
+                ...task,
+                status: newName,
+                updatedAt: new Date().toISOString(),
+            };
         }
+        return task;
     });
 
-    updateUiConfig(uiConfig);
-    setAppData(data); // Re-save data with updated tasks
-    return uiConfig;
+    data.companyData[activeCompanyId].tasks = updatedTasks;
+    data.companyData[activeCompanyId].uiConfig = newUiConfig;
+
+    setAppData(data);
+    window.dispatchEvent(new Event('config-changed'));
+
+    return data.companyData[activeCompanyId].uiConfig;
 }
 
 export function deleteTaskStatus(name: string): UiConfig {
@@ -363,14 +406,33 @@ export function deleteTaskStatus(name: string): UiConfig {
     
     const { uiConfig, tasks } = companyData;
 
+    if (uiConfig.coreTaskStatuses.includes(name)) {
+        throw new Error("Cannot delete a core status.");
+    }
+
     const isUsed = tasks.some(task => task.status === name);
     if (isUsed) {
         throw new Error("Cannot delete status as it is currently in use by one or more tasks.");
     }
     
-    uiConfig.taskStatuses = uiConfig.taskStatuses.filter(s => s !== name);
-    updateUiConfig(uiConfig);
-    return uiConfig;
+    const newStatuses = uiConfig.taskStatuses.filter(s => s !== name);
+    
+    const newUiConfig = {
+        ...uiConfig,
+        taskStatuses: newStatuses,
+        fields: uiConfig.fields.map(field => {
+            if (field.key === 'status') {
+                return {
+                    ...field,
+                    options: newStatuses.map(s => ({ id: s, value: s, label: s })),
+                };
+            }
+            return field;
+        }),
+    };
+    
+    updateUiConfig(newUiConfig);
+    return newUiConfig;
 }
 
 

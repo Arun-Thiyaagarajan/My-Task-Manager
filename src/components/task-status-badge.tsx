@@ -9,7 +9,12 @@ import {
   GitPullRequest,
   Bug,
   CheckCircle2,
-  Tag
+  Tag,
+  PauseCircle,
+  Eye,
+  Rocket,
+  XCircle,
+  Lightbulb,
 } from 'lucide-react';
 
 interface TaskStatusBadgeProps extends React.ComponentPropsWithoutRef<typeof Badge> {
@@ -86,8 +91,39 @@ const customStatusConfig: StatusConfig = {
     titleBgClassName: 'bg-[var(--status-title-bg)] dark:bg-[var(--dark-status-title-bg)]'
 };
 
+const customIconMap: { [keyword: string]: React.ComponentType<{ className?: string }> } = {
+    'hold': PauseCircle,
+    'pause': PauseCircle,
+    'blocked': PauseCircle,
+    'review': Eye,
+    'approve': Eye,
+    'deploy': Rocket,
+    'release': Rocket,
+    'reject': XCircle,
+    'fail': XCircle,
+    'backlog': Lightbulb,
+    'idea': Lightbulb,
+};
+
+function getCustomIcon(status: string): React.ComponentType<{ className?: string }> {
+    const lowerStatus = status.toLowerCase();
+    for (const keyword in customIconMap) {
+        if (lowerStatus.includes(keyword)) {
+            return customIconMap[keyword];
+        }
+    }
+    return Tag; // Default custom icon
+}
+
 export function getStatusConfig(status: TaskStatus): StatusConfig {
-  return coreStatusConfig[status] || customStatusConfig;
+  if (coreStatusConfig[status]) {
+    return coreStatusConfig[status];
+  }
+
+  // For custom statuses
+  const config = { ...customStatusConfig };
+  config.Icon = getCustomIcon(status);
+  return config;
 }
 
 export const TaskStatusBadge = React.forwardRef<
