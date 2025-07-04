@@ -16,7 +16,7 @@ import { getStatusConfig, TaskStatusBadge } from './task-status-badge';
 import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
-import { getInitials, getAvatarColor, cn, getRepoBadgeStyle, getEnvInfo } from '@/lib/utils';
+import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { DeleteTaskButton } from './delete-task-button';
 import { updateTask } from '@/lib/data';
@@ -33,6 +33,7 @@ import { Separator } from './ui/separator';
 import { PersonProfileCard } from './person-profile-card';
 import { summarizeText } from '@/ai/flows/summarize-flow';
 import { Skeleton } from './ui/skeleton';
+import { EnvironmentStatus } from './environment-status';
 
 interface TaskCardProps {
   task: Task;
@@ -45,9 +46,7 @@ interface TaskCardProps {
 
 export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConfig, developers, testers }: TaskCardProps) {
   const [task, setTask] = useState(initialTask);
-  const [justUpdatedEnv, setJustUpdatedEnv] = useState<string | null>(null);
   const { toast } = useToast();
-  const [configuredEnvs, setConfiguredEnvs] = useState<string[]>([]);
   const [taskStatuses, setTaskStatuses] = useState<string[]>([]);
   const [personInView, setPersonInView] = useState<{person: Person, type: 'Developer' | 'Tester'} | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
@@ -57,9 +56,6 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   }, [initialTask]);
 
   useEffect(() => {
-      if (uiConfig?.environments) {
-          setConfiguredEnvs(uiConfig.environments);
-      }
       if (uiConfig?.taskStatuses) {
           setTaskStatuses(uiConfig.taskStatuses);
       }
@@ -104,54 +100,6 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
         variant: 'destructive',
         title: 'Error',
         description: 'Failed to update task status.',
-      });
-    }
-  };
-
-  const handleToggleDeployment = (e: React.MouseEvent, env: string) => {
-    e.stopPropagation();
-    e.preventDefault();
-
-    const isSelected = task.deploymentStatus?.[env] ?? false;
-    const hasDate = task.deploymentDates && task.deploymentDates[env];
-    const isDeployed = isSelected && (env === 'dev' || !!hasDate);
-
-    const newIsDeployed = !isDeployed;
-
-    const newDeploymentStatus = { ...task.deploymentStatus };
-    const newDeploymentDates = { ...task.deploymentDates };
-
-    if (newIsDeployed) {
-      newDeploymentStatus[env] = true;
-      if (env !== 'dev') {
-        newDeploymentDates[env] = new Date().toISOString();
-      }
-    } else {
-      newDeploymentStatus[env] = false;
-      newDeploymentDates[env] = null;
-    }
-
-    const updatedTaskData = {
-      deploymentStatus: newDeploymentStatus,
-      deploymentDates: newDeploymentDates,
-    };
-
-    const updatedTask = updateTask(task.id, updatedTaskData);
-    if (updatedTask) {
-      setTask(updatedTask);
-      setJustUpdatedEnv(env);
-      onTaskUpdate();
-      toast({
-        variant: 'success',
-        title: 'Deployment Status Updated',
-        description: `Status for ${env} set to ${newIsDeployed ? 'Deployed' : 'Pending'}.`,
-        duration: 3000,
-      });
-    } else {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to update deployment status.',
       });
     }
   };
@@ -278,36 +226,11 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
               <p className="text-xs font-medium text-muted-foreground mb-1.5">
                 Deployments
               </p>
-              <div className="flex flex-wrap items-center gap-1.5" onAnimationEnd={() => setJustUpdatedEnv(null)}>
-                  {configuredEnvs.map(env => {
-                    const envInfo = getEnvInfo(env);
-                    const isSelected = task.deploymentStatus?.[env] ?? false;
-                    const hasDate = task.deploymentDates && task.deploymentDates[env];
-                    const isDeployed = isSelected && (env === 'dev' || !!hasDate);
-
-                    return (
-                      <Tooltip key={env}>
-                          <TooltipTrigger asChild>
-                              <Badge
-                                  variant="outline"
-                                  onClick={(e) => handleToggleDeployment(e, env)}
-                                  className={cn(
-                                      'capitalize font-medium transition-colors cursor-pointer',
-                                      isDeployed ? envInfo.deployedColor : envInfo.pendingColor,
-                                      'px-1.5 py-0 text-[10px] h-4',
-                                      justUpdatedEnv === env && 'animate-status-in'
-                                  )}
-                              >
-                                  {env}
-                              </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                              <p className="capitalize">{envInfo.label}: {isDeployed ? "Deployed" : "Pending"}</p>
-                          </TooltipContent>
-                      </Tooltip>
-                    );
-                  })}
-                </div>
+              <EnvironmentStatus
+                deploymentStatus={task.deploymentStatus}
+                deploymentDates={task.deploymentDates}
+                size="sm"
+              />
             </div>
           </CardContent>
         </div>
