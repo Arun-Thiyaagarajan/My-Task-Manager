@@ -33,7 +33,7 @@ export const taskSchema = z.object({
   
   title: z.string().min(3, { message: 'Title must be at least 3 characters.' }),
   description: z.string().min(3, { message: 'Description must be at least 3 characters.' }),
-  status: z.enum(TASK_STATUSES),
+  status: z.string().min(1, 'Status is required.'),
   repositories: z.array(z.string()).optional(),
   developers: z.array(z.string()).optional(),
   testers: z.array(z.string()).optional(),

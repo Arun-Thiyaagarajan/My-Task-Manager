@@ -12,11 +12,11 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { statusConfig, TaskStatusBadge } from './task-status-badge';
+import { getStatusConfig, TaskStatusBadge } from './task-status-badge';
 import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
-import { getInitials, getAvatarColor, cn, getRepoBadgeStyle, getEnvInfo } from '@/lib/utils';
+import { getInitials, getAvatarColor, cn, getRepoBadgeStyle, getEnvInfo, getStatusStyle } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { DeleteTaskButton } from './delete-task-button';
 import { updateTask } from '@/lib/data';
@@ -29,7 +29,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { TASK_STATUSES } from '@/lib/constants';
 import { Separator } from './ui/separator';
 import { PersonProfileCard } from './person-profile-card';
 import { summarizeText } from '@/ai/flows/summarize-flow';
@@ -49,6 +48,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   const [justUpdatedEnv, setJustUpdatedEnv] = useState<string | null>(null);
   const { toast } = useToast();
   const [configuredEnvs, setConfiguredEnvs] = useState<string[]>([]);
+  const [taskStatuses, setTaskStatuses] = useState<string[]>([]);
   const [personInView, setPersonInView] = useState<{person: Person, type: 'Developer' | 'Tester'} | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   
@@ -59,6 +59,9 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   useEffect(() => {
       if (uiConfig?.environments) {
           setConfiguredEnvs(uiConfig.environments);
+      }
+      if (uiConfig?.taskStatuses) {
+          setTaskStatuses(uiConfig.taskStatuses);
       }
   }, [uiConfig]);
 
@@ -170,14 +173,18 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   const hasDevelopers = assignedDevelopers.length > 0;
   const hasTesters = assignedTesters.length > 0;
 
-  const { Icon, iconColorClassName } = statusConfig[task.status];
+  const statusConfig = getStatusConfig(task.status);
+  const { Icon, cardClassName, iconColorClassName } = statusConfig;
+  const customStatusStyle = statusConfig.isCustom ? getStatusStyle(task.status) : {};
 
   return (
     <>
       <Card
         className={cn(
-          "flex flex-col h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative overflow-hidden group/card rounded-lg"
+          "flex flex-col h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative overflow-hidden group/card rounded-lg",
+          cardClassName
         )}
+        style={customStatusStyle}
       >
         <Icon className={cn(
           "absolute -bottom-8 -right-8 h-36 w-36 pointer-events-none transition-transform duration-300 ease-in-out",
@@ -202,8 +209,9 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Set Status</DropdownMenuLabel>
                           <DropdownMenuSeparator />
-                          {TASK_STATUSES.map(s => {
-                            const { Icon } = statusConfig[s];
+                          {taskStatuses.map(s => {
+                            const currentStatusConfig = getStatusConfig(s);
+                            const { Icon } = currentStatusConfig;
                             return (
                               <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)}>
                                 <div className="flex items-center gap-2">

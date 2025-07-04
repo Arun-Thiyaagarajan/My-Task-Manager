@@ -1,5 +1,5 @@
 
-import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS } from './constants';
+import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
 import type { Task, Person, Company, Attachment, UiConfig } from './types';
 
 interface CompanyData {
@@ -21,6 +21,13 @@ const DATA_KEY = 'my_task_manager_data';
 
 const getInitialData = (): MyTaskManagerData => {
     const defaultCompanyId = `company-${crypto.randomUUID()}`;
+    const initialFields = INITIAL_UI_CONFIG.map(f => {
+        if (f.key === 'status') {
+            return { ...f, options: TASK_STATUSES.map(s => ({id: s, value: s, label: s})) };
+        }
+        return f;
+    });
+
     return {
         companies: [{ id: defaultCompanyId, name: 'Default Company' }],
         activeCompanyId: defaultCompanyId,
@@ -30,10 +37,12 @@ const getInitialData = (): MyTaskManagerData => {
                 developers: [],
                 testers: [],
                 uiConfig: { 
-                    fields: INITIAL_UI_CONFIG,
+                    fields: initialFields,
                     environments: [...ENVIRONMENTS],
                     coreEnvironments: [...ENVIRONMENTS],
                     repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
+                    taskStatuses: [...TASK_STATUSES],
+                    coreTaskStatuses: [...TASK_STATUSES],
                 },
             },
         },
@@ -47,6 +56,8 @@ const getAppData = (): MyTaskManagerData => {
             environments: [...ENVIRONMENTS],
             coreEnvironments: [...ENVIRONMENTS],
             repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
+            taskStatuses: [...TASK_STATUSES],
+            coreTaskStatuses: [...TASK_STATUSES],
         };
         return {
             companies: [{ id: 'company-placeholder', name: 'Default Company' }],
@@ -149,22 +160,25 @@ export function setActiveCompanyId(id: string) {
 export function getUiConfig(): UiConfig {
     const data = getAppData();
     const activeCompanyId = getActiveCompanyId();
+    const defaultConfig = { 
+        fields: INITIAL_UI_CONFIG,
+        environments: [...ENVIRONMENTS],
+        coreEnvironments: [...ENVIRONMENTS],
+        repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
+        taskStatuses: [...TASK_STATUSES],
+        coreTaskStatuses: [...TASK_STATUSES],
+    };
+
     if (!activeCompanyId || !data.companyData[activeCompanyId]) {
-        return { fields: INITIAL_UI_CONFIG, environments: [...ENVIRONMENTS], coreEnvironments: [...ENVIRONMENTS], repositoryConfigs: INITIAL_REPOSITORY_CONFIGS };
+        return defaultConfig;
     }
     const companyConfig = data.companyData[activeCompanyId].uiConfig;
 
     let needsUpdate = false;
     if (!companyConfig || !Array.isArray(companyConfig.fields) || !companyConfig.environments) {
-        const newConfig = { 
-            fields: companyConfig?.fields || INITIAL_UI_CONFIG,
-            environments: companyConfig?.environments || [...ENVIRONMENTS],
-            coreEnvironments: companyConfig?.coreEnvironments || [...ENVIRONMENTS],
-            repositoryConfigs: companyConfig?.repositoryConfigs || INITIAL_REPOSITORY_CONFIGS,
-        };
-        data.companyData[activeCompanyId].uiConfig = newConfig;
+        data.companyData[activeCompanyId].uiConfig = defaultConfig;
         setAppData(data);
-        return newConfig;
+        return defaultConfig;
     }
     
     if (!companyConfig.coreEnvironments) {
@@ -176,6 +190,22 @@ export function getUiConfig(): UiConfig {
         companyConfig.repositoryConfigs = INITIAL_REPOSITORY_CONFIGS;
         needsUpdate = true;
     }
+    
+    if (!companyConfig.taskStatuses || !companyConfig.coreTaskStatuses) {
+        companyConfig.taskStatuses = [...TASK_STATUSES];
+        companyConfig.coreTaskStatuses = [...TASK_STATUSES];
+        needsUpdate = true;
+    }
+
+    const statusField = companyConfig.fields.find(f => f.key === 'status');
+    if (statusField) {
+        const statusOptions = companyConfig.taskStatuses.map(s => ({ id: s, value: s, label: s }));
+        if (JSON.stringify(statusField.options) !== JSON.stringify(statusOptions)) {
+            statusField.options = statusOptions;
+            needsUpdate = true;
+        }
+    }
+
 
     const initialFieldCount = companyConfig.fields.length;
     companyConfig.fields = companyConfig.fields.filter(f => f.key !== 'deploymentDates');
@@ -283,6 +313,62 @@ export function updateEnvironmentName(oldName: string, newName: string): boolean
     setAppData(data);
     return true;
 }
+
+// Task Status Functions
+export function addTaskStatus(name: string): UiConfig {
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    const uiConfig = data.companyData[activeCompanyId].uiConfig;
+    if (uiConfig.taskStatuses.includes(name)) {
+        throw new Error("Status already exists.");
+    }
+    uiConfig.taskStatuses.push(name);
+    updateUiConfig(uiConfig);
+    return uiConfig;
+}
+
+export function updateTaskStatus(oldName: string, newName: string): UiConfig {
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    const companyData = data.companyData[activeCompanyId];
+
+    const { uiConfig, tasks } = companyData;
+    if (!uiConfig.taskStatuses.includes(oldName) || uiConfig.taskStatuses.includes(newName)) {
+        throw new Error("Invalid status name or new name already exists.");
+    }
+
+    const statusIndex = uiConfig.taskStatuses.indexOf(oldName);
+    uiConfig.taskStatuses[statusIndex] = newName;
+
+    tasks.forEach(task => {
+        if (task.status === oldName) {
+            task.status = newName;
+            task.updatedAt = new Date().toISOString();
+        }
+    });
+
+    updateUiConfig(uiConfig);
+    setAppData(data); // Re-save data with updated tasks
+    return uiConfig;
+}
+
+export function deleteTaskStatus(name: string): UiConfig {
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    const companyData = data.companyData[activeCompanyId];
+    
+    const { uiConfig, tasks } = companyData;
+
+    const isUsed = tasks.some(task => task.status === name);
+    if (isUsed) {
+        throw new Error("Cannot delete status as it is currently in use by one or more tasks.");
+    }
+    
+    uiConfig.taskStatuses = uiConfig.taskStatuses.filter(s => s !== name);
+    updateUiConfig(uiConfig);
+    return uiConfig;
+}
+
 
 // Task Functions
 export function getTasks(): Task[] {

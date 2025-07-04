@@ -21,7 +21,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { TASK_STATUSES, INITIAL_REPOSITORY_CONFIGS } from '@/lib/constants';
+import { INITIAL_REPOSITORY_CONFIGS } from '@/lib/constants';
 import {
   LayoutGrid,
   List,
@@ -211,6 +211,7 @@ export default function Home() {
 
   const sortedTasks = [...filteredTasks].sort((a, b) => {
     const [sortBy, sortDirection] = sortDescriptor.split('-');
+    const taskStatuses = uiConfig?.taskStatuses || [];
 
     if (sortBy === 'title') {
       if (sortDirection === 'asc') {
@@ -221,8 +222,8 @@ export default function Home() {
     }
 
     if (sortBy === 'status') {
-      const aIndex = TASK_STATUSES.indexOf(a.status);
-      const bIndex = TASK_STATUSES.indexOf(b.status);
+      const aIndex = taskStatuses.indexOf(a.status);
+      const bIndex = taskStatuses.indexOf(b.status);
       if (sortDirection === 'asc') {
         return aIndex - bIndex;
       } else {
@@ -551,6 +552,7 @@ export default function Home() {
   
   const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
   const REPOSITORIES = uiConfig.repositoryConfigs?.map(r => r.name) ?? INITIAL_REPOSITORY_CONFIGS.map(r => r.name);
+  const TASK_STATUSES = uiConfig.taskStatuses;
 
   const handleNewTaskClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();

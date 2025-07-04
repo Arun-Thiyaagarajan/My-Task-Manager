@@ -12,7 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { TaskStatusBadge, statusConfig } from '@/components/task-status-badge';
+import { TaskStatusBadge, getStatusConfig } from '@/components/task-status-badge';
 import {
   ArrowRight,
   Check,
@@ -28,7 +28,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { getInitials, getAvatarColor, cn, getRepoBadgeStyle, getEnvInfo } from '@/lib/utils';
+import { getInitials, getAvatarColor, cn, getRepoBadgeStyle, getEnvInfo, getStatusStyle } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,7 +39,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { updateTask } from '@/lib/data';
-import { TASK_STATUSES } from '@/lib/constants';
 import { PersonProfileCard } from './person-profile-card';
 
 interface TasksTableRowProps {
@@ -137,11 +136,13 @@ function TasksTableRow({
     .map((id) => testersById.get(id))
     .filter((t): t is Person => !!t);
 
-  const { Icon, iconColorClassName } = statusConfig[task.status];
+  const statusConfig = getStatusConfig(task.status);
+  const { Icon, iconColorClassName } = statusConfig;
+  const customStatusStyle = statusConfig.isCustom ? getStatusStyle(task.status) : {};
 
   return (
     <TableRow key={task.id} className="group/row">
-      <TableCell className="font-medium max-w-xs relative overflow-hidden align-top">
+      <TableCell className="font-medium max-w-xs relative overflow-hidden align-top" style={customStatusStyle}>
         <Icon className={cn(
           "absolute -bottom-8 -left-8 h-24 w-24 pointer-events-none transition-transform duration-300 ease-in-out z-0",
           iconColorClassName,
@@ -172,8 +173,9 @@ function TasksTableRow({
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Set Status</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {TASK_STATUSES.map((s) => {
-              const { Icon } = statusConfig[s];
+            {uiConfig.taskStatuses.map((s) => {
+              const currentStatusConfig = getStatusConfig(s);
+              const { Icon } = currentStatusConfig;
               return (
                 <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)}>
                   <div className="flex items-center gap-2">

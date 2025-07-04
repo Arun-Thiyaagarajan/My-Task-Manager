@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { getTasks, getUiConfig, getDevelopers, getTesters } from '@/lib/data';
 import type { Task, Person, UiConfig } from '@/lib/types';
-import { TASK_STATUSES, REPOSITORIES, ENVIRONMENTS } from '@/lib/constants';
+import { REPOSITORIES, ENVIRONMENTS } from '@/lib/constants';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { BarChart, PieChartIcon, ListChecks, CheckCircle2, Loader2, Bug, GitMerge, Server, Code2, ClipboardCheck } from 'lucide-react';
 import { Bar, Pie, PieChart, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, Cell } from 'recharts';
@@ -33,6 +33,7 @@ export default function DashboardPage() {
   }
 
   const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
+  const TASK_STATUSES = uiConfig.taskStatuses;
 
   // Key Stats
   const totalTasks = tasks.length;

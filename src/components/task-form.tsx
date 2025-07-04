@@ -22,7 +22,6 @@ import { MultiSelect } from '@/components/ui/multi-select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { addDeveloper, getUiConfig, addTester } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { TASK_STATUSES } from '@/lib/constants';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -128,8 +127,12 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
   }, [isDirty, setIsDirty]);
   
   useEffect(() => {
-    form.reset(getInitialTaskData(task));
-  }, [task, form.reset]);
+    const initialData = getInitialTaskData(task);
+    if (!initialData.status && uiConfig?.taskStatuses?.length) {
+        initialData.status = uiConfig.taskStatuses[0];
+    }
+    form.reset(initialData);
+  }, [task, form.reset, uiConfig]);
   
   const devStartDate = form.watch('devStartDate');
   const qaStartDate = form.watch('qaStartDate');
@@ -220,7 +223,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
         return (uiConfig?.repositoryConfigs || []).map(d => ({ value: d.name, label: d.name }));
     }
     if (field.key === 'status') {
-      return TASK_STATUSES.map(s => ({ value: s, label: s}));
+      return (uiConfig?.taskStatuses || []).map(s => ({ value: s, label: s}));
     }
     if(field.type === 'tags') {
         if(field.key === 'developers') {

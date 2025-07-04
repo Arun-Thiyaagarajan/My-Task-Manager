@@ -1,7 +1,7 @@
 
 import type { TASK_STATUSES, ENVIRONMENTS } from './constants';
 
-export type TaskStatus = (typeof TASK_STATUSES)[number];
+export type TaskStatus = string;
 export type Repository = string;
 export type Environment = (typeof ENVIRONMENTS)[number];
 export type FieldType = 'text' | 'textarea' | 'number' | 'url' | 'date' | 'select' | 'multiselect' | 'checkbox' | 'tags';
@@ -91,4 +91,6 @@ export interface UiConfig {
   environments: string[];
   coreEnvironments: string[];
   repositoryConfigs: RepositoryConfig[];
+  taskStatuses: string[];
+  coreTaskStatuses: string[];
 }
