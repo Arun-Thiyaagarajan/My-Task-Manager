@@ -315,16 +315,65 @@ export default function SettingsPage() {
       const file = event.target.files?.[0];
       if (!file) return;
 
-      if (file.size > 100 * 1024) { // 100KB limit
-          toast({ variant: 'destructive', title: 'Image too large', description: 'Please upload an image smaller than 100KB.' });
-          return;
+      if (!file.type.startsWith('image/')) {
+        toast({ variant: 'destructive', title: 'Invalid File Type', description: 'Please upload an image file.' });
+        if (event.target) event.target.value = '';
+        return;
       }
 
       const reader = new FileReader();
       reader.onload = (e) => {
-          const dataUri = e.target?.result as string;
-          setAppIcon(dataUri);
+          const img = new Image();
+          img.onload = () => {
+              const canvas = document.createElement('canvas');
+              const MAX_DIMENSION = 256;
+              let { width, height } = img;
+
+              if (width > height) {
+                  if (width > MAX_DIMENSION) {
+                      height = Math.round(height * (MAX_DIMENSION / width));
+                      width = MAX_DIMENSION;
+                  }
+              } else {
+                  if (height > MAX_DIMENSION) {
+                      width = Math.round(width * (MAX_DIMENSION / height));
+                      height = MAX_DIMENSION;
+                  }
+              }
+
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              
+              if (!ctx) {
+                  toast({ variant: 'destructive', title: 'Error', description: 'Could not prepare the image for compression.' });
+                  return;
+              }
+              
+              ctx.drawImage(img, 0, 0, width, height);
+
+              // Get compressed data URL (webp is preferred for its quality/size ratio)
+              const dataUrl = canvas.toDataURL('image/webp', 0.85); // 0.85 quality
+              setAppIcon(dataUrl);
+
+              toast({
+                variant: 'success',
+                title: 'Icon Ready',
+                description: "Your new icon has been compressed. Click 'Save Branding' to apply it."
+              });
+          };
+          img.onerror = () => {
+            toast({ variant: 'destructive', title: 'Image Error', description: 'Could not load the selected image file.' });
+          };
+          
+          const result = e.target?.result;
+          if (typeof result === 'string') {
+            img.src = result;
+          }
       };
+      reader.onerror = () => {
+          toast({ variant: 'destructive', title: 'File Error', description: 'Could not read the selected file.' });
+      }
       reader.readAsDataURL(file);
 
       if (event.target) event.target.value = '';
