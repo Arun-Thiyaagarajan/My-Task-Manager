@@ -316,6 +316,8 @@ export default function Home() {
     const cleanPerson = (p: Person) => ({ name: p.name, email: p.email || '', phone: p.phone || '' });
 
     const exportData: any = {
+        appName: currentUiConfig.appName,
+        appIcon: currentUiConfig.appIcon,
         repositoryConfigs: currentUiConfig.repositoryConfigs,
         developers: developersToExport.map(cleanPerson),
         testers: testersToExport.map(cleanPerson),
@@ -343,6 +345,8 @@ export default function Home() {
 
   const handleDownloadTemplate = () => {
       const templateData = {
+          appName: "My Awesome Project",
+          appIcon: "🚀",
           repositoryConfigs: [
               { name: "UI-Dashboard", baseUrl: "https://github.com/org/ui-dashboard/pull/" },
               { name: "Backend-API", baseUrl: "https://github.com/org/backend-api/pull/" }
@@ -389,6 +393,9 @@ export default function Home() {
               let importedDevelopers: Partial<Omit<Person, 'id'>>[] = [];
               let importedTesters: Partial<Omit<Person, 'id'>>[] = [];
               let importedRepoConfigs: RepositoryConfig[] | undefined = undefined;
+              let importedAppName: string | undefined = undefined;
+              let importedAppIcon: string | null | undefined = undefined;
+
 
               if (Array.isArray(parsedJson)) {
                   importedTasks = parsedJson;
@@ -402,19 +409,29 @@ export default function Home() {
                   devNames.forEach(name => importedDevelopers.push({ name }));
                   testerNames.forEach(name => importedTesters.push({ name }));
 
-              } else if (parsedJson && (Array.isArray(parsedJson.tasks) || Array.isArray(parsedJson.trash))) {
+              } else if (parsedJson && typeof parsedJson === 'object') {
                   importedTasks = parsedJson.tasks || [];
                   importedBinnedTasks = parsedJson.trash || [];
                   importedDevelopers = parsedJson.developers || [];
                   importedTesters = parsedJson.testers || [];
                   importedRepoConfigs = parsedJson.repositoryConfigs;
+                  importedAppName = parsedJson.appName;
+                  importedAppIcon = parsedJson.appIcon;
               } else {
-                   throw new Error("Invalid format: JSON file must contain a 'tasks' or 'trash' array.");
+                   throw new Error("Invalid format: The JSON file must be a valid JSON object or array.");
               }
 
-              // --- Pre-process Repository Configs ---
+              // --- Pre-process UI Config (Branding, Repos) ---
+              const currentUiConfig = getUiConfig();
+              let configUpdated = false;
+
+              if (importedAppName || typeof importedAppIcon !== 'undefined') {
+                  currentUiConfig.appName = importedAppName || currentUiConfig.appName;
+                  currentUiConfig.appIcon = typeof importedAppIcon === 'undefined' ? currentUiConfig.appIcon : importedAppIcon;
+                  configUpdated = true;
+              }
+              
               if (importedRepoConfigs) {
-                  const currentUiConfig = getUiConfig();
                   const existingRepoConfigsByName = new Map(currentUiConfig.repositoryConfigs.map(r => [r.name, r]));
                   importedRepoConfigs.forEach(importedRepo => {
                       if (!importedRepo.name || !importedRepo.baseUrl) return;
@@ -424,9 +441,15 @@ export default function Home() {
                   });
                   const repoField = currentUiConfig.fields.find(f => f.key === 'repositories');
                   if (repoField) { repoField.options = currentUiConfig.repositoryConfigs.map(r => ({ id: r.id, value: r.name, label: r.name })); }
-                  updateUiConfig(currentUiConfig);
-                  toast({ title: 'Repositories Updated', description: 'Repository configurations have been imported.', variant: 'success' });
+                  configUpdated = true;
               }
+              
+              if (configUpdated) {
+                updateUiConfig(currentUiConfig);
+                toast({ title: 'Settings Imported', description: 'Application settings have been updated from the file.', variant: 'success' });
+                window.dispatchEvent(new Event('company-changed')); // Triggers header update
+              }
+
 
               // --- Pre-process people ---
               const allExistingDevs = getDevelopers();
