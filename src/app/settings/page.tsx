@@ -269,7 +269,7 @@ export default function SettingsPage() {
         setEditingEnv(null);
         refreshData();
     } else {
-        toast({ variant: 'destructive', title: 'Error', description: 'Cannot rename core environment, or name already exists.' });
+        toast({ variant: 'destructive', title: 'Error', description: 'This name might already exist or is invalid.' });
     }
   };
 
@@ -278,7 +278,7 @@ export default function SettingsPage() {
         toast({ variant: 'success', title: 'Environment Deleted', description: `"${envName}" has been deleted.` });
         refreshData();
     } else {
-        toast({ variant: 'destructive', title: 'Error', description: 'Cannot delete a core environment.' });
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not delete environment.' });
     }
   };
   
@@ -403,7 +403,7 @@ export default function SettingsPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Field Configuration</CardTitle>
-                    <CardDescription>Drag active fields to reorder them. Edit, activate, or deactivate fields as needed. Required fields cannot be deactivated or reordered. Custom fields are the only fields that can be deleted.</CardDescription>
+                    <CardDescription>Drag active fields to reorder them. Edit, activate, or deactivate fields as needed. Required fields cannot be deactivated. Custom fields are the only fields that can be deleted.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="relative mb-6">
@@ -421,12 +421,11 @@ export default function SettingsPage() {
              <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Server className="h-5 w-5" />Environment Management</CardTitle>
-                    <CardDescription>Add, rename, or delete deployment environments. Core environments cannot be deleted or renamed.</CardDescription>
+                    <CardDescription>Add, rename, or delete deployment environments. All environments can be edited.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                     <div className="space-y-2">
                         {config.environments.map(env => {
-                            const isCore = config.coreEnvironments.includes(env);
                             return (
                                 <div key={env}>
                                     {editingEnv === env ? (
@@ -437,28 +436,24 @@ export default function SettingsPage() {
                                         </div>
                                     ) : (
                                         <div className="flex items-center justify-between p-2 border rounded-md bg-card group">
-                                            <span className="font-medium">{env} {isCore && <Badge variant="secondary" className="ml-2">Core</Badge>}</span>
+                                            <span className="font-medium">{env}</span>
                                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                {!isCore && (
-                                                  <>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingEnv(env); setEditingEnvText(env); }}><Edit className="h-4 w-4" /></Button>
-                                                    <AlertDialog>
-                                                        <AlertDialogTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                                                        </AlertDialogTrigger>
-                                                        <AlertDialogContent>
-                                                            <AlertDialogHeader>
-                                                                <AlertDialogTitle>Delete Environment?</AlertDialogTitle>
-                                                                <AlertDialogDescription>This will permanently delete the "{env}" environment and all associated deployment data from your tasks. This action cannot be undone.</AlertDialogDescription>
-                                                            </AlertDialogHeader>
-                                                            <AlertDialogFooter>
-                                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                <AlertDialogAction onClick={() => handleDeleteEnvironment(env)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                                            </AlertDialogFooter>
-                                                        </AlertDialogContent>
-                                                    </AlertDialog>
-                                                  </>
-                                                )}
+                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingEnv(env); setEditingEnvText(env); }}><Edit className="h-4 w-4" /></Button>
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>Delete Environment?</AlertDialogTitle>
+                                                            <AlertDialogDescription>This will permanently delete the "{env}" environment and all associated deployment data from your tasks. This action cannot be undone.</AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={() => handleDeleteEnvironment(env)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
                                             </div>
                                         </div>
                                     )}

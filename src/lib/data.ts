@@ -40,7 +40,6 @@ const getInitialData = (): MyTaskManagerData => {
                 uiConfig: { 
                     fields: initialFields,
                     environments: [...ENVIRONMENTS],
-                    coreEnvironments: [...ENVIRONMENTS],
                     repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
                     taskStatuses: [...TASK_STATUSES],
                     coreTaskStatuses: [...TASK_STATUSES],
@@ -55,7 +54,6 @@ const getAppData = (): MyTaskManagerData => {
         const defaultConfig: UiConfig = { 
             fields: INITIAL_UI_CONFIG,
             environments: [...ENVIRONMENTS],
-            coreEnvironments: [...ENVIRONMENTS],
             repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
             taskStatuses: [...TASK_STATUSES],
             coreTaskStatuses: [...TASK_STATUSES],
@@ -168,7 +166,6 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
     const defaultConfig: UiConfig = {
         fields: INITIAL_UI_CONFIG,
         environments: [...ENVIRONMENTS],
-        coreEnvironments: [...ENVIRONMENTS],
         repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
         taskStatuses: [...TASK_STATUSES],
         coreTaskStatuses: [...TASK_STATUSES],
@@ -183,16 +180,10 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
     // Merge arrays, prioritizing saved data if it's a valid array.
     if (Array.isArray(savedConfig.environments)) resultConfig.environments = cloneDeep(savedConfig.environments);
     if (Array.isArray(savedConfig.repositoryConfigs)) resultConfig.repositoryConfigs = cloneDeep(savedConfig.repositoryConfigs);
-    if (Array.isArray(savedConfig.coreEnvironments)) resultConfig.coreEnvironments = cloneDeep(savedConfig.coreEnvironments);
     
     // For statuses, we prioritize the default list now to enforce the predefined set.
     resultConfig.taskStatuses = [...TASK_STATUSES];
     resultConfig.coreTaskStatuses = [...TASK_STATUSES];
-
-    // Ensure core envs are always present in the main envs list without removing user additions.
-    const finalEnvs = new Set(resultConfig.environments);
-    resultConfig.coreEnvironments.forEach(env => finalEnvs.add(env));
-    resultConfig.environments = Array.from(finalEnvs);
     
     // Merge fields carefully.
     if (Array.isArray(savedConfig.fields)) {
@@ -296,11 +287,6 @@ export function updateEnvironmentName(oldName: string, newName: string): boolean
         return false;
     }
 
-    // Core environments cannot be renamed.
-    if (companyData.uiConfig.coreEnvironments?.includes(oldName)) {
-        return false;
-    }
-
     const trimmedNewName = newName.trim();
     if (trimmedNewName === '' || companyData.uiConfig.environments.some(env => env.toLowerCase() === trimmedNewName.toLowerCase() && env.toLowerCase() !== oldName.toLowerCase())) {
         return false;
@@ -347,11 +333,6 @@ export function deleteEnvironment(name: string): boolean {
         return false;
     }
     
-    // prevent deleting core environments
-    if (companyData.uiConfig.coreEnvironments?.includes(name)) {
-        return false;
-    }
-
     const { uiConfig, tasks } = companyData;
     uiConfig.environments = uiConfig.environments.filter(env => env !== name);
 

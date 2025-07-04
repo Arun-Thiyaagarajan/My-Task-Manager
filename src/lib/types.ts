@@ -89,7 +89,6 @@ export interface FieldConfig {
 export interface UiConfig {
   fields: FieldConfig[];
   environments: string[];
-  coreEnvironments: string[];
   repositoryConfigs: RepositoryConfig[];
   taskStatuses: string[];
   coreTaskStatuses: string[];
