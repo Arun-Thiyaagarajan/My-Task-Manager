@@ -1,16 +1,14 @@
-
 'use client';
 
 import { Badge } from '@/components/ui/badge';
 import type { Task } from '@/lib/types';
 import { cn, getEnvInfo } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { getUiConfig } from '@/lib/data';
-import { useState, useEffect } from 'react';
 
 interface EnvironmentStatusProps {
   deploymentStatus: Task['deploymentStatus'];
   deploymentDates?: Task['deploymentDates'];
+  configuredEnvs: string[];
   size?: 'sm' | 'default';
   interactive?: boolean;
   onToggle?: (env: string) => void;
@@ -21,21 +19,13 @@ interface EnvironmentStatusProps {
 export function EnvironmentStatus({
   deploymentStatus,
   deploymentDates,
+  configuredEnvs,
   size = 'default',
   interactive = false,
   onToggle,
   justUpdatedEnv,
   onAnimationEnd,
 }: EnvironmentStatusProps) {
-  const [configuredEnvs, setConfiguredEnvs] = useState<string[]>([]);
-
-  useEffect(() => {
-    const uiConfig = getUiConfig();
-    if (uiConfig?.environments) {
-      setConfiguredEnvs(uiConfig.environments);
-    }
-  }, []);
-
   return (
     <div
       className="flex flex-wrap items-center gap-1.5"

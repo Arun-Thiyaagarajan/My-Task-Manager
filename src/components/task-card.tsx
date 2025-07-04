@@ -277,6 +277,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
               <EnvironmentStatus
                 deploymentStatus={task.deploymentStatus}
                 deploymentDates={task.deploymentDates}
+                configuredEnvs={uiConfig?.environments || []}
                 size="sm"
                 interactive={true}
                 onToggle={handleToggleDeployment}
