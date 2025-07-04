@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Trash2, History } from 'lucide-react';
 import { moveTaskToBin, restoreTask } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 
 interface DeleteTaskButtonProps {
   taskId: string;
@@ -20,24 +21,28 @@ export function DeleteTaskButton({ taskId, taskTitle, onSuccess, iconOnly = fals
     moveTaskToBin(taskId);
     onSuccess();
     
-    toast({
-      variant: 'success',
+    const { id, dismiss, update } = toast({
+      variant: 'destructive',
       title: 'Task Moved to Bin',
       description: `Task "${taskTitle}" has been moved.`,
       duration: 10000,
+    });
+
+    update({
+      id,
       action: (
-        <Button
-          variant="secondary"
-          size="sm"
+        <ToastAction
+          altText="Undo deletion"
           onClick={() => {
             restoreTask(taskId);
             onSuccess();
+            dismiss(); // Dismiss the 'destructive' toast immediately
             toast({ variant: 'success', title: 'Task restored!' });
           }}
         >
           <History className="mr-2 h-4 w-4" />
           Undo
-        </Button>
+        </ToastAction>
       ),
     });
   };
