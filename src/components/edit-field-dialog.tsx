@@ -95,6 +95,11 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
   const [localRepoConfigs, setLocalRepoConfigs] = React.useState<RepositoryConfig[]>([]);
 
   const isRepoField = field?.key === 'repositories';
+  const fieldHasManagedOptions =
+    field?.key === 'status' ||
+    field?.key === 'developers' ||
+    field?.key === 'testers';
+  const showCustomOptionsUI = showOptions && !isRepoField && !fieldHasManagedOptions;
 
   const unchangeableRequiredKeys = ['title', 'description', 'status', 'repositories', 'developers', 'deploymentStatus'];
   const isRequiredToggleDisabled = field !== null && !field.isCustom && unchangeableRequiredKeys.includes(field.key);
@@ -359,7 +364,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                         />
                      )}
                     
-                    {showOptions && !isRepoField && (
+                    {showCustomOptionsUI && (
                         <div className="space-y-3 pt-4 border-t">
                             <h4 className="font-medium">Options</h4>
                             {options.map((option, index) => (
