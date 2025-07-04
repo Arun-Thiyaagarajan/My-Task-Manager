@@ -2,14 +2,14 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { getUiConfig, updateUiConfig, updateEnvironmentName } from '@/lib/data';
+import { getUiConfig, updateUiConfig, addEnvironment, updateEnvironmentName, deleteEnvironment } from '@/lib/data';
 import type { UiConfig, FieldConfig, RepositoryConfig, Person } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck, ListTodo, PauseCircle } from 'lucide-react';
+import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck, Server } from 'lucide-react';
 import { EditFieldDialog } from '@/components/edit-field-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -43,6 +43,10 @@ export default function SettingsPage() {
 
   const [isPeopleManagerOpen, setIsPeopleManagerOpen] = useState(false);
   const [peopleManagerType, setPeopleManagerType] = useState<'developer' | 'tester'>('developer');
+
+  const [newEnvName, setNewEnvName] = useState('');
+  const [editingEnv, setEditingEnv] = useState<string | null>(null);
+  const [editingEnvText, setEditingEnvText] = useState('');
   
 
   const refreshData = () => {
@@ -62,7 +66,8 @@ export default function SettingsPage() {
         if (!prevConfig) return null;
         
         const field = prevConfig.fields.find(f => f.id === fieldId);
-        if (field?.isRequired) {
+        const protectedDateFields = ['devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate'];
+        if (field?.isRequired || (field && protectedDateFields.includes(field.key))) {
             toast({
                 variant: 'warning',
                 title: 'Cannot Deactivate Required Field',
@@ -241,6 +246,41 @@ export default function SettingsPage() {
     });
     setEditingGroup(null);
   };
+
+  const handleAddEnvironment = () => {
+    if (newEnvName.trim() === '') return;
+    if (addEnvironment(newEnvName)) {
+        toast({ variant: 'success', title: 'Environment Added', description: `"${newEnvName}" has been added.` });
+        setNewEnvName('');
+        refreshData();
+    } else {
+        toast({ variant: 'destructive', title: 'Error', description: 'Environment already exists or name is invalid.' });
+    }
+  };
+
+  const handleRenameEnvironment = (oldName: string) => {
+    const trimmedNewName = editingEnvText.trim();
+    if (trimmedNewName === '' || oldName === trimmedNewName) {
+        setEditingEnv(null);
+        return;
+    }
+    if (updateEnvironmentName(oldName, trimmedNewName)) {
+        toast({ variant: 'success', title: 'Environment Renamed', description: `"${oldName}" renamed to "${trimmedNewName}".` });
+        setEditingEnv(null);
+        refreshData();
+    } else {
+        toast({ variant: 'destructive', title: 'Error', description: 'Cannot rename core environment, or name already exists.' });
+    }
+  };
+
+  const handleDeleteEnvironment = (envName: string) => {
+    if (deleteEnvironment(envName)) {
+        toast({ variant: 'success', title: 'Environment Deleted', description: `"${envName}" has been deleted.` });
+        refreshData();
+    } else {
+        toast({ variant: 'destructive', title: 'Error', description: 'Cannot delete a core environment.' });
+    }
+  };
   
   const filteredAndGroupedFields = useMemo(() => {
     if (!config) return { active: {}, inactive: {} };
@@ -380,15 +420,62 @@ export default function SettingsPage() {
         <div className="lg:col-span-1 space-y-8">
              <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><ListTodo className="h-5 w-5" />Task Status Management</CardTitle>
-                    <CardDescription>The following statuses are predefined and cannot be changed.</CardDescription>
+                    <CardTitle className="flex items-center gap-2"><Server className="h-5 w-5" />Environment Management</CardTitle>
+                    <CardDescription>Add, rename, or delete deployment environments. Core environments cannot be deleted or renamed.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                    {(config.taskStatuses || []).map(status => (
-                        <div key={status} className="flex items-center justify-between p-2 border rounded-md bg-card">
-                            <span className="font-medium">{status}</span>
-                        </div>
-                    ))}
+                <CardContent className="space-y-3">
+                    <div className="space-y-2">
+                        {config.environments.map(env => {
+                            const isCore = config.coreEnvironments.includes(env);
+                            return (
+                                <div key={env}>
+                                    {editingEnv === env ? (
+                                        <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">
+                                            <Input value={editingEnvText} onChange={e => setEditingEnvText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleRenameEnvironment(env); }} className="h-8" />
+                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRenameEnvironment(env)}><Check className="h-4 w-4" /></Button>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingEnv(null)}><X className="h-4 w-4" /></Button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-between p-2 border rounded-md bg-card group">
+                                            <span className="font-medium">{env} {isCore && <Badge variant="secondary" className="ml-2">Core</Badge>}</span>
+                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                {!isCore && (
+                                                  <>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingEnv(env); setEditingEnvText(env); }}><Edit className="h-4 w-4" /></Button>
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Delete Environment?</AlertDialogTitle>
+                                                                <AlertDialogDescription>This will permanently delete the "{env}" environment and all associated deployment data from your tasks. This action cannot be undone.</AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={() => handleDeleteEnvironment(env)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                  </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <div className="flex items-center gap-2 pt-3 border-t">
+                        <Input 
+                            placeholder="New environment name..." 
+                            value={newEnvName} 
+                            onChange={e => setNewEnvName(e.target.value)} 
+                            onKeyDown={e => { if (e.key === 'Enter') handleAddEnvironment(); }}
+                            className="h-9"
+                        />
+                        <Button onClick={handleAddEnvironment} disabled={!newEnvName.trim()} size="sm">Add</Button>
+                    </div>
                 </CardContent>
             </Card>
             <Card>

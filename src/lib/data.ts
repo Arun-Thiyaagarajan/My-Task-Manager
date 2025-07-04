@@ -267,41 +267,106 @@ export function updateUiConfig(newConfig: UiConfig): UiConfig {
     return newConfig;
 }
 
+export function addEnvironment(name: string): boolean {
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    const companyData = data.companyData[activeCompanyId];
+    if (!companyData) return false;
+
+    const trimmedName = name.trim().toLowerCase();
+    if (trimmedName === '') return false;
+
+    const currentEnvs = companyData.uiConfig.environments.map(e => e.toLowerCase());
+    if (currentEnvs.includes(trimmedName)) {
+        return false;
+    }
+
+    companyData.uiConfig.environments.push(name.trim());
+    setAppData(data);
+    window.dispatchEvent(new Event('config-changed'));
+    return true;
+}
+
 export function updateEnvironmentName(oldName: string, newName: string): boolean {
     const data = getAppData();
     const activeCompanyId = data.activeCompanyId;
     const companyData = data.companyData[activeCompanyId];
 
-    if (!companyData || !companyData.uiConfig.environments?.includes(oldName) || newName.trim() === '' || companyData.uiConfig.environments.includes(newName)) {
+    if (!companyData || !companyData.uiConfig.environments?.includes(oldName)) {
         return false;
     }
 
+    // Core environments cannot be renamed.
+    if (companyData.uiConfig.coreEnvironments?.includes(oldName)) {
+        return false;
+    }
+
+    const trimmedNewName = newName.trim();
+    if (trimmedNewName === '' || companyData.uiConfig.environments.some(env => env.toLowerCase() === trimmedNewName.toLowerCase() && env.toLowerCase() !== oldName.toLowerCase())) {
+        return false;
+    }
+    
     const { uiConfig, tasks } = companyData;
     const envIndex = uiConfig.environments.indexOf(oldName);
-    uiConfig.environments[envIndex] = newName;
-
-    if (uiConfig.coreEnvironments) {
-        const coreEnvIndex = uiConfig.coreEnvironments.indexOf(oldName);
-        if (coreEnvIndex > -1) {
-            uiConfig.coreEnvironments[coreEnvIndex] = newName;
-        }
-    }
+    uiConfig.environments[envIndex] = trimmedNewName;
     
     tasks.forEach(task => {
         let changed = false;
         if (task.deploymentStatus && oldName in task.deploymentStatus) {
-            task.deploymentStatus[newName] = task.deploymentStatus[oldName];
+            task.deploymentStatus[trimmedNewName] = task.deploymentStatus[oldName];
             delete task.deploymentStatus[oldName];
             changed = true;
         }
         if (task.deploymentDates && oldName in task.deploymentDates) {
-            task.deploymentDates[newName] = task.deploymentDates[oldName];
+            task.deploymentDates[trimmedNewName] = task.deploymentDates[oldName];
             delete task.deploymentDates[oldName];
             changed = true;
         }
         if (task.prLinks && oldName in task.prLinks) {
-            task.prLinks[newName] = task.prLinks[oldName];
+            task.prLinks[trimmedNewName] = task.prLinks[oldName];
             delete task.prLinks[oldName];
+            changed = true;
+        }
+        if(changed) {
+          task.updatedAt = new Date().toISOString();
+        }
+    });
+
+    data.companyData[activeCompanyId] = { ...companyData, uiConfig, tasks };
+    setAppData(data);
+    window.dispatchEvent(new Event('config-changed'));
+    return true;
+}
+
+export function deleteEnvironment(name: string): boolean {
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    const companyData = data.companyData[activeCompanyId];
+
+    if (!companyData || !companyData.uiConfig.environments?.includes(name)) {
+        return false;
+    }
+    
+    // prevent deleting core environments
+    if (companyData.uiConfig.coreEnvironments?.includes(name)) {
+        return false;
+    }
+
+    const { uiConfig, tasks } = companyData;
+    uiConfig.environments = uiConfig.environments.filter(env => env !== name);
+
+    tasks.forEach(task => {
+        let changed = false;
+        if (task.deploymentStatus && name in task.deploymentStatus) {
+            delete task.deploymentStatus[name];
+            changed = true;
+        }
+        if (task.deploymentDates && name in task.deploymentDates) {
+            delete task.deploymentDates[name];
+            changed = true;
+        }
+        if (task.prLinks && name in task.prLinks) {
+            delete task.prLinks[name];
             changed = true;
         }
         if(changed) {
