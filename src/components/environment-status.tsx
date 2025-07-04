@@ -64,10 +64,12 @@ export function EnvironmentStatus({
                 onClick={handleClick}
                 variant="outline"
                 className={cn(
-                  'capitalize font-medium transition-colors',
+                  'capitalize font-medium transition-all',
                   isDeployed ? envInfo.deployedColor : envInfo.pendingColor,
                   size === 'sm' && 'px-1.5 py-0 text-[10px] h-4',
-                  interactive && 'cursor-pointer hover:bg-muted/50',
+                  interactive && 'cursor-pointer',
+                  interactive && isDeployed && 'hover:brightness-110 hover:scale-105',
+                  interactive && !isDeployed && 'hover:bg-muted/50',
                   justUpdatedEnv === env && 'animate-status-in'
                 )}
               >
