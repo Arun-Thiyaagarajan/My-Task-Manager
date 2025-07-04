@@ -14,7 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import { DeleteTaskButton } from '@/components/delete-task-button';
 import { PrLinksGroup } from '@/components/pr-links-group';
 import { Badge } from '@/components/ui/badge';
-import { getInitials, getAvatarColor, cn, getRepoBadgeStyle, getStatusStyle } from '@/lib/utils';
+import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
 import { format } from 'date-fns';
 import type { Task, FieldConfig, UiConfig, TaskStatus, Person, Attachment } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
@@ -338,7 +338,6 @@ export default function TaskPage() {
 
   const statusConfig = getStatusConfig(task.status);
   const { Icon, cardClassName, iconColorClassName } = statusConfig;
-  const customStatusStyle = statusConfig.isCustom ? getStatusStyle(task.status) : {};
 
   const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
 
@@ -392,7 +391,7 @@ export default function TaskPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
           <div className="lg:col-span-2 space-y-6">
-            <Card className={cn("relative overflow-hidden", cardClassName)} style={customStatusStyle}>
+            <Card className={cn("relative overflow-hidden", cardClassName)}>
               <Icon
                 className={cn(
                   'absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none transition-transform duration-300 ease-in-out',
