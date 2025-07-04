@@ -144,11 +144,6 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
         setTask(updatedTaskResult);
         setJustUpdatedEnv(env);
         onTaskUpdate();
-        toast({
-            variant: 'success',
-            title: 'Deployment Status Updated',
-            description: `Status for ${env.charAt(0).toUpperCase() + env.slice(1)} set to ${newIsDeployed ? 'Deployed' : 'Pending'}.`,
-        });
     } else {
         toast({
             variant: 'destructive',
@@ -396,6 +391,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
           <div>
             <DeleteTaskButton
               taskId={task.id}
+              taskTitle={task.title}
               onSuccess={onTaskDelete}
               iconOnly
             />

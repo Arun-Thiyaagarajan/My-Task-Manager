@@ -120,13 +120,6 @@ function TasksTableRow({
       setTask(updatedTask);
       setJustUpdatedEnv(env);
       onTaskUpdate();
-      toast({
-        variant: 'success',
-        title: 'Deployment Status Updated',
-        description: `Status for ${env} set to ${
-          newIsDeployed ? 'Deployed' : 'Pending'
-        }.`,
-      });
     } else {
       toast({
         variant: 'destructive',
@@ -326,7 +319,7 @@ function TasksTableRow({
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
-          <DeleteTaskButton taskId={task.id} onSuccess={onTaskUpdate} iconOnly />
+          <DeleteTaskButton taskId={task.id} taskTitle={task.title} onSuccess={onTaskUpdate} iconOnly />
         </div>
       </TableCell>
     </TableRow>

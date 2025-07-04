@@ -2,18 +2,18 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Trash2, Loader2, History } from 'lucide-react';
-import { useState } from 'react';
+import { Trash2, History } from 'lucide-react';
 import { moveTaskToBin, restoreTask } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 
 interface DeleteTaskButtonProps {
   taskId: string;
+  taskTitle: string;
   onSuccess: () => void;
   iconOnly?: boolean;
 }
 
-export function DeleteTaskButton({ taskId, onSuccess, iconOnly = false }: DeleteTaskButtonProps) {
+export function DeleteTaskButton({ taskId, taskTitle, onSuccess, iconOnly = false }: DeleteTaskButtonProps) {
   const { toast } = useToast();
 
   const handleMoveToBin = () => {
@@ -21,7 +21,9 @@ export function DeleteTaskButton({ taskId, onSuccess, iconOnly = false }: Delete
     onSuccess();
     
     toast({
-      title: 'Task moved to bin',
+      variant: 'success',
+      title: 'Task Moved to Bin',
+      description: `Task "${taskTitle}" has been moved.`,
       duration: 10000,
       action: (
         <Button

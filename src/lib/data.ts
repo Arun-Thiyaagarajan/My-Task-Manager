@@ -297,11 +297,11 @@ export function updateEnvironmentName(oldName: string, newName: string): boolean
         return false;
     }
     
-    const { uiConfig, tasks } = companyData;
+    const { uiConfig, tasks, trash } = companyData;
     const envIndex = uiConfig.environments.indexOf(oldName);
     uiConfig.environments[envIndex] = trimmedNewName;
     
-    tasks.forEach(task => {
+    const renameEnvInTask = (task: Task) => {
         let changed = false;
         if (task.deploymentStatus && oldName in task.deploymentStatus) {
             task.deploymentStatus[trimmedNewName] = task.deploymentStatus[oldName];
@@ -321,9 +321,12 @@ export function updateEnvironmentName(oldName: string, newName: string): boolean
         if(changed) {
           task.updatedAt = new Date().toISOString();
         }
-    });
+    };
+    
+    tasks.forEach(renameEnvInTask);
+    trash.forEach(renameEnvInTask);
 
-    data.companyData[activeCompanyId] = { ...companyData, uiConfig, tasks };
+    data.companyData[activeCompanyId] = { ...companyData, uiConfig, tasks, trash };
     setAppData(data);
     window.dispatchEvent(new Event('config-changed'));
     return true;
@@ -343,10 +346,10 @@ export function deleteEnvironment(name: string): boolean {
         return false;
     }
     
-    const { uiConfig, tasks } = companyData;
+    const { uiConfig, tasks, trash } = companyData;
     uiConfig.environments = uiConfig.environments.filter(env => env !== name);
 
-    tasks.forEach(task => {
+    const deleteEnvFromTask = (task: Task) => {
         let changed = false;
         if (task.deploymentStatus && name in task.deploymentStatus) {
             delete task.deploymentStatus[name];
@@ -363,9 +366,12 @@ export function deleteEnvironment(name: string): boolean {
         if(changed) {
           task.updatedAt = new Date().toISOString();
         }
-    });
+    };
 
-    data.companyData[activeCompanyId] = { ...companyData, uiConfig, tasks };
+    tasks.forEach(deleteEnvFromTask);
+    trash.forEach(deleteEnvFromTask);
+
+    data.companyData[activeCompanyId] = { ...companyData, uiConfig, tasks, trash };
     setAppData(data);
     window.dispatchEvent(new Event('config-changed'));
     return true;
@@ -385,10 +391,10 @@ export function getTaskById(id: string): Task | undefined {
   return allTasks.find(task => task.id === id);
 }
 
-export function addTask(taskData: Partial<Task>): Task {
+export function addTask(taskData: Partial<Task>, isBinned: boolean = false): Task {
   const data = getAppData();
   const activeCompanyId = data.activeCompanyId;
-  const companyTasks = data.companyData[activeCompanyId]?.tasks || [];
+  const companyData = data.companyData[activeCompanyId];
   
   const now = new Date().toISOString();
   const taskId = taskData.id || `task-${crypto.randomUUID()}`;
@@ -417,7 +423,13 @@ export function addTask(taskData: Partial<Task>): Task {
     customFields: taskData.customFields || {},
   };
   
-  data.companyData[activeCompanyId].tasks = [newTask, ...companyTasks];
+  if (isBinned) {
+      newTask.deletedAt = taskData.deletedAt || now;
+      companyData.trash = [newTask, ...(companyData.trash || [])];
+  } else {
+      companyData.tasks = [newTask, ...companyData.tasks];
+  }
+
   setAppData(data);
   return newTask;
 }

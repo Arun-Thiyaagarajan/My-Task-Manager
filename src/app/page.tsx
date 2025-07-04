@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester, updateUiConfig, moveMultipleTasksToBin } from '@/lib/data';
+import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester, updateUiConfig, moveMultipleTasksToBin, getBinnedTasks } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -270,51 +270,60 @@ export default function Home() {
     return 0;
   });
 
-  const handleExport = (tasksToExport: Task[], fileName: string, exportAllPeople: boolean) => {
+  const handleExport = (exportType: 'current_view' | 'all_tasks', fileName: string) => {
     const allDevelopers = getDevelopers();
     const allTesters = getTesters();
     const currentUiConfig = getUiConfig();
-    
-    let developersToExport: Person[];
-    let testersToExport: Person[];
 
-    if (exportAllPeople) {
-        developersToExport = allDevelopers;
-        testersToExport = allTesters;
-    } else {
-        const devIdsInExport = new Set<string>();
-        const testerIdsInExport = new Set<string>();
-        tasksToExport.forEach(task => {
-            (task.developers || []).forEach(id => devIdsInExport.add(id));
-            (task.testers || []).forEach(id => testerIdsInExport.add(id));
-        });
+    let activeTasksToExport: Task[] = [];
+    let binnedTasksToExport: Task[] = [];
 
-        developersToExport = allDevelopers.filter(d => devIdsInExport.has(d.id));
-        testersToExport = allTesters.filter(t => testerIdsInExport.has(t.id));
+    if (exportType === 'all_tasks') {
+        activeTasksToExport = getTasks();
+        binnedTasksToExport = getBinnedTasks();
+    } else { // 'current_view'
+        activeTasksToExport = sortedTasks;
     }
 
-    // Still map IDs to names inside task objects for portability between systems
+    const allTasksForPeopleMapping = [...activeTasksToExport, ...binnedTasksToExport];
+    
+    const devIdsInExport = new Set<string>();
+    const testerIdsInExport = new Set<string>();
+    allTasksForPeopleMapping.forEach(task => {
+        (task.developers || []).forEach(id => devIdsInExport.add(id));
+        (task.testers || []).forEach(id => testerIdsInExport.add(id));
+    });
+
+    const developersToExport = allDevelopers.filter(d => devIdsInExport.has(d.id));
+    const testersToExport = allTesters.filter(t => testerIdsInExport.has(t.id));
+
     const devIdToName = new Map(allDevelopers.map(d => [d.id, d.name]));
     const testerIdToName = new Map(allTesters.map(t => [t.id, t.name]));
-
-    const tasksWithNames = tasksToExport.map(task => {
+    
+    const mapPersonIdsToNames = (task: Task) => {
         const { developers, testers, ...restOfTask } = task;
         return {
             ...restOfTask,
             developers: (developers || []).map(id => devIdToName.get(id) || id),
             testers: (testers || []).map(id => testerIdToName.get(id) || id),
         };
-    });
-    
-    // Remove IDs from exported people to avoid collisions, we'll match by name on import
+    };
+
+    const activeTasksWithNames = activeTasksToExport.map(mapPersonIdsToNames);
+    const binnedTasksWithNames = binnedTasksToExport.map(mapPersonIdsToNames);
+
     const cleanPerson = (p: Person) => ({ name: p.name, email: p.email || '', phone: p.phone || '' });
 
-    const exportData = {
+    const exportData: any = {
         repositoryConfigs: currentUiConfig.repositoryConfigs,
         developers: developersToExport.map(cleanPerson),
         testers: testersToExport.map(cleanPerson),
-        tasks: tasksWithNames,
+        tasks: activeTasksWithNames,
     };
+    
+    if (binnedTasksWithNames.length > 0) {
+        exportData.trash = binnedTasksWithNames;
+    }
 
     const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
       JSON.stringify(exportData, null, 2)
@@ -327,7 +336,7 @@ export default function Home() {
     toast({
         variant: 'success',
         title: 'Export Successful',
-        description: `${tasksToExport.length} tasks exported successfully.`
+        description: `${activeTasksToExport.length} active tasks exported.`,
     });
   };
 
@@ -374,71 +383,48 @@ export default function Home() {
               const text = e.target?.result as string;
               const parsedJson = JSON.parse(text);
 
-              let importedTasks: Partial<Task>[];
+              let importedTasks: Partial<Task>[] = [];
+              let importedBinnedTasks: Partial<Task>[] = [];
               let importedDevelopers: Partial<Omit<Person, 'id'>>[] = [];
               let importedTesters: Partial<Omit<Person, 'id'>>[] = [];
               let importedRepoConfigs: RepositoryConfig[] | undefined = undefined;
 
               if (Array.isArray(parsedJson)) {
-                  // Legacy format: array of tasks
                   importedTasks = parsedJson;
-                  // In legacy, we have to extract names from tasks
                   const devNames = new Set<string>();
                   const testerNames = new Set<string>();
                   const isIdRegex = /^[a-z]+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
                   importedTasks.forEach(task => {
-                      (task.developers || []).forEach(nameOrId => {
-                          if (typeof nameOrId === 'string' && !isIdRegex.test(nameOrId)) devNames.add(nameOrId);
-                      });
-                      (task.testers || []).forEach(nameOrId => {
-                          if (typeof nameOrId === 'string' && !isIdRegex.test(nameOrId)) testerNames.add(nameOrId);
-                      });
+                      (task.developers || []).forEach(nameOrId => { if (typeof nameOrId === 'string' && !isIdRegex.test(nameOrId)) devNames.add(nameOrId); });
+                      (task.testers || []).forEach(nameOrId => { if (typeof nameOrId === 'string' && !isIdRegex.test(nameOrId)) testerNames.add(nameOrId); });
                   });
                   devNames.forEach(name => importedDevelopers.push({ name }));
                   testerNames.forEach(name => importedTesters.push({ name }));
 
-              } else if (parsedJson && Array.isArray(parsedJson.tasks)) {
-                  // New format: object with tasks, developers, testers
-                  importedTasks = parsedJson.tasks;
+              } else if (parsedJson && (Array.isArray(parsedJson.tasks) || Array.isArray(parsedJson.trash))) {
+                  importedTasks = parsedJson.tasks || [];
+                  importedBinnedTasks = parsedJson.trash || [];
                   importedDevelopers = parsedJson.developers || [];
                   importedTesters = parsedJson.testers || [];
                   importedRepoConfigs = parsedJson.repositoryConfigs;
               } else {
-                   throw new Error("Invalid format: JSON file must contain an array of tasks or an object with a 'tasks' array.");
+                   throw new Error("Invalid format: JSON file must contain a 'tasks' or 'trash' array.");
               }
 
               // --- Pre-process Repository Configs ---
               if (importedRepoConfigs) {
                   const currentUiConfig = getUiConfig();
                   const existingRepoConfigsByName = new Map(currentUiConfig.repositoryConfigs.map(r => [r.name, r]));
-
                   importedRepoConfigs.forEach(importedRepo => {
-                      if (!importedRepo.name || !importedRepo.baseUrl) return; // Skip invalid entries
+                      if (!importedRepo.name || !importedRepo.baseUrl) return;
                       const existingRepo = existingRepoConfigsByName.get(importedRepo.name);
-                      if (existingRepo) {
-                          // Update existing
-                          existingRepo.baseUrl = importedRepo.baseUrl;
-                      } else {
-                          // Add new
-                          currentUiConfig.repositoryConfigs.push({
-                              id: `repo_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-                              name: importedRepo.name,
-                              baseUrl: importedRepo.baseUrl,
-                          });
-                      }
+                      if (existingRepo) { existingRepo.baseUrl = importedRepo.baseUrl; } 
+                      else { currentUiConfig.repositoryConfigs.push({ id: `repo_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`, name: importedRepo.name, baseUrl: importedRepo.baseUrl }); }
                   });
-                  
                   const repoField = currentUiConfig.fields.find(f => f.key === 'repositories');
-                  if (repoField) {
-                      repoField.options = currentUiConfig.repositoryConfigs.map(r => ({ id: r.id, value: r.name, label: r.name }));
-                  }
-
+                  if (repoField) { repoField.options = currentUiConfig.repositoryConfigs.map(r => ({ id: r.id, value: r.name, label: r.name })); }
                   updateUiConfig(currentUiConfig);
-                  toast({
-                      title: 'Repositories Updated',
-                      description: 'Repository configurations have been imported.',
-                      variant: 'success'
-                  });
+                  toast({ title: 'Repositories Updated', description: 'Repository configurations have been imported.', variant: 'success' });
               }
 
               // --- Pre-process people ---
@@ -448,12 +434,8 @@ export default function Home() {
                   if (!dev.name) return;
                   const existingDev = existingDevsByName.get(dev.name.toLowerCase());
                   const personData = { name: dev.name, email: dev.email, phone: dev.phone };
-                  if (!existingDev) {
-                      addDeveloper(personData);
-                  } else {
-                      // Always update with data from the imported file.
-                      updateDeveloper(existingDev.id, personData);
-                  }
+                  if (!existingDev) { addDeveloper(personData); } 
+                  else { updateDeveloper(existingDev.id, personData); }
               });
 
               const allExistingTesters = getTesters();
@@ -462,109 +444,70 @@ export default function Home() {
                   if (!tester.name) return;
                   const existingTester = existingTestersByName.get(tester.name.toLowerCase());
                   const personData = { name: tester.name, email: tester.email, phone: tester.phone };
-                  if (!existingTester) {
-                      addTester(personData);
-                  } else {
-                      // Always update with data from the imported file.
-                      updateTester(existingTester.id, personData);
-                  }
+                  if (!existingTester) { addTester(personData); } 
+                  else { updateTester(existingTester.id, personData); }
               });
 
-              // --- Process tasks ---
-              let createdCount = 0;
-              let updatedCount = 0;
+              // --- Process tasks (active and binned) ---
+              let createdCount = 0, updatedCount = 0, binnedCreatedCount = 0, binnedUpdatedCount = 0;
               const allTasks = getTasks();
+              const allBinnedTasks = getBinnedTasks();
               const existingTaskIds = new Set(allTasks.map(t => t.id));
+              const existingBinnedTaskIds = new Set(allBinnedTasks.map(t => t.id));
 
-              // Get all people once after potential additions
               const finalAllDevs = getDevelopers();
               const finalAllTesters = getTesters();
               const devsByName = new Map(finalAllDevs.map(d => [d.name.toLowerCase(), d.id]));
               const allDevIds = new Set(finalAllDevs.map(d => d.id));
               const testersByName = new Map(finalAllTesters.map(t => [t.name.toLowerCase(), t.id]));
               const allTesterIds = new Set(finalAllTesters.map(t => t.id));
-
-              for (const taskData of importedTasks) {
-                  const validationResult = taskSchema.safeParse(taskData);
-                  
-                  if (!validationResult.success) {
-                      toast({
-                          variant: 'destructive',
-                          title: 'Invalid Data Found',
-                          description: 'Redirecting to fix the invalid task. Please correct the errors and save.',
-                      });
-                      sessionStorage.setItem('failed_import_row', JSON.stringify(taskData));
-                      router.push('/tasks/new');
-                      if(fileInputRef.current) fileInputRef.current.value = '';
-                      return; 
-                  }
-                  
-                  const validatedData = validationResult.data;
-                  
-                  // Convert names to IDs before saving
-                  if (validatedData.developers) {
-                    validatedData.developers = validatedData.developers
-                        .map(nameOrId => {
-                            if (allDevIds.has(nameOrId)) return nameOrId; // It's already an ID
-                            return devsByName.get((nameOrId as string).toLowerCase()) || null;
-                        })
-                        .filter((id): id is string => !!id);
-                  }
-
-                  if (validatedData.testers) {
-                    validatedData.testers = validatedData.testers
-                        .map(nameOrId => {
-                            if (allTesterIds.has(nameOrId)) return nameOrId; // It's already an ID
-                            return testersByName.get((nameOrId as string).toLowerCase()) || null;
-                        })
-                        .filter((id): id is string => !!id);
-                  }
-
-                  if (validatedData.id && existingTaskIds.has(validatedData.id)) {
-                      updateTask(validatedData.id, validatedData);
-                      updatedCount++;
-                  } else {
-                      const newTask = addTask(validatedData);
-                      existingTaskIds.add(newTask.id); 
-                      createdCount++;
-                  }
-              }
               
-              if(createdCount > 0 || updatedCount > 0) {
-                refreshData();
-                let description = '';
-                if (createdCount > 0) description += `${createdCount} tasks created. `;
-                if (updatedCount > 0) description += `${updatedCount} tasks updated.`;
-                toast({
-                    variant: 'success',
-                    title: 'Import Complete',
-                    description: description.trim()
-                });
-              } else if (importedTasks.length > 0) {
-                 toast({
-                    variant: 'default',
-                    title: 'Import Complete',
-                    description: 'No new tasks were created or updated.',
-                 });
-              } else {
-                 toast({
-                    variant: 'warning',
-                    title: 'Empty File',
-                    description: 'The imported file contained no tasks.',
-                 });
+              const processTaskArray = (tasksToProcess: Partial<Task>[], isBinned: boolean) => {
+                for (const taskData of tasksToProcess) {
+                    const validationResult = taskSchema.safeParse(taskData);
+                    if (!validationResult.success) {
+                        toast({ variant: 'destructive', title: 'Invalid Data Found', description: 'Redirecting to fix the invalid task.' });
+                        sessionStorage.setItem('failed_import_row', JSON.stringify(taskData));
+                        router.push('/tasks/new');
+                        if(fileInputRef.current) fileInputRef.current.value = '';
+                        return; 
+                    }
+                    const validatedData = validationResult.data;
+                    if (validatedData.developers) { validatedData.developers = validatedData.developers.map(nameOrId => allDevIds.has(nameOrId) ? nameOrId : devsByName.get((nameOrId as string).toLowerCase()) || null).filter((id): id is string => !!id); }
+                    if (validatedData.testers) { validatedData.testers = validatedData.testers.map(nameOrId => allTesterIds.has(nameOrId) ? nameOrId : testersByName.get((nameOrId as string).toLowerCase()) || null).filter((id): id is string => !!id); }
+
+                    const existingIds = isBinned ? existingBinnedTaskIds : existingTaskIds;
+                    if (validatedData.id && (existingTaskIds.has(validatedData.id) || existingBinnedTaskIds.has(validatedData.id))) {
+                        updateTask(validatedData.id, validatedData);
+                        isBinned ? binnedUpdatedCount++ : updatedCount++;
+                    } else {
+                        addTask(validatedData, isBinned);
+                        isBinned ? binnedCreatedCount++ : createdCount++;
+                    }
+                }
               }
 
+              processTaskArray(importedTasks, false);
+              processTaskArray(importedBinnedTasks, true);
+
+              if (createdCount > 0 || updatedCount > 0 || binnedCreatedCount > 0 || binnedUpdatedCount > 0) {
+                refreshData();
+                let descriptionParts: string[] = [];
+                if (createdCount > 0) descriptionParts.push(`${createdCount} active tasks created.`);
+                if (updatedCount > 0) descriptionParts.push(`${updatedCount} active tasks updated.`);
+                if (binnedCreatedCount > 0) descriptionParts.push(`${binnedCreatedCount} binned tasks created.`);
+                if (binnedUpdatedCount > 0) descriptionParts.push(`${binnedUpdatedCount} binned tasks updated.`);
+                toast({ variant: 'success', title: 'Import Complete', description: descriptionParts.join(' ') });
+              } else if (importedTasks.length > 0 || importedBinnedTasks.length > 0) {
+                 toast({ variant: 'default', title: 'Import Complete', description: 'No new tasks were created or updated.' });
+              } else {
+                 toast({ variant: 'warning', title: 'Empty File', description: 'The imported file contained no tasks.' });
+              }
           } catch (error: any) {
               console.error("Error importing file:", error);
-              toast({
-                  variant: 'destructive',
-                  title: 'Import Failed',
-                  description: error.message || 'There was an error processing your file. Please ensure it is a valid JSON file.'
-              });
+              toast({ variant: 'destructive', title: 'Import Failed', description: error.message || 'There was an error processing your file. Please ensure it is a valid JSON file.' });
           } finally {
-              if(fileInputRef.current) {
-                  fileInputRef.current.value = '';
-              }
+              if(fileInputRef.current) { fileInputRef.current.value = ''; }
           }
       };
       reader.readAsText(file);
@@ -614,10 +557,10 @@ export default function Home() {
                 </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                <DropdownMenuItem onSelect={() => handleExport(sortedTasks, 'MyTaskManager_Export.json', false)}>
+                <DropdownMenuItem onSelect={() => handleExport('current_view', 'MyTaskManager_Export.json')}>
                     Export Current View
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => handleExport(getTasks(), 'MyTaskManager_All_Tasks.json', true)}>
+                <DropdownMenuItem onSelect={() => handleExport('all_tasks', 'MyTaskManager_All_Tasks.json')}>
                     Export All Tasks
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={handleDownloadTemplate}>
