@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { TaskForm } from '@/components/task-form';
-import { addTask, getDevelopers, getTesters } from '@/lib/data';
+import { addTask, getDevelopers, getTesters, getUiConfig } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -20,7 +20,8 @@ export default function NewTaskPage() {
   const [initialData, setInitialData] = useState<Partial<Task> | undefined>(undefined);
   
   useEffect(() => {
-    document.title = 'New Task | My Task Manager';
+    const config = getUiConfig();
+    document.title = `New Task | ${config.appName || 'My Task Manager'}`;
     setDevelopersList(getDevelopers());
     setTestersList(getTesters());
     

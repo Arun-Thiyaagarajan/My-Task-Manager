@@ -121,7 +121,9 @@ export default function Home() {
         setTasks(getTasks());
         setDevelopers(getDevelopers());
         setTesters(getTesters());
-        setUiConfig(getUiConfig());
+        const config = getUiConfig();
+        setUiConfig(config);
+        document.title = config.appName || 'My Task Manager';
         setSelectedTaskIds([]);
     }
   };
@@ -159,7 +161,6 @@ export default function Home() {
     if (!activeCompanyId) {
       return;
     }
-    document.title = 'Tasks | My Task Manager';
     refreshData();
     setIsLoading(false);
     

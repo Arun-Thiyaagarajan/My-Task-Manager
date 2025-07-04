@@ -20,6 +20,7 @@ import {
   getCompanies,
   setActiveCompanyId,
   deleteCompany,
+  getUiConfig,
 } from '@/lib/data';
 import type { Company } from '@/lib/types';
 import { Building, PlusCircle, Trash2, Edit, LayoutDashboard, Cog, Menu } from 'lucide-react';
@@ -60,17 +61,23 @@ export function Header() {
   const activeCompanyId = useActiveCompany();
   const [isManagerOpen, setIsManagerOpen] = useState(false);
   const [companyToEdit, setCompanyToEdit] = useState<Company | null>(null);
+  const [appName, setAppName] = useState('My Task Manager');
+  const [appIcon, setAppIcon] = useState<string | null>(null);
 
-  const refreshCompanies = () => {
+  const refreshAllData = () => {
+    const config = getUiConfig();
     setCompanies(getCompanies());
+    setAppName(config.appName || 'My Task Manager');
+    setAppIcon(config.appIcon || null);
   };
 
   useEffect(() => {
-    refreshCompanies();
+    refreshAllData();
     
-    window.addEventListener('company-changed', refreshCompanies);
+    // This custom event is dispatched on company switch, add/edit/delete company, and branding save.
+    window.addEventListener('company-changed', refreshAllData);
     return () => {
-        window.removeEventListener('company-changed', refreshCompanies);
+        window.removeEventListener('company-changed', refreshAllData);
     };
 
   }, []);
@@ -99,6 +106,7 @@ export function Header() {
       }
   }
 
+  const isDataURI = (str: string) => str.startsWith('data:image');
   const activeCompany = companies.find((c) => c.id === activeCompanyId);
 
   return (
@@ -107,8 +115,16 @@ export function Header() {
         <div className="container flex h-14 max-w-screen-2xl items-center justify-between">
           <div className="flex items-center gap-4 md:gap-6">
             <HeaderLink href="/" className="flex items-center space-x-2">
-              <Icons.logo className="h-6 w-6 text-primary" />
-              <span className="font-bold hidden sm:inline-block">My Task Manager</span>
+              {appIcon ? (
+                isDataURI(appIcon) ? (
+                    <img src={appIcon} alt="App Icon" className="h-6 w-6 object-contain" />
+                ) : (
+                    <span className="text-2xl h-6 w-6 flex items-center justify-center">{appIcon}</span>
+                )
+              ) : (
+                <Icons.logo className="h-6 w-6 text-primary" />
+              )}
+              <span className="font-bold hidden sm:inline-block">{appName}</span>
             </HeaderLink>
             <nav className="hidden md:flex items-center gap-4">
                <HeaderLink href="/dashboard" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">

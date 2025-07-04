@@ -20,13 +20,13 @@ export default function DashboardPage() {
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
 
   useEffect(() => {
-    document.title = 'Dashboard | My Task Manager';
-    
     const refreshData = () => {
         setTasks(getTasks());
         setDevelopers(getDevelopers());
         setTesters(getTesters());
-        setUiConfig(getUiConfig());
+        const config = getUiConfig();
+        setUiConfig(config);
+        document.title = `Dashboard | ${config.appName || 'My Task Manager'}`;
         setIsLoading(false);
     };
     

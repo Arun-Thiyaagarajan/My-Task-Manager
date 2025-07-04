@@ -41,12 +41,13 @@ export default function BinPage() {
   const refreshData = () => {
     if (activeCompanyId) {
         setBinnedTasks(getBinnedTasks());
-        setUiConfig(getUiConfig());
+        const config = getUiConfig();
+        setUiConfig(config);
+        document.title = `Bin | ${config.appName || 'My Task Manager'}`;
     }
   };
 
   useEffect(() => {
-    document.title = 'Bin | My Task Manager';
     if(activeCompanyId) {
       refreshData();
       setIsLoading(false);

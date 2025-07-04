@@ -92,4 +92,6 @@ export interface UiConfig {
   environments: string[];
   repositoryConfigs: RepositoryConfig[];
   taskStatuses: string[];
+  appName?: string;
+  appIcon?: string | null;
 }

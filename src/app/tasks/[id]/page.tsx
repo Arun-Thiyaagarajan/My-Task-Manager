@@ -75,14 +75,15 @@ export default function TaskPage() {
       const allDevs = getDevelopers();
       const allTesters = getTesters();
       const foundTask = getTaskById(taskId);
+      const config = getUiConfig();
       
       setTask(foundTask || null);
-      setUiConfig(getUiConfig());
+      setUiConfig(config);
       setDevelopers(allDevs);
       setTesters(allTesters);
 
       if (foundTask) {
-        document.title = `${foundTask.title} | My Task Manager`;
+        document.title = `${foundTask.title} | ${config.appName || 'My Task Manager'}`;
 
         const allTasks = getTasks().filter(t => t.id !== taskId);
         const strategies: (() => { title: string, tasks: Task[] } | null)[] = [];
@@ -144,7 +145,7 @@ export default function TaskPage() {
         }
 
       } else {
-        document.title = 'Task Not Found | My Task Manager';
+        document.title = `Task Not Found | ${config.appName || 'My Task Manager'}`;
       }
       setIsLoading(false);
     }

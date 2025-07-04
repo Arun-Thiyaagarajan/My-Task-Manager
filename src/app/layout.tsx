@@ -16,10 +16,6 @@ const inter = Inter({
 
 
 export const metadata: Metadata = {
-  title: {
-    default: 'My Task Manager',
-    template: '%s | My Task Manager',
-  },
   description: 'A sleek and simple task tracker for multiple teams.',
 };
 

@@ -1,15 +1,15 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { getUiConfig, updateUiConfig, addEnvironment, updateEnvironmentName, deleteEnvironment } from '@/lib/data';
 import type { UiConfig, FieldConfig, RepositoryConfig, Person } from '@/lib/types';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck, Server } from 'lucide-react';
+import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck, Server, Globe, Image as ImageIcon } from 'lucide-react';
 import { EditFieldDialog } from '@/components/edit-field-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -26,6 +26,7 @@ import {
 import { cn } from '@/lib/utils';
 import { PeopleManagerDialog } from '@/components/people-manager-dialog';
 import { getDevelopers, getTesters } from '@/lib/data';
+import { Label } from '@/components/ui/label';
 
 
 export default function SettingsPage() {
@@ -47,6 +48,10 @@ export default function SettingsPage() {
   const [newEnvName, setNewEnvName] = useState('');
   const [editingEnv, setEditingEnv] = useState<string | null>(null);
   const [editingEnvText, setEditingEnvText] = useState('');
+
+  const [appName, setAppName] = useState('');
+  const [appIcon, setAppIcon] = useState<string | null>(null);
+  const iconInputRef = useRef<HTMLInputElement>(null);
   
 
   const refreshData = () => {
@@ -54,10 +59,13 @@ export default function SettingsPage() {
     setConfig(loadedConfig);
     setDevelopers(getDevelopers());
     setTesters(getTesters());
+    setAppName(loadedConfig.appName || 'My Task Manager');
+    setAppIcon(loadedConfig.appIcon || null);
   }
 
   useEffect(() => {
-    document.title = 'Settings | My Task Manager';
+    const loadedConfig = getUiConfig();
+    document.title = `Settings | ${loadedConfig.appName || 'My Task Manager'}`;
     refreshData();
   }, []);
   
@@ -286,6 +294,44 @@ export default function SettingsPage() {
     }
   };
   
+  const handleSaveBranding = () => {
+    if(!config) return;
+    const newConfig = {
+        ...config,
+        appName: appName.trim() || 'My Task Manager',
+        appIcon: appIcon,
+    };
+    updateUiConfig(newConfig);
+    toast({
+        variant: 'success',
+        title: 'Branding Updated',
+        description: 'Your application name and icon have been saved.',
+    });
+    // This event will trigger the header to re-fetch the config.
+    window.dispatchEvent(new Event('company-changed'));
+  };
+
+  const handleIconUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      if (file.size > 100 * 1024) { // 100KB limit
+          toast({ variant: 'destructive', title: 'Image too large', description: 'Please upload an image smaller than 100KB.' });
+          return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+          const dataUri = e.target?.result as string;
+          setAppIcon(dataUri);
+      };
+      reader.readAsDataURL(file);
+
+      if (event.target) event.target.value = '';
+  };
+
+  const isDataURI = (str: string) => str.startsWith('data:image');
+
   const filteredAndGroupedFields = useMemo(() => {
     if (!config) return { active: {}, inactive: {} };
     
@@ -422,6 +468,57 @@ export default function SettingsPage() {
             </Card>
         </div>
         <div className="lg:col-span-1 space-y-8">
+             <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Globe className="h-5 w-5" />App Branding</CardTitle>
+                    <CardDescription>Customize your application's name and icon.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="app-name">App Name</Label>
+                        <Input id="app-name" value={appName} onChange={(e) => setAppName(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>App Icon</Label>
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 flex items-center justify-center bg-muted rounded-md shrink-0">
+                                {appIcon && isDataURI(appIcon) ? (
+                                    <img src={appIcon} alt="App Icon Preview" className="h-full w-full object-contain rounded-md" />
+                                ) : appIcon ? (
+                                    <span className="text-3xl">{appIcon}</span>
+                                ) : (
+                                    <Globe className="h-6 w-6 text-muted-foreground"/>
+                                )}
+                            </div>
+                            <div className="space-y-2 flex-1">
+                                 <Input
+                                    placeholder="Paste an emoji..."
+                                    value={appIcon && !isDataURI(appIcon) ? appIcon : ''}
+                                    onChange={(e) => setAppIcon(e.target.value.slice(0, 2))}
+                                    maxLength={2}
+                                />
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <div className="flex-1 border-t"></div>
+                                    <span>OR</span>
+                                    <div className="flex-1 border-t"></div>
+                                </div>
+                                <Button variant="outline" size="sm" className="w-full" onClick={() => iconInputRef.current?.click()}>
+                                    <ImageIcon className="h-4 w-4 mr-2" /> Upload Image
+                                </Button>
+                                <input type="file" ref={iconInputRef} onChange={handleIconUpload} className="hidden" accept="image/png, image/jpeg, image/svg+xml" />
+                            </div>
+                        </div>
+                        {appIcon && (
+                             <Button variant="link" size="sm" className="p-0 h-auto text-destructive" onClick={() => setAppIcon(null)}>
+                                <Trash2 className="mr-1 h-3 w-3" /> Remove Icon
+                            </Button>
+                        )}
+                    </div>
+                </CardContent>
+                <CardFooter>
+                    <Button onClick={handleSaveBranding} className="w-full">Save Branding</Button>
+                </CardFooter>
+            </Card>
              <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Server className="h-5 w-5" />Environment Management</CardTitle>

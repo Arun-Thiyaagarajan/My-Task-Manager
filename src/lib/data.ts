@@ -44,6 +44,8 @@ const getInitialData = (): MyTaskManagerData => {
                     environments: [...ENVIRONMENTS],
                     repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
                     taskStatuses: [...TASK_STATUSES],
+                    appName: 'My Task Manager',
+                    appIcon: null,
                 },
             },
         },
@@ -57,6 +59,8 @@ const getAppData = (): MyTaskManagerData => {
             environments: [...ENVIRONMENTS],
             repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
             taskStatuses: [...TASK_STATUSES],
+            appName: 'My Task Manager',
+            appIcon: null,
         };
         return {
             companies: [{ id: 'company-placeholder', name: 'Default Company' }],
@@ -175,6 +179,8 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
         environments: [...ENVIRONMENTS],
         repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
         taskStatuses: [...TASK_STATUSES],
+        appName: 'My Task Manager',
+        appIcon: null,
     };
 
     if (!savedConfig || typeof savedConfig !== 'object') {
@@ -187,10 +193,11 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
     if (Array.isArray(savedConfig.environments)) resultConfig.environments = cloneDeep(savedConfig.environments);
     if (Array.isArray(savedConfig.repositoryConfigs)) resultConfig.repositoryConfigs = cloneDeep(savedConfig.repositoryConfigs);
     
-    // Task statuses are now fixed to the predefined constant list.
     resultConfig.taskStatuses = [...TASK_STATUSES];
     
-    // Merge fields carefully.
+    resultConfig.appName = savedConfig.appName || defaultConfig.appName;
+    resultConfig.appIcon = savedConfig.appIcon === undefined ? defaultConfig.appIcon : savedConfig.appIcon;
+    
     if (Array.isArray(savedConfig.fields)) {
         const finalFields: FieldConfig[] = [];
         const savedFieldsMap = new Map((savedConfig.fields).map(f => [f.key, f]));

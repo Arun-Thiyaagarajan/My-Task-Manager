@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getTaskById, getDevelopers, updateTask, getTesters } from '@/lib/data';
+import { getTaskById, getDevelopers, updateTask, getTesters, getUiConfig } from '@/lib/data';
 import { useParams, useRouter } from 'next/navigation';
 import { TaskForm } from '@/components/task-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,6 +29,7 @@ export default function EditTaskPage() {
       const foundTask = getTaskById(taskId);
       const devs = getDevelopers();
       const testers = getTesters();
+      const config = getUiConfig();
 
       setTask(foundTask || null);
       setDevelopersList(devs);
@@ -36,9 +37,9 @@ export default function EditTaskPage() {
       setIsLoading(false);
       
       if (foundTask) {
-        document.title = `Edit: ${foundTask.title} | My Task Manager`;
+        document.title = `Edit: ${foundTask.title} | ${config.appName || 'My Task Manager'}`;
       } else {
-        document.title = 'Task Not Found | My Task Manager';
+        document.title = `Task Not Found | ${config.appName || 'My Task Manager'}`;
       }
     }
   }, [taskId]);
