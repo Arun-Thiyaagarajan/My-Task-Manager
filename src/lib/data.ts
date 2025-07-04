@@ -1,6 +1,7 @@
 
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
 import type { Task, Person, Company, Attachment, UiConfig, FieldConfig } from './types';
+import cloneDeep from 'lodash/cloneDeep';
 
 interface CompanyData {
     tasks: Task[];
@@ -158,62 +159,42 @@ export function setActiveCompanyId(id: string) {
 
 /**
  * Safely merges a user's saved UI configuration with the application's default configuration.
- * This function is non-destructive. It prioritizes the user's saved settings and only adds
- * default values for properties that are missing entirely, preventing accidental data loss.
+ * This is a non-destructive operation that prioritizes the user's saved settings and only adds
+ * default values for properties that are missing, ensuring customizations are preserved during updates.
  * @param savedConfig The user's configuration object from localStorage.
  * @returns A complete, valid, and safe UiConfig object.
  */
 function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): UiConfig {
     const defaultConfig: UiConfig = {
-        fields: JSON.parse(JSON.stringify(INITIAL_UI_CONFIG)),
+        fields: cloneDeep(INITIAL_UI_CONFIG),
         environments: [...ENVIRONMENTS],
         coreEnvironments: [...ENVIRONMENTS],
-        repositoryConfigs: JSON.parse(JSON.stringify(INITIAL_REPOSITORY_CONFIGS)),
+        repositoryConfigs: cloneDeep(INITIAL_REPOSITORY_CONFIGS),
         taskStatuses: [...TASK_STATUSES],
         coreTaskStatuses: [...TASK_STATUSES],
     };
 
-    if (!savedConfig || Object.keys(savedConfig).length === 0) {
+    if (!savedConfig || typeof savedConfig !== 'object' || Object.keys(savedConfig).length === 0) {
         return defaultConfig;
     }
 
-    // --- NON-DESTRUCTIVE MERGE ---
+    // Start with the user's data as the base. THIS IS THE KEY: USER DATA IS PRESERVED.
+    const result: UiConfig = cloneDeep(savedConfig) as UiConfig;
+
+    // --- NON-DESTRUCTIVE MERGE OF DEFAULTS ---
+    // For any property that doesn't exist in the user's config, add it from the default.
     
-    // 1. Start with a result object. Prioritize user's saved lists.
-    const result: UiConfig = {
-        coreEnvironments: defaultConfig.coreEnvironments,
-        coreTaskStatuses: defaultConfig.coreTaskStatuses,
-        taskStatuses: savedConfig.taskStatuses && savedConfig.taskStatuses.length > 0 ? [...savedConfig.taskStatuses] : [...defaultConfig.taskStatuses],
-        environments: savedConfig.environments && savedConfig.environments.length > 0 ? [...savedConfig.environments] : [...defaultConfig.environments],
-        repositoryConfigs: savedConfig.repositoryConfigs && savedConfig.repositoryConfigs.length > 0 ? JSON.parse(JSON.stringify(savedConfig.repositoryConfigs)) : JSON.parse(JSON.stringify(defaultConfig.repositoryConfigs)),
-        fields: [] // Will be populated next
-    };
-
-    // 2. Intelligently merge fields to preserve user customizations and add new default fields.
-    const savedFieldsMap = new Map((savedConfig.fields || []).map(f => [f.key, f]));
-    const finalFields: FieldConfig[] = [];
-
-    // Iterate through default fields to establish a base and add any new fields from updates.
-    for (const defaultField of defaultConfig.fields) {
-        const savedField = savedFieldsMap.get(defaultField.key);
-        if (savedField) {
-            // A saved version exists. Use it, but ensure all properties from default are present.
-            finalFields.push({ ...defaultField, ...savedField });
-            savedFieldsMap.delete(defaultField.key); // Mark as processed
-        } else {
-            // This is a new default field not present in the user's saved config. Add it.
-            finalFields.push(defaultField);
-        }
-    }
-    // Add any remaining fields from the user's config (these are purely custom fields).
-    savedFieldsMap.forEach(customField => finalFields.push(customField));
-    result.fields = finalFields;
-
+    if (!result.coreEnvironments) result.coreEnvironments = [...defaultConfig.coreEnvironments];
+    if (!result.coreTaskStatuses) result.coreTaskStatuses = [...defaultConfig.coreTaskStatuses];
+    if (!result.taskStatuses) result.taskStatuses = [...defaultConfig.taskStatuses];
+    if (!result.environments) result.environments = [...defaultConfig.environments];
+    if (!result.repositoryConfigs) result.repositoryConfigs = cloneDeep(defaultConfig.repositoryConfigs);
+    if (!result.fields) result.fields = cloneDeep(defaultConfig.fields);
 
     // --- DATA INTEGRITY CHECKS ---
-    // These now operate on the safely merged 'result' object.
+    // Ensure core items exist in the user's lists without wiping their custom items.
     
-    // 3. Ensure all core statuses exist in the list.
+    // Ensure all core statuses exist.
     const userStatusesSet = new Set(result.taskStatuses);
     for (const coreStatus of result.coreTaskStatuses) {
         if (!userStatusesSet.has(coreStatus)) {
@@ -221,7 +202,7 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
         }
     }
     
-    // 4. Ensure all core environments exist in the list.
+    // Ensure all core environments exist.
     const userEnvironmentsSet = new Set(result.environments);
     for (const coreEnv of result.coreEnvironments) {
         if (!userEnvironmentsSet.has(coreEnv)) {
@@ -229,7 +210,26 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
         }
     }
 
-    // 5. Re-sync dropdown options with the master lists.
+    // Merge fields: add new default fields if they don't exist in the user's config,
+    // and ensure existing fields have all necessary properties.
+    const savedFieldsMap = new Map(result.fields.map(f => [f.key, f]));
+    for (const defaultField of defaultConfig.fields) {
+        const savedField = savedFieldsMap.get(defaultField.key);
+        if (!savedField) {
+            // This is a new default field from an app update. Add it to the user's config.
+            result.fields.push(cloneDeep(defaultField));
+        } else {
+            // The field exists. Ensure all properties from the default template are present on the saved one.
+            // This handles cases where a new property (e.g., 'group') is added to a default field.
+            for (const propKey in defaultField) {
+                if (savedField[propKey as keyof FieldConfig] === undefined) {
+                    (savedField as any)[propKey] = (defaultField as any)[propKey];
+                }
+            }
+        }
+    }
+    
+    // Re-sync dropdown options with the master lists, as they may have changed.
     const statusField = result.fields.find(f => f.key === 'status');
     if (statusField) {
         statusField.options = result.taskStatuses.map(s => ({ id: s, value: s, label: s }));
@@ -240,7 +240,7 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
         repoField.options = result.repositoryConfigs.map(r => ({ id: r.id, value: r.name, label: r.name }));
     }
     
-    // 6. Re-apply a consistent sorting order to fields.
+    // Re-apply a consistent sorting order to fields.
     result.fields.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
     result.fields.forEach((f, i) => f.order = i);
     
@@ -258,6 +258,7 @@ export function getUiConfig(): UiConfig {
     const validatedConfig = _validateAndMigrateConfig(companyData?.uiConfig);
     
     // If the validation process changed the config, save it back to ensure consistency.
+    // This is crucial for applying migrations and fixes automatically.
     if (!companyData.uiConfig || JSON.stringify(validatedConfig) !== JSON.stringify(companyData.uiConfig)) {
         data.companyData[activeCompanyId].uiConfig = validatedConfig;
         setAppData(data);
