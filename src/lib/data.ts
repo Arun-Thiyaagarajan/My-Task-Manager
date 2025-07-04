@@ -1,6 +1,6 @@
 
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig } from './types';
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig } from './types';
 
 interface CompanyData {
     tasks: Task[];
@@ -80,12 +80,12 @@ const getAppData = (): MyTaskManagerData => {
     }
     try {
         const data: MyTaskManagerData = JSON.parse(stored);
-        if (!data.companies || !data.activeCompanyId || !data.companyData) {
-            throw new Error("Invalid data structure");
+        if (!data.companies || !data.companyData || data.companies.length === 0) {
+            throw new Error("Invalid core data structure, resetting.");
         }
         return data;
     } catch (e) {
-        console.error(`Error parsing localStorage key "${DATA_KEY}":`, e);
+        console.error(`Error with localStorage data, resetting:`, e);
         const initialData = getInitialData();
         window.localStorage.setItem(DATA_KEY, JSON.stringify(initialData));
         return initialData;
@@ -156,110 +156,93 @@ export function setActiveCompanyId(id: string) {
     }
 }
 
-// UI Config Functions
-export function getUiConfig(): UiConfig {
-    const data = getAppData();
-    const activeCompanyId = getActiveCompanyId();
-    
-    const defaultConfig: UiConfig = { 
-        fields: INITIAL_UI_CONFIG,
+/**
+ * Safely merges a user's saved UI configuration with the application's default configuration.
+ * This function is non-destructive. It prioritizes the user's saved settings and only adds
+ * default values for properties that are missing entirely, preventing accidental data loss.
+ * @param savedConfig The user's configuration object from localStorage.
+ * @returns A complete, valid, and safe UiConfig object.
+ */
+function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): UiConfig {
+    const defaultConfig: UiConfig = {
+        fields: JSON.parse(JSON.stringify(INITIAL_UI_CONFIG)),
         environments: [...ENVIRONMENTS],
         coreEnvironments: [...ENVIRONMENTS],
-        repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
+        repositoryConfigs: JSON.parse(JSON.stringify(INITIAL_REPOSITORY_CONFIGS)),
         taskStatuses: [...TASK_STATUSES],
         coreTaskStatuses: [...TASK_STATUSES],
     };
 
-    const companyData = data.companyData[activeCompanyId];
-
-    if (!companyData) {
+    if (!savedConfig) {
         return defaultConfig;
     }
 
-    if (!companyData.uiConfig) {
-        companyData.uiConfig = defaultConfig;
-        setAppData(data);
-        return defaultConfig;
+    const validatedConfig: UiConfig = JSON.parse(JSON.stringify(defaultConfig));
+    const userConfig: Partial<UiConfig> = JSON.parse(JSON.stringify(savedConfig));
+
+    if (userConfig.taskStatuses && Array.isArray(userConfig.taskStatuses)) {
+        validatedConfig.taskStatuses = userConfig.taskStatuses;
+    }
+    if (userConfig.environments && Array.isArray(userConfig.environments)) {
+        validatedConfig.environments = userConfig.environments;
+    }
+    if (userConfig.repositoryConfigs && Array.isArray(userConfig.repositoryConfigs)) {
+        validatedConfig.repositoryConfigs = userConfig.repositoryConfigs;
     }
 
-    let needsUpdate = false;
-    const migratedConfig: UiConfig = JSON.parse(JSON.stringify(companyData.uiConfig));
+    if (userConfig.fields && Array.isArray(userConfig.fields)) {
+        const finalFields: FieldConfig[] = [];
+        const userFieldsMap = new Map(userConfig.fields.map(f => [f.key, f]));
 
-    // Ensure all top-level properties exist
-    if (!migratedConfig.fields) { migratedConfig.fields = []; needsUpdate = true; }
-    if (!migratedConfig.environments) { migratedConfig.environments = [...ENVIRONMENTS]; needsUpdate = true; }
-    if (!migratedConfig.coreEnvironments) { migratedConfig.coreEnvironments = [...ENVIRONMENTS]; needsUpdate = true; }
-    if (!migratedConfig.repositoryConfigs) { migratedConfig.repositoryConfigs = INITIAL_REPOSITORY_CONFIGS; needsUpdate = true; }
-    if (!migratedConfig.taskStatuses) { migratedConfig.taskStatuses = [...TASK_STATUSES]; needsUpdate = true; }
-    if (!migratedConfig.coreTaskStatuses) { migratedConfig.coreTaskStatuses = [...TASK_STATUSES]; needsUpdate = true; }
-
-    // Ensure core statuses are present
-    for (const coreStatus of migratedConfig.coreTaskStatuses) {
-        if (!migratedConfig.taskStatuses.includes(coreStatus)) {
-            migratedConfig.taskStatuses.push(coreStatus);
-            needsUpdate = true;
+        for (const userField of userConfig.fields) {
+            finalFields.push(userField);
         }
-    }
 
-    // Ensure all core fields from INITIAL_UI_CONFIG exist
-    const presentFieldKeys = new Set(migratedConfig.fields.map(f => f.key));
-    for (const coreField of INITIAL_UI_CONFIG) {
-        if (!presentFieldKeys.has(coreField.key)) {
-            migratedConfig.fields.push(JSON.parse(JSON.stringify(coreField))); // Add missing core field
-            needsUpdate = true;
-        } else {
-            // Sync non-configurable properties of existing core fields
-            const fieldToSync = migratedConfig.fields.find(f => f.key === coreField.key);
-            if (fieldToSync) {
-                let fieldModified = false;
-                if (fieldToSync.isRequired !== coreField.isRequired) { fieldToSync.isRequired = coreField.isRequired; fieldModified = true; }
-                if (fieldToSync.isCustom !== coreField.isCustom) { fieldToSync.isCustom = coreField.isCustom; fieldModified = true; }
-                if (fieldToSync.type !== coreField.type) { fieldToSync.type = coreField.type; fieldModified = true; }
-                if (fieldModified) needsUpdate = true;
+        for (const defaultField of defaultConfig.fields) {
+            if (!userFieldsMap.has(defaultField.key)) {
+                finalFields.push(defaultField);
             }
         }
-    }
-    
-    // Sync the options for the status field
-    const statusField = migratedConfig.fields.find(f => f.key === 'status');
-    if (statusField) {
-        const statusOptions = migratedConfig.taskStatuses.map(s => ({ id: s, value: s, label: s }));
-        if (JSON.stringify(statusField.options) !== JSON.stringify(statusOptions)) {
-            statusField.options = statusOptions;
-            needsUpdate = true;
-        }
-    }
-    
-    // Sync options for repository field
-    const repoField = migratedConfig.fields.find(f => f.key === 'repositories');
-    if (repoField) {
-      const repoOptions = (migratedConfig.repositoryConfigs || []).map(r => ({ id: r.id, value: r.name, label: r.name }));
-      if(JSON.stringify(repoField.options) !== JSON.stringify(repoOptions)) {
-        repoField.options = repoOptions;
-        needsUpdate = true;
-      }
-    }
-    
-    // Final sanity checks on field types for people
-    const developersField = migratedConfig.fields.find(f => f.key === 'developers');
-    if (developersField && developersField.type !== 'tags') {
-        developersField.type = 'tags';
-        needsUpdate = true;
-    }
-    const testersField = migratedConfig.fields.find(f => f.key === 'testers');
-    if (testersField && testersField.type !== 'tags') {
-        testersField.type = 'tags';
-        needsUpdate = true;
+        validatedConfig.fields = finalFields;
     }
 
-    if (needsUpdate) {
-        migratedConfig.fields.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
-        migratedConfig.fields.forEach((field, index) => field.order = index);
-        data.companyData[activeCompanyId].uiConfig = migratedConfig;
+    const statusField = validatedConfig.fields.find(f => f.key === 'status');
+    if (statusField) {
+        statusField.options = validatedConfig.taskStatuses.map(s => ({ id: s, value: s, label: s }));
+    }
+
+    const repoField = validatedConfig.fields.find(f => f.key === 'repositories');
+    if (repoField) {
+        repoField.options = validatedConfig.repositoryConfigs.map(r => ({ id: r.id, value: r.name, label: r.name }));
+    }
+    
+    validatedConfig.fields.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+    validatedConfig.fields.forEach((f, i) => f.order = i);
+    
+    for (const coreStatus of validatedConfig.coreTaskStatuses) {
+        if (!validatedConfig.taskStatuses.includes(coreStatus)) {
+            validatedConfig.taskStatuses.push(coreStatus);
+        }
+    }
+
+    return validatedConfig;
+}
+
+
+// UI Config Functions
+export function getUiConfig(): UiConfig {
+    const data = getAppData();
+    const activeCompanyId = getActiveCompanyId();
+    const companyData = data.companyData[activeCompanyId];
+    
+    const validatedConfig = _validateAndMigrateConfig(companyData?.uiConfig);
+    
+    if (!companyData.uiConfig || JSON.stringify(validatedConfig) !== JSON.stringify(companyData.uiConfig)) {
+        data.companyData[activeCompanyId].uiConfig = validatedConfig;
         setAppData(data);
     }
     
-    return migratedConfig;
+    return validatedConfig;
 }
 
 export function updateUiConfig(newConfig: UiConfig): UiConfig {
@@ -272,7 +255,6 @@ export function updateUiConfig(newConfig: UiConfig): UiConfig {
         }
         data.companyData[activeCompanyId].uiConfig = newConfig;
         setAppData(data);
-        // Dispatch an event to notify other components of the change
         window.dispatchEvent(new Event('config-changed'));
     }
     return newConfig;
@@ -321,7 +303,6 @@ export function updateEnvironmentName(oldName: string, newName: string): boolean
     });
 
     setAppData(data);
-    // Dispatch an event to notify other components of the change
     window.dispatchEvent(new Event('config-changed'));
     return true;
 }
