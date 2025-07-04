@@ -354,7 +354,7 @@ export function TasksTable({
     return null;
   }
   
-  const priorityStatuses = ['To Do', 'In Progress', 'QA'];
+  const priorityStatuses = ['To Do', 'In Progress', 'Code Review', 'QA'];
   const priorityTasks = tasks.filter(task => priorityStatuses.includes(task.status));
   const otherTasks = tasks.filter(task => !priorityStatuses.includes(task.status));
 

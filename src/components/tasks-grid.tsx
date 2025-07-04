@@ -16,7 +16,7 @@ interface TasksGridProps {
 }
 
 export function TasksGrid({ tasks, onTaskDelete, onTaskUpdate, uiConfig, developers, testers, selectedTaskIds, setSelectedTaskIds, isSelectMode }: TasksGridProps) {
-  const priorityStatuses = ['To Do', 'In Progress', 'QA'];
+  const priorityStatuses = ['To Do', 'In Progress', 'Code Review', 'QA'];
   const priorityTasks = tasks.filter(task => priorityStatuses.includes(task.status));
   const otherTasks = tasks.filter(task => !priorityStatuses.includes(task.status));
 
