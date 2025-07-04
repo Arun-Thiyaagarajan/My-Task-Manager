@@ -37,6 +37,15 @@ import { attachmentSchema } from '@/lib/validators';
 import { RelatedTasksSection } from '@/components/related-tasks-section';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
+const isImageUrl = (url: string): boolean => {
+  try {
+    const path = new URL(url).pathname;
+    return /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(path);
+  } catch {
+    return false;
+  }
+};
+
 
 export default function TaskPage() {
   const params = useParams();
@@ -583,37 +592,63 @@ export default function TaskPage() {
                   <CardContent>
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                          {task.attachments?.map((att, index) => (
-                              <div key={index} className="space-y-1.5 relative group/attachment">
-                                {isEditingAttachments && !isBinned && (
-                                  <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 z-10 rounded-full" onClick={() => handleDeleteAttachment(index)}>
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                )}
-                                {att.type === 'image' ? (
-                                    <div className="p-px bg-border rounded-lg group aspect-square w-full">
-                                        <button onClick={() => setPreviewImage({ url: att.url, name: att.name })} className="block relative group/img aspect-square w-full rounded-md overflow-hidden">
-                                            <img src={att.url} alt={att.name} className="object-cover w-full h-full transition-all group-hover/img:brightness-75" />
-                                            {!isEditingAttachments && <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
-                                                <ZoomIn className="h-8 w-8 text-white" />
-                                            </div>}
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <div className="p-px bg-border rounded-lg group aspect-square w-full">
+                          {task.attachments?.map((att, index) => {
+                            const shouldRenderAsImage = att.type === 'image' || isImageUrl(att.url);
+                            
+                            // For link previews
+                            let hostname: string | null = null;
+                            let faviconUrl: string | null = null;
+                            
+                            if (!shouldRenderAsImage) {
+                                try {
+                                    hostname = new URL(att.url).hostname;
+                                    faviconUrl = `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${hostname}&size=32`;
+                                } catch (e) {
+                                    hostname = 'Invalid Link';
+                                }
+                            }
+                            
+                            return (
+                                <div key={index} className="space-y-1.5 relative group/attachment">
+                                    {isEditingAttachments && !isBinned && (
+                                        <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 z-10 rounded-full" onClick={() => handleDeleteAttachment(index)}>
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    )}
+                                    
+                                    {shouldRenderAsImage ? (
+                                        <>
+                                            <div className="p-px bg-border rounded-lg group aspect-square w-full">
+                                                <button onClick={() => setPreviewImage({ url: att.url, name: att.name })} className="block relative group/img aspect-square w-full rounded-md overflow-hidden">
+                                                    <img src={att.url} alt={att.name} className="object-cover w-full h-full transition-all group-hover/img:brightness-75" />
+                                                    {!isEditingAttachments && <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
+                                                        <ZoomIn className="h-8 w-8 text-white" />
+                                                    </div>}
+                                                </button>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground truncate" title={att.name}>{att.name}</p>
+                                        </>
+                                    ) : (
                                         <a
                                           href={att.url}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="group/link bg-card flex flex-col items-center justify-center gap-2 h-full rounded-md p-4 aspect-square hover:bg-muted/50 transition-colors"
+                                          className="block p-px bg-border rounded-lg group aspect-square w-full"
                                         >
-                                          <Link2 className="h-8 w-8 text-muted-foreground transition-transform group-hover/link:scale-110" />
+                                          <div className="bg-card flex flex-col items-start justify-between gap-2 h-full rounded-md p-3 hover:bg-muted/50 transition-colors">
+                                              <div className="flex items-center gap-2">
+                                                {faviconUrl && <img src={faviconUrl} alt={`${hostname} favicon`} className="h-5 w-5 object-contain rounded" />}
+                                              </div>
+                                              <div className="w-full space-y-1">
+                                                  <p className="text-sm font-medium text-foreground line-clamp-2 leading-tight">{att.name}</p>
+                                                  <p className="text-xs text-muted-foreground truncate">{hostname}</p>
+                                              </div>
+                                          </div>
                                         </a>
-                                    </div>
-                                )}
-                                <p className="text-xs text-muted-foreground truncate" title={att.name}>{att.name}</p>
-                              </div>
-                          ))}
+                                    )}
+                                </div>
+                            )
+                          })}
                         </div>
                         {isEditingAttachments && !isBinned && (
                             <div className="flex gap-2 pt-4 border-t">
