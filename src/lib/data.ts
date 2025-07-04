@@ -178,58 +178,60 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
         return defaultConfig;
     }
 
-    // Start with the user's data as the base. THIS IS THE KEY: USER DATA IS PRESERVED.
-    const result: UiConfig = cloneDeep(savedConfig) as UiConfig;
+    // Start with a clone of the default config. We will *carefully* overwrite parts of it.
+    const result = cloneDeep(defaultConfig);
 
-    // --- NON-DESTRUCTIVE MERGE OF DEFAULTS ---
-    // For any property that doesn't exist in the user's config, add it from the default.
-    
-    if (!result.coreEnvironments) result.coreEnvironments = [...defaultConfig.coreEnvironments];
-    if (!result.coreTaskStatuses) result.coreTaskStatuses = [...defaultConfig.coreTaskStatuses];
-    if (!result.taskStatuses) result.taskStatuses = [...defaultConfig.taskStatuses];
-    if (!result.environments) result.environments = [...defaultConfig.environments];
-    if (!result.repositoryConfigs) result.repositoryConfigs = cloneDeep(defaultConfig.repositoryConfigs);
-    if (!result.fields) result.fields = cloneDeep(defaultConfig.fields);
-
-    // --- DATA INTEGRITY CHECKS ---
-    // Ensure core items exist in the user's lists without wiping their custom items.
-    
-    // Ensure all core statuses exist.
-    const userStatusesSet = new Set(result.taskStatuses);
-    for (const coreStatus of result.coreTaskStatuses) {
-        if (!userStatusesSet.has(coreStatus)) {
-            result.taskStatuses.push(coreStatus);
-        }
+    // --- MERGE SCALAR & SIMPLE ARRAY PROPERTIES ---
+    // If the saved config has these properties, use them. This is the key change.
+    // It prioritizes the user's entire list of statuses, environments, etc.
+    if (savedConfig.taskStatuses && Array.isArray(savedConfig.taskStatuses)) {
+        result.taskStatuses = cloneDeep(savedConfig.taskStatuses);
     }
-    
-    // Ensure all core environments exist.
-    const userEnvironmentsSet = new Set(result.environments);
-    for (const coreEnv of result.coreEnvironments) {
-        if (!userEnvironmentsSet.has(coreEnv)) {
-            result.environments.push(coreEnv);
-        }
+    if (savedConfig.environments && Array.isArray(savedConfig.environments)) {
+        result.environments = cloneDeep(savedConfig.environments);
     }
+    if (savedConfig.repositoryConfigs && Array.isArray(savedConfig.repositoryConfigs)) {
+        result.repositoryConfigs = cloneDeep(savedConfig.repositoryConfigs);
+    }
+    // These are internal and should just be present.
+    result.coreTaskStatuses = defaultConfig.coreTaskStatuses;
+    result.coreEnvironments = defaultConfig.coreEnvironments;
 
-    // Merge fields: add new default fields if they don't exist in the user's config,
-    // and ensure existing fields have all necessary properties.
-    const savedFieldsMap = new Map(result.fields.map(f => [f.key, f]));
-    for (const defaultField of defaultConfig.fields) {
-        const savedField = savedFieldsMap.get(defaultField.key);
-        if (!savedField) {
-            // This is a new default field from an app update. Add it to the user's config.
-            result.fields.push(cloneDeep(defaultField));
-        } else {
-            // The field exists. Ensure all properties from the default template are present on the saved one.
-            // This handles cases where a new property (e.g., 'group') is added to a default field.
-            for (const propKey in defaultField) {
-                if (savedField[propKey as keyof FieldConfig] === undefined) {
-                    (savedField as any)[propKey] = (defaultField as any)[propKey];
-                }
+    // --- MERGE COMPLEX `fields` ARRAY ---
+    if (savedConfig.fields && Array.isArray(savedConfig.fields)) {
+        const finalFields: FieldConfig[] = [];
+        const savedFieldsMap = new Map(savedConfig.fields.map(f => [f.key, f]));
+        const addedKeys = new Set<string>();
+
+        // First, iterate through the *saved* fields to preserve their order and custom properties.
+        for (const savedField of savedConfig.fields) {
+            const defaultField = defaultConfig.fields.find(f => f.key === savedField.key);
+            if (defaultField) {
+                // It's a default field, merge properties to ensure it's up-to-date.
+                // The saved field is the base, and we add missing properties from the default.
+                const mergedField = { ...defaultField, ...savedField };
+                finalFields.push(mergedField);
+            } else {
+                // It's a custom field, keep it as is.
+                finalFields.push(cloneDeep(savedField));
+            }
+            addedKeys.add(savedField.key);
+        }
+
+        // Second, add any *new* default fields that weren't in the saved config.
+        for (const defaultField of defaultConfig.fields) {
+            if (!addedKeys.has(defaultField.key)) {
+                finalFields.push(cloneDeep(defaultField));
             }
         }
+        result.fields = finalFields;
     }
-    
-    // Re-sync dropdown options with the master lists, as they may have changed.
+    // If `savedConfig.fields` is missing, `result.fields` will just be the default, which is correct.
+
+
+    // --- POST-MERGE DATA INTEGRITY & SYNCHRONIZATION ---
+
+    // Re-sync dropdown options to ensure they match the master lists.
     const statusField = result.fields.find(f => f.key === 'status');
     if (statusField) {
         statusField.options = result.taskStatuses.map(s => ({ id: s, value: s, label: s }));
@@ -239,11 +241,13 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
     if (repoField) {
         repoField.options = result.repositoryConfigs.map(r => ({ id: r.id, value: r.name, label: r.name }));
     }
-    
-    // Re-apply a consistent sorting order to fields.
+
+    // Ensure order is consistent.
     result.fields.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
-    result.fields.forEach((f, i) => f.order = i);
-    
+    result.fields.forEach((field, index) => {
+        if (field.order === undefined) field.order = index;
+    });
+
     return result;
 }
 
