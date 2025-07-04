@@ -41,12 +41,19 @@ import { useActiveCompany } from '@/hooks/use-active-company';
 import { ThemeToggle } from './theme-toggle';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { useRouter } from 'next/navigation';
+import { ImagePreviewDialog } from './image-preview-dialog';
 
-const HeaderLink = ({ href, children, className }: { href: string; children: React.ReactNode, className?: string; }) => {
+const HeaderLink = ({ href, children, className, onClick }: { href: string; children: React.ReactNode, className?: string; onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void; }) => {
     const router = useRouter();
     const { prompt } = useUnsavedChanges();
 
     const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+        if (onClick) {
+            onClick(e); // Allow custom onClick logic to run
+            if (e.defaultPrevented) {
+                return; // If custom logic prevented default, stop here
+            }
+        }
         e.preventDefault();
         prompt(() => router.push(href));
     };
@@ -63,6 +70,7 @@ export function Header() {
   const [companyToEdit, setCompanyToEdit] = useState<Company | null>(null);
   const [appName, setAppName] = useState('My Task Manager');
   const [appIcon, setAppIcon] = useState<string | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const refreshAllData = () => {
     const config = getUiConfig();
@@ -81,6 +89,15 @@ export function Header() {
     };
 
   }, []);
+  
+  const isDataURI = (str: string | null): str is string => !!str && str.startsWith('data:image');
+
+  const handleIconClick = (e: React.MouseEvent) => {
+    if (isDataURI(appIcon)) {
+        e.preventDefault();
+        setIsPreviewOpen(true);
+    }
+  };
 
   const handleCompanyChange = (id: string) => {
     setActiveCompanyId(id);
@@ -106,7 +123,6 @@ export function Header() {
       }
   }
 
-  const isDataURI = (str: string) => str.startsWith('data:image');
   const activeCompany = companies.find((c) => c.id === activeCompanyId);
 
   return (
@@ -114,10 +130,10 @@ export function Header() {
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-14 max-w-screen-2xl items-center justify-between">
           <div className="flex items-center gap-4 md:gap-6">
-            <HeaderLink href="/" className="flex items-center space-x-2">
+            <HeaderLink href="/" className="flex items-center space-x-2" onClick={handleIconClick}>
               {appIcon ? (
                 isDataURI(appIcon) ? (
-                    <img src={appIcon} alt="App Icon" className="h-6 w-6 object-contain" />
+                    <img src={appIcon} alt="App Icon" className="h-6 w-6 object-contain rounded-md" />
                 ) : (
                     <span className="text-2xl h-6 w-6 flex items-center justify-center">{appIcon}</span>
                 )
@@ -242,6 +258,12 @@ export function Header() {
             window.dispatchEvent(new Event('company-changed'));
         }}
         companyToEdit={companyToEdit}
+      />
+      <ImagePreviewDialog
+        isOpen={isPreviewOpen}
+        onOpenChange={setIsPreviewOpen}
+        imageUrl={isDataURI(appIcon) ? appIcon : null}
+        imageName={`${appName} Icon`}
       />
     </>
   );
