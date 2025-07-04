@@ -160,6 +160,7 @@ export function setActiveCompanyId(id: string) {
 export function getUiConfig(): UiConfig {
     const data = getAppData();
     const activeCompanyId = getActiveCompanyId();
+    
     const defaultConfig: UiConfig = { 
         fields: INITIAL_UI_CONFIG,
         environments: [...ENVIRONMENTS],
@@ -169,55 +170,46 @@ export function getUiConfig(): UiConfig {
         coreTaskStatuses: [...TASK_STATUSES],
     };
 
-    if (!activeCompanyId || !data.companyData[activeCompanyId]) {
+    const companyData = data.companyData[activeCompanyId];
+
+    if (!companyData) {
         return defaultConfig;
     }
-    
-    // Start with a clone of the stored config or the default config
-    let config = JSON.parse(JSON.stringify(data.companyData[activeCompanyId].uiConfig || defaultConfig));
-    let needsUpdate = !data.companyData[activeCompanyId].uiConfig;
-    
-    // --- Start Migration & Validation ---
-    
-    // Migrate task statuses
-    if (!config.taskStatuses || !Array.isArray(config.taskStatuses)) {
-        config.taskStatuses = [...TASK_STATUSES];
-        needsUpdate = true;
-    }
-    if (!config.coreTaskStatuses || !Array.isArray(config.coreTaskStatuses)) {
-        config.coreTaskStatuses = [...TASK_STATUSES];
-        needsUpdate = true;
+
+    if (!companyData.uiConfig) {
+        companyData.uiConfig = defaultConfig;
+        setAppData(data);
+        return defaultConfig;
     }
 
-    // Migrate other properties
-    if (!config.fields || !Array.isArray(config.fields)) {
-        config.fields = INITIAL_UI_CONFIG;
-        needsUpdate = true;
+    let needsUpdate = false;
+    const migratedConfig: UiConfig = JSON.parse(JSON.stringify(companyData.uiConfig));
+
+    // Ensure all top-level properties exist
+    if (!migratedConfig.fields) { migratedConfig.fields = []; needsUpdate = true; }
+    if (!migratedConfig.environments) { migratedConfig.environments = [...ENVIRONMENTS]; needsUpdate = true; }
+    if (!migratedConfig.coreEnvironments) { migratedConfig.coreEnvironments = [...ENVIRONMENTS]; needsUpdate = true; }
+    if (!migratedConfig.repositoryConfigs) { migratedConfig.repositoryConfigs = INITIAL_REPOSITORY_CONFIGS; needsUpdate = true; }
+    if (!migratedConfig.taskStatuses) { migratedConfig.taskStatuses = [...TASK_STATUSES]; needsUpdate = true; }
+    if (!migratedConfig.coreTaskStatuses) { migratedConfig.coreTaskStatuses = [...TASK_STATUSES]; needsUpdate = true; }
+
+    // Ensure core statuses are present
+    for (const coreStatus of migratedConfig.coreTaskStatuses) {
+        if (!migratedConfig.taskStatuses.includes(coreStatus)) {
+            migratedConfig.taskStatuses.push(coreStatus);
+            needsUpdate = true;
+        }
     }
-    if (!config.environments || !Array.isArray(config.environments)) {
-        config.environments = [...ENVIRONMENTS];
-        needsUpdate = true;
-    }
-    if (!config.coreEnvironments || !Array.isArray(config.coreEnvironments)) {
-        config.coreEnvironments = [...ENVIRONMENTS];
-        needsUpdate = true;
-    }
-    if (!config.repositoryConfigs || !Array.isArray(config.repositoryConfigs)) {
-        config.repositoryConfigs = INITIAL_REPOSITORY_CONFIGS;
-        needsUpdate = true;
-    }
-    
+
     // Ensure all core fields from INITIAL_UI_CONFIG exist
-    const coreFieldsMap = new Map(INITIAL_UI_CONFIG.map(f => [f.key, f]));
-    const presentFieldKeys = new Set(config.fields.map((f: { key: any; }) => f.key));
-
+    const presentFieldKeys = new Set(migratedConfig.fields.map(f => f.key));
     for (const coreField of INITIAL_UI_CONFIG) {
         if (!presentFieldKeys.has(coreField.key)) {
-            config.fields.push(coreField); // Add missing core field
+            migratedConfig.fields.push(JSON.parse(JSON.stringify(coreField))); // Add missing core field
             needsUpdate = true;
         } else {
-            // Ensure existing core fields have correct non-configurable properties
-            const fieldToSync = config.fields.find((f: { key: string; }) => f.key === coreField.key);
+            // Sync non-configurable properties of existing core fields
+            const fieldToSync = migratedConfig.fields.find(f => f.key === coreField.key);
             if (fieldToSync) {
                 let fieldModified = false;
                 if (fieldToSync.isRequired !== coreField.isRequired) { fieldToSync.isRequired = coreField.isRequired; fieldModified = true; }
@@ -228,38 +220,46 @@ export function getUiConfig(): UiConfig {
         }
     }
     
-    // Sync the status field options with the master taskStatuses array
-    const statusField = config.fields.find((f: { key: string; }) => f.key === 'status');
+    // Sync the options for the status field
+    const statusField = migratedConfig.fields.find(f => f.key === 'status');
     if (statusField) {
-        const statusOptions = config.taskStatuses.map((s: string) => ({ id: s, value: s, label: s }));
+        const statusOptions = migratedConfig.taskStatuses.map(s => ({ id: s, value: s, label: s }));
         if (JSON.stringify(statusField.options) !== JSON.stringify(statusOptions)) {
             statusField.options = statusOptions;
             needsUpdate = true;
         }
     }
     
-    // Final sanity checks
-    const developersField = config.fields.find((f: { key: string; }) => f.key === 'developers');
+    // Sync options for repository field
+    const repoField = migratedConfig.fields.find(f => f.key === 'repositories');
+    if (repoField) {
+      const repoOptions = (migratedConfig.repositoryConfigs || []).map(r => ({ id: r.id, value: r.name, label: r.name }));
+      if(JSON.stringify(repoField.options) !== JSON.stringify(repoOptions)) {
+        repoField.options = repoOptions;
+        needsUpdate = true;
+      }
+    }
+    
+    // Final sanity checks on field types for people
+    const developersField = migratedConfig.fields.find(f => f.key === 'developers');
     if (developersField && developersField.type !== 'tags') {
         developersField.type = 'tags';
         needsUpdate = true;
     }
-    const testersField = config.fields.find((f: { key: string; }) => f.key === 'testers');
+    const testersField = migratedConfig.fields.find(f => f.key === 'testers');
     if (testersField && testersField.type !== 'tags') {
         testersField.type = 'tags';
         needsUpdate = true;
     }
-    
-    // Sort fields by order if an update happened
+
     if (needsUpdate) {
-        config.fields.sort((a: { order: number; }, b: { order: number; }) => a.order - b.order);
-        config.fields.forEach((field: { order: number; }, index: number) => field.order = index);
-        
-        data.companyData[activeCompanyId].uiConfig = config;
+        migratedConfig.fields.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+        migratedConfig.fields.forEach((field, index) => field.order = index);
+        data.companyData[activeCompanyId].uiConfig = migratedConfig;
         setAppData(data);
     }
     
-    return config;
+    return migratedConfig;
 }
 
 export function updateUiConfig(newConfig: UiConfig): UiConfig {
@@ -700,5 +700,3 @@ export function deleteComment(taskId: string, index: number): Task | undefined {
    const newComments = task.comments.filter((_, i) => i !== index);
    return updateTask(taskId, { comments: newComments });
 }
-
-    
