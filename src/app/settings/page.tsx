@@ -70,7 +70,7 @@ export default function SettingsPage() {
         if (field?.isRequired || (field && protectedDateFields.includes(field.key))) {
             toast({
                 variant: 'warning',
-                title: 'Cannot Deactivate Required Field',
+                title: 'Cannot Deactivate Field',
                 description: `The "${field.label}" field is required and cannot be deactivated.`,
             });
             return prevConfig;
@@ -278,7 +278,11 @@ export default function SettingsPage() {
         toast({ variant: 'success', title: 'Environment Deleted', description: `"${envName}" has been deleted.` });
         refreshData();
     } else {
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not delete environment.' });
+        toast({ 
+            variant: 'destructive', 
+            title: 'Action Not Allowed', 
+            description: `The "${envName}" environment is protected and cannot be deleted.` 
+        });
     }
   };
   
@@ -323,8 +327,8 @@ export default function SettingsPage() {
 
   const renderFieldRow = (field: FieldConfig, isActiveList: boolean) => {
     const protectedDateFields = ['devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate'];
-    const isProtected = protectedDateFields.includes(field.key);
-    const isToggleDisabled = field.isRequired || isProtected;
+    const isDateProtected = protectedDateFields.includes(field.key);
+    const isToggleDisabled = field.isRequired || isDateProtected;
 
     return (
         <div 
@@ -421,11 +425,12 @@ export default function SettingsPage() {
              <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Server className="h-5 w-5" />Environment Management</CardTitle>
-                    <CardDescription>Add, rename, or delete deployment environments. All environments can be edited.</CardDescription>
+                    <CardDescription>Add or rename deployment environments. `dev` and `production` are protected.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                     <div className="space-y-2">
                         {config.environments.map(env => {
+                            const isProtected = ['dev', 'production'].includes(env.toLowerCase());
                             return (
                                 <div key={env}>
                                     {editingEnv === env ? (
@@ -439,21 +444,23 @@ export default function SettingsPage() {
                                             <span className="font-medium">{env}</span>
                                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingEnv(env); setEditingEnvText(env); }}><Edit className="h-4 w-4" /></Button>
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>Delete Environment?</AlertDialogTitle>
-                                                            <AlertDialogDescription>This will permanently delete the "{env}" environment and all associated deployment data from your tasks. This action cannot be undone.</AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleDeleteEnvironment(env)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
+                                                {!isProtected && (
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Delete Environment?</AlertDialogTitle>
+                                                                <AlertDialogDescription>This will permanently delete the "{env}" environment and all associated deployment data from your tasks. This action cannot be undone.</AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={() => handleDeleteEnvironment(env)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                )}
                                             </div>
                                         </div>
                                     )}

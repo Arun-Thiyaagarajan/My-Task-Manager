@@ -42,7 +42,6 @@ const getInitialData = (): MyTaskManagerData => {
                     environments: [...ENVIRONMENTS],
                     repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
                     taskStatuses: [...TASK_STATUSES],
-                    coreTaskStatuses: [...TASK_STATUSES],
                 },
             },
         },
@@ -56,7 +55,6 @@ const getAppData = (): MyTaskManagerData => {
             environments: [...ENVIRONMENTS],
             repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
             taskStatuses: [...TASK_STATUSES],
-            coreTaskStatuses: [...TASK_STATUSES],
         };
         return {
             companies: [{ id: 'company-placeholder', name: 'Default Company' }],
@@ -168,7 +166,6 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
         environments: [...ENVIRONMENTS],
         repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
         taskStatuses: [...TASK_STATUSES],
-        coreTaskStatuses: [...TASK_STATUSES],
     };
 
     if (!savedConfig || typeof savedConfig !== 'object') {
@@ -181,9 +178,8 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
     if (Array.isArray(savedConfig.environments)) resultConfig.environments = cloneDeep(savedConfig.environments);
     if (Array.isArray(savedConfig.repositoryConfigs)) resultConfig.repositoryConfigs = cloneDeep(savedConfig.repositoryConfigs);
     
-    // For statuses, we prioritize the default list now to enforce the predefined set.
+    // Task statuses are now fixed to the predefined constant list.
     resultConfig.taskStatuses = [...TASK_STATUSES];
-    resultConfig.coreTaskStatuses = [...TASK_STATUSES];
     
     // Merge fields carefully.
     if (Array.isArray(savedConfig.fields)) {
@@ -325,6 +321,11 @@ export function updateEnvironmentName(oldName: string, newName: string): boolean
 }
 
 export function deleteEnvironment(name: string): boolean {
+    const protectedEnvs = ['dev', 'production'];
+    if (protectedEnvs.includes(name.toLowerCase())) {
+        return false;
+    }
+
     const data = getAppData();
     const activeCompanyId = data.activeCompanyId;
     const companyData = data.companyData[activeCompanyId];
