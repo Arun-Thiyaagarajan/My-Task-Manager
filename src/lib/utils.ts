@@ -119,7 +119,7 @@ export const getEnvInfo = (env: string) => {
       };
     case 'production':
       return {
-        deployedColor: 'border-transparent bg-green-500 text-white dark:bg-green-600 dark:text-green-50',
+        deployedColor: 'border-transparent bg-green-600 text-green-50 dark:bg-green-700 dark:text-green-100',
         pendingColor: 'border-dashed border-green-500/80 text-green-600 dark:border-green-500/70 dark:text-green-400 bg-transparent',
         label: 'Production',
       };
