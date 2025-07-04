@@ -177,55 +177,63 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
         return defaultConfig;
     }
 
-    const validatedConfig: UiConfig = JSON.parse(JSON.stringify(defaultConfig));
-    const userConfig: Partial<UiConfig> = JSON.parse(JSON.stringify(savedConfig));
+    // Start with the user's config and fill in missing top-level keys from the default.
+    // This shallow merge prioritizes the user's saved data.
+    const mergedConfig: UiConfig = {
+        ...defaultConfig,
+        ...savedConfig,
+    };
+    
+    // For nested arrays, ensure the user's array is used if it exists, otherwise use the default.
+    // This is the key change to prevent data loss.
+    mergedConfig.fields = savedConfig.fields || defaultConfig.fields;
+    mergedConfig.environments = savedConfig.environments || defaultConfig.environments;
+    mergedConfig.repositoryConfigs = savedConfig.repositoryConfigs || defaultConfig.repositoryConfigs;
+    mergedConfig.taskStatuses = savedConfig.taskStatuses || defaultConfig.taskStatuses;
 
-    if (userConfig.taskStatuses && Array.isArray(userConfig.taskStatuses)) {
-        validatedConfig.taskStatuses = userConfig.taskStatuses;
-    }
-    if (userConfig.environments && Array.isArray(userConfig.environments)) {
-        validatedConfig.environments = userConfig.environments;
-    }
-    if (userConfig.repositoryConfigs && Array.isArray(userConfig.repositoryConfigs)) {
-        validatedConfig.repositoryConfigs = userConfig.repositoryConfigs;
-    }
 
-    if (userConfig.fields && Array.isArray(userConfig.fields)) {
-        const finalFields: FieldConfig[] = [];
-        const userFieldsMap = new Map(userConfig.fields.map(f => [f.key, f]));
+    // --- Data Integrity Checks ---
 
-        for (const userField of userConfig.fields) {
-            finalFields.push(userField);
+    // 1. Ensure all core fields from the base config exist. Add them if missing.
+    const userFieldsMap = new Map(mergedConfig.fields.map(f => [f.key, f]));
+    for (const defaultField of defaultConfig.fields) {
+        if (!userFieldsMap.has(defaultField.key)) {
+            mergedConfig.fields.push(defaultField);
         }
-
-        for (const defaultField of defaultConfig.fields) {
-            if (!userFieldsMap.has(defaultField.key)) {
-                finalFields.push(defaultField);
-            }
-        }
-        validatedConfig.fields = finalFields;
     }
 
-    const statusField = validatedConfig.fields.find(f => f.key === 'status');
+    // 2. Ensure all core statuses exist in the list.
+    const userStatusesSet = new Set(mergedConfig.taskStatuses);
+    for (const coreStatus of defaultConfig.coreTaskStatuses) {
+        if (!userStatusesSet.has(coreStatus)) {
+            mergedConfig.taskStatuses.push(coreStatus);
+        }
+    }
+    
+    // 3. Ensure all core environments exist in the list.
+    const userEnvironmentsSet = new Set(mergedConfig.environments);
+    for (const coreEnv of defaultConfig.coreEnvironments) {
+        if (!userEnvironmentsSet.has(coreEnv)) {
+            mergedConfig.environments.push(coreEnv);
+        }
+    }
+
+    // 4. Re-sync dropdown options with the master lists
+    const statusField = mergedConfig.fields.find(f => f.key === 'status');
     if (statusField) {
-        statusField.options = validatedConfig.taskStatuses.map(s => ({ id: s, value: s, label: s }));
+        statusField.options = mergedConfig.taskStatuses.map(s => ({ id: s, value: s, label: s }));
     }
 
-    const repoField = validatedConfig.fields.find(f => f.key === 'repositories');
+    const repoField = mergedConfig.fields.find(f => f.key === 'repositories');
     if (repoField) {
-        repoField.options = validatedConfig.repositoryConfigs.map(r => ({ id: r.id, value: r.name, label: r.name }));
+        repoField.options = mergedConfig.repositoryConfigs.map(r => ({ id: r.id, value: r.name, label: r.name }));
     }
     
-    validatedConfig.fields.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
-    validatedConfig.fields.forEach((f, i) => f.order = i);
+    // 5. Re-apply sorting order
+    mergedConfig.fields.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+    mergedConfig.fields.forEach((f, i) => f.order = i);
     
-    for (const coreStatus of validatedConfig.coreTaskStatuses) {
-        if (!validatedConfig.taskStatuses.includes(coreStatus)) {
-            validatedConfig.taskStatuses.push(coreStatus);
-        }
-    }
-
-    return validatedConfig;
+    return mergedConfig;
 }
 
 
@@ -237,6 +245,7 @@ export function getUiConfig(): UiConfig {
     
     const validatedConfig = _validateAndMigrateConfig(companyData?.uiConfig);
     
+    // If the validation process changed the config, save it back to ensure consistency.
     if (!companyData.uiConfig || JSON.stringify(validatedConfig) !== JSON.stringify(companyData.uiConfig)) {
         data.companyData[activeCompanyId].uiConfig = validatedConfig;
         setAppData(data);
