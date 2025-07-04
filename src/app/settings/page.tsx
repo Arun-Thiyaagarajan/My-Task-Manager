@@ -1,10 +1,9 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getUiConfig, updateUiConfig, updateEnvironmentName, getDevelopers, getTesters, addTaskStatus, updateTaskStatus, deleteTaskStatus } from '@/lib/data';
 import type { UiConfig, FieldConfig, RepositoryConfig, Person } from '@/lib/types';
-import { useDebounce } from '@/hooks/use-debounce';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -33,7 +32,6 @@ export default function SettingsPage() {
   const [developers, setDevelopers] = useState<Person[]>([]);
   const [testers, setTesters] = useState<Person[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
   const [isFieldDialogOpen, setIsFieldDialogOpen] = useState(false);
@@ -53,49 +51,18 @@ export default function SettingsPage() {
   const [isPeopleManagerOpen, setIsPeopleManagerOpen] = useState(false);
   const [peopleManagerType, setPeopleManagerType] = useState<'developer' | 'tester'>('developer');
   
-  const isInitialMount = useRef(true);
 
-  const refreshConfig = () => {
+  const refreshData = () => {
     const loadedConfig = getUiConfig();
     setConfig(loadedConfig);
+    setDevelopers(getDevelopers());
+    setTesters(getTesters());
   }
 
   useEffect(() => {
     document.title = 'Settings | My Task Manager';
-    refreshConfig();
-    setDevelopers(getDevelopers());
-    setTesters(getTesters());
+    refreshData();
   }, []);
-
-  const debouncedConfig = useDebounce(config, 1000);
-
-  useEffect(() => {
-    if (isInitialMount.current) {
-        if (debouncedConfig) {
-            isInitialMount.current = false;
-        }
-        return;
-    }
-    
-    if (!debouncedConfig) {
-      return;
-    }
-    
-    setIsSaving(true);
-    updateUiConfig(debouncedConfig);
-    
-    const timer = setTimeout(() => {
-        setIsSaving(false);
-        toast({
-            variant: 'success',
-            title: 'Settings Saved',
-            description: 'Your changes have been automatically saved.',
-            duration: 2000,
-        });
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [debouncedConfig, toast]);
   
   const handleToggleActive = (fieldId: string) => {
     setConfig(prevConfig => {
@@ -118,7 +85,6 @@ export default function SettingsPage() {
             return f;
         });
 
-        // Re-calculate order
         const activeFields = fields.filter(f => f.isActive).sort((a,b) => a.order - b.order);
         const inactiveFields = fields.filter(f => !f.isActive).sort((a,b) => a.label.localeCompare(b.label));
         
@@ -127,7 +93,9 @@ export default function SettingsPage() {
             order: index
         }));
 
-        return { ...prevConfig, fields: newOrderedFields };
+        const newConfig = { ...prevConfig, fields: newOrderedFields };
+        updateUiConfig(newConfig);
+        return newConfig;
     });
   }
 
@@ -135,7 +103,9 @@ export default function SettingsPage() {
     setConfig(prevConfig => {
         if (!prevConfig) return null;
         const fields = prevConfig.fields.filter(f => f.id !== fieldId);
-        return { ...prevConfig, fields };
+        const newConfig = { ...prevConfig, fields };
+        updateUiConfig(newConfig);
+        return newConfig;
     });
   };
 
@@ -170,7 +140,9 @@ export default function SettingsPage() {
           }
       }
 
-      return { ...prevConfig, fields, repositoryConfigs: finalRepoConfigs };
+      const newConfig = { ...prevConfig, fields, repositoryConfigs: finalRepoConfigs };
+      updateUiConfig(newConfig);
+      return newConfig;
     });
   };
 
@@ -198,8 +170,10 @@ export default function SettingsPage() {
         ...field,
         order: index
       }));
-
-      return { ...prevConfig, fields: newFields };
+      
+      const newConfig = { ...prevConfig, fields: newFields };
+      updateUiConfig(newConfig);
+      return newConfig;
     });
   };
 
@@ -230,13 +204,17 @@ export default function SettingsPage() {
         toast({ variant: 'warning', title: 'Environment already exists.' })
         return;
     }
-    setConfig({ ...config, environments: [...(config.environments || []), newEnvLower] });
+    const newConfig = { ...config, environments: [...(config.environments || []), newEnvLower] };
+    updateUiConfig(newConfig);
+    setConfig(newConfig);
     setNewEnv('');
   }
 
   const handleDeleteEnvironment = (envToDelete: string) => {
     if (!config) return;
-    setConfig({ ...config, environments: config.environments?.filter(env => env !== envToDelete) || [] });
+    const newConfig = { ...config, environments: config.environments?.filter(env => env !== envToDelete) || [] };
+    updateUiConfig(newConfig);
+    setConfig(newConfig);
   }
 
   const handleStartEditEnv = (env: string) => { setEditingEnv(env); setEditingEnvText(env); }
@@ -301,19 +279,22 @@ export default function SettingsPage() {
         return;
     }
 
-    const existingGroupNames = [...new Set(config?.fields.map(f => f.group.toLowerCase()))];
-    if (existingGroupNames.includes(trimmedNewName.toLowerCase()) && trimmedNewName.toLowerCase() !== oldName.toLowerCase()) {
-        toast({ variant: 'destructive', title: 'Group name already exists.' });
-        return;
-    }
-
     setConfig(prevConfig => {
         if (!prevConfig) return null;
+        
+        const existingGroupNames = [...new Set(prevConfig.fields.map(f => f.group.toLowerCase()))];
+        if (existingGroupNames.includes(trimmedNewName.toLowerCase()) && trimmedNewName.toLowerCase() !== oldName.toLowerCase()) {
+            toast({ variant: 'destructive', title: 'Group name already exists.' });
+            return prevConfig;
+        }
+
         const newFields = prevConfig.fields.map(f => {
             if (f.group === oldName) return { ...f, group: trimmedNewName };
             return f;
         });
-        return { ...prevConfig, fields: newFields };
+        const newConfig = { ...prevConfig, fields: newFields };
+        updateUiConfig(newConfig);
+        return newConfig;
     });
     setEditingGroup(null);
   };
@@ -430,7 +411,6 @@ export default function SettingsPage() {
             <p className="text-muted-foreground mt-1">Manage and customize fields and environments across your application.</p>
         </div>
         <div className="flex items-center gap-2">
-             <div className="text-sm text-muted-foreground whitespace-nowrap">{isSaving ? 'Saving...' : 'All changes saved'}</div>
             <Button onClick={() => handleOpenDialog(null)}><PlusCircle className="mr-2 h-4 w-4" /> Add Field</Button>
         </div>
       </div>
