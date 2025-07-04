@@ -1,3 +1,4 @@
+
 'use client';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,9 +13,10 @@ interface CommentsSectionProps {
   comments: string[];
   onCommentsUpdate: (newComments: string[]) => void;
   hideHeader?: boolean;
+  readOnly?: boolean;
 }
 
-export function CommentsSection({ taskId, comments, onCommentsUpdate, hideHeader = false }: CommentsSectionProps) {
+export function CommentsSection({ taskId, comments, onCommentsUpdate, hideHeader = false, readOnly = false }: CommentsSectionProps) {
   const [newComment, setNewComment] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingText, setEditingText] = useState('');
@@ -85,32 +87,36 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, hideHeader
               ) : (
                 <div className="flex justify-between items-start gap-2">
                     <p className="text-foreground/80 whitespace-pre-wrap flex-1 pt-1">{comment}</p>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(index)}>
-                            <Pencil className="h-4 w-4" />
-                            <span className="sr-only">Edit comment</span>
-                        </Button>
-                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(index)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                            <span className="sr-only">Delete comment</span>
-                        </Button>
-                    </div>
+                    {!readOnly && (
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(index)}>
+                              <Pencil className="h-4 w-4" />
+                              <span className="sr-only">Edit comment</span>
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(index)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                              <span className="sr-only">Delete comment</span>
+                          </Button>
+                      </div>
+                    )}
                 </div>
               )}
             </div>
           ))}
-           {comments.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No comments yet. Add one below!</p>}
+           {comments.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No comments yet. {readOnly ? '' : 'Add one below!'}</p>}
         </div>
-        <div className="flex flex-col gap-2 pt-4 border-t">
-          <label htmlFor="new-comment" className="text-sm font-medium">Add a comment</label>
-          <Textarea
-            id="new-comment"
-            placeholder="Type your comment here..."
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-          />
-          <Button onClick={handleAddComment} className="self-end" disabled={!newComment.trim()}>Add Comment</Button>
-        </div>
+        {!readOnly && (
+          <div className="flex flex-col gap-2 pt-4 border-t">
+            <label htmlFor="new-comment" className="text-sm font-medium">Add a comment</label>
+            <Textarea
+              id="new-comment"
+              placeholder="Type your comment here..."
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+            />
+            <Button onClick={handleAddComment} className="self-end" disabled={!newComment.trim()}>Add Comment</Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { getBinnedTasks, getUiConfig, getDevelopers, getTesters, restoreMultipleTasks, permanentlyDeleteMultipleTasks, emptyBin } from '@/lib/data';
 import type { Task, UiConfig, Person } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,7 @@ import { useActiveCompany } from '@/hooks/use-active-company';
 
 
 export default function BinPage() {
+  const router = useRouter();
   const activeCompanyId = useActiveCompany();
   const [binnedTasks, setBinnedTasks] = useState<Task[]>([]);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
@@ -200,8 +202,13 @@ export default function BinPage() {
                         ].filter(Boolean);
 
                         return (
-                            <TableRow key={task.id} data-state={selectedTaskIds.includes(task.id) && "selected"}>
-                                <TableCell>
+                            <TableRow
+                              key={task.id}
+                              data-state={selectedTaskIds.includes(task.id) && "selected"}
+                              onClick={() => router.push(`/tasks/${task.id}`)}
+                              className="cursor-pointer"
+                            >
+                                <TableCell onClick={(e) => e.stopPropagation()}>
                                     <Checkbox
                                     checked={selectedTaskIds.includes(task.id)}
                                     onCheckedChange={checked => handleSelectOne(task.id, !!checked)}

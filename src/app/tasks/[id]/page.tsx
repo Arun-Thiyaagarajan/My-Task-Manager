@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, PlusCircle } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban } from 'lucide-react';
 import { getStatusConfig, TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -35,6 +35,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { attachmentSchema } from '@/lib/validators';
 import { RelatedTasksSection } from '@/components/related-tasks-section';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
 export default function TaskPage() {
@@ -336,6 +337,7 @@ export default function TaskPage() {
     );
   }
 
+  const isBinned = !!task.deletedAt;
   const statusConfig = getStatusConfig(task.status);
   const { Icon, cardClassName, iconColorClassName } = statusConfig;
 
@@ -372,21 +374,33 @@ export default function TaskPage() {
       <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-6">
           <Button asChild variant="ghost" className="pl-1">
-            <Link href="/">
+            <Link href={isBinned ? "/bin" : "/"}>
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to tasks
+              {isBinned ? "Back to Bin" : "Back to tasks"}
             </Link>
           </Button>
-          <div className="flex gap-2">
-              <Button asChild variant="outline" size="sm">
-                <Link href={`/tasks/${task.id}/edit`}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Edit
-                </Link>
-              </Button>
-              <DeleteTaskButton taskId={task.id} onSuccess={() => router.push('/')} />
-          </div>
+          {!isBinned && (
+            <div className="flex gap-2">
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/tasks/${task.id}/edit`}>
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Edit
+                  </Link>
+                </Button>
+                <DeleteTaskButton taskId={task.id} taskTitle={task.title} onSuccess={() => router.push('/')} />
+            </div>
+          )}
         </div>
+
+        {isBinned && (
+          <Alert variant="destructive" className="mb-6 border-yellow-500/50 text-yellow-600 dark:border-yellow-500 [&>svg]:text-yellow-600">
+            <Ban className="h-4 w-4" />
+            <AlertTitle>This task is in the Bin</AlertTitle>
+            <AlertDescription>
+              You are viewing a deleted task. To make changes, you must first restore it from the bin.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
@@ -408,7 +422,7 @@ export default function TaskPage() {
                     <div className="flex-shrink-0">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0">
+                          <Button variant="ghost" disabled={isBinned} className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-100">
                             <TaskStatusBadge status={task.status} variant="prominent" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -482,8 +496,11 @@ export default function TaskPage() {
                                   return (
                                       <div
                                           key={env}
-                                          className="flex justify-between items-center p-2 -m-2 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
-                                          onClick={() => handleToggleDeployment(env)}
+                                          className={cn(
+                                            "flex justify-between items-center p-2 -m-2 rounded-lg transition-colors",
+                                            !isBinned && 'cursor-pointer hover:bg-muted/50'
+                                          )}
+                                          onClick={!isBinned ? () => handleToggleDeployment(env) : undefined}
                                       >
                                           <span className="capitalize text-foreground font-medium">
                                               {env}
@@ -526,7 +543,7 @@ export default function TaskPage() {
                             <GitMerge className="h-5 w-5" />
                             {fieldLabels.get('prLinks') || 'Pull Requests'}
                         </CardTitle>
-                        {task.repositories && task.repositories.length > 0 && allConfiguredEnvs.length > 0 && (
+                        {!isBinned && task.repositories && task.repositories.length > 0 && allConfiguredEnvs.length > 0 && (
                             <Button variant="ghost" size="sm" onClick={() => setIsEditingPrLinks(!isEditingPrLinks)}>
                                 {isEditingPrLinks ? 'Done' : (
                                     <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>
@@ -542,7 +559,7 @@ export default function TaskPage() {
                         configuredEnvs={uiConfig.environments}
                         repositoryConfigs={uiConfig.repositoryConfigs}
                         onUpdate={handlePrLinksUpdate}
-                        isEditing={isEditingPrLinks}
+                        isEditing={isEditingPrLinks && !isBinned}
                       />
                   </CardContent>
               </Card>
@@ -556,9 +573,11 @@ export default function TaskPage() {
                             <Paperclip className="h-5 w-5" />
                             {fieldLabels.get('attachments') || 'Attachments'}
                         </CardTitle>
-                        <Button variant="ghost" size="sm" onClick={() => setIsEditingAttachments(!isEditingAttachments)}>
-                            {isEditingAttachments ? 'Done' : <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>}
-                        </Button>
+                        {!isBinned && (
+                          <Button variant="ghost" size="sm" onClick={() => setIsEditingAttachments(!isEditingAttachments)}>
+                              {isEditingAttachments ? 'Done' : <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>}
+                          </Button>
+                        )}
                       </div>
                   </CardHeader>
                   <CardContent>
@@ -566,7 +585,7 @@ export default function TaskPage() {
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                           {task.attachments?.map((att, index) => (
                               <div key={index} className="space-y-1.5 relative group/attachment">
-                                {isEditingAttachments && (
+                                {isEditingAttachments && !isBinned && (
                                   <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 z-10 rounded-full" onClick={() => handleDeleteAttachment(index)}>
                                     <X className="h-4 w-4" />
                                   </Button>
@@ -596,7 +615,7 @@ export default function TaskPage() {
                               </div>
                           ))}
                         </div>
-                        {isEditingAttachments && (
+                        {isEditingAttachments && !isBinned && (
                             <div className="flex gap-2 pt-4 border-t">
                                 <Popover open={isAddLinkPopoverOpen} onOpenChange={setIsAddLinkPopoverOpen}>
                                     <PopoverTrigger asChild>
@@ -819,6 +838,7 @@ export default function TaskPage() {
                   taskId={task.id}
                   comments={task.comments || []}
                   onCommentsUpdate={handleCommentsUpdate}
+                  readOnly={isBinned}
               />
           </div>
         </div>
