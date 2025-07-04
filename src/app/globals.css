@@ -95,6 +95,10 @@
       transform: scale(1);
     }
   }
+  @keyframes shrink-width {
+    from { width: 100%; }
+    to { width: 0%; }
+  }
 }
 
 @layer utilities {
@@ -106,6 +110,9 @@
     }
     .animate-status-in {
       animation: status-change-in 0.2s ease-out;
+    }
+    .animate-timer {
+      animation: shrink-width var(--toast-duration, 10s) linear forwards;
     }
     .sr-only {
       position: absolute;

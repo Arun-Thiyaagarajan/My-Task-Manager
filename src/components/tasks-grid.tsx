@@ -9,9 +9,11 @@ interface TasksGridProps {
   uiConfig: UiConfig | null;
   developers: Person[];
   testers: Person[];
+  selectedTaskIds: string[];
+  setSelectedTaskIds: (ids: string[]) => void;
 }
 
-export function TasksGrid({ tasks, onTaskDelete, onTaskUpdate, uiConfig, developers, testers }: TasksGridProps) {
+export function TasksGrid({ tasks, onTaskDelete, onTaskUpdate, uiConfig, developers, testers, selectedTaskIds, setSelectedTaskIds }: TasksGridProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {tasks.map(task => (
@@ -23,6 +25,8 @@ export function TasksGrid({ tasks, onTaskDelete, onTaskUpdate, uiConfig, develop
           uiConfig={uiConfig}
           developers={developers}
           testers={testers}
+          selectedTaskIds={selectedTaskIds}
+          setSelectedTaskIds={setSelectedTaskIds}
         />
       ))}
     </div>

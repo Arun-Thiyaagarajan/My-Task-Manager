@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester, updateUiConfig } from '@/lib/data';
+import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester, updateUiConfig, moveMultipleTasksToBin } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -34,6 +34,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig } from '@/lib/types';
@@ -68,6 +69,17 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Card, CardContent } from '@/components/ui/card';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 
 type ViewMode = 'grid' | 'table';
@@ -97,6 +109,7 @@ export default function Home() {
   const [mainView, setMainView] = useState<MainView>('all');
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
 
   const handlePreviousMonth = () => setSelectedMonth(subMonths(selectedMonth, 1));
   const handleNextMonth = () => setSelectedMonth(addMonths(selectedMonth, 1));
@@ -107,6 +120,7 @@ export default function Home() {
         setDevelopers(getDevelopers());
         setTesters(getTesters());
         setUiConfig(getUiConfig());
+        setSelectedTaskIds([]);
     }
   };
 
@@ -548,6 +562,16 @@ export default function Home() {
       };
       reader.readAsText(file);
   };
+  
+  const handleBulkDelete = () => {
+    moveMultipleTasksToBin(selectedTaskIds);
+    toast({
+        variant: 'success',
+        title: 'Tasks Moved to Bin',
+        description: `${selectedTaskIds.length} tasks have been moved to the bin.`,
+    });
+    refreshData();
+  };
 
 
   if (isLoading || !uiConfig) {
@@ -902,11 +926,36 @@ export default function Home() {
                 </div>
             </div>
 
+            {selectedTaskIds.length > 0 && (
+                <Card className="bg-muted border-primary/50">
+                    <CardContent className="p-3 flex items-center justify-between">
+                        <span className="text-sm font-medium">{selectedTaskIds.length} task(s) selected</span>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="destructive" size="sm"><Trash2 className="mr-2 h-4 w-4" /> Move to Bin</Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Move to Bin?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Are you sure you want to move the selected {selectedTaskIds.length} task(s) to the bin? You can restore them later.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleBulkDelete}>Move to Bin</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </CardContent>
+                </Card>
+            )}
+
           {sortedTasks.length > 0 ? (
             viewMode === 'grid' ? (
-              <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} />
+              <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} />
             ) : (
-              <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} />
+              <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} />
             )
           ) : (
             <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg flex flex-col items-center justify-center">

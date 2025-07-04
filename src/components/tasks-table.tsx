@@ -40,6 +40,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { updateTask } from '@/lib/data';
 import { PersonProfileCard } from './person-profile-card';
+import { Checkbox } from './ui/checkbox';
 
 interface TasksTableRowProps {
   task: Task;
@@ -48,6 +49,8 @@ interface TasksTableRowProps {
   developersById: Map<string, Person>;
   testersById: Map<string, Person>;
   onAvatarClick: (person: Person, type: 'Developer' | 'Tester') => void;
+  isSelected: boolean;
+  onToggleSelection: (taskId: string, checked: boolean) => void;
 }
 
 function TasksTableRow({
@@ -57,6 +60,8 @@ function TasksTableRow({
   developersById,
   testersById,
   onAvatarClick,
+  isSelected,
+  onToggleSelection,
 }: TasksTableRowProps) {
   const [task, setTask] = useState(initialTask);
   const [justUpdatedEnv, setJustUpdatedEnv] = useState<string | null>(null);
@@ -140,7 +145,14 @@ function TasksTableRow({
   const { Icon, iconColorClassName } = statusConfig;
 
   return (
-    <TableRow key={task.id} className="group/row">
+    <TableRow key={task.id} className="group/row" data-state={isSelected ? 'selected' : undefined}>
+       <TableCell>
+        <Checkbox
+          checked={isSelected}
+          onCheckedChange={(checked) => onToggleSelection(task.id, !!checked)}
+          aria-label={`Select task ${task.title}`}
+        />
+      </TableCell>
       <TableCell className="font-medium max-w-xs relative overflow-hidden align-top">
         <Icon className={cn(
           "absolute -bottom-8 -left-8 h-24 w-24 pointer-events-none transition-transform duration-300 ease-in-out z-0",
@@ -323,12 +335,16 @@ export function TasksTable({
   uiConfig,
   developers,
   testers,
+  selectedTaskIds,
+  setSelectedTaskIds,
 }: {
   tasks: Task[];
   onTaskDelete: () => void;
   uiConfig: UiConfig | null;
   developers: Person[];
   testers: Person[];
+  selectedTaskIds: string[];
+  setSelectedTaskIds: (ids: string[]) => void;
 }) {
   const [personInView, setPersonInView] = useState<{
     person: Person;
@@ -346,12 +362,33 @@ export function TasksTable({
   const handleAvatarClick = (person: Person, type: 'Developer' | 'Tester') => {
     setPersonInView({ person, type });
   };
+  
+  const handleToggleAll = (checked: boolean | 'indeterminate') => {
+    setSelectedTaskIds(checked === true ? tasks.map(t => t.id) : []);
+  };
+  
+  const handleToggleSelection = (taskId: string, checked: boolean) => {
+    const newSelected = checked
+      ? [...selectedTaskIds, taskId]
+      : selectedTaskIds.filter(id => id !== taskId);
+    setSelectedTaskIds(newSelected);
+  };
+  
+  const numSelected = selectedTaskIds.length;
+  const numTasks = tasks.length;
 
   return (
     <div className="border rounded-lg bg-card">
       <Table>
         <TableHeader>
           <TableRow>
+             <TableHead className="w-[50px]">
+                <Checkbox
+                  checked={numSelected === numTasks ? true : (numSelected > 0 ? 'indeterminate' : false)}
+                  onCheckedChange={handleToggleAll}
+                  aria-label="Select all"
+                />
+            </TableHead>
             <TableHead>{fieldLabels.get('title') || 'Title'}</TableHead>
             <TableHead>{fieldLabels.get('status') || 'Status'}</TableHead>
             <TableHead>Developers</TableHead>
@@ -375,6 +412,8 @@ export function TasksTable({
               developersById={developersById}
               testersById={testersById}
               onAvatarClick={handleAvatarClick}
+              isSelected={selectedTaskIds.includes(task.id)}
+              onToggleSelection={handleToggleSelection}
             />
           ))}
         </TableBody>

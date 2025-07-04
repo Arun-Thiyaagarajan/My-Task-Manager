@@ -5,6 +5,7 @@ import cloneDeep from 'lodash/cloneDeep';
 
 interface CompanyData {
     tasks: Task[];
+    trash: Task[];
     developers: Person[];
     testers: Person[];
     uiConfig: UiConfig;
@@ -35,6 +36,7 @@ const getInitialData = (): MyTaskManagerData => {
         companyData: {
             [defaultCompanyId]: {
                 tasks: [],
+                trash: [],
                 developers: [],
                 testers: [],
                 uiConfig: { 
@@ -62,6 +64,7 @@ const getAppData = (): MyTaskManagerData => {
             companyData: {
                 'company-placeholder': {
                     tasks: [],
+                    trash: [],
                     developers: [],
                     testers: [],
                     uiConfig: defaultConfig,
@@ -80,6 +83,12 @@ const getAppData = (): MyTaskManagerData => {
         if (!data.companies || !data.companyData || data.companies.length === 0) {
             throw new Error("Invalid core data structure, resetting.");
         }
+        // Migration for existing users: ensure trash array exists
+        Object.values(data.companyData).forEach(company => {
+            if (!company.trash) {
+                company.trash = [];
+            }
+        });
         return data;
     } catch (e) {
         console.error(`Error with localStorage data, resetting:`, e);
@@ -372,8 +381,8 @@ export function getTasks(): Task[] {
 }
 
 export function getTaskById(id: string): Task | undefined {
-  const tasks = getTasks();
-  return tasks.find(task => task.id === id);
+  const allTasks = [...getTasks(), ...getBinnedTasks()];
+  return allTasks.find(task => task.id === id);
 }
 
 export function addTask(taskData: Partial<Task>): Task {
@@ -416,38 +425,152 @@ export function addTask(taskData: Partial<Task>): Task {
 export function updateTask(id: string, taskData: Partial<Omit<Task, 'id' | 'createdAt' | 'updatedAt'>>): Task | undefined {
   const data = getAppData();
   const activeCompanyId = data.activeCompanyId;
-  const tasks = data.companyData[activeCompanyId]?.tasks || [];
+  const companyData = data.companyData[activeCompanyId];
+  if (!companyData) return undefined;
   
-  const taskIndex = tasks.findIndex(task => task.id === id);
-  if (taskIndex === -1) {
-    return undefined;
+  const taskIndex = companyData.tasks.findIndex(task => task.id === id);
+  if (taskIndex !== -1) {
+    const updatedTask = { ...companyData.tasks[taskIndex], ...taskData, updatedAt: new Date().toISOString() };
+    companyData.tasks[taskIndex] = updatedTask;
+    setAppData(data);
+    return updatedTask;
   }
   
-  const updatedTask = { 
-    ...tasks[taskIndex], 
-    ...taskData,
-    updatedAt: new Date().toISOString()
-  };
-  
-  data.companyData[activeCompanyId].tasks[taskIndex] = updatedTask;
-  setAppData(data);
-  return updatedTask;
+  const trashIndex = companyData.trash.findIndex(task => task.id === id);
+   if (trashIndex !== -1) {
+    const updatedTask = { ...companyData.trash[trashIndex], ...taskData, updatedAt: new Date().toISOString() };
+    companyData.trash[trashIndex] = updatedTask;
+    setAppData(data);
+    return updatedTask;
+  }
+
+  return undefined;
 }
 
-export function deleteTask(id: string): boolean {
+// Bin/Trash Functions
+export function getBinnedTasks(): Task[] {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    if (!companyData) return [];
+    // Auto-delete tasks older than 30 days
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const recentTrash = (companyData.trash || []).filter(task =>
+        task.deletedAt && new Date(task.deletedAt) > thirtyDaysAgo
+    );
+    if (recentTrash.length < (companyData.trash || []).length) {
+        companyData.trash = recentTrash;
+        setAppData(data);
+    }
+    return recentTrash.sort((a,b) => new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime());
+}
+
+export function moveTaskToBin(id: string): boolean {
   const data = getAppData();
-  const activeCompanyId = data.activeCompanyId;
-  let tasks = data.companyData[activeCompanyId]?.tasks || [];
+  const companyData = data.companyData[data.activeCompanyId];
+  if (!companyData) return false;
+
+  const taskIndex = companyData.tasks.findIndex(task => task.id === id);
+  if (taskIndex === -1) return false;
   
-  const taskIndex = tasks.findIndex(task => task.id === id);
-  if (taskIndex === -1) {
-    return false;
-  }
-  tasks.splice(taskIndex, 1);
-  data.companyData[activeCompanyId].tasks = tasks;
+  const [taskToBin] = companyData.tasks.splice(taskIndex, 1);
+  taskToBin.deletedAt = new Date().toISOString();
+  companyData.trash.unshift(taskToBin);
+  
   setAppData(data);
   return true;
 }
+
+export function moveMultipleTasksToBin(ids: string[]): boolean {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    if (!companyData) return false;
+    
+    const tasksToBin = companyData.tasks.filter(task => ids.includes(task.id));
+    if (tasksToBin.length === 0) return false;
+
+    const now = new Date().toISOString();
+    tasksToBin.forEach(task => task.deletedAt = now);
+
+    companyData.tasks = companyData.tasks.filter(task => !ids.includes(task.id));
+    companyData.trash.unshift(...tasksToBin);
+
+    setAppData(data);
+    return true;
+}
+
+export function restoreTask(id: string): boolean {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    if (!companyData) return false;
+
+    const taskIndex = companyData.trash.findIndex(task => task.id === id);
+    if (taskIndex === -1) return false;
+
+    const [taskToRestore] = companyData.trash.splice(taskIndex, 1);
+    delete taskToRestore.deletedAt;
+    companyData.tasks.unshift(taskToRestore);
+
+    setAppData(data);
+    return true;
+}
+
+export function restoreMultipleTasks(ids: string[]): boolean {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    if (!companyData) return false;
+
+    const tasksToRestore = companyData.trash.filter(task => ids.includes(task.id));
+    if (tasksToRestore.length === 0) return false;
+
+    tasksToRestore.forEach(task => delete task.deletedAt);
+    companyData.trash = companyData.trash.filter(task => !ids.includes(task.id));
+    companyData.tasks.unshift(...tasksToRestore);
+
+    setAppData(data);
+    return true;
+}
+
+export function permanentlyDeleteTask(id: string): boolean {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    if (!companyData) return false;
+    
+    const initialLength = companyData.trash.length;
+    companyData.trash = companyData.trash.filter(task => task.id !== id);
+    
+    if (companyData.trash.length < initialLength) {
+        setAppData(data);
+        return true;
+    }
+    return false;
+}
+
+export function permanentlyDeleteMultipleTasks(ids: string[]): boolean {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    if (!companyData) return false;
+    
+    const initialLength = companyData.trash.length;
+    companyData.trash = companyData.trash.filter(task => !ids.includes(task.id));
+
+    if (companyData.trash.length < initialLength) {
+        setAppData(data);
+        return true;
+    }
+    return false;
+}
+
+export function emptyBin(): boolean {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    if (!companyData) return false;
+    
+    companyData.trash = [];
+    setAppData(data);
+    return true;
+}
+
 
 // =================================================================
 // UNIFIED PERSON MANAGEMENT LOGIC

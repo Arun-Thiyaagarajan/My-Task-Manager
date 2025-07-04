@@ -41,6 +41,7 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   summary?: string | null;
+  deletedAt?: string;
   
   repositories?: Repository[];
   azureWorkItemId?: string;

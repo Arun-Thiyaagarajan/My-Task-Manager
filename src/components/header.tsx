@@ -119,6 +119,10 @@ export function Header() {
                   <Cog className="mr-2 h-4 w-4" />
                   Settings
                </HeaderLink>
+                <HeaderLink href="/bin" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Bin
+               </HeaderLink>
             </nav>
           </div>
           <div className="flex items-center gap-2">
@@ -202,6 +206,11 @@ export function Header() {
                   <DropdownMenuItem asChild>
                     <HeaderLink href="/settings" className="w-full flex items-center gap-2">
                        <Cog className="h-4 w-4" /> Settings
+                    </HeaderLink>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <HeaderLink href="/bin" className="w-full flex items-center gap-2">
+                       <Trash2 className="h-4 w-4" /> Bin
                     </HeaderLink>
                   </DropdownMenuItem>
                 </DropdownMenuContent>

@@ -34,6 +34,7 @@ import { PersonProfileCard } from './person-profile-card';
 import { summarizeText } from '@/ai/flows/summarize-flow';
 import { Skeleton } from './ui/skeleton';
 import { EnvironmentStatus } from './environment-status';
+import { Checkbox } from './ui/checkbox';
 
 interface TaskCardProps {
   task: Task;
@@ -42,15 +43,20 @@ interface TaskCardProps {
   uiConfig: UiConfig | null;
   developers: Person[];
   testers: Person[];
+  selectedTaskIds?: string[];
+  setSelectedTaskIds?: (ids: string[]) => void;
 }
 
-export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConfig, developers, testers }: TaskCardProps) {
+export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConfig, developers, testers, selectedTaskIds, setSelectedTaskIds }: TaskCardProps) {
   const [task, setTask] = useState(initialTask);
   const { toast } = useToast();
   const [taskStatuses, setTaskStatuses] = useState<string[]>([]);
   const [personInView, setPersonInView] = useState<{person: Person, type: 'Developer' | 'Tester'} | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [justUpdatedEnv, setJustUpdatedEnv] = useState<string | null>(null);
+  
+  const isSelectable = selectedTaskIds !== undefined && setSelectedTaskIds !== undefined;
+  const isSelected = isSelectable && selectedTaskIds.includes(task.id);
   
   useEffect(() => {
     setTask(initialTask);
@@ -150,6 +156,14 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
         });
     }
   };
+  
+  const handleSelectionChange = () => {
+    if (!isSelectable) return;
+    const newSelected = isSelected
+      ? selectedTaskIds.filter(id => id !== task.id)
+      : [...selectedTaskIds, task.id];
+    setSelectedTaskIds(newSelected);
+  }
 
 
   const fieldLabels = new Map(uiConfig?.fields.map(f => [f.key, f.label]));
@@ -175,11 +189,22 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   return (
     <>
       <Card
+        onClick={isSelectable ? handleSelectionChange : undefined}
         className={cn(
           "flex flex-col h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative overflow-hidden group/card rounded-lg",
-          cardClassName
+          cardClassName,
+          isSelectable && "cursor-pointer",
+          isSelected && "ring-2 ring-primary ring-offset-2"
         )}
       >
+        {isSelectable && (
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={handleSelectionChange}
+            className="absolute top-3 right-3 z-20 h-5 w-5 bg-background/80"
+            aria-label={`Select task ${task.title}`}
+          />
+        )}
         <Icon className={cn(
           "absolute -bottom-8 -right-8 h-36 w-36 pointer-events-none transition-transform duration-300 ease-in-out",
           iconColorClassName,
@@ -188,7 +213,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
         <div className="flex flex-col flex-grow z-10">
           <CardHeader className="p-4 pb-2">
               <div className="flex items-start justify-between gap-2">
-                  <Link href={`/tasks/${task.id}`} className="flex-grow cursor-pointer">
+                  <Link href={`/tasks/${task.id}`} className="flex-grow cursor-pointer" onClick={e => e.stopPropagation()}>
                       <CardTitle className="text-base font-semibold leading-snug line-clamp-3 text-foreground group-hover/card:text-primary">
                       {task.title}
                       </CardTitle>
@@ -196,11 +221,11 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                   <div className="flex-shrink-0">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0">
+                          <Button variant="ghost" className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0" onClick={e => e.stopPropagation()}>
                             <TaskStatusBadge status={task.status} />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
+                        <DropdownMenuContent align="end" onClick={e => e.stopPropagation()}>
                           <DropdownMenuLabel>Set Status</DropdownMenuLabel>
                           <DropdownMenuSeparator />
                           {taskStatuses.map(s => {

@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -52,7 +53,17 @@ const Toast = React.forwardRef<
       ref={ref}
       className={cn(toastVariants({ variant }), className)}
       {...props}
-    />
+    >
+        {props.children}
+        {props.duration && props.duration < Infinity && (
+            <div className="absolute bottom-0 left-0 h-1 bg-foreground/30 w-full">
+                <div 
+                    className="h-full bg-white/50 animate-timer" 
+                    style={{'--toast-duration': `${props.duration / 1000}s`} as React.CSSProperties}
+                />
+            </div>
+        )}
+    </ToastPrimitives.Root>
   )
 })
 Toast.displayName = ToastPrimitives.Root.displayName
@@ -65,6 +76,8 @@ const ToastAction = React.forwardRef<
     ref={ref}
     className={cn(
       "inline-flex h-8 shrink-0 items-center justify-center rounded-md border bg-transparent px-3 text-sm font-medium ring-offset-background transition-colors hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 group-[.destructive]:border-muted/40 group-[.destructive]:hover:border-destructive/30 group-[.destructive]:hover:bg-destructive group-[.destructive]:hover:text-destructive-foreground group-[.destructive]:focus:ring-destructive",
+      "group-[.success]:border-green-700 group-[.success]:hover:bg-green-700",
+      "group-[.warning]:border-yellow-600 group-[.warning]:hover:bg-yellow-600",
       className
     )}
     {...props}
