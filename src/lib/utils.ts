@@ -105,6 +105,7 @@ const ENV_COLORS = [
 export const getEnvInfo = (env: string) => {
   switch (env.toLowerCase()) {
     case 'dev':
+    case 'develop':
       return {
         deployedColor: 'border-transparent bg-blue-600 text-blue-50 dark:bg-blue-700 dark:text-blue-100',
         pendingColor: 'border-dashed border-blue-500/80 text-blue-600 dark:border-blue-500/70 dark:text-blue-400 bg-transparent',
