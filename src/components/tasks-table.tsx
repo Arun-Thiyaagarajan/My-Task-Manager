@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Table,
@@ -355,8 +355,15 @@ export function TasksTable({
   }
   
   const priorityStatuses = ['To Do', 'In Progress', 'Code Review', 'QA'];
+  
   const priorityTasks = tasks.filter(task => priorityStatuses.includes(task.status));
-  const otherTasks = tasks.filter(task => !priorityStatuses.includes(task.status));
+  const completedTasks = tasks.filter(task => task.status === 'Done');
+  const holdTasks = tasks.filter(task => task.status === 'Hold');
+  const otherTasks = tasks.filter(task => 
+    !priorityStatuses.includes(task.status) && 
+    task.status !== 'Done' && 
+    task.status !== 'Hold'
+  );
 
   const fieldLabels = new Map(uiConfig.fields.map((f) => [f.key, f.label]));
   const developersById = new Map(developers.map((d) => [d.id, d]));
@@ -407,7 +414,13 @@ export function TasksTable({
       />
     ));
   };
+  
+  const groups: { key: string, title: string, tasks: Task[] }[] = [];
 
+  if (priorityTasks.length > 0) groups.push({ key: 'priority', title: priorityTitle!, tasks: priorityTasks });
+  if (completedTasks.length > 0) groups.push({ key: 'completed', title: 'Completed Tasks', tasks: completedTasks });
+  if (otherTasks.length > 0) groups.push({ key: 'other', title: 'Other Tasks', tasks: otherTasks });
+  if (holdTasks.length > 0) groups.push({ key: 'hold', title: 'On Hold Tasks', tasks: holdTasks });
 
   return (
     <div className="border rounded-lg bg-card">
@@ -437,22 +450,23 @@ export function TasksTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {priorityTasks.length > 0 && priorityTitle && (
-             <TableRow className="bg-muted/30 hover:bg-muted/30">
+           {groups.map(({ key, title, tasks: tasksInGroup }, index) => (
+            <React.Fragment key={key}>
+              {index > 0 && (
+                <TableRow className="hover:bg-transparent data-[state=selected]:bg-transparent">
+                  <TableCell colSpan={colSpan} className="p-0 h-4">
+                    <div className="border-t border-dashed w-full h-full"></div>
+                  </TableCell>
+                </TableRow>
+              )}
+              <TableRow className="bg-muted/30 hover:bg-muted/30">
                 <TableCell colSpan={colSpan} className="py-2 px-4 font-semibold text-muted-foreground">
-                    {priorityTitle}
+                  {title}
                 </TableCell>
-            </TableRow>
-          )}
-          {renderTaskRows(priorityTasks)}
-          {priorityTasks.length > 0 && otherTasks.length > 0 && (
-            <TableRow className="hover:bg-transparent data-[state=selected]:bg-transparent">
-              <TableCell colSpan={colSpan} className="p-0 h-4">
-                  <div className="border-t border-dashed w-full h-full"></div>
-              </TableCell>
-            </TableRow>
-          )}
-          {renderTaskRows(otherTasks)}
+              </TableRow>
+              {renderTaskRows(tasksInGroup)}
+            </React.Fragment>
+          ))}
         </TableBody>
       </Table>
       <PersonProfileCard

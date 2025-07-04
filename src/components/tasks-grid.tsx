@@ -1,4 +1,5 @@
 
+import React from 'react';
 import { TaskCard } from '@/components/task-card';
 import type { Task, UiConfig, Person } from '@/lib/types';
 import { Separator } from './ui/separator';
@@ -17,8 +18,15 @@ interface TasksGridProps {
 
 export function TasksGrid({ tasks, onTaskDelete, onTaskUpdate, uiConfig, developers, testers, selectedTaskIds, setSelectedTaskIds, isSelectMode }: TasksGridProps) {
   const priorityStatuses = ['To Do', 'In Progress', 'Code Review', 'QA'];
+  
   const priorityTasks = tasks.filter(task => priorityStatuses.includes(task.status));
-  const otherTasks = tasks.filter(task => !priorityStatuses.includes(task.status));
+  const completedTasks = tasks.filter(task => task.status === 'Done');
+  const holdTasks = tasks.filter(task => task.status === 'Hold');
+  const otherTasks = tasks.filter(task => 
+    !priorityStatuses.includes(task.status) && 
+    task.status !== 'Done' && 
+    task.status !== 'Hold'
+  );
 
   const getPriorityTitle = () => {
     if (priorityTasks.length === 0) return null;
@@ -50,20 +58,32 @@ export function TasksGrid({ tasks, onTaskDelete, onTaskUpdate, uiConfig, develop
     </div>
   );
 
+  const groups: { key: string, title: string, tasks: Task[] }[] = [];
+
+  if (priorityTasks.length > 0) {
+    groups.push({ key: 'priority', title: priorityTitle!, tasks: priorityTasks });
+  }
+  if (completedTasks.length > 0) {
+    groups.push({ key: 'completed', title: 'Completed Tasks', tasks: completedTasks });
+  }
+  if (otherTasks.length > 0) {
+    groups.push({ key: 'other', title: 'Other Tasks', tasks: otherTasks });
+  }
+  if (holdTasks.length > 0) {
+    groups.push({ key: 'hold', title: 'On Hold Tasks', tasks: holdTasks });
+  }
+
   return (
     <div className="space-y-6">
-      {priorityTasks.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold tracking-tight text-foreground">{priorityTitle}</h2>
-          {renderGrid(priorityTasks)}
-        </div>
-      )}
-      
-      {priorityTasks.length > 0 && otherTasks.length > 0 && (
-        <Separator />
-      )}
-
-      {otherTasks.length > 0 && renderGrid(otherTasks)}
+      {groups.map(({ key, title, tasks: tasksInGroup }, index) => (
+        <React.Fragment key={key}>
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold tracking-tight text-foreground">{title}</h2>
+            {renderGrid(tasksInGroup)}
+          </div>
+          {index < groups.length - 1 && <Separator />}
+        </React.Fragment>
+      ))}
     </div>
   );
 }
