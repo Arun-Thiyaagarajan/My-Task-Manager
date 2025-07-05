@@ -126,12 +126,12 @@ export const generateTaskPdf = (
     const PAGE_HEIGHT = doc.internal.pageSize.getHeight();
     const PAGE_WIDTH = doc.internal.pageSize.getWidth();
     const MAX_CONTENT_WIDTH = PAGE_WIDTH - PADDING * 2;
+    
     const KEY_COLUMN_WIDTH = 45;
     const VALUE_COLUMN_X = PADDING + KEY_COLUMN_WIDTH;
     const VALUE_COLUMN_WIDTH = MAX_CONTENT_WIDTH - KEY_COLUMN_WIDTH;
 
     const FONT_SIZE_NORMAL = 10;
-    const FONT_SIZE_SMALL = 8;
     const FONT_SIZE_H1 = 16;
     const FONT_SIZE_H2 = 12;
     const LINE_HEIGHT_NORMAL = 5.5;
@@ -208,28 +208,31 @@ export const generateTaskPdf = (
     const drawKeyValue = (key: string, value: string | { text: string; link: string } | null | undefined) => {
         if (!value) return;
 
-        let text: string, link: string | undefined;
+        let textValue: string, linkUrl: string | undefined;
         if (typeof value === 'object' && value !== null) {
-            text = value.text;
-            link = value.link;
+            textValue = value.text;
+            linkUrl = value.link;
         } else {
-            text = String(value);
+            textValue = String(value);
         }
         
         doc.setFontSize(FONT_SIZE_NORMAL);
-        const valueLines = doc.splitTextToSize(text, VALUE_COLUMN_WIDTH);
-        const requiredHeight = valueLines.length * LINE_HEIGHT_NORMAL;
+        
+        const keyLines = doc.splitTextToSize(`${key}:`, KEY_COLUMN_WIDTH - 2);
+        const valueLines = doc.splitTextToSize(textValue, VALUE_COLUMN_WIDTH);
+        
+        const requiredHeight = Math.max(keyLines.length, valueLines.length) * LINE_HEIGHT_NORMAL;
         checkPageBreak(requiredHeight + 2);
 
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(...COLORS.TEXT_MUTED);
-        doc.text(`${key}:`, PADDING, y, { align: 'left', baseline: 'top' });
+        doc.text(keyLines, PADDING, y, { baseline: 'top' });
 
         doc.setFont('helvetica', 'normal');
-        
-        if (link) {
+        if (linkUrl) {
             doc.setTextColor(...COLORS.LINK);
-            doc.textWithLink(text, VALUE_COLUMN_X, y, { url: link, baseline: 'top' });
+            doc.text(valueLines, VALUE_COLUMN_X, y, { baseline: 'top' });
+            doc.link(VALUE_COLUMN_X, y, VALUE_COLUMN_WIDTH, requiredHeight, { url: linkUrl });
         } else {
             doc.setTextColor(...COLORS.TEXT_PRIMARY);
             doc.text(valueLines, VALUE_COLUMN_X, y, { baseline: 'top' });
@@ -255,21 +258,21 @@ export const generateTaskPdf = (
         const lines = doc.splitTextToSize(task.description, MAX_CONTENT_WIDTH);
         checkPageBreak(lines.length * LINE_HEIGHT_NORMAL);
         doc.text(lines, PADDING, y);
-        y += lines.length * LINE_HEIGHT_NORMAL;
+        y += (lines.length * LINE_HEIGHT_NORMAL) + 2;
     }
 
     drawSectionHeader('Task Details');
     const assignedDevs = (task.developers || []).map(id => developersById.get(id)).filter(Boolean).join(', ');
     drawKeyValue(fieldLabels.get('developers') || 'Developers', assignedDevs);
     const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter(Boolean).join(', ');
-    drawKeyValue(fieldLabels.get('testers') || 'Testers', assignedTesters);
+    drawKeyValue(fieldLabels.get('testers') || 'QA', assignedTesters);
     if (task.repositories && task.repositories.length > 0) {
         drawKeyValue(fieldLabels.get('repositories') || 'Repositories', task.repositories.join(', '));
     }
     if (task.azureWorkItemId) {
         const azureConfig = uiConfig.fields.find(f => f.key === 'azureWorkItemId');
         const url = azureConfig?.baseUrl ? `${azureConfig.baseUrl}${task.azureWorkItemId}` : '';
-        drawKeyValue(fieldLabels.get('azureWorkItemId') || 'Azure ID', { text: `#${task.azureWorkItemId}`, link: url });
+        drawKeyValue(fieldLabels.get('azureWorkItemId') || 'Azure Work Item ID', { text: `#${task.azureWorkItemId}`, link: url });
     }
 
     if (customFields.length > 0) {
@@ -282,21 +285,23 @@ export const generateTaskPdf = (
     }
 
     drawSectionHeader('Timeline & Deployments');
-    if (task.devStartDate) drawKeyValue(fieldLabels.get('devStartDate') || 'Dev Start', format(new Date(task.devStartDate), 'PPP'));
-    if (task.devEndDate) drawKeyValue(fieldLabels.get('devEndDate') || 'Dev End', format(new Date(task.devEndDate), 'PPP'));
-    if (task.qaStartDate) drawKeyValue(fieldLabels.get('qaStartDate') || 'QA Start', format(new Date(task.qaStartDate), 'PPP'));
-    if (task.qaEndDate) drawKeyValue(fieldLabels.get('qaEndDate') || 'QA End', format(new Date(task.qaEndDate), 'PPP'));
+    if (task.devStartDate) drawKeyValue(fieldLabels.get('devStartDate') || 'Dev Start Date', format(new Date(task.devStartDate), 'PPP'));
+    if (task.devEndDate) drawKeyValue(fieldLabels.get('devEndDate') || 'Dev End Date', format(new Date(task.devEndDate), 'PPP'));
+    if (task.qaStartDate) drawKeyValue(fieldLabels.get('qaStartDate') || 'QA Start Date', format(new Date(task.qaStartDate), 'PPP'));
+    if (task.qaEndDate) drawKeyValue(fieldLabels.get('qaEndDate') || 'QA End Date', format(new Date(task.qaEndDate), 'PPP'));
     
-    if (uiConfig.environments.length > 0) y += 2;
-    uiConfig.environments.forEach(env => {
-        const isSelected = task.deploymentStatus?.[env] ?? false;
-        const hasDate = task.deploymentDates && task.deploymentDates[env];
-        const isDeployed = isSelected && (env === 'dev' || !!hasDate);
-        if (isDeployed) {
-            const deploymentDate = hasDate ? `on ${format(new Date(hasDate), 'PPP')}` : '(Deployed)';
-            drawKeyValue(`${env.charAt(0).toUpperCase() + env.slice(1)}`, deploymentDate);
-        }
-    });
+    if (uiConfig.environments.length > 0) {
+      if (task.devStartDate || task.devEndDate || task.qaStartDate || task.qaEndDate) y += 2; // Add spacing
+      uiConfig.environments.forEach(env => {
+          const isSelected = task.deploymentStatus?.[env] ?? false;
+          const hasDate = task.deploymentDates && task.deploymentDates[env];
+          const isDeployed = isSelected && (env === 'dev' || !!hasDate);
+          if (isDeployed) {
+              const deploymentDate = hasDate ? `on ${format(new Date(hasDate), 'PPP')}` : '(Deployed)';
+              drawKeyValue(`${env.charAt(0).toUpperCase() + env.slice(1)} Deployed`, deploymentDate);
+          }
+      });
+    }
 
     const hasPrs = task.prLinks && Object.values(task.prLinks).some(v => v && Object.keys(v).length > 0);
     if(hasPrs) {
@@ -308,7 +313,8 @@ export const generateTaskPdf = (
                 const prConfig = uiConfig.repositoryConfigs.find(rc => rc.name === repo);
                 ids.split(',').map(id => id.trim()).filter(Boolean).forEach(prId => {
                     const url = prConfig?.baseUrl ? `${prConfig.baseUrl}${prId}` : '#';
-                    drawKeyValue(`${repo} #${prId} (${env})`, { text: url, link: url });
+                    const key = `${repo} #${prId} (${env})`;
+                    drawKeyValue(key, { text: url, link: url });
                 });
             });
         });
@@ -320,7 +326,7 @@ export const generateTaskPdf = (
             if (att.type === 'link') {
               drawKeyValue(att.name, {text: att.url, link: att.url});
             } else {
-              drawKeyValue(att.name, '(Image Attachment)');
+              drawKeyValue(att.name, '(Image Attachment - not shown in PDF)');
             }
         });
     }
