@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles, Share2 } from 'lucide-react';
 import { getStatusConfig, TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -36,6 +36,7 @@ import { Input } from '@/components/ui/input';
 import { attachmentSchema } from '@/lib/validators';
 import { RelatedTasksSection } from '@/components/related-tasks-section';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ShareMenu } from '@/components/share-menu';
 
 const isImageUrl = (url: string): boolean => {
   try {
@@ -391,6 +392,12 @@ export default function TaskPage() {
           </Button>
           {!isBinned && (
             <div className="flex gap-2">
+                <ShareMenu task={task} uiConfig={uiConfig} developers={developers} testers={testers}>
+                    <Button variant="outline" size="sm">
+                        <Share2 className="mr-2 h-4 w-4" />
+                        Share
+                    </Button>
+                </ShareMenu>
                 <Button asChild variant="outline" size="sm">
                   <Link href={`/tasks/${task.id}/edit`}>
                     <Pencil className="mr-2 h-4 w-4" />

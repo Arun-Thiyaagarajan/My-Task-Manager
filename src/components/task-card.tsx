@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getStatusConfig, TaskStatusBadge } from './task-status-badge';
-import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck } from 'lucide-react';
+import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck, Share2 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
@@ -35,6 +35,7 @@ import { summarizeText } from '@/ai/flows/summarize-flow';
 import { Skeleton } from './ui/skeleton';
 import { EnvironmentStatus } from './environment-status';
 import { Checkbox } from './ui/checkbox';
+import { ShareMenu } from './share-menu';
 
 interface TaskCardProps {
   task: Task;
@@ -388,7 +389,15 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                 <div className="text-xs text-muted-foreground italic">No assignees</div>
               )}
           </div>
-          <div>
+          <div className="flex items-center gap-1">
+            {uiConfig && (
+              <ShareMenu task={task} uiConfig={uiConfig} developers={developers} testers={testers}>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Share2 className="h-4 w-4" />
+                    <span className="sr-only">Share Task</span>
+                </Button>
+              </ShareMenu>
+            )}
             <DeleteTaskButton
               taskId={task.id}
               taskTitle={task.title}

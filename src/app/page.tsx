@@ -36,6 +36,7 @@ import {
   ChevronDown,
   Trash2,
   CheckSquare,
+  Copy,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig } from '@/lib/types';
@@ -81,6 +82,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { generateTasksText } from '@/lib/share-utils';
 
 
 type ViewMode = 'grid' | 'table';
@@ -548,6 +550,17 @@ export default function Home() {
     setIsSelectMode(false);
   };
 
+  const handleBulkShare = () => {
+    if (!uiConfig) return;
+    const selectedTasks = tasks.filter(t => selectedTaskIds.includes(t.id));
+    const textContent = generateTasksText(selectedTasks, uiConfig, developers, testers);
+    navigator.clipboard.writeText(textContent).then(() => {
+        toast({ variant: 'success', title: 'Copied to Clipboard', description: `${selectedTasks.length} tasks copied.` });
+    }).catch(err => {
+        toast({ variant: 'destructive', title: 'Failed to Copy' });
+    });
+  };
+
 
   if (isLoading || !uiConfig) {
     return <LoadingSpinner text="Loading tasks..." />;
@@ -914,23 +927,28 @@ export default function Home() {
                 <Card className="bg-muted border-primary/50">
                     <CardContent className="p-3 flex items-center justify-between">
                         <span className="text-sm font-medium">{selectedTaskIds.length} task(s) selected</span>
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button variant="destructive" size="sm"><Trash2 className="mr-2 h-4 w-4" /> Move to Bin</Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Move to Bin?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        Are you sure you want to move the selected {selectedTaskIds.length} task(s) to the bin? You can restore them later.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleBulkDelete}>Move to Bin</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
+                        <div className='flex items-center gap-2'>
+                          <Button variant="outline" size="sm" onClick={handleBulkShare}>
+                            <Copy className="mr-2 h-4 w-4" /> Share
+                          </Button>
+                          <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                  <Button variant="destructive" size="sm"><Trash2 className="mr-2 h-4 w-4" /> Move to Bin</Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                      <AlertDialogTitle>Move to Bin?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                          Are you sure you want to move the selected {selectedTaskIds.length} task(s) to the bin? You can restore them later.
+                                      </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction onClick={handleBulkDelete}>Move to Bin</AlertDialogAction>
+                                  </AlertDialogFooter>
+                              </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                     </CardContent>
                 </Card>
             )}
