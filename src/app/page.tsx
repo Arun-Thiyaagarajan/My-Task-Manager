@@ -533,18 +533,43 @@ export default function Home() {
               
               const processTaskArray = (tasksToProcess: Partial<Task>[], isBinned: boolean) => {
                 for (const taskData of tasksToProcess) {
-                    const validationResult = taskSchema.safeParse(taskData);
+                    
+                    // --- PRE-PROCESSING STEP TO HANDLE FLAT CUSTOM FIELDS ---
+                    const knownTaskKeys = new Set([
+                        'id', 'title', 'description', 'status', 'createdAt', 'updatedAt',
+                        'summary', 'deletedAt', 'repositories', 'azureWorkItemId', 'prLinks',
+                        'deploymentStatus', 'deploymentDates', 'developers', 'testers',
+                        'comments', 'attachments', 'devStartDate', 'devEndDate', 'qaStartDate',
+                        'qaEndDate', 'customFields'
+                    ]);
+            
+                    const processedTaskData: Partial<Task> = { ...taskData };
+                    if (!processedTaskData.customFields) {
+                        processedTaskData.customFields = {};
+                    }
+
+                    for (const key of Object.keys(taskData)) {
+                        if (!knownTaskKeys.has(key)) {
+                            // It's a custom field, move it.
+                            (processedTaskData.customFields as any)[key] = (processedTaskData as any)[key];
+                            delete (processedTaskData as any)[key];
+                        }
+                    }
+                    // --- END PRE-PROCESSING ---
+
+                    const validationResult = taskSchema.safeParse(processedTaskData);
                     if (!validationResult.success) {
-                        console.error("Task import validation failed:", validationResult.error.flatten().fieldErrors, "for task data:", taskData);
+                        console.error("Task import validation failed:", validationResult.error.flatten().fieldErrors, "for task data:", processedTaskData);
                         failedCount++;
                         continue;
                     }
+
                     const validatedData = validationResult.data;
                     if (validatedData.developers) { validatedData.developers = validatedData.developers.map(nameOrId => allDevIds.has(nameOrId) ? nameOrId : devsByName.get((nameOrId as string).toLowerCase()) || null).filter((id): id is string => !!id); }
                     if (validatedData.testers) { validatedData.testers = validatedData.testers.map(nameOrId => allTesterIds.has(nameOrId) ? nameOrId : testersByName.get((nameOrId as string).toLowerCase()) || null).filter((id): id is string => !!id); }
 
-                    const existingIds = isBinned ? existingBinnedTaskIds : existingTaskIds;
-                    if (validatedData.id && (existingTaskIds.has(validatedData.id) || existingBinnedTaskIds.has(validatedData.id))) {
+                    const allKnownIds = new Set([...existingTaskIds, ...existingBinnedTaskIds]);
+                    if (validatedData.id && allKnownIds.has(validatedData.id)) {
                         updateTask(validatedData.id, validatedData);
                         isBinned ? binnedUpdatedCount++ : updatedCount++;
                     } else {
