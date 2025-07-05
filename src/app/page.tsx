@@ -83,6 +83,8 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { generateTasksText, generateMultipleTasksPdf } from '@/lib/share-utils';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 
 type ViewMode = 'grid' | 'table';
@@ -272,6 +274,10 @@ export default function Home() {
 
     return 0;
   });
+
+  const handleToggleSelectAll = (checked: boolean | 'indeterminate') => {
+    setSelectedTaskIds(checked === true ? sortedTasks.map(t => t.id) : []);
+  };
 
   const handleExport = (exportType: 'current_view' | 'all_tasks', fileName: string) => {
     const allDevelopers = getDevelopers();
@@ -934,37 +940,70 @@ export default function Home() {
                 </div>
             </div>
 
-            {isSelectMode && selectedTaskIds.length > 0 && (
-                <Card className="bg-muted border-primary/50">
-                    <CardContent className="p-3 flex items-center justify-between">
-                        <span className="text-sm font-medium">{selectedTaskIds.length} task(s) selected</span>
-                        <div className='flex items-center gap-2'>
-                          <Button variant="outline" size="sm" onClick={handleBulkCopyText}>
-                            <Copy className="mr-2 h-4 w-4" /> Copy as Text
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={handleBulkExportPdf}>
-                            <Download className="mr-2 h-4 w-4" /> Export as PDF
-                          </Button>
-                          <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                  <Button variant="destructive" size="sm"><Trash2 className="mr-2 h-4 w-4" /> Move to Bin</Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                      <AlertDialogTitle>Move to Bin?</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                          Are you sure you want to move the selected {selectedTaskIds.length} task(s) to the bin? You can restore them later.
-                                      </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                      <AlertDialogAction onClick={handleBulkDelete}>Move to Bin</AlertDialogAction>
-                                  </AlertDialogFooter>
-                              </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                    </CardContent>
-                </Card>
+            {isSelectMode && (
+              <Card className="mb-6 bg-muted border-primary/50">
+                <CardContent className="p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="select-all-tasks"
+                      checked={
+                        sortedTasks.length > 0 &&
+                        selectedTaskIds.length === sortedTasks.length
+                          ? true
+                          : selectedTaskIds.length > 0
+                          ? 'indeterminate'
+                          : false
+                      }
+                      onCheckedChange={handleToggleSelectAll}
+                      aria-label="Select all tasks"
+                    />
+                    <Label htmlFor="select-all-tasks" className="text-sm font-medium">
+                      {selectedTaskIds.length > 0
+                        ? `${selectedTaskIds.length} of ${sortedTasks.length} selected`
+                        : `Select all tasks`}
+                    </Label>
+                  </div>
+
+                  <div
+                    className={cn(
+                      'flex items-center gap-2 transition-opacity duration-300 w-full sm:w-auto justify-end',
+                      selectedTaskIds.length > 0
+                        ? 'opacity-100'
+                        : 'opacity-0 pointer-events-none h-0 sm:h-auto overflow-hidden'
+                    )}
+                  >
+                    <Button variant="outline" size="sm" onClick={handleBulkCopyText}>
+                      <Copy className="mr-2 h-4 w-4" /> Copy as Text
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleBulkExportPdf}>
+                      <Download className="mr-2 h-4 w-4" /> Export as PDF
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm">
+                          <Trash2 className="mr-2 h-4 w-4" /> Move to Bin
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Move to Bin?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to move the selected{' '}
+                            {selectedTaskIds.length} task(s) to the bin? You can restore
+                            them later.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleBulkDelete}>
+                            Move to Bin
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </CardContent>
+              </Card>
             )}
 
           {sortedTasks.length > 0 ? (
@@ -992,3 +1031,5 @@ export default function Home() {
     </div>
   );
 }
+
+    

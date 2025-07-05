@@ -373,10 +373,6 @@ export function TasksTable({
     setPersonInView({ person, type });
   };
   
-  const handleToggleAll = (checked: boolean | 'indeterminate') => {
-    setSelectedTaskIds(checked === true ? tasks.map(t => t.id) : []);
-  };
-  
   const handleToggleSelection = (taskId: string, checked: boolean) => {
     const newSelected = checked
       ? [...selectedTaskIds, taskId]
@@ -384,8 +380,6 @@ export function TasksTable({
     setSelectedTaskIds(newSelected);
   };
   
-  const numSelected = selectedTaskIds.length;
-  const numTasks = tasks.length;
   const colSpan = isSelectMode ? 8 : 7;
   
   const getPriorityTitle = () => {
@@ -428,13 +422,7 @@ export function TasksTable({
         <TableHeader>
           <TableRow>
              {isSelectMode && (
-                <TableHead className="w-[50px]">
-                    <Checkbox
-                    checked={numTasks > 0 && numSelected === numTasks ? true : (numSelected > 0 ? 'indeterminate' : false)}
-                    onCheckedChange={handleToggleAll}
-                    aria-label="Select all"
-                    />
-                </TableHead>
+                <TableHead className="w-[50px]"></TableHead>
              )}
             <TableHead>{fieldLabels.get('title') || 'Title'}</TableHead>
             <TableHead>{fieldLabels.get('status') || 'Status'}</TableHead>
@@ -478,3 +466,5 @@ export function TasksTable({
     </div>
   );
 }
+
+    
