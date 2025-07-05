@@ -17,15 +17,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { cn } from '@/lib/utils';
 
 interface DeleteTaskButtonProps {
   taskId: string;
   taskTitle: string;
   onSuccess: () => void;
   iconOnly?: boolean;
+  className?: string;
 }
 
-export function DeleteTaskButton({ taskId, taskTitle, onSuccess, iconOnly = false }: DeleteTaskButtonProps) {
+export function DeleteTaskButton({ taskId, taskTitle, onSuccess, iconOnly = false, className }: DeleteTaskButtonProps) {
   const { toast } = useToast();
 
   const handleMoveToBin = () => {
@@ -67,9 +69,13 @@ export function DeleteTaskButton({ taskId, taskTitle, onSuccess, iconOnly = fals
     <AlertDialog>
       <AlertDialogTrigger asChild>
         <Button
-          variant="destructive"
+          variant={iconOnly ? "ghost" : "destructive"}
           size={iconOnly ? "icon" : "sm"}
           onClick={handleClick}
+          className={cn(
+            iconOnly && "text-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive",
+            className
+          )}
         >
           {iconOnly ? (
               <>

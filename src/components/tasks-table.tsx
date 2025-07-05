@@ -319,7 +319,7 @@ function TasksTableRow({
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
-          <DeleteTaskButton taskId={task.id} taskTitle={task.title} onSuccess={onTaskUpdate} iconOnly />
+          <DeleteTaskButton taskId={task.id} taskTitle={task.title} onSuccess={onTaskUpdate} iconOnly className="h-8 w-8" />
         </div>
       </TableCell>
     </TableRow>

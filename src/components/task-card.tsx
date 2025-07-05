@@ -172,7 +172,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
     : null;
     
   const developersById = new Map(developers.map(d => [d.id, d]));
-  const testersById = new Map(testers.map(t => [t.id, t]));
+  const testersById = new Map(testers.map(t => [t.id, t.name]));
 
   const assignedDevelopers = (task.developers || []).map(id => developersById.get(id)).filter((d): d is Person => !!d);
   const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter((t): t is Person => !!t);
@@ -403,6 +403,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
               taskTitle={task.title}
               onSuccess={onTaskDelete}
               iconOnly
+              className="h-8 w-8"
             />
           </div>
         </CardFooter>
