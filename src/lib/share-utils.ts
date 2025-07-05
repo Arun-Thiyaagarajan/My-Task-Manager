@@ -114,84 +114,96 @@ export const generateTaskPdf = (task: Task, uiConfig: UiConfig, developers: Pers
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     let y = 15;
 
-    // --- HELPERS ---
+    // --- LAYOUT CONSTANTS & HELPERS ---
     const PADDING = 15;
-    const MAX_WIDTH = doc.internal.pageSize.getWidth() - PADDING * 2;
+    const PAGE_HEIGHT = doc.internal.pageSize.getHeight();
+    const PAGE_WIDTH = doc.internal.pageSize.getWidth();
+    const MAX_CONTENT_WIDTH = PAGE_WIDTH - PADDING * 2;
+
     const FONT_SIZE_NORMAL = 10;
     const FONT_SIZE_SMALL = 8;
     const FONT_SIZE_H1 = 16;
     const FONT_SIZE_H2 = 12;
-    const LINE_HEIGHT = 5.5;
+    const LINE_HEIGHT_NORMAL = 5.5;
+    const LINE_HEIGHT_SMALL = 4;
     const LINK_COLOR = '#0b57d0';
 
     const COLORS = {
-        TEXT_PRIMARY: '#1f2937',
-        TEXT_MUTED: '#6b7280',
-        CARD_BORDER: '#e5e7eb',
+        TEXT_PRIMARY: [31, 41, 55],
+        TEXT_MUTED: [107, 114, 128],
+        CARD_BORDER: [229, 231, 235],
+        LINK: [11, 87, 208],
     };
 
-    const STATUS_COLORS: Record<string, { bg: string, text: string }> = {
-        'To Do': { bg: '#f3f4f6', text: '#1f2937' },
-        'In Progress': { bg: '#dbeafe', text: '#1e40af' },
-        'Code Review': { bg: '#ede9fe', text: '#5b21b6' },
-        'QA': { bg: '#fef3c7', text: '#b45309' },
-        'Hold': { bg: '#e5e7eb', text: '#1f2937' },
-        'Done': { bg: '#d1fae5', text: '#065f46' },
+    const STATUS_COLORS: Record<string, { bg: [number, number, number], text: [number, number, number] }> = {
+        'To Do': { bg: [243, 244, 246], text: [31, 41, 55] },
+        'In Progress': { bg: [219, 234, 254], text: [30, 64, 175] },
+        'Code Review': { bg: [237, 233, 254], text: [91, 33, 182] },
+        'QA': { bg: [254, 243, 199], text: [180, 83, 9] },
+        'Hold': { bg: [229, 231, 235], text: [31, 41, 55] },
+        'Done': { bg: [209, 250, 229], text: [6, 95, 70] },
     };
 
     const checkPageBreak = (neededHeight = 0) => {
-        if (y + neededHeight > doc.internal.pageSize.getHeight() - PADDING) {
+        if (y + neededHeight > PAGE_HEIGHT - PADDING) {
             doc.addPage();
             y = PADDING;
         }
     };
+    
+    doc.setFont('helvetica', 'normal');
 
-    const drawTitle = (text: string) => {
-        checkPageBreak(20);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(FONT_SIZE_H1);
-        doc.setTextColor(COLORS.TEXT_PRIMARY);
-        const lines = doc.splitTextToSize(text, MAX_WIDTH - 45); // Space for badge
-        doc.text(lines, PADDING, y);
-        y += (lines.length * (LINE_HEIGHT + 2));
-    };
-
-    const drawStatusBadge = (status: string) => {
-        const colors = STATUS_COLORS[status] || STATUS_COLORS['To Do'];
-        doc.setFont('helvetica', 'bold');
+    const drawTitle = (text: string, status: string) => {
+        const statusColors = STATUS_COLORS[status] || STATUS_COLORS['To Do'];
         doc.setFontSize(FONT_SIZE_NORMAL);
-        const textWidth = doc.getTextWidth(status);
-        const badgeWidth = textWidth + 8;
+        doc.setFont('helvetica', 'bold');
+        const statusTextWidth = doc.getTextWidth(status);
+        const badgeWidth = statusTextWidth + 8;
+        
+        const titleWidth = MAX_CONTENT_WIDTH - badgeWidth - 10;
+        
+        doc.setFontSize(FONT_SIZE_H1);
+        const titleLines = doc.splitTextToSize(text, titleWidth);
+        const titleHeight = titleLines.length * (LINE_HEIGHT_NORMAL + 2);
+        
+        checkPageBreak(titleHeight + 4);
+        
+        doc.setTextColor(...COLORS.TEXT_PRIMARY);
+        doc.text(titleLines, PADDING, y);
+
+        const badgeX = PAGE_WIDTH - PADDING - badgeWidth;
+        const badgeY = y - 2; // Align with top of title
         const badgeHeight = 8;
         
-        const badgeX = doc.internal.pageSize.getWidth() - PADDING - badgeWidth;
-        const badgeY = 15;
-
-        doc.setFillColor(colors.bg);
+        doc.setFillColor(...statusColors.bg);
         doc.roundedRect(badgeX, badgeY, badgeWidth, badgeHeight, 3, 3, 'F');
-        doc.setTextColor(colors.text);
+        doc.setFontSize(FONT_SIZE_NORMAL);
+        doc.setTextColor(...statusColors.text);
         doc.text(status, badgeX + 4, badgeY + badgeHeight / 2 + 1.5, { baseline: 'middle' });
+
+        y += titleHeight;
     };
 
     const drawSectionHeader = (title: string) => {
         checkPageBreak(15);
-        y += 5;
+        y += 7;
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(FONT_SIZE_H2);
-        doc.setTextColor(COLORS.TEXT_PRIMARY);
+        doc.setTextColor(...COLORS.TEXT_PRIMARY);
         doc.text(title, PADDING, y);
-        y += LINE_HEIGHT;
-        doc.setDrawColor(COLORS.CARD_BORDER);
-        doc.line(PADDING, y, PADDING + MAX_WIDTH, y);
+        y += LINE_HEIGHT_SMALL;
+        doc.setDrawColor(...COLORS.CARD_BORDER);
+        doc.line(PADDING, y, PADDING + MAX_CONTENT_WIDTH, y);
         y += 5;
     };
 
-    const drawKeyValue = (key: string, value: string | { text: string; link: string } | null | undefined, indent = 0) => {
+    const drawKeyValue = (key: string, value: string | { text: string; link: string } | null | undefined) => {
         if (!value) return;
-        
-        const keyX = PADDING + indent;
-        const valueX = keyX + 40;
-        const valueWidth = MAX_WIDTH - 45 - indent;
+
+        const KEY_COLUMN_WIDTH = 45;
+        const keyX = PADDING;
+        const valueX = PADDING + KEY_COLUMN_WIDTH;
+        const valueWidth = MAX_CONTENT_WIDTH - KEY_COLUMN_WIDTH;
         
         let text: string, link: string | undefined;
         if (typeof value === 'object' && value !== null) {
@@ -200,29 +212,30 @@ export const generateTaskPdf = (task: Task, uiConfig: UiConfig, developers: Pers
         } else {
             text = String(value);
         }
-
-        const lines = doc.splitTextToSize(text, valueWidth);
-        checkPageBreak(lines.length * LINE_HEIGHT);
+        
+        doc.setFontSize(FONT_SIZE_NORMAL);
+        doc.setFont('helvetica', 'normal');
+        const valueLines = doc.splitTextToSize(text, valueWidth);
+        const requiredHeight = valueLines.length * LINE_HEIGHT_NORMAL;
+        checkPageBreak(requiredHeight + 2);
 
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(FONT_SIZE_NORMAL);
-        doc.setTextColor(COLORS.TEXT_MUTED);
+        doc.setTextColor(...COLORS.TEXT_MUTED);
         doc.text(`${key}:`, keyX, y, { align: 'left', baseline: 'top' });
 
         doc.setFont('helvetica', 'normal');
-        doc.setTextColor(COLORS.TEXT_PRIMARY);
         
         if (link) {
-            doc.setTextColor(LINK_COLOR);
-            const linkLines = doc.splitTextToSize(link, valueWidth);
-            doc.textWithLink(text, valueX, y, { url: link });
+            doc.setTextColor(...COLORS.LINK);
+            doc.textWithLink(text, valueX, y, { url: link, baseline: 'top' });
+            doc.setTextColor(...COLORS.TEXT_PRIMARY); // Reset color
         } else {
-            doc.text(lines, valueX, y);
+            doc.setTextColor(...COLORS.TEXT_PRIMARY);
+            doc.text(valueLines, valueX, y, { baseline: 'top' });
         }
         
-        y += lines.length * LINE_HEIGHT + 2;
+        y += requiredHeight + 1; // Tighter spacing
     };
-
 
     // --- DATA PREPARATION ---
     const developersById = new Map(developers.map(d => [d.id, d.name]));
@@ -231,41 +244,33 @@ export const generateTaskPdf = (task: Task, uiConfig: UiConfig, developers: Pers
     const customFields = uiConfig.fields.filter(f => f.isCustom && f.isActive && task.customFields && typeof task.customFields[f.key] !== 'undefined' && task.customFields[f.key] !== null && task.customFields[f.key] !== '');
 
     // --- PDF DRAWING ---
-    drawTitle(task.title);
-    drawStatusBadge(task.status);
-    y -= 5;
+    drawTitle(task.title, task.status);
 
-    // Description
     if (task.description) {
         drawSectionHeader(fieldLabels.get('description') || 'Description');
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(FONT_SIZE_NORMAL);
-        doc.setTextColor(COLORS.TEXT_PRIMARY);
-        const lines = doc.splitTextToSize(task.description, MAX_WIDTH);
-        checkPageBreak(lines.length * LINE_HEIGHT);
+        doc.setTextColor(...COLORS.TEXT_PRIMARY);
+        const lines = doc.splitTextToSize(task.description, MAX_CONTENT_WIDTH);
+        checkPageBreak(lines.length * LINE_HEIGHT_NORMAL);
         doc.text(lines, PADDING, y);
-        y += lines.length * LINE_HEIGHT;
+        y += lines.length * LINE_HEIGHT_NORMAL;
     }
 
-    // Details Section
     drawSectionHeader('Task Details');
     const assignedDevs = (task.developers || []).map(id => developersById.get(id)).filter(Boolean).join(', ');
     drawKeyValue(fieldLabels.get('developers') || 'Developers', assignedDevs);
-
     const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter(Boolean).join(', ');
     drawKeyValue(fieldLabels.get('testers') || 'Testers', assignedTesters);
-    
     if (task.repositories && task.repositories.length > 0) {
         drawKeyValue(fieldLabels.get('repositories') || 'Repositories', task.repositories.join(', '));
     }
-    
     if (task.azureWorkItemId) {
         const azureConfig = uiConfig.fields.find(f => f.key === 'azureWorkItemId');
         const url = azureConfig?.baseUrl ? `${azureConfig.baseUrl}${task.azureWorkItemId}` : '';
         drawKeyValue(fieldLabels.get('azureWorkItemId') || 'Azure ID', { text: `#${task.azureWorkItemId}`, link: url });
     }
 
-    // Custom Fields
     if (customFields.length > 0) {
         drawSectionHeader('Custom Fields');
         customFields.forEach(field => {
@@ -275,24 +280,23 @@ export const generateTaskPdf = (task: Task, uiConfig: UiConfig, developers: Pers
         });
     }
 
-    // Timeline and Deployments
     drawSectionHeader('Timeline & Deployments');
-    if (task.devStartDate) drawKeyValue(fieldLabels.get('devStartDate'), format(new Date(task.devStartDate), 'PPP'));
-    if (task.devEndDate) drawKeyValue(fieldLabels.get('devEndDate'), format(new Date(task.devEndDate), 'PPP'));
-    if (task.qaStartDate) drawKeyValue(fieldLabels.get('qaStartDate'), format(new Date(task.qaStartDate), 'PPP'));
-    if (task.qaEndDate) drawKeyValue(fieldLabels.get('qaEndDate'), format(new Date(task.qaEndDate), 'PPP'));
-    y += 2;
+    if (task.devStartDate) drawKeyValue(fieldLabels.get('devStartDate') || 'Dev Start', format(new Date(task.devStartDate), 'PPP'));
+    if (task.devEndDate) drawKeyValue(fieldLabels.get('devEndDate') || 'Dev End', format(new Date(task.devEndDate), 'PPP'));
+    if (task.qaStartDate) drawKeyValue(fieldLabels.get('qaStartDate') || 'QA Start', format(new Date(task.qaStartDate), 'PPP'));
+    if (task.qaEndDate) drawKeyValue(fieldLabels.get('qaEndDate') || 'QA End', format(new Date(task.qaEndDate), 'PPP'));
+    
+    if (uiConfig.environments.length > 0) y += 2;
     uiConfig.environments.forEach(env => {
         const isSelected = task.deploymentStatus?.[env] ?? false;
         const hasDate = task.deploymentDates && task.deploymentDates[env];
         const isDeployed = isSelected && (env === 'dev' || !!hasDate);
         if (isDeployed) {
-            const deploymentDate = hasDate ? `on ${format(new Date(hasDate), 'PPP')}` : '';
-            drawKeyValue(`${env.charAt(0).toUpperCase() + env.slice(1)} Deployed`, `Yes ${deploymentDate}`);
+            const deploymentDate = hasDate ? `on ${format(new Date(hasDate), 'PPP')}` : '(Deployed)';
+            drawKeyValue(`${env.charAt(0).toUpperCase() + env.slice(1)}`, deploymentDate);
         }
     });
 
-    // PRs
     const hasPrs = task.prLinks && Object.values(task.prLinks).some(v => v && Object.keys(v).length > 0);
     if(hasPrs) {
         drawSectionHeader('Pull Requests');
@@ -309,14 +313,13 @@ export const generateTaskPdf = (task: Task, uiConfig: UiConfig, developers: Pers
         });
     }
 
-    // Attachments
     if (task.attachments && task.attachments.length > 0) {
         drawSectionHeader('Attachments');
         task.attachments.forEach(att => {
             if (att.type === 'link') {
               drawKeyValue(att.name, {text: att.url, link: att.url});
             } else {
-              drawKeyValue(att.name, '(Image Attachment - not shown in PDF)');
+              drawKeyValue(att.name, '(Image Attachment)');
             }
         });
     }
