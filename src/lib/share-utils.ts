@@ -86,6 +86,7 @@ export const generateTasksText = (tasks: Task[], uiConfig: UiConfig, developers:
     return content.trim();
 };
 
+
 // --- PDF GENERATION ---
 
 const renderCustomFieldValue = (fieldConfig: FieldConfig, value: any) => {
@@ -240,6 +241,44 @@ const _drawTaskOnPage = (
         
         y += requiredHeight + 2;
     };
+    
+    const drawImageAttachment = (name: string, dataUrl: string) => {
+        try {
+            const MAX_IMAGE_HEIGHT = 80;
+            
+            checkPageBreak(LINE_HEIGHT_NORMAL + 4);
+            doc.setFontSize(FONT_SIZE_NORMAL);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(COLORS.TEXT_MUTED[0], COLORS.TEXT_MUTED[1], COLORS.TEXT_MUTED[2]);
+            doc.text(`${name}:`, PADDING, y, { baseline: 'top' });
+            y += LINE_HEIGHT_NORMAL + 2;
+
+            const imageProps = doc.getImageProperties(dataUrl);
+            const aspectRatio = imageProps.width / imageProps.height;
+            let imgWidth = VALUE_COLUMN_WIDTH;
+            let imgHeight = imgWidth / aspectRatio;
+
+            if (imgHeight > MAX_IMAGE_HEIGHT) {
+                imgHeight = MAX_IMAGE_HEIGHT;
+                imgWidth = imgHeight * aspectRatio;
+            }
+
+            if (imgWidth > VALUE_COLUMN_WIDTH) {
+                imgWidth = VALUE_COLUMN_WIDTH;
+                imgHeight = imgWidth / aspectRatio;
+            }
+            
+            checkPageBreak(imgHeight + 4);
+
+            doc.addImage(dataUrl, imageProps.fileType, VALUE_COLUMN_X, y, imgWidth, imgHeight);
+            y += imgHeight + 4;
+
+        } catch (e) {
+            console.error("Could not add image to PDF:", e);
+            drawKeyValue(name, "(Image attachment could not be rendered)");
+        }
+    };
+
 
     // --- DATA PREPARATION ---
     const developersById = new Map(developers.map(d => [d.id, d.name]));
@@ -332,8 +371,8 @@ const _drawTaskOnPage = (
         task.attachments.forEach(att => {
             if (att.type === 'link') {
               drawKeyValue(att.name, {text: att.url, link: att.url});
-            } else {
-              drawKeyValue(att.name, '(Image Attachment - not shown in PDF)');
+            } else if (att.type === 'image' && att.url.startsWith('data:image')) {
+              drawImageAttachment(att.name, att.url);
             }
         });
     }
