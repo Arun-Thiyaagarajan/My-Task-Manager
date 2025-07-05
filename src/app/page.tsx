@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester, updateUiConfig, moveMultipleTasksToBin, getBinnedTasks } from '@/lib/data';
+import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester, updateUiConfig, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -387,247 +387,223 @@ export default function Home() {
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      if (!file) return;
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-      const reader = new FileReader();
-      reader.onload = (e) => {
-          try {
-              const text = e.target?.result as string;
-              const parsedJson = JSON.parse(text);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const text = e.target?.result as string;
+            const parsedJson = JSON.parse(text);
 
-              let importedTasks: Partial<Task>[] = [];
-              let importedBinnedTasks: Partial<Task>[] = [];
-              let importedDevelopers: Partial<Omit<Person, 'id'>>[] = [];
-              let importedTesters: Partial<Omit<Person, 'id'>>[] = [];
-              let importedRepoConfigs: RepositoryConfig[] | undefined = undefined;
-              let importedAppName: string | undefined = undefined;
-              let importedAppIcon: string | null | undefined = undefined;
+            let importedTasks: Partial<Task>[] = [];
+            let importedBinnedTasks: Partial<Task>[] = [];
+            let importedDevelopers: Partial<Omit<Person, 'id'>>[] = [];
+            let importedTesters: Partial<Omit<Person, 'id'>>[] = [];
+            let importedRepoConfigs: RepositoryConfig[] | undefined = undefined;
+            let importedAppName: string | undefined = undefined;
+            let importedAppIcon: string | null | undefined = undefined;
 
-              const isIdRegex = /^[a-z]+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            const isIdRegex = /^[a-z]+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-              if (Array.isArray(parsedJson)) {
-                  importedTasks = parsedJson;
-                  const devNames = new Set<string>();
-                  const testerNames = new Set<string>();
-                  importedTasks.forEach(task => {
-                      (task.developers || []).forEach(nameOrId => { if (typeof nameOrId === 'string' && !isIdRegex.test(nameOrId)) devNames.add(nameOrId); });
-                      (task.testers || []).forEach(nameOrId => { if (typeof nameOrId === 'string' && !isIdRegex.test(nameOrId)) testerNames.add(nameOrId); });
-                  });
-                  devNames.forEach(name => importedDevelopers.push({ name }));
-                  testerNames.forEach(name => importedTesters.push({ name }));
-
-              } else if (parsedJson && typeof parsedJson === 'object') {
-                  importedTasks = parsedJson.tasks || [];
-                  importedBinnedTasks = parsedJson.trash || [];
-                  importedDevelopers = parsedJson.developers || [];
-                  importedTesters = parsedJson.testers || [];
-                  importedRepoConfigs = parsedJson.repositoryConfigs;
-                  importedAppName = parsedJson.appName;
-                  importedAppIcon = parsedJson.appIcon;
-
-                  // Scan tasks for new people from object-based format too
-                  const devNames = new Set<string>();
-                  const testerNames = new Set<string>();
-                  const allImportedTasks = [...importedTasks, ...importedBinnedTasks];
-                  allImportedTasks.forEach(task => {
-                      (task.developers || []).forEach(nameOrId => { if (typeof nameOrId === 'string' && !isIdRegex.test(nameOrId)) devNames.add(nameOrId); });
-                      (task.testers || []).forEach(nameOrId => { if (typeof nameOrId === 'string' && !isIdRegex.test(nameOrId)) testerNames.add(nameOrId); });
-                  });
-
-                  const existingDevNames = new Set(importedDevelopers.map(d => d.name?.toLowerCase()));
-                  devNames.forEach(name => {
-                      if (!existingDevNames.has(name.toLowerCase())) {
-                          importedDevelopers.push({ name });
-                      }
-                  });
-
-                  const existingTesterNames = new Set(importedTesters.map(t => t.name?.toLowerCase()));
-                  testerNames.forEach(name => {
-                      if (!existingTesterNames.has(name.toLowerCase())) {
-                          importedTesters.push({ name });
-                      }
-                  });
-
-              } else {
-                   throw new Error("Invalid format: The JSON file must be a valid JSON object or array.");
-              }
-
-              // --- Pre-process UI Config (Branding, Repos) ---
-              const currentUiConfig = getUiConfig();
-              let configUpdated = false;
-
-              if (importedAppName || typeof importedAppIcon !== 'undefined') {
-                  currentUiConfig.appName = importedAppName || currentUiConfig.appName;
-                  currentUiConfig.appIcon = typeof importedAppIcon === 'undefined' ? currentUiConfig.appIcon : importedAppIcon;
-                  configUpdated = true;
-              }
-              
-              if (importedRepoConfigs) {
-                  const existingRepoConfigsByName = new Map(currentUiConfig.repositoryConfigs.map(r => [r.name, r]));
-                  importedRepoConfigs.forEach(importedRepo => {
-                      if (!importedRepo.name || !importedRepo.baseUrl) return;
-                      const existingRepo = existingRepoConfigsByName.get(importedRepo.name);
-                      if (existingRepo) { existingRepo.baseUrl = importedRepo.baseUrl; } 
-                      else { currentUiConfig.repositoryConfigs.push({ id: `repo_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`, name: importedRepo.name, baseUrl: importedRepo.baseUrl }); }
-                  });
-                  const repoField = currentUiConfig.fields.find(f => f.key === 'repositories');
-                  if (repoField) { repoField.options = currentUiConfig.repositoryConfigs.map(r => ({ id: r.id, value: r.name, label: r.name })); }
-                  configUpdated = true;
-              }
-              
-              if (configUpdated) {
-                updateUiConfig(currentUiConfig);
-                window.dispatchEvent(new Event('company-changed')); // Triggers header update
-              }
-
-
-              // --- Pre-process people ---
-              const allExistingDevs = getDevelopers();
-              const existingDevsByName = new Map(allExistingDevs.map(d => [d.name.toLowerCase(), d]));
-              let devCreatedCount = 0;
-              let devUpdatedCount = 0;
-              importedDevelopers.forEach(dev => {
-                  if (!dev.name) return;
-                  const existingDev = existingDevsByName.get(dev.name.toLowerCase());
-                  const personData = { name: dev.name, email: dev.email, phone: dev.phone };
-                  if (!existingDev) { 
-                      addDeveloper(personData); 
-                      devCreatedCount++;
-                  } else { 
-                      updateDeveloper(existingDev.id, personData); 
-                      devUpdatedCount++;
-                  }
-              });
-
-              const allExistingTesters = getTesters();
-              const existingTestersByName = new Map(allExistingTesters.map(t => [t.name.toLowerCase(), t]));
-              let testerCreatedCount = 0;
-              let testerUpdatedCount = 0;
-              importedTesters.forEach(tester => {
-                  if (!tester.name) return;
-                  const existingTester = existingTestersByName.get(tester.name.toLowerCase());
-                  const personData = { name: tester.name, email: tester.email, phone: tester.phone };
-                  if (!existingTester) {
-                      addTester(personData);
-                      testerCreatedCount++;
-                  } else { 
-                      updateTester(existingTester.id, personData); 
-                      testerUpdatedCount++;
-                  }
-              });
-
-              // --- Process tasks (active and binned) ---
-              let createdCount = 0, updatedCount = 0, binnedCreatedCount = 0, binnedUpdatedCount = 0, failedCount = 0;
-              const allTasks = getTasks();
-              const allBinnedTasks = getBinnedTasks();
-              const existingTaskIds = new Set(allTasks.map(t => t.id));
-              const existingBinnedTaskIds = new Set(allBinnedTasks.map(t => t.id));
-
-              const finalAllDevs = getDevelopers();
-              const finalAllTesters = getTesters();
-              const devsByName = new Map(finalAllDevs.map(d => [d.name.toLowerCase(), d.id]));
-              const allDevIds = new Set(finalAllDevs.map(d => d.id));
-              const testersByName = new Map(finalAllTesters.map(t => [t.name.toLowerCase(), t.id]));
-              const allTesterIds = new Set(finalAllTesters.map(t => t.id));
-              
-              const processTaskArray = (tasksToProcess: Partial<Task>[], isBinned: boolean) => {
-                for (const taskData of tasksToProcess) {
-                    
-                    // --- PRE-PROCESSING STEP TO HANDLE FLAT CUSTOM FIELDS ---
-                    const knownTaskKeys = new Set([
-                        'id', 'title', 'description', 'status', 'createdAt', 'updatedAt',
-                        'summary', 'deletedAt', 'repositories', 'azureWorkItemId', 'prLinks',
-                        'deploymentStatus', 'deploymentDates', 'developers', 'testers',
-                        'comments', 'attachments', 'devStartDate', 'devEndDate', 'qaStartDate',
-                        'qaEndDate', 'customFields'
-                    ]);
+            if (Array.isArray(parsedJson)) {
+                importedTasks = parsedJson;
+            } else if (parsedJson && typeof parsedJson === 'object') {
+                importedTasks = parsedJson.tasks || [];
+                importedBinnedTasks = parsedJson.trash || [];
+                importedDevelopers = parsedJson.developers || [];
+                importedTesters = parsedJson.testers || [];
+                importedRepoConfigs = parsedJson.repositoryConfigs;
+                importedAppName = parsedJson.appName;
+                importedAppIcon = parsedJson.appIcon;
+            } else {
+                 throw new Error("Invalid format: The JSON file must be a valid JSON object or array.");
+            }
             
-                    const processedTaskData: Partial<Task> = { ...taskData };
-                    if (!processedTaskData.customFields) {
-                        processedTaskData.customFields = {};
-                    }
+            // Auto-discover people from tasks if they are not in the main lists
+            const allImportedTasks = [...importedTasks, ...importedBinnedTasks];
+            const devNames = new Set(importedDevelopers.map(d => d.name?.toLowerCase()));
+            const testerNames = new Set(importedTesters.map(t => t.name?.toLowerCase()));
+            allImportedTasks.forEach(task => {
+                (task.developers || []).forEach(nameOrId => { if (typeof nameOrId === 'string' && !isIdRegex.test(nameOrId) && !devNames.has(nameOrId.toLowerCase())) { importedDevelopers.push({ name: nameOrId }); devNames.add(nameOrId.toLowerCase()); }});
+                (task.testers || []).forEach(nameOrId => { if (typeof nameOrId === 'string' && !isIdRegex.test(nameOrId) && !testerNames.has(nameOrId.toLowerCase())) { importedTesters.push({ name: nameOrId }); testerNames.add(nameOrId.toLowerCase()); }});
+            });
 
-                    for (const key of Object.keys(taskData)) {
-                        if (!knownTaskKeys.has(key)) {
-                            // It's a custom field, move it.
-                            (processedTaskData.customFields as any)[key] = (processedTaskData as any)[key];
-                            delete (processedTaskData as any)[key];
-                        }
-                    }
-                    // --- END PRE-PROCESSING ---
+            // --- BATCH PROCESSING ---
+            const data = getAppData();
+            const companyData = data.companyData[data.activeCompanyId];
 
-                    const validationResult = taskSchema.safeParse(processedTaskData);
-                    if (!validationResult.success) {
-                        console.error("Task import validation failed:", validationResult.error.flatten().fieldErrors, "for task data:", processedTaskData);
-                        failedCount++;
-                        continue;
-                    }
+            let configUpdated = false, devCreatedCount = 0, devUpdatedCount = 0,
+                testerCreatedCount = 0, testerUpdatedCount = 0,
+                createdCount = 0, updatedCount = 0, binnedCreatedCount = 0, 
+                binnedUpdatedCount = 0, failedCount = 0;
 
-                    const validatedData = validationResult.data;
-                    if (validatedData.developers) { validatedData.developers = validatedData.developers.map(nameOrId => allDevIds.has(nameOrId) ? nameOrId : devsByName.get((nameOrId as string).toLowerCase()) || null).filter((id): id is string => !!id); }
-                    if (validatedData.testers) { validatedData.testers = validatedData.testers.map(nameOrId => allTesterIds.has(nameOrId) ? nameOrId : testersByName.get((nameOrId as string).toLowerCase()) || null).filter((id): id is string => !!id); }
+            // --- Config Update ---
+            if (importedAppName || typeof importedAppIcon !== 'undefined') {
+                companyData.uiConfig.appName = importedAppName || companyData.uiConfig.appName;
+                companyData.uiConfig.appIcon = typeof importedAppIcon === 'undefined' ? companyData.uiConfig.appIcon : importedAppIcon;
+                configUpdated = true;
+            }
+            if (importedRepoConfigs) {
+                const existingRepoConfigsByName = new Map(companyData.uiConfig.repositoryConfigs.map(r => [r.name, r]));
+                importedRepoConfigs.forEach(importedRepo => {
+                    if (!importedRepo.name || !importedRepo.baseUrl) return;
+                    const existingRepo = existingRepoConfigsByName.get(importedRepo.name);
+                    if (existingRepo) { existingRepo.baseUrl = importedRepo.baseUrl; } 
+                    else { companyData.uiConfig.repositoryConfigs.push({ id: `repo_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`, name: importedRepo.name, baseUrl: importedRepo.baseUrl }); }
+                });
+                const repoField = companyData.uiConfig.fields.find(f => f.key === 'repositories');
+                if (repoField) { repoField.options = companyData.uiConfig.repositoryConfigs.map(r => ({ id: r.id, value: r.name, label: r.name })); }
+                configUpdated = true;
+            }
 
-                    const allKnownIds = new Set([...existingTaskIds, ...existingBinnedTaskIds]);
-                    if (validatedData.id && allKnownIds.has(validatedData.id)) {
-                        updateTask(validatedData.id, validatedData);
-                        isBinned ? binnedUpdatedCount++ : updatedCount++;
-                    } else {
-                        addTask(validatedData, isBinned);
-                        isBinned ? binnedCreatedCount++ : createdCount++;
-                    }
+            // --- People Update ---
+            const existingDevsByName = new Map(companyData.developers.map(d => [d.name.toLowerCase(), d]));
+            importedDevelopers.forEach(dev => {
+                if (!dev.name) return;
+                const existingDev = existingDevsByName.get(dev.name.toLowerCase());
+                const personData = { name: dev.name.trim(), email: dev.email || '', phone: dev.phone || '' };
+                if (!existingDev) {
+                    const newDev = { id: `developer-${crypto.randomUUID()}`, ...personData };
+                    companyData.developers.push(newDev);
+                    existingDevsByName.set(newDev.name.toLowerCase(), newDev);
+                    devCreatedCount++;
+                } else {
+                    Object.assign(existingDev, personData);
+                    devUpdatedCount++;
                 }
+            });
+
+            const existingTestersByName = new Map(companyData.testers.map(t => [t.name.toLowerCase(), t]));
+            importedTesters.forEach(tester => {
+                if (!tester.name) return;
+                const existingTester = existingTestersByName.get(tester.name.toLowerCase());
+                const personData = { name: tester.name.trim(), email: tester.email || '', phone: tester.phone || '' };
+                if (!existingTester) {
+                    const newTester = { id: `tester-${crypto.randomUUID()}`, ...personData };
+                    companyData.testers.push(newTester);
+                    existingTestersByName.set(newTester.name.toLowerCase(), newTester);
+                    testerCreatedCount++;
+                } else {
+                    Object.assign(existingTester, personData);
+                    testerUpdatedCount++;
+                }
+            });
+
+            // --- Task Processing ---
+            const allTasksById = new Map([...companyData.tasks, ...companyData.trash].map(t => [t.id, t]));
+            const devsByName = new Map(companyData.developers.map(d => [d.name.toLowerCase(), d.id]));
+            const allDevIds = new Set(companyData.developers.map(d => d.id));
+            const testersByName = new Map(companyData.testers.map(t => [t.name.toLowerCase(), t.id]));
+            const allTesterIds = new Set(companyData.testers.map(t => t.id));
+
+            const processTaskArray = (tasksToProcess: Partial<Task>[], isBinned: boolean) => {
+              for (const taskData of tasksToProcess) {
+                  const knownTaskKeys = new Set(Object.keys(taskSchema.shape));
+                  const processedTaskData: Partial<Task> = { ...taskData, customFields: { ...(taskData.customFields || {}) } };
+                  
+                  for (const key in taskData) {
+                    if (!knownTaskKeys.has(key as keyof Task) && key !== 'customFields') {
+                      (processedTaskData.customFields as any)[key] = (taskData as any)[key];
+                      delete (processedTaskData as any)[key];
+                    }
+                  }
+
+                  const validationResult = taskSchema.safeParse(processedTaskData);
+                  if (!validationResult.success) {
+                      console.error("Task import validation failed:", validationResult.error.flatten().fieldErrors, "for task data:", processedTaskData);
+                      failedCount++;
+                      continue;
+                  }
+
+                  const validatedData = validationResult.data;
+                  if (validatedData.developers) { validatedData.developers = validatedData.developers.map(nameOrId => allDevIds.has(nameOrId) ? nameOrId : devsByName.get((nameOrId as string).toLowerCase()) || null).filter((id): id is string => !!id); }
+                  if (validatedData.testers) { validatedData.testers = validatedData.testers.map(nameOrId => allTesterIds.has(nameOrId) ? nameOrId : testersByName.get((nameOrId as string).toLowerCase()) || null).filter((id): id is string => !!id); }
+
+                  const now = new Date().toISOString();
+                  if (validatedData.id && allTasksById.has(validatedData.id)) {
+                      const existingTask = allTasksById.get(validatedData.id)!;
+                      Object.assign(existingTask, validatedData, { updatedAt: now });
+                      isBinned ? binnedUpdatedCount++ : updatedCount++;
+                  } else {
+                      const newTask: Task = {
+                          id: validatedData.id || `task-${crypto.randomUUID()}`,
+                          createdAt: validatedData.createdAt || now,
+                          updatedAt: now,
+                          title: validatedData.title || 'Untitled Task',
+                          description: validatedData.description || '',
+                          status: validatedData.status || 'To Do',
+                          summary: validatedData.summary || null,
+                          repositories: validatedData.repositories || [],
+                          developers: validatedData.developers || [],
+                          testers: validatedData.testers || [],
+                          azureWorkItemId: validatedData.azureWorkItemId || '',
+                          deploymentStatus: validatedData.deploymentStatus || {},
+                          deploymentDates: validatedData.deploymentDates ? Object.entries(validatedData.deploymentDates).reduce((acc, [key, value]) => ({ ...acc, [key]: value ? new Date(value).toISOString() : null }), {}) : {},
+                          prLinks: validatedData.prLinks || {},
+                          devStartDate: validatedData.devStartDate ? new Date(validatedData.devStartDate).toISOString() : null,
+                          devEndDate: validatedData.devEndDate ? new Date(validatedData.devEndDate).toISOString() : null,
+                          qaStartDate: validatedData.qaStartDate ? new Date(validatedData.qaStartDate).toISOString() : null,
+                          qaEndDate: validatedData.qaEndDate ? new Date(validatedData.qaEndDate).toISOString() : null,
+                          comments: validatedData.comments || [],
+                          attachments: validatedData.attachments || [],
+                          customFields: validatedData.customFields || {},
+                      };
+                      if (isBinned) {
+                          newTask.deletedAt = validatedData.deletedAt || now;
+                          companyData.trash.unshift(newTask);
+                      } else {
+                          companyData.tasks.unshift(newTask);
+                      }
+                      allTasksById.set(newTask.id, newTask);
+                      isBinned ? binnedCreatedCount++ : createdCount++;
+                  }
               }
+            }
 
-              processTaskArray(importedTasks, false);
-              processTaskArray(importedBinnedTasks, true);
+            processTaskArray(importedTasks, false);
+            processTaskArray(importedBinnedTasks, true);
 
-              // --- Final Feedback ---
-              refreshData();
+            // --- Finalize ---
+            setAppData(data);
 
-              let summaryParts: string[] = [];
-              if (configUpdated) summaryParts.push('App settings updated.');
-              if (devCreatedCount > 0) summaryParts.push(`${devCreatedCount} developer(s) added.`);
-              if (devUpdatedCount > 0) summaryParts.push(`${devUpdatedCount} developer(s) updated.`);
-              if (testerCreatedCount > 0) summaryParts.push(`${testerCreatedCount} tester(s) added.`);
-              if (testerUpdatedCount > 0) summaryParts.push(`${testerUpdatedCount} tester(s) updated.`);
-              if (createdCount > 0) summaryParts.push(`${createdCount} active task(s) created.`);
-              if (updatedCount > 0) summaryParts.push(`${updatedCount} active task(s) updated.`);
-              if (binnedCreatedCount > 0) summaryParts.push(`${binnedCreatedCount} binned task(s) created.`);
-              if (binnedUpdatedCount > 0) summaryParts.push(`${binnedUpdatedCount} binned task(s) updated.`);
+            if (configUpdated) {
+                window.dispatchEvent(new Event('company-changed'));
+            }
+            refreshData();
+            
+            // --- Toast Summary ---
+            let summaryParts: string[] = [];
+            if (configUpdated) summaryParts.push('App settings updated.');
+            if (devCreatedCount > 0) summaryParts.push(`${devCreatedCount} dev(s) added.`);
+            if (devUpdatedCount > 0) summaryParts.push(`${devUpdatedCount} dev(s) updated.`);
+            if (testerCreatedCount > 0) summaryParts.push(`${testerCreatedCount} tester(s) added.`);
+            if (testerUpdatedCount > 0) summaryParts.push(`${testerUpdatedCount} tester(s) updated.`);
+            if (createdCount > 0) summaryParts.push(`${createdCount} active task(s) created.`);
+            if (updatedCount > 0) summaryParts.push(`${updatedCount} active task(s) updated.`);
+            if (binnedCreatedCount > 0) summaryParts.push(`${binnedCreatedCount} binned task(s) created.`);
+            if (binnedUpdatedCount > 0) summaryParts.push(`${binnedUpdatedCount} binned task(s) updated.`);
 
-              if (summaryParts.length > 0) {
-                  toast({
-                      variant: 'success',
-                      title: 'Import Successful',
-                      description: summaryParts.join(' '),
-                  });
-              } else if (parsedJson && (importedTasks.length > 0 || importedBinnedTasks.length > 0 || importedDevelopers.length > 0 || importedTesters.length > 0 || configUpdated)) {
-                  toast({
-                      variant: 'default',
-                      title: 'Import Complete',
-                      description: 'No new data was added or existing data updated.',
-                  });
-              } else {
-                 toast({ variant: 'warning', title: 'Empty or Invalid File', description: 'The imported file contained no data to process.' });
-              }
+            if (summaryParts.length > 0) {
+                toast({ variant: 'success', title: 'Import Successful', description: summaryParts.join(' ') });
+            } else if (allImportedTasks.length > 0 || importedDevelopers.length > 0 || importedTesters.length > 0) {
+                toast({ variant: 'default', title: 'Import Complete', description: 'No new data was added or existing data updated.' });
+            } else {
+               toast({ variant: 'warning', title: 'Empty or Invalid File', description: 'The imported file contained no data to process.' });
+            }
 
-              if (failedCount > 0) {
-                  toast({
-                      variant: 'destructive',
-                      title: 'Import Warning',
-                      description: `${failedCount} task(s) failed to import due to validation errors.`,
-                  });
-              }
-              
-          } catch (error: any) {
-              console.error("Error importing file:", error);
-              toast({ variant: 'destructive', title: 'Import Failed', description: error.message || 'There was an error processing your file. Please ensure it is a valid JSON file.' });
-          } finally {
-              if(fileInputRef.current) { fileInputRef.current.value = ''; }
-          }
-      };
-      reader.readAsText(file);
+            if (failedCount > 0) {
+                toast({ variant: 'destructive', title: 'Import Warning', description: `${failedCount} task(s) failed to import due to validation errors.` });
+            }
+            
+        } catch (error: any) {
+            console.error("Error importing file:", error);
+            toast({ variant: 'destructive', title: 'Import Failed', description: error.message || 'There was an error processing your file. Please ensure it is a valid JSON file.' });
+        } finally {
+            if(fileInputRef.current) { fileInputRef.current.value = ''; }
+        }
+    };
+    reader.readAsText(file);
   };
   
   const handleBulkDelete = () => {
@@ -655,7 +631,7 @@ export default function Home() {
   const handleBulkExportPdf = async () => {
     if (!uiConfig) return;
     const selectedTasks = tasks.filter(t => selectedTaskIds.includes(t.id));
-    await generateMultipleTasksPdf(selectedTasks, uiConfig, developers, testers, 'save');
+    await generateTaskPdf(selectedTasks, uiConfig, developers, testers, 'save');
     toast({
         variant: 'success',
         title: 'PDF Exported',
@@ -1121,3 +1097,5 @@ export default function Home() {
 }
 
     
+
+      

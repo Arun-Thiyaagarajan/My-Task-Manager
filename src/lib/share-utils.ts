@@ -19,23 +19,17 @@ const svgToDataURL = (svg: string): Promise<string> => {
     return new Promise((resolve, reject) => {
         try {
             const img = new Image();
-            // Use a Blob to handle the SVG data
             const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
             const url = URL.createObjectURL(svgBlob);
 
             img.onload = () => {
-                // Create a canvas to draw the image onto
                 const canvas = document.createElement('canvas');
-                // Set canvas dimensions to the image dimensions
                 canvas.width = 24;
                 canvas.height = 24;
                 const ctx = canvas.getContext('2d');
                 if (ctx) {
-                    // Draw the image onto the canvas
                     ctx.drawImage(img, 0, 0);
-                    // Get the data URL of the canvas content as a PNG
                     const pngDataUrl = canvas.toDataURL('image/png');
-                    // Clean up the object URL
                     URL.revokeObjectURL(url);
                     resolve(pngDataUrl);
                 } else {
@@ -49,7 +43,6 @@ const svgToDataURL = (svg: string): Promise<string> => {
                 reject(err);
             };
 
-            // Set the image source to the object URL
             img.src = url;
         } catch(e) {
             reject(e);
@@ -166,12 +159,11 @@ const _drawTaskOnPage = async (
         doc.setTextColor(...COLORS.TEXT_MUTED);
         doc.text(appName || 'My Task Manager', textX, PADDING + iconSize / 2, { baseline: 'middle' });
         
-        // Add task title on the right
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8);
         doc.setTextColor(...COLORS.TEXT_MUTED);
         
-        const maxTitleWidth = MAX_CONTENT_WIDTH / 2.5; // Give enough space for app name
+        const maxTitleWidth = MAX_CONTENT_WIDTH / 2.5;
         const truncatedTitle = doc.splitTextToSize(task.title, maxTitleWidth);
         
         doc.text(truncatedTitle, PAGE_WIDTH - PADDING, PADDING + iconSize / 2, { align: 'right', baseline: 'middle' });
@@ -280,9 +272,7 @@ const _drawTaskOnPage = async (
         doc.setFont('helvetica', 'normal');
         if (linkUrl) {
             doc.setTextColor(...COLORS.LINK);
-            doc.text(valueLines, VALUE_COLUMN_X, y, { baseline: 'top' });
-            const safeUrl = linkUrl.replace(/'/g, "\\'");
-            doc.link(VALUE_COLUMN_X, y - 1, VALUE_COLUMN_WIDTH, requiredHeight, { url: `javascript:window.open('${safeUrl}', '_blank')` });
+            doc.textWithLink(textValue, VALUE_COLUMN_X, y, { url: linkUrl, baseline: 'top' });
         } else {
             doc.setTextColor(...COLORS.TEXT_PRIMARY);
             doc.text(valueLines, VALUE_COLUMN_X, y, { baseline: 'top' });
@@ -345,7 +335,7 @@ const _drawTaskOnPage = async (
     drawHeader();
     await drawWatermark();
     doc.setFont('helvetica', 'normal');
-    y = PADDING + 8 + 8; // Initial Y after header
+    y = PADDING + 8 + 8;
 
     drawTitle(task.title, task.status);
     
@@ -421,7 +411,7 @@ const _drawTaskOnPage = async (
 
     const hasAttachments = task.attachments && task.attachments.length > 0;
     if (hasAttachments) {
-        let requiredHeightForFirstItem = LINE_HEIGHT_NORMAL + 2; // Default for one line of text
+        let requiredHeightForFirstItem = LINE_HEIGHT_NORMAL + 2;
         const firstAttachment = task.attachments![0];
 
         if (firstAttachment.type === 'link') {
@@ -447,7 +437,6 @@ const _drawTaskOnPage = async (
                 }
                 requiredHeightForFirstItem = titleHeight + imgHeight + 4;
             } catch (e) {
-                // If image processing fails, default to a line of text height
                 requiredHeightForFirstItem = LINE_HEIGHT_NORMAL + 2;
             }
         }
@@ -465,7 +454,7 @@ const _drawTaskOnPage = async (
 };
 
 export const generateTaskPdf = async (
-    task: Task, 
+    tasks: Task[] | Task, 
     uiConfig: UiConfig, 
     developers: Person[], 
     testers: Person[], 
@@ -473,43 +462,31 @@ export const generateTaskPdf = async (
     filename?: string
 ): Promise<Blob | void> => {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-    await _drawTaskOnPage(doc, task, uiConfig, developers, testers);
+    const tasksArray = Array.isArray(tasks) ? tasks : [tasks];
     
-    const sanitizeFilename = (name: string): string => {
-        return name.replace(/[<>:"/\\|?*]+/g, '_').substring(0, 100);
-    };
-    const finalFilename = filename || `${sanitizeFilename(task.title)}.pdf`;
-    
-    if (outputType === 'blob') {
-        return doc.output('blob');
-    } else {
-        doc.save(finalFilename);
-    }
-};
-
-export const generateMultipleTasksPdf = async (
-    tasks: Task[], 
-    uiConfig: UiConfig, 
-    developers: Person[], 
-    testers: Person[], 
-    outputType: 'save' | 'blob' = 'save'
-): Promise<Blob | void> => {
-    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-    
-    for (let i = 0; i < tasks.length; i++) {
-        const task = tasks[i];
+    for (let i = 0; i < tasksArray.length; i++) {
+        const task = tasksArray[i];
         if (i > 0) {
             doc.addPage();
         }
         await _drawTaskOnPage(doc, task, uiConfig, developers, testers);
     }
+    
+    const sanitizeFilename = (name: string): string => {
+        return name.replace(/[<>:"/\\|?*]+/g, '_').substring(0, 100);
+    };
 
-    const filename = 'My Tasks.pdf';
+    let finalFilename = filename;
+    if (!finalFilename) {
+        finalFilename = tasksArray.length === 1 
+            ? `${sanitizeFilename(tasksArray[0].title)}.pdf`
+            : 'My_Tasks_Export.pdf';
+    }
     
     if (outputType === 'blob') {
         return doc.output('blob');
     } else {
-        doc.save(filename);
+        doc.save(finalFilename);
     }
 };
 
@@ -539,7 +516,7 @@ export const generateTasksText = (
                 return String(value);
             case 'multiselect':
                 return Array.isArray(value) ? value.join(', ') : String(value);
-            case 'tags': // This is a generic handler, specific ones below are better
+            case 'tags':
                 return Array.isArray(value) ? value.join(', ') : String(value);
             default:
                 return String(value);
@@ -621,3 +598,5 @@ export const generateTasksText = (
 
     return taskStrings.join('----------------------------------------\n\n');
 };
+
+      

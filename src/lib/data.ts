@@ -1,23 +1,7 @@
 
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig, FieldConfig } from './types';
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData } from './types';
 import cloneDeep from 'lodash/cloneDeep';
-
-interface CompanyData {
-    tasks: Task[];
-    trash: Task[];
-    developers: Person[];
-    testers: Person[];
-    uiConfig: UiConfig;
-}
-
-interface MyTaskManagerData {
-    companies: Company[];
-    activeCompanyId: string;
-    companyData: {
-        [companyId: string]: CompanyData;
-    };
-}
 
 const DATA_KEY = 'my_task_manager_data';
 
@@ -52,7 +36,7 @@ const getInitialData = (): MyTaskManagerData => {
     };
 };
 
-const getAppData = (): MyTaskManagerData => {
+export const getAppData = (): MyTaskManagerData => {
     if (typeof window === 'undefined') {
         const defaultConfig: UiConfig = { 
             fields: INITIAL_UI_CONFIG,
@@ -102,7 +86,7 @@ const getAppData = (): MyTaskManagerData => {
     }
 };
 
-const setAppData = (data: MyTaskManagerData) => {
+export const setAppData = (data: MyTaskManagerData) => {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(DATA_KEY, JSON.stringify(data));
 };
@@ -760,3 +744,5 @@ export function deleteComment(taskId: string, index: number): Task | undefined {
    const newComments = task.comments.filter((_, i) => i !== index);
    return updateTask(taskId, { comments: newComments });
 }
+
+      

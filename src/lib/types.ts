@@ -95,3 +95,21 @@ export interface UiConfig {
   appName?: string;
   appIcon?: string | null;
 }
+
+export interface CompanyData {
+    tasks: Task[];
+    trash: Task[];
+    developers: Person[];
+    testers: Person[];
+    uiConfig: UiConfig;
+}
+
+export interface MyTaskManagerData {
+    companies: Company[];
+    activeCompanyId: string;
+    companyData: {
+        [companyId: string]: CompanyData;
+    };
+}
+
+      
