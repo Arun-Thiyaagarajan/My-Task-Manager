@@ -36,6 +36,7 @@ const generateSingleTaskText = (task: Task, uiConfig: UiConfig, developers: Pers
 
     content += '\n';
     
+    // PR Links
     if (task.prLinks && Object.values(task.prLinks).some(v => v && Object.keys(v).length > 0)) {
         content += '*Pull Requests:*\n';
         Object.entries(task.prLinks).forEach(([env, repos]) => {
@@ -52,6 +53,16 @@ const generateSingleTaskText = (task: Task, uiConfig: UiConfig, developers: Pers
         });
         content += '\n';
     }
+
+    // Attachments
+    if (task.attachments && task.attachments.length > 0) {
+        content += '*Attachments:*\n';
+        task.attachments.forEach(att => {
+            content += `- ${att.name}: ${att.url}\n`;
+        });
+        content += '\n';
+    }
+
 
     return content.trim();
 };
@@ -105,7 +116,7 @@ const renderCustomFieldValue = (doc: jsPDF, fieldConfig: FieldConfig, value: any
   }
 };
 
-export const generateTaskPdf = (task: Task, uiConfig: UiConfig, developers: Person[], testers: Person[]) => {
+export const generateTaskPdf = (task: Task, uiConfig: UiConfig, developers: Person[], testers: Person[], outputType: 'save' | 'blob' = 'save'): Blob | void => {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     let y = PADDING;
 
@@ -235,5 +246,9 @@ export const generateTaskPdf = (task: Task, uiConfig: UiConfig, developers: Pers
         });
     }
 
-    doc.save(`Task-${task.id.substring(0, 8)}.pdf`);
+    if (outputType === 'blob') {
+        return doc.output('blob');
+    } else {
+        doc.save(`Task-${task.id.substring(0, 8)}.pdf`);
+    }
 };
