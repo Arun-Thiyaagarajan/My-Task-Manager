@@ -275,14 +275,21 @@ const _drawTaskOnPage = (
         drawKeyValue(fieldLabels.get('azureWorkItemId') || 'Azure Work Item ID', { text: `#${task.azureWorkItemId}`, link: url });
     }
 
-    if (customFields.length > 0) {
-        drawSectionHeader('Custom Fields');
-        customFields.forEach(field => {
+    const groupedCustomFields = customFields.reduce((acc, field) => {
+        const group = field.group || 'Other Custom Fields';
+        if (!acc[group]) acc[group] = [];
+        acc[group].push(field);
+        return acc;
+    }, {} as Record<string, FieldConfig[]>);
+
+    Object.entries(groupedCustomFields).forEach(([groupName, fields]) => {
+        drawSectionHeader(groupName);
+        fields.forEach(field => {
             const value = task.customFields![field.key];
             const displayValue = renderCustomFieldValue(field, value);
             drawKeyValue(field.label, displayValue);
         });
-    }
+    });
 
     drawSectionHeader('Timeline & Deployments');
     if (task.devStartDate) drawKeyValue(fieldLabels.get('devStartDate') || 'Dev Start Date', format(new Date(task.devStartDate), 'PPP'));
