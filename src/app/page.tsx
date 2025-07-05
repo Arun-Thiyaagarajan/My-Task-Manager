@@ -268,7 +268,7 @@ export default function Home() {
       if (sortDirection === 'asc') {
         return scoreA - scoreB;
       } else {
-        return scoreB - aIndex;
+        return scoreB - scoreA;
       }
     }
 
@@ -454,7 +454,6 @@ export default function Home() {
               
               if (configUpdated) {
                 updateUiConfig(currentUiConfig);
-                toast({ title: 'Settings Imported', description: 'Application settings have been updated from the file.', variant: 'success' });
                 window.dispatchEvent(new Event('company-changed')); // Triggers header update
               }
 
@@ -462,22 +461,36 @@ export default function Home() {
               // --- Pre-process people ---
               const allExistingDevs = getDevelopers();
               const existingDevsByName = new Map(allExistingDevs.map(d => [d.name.toLowerCase(), d]));
+              let devCreatedCount = 0;
+              let devUpdatedCount = 0;
               importedDevelopers.forEach(dev => {
                   if (!dev.name) return;
                   const existingDev = existingDevsByName.get(dev.name.toLowerCase());
                   const personData = { name: dev.name, email: dev.email, phone: dev.phone };
-                  if (!existingDev) { addDeveloper(personData); } 
-                  else { updateDeveloper(existingDev.id, personData); }
+                  if (!existingDev) { 
+                      addDeveloper(personData); 
+                      devCreatedCount++;
+                  } else { 
+                      updateDeveloper(existingDev.id, personData); 
+                      devUpdatedCount++;
+                  }
               });
 
               const allExistingTesters = getTesters();
               const existingTestersByName = new Map(allExistingTesters.map(t => [t.name.toLowerCase(), t]));
+              let testerCreatedCount = 0;
+              let testerUpdatedCount = 0;
               importedTesters.forEach(tester => {
                   if (!tester.name) return;
                   const existingTester = existingTestersByName.get(tester.name.toLowerCase());
                   const personData = { name: tester.name, email: tester.email, phone: tester.phone };
-                  if (!existingTester) { addTester(personData); } 
-                  else { updateTester(existingTester.id, personData); }
+                  if (!existingTester) {
+                      addTester(personData);
+                      testerCreatedCount++;
+                  } else { 
+                      updateTester(existingTester.id, personData); 
+                      testerUpdatedCount++;
+                  }
               });
 
               // --- Process tasks (active and binned) ---
@@ -522,19 +535,36 @@ export default function Home() {
               processTaskArray(importedTasks, false);
               processTaskArray(importedBinnedTasks, true);
 
-              if (createdCount > 0 || updatedCount > 0 || binnedCreatedCount > 0 || binnedUpdatedCount > 0) {
-                refreshData();
-                let descriptionParts: string[] = [];
-                if (createdCount > 0) descriptionParts.push(`${createdCount} active tasks created.`);
-                if (updatedCount > 0) descriptionParts.push(`${updatedCount} active tasks updated.`);
-                if (binnedCreatedCount > 0) descriptionParts.push(`${binnedCreatedCount} binned tasks created.`);
-                if (binnedUpdatedCount > 0) descriptionParts.push(`${binnedUpdatedCount} binned tasks updated.`);
-                toast({ variant: 'success', title: 'Import Complete', description: descriptionParts.join(' ') });
-              } else if (importedTasks.length > 0 || importedBinnedTasks.length > 0) {
-                 toast({ variant: 'default', title: 'Import Complete', description: 'No new tasks were created or updated.' });
+              // --- Final Feedback ---
+              refreshData();
+
+              let summaryParts: string[] = [];
+              if (configUpdated) summaryParts.push('App settings updated.');
+              if (devCreatedCount > 0) summaryParts.push(`${devCreatedCount} developer(s) added.`);
+              if (devUpdatedCount > 0) summaryParts.push(`${devUpdatedCount} developer(s) updated.`);
+              if (testerCreatedCount > 0) summaryParts.push(`${testerCreatedCount} tester(s) added.`);
+              if (testerUpdatedCount > 0) summaryParts.push(`${testerUpdatedCount} tester(s) updated.`);
+              if (createdCount > 0) summaryParts.push(`${createdCount} active task(s) created.`);
+              if (updatedCount > 0) summaryParts.push(`${updatedCount} active task(s) updated.`);
+              if (binnedCreatedCount > 0) summaryParts.push(`${binnedCreatedCount} binned task(s) created.`);
+              if (binnedUpdatedCount > 0) summaryParts.push(`${binnedUpdatedCount} binned task(s) updated.`);
+
+              if (summaryParts.length > 0) {
+                  toast({
+                      variant: 'success',
+                      title: 'Import Successful',
+                      description: summaryParts.join(' '),
+                  });
+              } else if (parsedJson && (importedTasks.length > 0 || importedBinnedTasks.length > 0 || importedDevelopers.length > 0 || importedTesters.length > 0 || configUpdated)) {
+                  toast({
+                      variant: 'default',
+                      title: 'Import Complete',
+                      description: 'No new data was added or existing data updated.',
+                  });
               } else {
-                 toast({ variant: 'warning', title: 'Empty File', description: 'The imported file contained no tasks.' });
+                 toast({ variant: 'warning', title: 'Empty or Invalid File', description: 'The imported file contained no data to process.' });
               }
+              
           } catch (error: any) {
               console.error("Error importing file:", error);
               toast({ variant: 'destructive', title: 'Import Failed', description: error.message || 'There was an error processing your file. Please ensure it is a valid JSON file.' });
@@ -956,11 +986,14 @@ export default function Home() {
                       }
                       onCheckedChange={handleToggleSelectAll}
                       aria-label="Select all tasks"
+                      disabled={sortedTasks.length === 0}
                     />
                     <Label htmlFor="select-all-tasks" className="text-sm font-medium">
                       {selectedTaskIds.length > 0
                         ? `${selectedTaskIds.length} of ${sortedTasks.length} selected`
-                        : `Select all tasks`}
+                        : sortedTasks.length > 0
+                        ? `Select all tasks`
+                        : 'No tasks to select'}
                     </Label>
                   </div>
 
