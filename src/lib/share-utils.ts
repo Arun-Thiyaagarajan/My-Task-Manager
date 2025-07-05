@@ -15,96 +15,43 @@ const STATUS_SVG_ICONS: Record<string, string> = {
   'Hold': `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="10" x2="10" y1="15" y2="9"/><line x1="14" x2="14" y1="15" y2="9"/></svg>`,
 };
 
-// --- TEXT GENERATION ---
-const generateSingleTaskText = (task: Task, uiConfig: UiConfig, developers: Person[], testers: Person[]): string => {
-    let content = '';
-    const developersById = new Map(developers.map(d => [d.id, d.name]));
-    const testersById = new Map(testers.map(t => [t.id, t.name]));
-    const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
-    
-    content += `*${fieldLabels.get('title') || 'Task'}:* ${task.title}\n`;
-    content += `*${fieldLabels.get('status') || 'Status'}:* ${task.status}\n\n`;
-
-    if (task.description) {
-      content += `*Description:*\n${task.description}\n\n`;
-    }
-
-    const assignedDevelopers = (task.developers || []).map(id => developersById.get(id)).filter(Boolean).join(', ');
-    if (assignedDevelopers) content += `*${fieldLabels.get('developers') || 'Developers'}:* ${assignedDevelopers}\n`;
-
-    const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter(Boolean).join(', ');
-    if (assignedTesters) content += `*${fieldLabels.get('testers') || 'Testers'}:* ${assignedTesters}\n`;
-
-    const assignedRepos = (task.repositories || []).join(', ');
-    if (assignedRepos) content += `*${fieldLabels.get('repositories') || 'Repositories'}:* ${assignedRepos}\n`;
-
-    if (task.azureWorkItemId) {
-        const azureFieldConfig = uiConfig.fields.find(f => f.key === 'azureWorkItemId');
-        const azureBaseUrl = azureFieldConfig?.baseUrl || '';
-        content += `*${fieldLabels.get('azureWorkItemId') || 'Azure ID'}:* ${azureBaseUrl}${task.azureWorkItemId}\n`;
-    }
-
-    content += '\n';
-    
-    // PR Links
-    if (task.prLinks && Object.values(task.prLinks).some(v => v && Object.keys(v).length > 0)) {
-        content += '*Pull Requests:*\n';
-        Object.entries(task.prLinks).forEach(([env, repos]) => {
-            if (repos && Object.keys(repos).length > 0) {
-                Object.entries(repos).forEach(([repoName, prIds]) => {
-                    if (prIds) {
-                        const prConfig = uiConfig.repositoryConfigs.find(rc => rc.name === repoName);
-                        prIds.split(',').map(id => id.trim()).filter(Boolean).forEach(prId => {
-                            content += `- ${repoName} #${prId} (${env}): ${prConfig?.baseUrl || ''}${prId}\n`;
-                        });
-                    }
-                });
-            }
-        });
-        content += '\n';
-    }
-
-    // Attachments
-    if (task.attachments && task.attachments.length > 0) {
-        content += '*Attachments:*\n';
-        task.attachments.forEach(att => {
-            content += `- ${att.name}: ${att.url}\n`;
-        });
-        content += '\n';
-    }
-
-
-    return content.trim();
-};
-
-export const generateTasksText = (tasks: Task[], uiConfig: UiConfig, developers: Person[], testers: Person[]): string => {
-    if (tasks.length === 1) {
-        return generateSingleTaskText(tasks[0], uiConfig, developers, testers);
-    }
-    
-    let content = `*Task Summary (${tasks.length} tasks)*\n\n`;
-    content += "====================\n\n";
-
-    tasks.forEach((task, index) => {
-        content += `${index + 1}. *${task.title}* (${task.status})\n`;
-        const assignedDevelopers = (task.developers || []).map(id => developers.find(d => d.id === id)?.name).filter(Boolean).join(', ');
-        if (assignedDevelopers) content += `  - Devs: ${assignedDevelopers}\n`;
-        if (task.description) content += `  - Desc: ${task.description.substring(0, 100).trim()}...\n`;
-        content += "\n";
-    });
-
-    return content.trim();
-};
-
-
-// --- PDF GENERATION ---
 const svgToDataURL = (svg: string): Promise<string> => {
     return new Promise((resolve, reject) => {
         try {
-            // Use btoa to handle UTF-8 characters correctly
-            const data = btoa(unescape(encodeURIComponent(svg)));
-            resolve(`data:image/svg+xml;base64,${data}`);
-        } catch (e) {
+            const img = new Image();
+            // Use a Blob to handle the SVG data
+            const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(svgBlob);
+
+            img.onload = () => {
+                // Create a canvas to draw the image onto
+                const canvas = document.createElement('canvas');
+                // Set canvas dimensions to the image dimensions
+                canvas.width = 24;
+                canvas.height = 24;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    // Draw the image onto the canvas
+                    ctx.drawImage(img, 0, 0);
+                    // Get the data URL of the canvas content as a PNG
+                    const pngDataUrl = canvas.toDataURL('image/png');
+                    // Clean up the object URL
+                    URL.revokeObjectURL(url);
+                    resolve(pngDataUrl);
+                } else {
+                    URL.revokeObjectURL(url);
+                    reject(new Error('Could not get canvas context.'));
+                }
+            };
+            
+            img.onerror = (err) => {
+                URL.revokeObjectURL(url);
+                reject(err);
+            };
+
+            // Set the image source to the object URL
+            img.src = url;
+        } catch(e) {
             reject(e);
         }
     });
@@ -558,4 +505,113 @@ export const generateMultipleTasksPdf = async (
     } else {
         doc.save(filename);
     }
+};
+
+export const generateTasksText = (
+    tasks: Task[],
+    uiConfig: UiConfig,
+    allDevelopers: Person[],
+    allTesters: Person[]
+): string => {
+    const developersById = new Map(allDevelopers.map(d => [d.id, d.name]));
+    const testersById = new Map(allTesters.map(t => [t.id, t.name]));
+    const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
+
+    const renderCustomFieldValueForText = (fieldConfig: FieldConfig, value: any): string => {
+        if (value === null || value === undefined || value === '') return 'N/A';
+        switch (fieldConfig.type) {
+            case 'text':
+                if (fieldConfig.baseUrl && value) {
+                    return `${value} (${fieldConfig.baseUrl}${value})`;
+                }
+                return String(value);
+            case 'date':
+                return value ? format(new Date(value), 'PPP') : 'Not set';
+            case 'checkbox':
+                return value ? 'Yes' : 'No';
+            case 'url':
+                return String(value);
+            case 'multiselect':
+                return Array.isArray(value) ? value.join(', ') : String(value);
+            case 'tags': // This is a generic handler, specific ones below are better
+                return Array.isArray(value) ? value.join(', ') : String(value);
+            default:
+                return String(value);
+        }
+    };
+
+    const taskStrings = tasks.map(task => {
+        let taskText = `Title: ${task.title}\n`;
+        taskText += `Status: ${task.status}\n\n`;
+        taskText += `Description:\n${task.description}\n\n`;
+        
+        const details: string[] = [];
+
+        if (task.developers && task.developers.length > 0) {
+            const assignedDevs = task.developers.map(id => developersById.get(id) || id).join(', ');
+            details.push(`${fieldLabels.get('developers') || 'Developers'}: ${assignedDevs}`);
+        }
+        
+        if (task.testers && task.testers.length > 0) {
+            const assignedTesters = task.testers.map(id => testersById.get(id) || id).join(', ');
+            details.push(`${fieldLabels.get('testers') || 'Testers'}: ${assignedTesters}`);
+        }
+
+        if (task.repositories && task.repositories.length > 0) {
+            details.push(`${fieldLabels.get('repositories') || 'Repositories'}: ${task.repositories.join(', ')}`);
+        }
+
+        if (task.azureWorkItemId) {
+            details.push(`${fieldLabels.get('azureWorkItemId') || 'Azure Work Item ID'}: #${task.azureWorkItemId}`);
+        }
+
+        if (details.length > 0) {
+            taskText += "--- Task Details ---\n";
+            taskText += details.join('\n') + '\n\n';
+        }
+        
+        const timeline: string[] = [];
+        if (task.devStartDate) timeline.push(`${fieldLabels.get('devStartDate') || 'Dev Start'}: ${format(new Date(task.devStartDate), 'PPP')}`);
+        if (task.devEndDate) timeline.push(`${fieldLabels.get('devEndDate') || 'Dev End'}: ${format(new Date(task.devEndDate), 'PPP')}`);
+        if (task.qaStartDate) timeline.push(`${fieldLabels.get('qaStartDate') || 'QA Start'}: ${format(new Date(task.qaStartDate), 'PPP')}`);
+        if (task.qaEndDate) timeline.push(`${fieldLabels.get('qaEndDate') || 'QA End'}: ${format(new Date(task.qaEndDate), 'PPP')}`);
+        
+        if (task.deploymentDates) {
+            Object.entries(task.deploymentDates).forEach(([env, date]) => {
+                if(date) {
+                    timeline.push(`${env.charAt(0).toUpperCase() + env.slice(1)} Deployed: ${format(new Date(date), 'PPP')}`);
+                }
+            });
+        }
+        
+        if (timeline.length > 0) {
+            taskText += "--- Timeline & Deployments ---\n";
+            taskText += timeline.join('\n') + '\n\n';
+        }
+
+        const customFields = uiConfig.fields.filter(f => f.isCustom && f.isActive && task.customFields && task.customFields[f.key]);
+        if (customFields.length > 0) {
+            const customDetails = customFields.map(field => {
+                const value = task.customFields![field.key];
+                if (value !== null && value !== undefined && value !== '') {
+                    return `${field.label}: ${renderCustomFieldValueForText(field, value)}`;
+                }
+                return null;
+            }).filter(Boolean);
+
+            if (customDetails.length > 0) {
+                taskText += "--- Other Details ---\n";
+                taskText += customDetails.join('\n') + '\n\n';
+            }
+        }
+        
+        if (task.comments && task.comments.length > 0) {
+            taskText += '--- Comments ---\n';
+            taskText += task.comments.map(c => `- ${c}`).join('\n') + '\n\n';
+        }
+
+        return taskText;
+    });
+
+    return taskStrings.join('----------------------------------------\n\n');
 };
