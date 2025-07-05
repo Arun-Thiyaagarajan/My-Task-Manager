@@ -151,16 +151,10 @@ const _drawTaskOnPage = async (
         let iconX = PADDING;
         let textX = PADDING;
 
-        if (appIcon) {
+        if (appIcon && isDataURI(appIcon)) {
             try {
-                if (isDataURI(appIcon)) {
-                    doc.addImage(appIcon, 'PNG', iconX, PADDING - 2, iconSize, iconSize);
-                    textX += iconSize + 3;
-                } else {
-                    doc.setFontSize(14);
-                    doc.text(appIcon, iconX, PADDING + iconSize / 2, { baseline: 'middle' });
-                    textX += iconSize + 3;
-                }
+                doc.addImage(appIcon, 'PNG', iconX, PADDING - 2, iconSize, iconSize);
+                textX += iconSize + 3;
             } catch (e) {
                 console.error("Failed to add app icon to PDF:", e);
                 textX = PADDING; // Reset textX if icon fails
