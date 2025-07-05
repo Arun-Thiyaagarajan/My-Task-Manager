@@ -45,7 +45,7 @@ export function ShareMenu({ task, uiConfig, developers, testers, children }: Sha
   const handleSharePdf = async () => {
     try {
       // Generate PDF as a blob
-      const pdfBlob = generateTaskPdf(task, uiConfig, developers, testers, 'blob');
+      const pdfBlob = await generateTaskPdf(task, uiConfig, developers, testers, 'blob');
       if (!pdfBlob) throw new Error("Could not generate PDF blob.");
       
       const pdfFile = new File([pdfBlob], pdfFilename, {
@@ -67,9 +67,9 @@ export function ShareMenu({ task, uiConfig, developers, testers, children }: Sha
     }
   };
   
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = async () => {
     try {
-      generateTaskPdf(task, uiConfig, developers, testers, 'save', pdfFilename);
+      await generateTaskPdf(task, uiConfig, developers, testers, 'save', pdfFilename);
       toast({ variant: 'success', title: 'PDF Generated', description: 'Your PDF has started downloading.' });
     } catch (e) {
       console.error("PDF generation failed:", e);

@@ -98,6 +98,17 @@ export const generateTasksText = (tasks: Task[], uiConfig: UiConfig, developers:
 
 
 // --- PDF GENERATION ---
+const svgToDataURL = (svg: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        try {
+            // Use btoa to handle UTF-8 characters correctly
+            const data = btoa(unescape(encodeURIComponent(svg)));
+            resolve(`data:image/svg+xml;base64,${data}`);
+        } catch (e) {
+            reject(e);
+        }
+    });
+};
 
 const isDataURI = (str: string | null | undefined): str is string => !!str && str.startsWith('data:image');
 
@@ -124,7 +135,7 @@ const renderCustomFieldValue = (fieldConfig: FieldConfig, value: any) => {
 };
 
 
-const _drawTaskOnPage = (
+const _drawTaskOnPage = async (
     doc: jsPDF,
     task: Task,
     uiConfig: UiConfig,
@@ -219,7 +230,7 @@ const _drawTaskOnPage = (
         doc.line(PADDING, headerBottomY, PAGE_WIDTH - PADDING, headerBottomY);
     };
     
-    const drawWatermark = () => {
+    const drawWatermark = async () => {
         const status = task.status;
         const svgString = STATUS_SVG_ICONS[status] || STATUS_SVG_ICONS['To Do'];
         const colorRGB = WATERMARK_COLORS[status] || WATERMARK_COLORS['To Do'];
@@ -233,9 +244,14 @@ const _drawTaskOnPage = (
         const x = (PAGE_WIDTH - iconSize) / 2;
         const y_pos = (PAGE_HEIGHT - iconSize) / 2;
 
-        doc.setGState(new doc.GState({ opacity: 0.08 }));
-        doc.addSvg(coloredSvg, x, y_pos, iconSize, iconSize);
-        doc.setGState(new doc.GState({ opacity: 1 }));
+        try {
+            const pngDataUrl = await svgToDataURL(coloredSvg);
+            doc.setGState(new doc.GState({ opacity: 0.08 }));
+            doc.addImage(pngDataUrl, 'PNG', x, y_pos, iconSize, iconSize);
+            doc.setGState(new doc.GState({ opacity: 1 }));
+        } catch (e) {
+            console.error("Failed to render SVG watermark:", e);
+        }
     };
 
     const drawTitle = (text: string, status: string) => {
@@ -374,7 +390,7 @@ const _drawTaskOnPage = (
 
     // --- PDF DRAWING ---
     drawHeader();
-    drawWatermark();
+    await drawWatermark();
     doc.setFont('helvetica', 'normal');
     y = PADDING + 8 + 8; // Initial Y after header
 
@@ -495,16 +511,16 @@ const _drawTaskOnPage = (
     }
 };
 
-export const generateTaskPdf = (
+export const generateTaskPdf = async (
     task: Task, 
     uiConfig: UiConfig, 
     developers: Person[], 
     testers: Person[], 
     outputType: 'save' | 'blob' = 'save',
     filename?: string
-): Blob | void => {
+): Promise<Blob | void> => {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-    _drawTaskOnPage(doc, task, uiConfig, developers, testers);
+    await _drawTaskOnPage(doc, task, uiConfig, developers, testers);
     
     const sanitizeFilename = (name: string): string => {
         return name.replace(/[<>:"/\\|?*]+/g, '_').substring(0, 100);
@@ -518,21 +534,22 @@ export const generateTaskPdf = (
     }
 };
 
-export const generateMultipleTasksPdf = (
+export const generateMultipleTasksPdf = async (
     tasks: Task[], 
     uiConfig: UiConfig, 
     developers: Person[], 
     testers: Person[], 
     outputType: 'save' | 'blob' = 'save'
-): Blob | void => {
+): Promise<Blob | void> => {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     
-    tasks.forEach((task, index) => {
-        if (index > 0) {
+    for (let i = 0; i < tasks.length; i++) {
+        const task = tasks[i];
+        if (i > 0) {
             doc.addPage();
         }
-        _drawTaskOnPage(doc, task, uiConfig, developers, testers);
-    });
+        await _drawTaskOnPage(doc, task, uiConfig, developers, testers);
+    }
 
     const filename = 'My Tasks.pdf';
     

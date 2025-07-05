@@ -561,10 +561,10 @@ export default function Home() {
     });
   };
 
-  const handleBulkExportPdf = () => {
+  const handleBulkExportPdf = async () => {
     if (!uiConfig) return;
     const selectedTasks = tasks.filter(t => selectedTaskIds.includes(t.id));
-    generateMultipleTasksPdf(selectedTasks, uiConfig, developers, testers, 'save');
+    await generateMultipleTasksPdf(selectedTasks, uiConfig, developers, testers, 'save');
     toast({
         variant: 'success',
         title: 'PDF Exported',
