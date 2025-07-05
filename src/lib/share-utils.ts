@@ -155,6 +155,14 @@ const _drawTaskOnPage = (
         'Done': { bg: [209, 250, 229], text: [6, 95, 70] },
     };
 
+    const checkPageBreak = (neededHeight = 0) => {
+        if (y + neededHeight > PAGE_HEIGHT - PADDING) {
+            doc.addPage();
+            drawHeader();
+            drawWatermark(task.status);
+        }
+    };
+    
     const drawHeader = () => {
         const { appName, appIcon } = uiConfig;
         const iconSize = 8;
@@ -201,14 +209,6 @@ const _drawTaskOnPage = (
         });
     };
 
-    const checkPageBreak = (neededHeight = 0) => {
-        if (y + neededHeight > PAGE_HEIGHT - PADDING) {
-            doc.addPage();
-            drawHeader();
-            drawWatermark(task.status);
-        }
-    };
-    
     const drawTitle = (text: string, status: string) => {
         const statusColors = STATUS_COLORS[status] || STATUS_COLORS['To Do'];
         doc.setFontSize(FONT_SIZE_NORMAL);
@@ -242,7 +242,10 @@ const _drawTaskOnPage = (
     };
 
     const drawSectionHeader = (title: string) => {
-        checkPageBreak(15);
+        const headerHeight = 7 + (LINE_HEIGHT_NORMAL - 1) + 5;
+        const minContentHeight = LINE_HEIGHT_NORMAL + 2; // Min space for one line of content
+        checkPageBreak(headerHeight + minContentHeight);
+        
         y += 7;
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(FONT_SIZE_H2);
@@ -293,14 +296,8 @@ const _drawTaskOnPage = (
     const drawImageAttachment = (name: string, dataUrl: string) => {
         try {
             const MAX_IMAGE_HEIGHT = 80;
+            const titleHeight = LINE_HEIGHT_NORMAL + 2;
             
-            checkPageBreak(LINE_HEIGHT_NORMAL + 4);
-            doc.setFontSize(FONT_SIZE_NORMAL);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(...COLORS.TEXT_MUTED);
-            doc.text(`${name}:`, PADDING, y, { baseline: 'top' });
-            y += LINE_HEIGHT_NORMAL + 2;
-
             const imageProps = doc.getImageProperties(dataUrl);
             const aspectRatio = imageProps.width / imageProps.height;
             let imgWidth = VALUE_COLUMN_WIDTH;
@@ -316,7 +313,15 @@ const _drawTaskOnPage = (
                 imgHeight = imgWidth / aspectRatio;
             }
             
-            checkPageBreak(imgHeight + 4);
+            const totalRequiredHeight = titleHeight + imgHeight + 4;
+            
+            checkPageBreak(totalRequiredHeight);
+
+            doc.setFontSize(FONT_SIZE_NORMAL);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(...COLORS.TEXT_MUTED);
+            doc.text(`${name}:`, PADDING, y, { baseline: 'top' });
+            y += titleHeight;
 
             doc.addImage(dataUrl, imageProps.fileType, VALUE_COLUMN_X, y, imgWidth, imgHeight);
             y += imgHeight + 4;
@@ -422,7 +427,7 @@ const _drawTaskOnPage = (
         task.attachments.forEach(att => {
             if (att.type === 'link') {
               drawKeyValue(att.name, {text: att.url, link: att.url});
-            } else if (att.type === 'image' && att.url.startsWith('data:image')) {
+            } else if (att.type === 'image' && isDataURI(att.url)) {
               drawImageAttachment(att.name, att.url);
             }
         });
