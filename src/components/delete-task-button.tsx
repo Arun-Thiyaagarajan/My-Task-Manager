@@ -6,6 +6,17 @@ import { Trash2, History } from 'lucide-react';
 import { moveTaskToBin, restoreTask } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface DeleteTaskButtonProps {
   taskId: string;
@@ -22,7 +33,7 @@ export function DeleteTaskButton({ taskId, taskTitle, onSuccess, iconOnly = fals
     onSuccess();
     
     const { id, dismiss, update } = toast({
-      variant: 'destructive',
+      variant: 'default',
       title: 'Task Moved to Bin',
       description: `Task "${taskTitle}" has been moved.`,
       duration: 10000,
@@ -32,11 +43,11 @@ export function DeleteTaskButton({ taskId, taskTitle, onSuccess, iconOnly = fals
       id,
       action: (
         <ToastAction
-          altText="Undo deletion"
+          altText="Undo move"
           onClick={() => {
             restoreTask(taskId);
             onSuccess();
-            dismiss(); // Dismiss the 'destructive' toast immediately
+            dismiss();
             toast({ variant: 'success', title: 'Task restored!' });
           }}
         >
@@ -46,28 +57,47 @@ export function DeleteTaskButton({ taskId, taskTitle, onSuccess, iconOnly = fals
       ),
     });
   };
+  
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
 
   return (
-    <Button
-        variant="destructive"
-        size={iconOnly ? "icon" : "sm"}
-        onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            handleMoveToBin();
-        }}
-    >
-        {iconOnly ? (
-            <>
-                <Trash2 className="h-4 w-4" />
-                <span className="sr-only">Delete Task</span>
-            </>
-        ) : (
-            <>
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-            </>
-        )}
-    </Button>
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button
+          variant="destructive"
+          size={iconOnly ? "icon" : "sm"}
+          onClick={handleClick}
+        >
+          {iconOnly ? (
+              <>
+                  <Trash2 className="h-4 w-4" />
+                  <span className="sr-only">Delete Task</span>
+              </>
+          ) : (
+              <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+              </>
+          )}
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent onClick={handleClick}>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will move the task "{taskTitle}" to the bin. You can restore it later.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={handleMoveToBin} className="bg-destructive hover:bg-destructive/90">
+            Move to Bin
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
