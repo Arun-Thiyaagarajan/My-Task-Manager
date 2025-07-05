@@ -367,7 +367,7 @@ export function TasksTable({
 
   const fieldLabels = new Map(uiConfig.fields.map((f) => [f.key, f.label]));
   const developersById = new Map(developers.map((d) => [d.id, d]));
-  const testersById = new Map(testers.map((t) => [t.id, t]));
+  const testersById = new Map(testers.map((t) => [t.id, t.name]));
 
   const handleAvatarClick = (person: Person, type: 'Developer' | 'Tester') => {
     setPersonInView({ person, type });
@@ -430,7 +430,7 @@ export function TasksTable({
              {isSelectMode && (
                 <TableHead className="w-[50px]">
                     <Checkbox
-                    checked={numSelected === numTasks ? true : (numSelected > 0 ? 'indeterminate' : false)}
+                    checked={numTasks > 0 && numSelected === numTasks ? true : (numSelected > 0 ? 'indeterminate' : false)}
                     onCheckedChange={handleToggleAll}
                     aria-label="Select all"
                     />
