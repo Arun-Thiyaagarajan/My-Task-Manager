@@ -270,7 +270,8 @@ const _drawTaskOnPage = async (
         if (linkUrl) {
             doc.setTextColor(...COLORS.LINK);
             doc.text(valueLines, VALUE_COLUMN_X, y, { baseline: 'top' });
-            doc.link(VALUE_COLUMN_X, y - 1, VALUE_COLUMN_WIDTH, requiredHeight, { url: linkUrl });
+            const safeUrl = linkUrl.replace(/'/g, "\\'");
+            doc.link(VALUE_COLUMN_X, y - 1, VALUE_COLUMN_WIDTH, requiredHeight, { url: `javascript:window.open('${safeUrl}')` });
         } else {
             doc.setTextColor(...COLORS.TEXT_PRIMARY);
             doc.text(valueLines, VALUE_COLUMN_X, y, { baseline: 'top' });
