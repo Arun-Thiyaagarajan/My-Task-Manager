@@ -82,7 +82,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { generateTasksText } from '@/lib/share-utils';
+import { generateTasksText, generateMultipleTasksPdf } from '@/lib/share-utils';
 
 
 type ViewMode = 'grid' | 'table';
@@ -550,7 +550,7 @@ export default function Home() {
     setIsSelectMode(false);
   };
 
-  const handleBulkShare = () => {
+  const handleBulkCopyText = () => {
     if (!uiConfig) return;
     const selectedTasks = tasks.filter(t => selectedTaskIds.includes(t.id));
     const textContent = generateTasksText(selectedTasks, uiConfig, developers, testers);
@@ -558,6 +558,17 @@ export default function Home() {
         toast({ variant: 'success', title: 'Copied to Clipboard', description: `${selectedTasks.length} tasks copied.` });
     }).catch(err => {
         toast({ variant: 'destructive', title: 'Failed to Copy' });
+    });
+  };
+
+  const handleBulkExportPdf = () => {
+    if (!uiConfig) return;
+    const selectedTasks = tasks.filter(t => selectedTaskIds.includes(t.id));
+    generateMultipleTasksPdf(selectedTasks, uiConfig, developers, testers, 'save');
+    toast({
+        variant: 'success',
+        title: 'PDF Exported',
+        description: `${selectedTasks.length} task(s) have been exported to a PDF.`,
     });
   };
 
@@ -928,8 +939,11 @@ export default function Home() {
                     <CardContent className="p-3 flex items-center justify-between">
                         <span className="text-sm font-medium">{selectedTaskIds.length} task(s) selected</span>
                         <div className='flex items-center gap-2'>
-                          <Button variant="outline" size="sm" onClick={handleBulkShare}>
-                            <Copy className="mr-2 h-4 w-4" /> Share
+                          <Button variant="outline" size="sm" onClick={handleBulkCopyText}>
+                            <Copy className="mr-2 h-4 w-4" /> Copy as Text
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={handleBulkExportPdf}>
+                            <Download className="mr-2 h-4 w-4" /> Export as PDF
                           </Button>
                           <AlertDialog>
                               <AlertDialogTrigger asChild>

@@ -110,15 +110,14 @@ const renderCustomFieldValue = (fieldConfig: FieldConfig, value: any) => {
   }
 };
 
-export const generateTaskPdf = (
-    task: Task, 
-    uiConfig: UiConfig, 
-    developers: Person[], 
-    testers: Person[], 
-    outputType: 'save' | 'blob' = 'save',
-    filename?: string
-): Blob | void => {
-    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+const _drawTaskOnPage = (
+    doc: jsPDF,
+    task: Task,
+    uiConfig: UiConfig,
+    developers: Person[],
+    testers: Person[]
+) => {
     let y = 15;
 
     // --- LAYOUT CONSTANTS & HELPERS ---
@@ -183,10 +182,10 @@ export const generateTaskPdf = (
         const badgeY = y - 2;
         const badgeHeight = 8;
         
-        doc.setFillColor(...statusColors.bg);
+        doc.setFillColor(statusColors.bg[0], statusColors.bg[1], statusColors.bg[2]);
         doc.roundedRect(badgeX, badgeY, badgeWidth, badgeHeight, 3, 3, 'F');
         doc.setFontSize(FONT_SIZE_NORMAL);
-        doc.setTextColor(...statusColors.text);
+        doc.setTextColor(statusColors.text[0], statusColors.text[1], statusColors.text[2]);
         doc.text(status, badgeX + 4, badgeY + badgeHeight / 2 + 1.5, { baseline: 'middle' });
 
         y += titleHeight;
@@ -200,7 +199,7 @@ export const generateTaskPdf = (
         doc.setTextColor(...COLORS.TEXT_PRIMARY);
         doc.text(title, PADDING, y);
         y += LINE_HEIGHT_NORMAL - 1;
-        doc.setDrawColor(...COLORS.CARD_BORDER);
+        doc.setDrawColor(COLORS.CARD_BORDER[0], COLORS.CARD_BORDER[1], COLORS.CARD_BORDER[2]);
         doc.line(PADDING, y, PADDING + MAX_CONTENT_WIDTH, y);
         y += 5;
     };
@@ -225,16 +224,16 @@ export const generateTaskPdf = (
         checkPageBreak(requiredHeight + 2);
 
         doc.setFont('helvetica', 'bold');
-        doc.setTextColor(...COLORS.TEXT_MUTED);
+        doc.setTextColor(COLORS.TEXT_MUTED[0], COLORS.TEXT_MUTED[1], COLORS.TEXT_MUTED[2]);
         doc.text(keyLines, PADDING, y, { baseline: 'top' });
 
         doc.setFont('helvetica', 'normal');
         if (linkUrl) {
-            doc.setTextColor(...COLORS.LINK);
+            doc.setTextColor(COLORS.LINK[0], COLORS.LINK[1], COLORS.LINK[2]);
             doc.text(valueLines, VALUE_COLUMN_X, y, { baseline: 'top' });
-            doc.link(VALUE_COLUMN_X, y, VALUE_COLUMN_WIDTH, requiredHeight, { url: linkUrl });
+            doc.link(VALUE_COLUMN_X, y - 2, VALUE_COLUMN_WIDTH, requiredHeight, { url: linkUrl });
         } else {
-            doc.setTextColor(...COLORS.TEXT_PRIMARY);
+            doc.setTextColor(COLORS.TEXT_PRIMARY[0], COLORS.TEXT_PRIMARY[1], COLORS.TEXT_PRIMARY[2]);
             doc.text(valueLines, VALUE_COLUMN_X, y, { baseline: 'top' });
         }
         
@@ -330,12 +329,52 @@ export const generateTaskPdf = (
             }
         });
     }
+};
+
+export const generateTaskPdf = (
+    task: Task, 
+    uiConfig: UiConfig, 
+    developers: Person[], 
+    testers: Person[], 
+    outputType: 'save' | 'blob' = 'save',
+    filename?: string
+): Blob | void => {
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    _drawTaskOnPage(doc, task, uiConfig, developers, testers);
     
-    // --- FINAL ---
-    const finalFilename = filename || `Task-${task.id.substring(0, 8)}.pdf`;
+    const sanitizeFilename = (name: string): string => {
+        return name.replace(/[<>:"/\\|?*]+/g, '_').substring(0, 100);
+    };
+    const finalFilename = filename || `${sanitizeFilename(task.title)}.pdf`;
+    
     if (outputType === 'blob') {
         return doc.output('blob');
     } else {
         doc.save(finalFilename);
+    }
+};
+
+export const generateMultipleTasksPdf = (
+    tasks: Task[], 
+    uiConfig: UiConfig, 
+    developers: Person[], 
+    testers: Person[], 
+    outputType: 'save' | 'blob' = 'save'
+): Blob | void => {
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    
+    tasks.forEach((task, index) => {
+        if (index > 0) {
+            doc.addPage();
+        }
+        _drawTaskOnPage(doc, task, uiConfig, developers, testers);
+    });
+
+    const filename = 'My Tasks.pdf';
+    
+    if (outputType === 'blob') {
+        return doc.output('blob');
+    } else {
+        doc.save(filename);
     }
 };
