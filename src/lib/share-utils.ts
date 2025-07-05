@@ -89,6 +89,8 @@ export const generateTasksText = (tasks: Task[], uiConfig: UiConfig, developers:
 
 // --- PDF GENERATION ---
 
+const isDataURI = (str: string | null | undefined): str is string => !!str && str.startsWith('data:image');
+
 const renderCustomFieldValue = (fieldConfig: FieldConfig, value: any) => {
   if (value === null || value === undefined || value === '') return 'N/A';
   switch (fieldConfig.type) {
@@ -119,7 +121,7 @@ const _drawTaskOnPage = (
     developers: Person[],
     testers: Person[]
 ) => {
-    let y = 15;
+    let y = 0; // 'y' will be managed by the draw functions
 
     // --- LAYOUT CONSTANTS & HELPERS ---
     const PADDING = 15;
@@ -141,6 +143,7 @@ const _drawTaskOnPage = (
         TEXT_MUTED: [107, 114, 128],
         CARD_BORDER: [229, 231, 235],
         LINK: [11, 87, 208],
+        WATERMARK: [240, 240, 240],
     };
 
     const STATUS_COLORS: Record<string, { bg: [number, number, number], text: [number, number, number] }> = {
@@ -152,15 +155,60 @@ const _drawTaskOnPage = (
         'Done': { bg: [209, 250, 229], text: [6, 95, 70] },
     };
 
+    const drawHeader = () => {
+        const { appName, appIcon } = uiConfig;
+        const iconSize = 8;
+        let iconX = PADDING;
+        let textX = PADDING;
+
+        if (appIcon) {
+            try {
+                if (isDataURI(appIcon)) {
+                    doc.addImage(appIcon, 'PNG', iconX, PADDING - 2, iconSize, iconSize);
+                    textX += iconSize + 3;
+                } else {
+                    doc.setFontSize(14);
+                    doc.text(appIcon, iconX, PADDING + iconSize / 2, { baseline: 'middle' });
+                    textX += iconSize + 3;
+                }
+            } catch (e) {
+                console.error("Failed to add app icon to PDF:", e);
+                textX = PADDING; // Reset textX if icon fails
+            }
+        }
+        
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(FONT_SIZE_NORMAL);
+        doc.setTextColor(...COLORS.TEXT_MUTED);
+        doc.text(appName || 'My Task Manager', textX, PADDING + iconSize / 2, { baseline: 'middle' });
+        
+        const headerBottomY = PADDING + iconSize + 4;
+        doc.setDrawColor(...COLORS.CARD_BORDER);
+        doc.line(PADDING, headerBottomY, PAGE_WIDTH - PADDING, headerBottomY);
+        
+        y = headerBottomY + 8; // Set 'y' for the main content to start
+    };
+    
+    const drawWatermark = (status: string) => {
+        const statusText = status.toUpperCase();
+        doc.setFontSize(80);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...COLORS.WATERMARK);
+        doc.text(statusText, PAGE_WIDTH / 2, PAGE_HEIGHT / 2 + 30, {
+            angle: -45,
+            align: 'center',
+            baseline: 'middle'
+        });
+    };
+
     const checkPageBreak = (neededHeight = 0) => {
         if (y + neededHeight > PAGE_HEIGHT - PADDING) {
             doc.addPage();
-            y = PADDING;
+            drawHeader();
+            drawWatermark(task.status);
         }
     };
     
-    doc.setFont('helvetica', 'normal');
-
     const drawTitle = (text: string, status: string) => {
         const statusColors = STATUS_COLORS[status] || STATUS_COLORS['To Do'];
         doc.setFontSize(FONT_SIZE_NORMAL);
@@ -201,7 +249,7 @@ const _drawTaskOnPage = (
         doc.setTextColor(...COLORS.TEXT_PRIMARY);
         doc.text(title, PADDING, y);
         y += LINE_HEIGHT_NORMAL - 1;
-        doc.setDrawColor(COLORS.CARD_BORDER[0], COLORS.CARD_BORDER[1], COLORS.CARD_BORDER[2]);
+        doc.setDrawColor(...COLORS.CARD_BORDER);
         doc.line(PADDING, y, PADDING + MAX_CONTENT_WIDTH, y);
         y += 5;
     };
@@ -226,16 +274,16 @@ const _drawTaskOnPage = (
         checkPageBreak(requiredHeight + 2);
 
         doc.setFont('helvetica', 'bold');
-        doc.setTextColor(COLORS.TEXT_MUTED[0], COLORS.TEXT_MUTED[1], COLORS.TEXT_MUTED[2]);
+        doc.setTextColor(...COLORS.TEXT_MUTED);
         doc.text(keyLines, PADDING, y, { baseline: 'top' });
 
         doc.setFont('helvetica', 'normal');
         if (linkUrl) {
-            doc.setTextColor(COLORS.LINK[0], COLORS.LINK[1], COLORS.LINK[2]);
+            doc.setTextColor(...COLORS.LINK);
             doc.text(valueLines, VALUE_COLUMN_X, y, { baseline: 'top' });
             doc.link(VALUE_COLUMN_X, y, VALUE_COLUMN_WIDTH, requiredHeight, { url: linkUrl });
         } else {
-            doc.setTextColor(COLORS.TEXT_PRIMARY[0], COLORS.TEXT_PRIMARY[1], COLORS.TEXT_PRIMARY[2]);
+            doc.setTextColor(...COLORS.TEXT_PRIMARY);
             doc.text(valueLines, VALUE_COLUMN_X, y, { baseline: 'top' });
         }
         
@@ -249,7 +297,7 @@ const _drawTaskOnPage = (
             checkPageBreak(LINE_HEIGHT_NORMAL + 4);
             doc.setFontSize(FONT_SIZE_NORMAL);
             doc.setFont('helvetica', 'bold');
-            doc.setTextColor(COLORS.TEXT_MUTED[0], COLORS.TEXT_MUTED[1], COLORS.TEXT_MUTED[2]);
+            doc.setTextColor(...COLORS.TEXT_MUTED);
             doc.text(`${name}:`, PADDING, y, { baseline: 'top' });
             y += LINE_HEIGHT_NORMAL + 2;
 
@@ -279,14 +327,24 @@ const _drawTaskOnPage = (
         }
     };
 
-
     // --- DATA PREPARATION ---
     const developersById = new Map(developers.map(d => [d.id, d.name]));
     const testersById = new Map(testers.map(t => [t.id, t.name]));
     const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
     const customFields = uiConfig.fields.filter(f => f.isCustom && f.isActive && task.customFields && typeof task.customFields[f.key] !== 'undefined' && task.customFields[f.key] !== null && task.customFields[f.key] !== '');
+    
+    const groupedCustomFields = customFields.reduce((acc, field) => {
+        const group = field.group || 'Other Custom Fields';
+        if (!acc[group]) acc[group] = [];
+        acc[group].push(field);
+        return acc;
+    }, {} as Record<string, FieldConfig[]>);
 
     // --- PDF DRAWING ---
+    drawHeader();
+    drawWatermark(task.status);
+    doc.setFont('helvetica', 'normal');
+
     drawTitle(task.title, task.status);
     
     if (task.description) {
@@ -314,13 +372,6 @@ const _drawTaskOnPage = (
         drawKeyValue(fieldLabels.get('azureWorkItemId') || 'Azure Work Item ID', { text: `#${task.azureWorkItemId}`, link: url });
     }
 
-    const groupedCustomFields = customFields.reduce((acc, field) => {
-        const group = field.group || 'Other Custom Fields';
-        if (!acc[group]) acc[group] = [];
-        acc[group].push(field);
-        return acc;
-    }, {} as Record<string, FieldConfig[]>);
-
     Object.entries(groupedCustomFields).forEach(([groupName, fields]) => {
         drawSectionHeader(groupName);
         fields.forEach(field => {
@@ -337,7 +388,7 @@ const _drawTaskOnPage = (
     if (task.qaEndDate) drawKeyValue(fieldLabels.get('qaEndDate') || 'QA End Date', format(new Date(task.qaEndDate), 'PPP'));
     
     if (uiConfig.environments.length > 0) {
-      if (task.devStartDate || task.devEndDate || task.qaStartDate || task.qaEndDate) y += 2; // Add spacing
+      if (task.devStartDate || task.devEndDate || task.qaStartDate || task.qaEndDate) y += 2;
       uiConfig.environments.forEach(env => {
           const isSelected = task.deploymentStatus?.[env] ?? false;
           const hasDate = task.deploymentDates && task.deploymentDates[env];
