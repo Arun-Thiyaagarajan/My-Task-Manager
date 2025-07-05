@@ -176,19 +176,20 @@ const _drawTaskOnPage = (
         checkPageBreak(titleHeight + 4);
         
         doc.setTextColor(...COLORS.TEXT_PRIMARY);
-        doc.text(titleLines, PADDING, y);
+        doc.text(titleLines, PADDING, y, { baseline: 'top' });
 
-        const badgeX = PAGE_WIDTH - PADDING - badgeWidth;
-        const badgeY = y - 2;
         const badgeHeight = 8;
+        const badgeY = y + (titleHeight / 2) - (badgeHeight / 2);
+        const badgeX = PAGE_WIDTH - PADDING - badgeWidth;
         
         doc.setFillColor(statusColors.bg[0], statusColors.bg[1], statusColors.bg[2]);
         doc.roundedRect(badgeX, badgeY, badgeWidth, badgeHeight, 3, 3, 'F');
+        
         doc.setFontSize(FONT_SIZE_NORMAL);
         doc.setTextColor(statusColors.text[0], statusColors.text[1], statusColors.text[2]);
-        doc.text(status, badgeX + 4, badgeY + badgeHeight / 2 + 1.5, { baseline: 'middle' });
+        doc.text(status, badgeX + 4, badgeY + badgeHeight / 2, { baseline: 'middle' });
 
-        y += titleHeight;
+        y += titleHeight + 4;
     };
 
     const drawSectionHeader = (title: string) => {
@@ -231,7 +232,7 @@ const _drawTaskOnPage = (
         if (linkUrl) {
             doc.setTextColor(COLORS.LINK[0], COLORS.LINK[1], COLORS.LINK[2]);
             doc.text(valueLines, VALUE_COLUMN_X, y, { baseline: 'top' });
-            doc.link(VALUE_COLUMN_X, y - 2, VALUE_COLUMN_WIDTH, requiredHeight, { url: linkUrl });
+            doc.link(VALUE_COLUMN_X, y, VALUE_COLUMN_WIDTH, requiredHeight, { url: linkUrl });
         } else {
             doc.setTextColor(COLORS.TEXT_PRIMARY[0], COLORS.TEXT_PRIMARY[1], COLORS.TEXT_PRIMARY[2]);
             doc.text(valueLines, VALUE_COLUMN_X, y, { baseline: 'top' });
@@ -248,7 +249,7 @@ const _drawTaskOnPage = (
 
     // --- PDF DRAWING ---
     drawTitle(task.title, task.status);
-
+    
     if (task.description) {
         drawSectionHeader(fieldLabels.get('description') || 'Description');
         doc.setFont('helvetica', 'normal');
