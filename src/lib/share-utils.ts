@@ -4,6 +4,17 @@
 import jsPDF from 'jspdf';
 import { format } from 'date-fns';
 import type { Task, UiConfig, Person, FieldConfig } from './types';
+import { getStatusConfig } from '@/components/task-status-badge';
+
+// --- SVG ICONS FOR PDF WATERMARK ---
+const STATUS_SVG_ICONS: Record<string, string> = {
+  'Done': `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>`,
+  'To Do': `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>`,
+  'In Progress': `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`,
+  'Code Review': `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M6 9v12"/></svg>`,
+  'QA': `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 2 1.88 1.88"/><path d="M14.12 3.88 16 2"/><path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 9 3 7.7 3 6"/><path d="M17.47 9c1.93 0 3.5-1.7 3.5-3"/><path d="M3 13h18"/><path d="M18 13v-2a4 4 0 0 0-4-4h-4a4 4 0 0 0-4 4v2"/></svg>`,
+  'Hold': `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="10" x2="10" y1="15" y2="9"/><line x1="14" x2="14" y1="15" y2="9"/></svg>`,
+};
 
 // --- TEXT GENERATION ---
 const generateSingleTaskText = (task: Task, uiConfig: UiConfig, developers: Person[], testers: Person[]): string => {
@@ -146,6 +157,15 @@ const _drawTaskOnPage = (
         WATERMARK: [240, 240, 240],
     };
 
+    const WATERMARK_COLORS: Record<string, [number, number, number]> = {
+        'To Do': [107, 114, 128], // gray-500
+        'In Progress': [59, 130, 246], // blue-500
+        'Code Review': [139, 92, 246], // purple-500
+        'QA': [234, 179, 8], // yellow-500
+        'Hold': [113, 113, 122], // zinc-500
+        'Done': [34, 197, 94], // green-500
+    };
+
     const STATUS_COLORS: Record<string, { bg: [number, number, number], text: [number, number, number] }> = {
         'To Do': { bg: [243, 244, 246], text: [31, 41, 55] },
         'In Progress': { bg: [219, 234, 254], text: [30, 64, 175] },
@@ -155,11 +175,15 @@ const _drawTaskOnPage = (
         'Done': { bg: [209, 250, 229], text: [6, 95, 70] },
     };
 
+    const rgbToHex = (r: number, g: number, b: number): string => {
+        return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).padStart(6, '0');
+    }
+
     const checkPageBreak = (neededHeight = 0) => {
         if (y + neededHeight > PAGE_HEIGHT - PADDING) {
             doc.addPage();
             drawHeader();
-            drawWatermark(task.status);
+            drawWatermark();
         }
     };
     
@@ -194,19 +218,26 @@ const _drawTaskOnPage = (
         doc.setDrawColor(...COLORS.CARD_BORDER);
         doc.line(PADDING, headerBottomY, PAGE_WIDTH - PADDING, headerBottomY);
         
-        y = headerBottomY + 8; // Set 'y' for the main content to start
+        y = headerBottomY + 8;
     };
     
-    const drawWatermark = (status: string) => {
-        const statusText = status.toUpperCase();
-        doc.setFontSize(80);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(...COLORS.WATERMARK);
-        doc.text(statusText, PAGE_WIDTH / 2, PAGE_HEIGHT / 2 + 30, {
-            angle: -45,
-            align: 'center',
-            baseline: 'middle'
-        });
+    const drawWatermark = () => {
+        const status = task.status;
+        const svgString = STATUS_SVG_ICONS[status] || STATUS_SVG_ICONS['To Do'];
+        const colorRGB = WATERMARK_COLORS[status] || WATERMARK_COLORS['To Do'];
+        
+        if (!svgString) return;
+
+        const colorHex = rgbToHex(colorRGB[0], colorRGB[1], colorRGB[2]);
+        const coloredSvg = svgString.replace(/currentColor/g, colorHex);
+
+        const iconSize = 120;
+        const x = (PAGE_WIDTH - iconSize) / 2;
+        const y_pos = (PAGE_HEIGHT - iconSize) / 2;
+
+        doc.setGState(new doc.GState({ opacity: 0.08 }));
+        doc.addSvg(coloredSvg, x, y_pos, iconSize, iconSize);
+        doc.setGState(new doc.GState({ opacity: 1 }));
     };
 
     const drawTitle = (text: string, status: string) => {
@@ -241,10 +272,14 @@ const _drawTaskOnPage = (
         y += titleHeight + 4;
     };
 
-    const drawSectionHeader = (title: string) => {
+    const drawSectionHeader = (title: string, checkSpace: boolean = true) => {
         const headerHeight = 7 + (LINE_HEIGHT_NORMAL - 1) + 5;
-        const minContentHeight = LINE_HEIGHT_NORMAL + 2; // Min space for one line of content
-        checkPageBreak(headerHeight + minContentHeight);
+        const minContentHeight = LINE_HEIGHT_NORMAL + 2;
+        if(checkSpace) {
+            checkPageBreak(headerHeight + minContentHeight);
+        } else {
+            checkPageBreak(headerHeight);
+        }
         
         y += 7;
         doc.setFont('helvetica', 'bold');
@@ -284,7 +319,7 @@ const _drawTaskOnPage = (
         if (linkUrl) {
             doc.setTextColor(...COLORS.LINK);
             doc.text(valueLines, VALUE_COLUMN_X, y, { baseline: 'top' });
-            doc.link(VALUE_COLUMN_X, y, VALUE_COLUMN_WIDTH, requiredHeight, { url: linkUrl });
+            doc.link(VALUE_COLUMN_X, y - 1, VALUE_COLUMN_WIDTH, requiredHeight, { url: linkUrl });
         } else {
             doc.setTextColor(...COLORS.TEXT_PRIMARY);
             doc.text(valueLines, VALUE_COLUMN_X, y, { baseline: 'top' });
@@ -321,7 +356,6 @@ const _drawTaskOnPage = (
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(...COLORS.TEXT_MUTED);
             doc.text(`${name}:`, PADDING, y, { baseline: 'top' });
-            y += titleHeight;
 
             doc.addImage(dataUrl, imageProps.fileType, VALUE_COLUMN_X, y, imgWidth, imgHeight);
             y += imgHeight + 4;
@@ -347,13 +381,13 @@ const _drawTaskOnPage = (
 
     // --- PDF DRAWING ---
     drawHeader();
-    drawWatermark(task.status);
+    drawWatermark();
     doc.setFont('helvetica', 'normal');
 
     drawTitle(task.title, task.status);
     
     if (task.description) {
-        drawSectionHeader(fieldLabels.get('description') || 'Description');
+        drawSectionHeader(fieldLabels.get('description') || 'Description', true);
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(FONT_SIZE_NORMAL);
         doc.setTextColor(...COLORS.TEXT_PRIMARY);
@@ -422,9 +456,10 @@ const _drawTaskOnPage = (
         });
     }
 
-    if (task.attachments && task.attachments.length > 0) {
-        drawSectionHeader('Attachments');
-        task.attachments.forEach(att => {
+    const hasAttachments = task.attachments && task.attachments.length > 0;
+    if (hasAttachments) {
+        drawSectionHeader('Attachments', false);
+        task.attachments!.forEach(att => {
             if (att.type === 'link') {
               drawKeyValue(att.name, {text: att.url, link: att.url});
             } else if (att.type === 'image' && isDataURI(att.url)) {
