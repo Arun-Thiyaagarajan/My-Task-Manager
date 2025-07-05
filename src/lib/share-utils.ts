@@ -1,4 +1,3 @@
-
 'use client';
 
 import jsPDF from 'jspdf';
@@ -121,7 +120,7 @@ export const generateTaskPdf = (task: Task, uiConfig: UiConfig, developers: Pers
     let y = PADDING;
 
     const developersById = new Map(developers.map(d => [d.id, d]));
-    const testersById = new Map(testers.map(t => [d.id, t]));
+    const testersById = new Map(testers.map(t => [t.id, t]));
     const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
     const checkPageBreak = () => {
         if (y > 270) {
