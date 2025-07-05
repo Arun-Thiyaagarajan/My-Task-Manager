@@ -166,6 +166,16 @@ const _drawTaskOnPage = async (
         doc.setTextColor(...COLORS.TEXT_MUTED);
         doc.text(appName || 'My Task Manager', textX, PADDING + iconSize / 2, { baseline: 'middle' });
         
+        // Add task title on the right
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(...COLORS.TEXT_MUTED);
+        
+        const maxTitleWidth = MAX_CONTENT_WIDTH / 2.5; // Give enough space for app name
+        const truncatedTitle = doc.splitTextToSize(task.title, maxTitleWidth);
+        
+        doc.text(truncatedTitle, PAGE_WIDTH - PADDING, PADDING + iconSize / 2, { align: 'right', baseline: 'middle' });
+
         const headerBottomY = PADDING + iconSize + 4;
         doc.setDrawColor(...COLORS.CARD_BORDER);
         doc.line(PADDING, headerBottomY, PAGE_WIDTH - PADDING, headerBottomY);
@@ -211,10 +221,11 @@ const _drawTaskOnPage = async (
         checkPageBreak(titleHeight + 4);
         
         doc.setTextColor(...COLORS.TEXT_PRIMARY);
-        doc.text(titleLines, PADDING, y, { baseline: 'top' });
+        const titleY = y;
+        doc.text(titleLines, PADDING, titleY, { baseline: 'top' });
 
         const badgeHeight = 8;
-        const badgeY = y + (titleHeight / 2) - (badgeHeight / 2);
+        const badgeY = titleY + (titleHeight / 2) - (badgeHeight / 2);
         const badgeX = PAGE_WIDTH - PADDING - badgeWidth;
         
         doc.setFillColor(statusColors.bg[0], statusColors.bg[1], statusColors.bg[2]);
@@ -271,7 +282,7 @@ const _drawTaskOnPage = async (
             doc.setTextColor(...COLORS.LINK);
             doc.text(valueLines, VALUE_COLUMN_X, y, { baseline: 'top' });
             const safeUrl = linkUrl.replace(/'/g, "\\'");
-            doc.link(VALUE_COLUMN_X, y - 1, VALUE_COLUMN_WIDTH, requiredHeight, { url: `javascript:window.open('${safeUrl}')` });
+            doc.link(VALUE_COLUMN_X, y - 1, VALUE_COLUMN_WIDTH, requiredHeight, { url: `javascript:window.open('${safeUrl}', '_blank')` });
         } else {
             doc.setTextColor(...COLORS.TEXT_PRIMARY);
             doc.text(valueLines, VALUE_COLUMN_X, y, { baseline: 'top' });
