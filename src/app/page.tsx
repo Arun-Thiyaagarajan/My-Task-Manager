@@ -82,7 +82,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { generateTasksText, generateMultipleTasksPdf } from '@/lib/share-utils';
+import { generateTaskPdf, generateTasksText } from '@/lib/share-utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 
@@ -268,7 +268,7 @@ export default function Home() {
       if (sortDirection === 'asc') {
         return scoreA - scoreB;
       } else {
-        return scoreB - scoreA;
+        return scoreB - aIndex;
       }
     }
 
@@ -404,12 +404,12 @@ export default function Home() {
               let importedAppName: string | undefined = undefined;
               let importedAppIcon: string | null | undefined = undefined;
 
+              const isIdRegex = /^[a-z]+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
               if (Array.isArray(parsedJson)) {
                   importedTasks = parsedJson;
                   const devNames = new Set<string>();
                   const testerNames = new Set<string>();
-                  const isIdRegex = /^[a-z]+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
                   importedTasks.forEach(task => {
                       (task.developers || []).forEach(nameOrId => { if (typeof nameOrId === 'string' && !isIdRegex.test(nameOrId)) devNames.add(nameOrId); });
                       (task.testers || []).forEach(nameOrId => { if (typeof nameOrId === 'string' && !isIdRegex.test(nameOrId)) testerNames.add(nameOrId); });
@@ -425,6 +425,30 @@ export default function Home() {
                   importedRepoConfigs = parsedJson.repositoryConfigs;
                   importedAppName = parsedJson.appName;
                   importedAppIcon = parsedJson.appIcon;
+
+                  // Scan tasks for new people from object-based format too
+                  const devNames = new Set<string>();
+                  const testerNames = new Set<string>();
+                  const allImportedTasks = [...importedTasks, ...importedBinnedTasks];
+                  allImportedTasks.forEach(task => {
+                      (task.developers || []).forEach(nameOrId => { if (typeof nameOrId === 'string' && !isIdRegex.test(nameOrId)) devNames.add(nameOrId); });
+                      (task.testers || []).forEach(nameOrId => { if (typeof nameOrId === 'string' && !isIdRegex.test(nameOrId)) testerNames.add(nameOrId); });
+                  });
+
+                  const existingDevNames = new Set(importedDevelopers.map(d => d.name?.toLowerCase()));
+                  devNames.forEach(name => {
+                      if (!existingDevNames.has(name.toLowerCase())) {
+                          importedDevelopers.push({ name });
+                      }
+                  });
+
+                  const existingTesterNames = new Set(importedTesters.map(t => t.name?.toLowerCase()));
+                  testerNames.forEach(name => {
+                      if (!existingTesterNames.has(name.toLowerCase())) {
+                          importedTesters.push({ name });
+                      }
+                  });
+
               } else {
                    throw new Error("Invalid format: The JSON file must be a valid JSON object or array.");
               }
@@ -494,7 +518,7 @@ export default function Home() {
               });
 
               // --- Process tasks (active and binned) ---
-              let createdCount = 0, updatedCount = 0, binnedCreatedCount = 0, binnedUpdatedCount = 0;
+              let createdCount = 0, updatedCount = 0, binnedCreatedCount = 0, binnedUpdatedCount = 0, failedCount = 0;
               const allTasks = getTasks();
               const allBinnedTasks = getBinnedTasks();
               const existingTaskIds = new Set(allTasks.map(t => t.id));
@@ -511,11 +535,9 @@ export default function Home() {
                 for (const taskData of tasksToProcess) {
                     const validationResult = taskSchema.safeParse(taskData);
                     if (!validationResult.success) {
-                        toast({ variant: 'destructive', title: 'Invalid Data Found', description: 'Redirecting to fix the invalid task.' });
-                        sessionStorage.setItem('failed_import_row', JSON.stringify(taskData));
-                        router.push('/tasks/new');
-                        if(fileInputRef.current) fileInputRef.current.value = '';
-                        return; 
+                        console.error("Task import validation failed:", validationResult.error.flatten().fieldErrors, "for task data:", taskData);
+                        failedCount++;
+                        continue;
                     }
                     const validatedData = validationResult.data;
                     if (validatedData.developers) { validatedData.developers = validatedData.developers.map(nameOrId => allDevIds.has(nameOrId) ? nameOrId : devsByName.get((nameOrId as string).toLowerCase()) || null).filter((id): id is string => !!id); }
@@ -563,6 +585,14 @@ export default function Home() {
                   });
               } else {
                  toast({ variant: 'warning', title: 'Empty or Invalid File', description: 'The imported file contained no data to process.' });
+              }
+
+              if (failedCount > 0) {
+                  toast({
+                      variant: 'destructive',
+                      title: 'Import Warning',
+                      description: `${failedCount} task(s) failed to import due to validation errors.`,
+                  });
               }
               
           } catch (error: any) {

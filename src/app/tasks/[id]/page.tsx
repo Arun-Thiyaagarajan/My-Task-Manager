@@ -307,14 +307,14 @@ export default function TaskPage() {
   }
   
   const handleRestore = () => {
-    if (task) {
+    if (task && task.deletedAt) {
       restoreTask(task.id);
       toast({
         variant: 'success',
         title: 'Task Restored',
         description: `Task "${task.title}" has been successfully restored.`,
       });
-      router.push('/bin');
+      router.push(`/tasks/${task.id}`); // Stay on the page, but it will now be a regular task page
     }
   };
 
@@ -436,7 +436,7 @@ export default function TaskPage() {
             <Ban className="h-4 w-4" />
             <AlertTitle>This task is in the Bin</AlertTitle>
             <AlertDescription>
-              You are viewing a deleted task. To make changes, you must first restore it from the bin.
+              You are viewing a deleted task. To make changes, you must first restore it.
             </AlertDescription>
           </Alert>
         )}
@@ -730,6 +730,7 @@ export default function TaskPage() {
               </Card>
             )}
             
+            {!isBinned && (
              <RelatedTasksSection
                 title={relatedTasksTitle}
                 tasks={relatedTasks}
@@ -738,6 +739,7 @@ export default function TaskPage() {
                 developers={developers}
                 testers={testers}
              />
+            )}
 
           </div>
 

@@ -25,7 +25,7 @@ export default function NewTaskPage() {
     setDevelopersList(getDevelopers());
     setTestersList(getTesters());
     
-    // This logic stays to handle failed imports
+    // This logic stays to handle failed imports from the old implementation
     const failedImportRowString = sessionStorage.getItem('failed_import_row');
     if (failedImportRowString) {
       try {
