@@ -367,7 +367,7 @@ export function TasksTable({
 
   const fieldLabels = new Map(uiConfig.fields.map((f) => [f.key, f.label]));
   const developersById = new Map(developers.map((d) => [d.id, d]));
-  const testersById = new Map(testers.map((t) => [t.id, t.name]));
+  const testersById = new Map(testers.map((t) => [t.id, t]));
 
   const handleAvatarClick = (person: Person, type: 'Developer' | 'Tester') => {
     setPersonInView({ person, type });
