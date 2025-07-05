@@ -2,12 +2,12 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks } from '@/lib/data';
+import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask } from '@/lib/data';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles, Share2 } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles, Share2, History } from 'lucide-react';
 import { getStatusConfig, TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -86,63 +86,68 @@ export default function TaskPage() {
       if (foundTask) {
         document.title = `${foundTask.title} | ${config.appName || 'My Task Manager'}`;
 
-        const allTasks = getTasks().filter(t => t.id !== taskId);
-        const strategies: (() => { title: string, tasks: Task[] } | null)[] = [];
+        if (foundTask.deletedAt) {
+            setRelatedTasks([]);
+            setRelatedTasksTitle('');
+        } else {
+            const allTasks = getTasks().filter(t => t.id !== taskId);
+            const strategies: (() => { title: string, tasks: Task[] } | null)[] = [];
 
-        if (foundTask.developers && foundTask.developers.length > 0) {
-            const primaryDevId = foundTask.developers[0];
-            const primaryDev = allDevs.find(d => d.id === primaryDevId);
-            if (primaryDev) {
+            if (foundTask.developers && foundTask.developers.length > 0) {
+                const primaryDevId = foundTask.developers[0];
+                const primaryDev = allDevs.find(d => d.id === primaryDevId);
+                if (primaryDev) {
+                    strategies.push(() => {
+                      const related = allTasks.filter(t => t.developers?.includes(primaryDevId));
+                      return related.length > 0 ? {
+                        title: `More from ${primaryDev.name}`,
+                        tasks: related
+                      } : null;
+                    });
+                }
+            }
+
+            if (foundTask.repositories && foundTask.repositories.length > 0) {
+                const primaryRepo = foundTask.repositories[0];
                 strategies.push(() => {
-                  const related = allTasks.filter(t => t.developers?.includes(primaryDevId));
+                  const related = allTasks.filter(t => t.repositories?.includes(primaryRepo));
                   return related.length > 0 ? {
-                    title: `More from ${primaryDev.name}`,
+                    title: `More in ${primaryRepo}`,
                     tasks: related
                   } : null;
                 });
             }
-        }
 
-        if (foundTask.repositories && foundTask.repositories.length > 0) {
-            const primaryRepo = foundTask.repositories[0];
-            strategies.push(() => {
-              const related = allTasks.filter(t => t.repositories?.includes(primaryRepo));
-              return related.length > 0 ? {
-                title: `More in ${primaryRepo}`,
-                tasks: related
-              } : null;
-            });
-        }
-
-        if (foundTask.devStartDate) {
-            const taskDate = new Date(foundTask.devStartDate);
-            const taskMonth = taskDate.getMonth();
-            const taskYear = taskDate.getFullYear();
-            strategies.push(() => {
-              const related = allTasks.filter(t => {
-                  if (!t.devStartDate) return false;
-                  const otherDate = new Date(t.devStartDate);
-                  return otherDate.getMonth() === taskMonth && otherDate.getFullYear() === taskYear;
-              });
-              return related.length > 0 ? {
-                title: `Also from ${format(taskDate, 'MMMM yyyy')}`,
-                tasks: related
-              } : null;
-            });
-        }
-        
-        const validStrategies = strategies.map(s => s()).filter(s => s !== null) as { title: string, tasks: Task[] }[];
-
-        if (validStrategies.length > 0) {
-            const randomIndex = Math.floor(Math.random() * validStrategies.length);
-            const selectedStrategy = validStrategies[randomIndex];
+            if (foundTask.devStartDate) {
+                const taskDate = new Date(foundTask.devStartDate);
+                const taskMonth = taskDate.getMonth();
+                const taskYear = taskDate.getFullYear();
+                strategies.push(() => {
+                  const related = allTasks.filter(t => {
+                      if (!t.devStartDate) return false;
+                      const otherDate = new Date(t.devStartDate);
+                      return otherDate.getMonth() === taskMonth && otherDate.getFullYear() === taskYear;
+                  });
+                  return related.length > 0 ? {
+                    title: `Also from ${format(taskDate, 'MMMM yyyy')}`,
+                    tasks: related
+                  } : null;
+                });
+            }
             
-            const shuffled = selectedStrategy.tasks.sort(() => 0.5 - Math.random());
-            setRelatedTasks(shuffled.slice(0, 3));
-            setRelatedTasksTitle(selectedStrategy.title);
-        } else {
-            setRelatedTasks([]);
-            setRelatedTasksTitle('');
+            const validStrategies = strategies.map(s => s()).filter(s => s !== null) as { title: string, tasks: Task[] }[];
+
+            if (validStrategies.length > 0) {
+                const randomIndex = Math.floor(Math.random() * validStrategies.length);
+                const selectedStrategy = validStrategies[randomIndex];
+                
+                const shuffled = selectedStrategy.tasks.sort(() => 0.5 - Math.random());
+                setRelatedTasks(shuffled.slice(0, 3));
+                setRelatedTasksTitle(selectedStrategy.title);
+            } else {
+                setRelatedTasks([]);
+                setRelatedTasksTitle('');
+            }
         }
 
       } else {
@@ -300,6 +305,18 @@ export default function TaskPage() {
         setIsAddLinkPopoverOpen(false);
       }
   }
+  
+  const handleRestore = () => {
+    if (task) {
+      restoreTask(task.id);
+      toast({
+        variant: 'success',
+        title: 'Task Restored',
+        description: `Task "${task.title}" has been successfully restored.`,
+      });
+      router.push('/bin');
+    }
+  };
 
 
   const renderCustomFieldValue = (key: string, value: any) => {
@@ -390,7 +407,12 @@ export default function TaskPage() {
               {isBinned ? "Back to Bin" : "Back to tasks"}
             </Link>
           </Button>
-          {!isBinned && (
+          {isBinned ? (
+            <Button variant="outline" size="sm" onClick={handleRestore}>
+                <History className="mr-2 h-4 w-4" />
+                Restore Task
+            </Button>
+          ) : (
             <div className="flex gap-2">
                 <ShareMenu task={task} uiConfig={uiConfig} developers={developers} testers={testers}>
                     <Button variant="outline" size="sm">
