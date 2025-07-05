@@ -4,7 +4,6 @@
 import jsPDF from 'jspdf';
 import { format } from 'date-fns';
 import type { Task, UiConfig, Person, FieldConfig } from './types';
-import { getStatusConfig } from '@/components/task-status-badge';
 
 // --- SVG ICONS FOR PDF WATERMARK ---
 const STATUS_SVG_ICONS: Record<string, string> = {
@@ -184,6 +183,7 @@ const _drawTaskOnPage = (
             doc.addPage();
             drawHeader();
             drawWatermark();
+            y = PADDING + 8 + 8; // Reset Y after header on new page
         }
     };
     
@@ -217,8 +217,6 @@ const _drawTaskOnPage = (
         const headerBottomY = PADDING + iconSize + 4;
         doc.setDrawColor(...COLORS.CARD_BORDER);
         doc.line(PADDING, headerBottomY, PAGE_WIDTH - PADDING, headerBottomY);
-        
-        y = headerBottomY + 8;
     };
     
     const drawWatermark = () => {
@@ -271,15 +269,11 @@ const _drawTaskOnPage = (
 
         y += titleHeight + 4;
     };
-
-    const drawSectionHeader = (title: string, checkSpace: boolean = true) => {
+    
+    const drawSectionHeader = (title: string, minContentHeight: number | null = null) => {
         const headerHeight = 7 + (LINE_HEIGHT_NORMAL - 1) + 5;
-        const minContentHeight = LINE_HEIGHT_NORMAL + 2;
-        if(checkSpace) {
-            checkPageBreak(headerHeight + minContentHeight);
-        } else {
-            checkPageBreak(headerHeight);
-        }
+        const neededHeight = headerHeight + (minContentHeight ?? LINE_HEIGHT_NORMAL + 2);
+        checkPageBreak(neededHeight);
         
         y += 7;
         doc.setFont('helvetica', 'bold');
@@ -330,13 +324,12 @@ const _drawTaskOnPage = (
     
     const drawImageAttachment = (name: string, dataUrl: string) => {
         try {
-            const MAX_IMAGE_HEIGHT = 80;
             const titleHeight = LINE_HEIGHT_NORMAL + 2;
-            
             const imageProps = doc.getImageProperties(dataUrl);
             const aspectRatio = imageProps.width / imageProps.height;
             let imgWidth = VALUE_COLUMN_WIDTH;
             let imgHeight = imgWidth / aspectRatio;
+            const MAX_IMAGE_HEIGHT = 80;
 
             if (imgHeight > MAX_IMAGE_HEIGHT) {
                 imgHeight = MAX_IMAGE_HEIGHT;
@@ -383,18 +376,19 @@ const _drawTaskOnPage = (
     drawHeader();
     drawWatermark();
     doc.setFont('helvetica', 'normal');
+    y = PADDING + 8 + 8; // Initial Y after header
 
     drawTitle(task.title, task.status);
     
     if (task.description) {
-        drawSectionHeader(fieldLabels.get('description') || 'Description', true);
+        const lines = doc.splitTextToSize(task.description, MAX_CONTENT_WIDTH);
+        const descHeight = lines.length * LINE_HEIGHT_NORMAL;
+        drawSectionHeader(fieldLabels.get('description') || 'Description', descHeight);
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(FONT_SIZE_NORMAL);
         doc.setTextColor(...COLORS.TEXT_PRIMARY);
-        const lines = doc.splitTextToSize(task.description, MAX_CONTENT_WIDTH);
-        checkPageBreak(lines.length * LINE_HEIGHT_NORMAL);
         doc.text(lines, PADDING, y);
-        y += (lines.length * LINE_HEIGHT_NORMAL) + 2;
+        y += descHeight + 2;
     }
 
     drawSectionHeader('Task Details');
@@ -458,7 +452,39 @@ const _drawTaskOnPage = (
 
     const hasAttachments = task.attachments && task.attachments.length > 0;
     if (hasAttachments) {
-        drawSectionHeader('Attachments', false);
+        let requiredHeightForFirstItem = LINE_HEIGHT_NORMAL + 2; // Default for one line of text
+        const firstAttachment = task.attachments![0];
+
+        if (firstAttachment.type === 'link') {
+            const keyLines = doc.splitTextToSize(`${firstAttachment.name}:`, KEY_COLUMN_WIDTH - 2);
+            const valueLines = doc.splitTextToSize(firstAttachment.url, VALUE_COLUMN_WIDTH);
+            requiredHeightForFirstItem = Math.max(keyLines.length, valueLines.length) * LINE_HEIGHT_NORMAL + 2;
+        } else if (firstAttachment.type === 'image' && isDataURI(firstAttachment.url)) {
+            try {
+                const titleHeight = LINE_HEIGHT_NORMAL + 2;
+                const imageProps = doc.getImageProperties(firstAttachment.url);
+                const aspectRatio = imageProps.width / imageProps.height;
+                let imgWidth = VALUE_COLUMN_WIDTH;
+                let imgHeight = imgWidth / aspectRatio;
+                const MAX_IMAGE_HEIGHT = 80;
+
+                if (imgHeight > MAX_IMAGE_HEIGHT) {
+                    imgHeight = MAX_IMAGE_HEIGHT;
+                    imgWidth = imgHeight * aspectRatio;
+                }
+                if (imgWidth > VALUE_COLUMN_WIDTH) {
+                    imgWidth = VALUE_COLUMN_WIDTH;
+                    imgHeight = imgWidth / aspectRatio;
+                }
+                requiredHeightForFirstItem = titleHeight + imgHeight + 4;
+            } catch (e) {
+                // If image processing fails, default to a line of text height
+                requiredHeightForFirstItem = LINE_HEIGHT_NORMAL + 2;
+            }
+        }
+        
+        drawSectionHeader('Attachments', requiredHeightForFirstItem);
+        
         task.attachments!.forEach(att => {
             if (att.type === 'link') {
               drawKeyValue(att.name, {text: att.url, link: att.url});
