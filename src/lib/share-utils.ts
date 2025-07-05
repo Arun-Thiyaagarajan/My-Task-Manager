@@ -110,7 +110,14 @@ const renderCustomFieldValue = (fieldConfig: FieldConfig, value: any) => {
   }
 };
 
-export const generateTaskPdf = (task: Task, uiConfig: UiConfig, developers: Person[], testers: Person[], outputType: 'save' | 'blob' = 'save'): Blob | void => {
+export const generateTaskPdf = (
+    task: Task, 
+    uiConfig: UiConfig, 
+    developers: Person[], 
+    testers: Person[], 
+    outputType: 'save' | 'blob' = 'save',
+    filename?: string
+): Blob | void => {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     let y = 15;
 
@@ -119,14 +126,15 @@ export const generateTaskPdf = (task: Task, uiConfig: UiConfig, developers: Pers
     const PAGE_HEIGHT = doc.internal.pageSize.getHeight();
     const PAGE_WIDTH = doc.internal.pageSize.getWidth();
     const MAX_CONTENT_WIDTH = PAGE_WIDTH - PADDING * 2;
+    const KEY_COLUMN_WIDTH = 45;
+    const VALUE_COLUMN_X = PADDING + KEY_COLUMN_WIDTH;
+    const VALUE_COLUMN_WIDTH = MAX_CONTENT_WIDTH - KEY_COLUMN_WIDTH;
 
     const FONT_SIZE_NORMAL = 10;
     const FONT_SIZE_SMALL = 8;
     const FONT_SIZE_H1 = 16;
     const FONT_SIZE_H2 = 12;
     const LINE_HEIGHT_NORMAL = 5.5;
-    const LINE_HEIGHT_SMALL = 4;
-    const LINK_COLOR = '#0b57d0';
 
     const COLORS = {
         TEXT_PRIMARY: [31, 41, 55],
@@ -164,7 +172,7 @@ export const generateTaskPdf = (task: Task, uiConfig: UiConfig, developers: Pers
         
         doc.setFontSize(FONT_SIZE_H1);
         const titleLines = doc.splitTextToSize(text, titleWidth);
-        const titleHeight = titleLines.length * (LINE_HEIGHT_NORMAL + 2);
+        const titleHeight = titleLines.length * (LINE_HEIGHT_NORMAL * 1.2);
         
         checkPageBreak(titleHeight + 4);
         
@@ -172,7 +180,7 @@ export const generateTaskPdf = (task: Task, uiConfig: UiConfig, developers: Pers
         doc.text(titleLines, PADDING, y);
 
         const badgeX = PAGE_WIDTH - PADDING - badgeWidth;
-        const badgeY = y - 2; // Align with top of title
+        const badgeY = y - 2;
         const badgeHeight = 8;
         
         doc.setFillColor(...statusColors.bg);
@@ -191,7 +199,7 @@ export const generateTaskPdf = (task: Task, uiConfig: UiConfig, developers: Pers
         doc.setFontSize(FONT_SIZE_H2);
         doc.setTextColor(...COLORS.TEXT_PRIMARY);
         doc.text(title, PADDING, y);
-        y += LINE_HEIGHT_SMALL;
+        y += LINE_HEIGHT_NORMAL - 1;
         doc.setDrawColor(...COLORS.CARD_BORDER);
         doc.line(PADDING, y, PADDING + MAX_CONTENT_WIDTH, y);
         y += 5;
@@ -200,11 +208,6 @@ export const generateTaskPdf = (task: Task, uiConfig: UiConfig, developers: Pers
     const drawKeyValue = (key: string, value: string | { text: string; link: string } | null | undefined) => {
         if (!value) return;
 
-        const KEY_COLUMN_WIDTH = 45;
-        const keyX = PADDING;
-        const valueX = PADDING + KEY_COLUMN_WIDTH;
-        const valueWidth = MAX_CONTENT_WIDTH - KEY_COLUMN_WIDTH;
-        
         let text: string, link: string | undefined;
         if (typeof value === 'object' && value !== null) {
             text = value.text;
@@ -214,27 +217,25 @@ export const generateTaskPdf = (task: Task, uiConfig: UiConfig, developers: Pers
         }
         
         doc.setFontSize(FONT_SIZE_NORMAL);
-        doc.setFont('helvetica', 'normal');
-        const valueLines = doc.splitTextToSize(text, valueWidth);
+        const valueLines = doc.splitTextToSize(text, VALUE_COLUMN_WIDTH);
         const requiredHeight = valueLines.length * LINE_HEIGHT_NORMAL;
         checkPageBreak(requiredHeight + 2);
 
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(...COLORS.TEXT_MUTED);
-        doc.text(`${key}:`, keyX, y, { align: 'left', baseline: 'top' });
+        doc.text(`${key}:`, PADDING, y, { align: 'left', baseline: 'top' });
 
         doc.setFont('helvetica', 'normal');
         
         if (link) {
             doc.setTextColor(...COLORS.LINK);
-            doc.textWithLink(text, valueX, y, { url: link, baseline: 'top' });
-            doc.setTextColor(...COLORS.TEXT_PRIMARY); // Reset color
+            doc.textWithLink(text, VALUE_COLUMN_X, y, { url: link, baseline: 'top' });
         } else {
             doc.setTextColor(...COLORS.TEXT_PRIMARY);
-            doc.text(valueLines, valueX, y, { baseline: 'top' });
+            doc.text(valueLines, VALUE_COLUMN_X, y, { baseline: 'top' });
         }
         
-        y += requiredHeight + 1; // Tighter spacing
+        y += requiredHeight + 2;
     };
 
     // --- DATA PREPARATION ---
@@ -325,9 +326,10 @@ export const generateTaskPdf = (task: Task, uiConfig: UiConfig, developers: Pers
     }
     
     // --- FINAL ---
+    const finalFilename = filename || `Task-${task.id.substring(0, 8)}.pdf`;
     if (outputType === 'blob') {
         return doc.output('blob');
     } else {
-        doc.save(`Task-${task.id.substring(0, 8)}.pdf`);
+        doc.save(finalFilename);
     }
 };

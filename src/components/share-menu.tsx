@@ -35,13 +35,20 @@ export function ShareMenu({ task, uiConfig, developers, testers, children }: Sha
     }
   }, []);
 
+  const sanitizeFilename = (name: string): string => {
+    // Replace invalid filename characters with an underscore
+    return name.replace(/[<>:"/\\|?*]+/g, '_').substring(0, 100);
+  };
+  
+  const pdfFilename = `${sanitizeFilename(task.title)}.pdf`;
+
   const handleSharePdf = async () => {
     try {
       // Generate PDF as a blob
       const pdfBlob = generateTaskPdf(task, uiConfig, developers, testers, 'blob');
       if (!pdfBlob) throw new Error("Could not generate PDF blob.");
       
-      const pdfFile = new File([pdfBlob], `Task-${task.id.substring(0, 8)}.pdf`, {
+      const pdfFile = new File([pdfBlob], pdfFilename, {
         type: 'application/pdf',
       });
 
@@ -62,7 +69,7 @@ export function ShareMenu({ task, uiConfig, developers, testers, children }: Sha
   
   const handleDownloadPdf = () => {
     try {
-      generateTaskPdf(task, uiConfig, developers, testers, 'save');
+      generateTaskPdf(task, uiConfig, developers, testers, 'save', pdfFilename);
       toast({ variant: 'success', title: 'PDF Generated', description: 'Your PDF has started downloading.' });
     } catch (e) {
       console.error("PDF generation failed:", e);
