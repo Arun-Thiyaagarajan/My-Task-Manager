@@ -272,7 +272,9 @@ const _drawTaskOnPage = async (
         doc.setFont('helvetica', 'normal');
         if (linkUrl) {
             doc.setTextColor(...COLORS.LINK);
-            doc.textWithLink(textValue, VALUE_COLUMN_X, y, { url: linkUrl, baseline: 'top' });
+            doc.text(valueLines, VALUE_COLUMN_X, y, { baseline: 'top' });
+            // Add a clickable area over the text
+            doc.link(VALUE_COLUMN_X, y, VALUE_COLUMN_WIDTH, requiredHeight, { url: linkUrl });
         } else {
             doc.setTextColor(...COLORS.TEXT_PRIMARY);
             doc.text(valueLines, VALUE_COLUMN_X, y, { baseline: 'top' });
@@ -598,5 +600,3 @@ export const generateTasksText = (
 
     return taskStrings.join('----------------------------------------\n\n');
 };
-
-      

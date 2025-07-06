@@ -470,8 +470,8 @@ export default function Home() {
             const existingDevsByName = new Map(companyData.developers.map(d => [d.name.toLowerCase(), d]));
             importedDevelopers.forEach(dev => {
                 if (!dev.name) return;
-                const existingDev = existingDevsByName.get(dev.name.toLowerCase());
                 const personData = { name: dev.name.trim(), email: dev.email || '', phone: dev.phone || '' };
+                const existingDev = existingDevsByName.get(personData.name.toLowerCase());
                 if (!existingDev) {
                     const newDev = { id: `developer-${crypto.randomUUID()}`, ...personData };
                     companyData.developers.push(newDev);
@@ -486,8 +486,8 @@ export default function Home() {
             const existingTestersByName = new Map(companyData.testers.map(t => [t.name.toLowerCase(), t]));
             importedTesters.forEach(tester => {
                 if (!tester.name) return;
-                const existingTester = existingTestersByName.get(tester.name.toLowerCase());
                 const personData = { name: tester.name.trim(), email: tester.email || '', phone: tester.phone || '' };
+                const existingTester = existingTestersByName.get(personData.name.toLowerCase());
                 if (!existingTester) {
                     const newTester = { id: `tester-${crypto.randomUUID()}`, ...personData };
                     companyData.testers.push(newTester);
@@ -514,24 +514,21 @@ export default function Home() {
               const knownTaskKeys = new Set(Object.keys(baseSchema.shape));
 
               for (const taskData of tasksToProcess) {
-                  const processedTaskData: Partial<Task> = { customFields: {} };
-                  
-                  Object.keys(taskData).forEach(key => {
-                    const typedKey = key as keyof Task;
-                    if (knownTaskKeys.has(typedKey)) {
-                        (processedTaskData as any)[typedKey] = (taskData as any)[typedKey];
-                    } else if (typedKey !== 'customFields') {
-                        if (!processedTaskData.customFields) {
-                            processedTaskData.customFields = {};
-                        }
-                        (processedTaskData.customFields as any)[typedKey] = (taskData as any)[typedKey];
-                    }
-                  });
+                  const processedTaskData: Partial<Task> = {};
+                  const customData: Record<string, any> = { ...(taskData.customFields || {}) };
 
-                  if (taskData.customFields && typeof taskData.customFields === 'object') {
-                      processedTaskData.customFields = { ...processedTaskData.customFields, ...taskData.customFields };
+                  for (const key in taskData) {
+                      const typedKey = key as keyof Task;
+                      if (knownTaskKeys.has(typedKey)) {
+                          (processedTaskData as any)[typedKey] = (taskData as any)[typedKey];
+                      } else {
+                          customData[key] = (taskData as any)[key];
+                      }
                   }
-
+                  
+                  delete customData.customFields;
+                  processedTaskData.customFields = customData;
+                  
                   const validationResult = taskSchema.safeParse(processedTaskData);
                   if (!validationResult.success) {
                       const errorDetails = validationResult.error.flatten();
