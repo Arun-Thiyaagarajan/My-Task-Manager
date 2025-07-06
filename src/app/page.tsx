@@ -879,7 +879,7 @@ export default function Home() {
                     </Select>
                 </div>
                 {mainView === 'all' && (
-                    <div className="flex-1 min-w-[240px]">
+                    <div className="min-w-[240px]">
                       <Popover
                           open={isDatePopoverOpen}
                           onOpenChange={setIsDatePopoverOpen}
