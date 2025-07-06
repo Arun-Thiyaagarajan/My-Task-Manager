@@ -824,9 +824,9 @@ export default function Home() {
       
       <div className="space-y-6">
           <Card>
-            <CardContent className="p-4 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                <div className="relative sm:col-span-2 lg:col-span-3 xl:col-span-1">
+            <CardContent className="p-4">
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="relative flex-1 min-w-[240px] sm:flex-grow-[2]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                     placeholder="Search tasks..."
@@ -835,149 +835,154 @@ export default function Home() {
                     className="pl-10 w-full"
                     />
                 </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={`Filter by ${fieldLabels.get('status') || 'Status'}`} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    {TASK_STATUSES.map((status) => (
-                      <SelectItem key={status} value={status}>
-                        {status}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={repoFilter} onValueChange={setRepoFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={`Filter by ${fieldLabels.get('repositories') || 'Repository'}`} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Repositories</SelectItem>
-                    {REPOSITORIES.map((repo) => (
-                      <SelectItem key={repo} value={repo}>
-                        {repo}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={deploymentFilter} onValueChange={setDeploymentFilter}>
-                    <SelectTrigger>
-                    <SelectValue placeholder={`Filter by ${fieldLabels.get('deploymentStatus') || 'Deployment'}`} />
-                    </SelectTrigger>
-                    <SelectContent>
-                    <SelectItem value="all">Any Deployment</SelectItem>
-                    <SelectItem value="dev">Deployed to Dev</SelectItem>
-                    <SelectItem value="stage">Deployed to Stage</SelectItem>
-                    <SelectItem value="production">Deployed to Production</SelectItem>
-                    </SelectContent>
-                </Select>
-              </div>
-              
-              {mainView === 'all' && (
-                  <div className="flex flex-col sm:flex-row items-center gap-4">
-                    <Popover
-                        open={isDatePopoverOpen}
-                        onOpenChange={setIsDatePopoverOpen}
-                      >
-                        <PopoverTrigger asChild>
-                          <Button
-                            id="date"
-                            variant={'outline'}
-                            className={cn(
-                              'w-full sm:w-auto justify-start text-left font-normal',
-                              !dateFilter && 'text-muted-foreground'
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {dateFilter?.from ? (
-                              dateFilter.to ? (
-                                <>
-                                  {format(dateFilter.from, 'LLL dd, y')} -{' '}
-                                  {format(dateFilter.to, 'LLL dd, y')}
-                                </>
+                <div className="flex-1 min-w-[180px]">
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={`Filter by ${fieldLabels.get('status') || 'Status'}`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Statuses</SelectItem>
+                        {TASK_STATUSES.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {status}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                </div>
+                <div className="flex-1 min-w-[180px]">
+                    <Select value={repoFilter} onValueChange={setRepoFilter}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={`Filter by ${fieldLabels.get('repositories') || 'Repository'}`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Repositories</SelectItem>
+                        {REPOSITORIES.map((repo) => (
+                          <SelectItem key={repo} value={repo}>
+                            {repo}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                </div>
+                <div className="flex-1 min-w-[180px]">
+                    <Select value={deploymentFilter} onValueChange={setDeploymentFilter}>
+                        <SelectTrigger>
+                        <SelectValue placeholder={`Filter by ${fieldLabels.get('deploymentStatus') || 'Deployment'}`} />
+                        </SelectTrigger>
+                        <SelectContent>
+                        <SelectItem value="all">Any Deployment</SelectItem>
+                        <SelectItem value="dev">Deployed to Dev</SelectItem>
+                        <SelectItem value="stage">Deployed to Stage</SelectItem>
+                        <SelectItem value="production">Deployed to Production</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                {mainView === 'all' && (
+                    <div className="flex-1 min-w-[240px]">
+                      <Popover
+                          open={isDatePopoverOpen}
+                          onOpenChange={setIsDatePopoverOpen}
+                        >
+                          <PopoverTrigger asChild>
+                            <Button
+                              id="date"
+                              variant={'outline'}
+                              className={cn(
+                                'w-full justify-start text-left font-normal',
+                                !dateFilter && 'text-muted-foreground'
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {dateFilter?.from ? (
+                                dateFilter.to ? (
+                                  <>
+                                    {format(dateFilter.from, 'LLL dd, y')} -{' '}
+                                    {format(dateFilter.to, 'LLL dd, y')}
+                                  </>
+                                ) : (
+                                  format(dateFilter.from, 'LLL dd, y')
+                                )
                               ) : (
-                                format(dateFilter.from, 'LLL dd, y')
-                              )
-                            ) : (
-                              <span>Filter by Dev Start Date</span>
-                            )}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0 flex" align="start">
-                          <div className="flex flex-col space-y-1 p-2 border-r">
-                            <Button
-                              variant="ghost"
-                              className="justify-start px-2 font-normal text-sm"
-                              onClick={() => {
-                                setDateFilter(undefined);
-                                setIsDatePopoverOpen(false);
-                              }}
-                            >
-                              Any time
+                                <span>Filter by Dev Start Date</span>
+                              )}
                             </Button>
-                            <Button
-                              variant="ghost"
-                              className="justify-start px-2 font-normal text-sm"
-                              onClick={() => {
-                                setDateFilter({ from: new Date(), to: new Date() });
-                                setIsDatePopoverOpen(false);
-                              }}
-                            >
-                              Today
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              className="justify-start px-2 font-normal text-sm"
-                              onClick={() => {
-                                setDateFilter({
-                                  from: subDays(new Date(), 6),
-                                  to: new Date(),
-                                });
-                                setIsDatePopoverOpen(false);
-                              }}
-                            >
-                              Last 7 days
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              className="justify-start px-2 font-normal text-sm"
-                              onClick={() => {
-                                setDateFilter({
-                                  from: startOfMonth(new Date()),
-                                  to: endOfMonth(new Date()),
-                                });
-                                setIsDatePopoverOpen(false);
-                              }}
-                            >
-                              This month
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              className="justify-start px-2 font-normal text-sm"
-                              onClick={() => {
-                                setDateFilter({
-                                  from: startOfYear(new Date()),
-                                  to: endOfYear(new Date()),
-                                });
-                                setIsDatePopoverOpen(false);
-                              }}
-                            >
-                              This year
-                            </Button>
-                          </div>
-                          <Calendar
-                            initialFocus
-                            mode="range"
-                            defaultMonth={dateFilter?.from}
-                            selected={dateFilter}
-                            onSelect={setDateFilter}
-                            numberOfMonths={1}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                  </div>
-              )}
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0 flex" align="start">
+                            <div className="flex flex-col space-y-1 p-2 border-r">
+                              <Button
+                                variant="ghost"
+                                className="justify-start px-2 font-normal text-sm"
+                                onClick={() => {
+                                  setDateFilter(undefined);
+                                  setIsDatePopoverOpen(false);
+                                }}
+                              >
+                                Any time
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                className="justify-start px-2 font-normal text-sm"
+                                onClick={() => {
+                                  setDateFilter({ from: new Date(), to: new Date() });
+                                  setIsDatePopoverOpen(false);
+                                }}
+                              >
+                                Today
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                className="justify-start px-2 font-normal text-sm"
+                                onClick={() => {
+                                  setDateFilter({
+                                    from: subDays(new Date(), 6),
+                                    to: new Date(),
+                                  });
+                                  setIsDatePopoverOpen(false);
+                                }}
+                              >
+                                Last 7 days
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                className="justify-start px-2 font-normal text-sm"
+                                onClick={() => {
+                                  setDateFilter({
+                                    from: startOfMonth(new Date()),
+                                    to: endOfMonth(new Date()),
+                                  });
+                                  setIsDatePopoverOpen(false);
+                                }}
+                              >
+                                This month
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                className="justify-start px-2 font-normal text-sm"
+                                onClick={() => {
+                                  setDateFilter({
+                                    from: startOfYear(new Date()),
+                                    to: endOfYear(new Date()),
+                                  });
+                                  setIsDatePopoverOpen(false);
+                                }}
+                              >
+                                This year
+                              </Button>
+                            </div>
+                            <Calendar
+                              initialFocus
+                              mode="range"
+                              defaultMonth={dateFilter?.from}
+                              selected={dateFilter}
+                              onSelect={setDateFilter}
+                              numberOfMonths={1}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                    </div>
+                )}
+              </div>
             </CardContent>
           </Card>
           
