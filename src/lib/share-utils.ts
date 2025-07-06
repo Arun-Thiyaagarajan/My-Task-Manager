@@ -65,7 +65,8 @@ const renderCustomFieldValue = (fieldConfig: FieldConfig, value: any) => {
     case 'checkbox':
       return value ? 'Yes' : 'No';
     case 'url':
-      return { text: value, link: value };
+        const urlValue = String(value);
+        return { text: urlValue, link: urlValue };
     case 'multiselect':
     case 'tags':
       return Array.isArray(value) ? value.join(', ') : String(value);
@@ -447,7 +448,8 @@ const _drawTaskOnPage = async (
         
         task.attachments!.forEach(att => {
             if (att.type === 'link') {
-              drawKeyValue(att.name, {text: att.url, link: att.url});
+              const urlValue = String(att.url);
+              drawKeyValue(att.name, {text: urlValue, link: urlValue});
             } else if (att.type === 'image' && isDataURI(att.url)) {
               drawImageAttachment(att.name, att.url);
             }

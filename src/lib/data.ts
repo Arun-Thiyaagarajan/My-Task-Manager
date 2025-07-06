@@ -744,5 +744,3 @@ export function deleteComment(taskId: string, index: number): Task | undefined {
    const newComments = task.comments.filter((_, i) => i !== index);
    return updateTask(taskId, { comments: newComments });
 }
-
-      

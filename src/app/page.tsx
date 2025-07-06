@@ -39,7 +39,7 @@ import {
   Copy,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Task, Person, UiConfig, RepositoryConfig } from '@/lib/types';
+import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig } from '@/lib/types';
 import {
   Popover,
   PopoverContent,
@@ -429,11 +429,13 @@ export default function Home() {
                  throw new Error("Invalid format: The JSON file must be a valid JSON object or array.");
             }
             
-            // Auto-discover people from tasks if they are not in the main lists
             const allImportedTasks = [...importedTasks, ...importedBinnedTasks];
+            
+            // Auto-discover people from tasks if they are not in the main lists
             const devNames = new Set(importedDevelopers.map(d => d.name?.toLowerCase()));
             const testerNames = new Set(importedTesters.map(t => t.name?.toLowerCase()));
             allImportedTasks.forEach(task => {
+                if (!task) return;
                 (task.developers || []).forEach(nameOrId => { if (typeof nameOrId === 'string' && !isIdRegex.test(nameOrId) && !devNames.has(nameOrId.toLowerCase())) { importedDevelopers.push({ name: nameOrId }); devNames.add(nameOrId.toLowerCase()); }});
                 (task.testers || []).forEach(nameOrId => { if (typeof nameOrId === 'string' && !isIdRegex.test(nameOrId) && !testerNames.has(nameOrId.toLowerCase())) { importedTesters.push({ name: nameOrId }); testerNames.add(nameOrId.toLowerCase()); }});
             });
@@ -446,6 +448,39 @@ export default function Home() {
                 testerCreatedCount = 0, testerUpdatedCount = 0,
                 createdCount = 0, updatedCount = 0, binnedCreatedCount = 0, 
                 binnedUpdatedCount = 0, failedCount = 0;
+
+             // --- Auto-discover and create custom fields ---
+            let baseSchemaForDiscovery: any = taskSchema;
+            while (baseSchemaForDiscovery._def && baseSchemaForDiscovery._def.schema) {
+                baseSchemaForDiscovery = baseSchemaForDiscovery._def.schema;
+            }
+            const knownSystemKeys = new Set(Object.keys(baseSchemaForDiscovery.shape));
+            const existingFieldKeys = new Set(companyData.uiConfig.fields.map(f => f.key));
+
+            allImportedTasks.forEach(task => {
+                if (!task || typeof task !== 'object') return;
+                Object.keys(task).forEach(key => {
+                    if (!knownSystemKeys.has(key) && !existingFieldKeys.has(key)) {
+                        const newFieldLabel = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                        
+                        const newField: FieldConfig = {
+                            id: `field_custom_${key}_${Date.now()}`,
+                            key: key,
+                            label: newFieldLabel,
+                            type: 'text', // Default to 'text'
+                            group: 'Imported', // Group new fields
+                            isActive: true,
+                            isRequired: false,
+                            isCustom: true,
+                            order: companyData.uiConfig.fields.length,
+                        };
+                        
+                        companyData.uiConfig.fields.push(newField);
+                        existingFieldKeys.add(key);
+                        configUpdated = true;
+                    }
+                });
+            });
 
             // --- Config Update ---
             if (importedAppName || typeof importedAppIcon !== 'undefined') {
@@ -483,7 +518,7 @@ export default function Home() {
                 }
             });
 
-            const existingTestersByName = new Map(companyData.testers.map(t => [t.name.toLowerCase(), t]));
+            const existingTestersByName = new Map(companyData.testers.map(t => [t.name.toLowerCase(), t.id]));
             importedTesters.forEach(tester => {
                 if (!tester.name) return;
                 const personData = { name: tester.name.trim(), email: tester.email || '', phone: tester.phone || '' };
@@ -514,20 +549,30 @@ export default function Home() {
               const knownTaskKeys = new Set(Object.keys(baseSchema.shape));
 
               for (const taskData of tasksToProcess) {
+                  if (!taskData || typeof taskData !== 'object') {
+                      failedCount++;
+                      continue;
+                  }
+
                   const processedTaskData: Partial<Task> = {};
-                  const customData: Record<string, any> = { ...(taskData.customFields || {}) };
+                  const customData: Record<string, any> = {};
 
                   for (const key in taskData) {
                       const typedKey = key as keyof Task;
                       if (knownTaskKeys.has(typedKey)) {
                           (processedTaskData as any)[typedKey] = (taskData as any)[typedKey];
                       } else {
-                          customData[key] = (taskData as any)[key];
+                          customData[key] = (taskData as any)[typedKey];
                       }
                   }
                   
-                  delete customData.customFields;
-                  processedTaskData.customFields = customData;
+                  if (taskData.customFields && typeof taskData.customFields === 'object') {
+                    Object.assign(customData, taskData.customFields);
+                  }
+                  
+                  if (Object.keys(customData).length > 0) {
+                      processedTaskData.customFields = customData;
+                  }
                   
                   const validationResult = taskSchema.safeParse(processedTaskData);
                   if (!validationResult.success) {
@@ -562,15 +607,19 @@ export default function Home() {
 
                       if (wasBinned && !shouldBeBinned) {
                           const taskIndex = companyData.trash.findIndex(t => t.id === existingTask.id);
-                          const [taskToMove] = companyData.trash.splice(taskIndex, 1);
-                          delete taskToMove.deletedAt;
-                          companyData.tasks.unshift(taskToMove);
+                          if(taskIndex > -1) {
+                            const [taskToMove] = companyData.trash.splice(taskIndex, 1);
+                            delete taskToMove.deletedAt;
+                            companyData.tasks.unshift(taskToMove);
+                          }
                           updatedCount++;
                       } else if (!wasBinned && shouldBeBinned) {
                           const taskIndex = companyData.tasks.findIndex(t => t.id === existingTask.id);
-                          const [taskToMove] = companyData.tasks.splice(taskIndex, 1);
-                          taskToMove.deletedAt = validatedData.deletedAt || now;
-                          companyData.trash.unshift(taskToMove);
+                          if(taskIndex > -1) {
+                            const [taskToMove] = companyData.tasks.splice(taskIndex, 1);
+                            taskToMove.deletedAt = validatedData.deletedAt || now;
+                            companyData.trash.unshift(taskToMove);
+                          }
                           binnedUpdatedCount++;
                       } else {
                           if (shouldBeBinned) {
