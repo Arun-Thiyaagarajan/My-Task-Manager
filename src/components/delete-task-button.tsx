@@ -90,7 +90,7 @@ export function DeleteTaskButton({ taskId, taskTitle, onSuccess, iconOnly = fals
           )}
         </Button>
       </AlertDialogTrigger>
-      <AlertDialogContent onClick={handleClick}>
+      <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
           <AlertDialogDescription>
