@@ -38,6 +38,7 @@ import {
   CheckSquare,
   Copy,
   X,
+  HelpCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig } from '@/lib/types';
@@ -86,6 +87,11 @@ import {
 import { generateTaskPdf, generateTasksText } from '@/lib/share-utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 
 type ViewMode = 'grid' | 'table';
@@ -789,8 +795,16 @@ export default function Home() {
                 </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                <DropdownMenuItem onSelect={() => handleExport('current_view')}>
-                    Export Current View
+                <DropdownMenuItem onSelect={() => handleExport('current_view')} className="flex justify-between items-center pr-1">
+                  <span>Export Current View</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild onClick={(e) => e.preventDefault()}>
+                      <HelpCircle className="h-4 w-4 ml-2 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Exports the {sortedTasks.length} currently visible task(s) based on your filters.</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => handleExport('all_tasks')}>
                     Export All Tasks
@@ -879,7 +893,7 @@ export default function Home() {
                     </Select>
                 </div>
                 {mainView === 'all' && (
-                    <div className="min-w-[240px]">
+                    <div className="w-[240px]">
                       <Popover
                           open={isDatePopoverOpen}
                           onOpenChange={setIsDatePopoverOpen}

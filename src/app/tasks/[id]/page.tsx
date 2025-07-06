@@ -413,7 +413,7 @@ export default function TaskPage() {
   return (
     <>
       <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <Button asChild variant="ghost" className="pl-1">
             <Link href={isBinned ? "/bin" : "/"}>
               <ArrowLeft className="mr-2 h-4 w-4" />
@@ -743,6 +743,19 @@ export default function TaskPage() {
               </Card>
             )}
             
+            {!isBinned && taskLogs.length > 0 && (
+                <TaskHistory logs={taskLogs} />
+            )}
+
+            {!isBinned && (
+                <CommentsSection
+                    taskId={task.id}
+                    comments={task.comments || []}
+                    onCommentsUpdate={handleCommentsUpdate}
+                    readOnly={isBinned}
+                />
+            )}
+
             {!isBinned && (
              <RelatedTasksSection
                 title={relatedTasksTitle}
@@ -752,10 +765,6 @@ export default function TaskPage() {
                 developers={developers}
                 testers={testers}
              />
-            )}
-
-            {!isBinned && taskLogs.length > 0 && (
-                <TaskHistory logs={taskLogs} />
             )}
 
           </div>
@@ -922,12 +931,6 @@ export default function TaskPage() {
                       </div>
                   </CardContent>
               </Card>
-              <CommentsSection
-                  taskId={task.id}
-                  comments={task.comments || []}
-                  onCommentsUpdate={handleCommentsUpdate}
-                  readOnly={isBinned}
-              />
           </div>
         </div>
       </div>
