@@ -284,6 +284,7 @@ export default function Home() {
     const allDevelopers = getDevelopers();
     const allTesters = getTesters();
     const currentUiConfig = getUiConfig();
+    const customFieldDefinitions = currentUiConfig.fields.filter(f => f.isCustom);
 
     const appNamePrefix = currentUiConfig.appName?.replace(/\s+/g, '_') || 'MyTaskManager';
     const fileNameSuffix = exportType === 'all_tasks' ? 'All_Tasks' : 'Export';
@@ -332,6 +333,7 @@ export default function Home() {
         appName: currentUiConfig.appName,
         appIcon: currentUiConfig.appIcon,
         repositoryConfigs: currentUiConfig.repositoryConfigs,
+        customFieldDefinitions: customFieldDefinitions,
         developers: developersToExport.map(cleanPerson),
         testers: testersToExport.map(cleanPerson),
         tasks: activeTasksWithNames,
@@ -412,6 +414,7 @@ export default function Home() {
             let importedRepoConfigs: RepositoryConfig[] | undefined = undefined;
             let importedAppName: string | undefined = undefined;
             let importedAppIcon: string | null | undefined = undefined;
+            let importedCustomFieldDefs: FieldConfig[] = [];
 
             const isIdRegex = /^[a-z]+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -425,6 +428,7 @@ export default function Home() {
                 importedRepoConfigs = parsedJson.repositoryConfigs;
                 importedAppName = parsedJson.appName;
                 importedAppIcon = parsedJson.appIcon;
+                importedCustomFieldDefs = parsedJson.customFieldDefinitions || [];
             } else {
                  throw new Error("Invalid format: The JSON file must be a valid JSON object or array.");
             }
@@ -449,39 +453,28 @@ export default function Home() {
                 createdCount = 0, updatedCount = 0, binnedCreatedCount = 0, 
                 binnedUpdatedCount = 0, failedCount = 0;
 
-             // --- Auto-discover and create custom fields ---
-            let baseSchemaForDiscovery: any = taskSchema;
-            while (baseSchemaForDiscovery._def && baseSchemaForDiscovery._def.schema) {
-                baseSchemaForDiscovery = baseSchemaForDiscovery._def.schema;
-            }
-            const knownSystemKeys = new Set(Object.keys(baseSchemaForDiscovery.shape));
-            const existingFieldKeys = new Set(companyData.uiConfig.fields.map(f => f.key));
+            // --- Process Custom Field Definitions ---
+            if (importedCustomFieldDefs.length > 0) {
+                const existingFieldKeys = new Set(companyData.uiConfig.fields.map(f => f.key));
+                let newFieldsAdded = false;
 
-            allImportedTasks.forEach(task => {
-                if (!task || typeof task !== 'object') return;
-                Object.keys(task).forEach(key => {
-                    if (!knownSystemKeys.has(key) && !existingFieldKeys.has(key)) {
-                        const newFieldLabel = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-                        
+                importedCustomFieldDefs.forEach(importedField => {
+                    if (importedField.isCustom && !existingFieldKeys.has(importedField.key)) {
                         const newField: FieldConfig = {
-                            id: `field_custom_${key}_${Date.now()}`,
-                            key: key,
-                            label: newFieldLabel,
-                            type: 'text', // Default to 'text'
-                            group: 'Imported', // Group new fields
-                            isActive: true,
-                            isRequired: false,
-                            isCustom: true,
+                            ...importedField,
                             order: companyData.uiConfig.fields.length,
                         };
-                        
                         companyData.uiConfig.fields.push(newField);
-                        existingFieldKeys.add(key);
-                        configUpdated = true;
+                        existingFieldKeys.add(newField.key);
+                        newFieldsAdded = true;
                     }
                 });
-            });
 
+                if (newFieldsAdded) {
+                    configUpdated = true;
+                }
+            }
+            
             // --- Config Update ---
             if (importedAppName || typeof importedAppIcon !== 'undefined') {
                 companyData.uiConfig.appName = importedAppName || companyData.uiConfig.appName;
