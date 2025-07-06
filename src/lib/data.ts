@@ -579,8 +579,20 @@ export function updateTask(id: string, taskData: Partial<Omit<Task, 'id' | 'crea
   if (!oldTask || taskIndex === -1) return undefined;
   
   const uiConfig = companyData.uiConfig;
-  const logs = generateTaskUpdateLogs(oldTask, taskData, uiConfig, companyData.developers, companyData.testers);
-  logs.forEach(log => addLog(log));
+  const logsToCreate = generateTaskUpdateLogs(oldTask, taskData, uiConfig, companyData.developers, companyData.testers);
+  const now = new Date().toISOString();
+
+  logsToCreate.forEach(log => {
+      const newLog: Log = {
+          id: `log-${crypto.randomUUID()}`,
+          timestamp: now,
+          ...log
+      };
+      companyData.logs.unshift(newLog);
+  });
+  if (companyData.logs.length > 2000) {
+    companyData.logs = companyData.logs.slice(0, 2000);
+  }
 
   const updatedTask = { ...oldTask, ...taskData, updatedAt: new Date().toISOString() };
   
@@ -640,12 +652,22 @@ export function moveMultipleTasksToBin(ids: string[]): boolean {
     const now = new Date().toISOString();
     tasksToBin.forEach(task => {
         task.deletedAt = now;
-        addLog({ message: `Moved task "${task.title}" to the bin.`, taskId: task.id });
+        const newLog: Log = {
+            id: `log-${crypto.randomUUID()}`,
+            timestamp: now,
+            message: `Moved task "${task.title}" to the bin.`, 
+            taskId: task.id
+        };
+        companyData.logs.unshift(newLog);
     });
 
     companyData.tasks = companyData.tasks.filter(task => !ids.includes(task.id));
     companyData.trash.unshift(...tasksToBin);
 
+    if (companyData.logs.length > 2000) {
+        companyData.logs = companyData.logs.slice(0, 2000);
+    }
+    
     setAppData(data);
     return true;
 }
@@ -675,13 +697,24 @@ export function restoreMultipleTasks(ids: string[]): boolean {
     const tasksToRestore = companyData.trash.filter(task => ids.includes(task.id));
     if (tasksToRestore.length === 0) return false;
 
+    const now = new Date().toISOString();
     tasksToRestore.forEach(task => {
         delete task.deletedAt;
-        addLog({ message: `Restored task "${task.title}" from the bin.`, taskId: task.id });
+        const newLog: Log = {
+            id: `log-${crypto.randomUUID()}`,
+            timestamp: now,
+            message: `Restored task "${task.title}" from the bin.`,
+            taskId: task.id
+        };
+        companyData.logs.unshift(newLog);
     });
 
     companyData.trash = companyData.trash.filter(task => !ids.includes(task.id));
     companyData.tasks.unshift(...tasksToRestore);
+    
+    if (companyData.logs.length > 2000) {
+        companyData.logs = companyData.logs.slice(0, 2000);
+    }
 
     setAppData(data);
     return true;
@@ -710,11 +743,21 @@ export function permanentlyDeleteMultipleTasks(ids: string[]): boolean {
     const tasksToDelete = companyData.trash.filter(task => ids.includes(task.id));
     if (tasksToDelete.length === 0) return false;
     
+    const now = new Date().toISOString();
     tasksToDelete.forEach(task => {
-      addLog({ message: `Permanently deleted task "${task.title}".` });
+      const newLog: Log = {
+          id: `log-${crypto.randomUUID()}`,
+          timestamp: now,
+          message: `Permanently deleted task "${task.title}".`
+      };
+      companyData.logs.unshift(newLog);
     });
     
     companyData.trash = companyData.trash.filter(task => !ids.includes(task.id));
+
+    if (companyData.logs.length > 2000) {
+        companyData.logs = companyData.logs.slice(0, 2000);
+    }
 
     setAppData(data);
     return true;
