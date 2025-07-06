@@ -558,8 +558,32 @@ export default function Home() {
                   const now = new Date().toISOString();
                   if (validatedData.id && allTasksById.has(validatedData.id)) {
                       const existingTask = allTasksById.get(validatedData.id)!;
+                      const wasBinned = companyData.trash.some(t => t.id === existingTask.id);
+                      const shouldBeBinned = isBinned;
+
                       Object.assign(existingTask, validatedData, { updatedAt: now });
-                      isBinned ? binnedUpdatedCount++ : updatedCount++;
+
+                      if (wasBinned && !shouldBeBinned) {
+                          const taskIndex = companyData.trash.findIndex(t => t.id === existingTask.id);
+                          const [taskToMove] = companyData.trash.splice(taskIndex, 1);
+                          delete taskToMove.deletedAt;
+                          companyData.tasks.unshift(taskToMove);
+                          updatedCount++;
+                      } else if (!wasBinned && shouldBeBinned) {
+                          const taskIndex = companyData.tasks.findIndex(t => t.id === existingTask.id);
+                          const [taskToMove] = companyData.tasks.splice(taskIndex, 1);
+                          taskToMove.deletedAt = validatedData.deletedAt || now;
+                          companyData.trash.unshift(taskToMove);
+                          binnedUpdatedCount++;
+                      } else {
+                          if (shouldBeBinned) {
+                              existingTask.deletedAt = validatedData.deletedAt || now;
+                              binnedUpdatedCount++;
+                          } else {
+                              delete existingTask.deletedAt;
+                              updatedCount++;
+                          }
+                      }
                   } else {
                       const newTask: Task = {
                           id: validatedData.id || `task-${crypto.randomUUID()}`,
@@ -587,11 +611,13 @@ export default function Home() {
                       if (isBinned) {
                           newTask.deletedAt = validatedData.deletedAt || now;
                           companyData.trash.unshift(newTask);
+                          binnedCreatedCount++;
                       } else {
+                          delete newTask.deletedAt;
                           companyData.tasks.unshift(newTask);
+                          createdCount++;
                       }
                       allTasksById.set(newTask.id, newTask);
-                      isBinned ? binnedCreatedCount++ : createdCount++;
                   }
               }
             }
