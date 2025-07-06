@@ -1072,32 +1072,40 @@ export default function Home() {
                       </SelectContent>
                   </Select>
 
-                  <Tabs value={mainView} onValueChange={(v) => setMainView(v as MainView)}>
-                      <TabsList>
-                          <TabsTrigger value="all">All Tasks</TabsTrigger>
-                          <TabsTrigger value="monthly">Monthly</TabsTrigger>
-                      </TabsList>
-                  </Tabs>
+                  <div className="flex items-center gap-2">
+                    <Tabs value={mainView} onValueChange={(v) => setMainView(v as MainView)}>
+                        <TabsList>
+                            <TabsTrigger value="all">All Tasks</TabsTrigger>
+                            <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
 
-                  <div className="flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
-                    <Button
-                      variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => handleViewModeChange('grid')}
-                    >
-                      <LayoutGrid className="h-4 w-4" />
-                      <span className="sr-only">Grid View</span>
-                    </Button>
-                    <Button
-                      variant={viewMode === 'table' ? 'secondary' : 'ghost'}
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => handleViewModeChange('table')}
-                    >
-                      <List className="h-4 w-4" />
-                      <span className="sr-only">Table View</span>
-                    </Button>
+                    <div className="flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={cn(
+                          "h-8 w-8",
+                          viewMode === 'grid' && 'bg-card text-foreground shadow-sm hover:bg-card'
+                        )}
+                        onClick={() => handleViewModeChange('grid')}
+                      >
+                        <LayoutGrid className="h-4 w-4" />
+                        <span className="sr-only">Grid View</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={cn(
+                          "h-8 w-8",
+                          viewMode === 'table' && 'bg-card text-foreground shadow-sm hover:bg-card'
+                        )}
+                        onClick={() => handleViewModeChange('table')}
+                      >
+                        <List className="h-4 w-4" />
+                        <span className="sr-only">Table View</span>
+                      </Button>
+                    </div>
                   </div>
 
                   <Button
