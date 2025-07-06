@@ -921,7 +921,7 @@ export default function Home() {
             </CardContent>
           </Card>
           
-           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 my-6">
+           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-6 my-6">
                 <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
                     {mainView === 'monthly' && (
                         <div className="flex items-center gap-2 sm:gap-4">
@@ -998,7 +998,7 @@ export default function Home() {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap justify-start md:justify-end w-full md:w-auto">
+                <div className="flex items-center gap-2 flex-wrap justify-start sm:justify-end">
                     <Tabs value={mainView} onValueChange={(v) => setMainView(v as MainView)}>
                         <TabsList>
                             <TabsTrigger value="all">All Tasks</TabsTrigger>
@@ -1007,7 +1007,7 @@ export default function Home() {
                     </Tabs>
                     
                     <Select value={sortDescriptor} onValueChange={setSortDescriptor}>
-                        <SelectTrigger className="w-full sm:w-[180px]">
+                        <SelectTrigger className="w-[180px]">
                             <SelectValue placeholder="Sort by" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1060,7 +1060,7 @@ export default function Home() {
 
             {isSelectMode && (
               <Card className="mb-6 bg-muted border-primary/50">
-                <CardContent className="p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <CardContent className="p-3 flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-2">
                     <Checkbox
                       id="select-all-tasks"
@@ -1087,7 +1087,7 @@ export default function Home() {
 
                   <div
                     className={cn(
-                      'flex items-center gap-2 transition-opacity duration-300 w-full sm:w-auto justify-end',
+                      'flex flex-col sm:flex-row items-stretch sm:items-center gap-2 transition-opacity duration-300 w-full sm:w-auto',
                       selectedTaskIds.length > 0
                         ? 'opacity-100'
                         : 'opacity-0 pointer-events-none h-0 sm:h-auto overflow-hidden'
