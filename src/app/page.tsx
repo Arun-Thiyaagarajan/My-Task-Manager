@@ -264,6 +264,7 @@ export default function Home() {
     if (sortBy === 'deployment') {
       const scoreA = getDeploymentScore(a);
       const scoreB = getDeploymentScore(b);
+      const aIndex = taskStatuses.indexOf(a.status); // Fallback for equal scores
 
       if (sortDirection === 'asc') {
         return scoreA - scoreB;
@@ -499,7 +500,7 @@ export default function Home() {
 
             const processTaskArray = (tasksToProcess: Partial<Task>[], isBinned: boolean) => {
               for (const taskData of tasksToProcess) {
-                  const knownTaskKeys = new Set(Object.keys(taskSchema.shape));
+                  const knownTaskKeys = new Set(Object.keys(taskSchema._def.schema.shape));
                   const processedTaskData: Partial<Task> = { ...taskData, customFields: { ...(taskData.customFields || {}) } };
                   
                   for (const key in taskData) {
@@ -1059,7 +1060,7 @@ export default function Home() {
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleBulkDelete}>
+                          <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90">
                             Move to Bin
                           </AlertDialogAction>
                         </AlertDialogFooter>
