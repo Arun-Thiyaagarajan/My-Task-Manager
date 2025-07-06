@@ -189,7 +189,7 @@ export default function Home() {
     const repoMatch = repoFilter === 'all' || task.repositories?.includes(repoFilter);
 
     const developersById = new Map(developers.map(d => [d.id, d.name]));
-    const testersById = new Map(testers.map(t => [d.id, t.name]));
+    const testersById = new Map(testers.map(t => [t.id, t.name]));
 
     const searchLower = searchQuery.toLowerCase();
     const searchMatch =
@@ -657,7 +657,7 @@ export default function Home() {
                           testers: validatedData.testers || [],
                           azureWorkItemId: validatedData.azureWorkItemId || '',
                           deploymentStatus: validatedData.deploymentStatus || {},
-                          deploymentDates: validatedData.deploymentDates ? Object.entries(validatedData.deploymentDates).reduce((acc, [key, value]) => ({ ...acc, [key]: value ? new Date(value).toISOString() : null }), {}) : {},
+                          deploymentDates: validatedData.deploymentDates ? Object.entries(validatedData.deploymentDates).reduce((acc, [key, value]) => ({ ...acc, [key]: value ? new Date(value as any).toISOString() : null }), {}) : {},
                           prLinks: validatedData.prLinks || {},
                           devStartDate: validatedData.devStartDate ? new Date(validatedData.devStartDate).toISOString() : null,
                           devEndDate: validatedData.devEndDate ? new Date(validatedData.devEndDate).toISOString() : null,
