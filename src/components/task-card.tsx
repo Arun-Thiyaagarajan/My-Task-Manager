@@ -185,6 +185,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
 
   return (
     <>
+      <div onClick={(e) => e.stopPropagation()}>
       <Card
         onClick={isSelectMode ? handleSelectionChange : undefined}
         className={cn(
@@ -408,6 +409,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
           </div>
         </CardFooter>
       </Card>
+      </div>
       <PersonProfileCard
         person={personInView?.person ?? null}
         type={personInView?.type ?? 'Developer'}
