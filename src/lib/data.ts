@@ -289,8 +289,12 @@ export function updateUiConfig(newConfig: UiConfig): UiConfig {
             field.order = index;
         });
         
-        // This is a simple log. A more detailed one would diff the configs.
-        addLog({ message: "Application settings were updated." });
+        const newLog: Log = {
+            id: `log-${crypto.randomUUID()}`,
+            timestamp: new Date().toISOString(),
+            message: "Application settings were updated."
+        };
+        data.companyData[activeCompanyId].logs.unshift(newLog);
 
         data.companyData[activeCompanyId].uiConfig = newConfig;
         setAppData(data);
@@ -312,9 +316,17 @@ export function addEnvironment(name: string): boolean {
     if (currentEnvs.includes(trimmedName)) {
         return false;
     }
+    
+    const realName = name.trim();
+    companyData.uiConfig.environments.push(realName);
+    
+    const newLog: Log = {
+        id: `log-${crypto.randomUUID()}`,
+        timestamp: new Date().toISOString(),
+        message: `Added new environment: "${realName}".`
+    };
+    companyData.logs.unshift(newLog);
 
-    companyData.uiConfig.environments.push(name.trim());
-    addLog({ message: `Added new environment: "${name.trim()}".` });
     setAppData(data);
     window.dispatchEvent(new Event('config-changed'));
     return true;
@@ -363,8 +375,14 @@ export function updateEnvironmentName(oldName: string, newName: string): boolean
     tasks.forEach(renameEnvInTask);
     trash.forEach(renameEnvInTask);
 
+    const newLog: Log = {
+        id: `log-${crypto.randomUUID()}`,
+        timestamp: new Date().toISOString(),
+        message: `Renamed environment from "${oldName}" to "${trimmedNewName}".`
+    };
+    companyData.logs.unshift(newLog);
+
     data.companyData[activeCompanyId] = { ...companyData, uiConfig, tasks, trash };
-    addLog({ message: `Renamed environment from "${oldName}" to "${trimmedNewName}".` });
     setAppData(data);
     window.dispatchEvent(new Event('config-changed'));
     return true;
@@ -409,8 +427,14 @@ export function deleteEnvironment(name: string): boolean {
     tasks.forEach(deleteEnvFromTask);
     trash.forEach(deleteEnvFromTask);
 
+    const newLog: Log = {
+        id: `log-${crypto.randomUUID()}`,
+        timestamp: new Date().toISOString(),
+        message: `Deleted environment: "${name}".`
+    };
+    companyData.logs.unshift(newLog);
+
     data.companyData[activeCompanyId] = { ...companyData, uiConfig, tasks, trash };
-    addLog({ message: `Deleted environment: "${name}".` });
     setAppData(data);
     window.dispatchEvent(new Event('config-changed'));
     return true;
@@ -462,13 +486,15 @@ export function addTask(taskData: Partial<Task>, isBinned: boolean = false): Tas
     customFields: taskData.customFields || {},
   };
   
+  const logMessage = `Created new task: "${newTask.title}".`;
+  
   if (isBinned) {
       newTask.deletedAt = taskData.deletedAt || now;
       companyData.trash = [newTask, ...(companyData.trash || [])];
       addLog({ message: `Created a binned task: "${newTask.title}".`, taskId: newTask.id });
   } else {
       companyData.tasks = [newTask, ...companyData.tasks];
-      addLog({ message: `Created new task: "${newTask.title}".`, taskId: newTask.id });
+      addLog({ message: logMessage, taskId: newTask.id });
   }
 
   setAppData(data);
@@ -636,7 +662,14 @@ export function moveTaskToBin(id: string): boolean {
   taskToBin.deletedAt = new Date().toISOString();
   companyData.trash.unshift(taskToBin);
   
-  addLog({ message: `Moved task "${taskToBin.title}" to the bin.`, taskId: id });
+  const newLog: Log = {
+    id: `log-${crypto.randomUUID()}`,
+    timestamp: new Date().toISOString(),
+    message: `Moved task "${taskToBin.title}" to the bin.`,
+    taskId: id
+  };
+  companyData.logs.unshift(newLog);
+
   setAppData(data);
   return true;
 }
@@ -730,7 +763,13 @@ export function permanentlyDeleteTask(id: string): boolean {
 
     companyData.trash = companyData.trash.filter(task => task.id !== id);
     
-    addLog({ message: `Permanently deleted task "${taskToDelete.title}".` });
+    const newLog: Log = {
+        id: `log-${crypto.randomUUID()}`,
+        timestamp: new Date().toISOString(),
+        message: `Permanently deleted task "${taskToDelete.title}".`
+    };
+    companyData.logs.unshift(newLog);
+    
     setAppData(data);
     return true;
 }
@@ -766,10 +805,18 @@ export function permanentlyDeleteMultipleTasks(ids: string[]): boolean {
 export function emptyBin(): boolean {
     const data = getAppData();
     const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData) return false;
+    if (!companyData || companyData.trash.length === 0) return false;
     
-    addLog({ message: `Emptied all ${companyData.trash.length} tasks from the bin.` });
+    const logMessage = `Emptied all ${companyData.trash.length} tasks from the bin.`;
     companyData.trash = [];
+
+    const newLog: Log = {
+        id: `log-${crypto.randomUUID()}`,
+        timestamp: new Date().toISOString(),
+        message: logMessage
+    };
+    companyData.logs.unshift(newLog);
+
     setAppData(data);
     return true;
 }
