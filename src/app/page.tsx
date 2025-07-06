@@ -314,8 +314,8 @@ export default function Home() {
         const { developers, testers, ...restOfTask } = task;
         return {
             ...restOfTask,
-            developers: (developers || []).map(id => devIdToName.get(id) || id),
-            testers: (testers || []).map(id => testerIdToName.get(id) || id),
+            developers: (developers || []).map(id => devIdToName.get(id)).filter((name): name is string => !!name),
+            testers: (testers || []).map(id => testerIdToName.get(id)).filter((name): name is string => !!name),
         };
     };
 
@@ -508,13 +508,17 @@ export default function Home() {
               for (const taskData of tasksToProcess) {
                   const processedTaskData: Partial<Task> = { customFields: {} };
                   
-                  for (const key in taskData) {
-                    if (knownTaskKeys.has(key as keyof Task)) {
-                      (processedTaskData as any)[key] = (taskData as any)[key];
-                    } else if (key !== 'customFields') {
-                      (processedTaskData.customFields as any)[key] = (taskData as any)[key];
+                  Object.keys(taskData).forEach(key => {
+                    const typedKey = key as keyof Task;
+                    if (knownTaskKeys.has(typedKey)) {
+                        (processedTaskData as any)[typedKey] = (taskData as any)[typedKey];
+                    } else if (typedKey !== 'customFields') {
+                        if (!processedTaskData.customFields) {
+                            processedTaskData.customFields = {};
+                        }
+                        (processedTaskData.customFields as any)[typedKey] = (taskData as any)[typedKey];
                     }
-                  }
+                  });
 
                   if (taskData.customFields && typeof taskData.customFields === 'object') {
                       processedTaskData.customFields = { ...processedTaskData.customFields, ...taskData.customFields };
@@ -522,7 +526,19 @@ export default function Home() {
 
                   const validationResult = taskSchema.safeParse(processedTaskData);
                   if (!validationResult.success) {
-                      console.error("Task import validation failed:", validationResult.error.flatten().fieldErrors, "for task data:", processedTaskData);
+                      const errorDetails = validationResult.error.flatten();
+                      const firstErrorField = Object.keys(errorDetails.fieldErrors)[0];
+                      const firstErrorMessage = firstErrorField
+                          ? `${firstErrorField}: ${errorDetails.fieldErrors[firstErrorField]!.join(', ')}`
+                          : (errorDetails.formErrors[0] || 'Unknown validation error.');
+
+                      console.error("Task import validation failed:", errorDetails.fieldErrors, "for task data:", processedTaskData);
+                      toast({
+                          variant: 'destructive',
+                          title: `Task "${(processedTaskData.title || 'Untitled').substring(0, 30)}" Failed`,
+                          description: firstErrorMessage,
+                          duration: 10000,
+                      });
                       failedCount++;
                       continue;
                   }
@@ -601,10 +617,6 @@ export default function Home() {
                 toast({ variant: 'default', title: 'Import Complete', description: 'No new data was added or existing data updated.' });
             } else {
                toast({ variant: 'warning', title: 'Empty or Invalid File', description: 'The imported file contained no data to process.' });
-            }
-
-            if (failedCount > 0) {
-                toast({ variant: 'destructive', title: 'Import Warning', description: `${failedCount} task(s) failed to import due to validation errors.` });
             }
             
         } catch (error: any) {
