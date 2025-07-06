@@ -70,59 +70,61 @@ export default function SettingsPage() {
   }, []);
   
   const handleToggleActive = (fieldId: string) => {
-    setConfig(prevConfig => {
-        if (!prevConfig) return null;
-        
-        const field = prevConfig.fields.find(f => f.id === fieldId);
-        const protectedDateFields = ['devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate'];
-        if (field?.isRequired || (field && protectedDateFields.includes(field.key))) {
-            toast({
-                variant: 'warning',
-                title: 'Cannot Deactivate Field',
-                description: `The "${field.label}" field is required and cannot be deactivated.`,
-            });
-            return prevConfig;
-        }
+    if (!config) return;
 
-        const fields = prevConfig.fields.map(f => {
-            if (f.id === fieldId) {
-                return { ...f, isActive: !f.isActive };
-            }
-            return f;
-        });
+    const field = config.fields.find(f => f.id === fieldId);
+    if (!field) return;
 
-        const activeFields = fields.filter(f => f.isActive).sort((a,b) => a.order - b.order);
-        const inactiveFields = fields.filter(f => !f.isActive).sort((a,b) => a.label.localeCompare(b.label));
-        
-        const newOrderedFields = [...activeFields, ...inactiveFields].map((field, index) => ({
-            ...field,
-            order: index
-        }));
-
-        const newConfig = { ...prevConfig, fields: newOrderedFields };
-        updateUiConfig(newConfig);
+    const protectedDateFields = ['devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate'];
+    if (field.isRequired || protectedDateFields.includes(field.key)) {
         toast({
-          variant: 'success',
-          title: 'Field Updated',
-          description: `The "${field?.label}" field has been ${field?.isActive ? 'deactivated' : 'activated'}.`,
+            variant: 'warning',
+            title: 'Cannot Deactivate Field',
+            description: `The "${field.label}" field is required and cannot be deactivated.`,
         });
-        return newConfig;
+        return;
+    }
+
+    const fields = config.fields.map(f => {
+        if (f.id === fieldId) {
+            return { ...f, isActive: !f.isActive };
+        }
+        return f;
+    });
+
+    const activeFields = fields.filter(f => f.isActive).sort((a,b) => a.order - b.order);
+    const inactiveFields = fields.filter(f => !f.isActive).sort((a,b) => a.label.localeCompare(b.label));
+    
+    const newOrderedFields = [...activeFields, ...inactiveFields].map((field, index) => ({
+        ...field,
+        order: index
+    }));
+
+    const newConfig = { ...config, fields: newOrderedFields };
+    updateUiConfig(newConfig);
+    setConfig(newConfig);
+
+    toast({
+      variant: 'success',
+      title: 'Field Updated',
+      description: `The "${field.label}" field has been ${field.isActive ? 'deactivated' : 'activated'}.`,
     });
   }
 
   const handleDeleteField = (fieldId: string) => {
-    setConfig(prevConfig => {
-        if (!prevConfig) return null;
-        const fieldToDelete = prevConfig.fields.find(f => f.id === fieldId);
-        const fields = prevConfig.fields.filter(f => f.id !== fieldId);
-        const newConfig = { ...prevConfig, fields };
-        updateUiConfig(newConfig);
-        toast({
-          variant: 'success',
-          title: 'Field Deleted',
-          description: `The "${fieldToDelete?.label}" field has been deleted.`,
-        });
-        return newConfig;
+    if (!config) return;
+    const fieldToDelete = config.fields.find(f => f.id === fieldId);
+    if (!fieldToDelete) return;
+
+    const fields = config.fields.filter(f => f.id !== fieldId);
+    const newConfig = { ...config, fields };
+    updateUiConfig(newConfig);
+    setConfig(newConfig);
+    
+    toast({
+      variant: 'success',
+      title: 'Field Deleted',
+      description: `The "${fieldToDelete.label}" field has been deleted.`,
     });
   };
 
@@ -132,39 +134,39 @@ export default function SettingsPage() {
   };
 
   const handleSaveField = (fieldData: FieldConfig, newRepoConfigs?: RepositoryConfig[]) => {
-    setConfig(prevConfig => {
-      if (!prevConfig) return null;
-      const fields = [...prevConfig.fields];
-      const existingIndex = fields.findIndex(f => f.id === fieldData.id);
+    if (!config) return;
 
-      if (existingIndex > -1) {
-        fields[existingIndex] = fieldData;
-      } else {
-        const newField = {
-          ...fieldData,
-          key: `custom_${fieldData.label.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}`,
-          order: fields.length,
-        };
-        fields.push(newField);
-      }
-      
-      const finalRepoConfigs = newRepoConfigs ?? prevConfig.repositoryConfigs;
-      
-      if (newRepoConfigs) {
-          const repoField = fields.find(f => f.key === 'repositories');
-          if (repoField) {
-              repoField.options = finalRepoConfigs.map(r => ({ id: r.id, value: r.name, label: r.name }));
-          }
-      }
+    const fields = [...config.fields];
+    const existingIndex = fields.findIndex(f => f.id === fieldData.id);
 
-      const newConfig = { ...prevConfig, fields, repositoryConfigs: finalRepoConfigs };
-      updateUiConfig(newConfig);
-      toast({
-          variant: 'success',
-          title: 'Field Saved',
-          description: `The "${fieldData.label}" field has been saved.`,
-      });
-      return newConfig;
+    if (existingIndex > -1) {
+      fields[existingIndex] = fieldData;
+    } else {
+      const newField = {
+        ...fieldData,
+        key: `custom_${fieldData.label.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}`,
+        order: fields.length,
+      };
+      fields.push(newField);
+    }
+    
+    const finalRepoConfigs = newRepoConfigs ?? config.repositoryConfigs;
+    
+    if (newRepoConfigs) {
+        const repoField = fields.find(f => f.key === 'repositories');
+        if (repoField) {
+            repoField.options = finalRepoConfigs.map(r => ({ id: r.id, value: r.name, label: r.name }));
+        }
+    }
+
+    const newConfig = { ...config, fields, repositoryConfigs: finalRepoConfigs };
+    updateUiConfig(newConfig);
+    setConfig(newConfig);
+
+    toast({
+        variant: 'success',
+        title: 'Field Saved',
+        description: `The "${fieldData.label}" field has been saved.`,
     });
   };
 
@@ -172,35 +174,32 @@ export default function SettingsPage() {
     const draggedFieldId = e.dataTransfer.getData('fieldId');
     const dropTarget = e.currentTarget;
     dropTarget.classList.remove('drag-over-top', 'drag-over-bottom');
-    if (!draggedFieldId || draggedFieldId === targetField.id) return;
+    if (!draggedFieldId || draggedFieldId === targetField.id || !config) return;
     
-    setConfig(prevConfig => {
-      if (!prevConfig) return null;
+    let activeFields = config.fields.filter(f => f.isActive).sort((a, b) => a.order - b.order);
+    const otherFields = config.fields.filter(f => !f.isActive);
 
-      let activeFields = prevConfig.fields.filter(f => f.isActive).sort((a, b) => a.order - b.order);
-      const otherFields = prevConfig.fields.filter(f => !f.isActive);
+    const draggedIndex = activeFields.findIndex(f => f.id === draggedFieldId);
+    const targetIndex = activeFields.findIndex(f => f.id === targetField.id);
 
-      const draggedIndex = activeFields.findIndex(f => f.id === draggedFieldId);
-      const targetIndex = activeFields.findIndex(f => f.id === targetField.id);
+    if (draggedIndex === -1 || targetIndex === -1) return;
 
-      if (draggedIndex === -1 || targetIndex === -1) return prevConfig;
+    const [removed] = activeFields.splice(draggedIndex, 1);
+    activeFields.splice(targetIndex, 0, removed);
+    
+    const newFields = [...activeFields, ...otherFields].map((field, index) => ({
+      ...field,
+      order: index
+    }));
+    
+    const newConfig = { ...config, fields: newFields };
+    updateUiConfig(newConfig);
+    setConfig(newConfig);
 
-      const [removed] = activeFields.splice(draggedIndex, 1);
-      activeFields.splice(targetIndex, 0, removed);
-      
-      const newFields = [...activeFields, ...otherFields].map((field, index) => ({
-        ...field,
-        order: index
-      }));
-      
-      const newConfig = { ...prevConfig, fields: newFields };
-      updateUiConfig(newConfig);
-      toast({
-          variant: 'success',
-          title: 'Fields Reordered',
-          description: 'The active fields order has been updated.',
-      });
-      return newConfig;
+    toast({
+        variant: 'success',
+        title: 'Fields Reordered',
+        description: 'The active fields order has been updated.',
     });
   };
 
@@ -229,28 +228,28 @@ export default function SettingsPage() {
         setEditingGroup(null);
         return;
     }
+    
+    if (!config) return;
 
-    setConfig(prevConfig => {
-        if (!prevConfig) return null;
-        
-        const existingGroupNames = [...new Set(prevConfig.fields.map(f => f.group.toLowerCase()))];
-        if (existingGroupNames.includes(trimmedNewName.toLowerCase()) && trimmedNewName.toLowerCase() !== oldName.toLowerCase()) {
-            toast({ variant: 'destructive', title: 'Group name already exists.' });
-            return prevConfig;
-        }
+    const existingGroupNames = [...new Set(config.fields.map(f => f.group.toLowerCase()))];
+    if (existingGroupNames.includes(trimmedNewName.toLowerCase()) && trimmedNewName.toLowerCase() !== oldName.toLowerCase()) {
+        toast({ variant: 'destructive', title: 'Group name already exists.' });
+        return;
+    }
 
-        const newFields = prevConfig.fields.map(f => {
-            if (f.group === oldName) return { ...f, group: trimmedNewName };
-            return f;
-        });
-        const newConfig = { ...prevConfig, fields: newFields };
-        updateUiConfig(newConfig);
-        toast({
-          variant: 'success',
-          title: 'Group Renamed',
-          description: `Group "${oldName}" has been renamed to "${trimmedNewName}".`,
-        });
-        return newConfig;
+    const newFields = config.fields.map(f => {
+        if (f.group === oldName) return { ...f, group: trimmedNewName };
+        return f;
+    });
+
+    const newConfig = { ...config, fields: newFields };
+    updateUiConfig(newConfig);
+    setConfig(newConfig);
+
+    toast({
+      variant: 'success',
+      title: 'Group Renamed',
+      description: `Group "${oldName}" has been renamed to "${trimmedNewName}".`,
     });
     setEditingGroup(null);
   };
