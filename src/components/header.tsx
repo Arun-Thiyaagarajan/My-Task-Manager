@@ -23,7 +23,7 @@ import {
   getUiConfig,
 } from '@/lib/data';
 import type { Company } from '@/lib/types';
-import { Building, PlusCircle, Trash2, Edit, LayoutDashboard, Cog, Menu } from 'lucide-react';
+import { Building, PlusCircle, Trash2, Edit, LayoutDashboard, Cog, Menu, FileClock } from 'lucide-react';
 import { CompaniesManager } from './companies-manager';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -151,7 +151,11 @@ export function Header() {
                   <Cog className="mr-2 h-4 w-4" />
                   Settings
                </HeaderLink>
-                <HeaderLink href="/bin" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+               <HeaderLink href="/logs" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  <FileClock className="mr-2 h-4 w-4" />
+                  Logs
+               </HeaderLink>
+               <HeaderLink href="/bin" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                   <Trash2 className="mr-2 h-4 w-4" />
                   Bin
                </HeaderLink>
@@ -238,6 +242,11 @@ export function Header() {
                   <DropdownMenuItem asChild>
                     <HeaderLink href="/settings" className="w-full flex items-center gap-2">
                        <Cog className="h-4 w-4" /> Settings
+                    </HeaderLink>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <HeaderLink href="/logs" className="w-full flex items-center gap-2">
+                       <FileClock className="h-4 w-4" /> Logs
                     </HeaderLink>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>

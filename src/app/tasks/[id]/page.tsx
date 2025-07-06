@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask } from '@/lib/data';
+import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask } from '@/lib/data';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ import { PrLinksGroup } from '@/components/pr-links-group';
 import { Badge } from '@/components/ui/badge';
 import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
 import { format } from 'date-fns';
-import type { Task, FieldConfig, UiConfig, TaskStatus, Person, Attachment } from '@/lib/types';
+import type { Task, FieldConfig, UiConfig, TaskStatus, Person, Attachment, Log } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useToast } from '@/hooks/use-toast';
@@ -37,6 +37,7 @@ import { attachmentSchema } from '@/lib/validators';
 import { RelatedTasksSection } from '@/components/related-tasks-section';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ShareMenu } from '@/components/share-menu';
+import { TaskHistory } from '@/components/task-history';
 
 const isImageUrl = (url: string): boolean => {
   try {
@@ -67,6 +68,7 @@ export default function TaskPage() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [relatedTasks, setRelatedTasks] = useState<Task[]>([]);
   const [relatedTasksTitle, setRelatedTasksTitle] = useState<string>('');
+  const [taskLogs, setTaskLogs] = useState<Log[]>([]);
 
   const taskId = params.id as string;
 
@@ -77,11 +79,13 @@ export default function TaskPage() {
       const allTesters = getTesters();
       const foundTask = getTaskById(taskId);
       const config = getUiConfig();
+      const logs = getLogsForTask(taskId);
       
       setTask(foundTask || null);
       setUiConfig(config);
       setDevelopers(allDevs);
       setTesters(allTesters);
+      setTaskLogs(logs);
 
       if (foundTask) {
         document.title = `${foundTask.title} | ${config.appName || 'My Task Manager'}`;
@@ -159,11 +163,16 @@ export default function TaskPage() {
 
   useEffect(() => {
     loadData();
+    window.addEventListener('storage', loadData);
+    return () => {
+        window.removeEventListener('storage', loadData);
+    };
   }, [taskId]);
   
   const handleCommentsUpdate = (newComments: string[]) => {
     if (task) {
       setTask({ ...task, comments: newComments });
+      setTaskLogs(getLogsForTask(task.id));
     }
   };
 
@@ -173,6 +182,7 @@ export default function TaskPage() {
     const updatedTask = updateTask(task.id, { status: newStatus });
     if(updatedTask) {
         setTask(updatedTask);
+        setTaskLogs(getLogsForTask(task.id));
         toast({
             variant: 'success',
             title: 'Status Updated',
@@ -217,6 +227,7 @@ export default function TaskPage() {
     const updatedTaskResult = updateTask(task.id, updatedTaskData);
     if(updatedTaskResult) {
         setTask(updatedTaskResult);
+        setTaskLogs(getLogsForTask(task.id));
         setJustUpdatedEnv(env);
         toast({
             variant: 'success',
@@ -238,6 +249,7 @@ export default function TaskPage() {
     const updatedTask = updateTask(task.id, { prLinks: newPrLinks });
     if(updatedTask) {
         setTask(updatedTask);
+        setTaskLogs(getLogsForTask(task.id));
         toast({
             variant: 'success',
             title: 'Pull Requests Updated',
@@ -257,6 +269,7 @@ export default function TaskPage() {
       const updatedTask = updateTask(task.id, { attachments: newAttachments });
       if (updatedTask) {
           setTask(updatedTask);
+          setTaskLogs(getLogsForTask(task.id));
       }
       return updatedTask;
   };
@@ -739,6 +752,10 @@ export default function TaskPage() {
                 developers={developers}
                 testers={testers}
              />
+            )}
+
+            {!isBinned && taskLogs.length > 0 && (
+                <TaskHistory logs={taskLogs} />
             )}
 
           </div>

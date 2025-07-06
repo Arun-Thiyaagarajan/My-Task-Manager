@@ -1,6 +1,6 @@
 
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData } from './types';
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log } from './types';
 import cloneDeep from 'lodash/cloneDeep';
 
 const DATA_KEY = 'my_task_manager_data';
@@ -31,6 +31,7 @@ const getInitialData = (): MyTaskManagerData => {
                     appName: 'My Task Manager',
                     appIcon: null,
                 },
+                logs: [],
             },
         },
     };
@@ -56,6 +57,7 @@ export const getAppData = (): MyTaskManagerData => {
                     developers: [],
                     testers: [],
                     uiConfig: defaultConfig,
+                    logs: [],
                 },
             },
         };
@@ -71,11 +73,10 @@ export const getAppData = (): MyTaskManagerData => {
         if (!data.companies || !data.companyData || data.companies.length === 0) {
             throw new Error("Invalid core data structure, resetting.");
         }
-        // Migration for existing users: ensure trash array exists
+        // Migration for existing users: ensure trash and logs arrays exist
         Object.values(data.companyData).forEach(company => {
-            if (!company.trash) {
-                company.trash = [];
-            }
+            if (!company.trash) company.trash = [];
+            if (!company.logs) company.logs = [];
         });
         return data;
     } catch (e) {
@@ -91,6 +92,38 @@ export const setAppData = (data: MyTaskManagerData) => {
     window.localStorage.setItem(DATA_KEY, JSON.stringify(data));
 };
 
+// Logging Functions
+export const addLog = (logData: Omit<Log, 'id' | 'timestamp'>) => {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    if (!companyData) return;
+
+    const newLog: Log = {
+        id: `log-${crypto.randomUUID()}`,
+        timestamp: new Date().toISOString(),
+        ...logData,
+    };
+    companyData.logs.unshift(newLog);
+
+    // Optional: Trim logs to prevent excessive storage usage
+    if (companyData.logs.length > 2000) { // Keep last 2000 logs
+        companyData.logs = companyData.logs.slice(0, 2000);
+    }
+    
+    setAppData(data);
+};
+
+export function getLogs(): Log[] {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    return companyData?.logs || [];
+}
+
+export function getLogsForTask(taskId: string): Log[] {
+    const allLogs = getLogs();
+    return allLogs.filter(log => log.taskId === taskId);
+}
+
 // Company Functions
 export function getCompanies(): Company[] {
     const data = getAppData();
@@ -104,8 +137,12 @@ export function addCompany(name: string): Company {
     
     data.companies.push(newCompany);
     data.companyData[newCompanyId] = getInitialData().companyData[Object.keys(getInitialData().companyData)[0]];
+    const oldActiveCompanyId = data.activeCompanyId;
     data.activeCompanyId = newCompanyId;
 
+    addLog({ message: `Created new company: "${name}".` });
+
+    data.activeCompanyId = oldActiveCompanyId;
     setAppData(data);
     return newCompany;
 }
@@ -115,7 +152,14 @@ export function updateCompany(id: string, name: string): Company | undefined {
     const companyIndex = data.companies.findIndex(c => c.id === id);
     if (companyIndex === -1) return undefined;
     
+    const oldName = data.companies[companyIndex].name;
     data.companies[companyIndex].name = name;
+
+    const currentActiveCompanyId = data.activeCompanyId;
+    data.activeCompanyId = id; // Temporarily switch context to log to the right company
+    addLog({ message: `Renamed company from "${oldName}" to "${name}".` });
+    data.activeCompanyId = currentActiveCompanyId; // Switch back
+
     setAppData(data);
     return data.companies[companyIndex];
 }
@@ -126,7 +170,10 @@ export function deleteCompany(id: string): boolean {
 
     const companyIndex = data.companies.findIndex(c => c.id === id);
     if (companyIndex === -1) return false;
-
+    
+    const companyName = data.companies[companyIndex].name;
+    const currentActiveCompanyId = data.activeCompanyId;
+    
     delete data.companyData[id];
     data.companies.splice(companyIndex, 1);
 
@@ -134,6 +181,10 @@ export function deleteCompany(id: string): boolean {
         data.activeCompanyId = data.companies[0].id;
     }
     
+    data.activeCompanyId = data.activeCompanyId; // Context for log
+    addLog({ message: `Deleted company: "${companyName}".`});
+    data.activeCompanyId = currentActiveCompanyId;
+
     setAppData(data);
     return true;
 }
@@ -150,13 +201,6 @@ export function setActiveCompanyId(id: string) {
     }
 }
 
-/**
- * Safely merges a user's saved UI configuration with the application's default configuration.
- * This is a non-destructive operation that prioritizes the user's saved data and only adds
- * default values for properties that are missing, ensuring customizations are preserved during updates.
- * @param savedConfig The user's configuration object from localStorage.
- * @returns A complete, valid, and safe UiConfig object.
- */
 function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): UiConfig {
     const defaultConfig: UiConfig = {
         fields: INITIAL_UI_CONFIG,
@@ -173,7 +217,6 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
 
     const resultConfig = cloneDeep(defaultConfig);
 
-    // Merge arrays, prioritizing saved data if it's a valid array.
     if (Array.isArray(savedConfig.environments)) resultConfig.environments = cloneDeep(savedConfig.environments);
     if (Array.isArray(savedConfig.repositoryConfigs)) resultConfig.repositoryConfigs = cloneDeep(savedConfig.repositoryConfigs);
     
@@ -204,7 +247,6 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
         resultConfig.fields = finalFields;
     }
     
-    // Post-merge synchronization to ensure UI consistency
     const statusField = resultConfig.fields.find(f => f.key === 'status');
     if (statusField) {
         statusField.options = resultConfig.taskStatuses.map(s => ({ id: s, value: s, label: s }));
@@ -246,6 +288,9 @@ export function updateUiConfig(newConfig: UiConfig): UiConfig {
         newConfig.fields.forEach((field, index) => {
             field.order = index;
         });
+        
+        // This is a simple log. A more detailed one would diff the configs.
+        addLog({ message: "Application settings were updated." });
 
         data.companyData[activeCompanyId].uiConfig = newConfig;
         setAppData(data);
@@ -269,6 +314,7 @@ export function addEnvironment(name: string): boolean {
     }
 
     companyData.uiConfig.environments.push(name.trim());
+    addLog({ message: `Added new environment: "${name.trim()}".` });
     setAppData(data);
     window.dispatchEvent(new Event('config-changed'));
     return true;
@@ -318,6 +364,7 @@ export function updateEnvironmentName(oldName: string, newName: string): boolean
     trash.forEach(renameEnvInTask);
 
     data.companyData[activeCompanyId] = { ...companyData, uiConfig, tasks, trash };
+    addLog({ message: `Renamed environment from "${oldName}" to "${trimmedNewName}".` });
     setAppData(data);
     window.dispatchEvent(new Event('config-changed'));
     return true;
@@ -363,6 +410,7 @@ export function deleteEnvironment(name: string): boolean {
     trash.forEach(deleteEnvFromTask);
 
     data.companyData[activeCompanyId] = { ...companyData, uiConfig, tasks, trash };
+    addLog({ message: `Deleted environment: "${name}".` });
     setAppData(data);
     window.dispatchEvent(new Event('config-changed'));
     return true;
@@ -417,12 +465,55 @@ export function addTask(taskData: Partial<Task>, isBinned: boolean = false): Tas
   if (isBinned) {
       newTask.deletedAt = taskData.deletedAt || now;
       companyData.trash = [newTask, ...(companyData.trash || [])];
+      addLog({ message: `Created a binned task: "${newTask.title}".`, taskId: newTask.id });
   } else {
       companyData.tasks = [newTask, ...companyData.tasks];
+      addLog({ message: `Created new task: "${newTask.title}".`, taskId: newTask.id });
   }
 
   setAppData(data);
   return newTask;
+}
+
+const generateTaskUpdateLogs = (oldTask: Task, newTaskData: Partial<Task>, developers: Person[], testers: Person[]): Omit<Log, 'id' | 'timestamp'>[] => {
+    const logs: Omit<Log, 'id' | 'timestamp'>[] = [];
+    const taskId = oldTask.id;
+    const taskTitle = newTaskData.title || oldTask.title;
+
+    const createLog = (message: string) => logs.push({ message, taskId });
+
+    if (newTaskData.title && newTaskData.title !== oldTask.title) {
+        createLog(`Updated title to "${newTaskData.title}".`);
+    }
+    if (newTaskData.description && newTaskData.description !== oldTask.description) {
+        createLog(`Updated description.`);
+    }
+    if (newTaskData.status && newTaskData.status !== oldTask.status) {
+        createLog(`Changed status from "${oldTask.status}" to "${newTaskData.status}".`);
+    }
+
+    const developersById = new Map(developers.map(p => [p.id, p.name]));
+    const testersById = new Map(testers.map(p => [p.id, p.name]));
+    
+    // Compare developers
+    const oldDevs = new Set(oldTask.developers || []);
+    const newDevs = new Set(newTaskData.developers || []);
+    const addedDevs = (newTaskData.developers || []).filter(id => !oldDevs.has(id));
+    const removedDevs = (oldTask.developers || []).filter(id => !newDevs.has(id));
+
+    addedDevs.forEach(id => createLog(`Assigned developer: "${developersById.get(id) || 'Unknown'}".`));
+    removedDevs.forEach(id => createLog(`Unassigned developer: "${developersById.get(id) || 'Unknown'}".`));
+
+    // Compare testers
+    const oldTesters = new Set(oldTask.testers || []);
+    const newTesters = new Set(newTaskData.testers || []);
+    const addedTesters = (newTaskData.testers || []).filter(id => !oldTesters.has(id));
+    const removedTesters = (oldTask.testers || []).filter(id => !newTesters.has(id));
+    
+    addedTesters.forEach(id => createLog(`Assigned tester: "${testersById.get(id) || 'Unknown'}".`));
+    removedTesters.forEach(id => createLog(`Unassigned tester: "${testersById.get(id) || 'Unknown'}".`));
+
+    return logs;
 }
 
 export function updateTask(id: string, taskData: Partial<Omit<Task, 'id' | 'createdAt' | 'updatedAt'>>): Task | undefined {
@@ -431,23 +522,36 @@ export function updateTask(id: string, taskData: Partial<Omit<Task, 'id' | 'crea
   const companyData = data.companyData[activeCompanyId];
   if (!companyData) return undefined;
   
-  const taskIndex = companyData.tasks.findIndex(task => task.id === id);
+  let oldTask: Task | undefined;
+  let taskIndex: number = -1;
+  let isBinned = false;
+
+  taskIndex = companyData.tasks.findIndex(task => task.id === id);
   if (taskIndex !== -1) {
-    const updatedTask = { ...companyData.tasks[taskIndex], ...taskData, updatedAt: new Date().toISOString() };
-    companyData.tasks[taskIndex] = updatedTask;
-    setAppData(data);
-    return updatedTask;
-  }
-  
-  const trashIndex = companyData.trash.findIndex(task => task.id === id);
-   if (trashIndex !== -1) {
-    const updatedTask = { ...companyData.trash[trashIndex], ...taskData, updatedAt: new Date().toISOString() };
-    companyData.trash[trashIndex] = updatedTask;
-    setAppData(data);
-    return updatedTask;
+    oldTask = cloneDeep(companyData.tasks[taskIndex]);
+  } else {
+    taskIndex = companyData.trash.findIndex(task => task.id === id);
+    if (taskIndex !== -1) {
+      oldTask = cloneDeep(companyData.trash[taskIndex]);
+      isBinned = true;
+    }
   }
 
-  return undefined;
+  if (!oldTask || taskIndex === -1) return undefined;
+  
+  const logs = generateTaskUpdateLogs(oldTask, taskData, companyData.developers, companyData.testers);
+  logs.forEach(log => addLog(log));
+
+  const updatedTask = { ...oldTask, ...taskData, updatedAt: new Date().toISOString() };
+  
+  if (isBinned) {
+    companyData.trash[taskIndex] = updatedTask;
+  } else {
+    companyData.tasks[taskIndex] = updatedTask;
+  }
+
+  setAppData(data);
+  return updatedTask;
 }
 
 // Bin/Trash Functions
@@ -480,6 +584,7 @@ export function moveTaskToBin(id: string): boolean {
   taskToBin.deletedAt = new Date().toISOString();
   companyData.trash.unshift(taskToBin);
   
+  addLog({ message: `Moved task "${taskToBin.title}" to the bin.`, taskId: id });
   setAppData(data);
   return true;
 }
@@ -493,7 +598,10 @@ export function moveMultipleTasksToBin(ids: string[]): boolean {
     if (tasksToBin.length === 0) return false;
 
     const now = new Date().toISOString();
-    tasksToBin.forEach(task => task.deletedAt = now);
+    tasksToBin.forEach(task => {
+        task.deletedAt = now;
+        addLog({ message: `Moved task "${task.title}" to the bin.`, taskId: task.id });
+    });
 
     companyData.tasks = companyData.tasks.filter(task => !ids.includes(task.id));
     companyData.trash.unshift(...tasksToBin);
@@ -514,6 +622,7 @@ export function restoreTask(id: string): boolean {
     delete taskToRestore.deletedAt;
     companyData.tasks.unshift(taskToRestore);
 
+    addLog({ message: `Restored task "${taskToRestore.title}" from the bin.`, taskId: id });
     setAppData(data);
     return true;
 }
@@ -526,7 +635,11 @@ export function restoreMultipleTasks(ids: string[]): boolean {
     const tasksToRestore = companyData.trash.filter(task => ids.includes(task.id));
     if (tasksToRestore.length === 0) return false;
 
-    tasksToRestore.forEach(task => delete task.deletedAt);
+    tasksToRestore.forEach(task => {
+        delete task.deletedAt;
+        addLog({ message: `Restored task "${task.title}" from the bin.`, taskId: task.id });
+    });
+
     companyData.trash = companyData.trash.filter(task => !ids.includes(task.id));
     companyData.tasks.unshift(...tasksToRestore);
 
@@ -539,14 +652,14 @@ export function permanentlyDeleteTask(id: string): boolean {
     const companyData = data.companyData[data.activeCompanyId];
     if (!companyData) return false;
     
-    const initialLength = companyData.trash.length;
+    const taskToDelete = companyData.trash.find(task => task.id === id);
+    if (!taskToDelete) return false;
+
     companyData.trash = companyData.trash.filter(task => task.id !== id);
     
-    if (companyData.trash.length < initialLength) {
-        setAppData(data);
-        return true;
-    }
-    return false;
+    addLog({ message: `Permanently deleted task "${taskToDelete.title}".` });
+    setAppData(data);
+    return true;
 }
 
 export function permanentlyDeleteMultipleTasks(ids: string[]): boolean {
@@ -554,14 +667,17 @@ export function permanentlyDeleteMultipleTasks(ids: string[]): boolean {
     const companyData = data.companyData[data.activeCompanyId];
     if (!companyData) return false;
     
-    const initialLength = companyData.trash.length;
+    const tasksToDelete = companyData.trash.filter(task => ids.includes(task.id));
+    if (tasksToDelete.length === 0) return false;
+    
+    tasksToDelete.forEach(task => {
+      addLog({ message: `Permanently deleted task "${task.title}".` });
+    });
+    
     companyData.trash = companyData.trash.filter(task => !ids.includes(task.id));
 
-    if (companyData.trash.length < initialLength) {
-        setAppData(data);
-        return true;
-    }
-    return false;
+    setAppData(data);
+    return true;
 }
 
 export function emptyBin(): boolean {
@@ -569,15 +685,11 @@ export function emptyBin(): boolean {
     const companyData = data.companyData[data.activeCompanyId];
     if (!companyData) return false;
     
+    addLog({ message: `Emptied all ${companyData.trash.length} tasks from the bin.` });
     companyData.trash = [];
     setAppData(data);
     return true;
 }
-
-
-// =================================================================
-// UNIFIED PERSON MANAGEMENT LOGIC
-// =================================================================
 
 type PersonType = 'developer' | 'tester';
 
@@ -622,6 +734,7 @@ function _addPerson(type: PersonType, personData: Partial<Omit<Person, 'id'>>): 
         companyData.testers = [...people, newPerson];
     }
     
+    addLog({ message: `Added new ${type}: "${newPerson.name}".` });
     setAppData(data);
     return newPerson;
 }
@@ -635,6 +748,8 @@ function _updatePerson(type: PersonType, id: string, personData: Partial<Omit<Pe
     const people = type === 'developer' ? (companyData.developers || []) : (companyData.testers || []);
     const personIndex = people.findIndex(p => p.id === id);
     if (personIndex === -1) return undefined;
+
+    const oldName = people[personIndex].name;
     
     if (personData.name) {
         const trimmedName = personData.name.trim();
@@ -653,7 +768,13 @@ function _updatePerson(type: PersonType, id: string, personData: Partial<Omit<Pe
     } else {
         companyData.testers[personIndex] = updatedPerson;
     }
-
+    
+    if(updatedPerson.name !== oldName) {
+        addLog({ message: `Renamed ${type} from "${oldName}" to "${updatedPerson.name}".` });
+    } else {
+        addLog({ message: `Updated details for ${type} "${updatedPerson.name}".` });
+    }
+    
     setAppData(data);
     return updatedPerson;
 }
@@ -668,6 +789,7 @@ function _deletePerson(type: PersonType, id: string): boolean {
     const personIndex = people.findIndex(p => p.id === id);
     if (personIndex === -1) return false;
     
+    const personName = people[personIndex].name;
     const updatedPeople = people.filter(p => p.id !== id);
 
     if (type === 'developer') {
@@ -687,7 +809,8 @@ function _deletePerson(type: PersonType, id: string): boolean {
             }
         });
     }
-
+    
+    addLog({ message: `Deleted ${type}: "${personName}".` });
     setAppData(data);
     return true;
 }
@@ -727,20 +850,25 @@ export function addComment(taskId: string, comment: string): Task | undefined {
   const task = getTaskById(taskId);
   if (!task) return undefined;
   const newComments = [...(task.comments || []), comment];
+  addLog({ message: `Added a comment: "${comment.substring(0, 50)}..."`, taskId });
   return updateTask(taskId, { comments: newComments });
 }
 
 export function updateComment(taskId: string, index: number, newComment: string): Task | undefined {
    const task = getTaskById(taskId);
    if (!task || !task.comments || index < 0 || index >= task.comments.length) return undefined;
+   const oldComment = task.comments[index];
    const newComments = [...task.comments];
    newComments[index] = newComment;
+   addLog({ message: 'Updated a comment.', taskId });
    return updateTask(taskId, { comments: newComments });
 }
 
 export function deleteComment(taskId: string, index: number): Task | undefined {
    const task = getTaskById(taskId);
    if (!task || !task.comments || index < 0 || index >= task.comments.length) return undefined;
+   const deletedComment = task.comments[index];
    const newComments = task.comments.filter((_, i) => i !== index);
+   addLog({ message: `Deleted a comment: "${deletedComment.substring(0, 50)}..."`, taskId });
    return updateTask(taskId, { comments: newComments });
 }

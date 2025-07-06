@@ -33,6 +33,14 @@ export interface RepositoryConfig {
   baseUrl: string;
 }
 
+export interface Log {
+  id: string;
+  timestamp: string;
+  message: string;
+  taskId?: string;
+  details?: Record<string, any>;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -102,6 +110,7 @@ export interface CompanyData {
     developers: Person[];
     testers: Person[];
     uiConfig: UiConfig;
+    logs: Log[];
 }
 
 export interface MyTaskManagerData {
