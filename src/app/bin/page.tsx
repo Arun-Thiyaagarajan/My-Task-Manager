@@ -207,7 +207,7 @@ export default function BinPage() {
                               key={task.id}
                               data-state={selectedTaskIds.includes(task.id) && "selected"}
                               onClick={() => router.push(`/tasks/${task.id}`)}
-                              className="cursor-pointer"
+                              className="cursor-pointer group"
                             >
                                 <TableCell onClick={(e) => e.stopPropagation()}>
                                     <Checkbox
@@ -216,7 +216,7 @@ export default function BinPage() {
                                     aria-label={`Select task ${task.title}`}
                                     />
                                 </TableCell>
-                                <TableCell className="font-medium">{task.title}</TableCell>
+                                <TableCell className="font-medium group-hover:text-primary group-hover:underline transition-colors">{task.title}</TableCell>
                                 <TableCell><TaskStatusBadge status={task.status} /></TableCell>
                                 <TableCell className="text-muted-foreground text-xs truncate max-w-xs">{assignees.join(', ') || 'N/A'}</TableCell>
                                 <TableCell className="text-right text-muted-foreground text-xs">
