@@ -405,7 +405,7 @@ export default function Home() {
             let importedAppName: string | undefined = undefined;
             let importedAppIcon: string | null | undefined = undefined;
 
-            const isIdRegex = /^[a-z]+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            const isIdRegex = /^[a-z]+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
             if (Array.isArray(parsedJson)) {
                 importedTasks = parsedJson;
@@ -499,8 +499,13 @@ export default function Home() {
             const allTesterIds = new Set(companyData.testers.map(t => t.id));
 
             const processTaskArray = (tasksToProcess: Partial<Task>[], isBinned: boolean) => {
+              let baseSchema: any = taskSchema;
+              while (baseSchema._def && baseSchema._def.schema) {
+                  baseSchema = baseSchema._def.schema;
+              }
+              const knownTaskKeys = new Set(Object.keys(baseSchema.shape));
+
               for (const taskData of tasksToProcess) {
-                  const knownTaskKeys = new Set(Object.keys(taskSchema._def.schema.shape));
                   const processedTaskData: Partial<Task> = { ...taskData, customFields: { ...(taskData.customFields || {}) } };
                   
                   for (const key in taskData) {
@@ -1096,7 +1101,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
-
-      
