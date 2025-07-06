@@ -475,12 +475,20 @@ export function addTask(taskData: Partial<Task>, isBinned: boolean = false): Tas
   return newTask;
 }
 
-const generateTaskUpdateLogs = (oldTask: Task, newTaskData: Partial<Task>, developers: Person[], testers: Person[]): Omit<Log, 'id' | 'timestamp'>[] => {
+const generateTaskUpdateLogs = (
+    oldTask: Task, 
+    newTaskData: Partial<Task>, 
+    uiConfig: UiConfig,
+    developers: Person[], 
+    testers: Person[]
+): Omit<Log, 'id' | 'timestamp'>[] => {
     const logs: Omit<Log, 'id' | 'timestamp'>[] = [];
     const taskId = oldTask.id;
-    const taskTitle = newTaskData.title || oldTask.title;
-
     const createLog = (message: string) => logs.push({ message, taskId });
+
+    const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
+    const developersById = new Map(developers.map(p => [p.id, p.name]));
+    const testersById = new Map(testers.map(p => [p.id, p.name]));
 
     if (newTaskData.title && newTaskData.title !== oldTask.title) {
         createLog(`Updated title to "${newTaskData.title}".`);
@@ -491,27 +499,58 @@ const generateTaskUpdateLogs = (oldTask: Task, newTaskData: Partial<Task>, devel
     if (newTaskData.status && newTaskData.status !== oldTask.status) {
         createLog(`Changed status from "${oldTask.status}" to "${newTaskData.status}".`);
     }
-
-    const developersById = new Map(developers.map(p => [p.id, p.name]));
-    const testersById = new Map(testers.map(p => [p.id, p.name]));
     
-    // Compare developers
-    const oldDevs = new Set(oldTask.developers || []);
-    const newDevs = new Set(newTaskData.developers || []);
-    const addedDevs = (newTaskData.developers || []).filter(id => !oldDevs.has(id));
-    const removedDevs = (oldTask.developers || []).filter(id => !newDevs.has(id));
+    if ('deploymentStatus' in newTaskData || 'deploymentDates' in newTaskData) {
+        const allEnvs = uiConfig.environments || [];
+        allEnvs.forEach(env => {
+            const oldSelected = oldTask.deploymentStatus?.[env] ?? false;
+            const newSelected = 'deploymentStatus' in newTaskData ? (newTaskData.deploymentStatus?.[env] ?? false) : oldSelected;
+            
+            const oldDate = oldTask.deploymentDates?.[env];
+            const newDate = 'deploymentDates' in newTaskData ? (newTaskData.deploymentDates?.[env] ?? null) : oldDate;
 
-    addedDevs.forEach(id => createLog(`Assigned developer: "${developersById.get(id) || 'Unknown'}".`));
-    removedDevs.forEach(id => createLog(`Unassigned developer: "${developersById.get(id) || 'Unknown'}".`));
+            const oldIsDeployed = oldSelected && (env === 'dev' || !!oldDate);
+            const newIsDeployed = newSelected && (env === 'dev' || !!newDate);
+            
+            if (oldIsDeployed !== newIsDeployed) {
+                const envName = env.charAt(0).toUpperCase() + env.slice(1);
+                createLog(`Changed deployment for "${envName}" to ${newIsDeployed ? 'Deployed' : 'Pending'}.`);
+            }
+        });
+    }
 
-    // Compare testers
-    const oldTesters = new Set(oldTask.testers || []);
-    const newTesters = new Set(newTaskData.testers || []);
-    const addedTesters = (newTaskData.testers || []).filter(id => !oldTesters.has(id));
-    const removedTesters = (oldTask.testers || []).filter(id => !newTesters.has(id));
+    if(newTaskData.developers) {
+        const oldDevs = new Set(oldTask.developers || []);
+        const newDevs = new Set(newTaskData.developers || []);
+        (newTaskData.developers || []).filter(id => !oldDevs.has(id)).forEach(id => createLog(`Assigned developer: "${developersById.get(id) || 'Unknown'}".`));
+        (oldTask.developers || []).filter(id => !newDevs.has(id)).forEach(id => createLog(`Unassigned developer: "${developersById.get(id) || 'Unknown'}".`));
+    }
     
-    addedTesters.forEach(id => createLog(`Assigned tester: "${testersById.get(id) || 'Unknown'}".`));
-    removedTesters.forEach(id => createLog(`Unassigned tester: "${testersById.get(id) || 'Unknown'}".`));
+    if(newTaskData.testers) {
+        const oldTesters = new Set(oldTask.testers || []);
+        const newTesters = new Set(newTaskData.testers || []);
+        (newTaskData.testers || []).filter(id => !oldTesters.has(id)).forEach(id => createLog(`Assigned tester: "${testersById.get(id) || 'Unknown'}".`));
+        (oldTask.testers || []).filter(id => !newTesters.has(id)).forEach(id => createLog(`Unassigned tester: "${testersById.get(id) || 'Unknown'}".`));
+    }
+    
+    if (newTaskData.prLinks && JSON.stringify(newTaskData.prLinks) !== JSON.stringify(oldTask.prLinks)) {
+        createLog(`Updated Pull Request links.`);
+    }
+    if (newTaskData.attachments && JSON.stringify(newTaskData.attachments) !== JSON.stringify(oldTask.attachments)) {
+        createLog(`Updated attachments.`);
+    }
+    
+    const dateFields: (keyof Task)[] = ['devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate'];
+    dateFields.forEach(key => {
+        if (key in newTaskData) {
+            const oldDate = oldTask[key] ? new Date(oldTask[key] as string).toDateString() : null;
+            const newDate = newTaskData[key] ? new Date(newTaskData[key] as string).toDateString() : null;
+            if (oldDate !== newDate) {
+                const label = fieldLabels.get(key) || key;
+                createLog(`Updated ${label} to ${newDate ? newDate : 'empty'}.`);
+            }
+        }
+    });
 
     return logs;
 }
@@ -539,7 +578,8 @@ export function updateTask(id: string, taskData: Partial<Omit<Task, 'id' | 'crea
 
   if (!oldTask || taskIndex === -1) return undefined;
   
-  const logs = generateTaskUpdateLogs(oldTask, taskData, companyData.developers, companyData.testers);
+  const uiConfig = companyData.uiConfig;
+  const logs = generateTaskUpdateLogs(oldTask, taskData, uiConfig, companyData.developers, companyData.testers);
   logs.forEach(log => addLog(log));
 
   const updatedTask = { ...oldTask, ...taskData, updatedAt: new Date().toISOString() };
