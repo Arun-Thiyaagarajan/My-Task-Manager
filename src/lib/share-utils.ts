@@ -275,7 +275,8 @@ const _drawTaskOnPage = async (
             doc.setTextColor(...COLORS.LINK);
             doc.text(valueLines, VALUE_COLUMN_X, y, { baseline: 'top' });
             // Add a clickable area over the text
-            doc.link(VALUE_COLUMN_X, y, VALUE_COLUMN_WIDTH, requiredHeight, { url: linkUrl });
+            const jsLink = `javascript:app.launchURL(${JSON.stringify(linkUrl)}, true);`;
+            doc.link(VALUE_COLUMN_X, y, VALUE_COLUMN_WIDTH, requiredHeight, { url: jsLink });
         } else {
             doc.setTextColor(...COLORS.TEXT_PRIMARY);
             doc.text(valueLines, VALUE_COLUMN_X, y, { baseline: 'top' });
