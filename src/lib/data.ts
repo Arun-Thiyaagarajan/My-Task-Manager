@@ -262,7 +262,7 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
             field.order = index;
             const isSortable = ['select', 'multiselect', 'tags'].includes(field.type) && field.key !== 'status';
             if (isSortable && !field.sortDirection) {
-                field.sortDirection = 'asc';
+                field.sortDirection = 'manual';
             }
         });
 
@@ -293,7 +293,7 @@ export function updateUiConfig(newConfig: UiConfig): UiConfig {
             field.order = index;
             const isSortable = ['select', 'multiselect', 'tags'].includes(field.type) && field.key !== 'status';
             if (isSortable && !field.sortDirection) {
-                field.sortDirection = 'asc';
+                field.sortDirection = 'manual';
             }
         });
         

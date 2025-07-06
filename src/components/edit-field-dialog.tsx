@@ -44,7 +44,7 @@ const fieldSchema = z.object({
   isActive: z.boolean(),
   options: z.array(fieldOptionSchema).optional(),
   baseUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
-  sortDirection: z.enum(['asc', 'desc']).optional(),
+  sortDirection: z.enum(['asc', 'desc', 'manual']).optional(),
 });
 
 type FieldFormData = z.infer<typeof fieldSchema>;
@@ -70,7 +70,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
       isActive: field?.isActive ?? true, // New fields default to active
       options: field?.options || [],
       baseUrl: field?.baseUrl || '',
-      sortDirection: field?.sortDirection || 'asc',
+      sortDirection: field?.sortDirection || 'manual',
     },
   });
 
@@ -134,7 +134,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
         isCustom: true,
       }),
       ...data,
-      sortDirection: data.sortDirection || 'asc',
+      sortDirection: data.sortDirection || 'manual',
     };
     onSave(finalField, isRepoField ? localRepoConfigs : undefined);
     onOpenChange(false);
@@ -162,7 +162,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
           isActive: field?.isActive ?? true,
           options: field?.options || [],
           baseUrl: field?.baseUrl || '',
-          sortDirection: field?.sortDirection || 'asc',
+          sortDirection: field?.sortDirection || 'manual',
         });
         setGroupSearch(field?.group || '');
 
@@ -377,18 +377,19 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                                 <FormItem className="pt-4 border-t">
                                     <FormLabel>Option Sorting</FormLabel>
                                     <FormDescription>Set the display order for options in dropdowns.</FormDescription>
-                                    <div className="flex items-center space-x-2 pt-2">
+                                    <Select onValueChange={field.onChange} value={field.value} >
                                         <FormControl>
-                                            <Switch
-                                                id="sort-direction-switch"
-                                                checked={field.value === 'desc'}
-                                                onCheckedChange={(checked) => field.onChange(checked ? 'desc' : 'asc')}
-                                            />
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select sorting order" />
+                                            </SelectTrigger>
                                         </FormControl>
-                                        <Label htmlFor="sort-direction-switch" className="cursor-pointer">
-                                            {field.value === 'asc' ? 'Ascending (A-Z)' : 'Descending (Z-A)'}
-                                        </Label>
-                                    </div>
+                                        <SelectContent>
+                                            <SelectItem value="manual">Manual Order</SelectItem>
+                                            <SelectItem value="asc">Alphabetical (A-Z)</SelectItem>
+                                            <SelectItem value="desc">Alphabetical (Z-A)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
                                 </FormItem>
                             )}
                         />

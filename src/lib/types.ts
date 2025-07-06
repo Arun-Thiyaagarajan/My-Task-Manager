@@ -93,7 +93,7 @@ export interface FieldConfig {
   order: number;
   options?: FieldOption[];
   baseUrl?: string;
-  sortDirection?: 'asc' | 'desc';
+  sortDirection?: 'asc' | 'desc' | 'manual';
 }
 
 export interface UiConfig {

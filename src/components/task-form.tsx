@@ -239,16 +239,12 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
         options = field.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
     }
 
-    // sortDirection is optional, so default to 'asc' if it's sortable but undefined
-    const sortDirection = field.sortDirection || 'asc';
-    
-    options.sort((a, b) => {
-        if (sortDirection === 'asc') {
-            return a.label.localeCompare(b.label);
-        } else {
-            return b.label.localeCompare(a.label);
-        }
-    });
+    if (field.sortDirection === 'asc') {
+        options.sort((a, b) => a.label.localeCompare(b.label));
+    } else if (field.sortDirection === 'desc') {
+        options.sort((a, b) => b.label.localeCompare(a.label));
+    }
+    // No sorting for 'manual' or undefined
 
     return options;
   }
