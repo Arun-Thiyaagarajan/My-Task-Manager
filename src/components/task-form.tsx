@@ -219,22 +219,38 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
   };
 
   const getFieldOptions = (field: FieldConfig): {value: string, label: string}[] => {
+    let options: {value: string, label: string}[] = [];
+    
     if (field.key === 'repositories') {
-        return (uiConfig?.repositoryConfigs || []).map(d => ({ value: d.name, label: d.name }));
-    }
-    if (field.key === 'status') {
-      return (uiConfig?.taskStatuses || []).map(s => ({ value: s, label: s}));
-    }
-    if(field.type === 'tags') {
+        options = (uiConfig?.repositoryConfigs || []).map(d => ({ value: d.name, label: d.name }));
+    } else if (field.key === 'status') {
+      options = (uiConfig?.taskStatuses || []).map(s => ({ value: s, label: s}));
+      // Status field should not be sorted alphabetically
+      return options;
+    } else if(field.type === 'tags') {
         if(field.key === 'developers') {
-            return (developersList || []).map(d => ({ value: d.id, label: d.name }));
+            options = (developersList || []).map(d => ({ value: d.id, label: d.name }));
+        } else if(field.key === 'testers') {
+            options = (testersList || []).map(t => ({ value: t.id, label: t.name }));
+        } else {
+            options = field.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
         }
-        if(field.key === 'testers') {
-            return (testersList || []).map(t => ({ value: t.id, label: t.name }));
-        }
-        return field.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
+    } else {
+        options = field.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
     }
-    return field.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
+
+    // sortDirection is optional, so default to 'asc' if it's sortable but undefined
+    const sortDirection = field.sortDirection || 'asc';
+    
+    options.sort((a, b) => {
+        if (sortDirection === 'asc') {
+            return a.label.localeCompare(b.label);
+        } else {
+            return b.label.localeCompare(a.label);
+        }
+    });
+
+    return options;
   }
   
   const renderField = (fieldConfig: FieldConfig) => {

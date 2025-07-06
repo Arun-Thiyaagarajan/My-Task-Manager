@@ -768,7 +768,15 @@ export default function Home() {
   }
   
   const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
-  const REPOSITORIES = uiConfig.repositoryConfigs?.map(r => r.name) ?? INITIAL_REPOSITORY_CONFIGS.map(r => r.name);
+  const repoFieldConfig = uiConfig.fields.find(f => f.key === 'repositories');
+  const REPOSITORIES = (repoFieldConfig?.options?.map(opt => opt.value) ?? uiConfig.repositoryConfigs?.map(r => r.name)) ?? INITIAL_REPOSITORY_CONFIGS.map(r => r.name);
+
+  if (repoFieldConfig?.sortDirection === 'desc') {
+    REPOSITORIES.sort((a, b) => b.localeCompare(a));
+  } else {
+    REPOSITORIES.sort((a, b) => a.localeCompare(b));
+  }
+  
   const TASK_STATUSES = uiConfig.taskStatuses;
 
   const handleNewTaskClick = (e: React.MouseEvent<HTMLAnchorElement>) => {

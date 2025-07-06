@@ -93,6 +93,7 @@ export interface FieldConfig {
   order: number;
   options?: FieldOption[];
   baseUrl?: string;
+  sortDirection?: 'asc' | 'desc';
 }
 
 export interface UiConfig {
@@ -120,5 +121,3 @@ export interface MyTaskManagerData {
         [companyId: string]: CompanyData;
     };
 }
-
-      

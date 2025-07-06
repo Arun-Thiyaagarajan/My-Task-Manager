@@ -44,6 +44,7 @@ const fieldSchema = z.object({
   isActive: z.boolean(),
   options: z.array(fieldOptionSchema).optional(),
   baseUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
+  sortDirection: z.enum(['asc', 'desc']).optional(),
 });
 
 type FieldFormData = z.infer<typeof fieldSchema>;
@@ -69,6 +70,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
       isActive: field?.isActive ?? true, // New fields default to active
       options: field?.options || [],
       baseUrl: field?.baseUrl || '',
+      sortDirection: field?.sortDirection || 'asc',
     },
   });
 
@@ -87,6 +89,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
 
   const selectedType = form.watch('type');
   const showOptions = selectedType === 'select' || selectedType === 'multiselect' || selectedType === 'tags';
+  const isSortableField = showOptions && (!field || field.key !== 'status');
   
   const [allGroups, setAllGroups] = React.useState<string[]>([]);
   const [isGroupPopoverOpen, setIsGroupPopoverOpen] = React.useState(false);
@@ -131,6 +134,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
         isCustom: true,
       }),
       ...data,
+      sortDirection: data.sortDirection || 'asc',
     };
     onSave(finalField, isRepoField ? localRepoConfigs : undefined);
     onOpenChange(false);
@@ -158,6 +162,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
           isActive: field?.isActive ?? true,
           options: field?.options || [],
           baseUrl: field?.baseUrl || '',
+          sortDirection: field?.sortDirection || 'asc',
         });
         setGroupSearch(field?.group || '');
 
@@ -363,6 +368,31 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                             )}
                         />
                      )}
+                     
+                    {isSortableField && (
+                        <FormField
+                            control={form.control}
+                            name="sortDirection"
+                            render={({ field }) => (
+                                <FormItem className="pt-4 border-t">
+                                    <FormLabel>Option Sorting</FormLabel>
+                                    <FormDescription>Set the display order for options in dropdowns.</FormDescription>
+                                    <div className="flex items-center space-x-2 pt-2">
+                                        <FormControl>
+                                            <Switch
+                                                id="sort-direction-switch"
+                                                checked={field.value === 'desc'}
+                                                onCheckedChange={(checked) => field.onChange(checked ? 'desc' : 'asc')}
+                                            />
+                                        </FormControl>
+                                        <Label htmlFor="sort-direction-switch" className="cursor-pointer">
+                                            {field.value === 'asc' ? 'Ascending (A-Z)' : 'Descending (Z-A)'}
+                                        </Label>
+                                    </div>
+                                </FormItem>
+                            )}
+                        />
+                    )}
                     
                     {showCustomOptionsUI && (
                         <div className="space-y-3 pt-4 border-t">

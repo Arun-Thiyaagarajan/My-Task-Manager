@@ -260,6 +260,10 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
         .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
         .forEach((field, index) => {
             field.order = index;
+            const isSortable = ['select', 'multiselect', 'tags'].includes(field.type) && field.key !== 'status';
+            if (isSortable && !field.sortDirection) {
+                field.sortDirection = 'asc';
+            }
         });
 
     return resultConfig;
@@ -287,6 +291,10 @@ export function updateUiConfig(newConfig: UiConfig): UiConfig {
         newConfig.fields.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
         newConfig.fields.forEach((field, index) => {
             field.order = index;
+            const isSortable = ['select', 'multiselect', 'tags'].includes(field.type) && field.key !== 'status';
+            if (isSortable && !field.sortDirection) {
+                field.sortDirection = 'asc';
+            }
         });
         
         const newLog: Log = {
@@ -510,7 +518,7 @@ const generateTaskUpdateLogs = (
 ): Omit<Log, 'id' | 'timestamp'>[] => {
     const logs: Omit<Log, 'id' | 'timestamp'>[] = [];
     const taskId = oldTask.id;
-    const taskTitle = oldTask.title;
+    const taskTitle = newTaskData.title || oldTask.title;
     const createLog = (message: string) => logs.push({ message, taskId });
 
     const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
