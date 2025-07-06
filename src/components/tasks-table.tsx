@@ -448,16 +448,16 @@ export function TasksTable({
             return (
               <React.Fragment key={key}>
                 <TableRow 
-                  className="bg-muted/30 hover:bg-muted/50 cursor-pointer"
+                  className="bg-muted/30 hover:bg-muted/50 cursor-pointer border-b"
                   onClick={() => {
                     const newOpenGroups = isOpen ? openGroups.filter(g => g !== key) : [...openGroups, key];
                     setOpenGroups(newOpenGroups);
                   }}
                 >
-                  <TableCell colSpan={colSpan} className="py-2 px-4 font-semibold text-muted-foreground">
+                  <TableCell colSpan={colSpan} className="py-3 px-4 font-semibold text-foreground">
                       <div className="flex items-center justify-between">
                           <span>{title}</span>
-                          <ChevronDown className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")} />
+                          <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform duration-300 ease-in-out", isOpen && "rotate-180")} />
                       </div>
                   </TableCell>
                 </TableRow>

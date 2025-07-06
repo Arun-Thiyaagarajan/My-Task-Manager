@@ -84,7 +84,7 @@ export function TasksGrid({ tasks, onTaskDelete, onTaskUpdate, uiConfig, develop
     >
       {groups.map(({ key, title, tasks: tasksInGroup }) => (
         <AccordionItem key={key} value={key} className="border-none">
-            <AccordionTrigger className="text-xl font-semibold tracking-tight text-foreground hover:no-underline rounded-md px-2 py-1 -mx-2 hover:bg-muted/50 data-[state=open]:text-primary [&>svg]:text-primary">
+            <AccordionTrigger className="text-xl font-semibold tracking-tight text-foreground hover:no-underline rounded-lg px-4 py-3 hover:bg-muted/50 data-[state=open]:[&>svg]:text-primary">
                 <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
             </AccordionTrigger>
             <AccordionContent className="pt-4">
