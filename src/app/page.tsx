@@ -1057,64 +1057,59 @@ export default function Home() {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap justify-start sm:justify-end">
-                    <Tabs value={mainView} onValueChange={(v) => setMainView(v as MainView)}>
-                        <TabsList>
-                            <TabsTrigger value="all">All Tasks</TabsTrigger>
-                            <TabsTrigger value="monthly">Monthly</TabsTrigger>
-                        </TabsList>
-                    </Tabs>
-                    
-                    <Select value={sortDescriptor} onValueChange={setSortDescriptor}>
-                        <SelectTrigger className="w-[180px]">
-                            <SelectValue placeholder="Sort by" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="status-asc">Status (Asc)</SelectItem>
-                            <SelectItem value="status-desc">Status (Desc)</SelectItem>
-                            <SelectItem value="title-asc">Title (A-Z)</SelectItem>
-                            <SelectItem value="title-desc">Title (Z-A)</SelectItem>
-                            <SelectItem value="deployment-desc">Deployment (Desc)</SelectItem>
-                            <SelectItem value="deployment-asc">Deployment (Asc)</SelectItem>
-                        </SelectContent>
-                    </Select>
+                <div className="flex items-center gap-x-2 gap-y-2 flex-wrap justify-start sm:justify-end">
+                  <Select value={sortDescriptor} onValueChange={setSortDescriptor}>
+                      <SelectTrigger className="w-auto sm:w-[180px] h-10">
+                          <SelectValue placeholder="Sort by" />
+                      </SelectTrigger>
+                      <SelectContent>
+                          <SelectItem value="status-asc">Status (Asc)</SelectItem>
+                          <SelectItem value="status-desc">Status (Desc)</SelectItem>
+                          <SelectItem value="title-asc">Title (A-Z)</SelectItem>
+                          <SelectItem value="title-desc">Title (Z-A)</SelectItem>
+                          <SelectItem value="deployment-desc">Deployment (Desc)</SelectItem>
+                          <SelectItem value="deployment-asc">Deployment (Asc)</SelectItem>
+                      </SelectContent>
+                  </Select>
 
-                    <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={handleToggleSelectMode}
-                          className={cn(isSelectMode && 'bg-accent text-accent-foreground')}
-                        >
-                            <CheckSquare className="h-4 w-4" />
-                            <span className="sr-only">Select Tasks</span>
-                        </Button>
-                        <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => handleViewModeChange('grid')}
-                        className={cn(
-                            viewMode === 'grid' &&
-                            'bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground'
-                        )}
-                        >
-                        <LayoutGrid className="h-4 w-4" />
-                        <span className="sr-only">Grid View</span>
-                        </Button>
-                        <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => handleViewModeChange('table')}
-                        className={cn(
-                            viewMode === 'table' &&
-                            'bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground'
-                        )}
-                        >
-                        <List className="h-4 w-4" />
-                        <span className="sr-only">Table View</span>
-                        </Button>
-                    </div>
-                </div>
+                  <Tabs value={mainView} onValueChange={(v) => setMainView(v as MainView)}>
+                      <TabsList>
+                          <TabsTrigger value="all">All Tasks</TabsTrigger>
+                          <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                      </TabsList>
+                  </Tabs>
+
+                  <div className="flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
+                    <Button
+                      variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => handleViewModeChange('grid')}
+                    >
+                      <LayoutGrid className="h-4 w-4" />
+                      <span className="sr-only">Grid View</span>
+                    </Button>
+                    <Button
+                      variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => handleViewModeChange('table')}
+                    >
+                      <List className="h-4 w-4" />
+                      <span className="sr-only">Table View</span>
+                    </Button>
+                  </div>
+
+                  <Button
+                      variant={isSelectMode ? 'secondary' : 'outline'}
+                      size="icon"
+                      onClick={handleToggleSelectMode}
+                      className="h-10 w-10"
+                  >
+                      <CheckSquare className="h-4 w-4" />
+                      <span className="sr-only">Select Tasks</span>
+                  </Button>
+              </div>
             </div>
 
             {isSelectMode && (
