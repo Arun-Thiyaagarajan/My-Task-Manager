@@ -28,6 +28,7 @@ export const taskSchema = z.object({
   id: z.string().optional(),
   createdAt: z.string().datetime({ message: "Invalid datetime string." }).optional(),
   updatedAt: z.string().datetime({ message: "Invalid datetime string." }).optional(),
+  deletedAt: z.string().datetime({ message: "Invalid datetime string." }).optional().nullable(),
   comments: z.array(z.string()).optional(),
   summary: z.string().nullable().optional(),
   

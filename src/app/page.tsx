@@ -506,13 +506,18 @@ export default function Home() {
               const knownTaskKeys = new Set(Object.keys(baseSchema.shape));
 
               for (const taskData of tasksToProcess) {
-                  const processedTaskData: Partial<Task> = { ...taskData, customFields: { ...(taskData.customFields || {}) } };
+                  const processedTaskData: Partial<Task> = { customFields: {} };
                   
                   for (const key in taskData) {
-                    if (!knownTaskKeys.has(key as keyof Task) && key !== 'customFields') {
+                    if (knownTaskKeys.has(key as keyof Task)) {
+                      (processedTaskData as any)[key] = (taskData as any)[key];
+                    } else if (key !== 'customFields') {
                       (processedTaskData.customFields as any)[key] = (taskData as any)[key];
-                      delete (processedTaskData as any)[key];
                     }
+                  }
+
+                  if (taskData.customFields && typeof taskData.customFields === 'object') {
+                      processedTaskData.customFields = { ...processedTaskData.customFields, ...taskData.customFields };
                   }
 
                   const validationResult = taskSchema.safeParse(processedTaskData);
