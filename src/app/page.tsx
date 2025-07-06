@@ -599,37 +599,49 @@ export default function Home() {
 
                   const now = new Date().toISOString();
                   if (validatedData.id && allTasksById.has(validatedData.id)) {
-                      const existingTask = allTasksById.get(validatedData.id)!;
-                      const wasBinned = companyData.trash.some(t => t.id === existingTask.id);
-                      const shouldBeBinned = isBinned;
+                        const existingTask = allTasksById.get(validatedData.id)!;
+                        const wasBinned = companyData.trash.some(t => t.id === existingTask.id);
+                        const shouldBeBinned = isBinned;
 
-                      Object.assign(existingTask, validatedData, { updatedAt: now });
+                        Object.assign(existingTask, validatedData);
+                        existingTask.updatedAt = now;
+                        
+                        if (existingTask.deploymentDates) {
+                            existingTask.deploymentDates = Object.entries(existingTask.deploymentDates).reduce((acc, [key, value]) => {
+                                if (value) {
+                                    acc[key] = new Date(value as any).toISOString();
+                                } else {
+                                    acc[key] = null;
+                                }
+                                return acc;
+                            }, {} as { [key: string]: string | null });
+                        }
 
-                      if (wasBinned && !shouldBeBinned) {
-                          const taskIndex = companyData.trash.findIndex(t => t.id === existingTask.id);
-                          if(taskIndex > -1) {
-                            const [taskToMove] = companyData.trash.splice(taskIndex, 1);
-                            delete taskToMove.deletedAt;
-                            companyData.tasks.unshift(taskToMove);
-                          }
-                          updatedCount++;
-                      } else if (!wasBinned && shouldBeBinned) {
-                          const taskIndex = companyData.tasks.findIndex(t => t.id === existingTask.id);
-                          if(taskIndex > -1) {
-                            const [taskToMove] = companyData.tasks.splice(taskIndex, 1);
-                            taskToMove.deletedAt = validatedData.deletedAt || now;
-                            companyData.trash.unshift(taskToMove);
-                          }
-                          binnedUpdatedCount++;
-                      } else {
-                          if (shouldBeBinned) {
-                              existingTask.deletedAt = validatedData.deletedAt || now;
-                              binnedUpdatedCount++;
-                          } else {
-                              delete existingTask.deletedAt;
-                              updatedCount++;
-                          }
-                      }
+                        if (wasBinned && !shouldBeBinned) {
+                            const taskIndex = companyData.trash.findIndex(t => t.id === existingTask.id);
+                            if(taskIndex > -1) {
+                                const [taskToMove] = companyData.trash.splice(taskIndex, 1);
+                                delete taskToMove.deletedAt;
+                                companyData.tasks.unshift(taskToMove);
+                            }
+                            updatedCount++;
+                        } else if (!wasBinned && shouldBeBinned) {
+                            const taskIndex = companyData.tasks.findIndex(t => t.id === existingTask.id);
+                            if(taskIndex > -1) {
+                                const [taskToMove] = companyData.tasks.splice(taskIndex, 1);
+                                taskToMove.deletedAt = validatedData.deletedAt || now;
+                                companyData.trash.unshift(taskToMove);
+                            }
+                            binnedUpdatedCount++;
+                        } else {
+                            if (shouldBeBinned) {
+                                existingTask.deletedAt = validatedData.deletedAt || now;
+                                binnedUpdatedCount++;
+                            } else {
+                                delete existingTask.deletedAt;
+                                updatedCount++;
+                            }
+                        }
                   } else {
                       const newTask: Task = {
                           id: validatedData.id || `task-${crypto.randomUUID()}`,
