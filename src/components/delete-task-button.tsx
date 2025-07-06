@@ -60,50 +60,46 @@ export function DeleteTaskButton({ taskId, taskTitle, onSuccess, iconOnly = fals
     });
   };
   
-  const handleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
   return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button
-          variant={iconOnly ? "ghost" : "destructive"}
-          size={iconOnly ? "icon" : "sm"}
-          onClick={handleClick}
-          className={cn(
-            iconOnly && "text-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive",
-            className
-          )}
-        >
-          {iconOnly ? (
-              <>
-                  <Trash2 className="h-4 w-4" />
-                  <span className="sr-only">Delete Task</span>
-              </>
-          ) : (
-              <>
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
-              </>
-          )}
-        </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-          <AlertDialogDescription>
-            This will move the task "{taskTitle}" to the bin. You can restore it later.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={handleMoveToBin} className="bg-destructive hover:bg-destructive/90">
-            Move to Bin
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button
+            variant={iconOnly ? "ghost" : "destructive"}
+            size={iconOnly ? "icon" : "sm"}
+            className={cn(
+              iconOnly && "text-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive",
+              className
+            )}
+          >
+            {iconOnly ? (
+                <>
+                    <Trash2 className="h-4 w-4" />
+                    <span className="sr-only">Delete Task</span>
+                </>
+            ) : (
+                <>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                </>
+            )}
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will move the task "{taskTitle}" to the bin. You can restore it later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleMoveToBin} className="bg-destructive hover:bg-destructive/90">
+              Move to Bin
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 }
