@@ -2,7 +2,7 @@
 import React from 'react';
 import { TaskCard } from '@/components/task-card';
 import type { Task, UiConfig, Person } from '@/lib/types';
-import { Separator } from './ui/separator';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 
 interface TasksGridProps {
   tasks: Task[];
@@ -14,9 +14,11 @@ interface TasksGridProps {
   selectedTaskIds: string[];
   setSelectedTaskIds: (ids: string[]) => void;
   isSelectMode: boolean;
+  openGroups: string[];
+  setOpenGroups: (groups: string[]) => void;
 }
 
-export function TasksGrid({ tasks, onTaskDelete, onTaskUpdate, uiConfig, developers, testers, selectedTaskIds, setSelectedTaskIds, isSelectMode }: TasksGridProps) {
+export function TasksGrid({ tasks, onTaskDelete, onTaskUpdate, uiConfig, developers, testers, selectedTaskIds, setSelectedTaskIds, isSelectMode, openGroups, setOpenGroups }: TasksGridProps) {
   const priorityStatuses = ['To Do', 'In Progress', 'Code Review', 'QA'];
   
   const priorityTasks = tasks.filter(task => priorityStatuses.includes(task.status));
@@ -74,16 +76,22 @@ export function TasksGrid({ tasks, onTaskDelete, onTaskUpdate, uiConfig, develop
   }
 
   return (
-    <div className="space-y-6">
-      {groups.map(({ key, title, tasks: tasksInGroup }, index) => (
-        <React.Fragment key={key}>
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold tracking-tight text-foreground">{title}</h2>
-            {renderGrid(tasksInGroup)}
-          </div>
-          {index < groups.length - 1 && <Separator />}
-        </React.Fragment>
+    <Accordion
+      type="multiple"
+      className="w-full space-y-2"
+      value={openGroups}
+      onValueChange={setOpenGroups}
+    >
+      {groups.map(({ key, title, tasks: tasksInGroup }) => (
+        <AccordionItem key={key} value={key} className="border-none">
+            <AccordionTrigger className="text-xl font-semibold tracking-tight text-foreground hover:no-underline rounded-md px-2 py-1 -mx-2 hover:bg-muted/50 data-[state=open]:text-primary [&>svg]:text-primary">
+                <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
+            </AccordionTrigger>
+            <AccordionContent className="pt-4">
+                {renderGrid(tasksInGroup)}
+            </AccordionContent>
+        </AccordionItem>
       ))}
-    </div>
+    </Accordion>
   );
 }

@@ -116,6 +116,7 @@ export default function Home() {
   const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [isSelectMode, setIsSelectMode] = useState(false);
+  const [openGroups, setOpenGroups] = useState<string[]>(['priority', 'completed', 'other', 'hold']);
 
   const handlePreviousMonth = () => setSelectedMonth(subMonths(selectedMonth, 1));
   const handleNextMonth = () => setSelectedMonth(addMonths(selectedMonth, 1));
@@ -142,6 +143,11 @@ export default function Home() {
     const savedMonth = localStorage.getItem('taskflow_selected_month');
     if (savedMonth) setSelectedMonth(new Date(savedMonth));
 
+    const savedOpenGroups = localStorage.getItem('taskflow_open_groups');
+    if (savedOpenGroups) {
+      setOpenGroups(JSON.parse(savedOpenGroups));
+    }
+
   }, []);
 
   const handleViewModeChange = (mode: ViewMode) => {
@@ -159,7 +165,8 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem('taskflow_main_view', mainView);
     localStorage.setItem('taskflow_selected_month', selectedMonth.toISOString());
-  }, [mainView, selectedMonth]);
+    localStorage.setItem('taskflow_open_groups', JSON.stringify(openGroups));
+  }, [mainView, selectedMonth, openGroups]);
 
   useEffect(() => {
     if (!activeCompanyId) {
@@ -182,7 +189,7 @@ export default function Home() {
     const repoMatch = repoFilter === 'all' || task.repositories?.includes(repoFilter);
 
     const developersById = new Map(developers.map(d => [d.id, d.name]));
-    const testersById = new Map(testers.map(t => [t.id, t.name]));
+    const testersById = new Map(testers.map(t => [d.id, t.name]));
 
     const searchLower = searchQuery.toLowerCase();
     const searchMatch =
@@ -462,6 +469,7 @@ export default function Home() {
                     if (importedField.isCustom && !existingFieldKeys.has(importedField.key)) {
                         const newField: FieldConfig = {
                             ...importedField,
+                            group: importedField.group || 'Imported',
                             order: companyData.uiConfig.fields.length,
                         };
                         companyData.uiConfig.fields.push(newField);
@@ -599,8 +607,8 @@ export default function Home() {
                         Object.assign(existingTask, validatedData);
                         existingTask.updatedAt = now;
                         
-                        if (existingTask.deploymentDates) {
-                            existingTask.deploymentDates = Object.entries(existingTask.deploymentDates).reduce((acc, [key, value]) => {
+                        if (validatedData.deploymentDates) {
+                            existingTask.deploymentDates = Object.entries(validatedData.deploymentDates).reduce((acc, [key, value]) => {
                                 if (value) {
                                     acc[key] = new Date(value as any).toISOString();
                                 } else {
@@ -1180,9 +1188,9 @@ export default function Home() {
 
           {sortedTasks.length > 0 ? (
             viewMode === 'grid' ? (
-              <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} />
+              <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} />
             ) : (
-              <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} />
+              <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} />
             )
           ) : (
             <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg flex flex-col items-center justify-center">

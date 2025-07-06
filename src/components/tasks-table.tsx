@@ -18,6 +18,7 @@ import {
   Check,
   Clock,
   CheckCircle2,
+  ChevronDown,
 } from 'lucide-react';
 import type { Task, UiConfig, Person, TaskStatus } from '@/lib/types';
 import { Badge } from './ui/badge';
@@ -335,6 +336,8 @@ export function TasksTable({
   selectedTaskIds,
   setSelectedTaskIds,
   isSelectMode,
+  openGroups,
+  setOpenGroups,
 }: {
   tasks: Task[];
   onTaskDelete: () => void;
@@ -344,6 +347,8 @@ export function TasksTable({
   selectedTaskIds: string[];
   setSelectedTaskIds: (ids: string[]) => void;
   isSelectMode: boolean;
+  openGroups: string[];
+  setOpenGroups: (ids: string[]) => void;
 }) {
   const [personInView, setPersonInView] = useState<{
     person: Person;
@@ -438,23 +443,27 @@ export function TasksTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-           {groups.map(({ key, title, tasks: tasksInGroup }, index) => (
-            <React.Fragment key={key}>
-              {index > 0 && (
-                <TableRow className="hover:bg-transparent data-[state=selected]:bg-transparent">
-                  <TableCell colSpan={colSpan} className="p-0 h-4">
-                    <div className="border-t border-dashed w-full h-full"></div>
+           {groups.map(({ key, title, tasks: tasksInGroup }) => {
+            const isOpen = openGroups.includes(key);
+            return (
+              <React.Fragment key={key}>
+                <TableRow 
+                  className="bg-muted/30 hover:bg-muted/50 cursor-pointer"
+                  onClick={() => {
+                    const newOpenGroups = isOpen ? openGroups.filter(g => g !== key) : [...openGroups, key];
+                    setOpenGroups(newOpenGroups);
+                  }}
+                >
+                  <TableCell colSpan={colSpan} className="py-2 px-4 font-semibold text-muted-foreground">
+                      <div className="flex items-center justify-between">
+                          <span>{title}</span>
+                          <ChevronDown className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")} />
+                      </div>
                   </TableCell>
                 </TableRow>
-              )}
-              <TableRow className="bg-muted/30 hover:bg-muted/30">
-                <TableCell colSpan={colSpan} className="py-2 px-4 font-semibold text-muted-foreground">
-                  {title}
-                </TableCell>
-              </TableRow>
-              {renderTaskRows(tasksInGroup)}
-            </React.Fragment>
-          ))}
+                {isOpen && renderTaskRows(tasksInGroup)}
+              </React.Fragment>
+          )})}
         </TableBody>
       </Table>
       <PersonProfileCard
@@ -466,5 +475,3 @@ export function TasksTable({
     </div>
   );
 }
-
-    
