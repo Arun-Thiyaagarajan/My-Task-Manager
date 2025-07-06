@@ -280,10 +280,14 @@ export default function Home() {
     setSelectedTaskIds(checked === true ? sortedTasks.map(t => t.id) : []);
   };
 
-  const handleExport = (exportType: 'current_view' | 'all_tasks', fileName: string) => {
+  const handleExport = (exportType: 'current_view' | 'all_tasks') => {
     const allDevelopers = getDevelopers();
     const allTesters = getTesters();
     const currentUiConfig = getUiConfig();
+
+    const appNamePrefix = currentUiConfig.appName?.replace(/\s+/g, '_') || 'MyTaskManager';
+    const fileNameSuffix = exportType === 'all_tasks' ? 'All_Tasks' : 'Export';
+    const fileName = `${appNamePrefix}_${fileNameSuffix}.json`;
 
     let activeTasksToExport: Task[] = [];
     let binnedTasksToExport: Task[] = [];
@@ -353,6 +357,10 @@ export default function Home() {
   };
 
   const handleDownloadTemplate = () => {
+      const currentUiConfig = getUiConfig();
+      const appNamePrefix = currentUiConfig.appName?.replace(/\s+/g, '_') || 'MyTaskManager';
+      const fileName = `${appNamePrefix}_Import_Template.json`;
+
       const templateData = {
           appName: "My Awesome Project",
           appIcon: "🚀",
@@ -383,7 +391,7 @@ export default function Home() {
       )}`;
       const link = document.createElement("a");
       link.href = jsonString;
-      link.download = "MyTaskManager_Import_Template.json";
+      link.download = fileName;
       link.click();
   };
 
@@ -695,10 +703,10 @@ export default function Home() {
                 </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                <DropdownMenuItem onSelect={() => handleExport('current_view', 'MyTaskManager_Export.json')}>
+                <DropdownMenuItem onSelect={() => handleExport('current_view')}>
                     Export Current View
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => handleExport('all_tasks', 'MyTaskManager_All_Tasks.json')}>
+                <DropdownMenuItem onSelect={() => handleExport('all_tasks')}>
                     Export All Tasks
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={handleDownloadTemplate}>
