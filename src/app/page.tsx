@@ -37,6 +37,7 @@ import {
   Trash2,
   CheckSquare,
   Copy,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig } from '@/lib/types';
@@ -1112,10 +1113,17 @@ export default function Home() {
                       variant={isSelectMode ? 'secondary' : 'outline'}
                       size="icon"
                       onClick={handleToggleSelectMode}
-                      className="h-10 w-10"
+                      className="h-10 w-10 relative overflow-hidden"
                   >
-                      <CheckSquare className="h-4 w-4" />
-                      <span className="sr-only">Select Tasks</span>
+                      <span className="sr-only">{isSelectMode ? 'Cancel Selection' : 'Select Tasks'}</span>
+                       <CheckSquare className={cn(
+                          "h-4 w-4 transition-all duration-300",
+                          isSelectMode ? "-rotate-45 scale-0 opacity-0" : "rotate-0 scale-100 opacity-100"
+                       )} />
+                       <X className={cn(
+                          "h-4 w-4 transition-all duration-300 absolute",
+                           isSelectMode ? "rotate-0 scale-100 opacity-100" : "rotate-45 scale-0 opacity-0"
+                       )} />
                   </Button>
               </div>
             </div>
