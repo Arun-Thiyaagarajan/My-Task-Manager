@@ -510,6 +510,7 @@ const generateTaskUpdateLogs = (
 ): Omit<Log, 'id' | 'timestamp'>[] => {
     const logs: Omit<Log, 'id' | 'timestamp'>[] = [];
     const taskId = oldTask.id;
+    const taskTitle = oldTask.title;
     const createLog = (message: string) => logs.push({ message, taskId });
 
     const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
@@ -517,13 +518,13 @@ const generateTaskUpdateLogs = (
     const testersById = new Map(testers.map(p => [p.id, p.name]));
 
     if (newTaskData.title && newTaskData.title !== oldTask.title) {
-        createLog(`Updated title to "${newTaskData.title}".`);
+        createLog(`Updated title from "${oldTask.title}" to "${newTaskData.title}".`);
     }
-    if (newTaskData.description && newTaskData.description !== oldTask.description) {
-        createLog(`Updated description.`);
+    if ('description' in newTaskData && newTaskData.description !== oldTask.description) {
+        createLog(`Updated description for task "${taskTitle}".`);
     }
     if (newTaskData.status && newTaskData.status !== oldTask.status) {
-        createLog(`Changed status from "${oldTask.status}" to "${newTaskData.status}".`);
+        createLog(`Changed status for task "${taskTitle}" from "${oldTask.status}" to "${newTaskData.status}".`);
     }
     
     if ('deploymentStatus' in newTaskData || 'deploymentDates' in newTaskData) {
@@ -540,7 +541,7 @@ const generateTaskUpdateLogs = (
             
             if (oldIsDeployed !== newIsDeployed) {
                 const envName = env.charAt(0).toUpperCase() + env.slice(1);
-                createLog(`Changed deployment for "${envName}" to ${newIsDeployed ? 'Deployed' : 'Pending'}.`);
+                createLog(`Changed deployment for task "${taskTitle}" in "${envName}" to ${newIsDeployed ? 'Deployed' : 'Pending'}.`);
             }
         });
     }
@@ -548,22 +549,22 @@ const generateTaskUpdateLogs = (
     if(newTaskData.developers) {
         const oldDevs = new Set(oldTask.developers || []);
         const newDevs = new Set(newTaskData.developers || []);
-        (newTaskData.developers || []).filter(id => !oldDevs.has(id)).forEach(id => createLog(`Assigned developer: "${developersById.get(id) || 'Unknown'}".`));
-        (oldTask.developers || []).filter(id => !newDevs.has(id)).forEach(id => createLog(`Unassigned developer: "${developersById.get(id) || 'Unknown'}".`));
+        (newTaskData.developers || []).filter(id => !oldDevs.has(id)).forEach(id => createLog(`Assigned developer "${developersById.get(id) || 'Unknown'}" to task "${taskTitle}".`));
+        (oldTask.developers || []).filter(id => !newDevs.has(id)).forEach(id => createLog(`Unassigned developer "${developersById.get(id) || 'Unknown'}" from task "${taskTitle}".`));
     }
     
     if(newTaskData.testers) {
         const oldTesters = new Set(oldTask.testers || []);
         const newTesters = new Set(newTaskData.testers || []);
-        (newTaskData.testers || []).filter(id => !oldTesters.has(id)).forEach(id => createLog(`Assigned tester: "${testersById.get(id) || 'Unknown'}".`));
-        (oldTask.testers || []).filter(id => !newTesters.has(id)).forEach(id => createLog(`Unassigned tester: "${testersById.get(id) || 'Unknown'}".`));
+        (newTaskData.testers || []).filter(id => !oldTesters.has(id)).forEach(id => createLog(`Assigned tester "${testersById.get(id) || 'Unknown'}" to task "${taskTitle}".`));
+        (oldTask.testers || []).filter(id => !newTesters.has(id)).forEach(id => createLog(`Unassigned tester "${testersById.get(id) || 'Unknown'}" from task "${taskTitle}".`));
     }
     
     if (newTaskData.prLinks && JSON.stringify(newTaskData.prLinks) !== JSON.stringify(oldTask.prLinks)) {
-        createLog(`Updated Pull Request links.`);
+        createLog(`Updated Pull Request links for task "${taskTitle}".`);
     }
     if (newTaskData.attachments && JSON.stringify(newTaskData.attachments) !== JSON.stringify(oldTask.attachments)) {
-        createLog(`Updated attachments.`);
+        createLog(`Updated attachments for task "${taskTitle}".`);
     }
     
     const dateFields: (keyof Task)[] = ['devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate'];
@@ -573,7 +574,7 @@ const generateTaskUpdateLogs = (
             const newDate = newTaskData[key] ? new Date(newTaskData[key] as string).toDateString() : null;
             if (oldDate !== newDate) {
                 const label = fieldLabels.get(key) || key;
-                createLog(`Updated ${label} to ${newDate ? newDate : 'empty'}.`);
+                createLog(`Updated ${label} for task "${taskTitle}" to ${newDate ? newDate : 'empty'}.`);
             }
         }
     });
@@ -980,7 +981,7 @@ export function addComment(taskId: string, comment: string): Task | undefined {
   const task = getTaskById(taskId);
   if (!task) return undefined;
   const newComments = [...(task.comments || []), comment];
-  addLog({ message: `Added a comment: "${comment.substring(0, 50)}..."`, taskId });
+  addLog({ message: `Added a comment to task "${task.title}": "${comment.substring(0, 50)}..."`, taskId });
   return updateTask(taskId, { comments: newComments });
 }
 
@@ -990,7 +991,7 @@ export function updateComment(taskId: string, index: number, newComment: string)
    const oldComment = task.comments[index];
    const newComments = [...task.comments];
    newComments[index] = newComment;
-   addLog({ message: 'Updated a comment.', taskId });
+   addLog({ message: `Updated a comment on task "${task.title}".`, taskId });
    return updateTask(taskId, { comments: newComments });
 }
 
@@ -999,6 +1000,6 @@ export function deleteComment(taskId: string, index: number): Task | undefined {
    if (!task || !task.comments || index < 0 || index >= task.comments.length) return undefined;
    const deletedComment = task.comments[index];
    const newComments = task.comments.filter((_, i) => i !== index);
-   addLog({ message: `Deleted a comment: "${deletedComment.substring(0, 50)}..."`, taskId });
+   addLog({ message: `Deleted a comment from task "${task.title}": "${deletedComment.substring(0, 50)}..."`, taskId });
    return updateTask(taskId, { comments: newComments });
 }
