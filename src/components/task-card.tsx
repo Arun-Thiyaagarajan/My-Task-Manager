@@ -167,13 +167,13 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   const developersLabel = fieldLabels.get('developers') || 'Developers';
   const testersLabel = fieldLabels.get('testers') || 'Testers';
 
-  const azureFieldConfig = uiConfig?.fields.find(f => f.key === 'azureWorkItemId');
+  const azureFieldConfig = uiConfig?.fields.find(f => f.key === 'azureWorkItemId' && f.isActive);
   const azureWorkItemUrl = task.azureWorkItemId && azureFieldConfig?.baseUrl
     ? `${azureFieldConfig.baseUrl}${task.azureWorkItemId}`
     : null;
     
   const developersById = new Map(developers.map(d => [d.id, d]));
-  const testersById = new Map(testers.map(t => [t.id, t]));
+  const testersById = new Map(testers.map(t => [t.id, t.name]));
 
   const assignedDevelopers = (task.developers || []).map(id => developersById.get(id)).filter((d): d is Person => !!d);
   const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter((t): t is Person => !!t);
@@ -194,15 +194,16 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
           }
         }}
         className={cn(
-          "h-full rounded-lg transition-all",
+          "h-full rounded-lg transition-all p-1",
           isSelectMode && "cursor-pointer",
           isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-background"
         )}
       >
         <Card
           className={cn(
-            "flex flex-col h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative overflow-hidden group/card rounded-lg",
-            cardClassName
+            "flex flex-col h-full transition-all duration-300 relative overflow-hidden group/card rounded-lg",
+            cardClassName,
+            !isSelectMode && "hover:shadow-xl hover:-translate-y-1"
           )}
         >
           {isSelectable && isSelectMode && (
