@@ -93,24 +93,34 @@ export const setAppData = (data: MyTaskManagerData) => {
     window.localStorage.setItem(DATA_KEY, JSON.stringify(data));
 };
 
-// Logging Functions
-export const addLog = (logData: Omit<Log, 'id' | 'timestamp'>) => {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
+// Internal logging helper that modifies the data object without saving it.
+function _addLog(companyData: CompanyData, logData: Omit<Log, 'id' | 'timestamp'>) {
     if (!companyData) return;
-
     const newLog: Log = {
         id: `log-${crypto.randomUUID()}`,
         timestamp: new Date().toISOString(),
         ...logData,
     };
+
+    if (!companyData.logs) {
+        companyData.logs = [];
+    }
+    
     companyData.logs.unshift(newLog);
 
     // Optional: Trim logs to prevent excessive storage usage
     if (companyData.logs.length > 2000) { // Keep last 2000 logs
         companyData.logs = companyData.logs.slice(0, 2000);
     }
-    
+}
+
+
+// Logging Functions
+export const addLog = (logData: Omit<Log, 'id' | 'timestamp'>) => {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    if (!companyData) return;
+    _addLog(companyData, logData);
     setAppData(data);
 };
 
@@ -138,12 +148,12 @@ export function addCompany(name: string): Company {
     
     data.companies.push(newCompany);
     data.companyData[newCompanyId] = getInitialData().companyData[Object.keys(getInitialData().companyData)[0]];
-    const oldActiveCompanyId = data.activeCompanyId;
-    data.activeCompanyId = newCompanyId;
 
-    addLog({ message: `Added new company: "${name}".` });
-
-    data.activeCompanyId = oldActiveCompanyId;
+    const activeCompanyData = data.companyData[data.activeCompanyId];
+    if (activeCompanyData) {
+        _addLog(activeCompanyData, { message: `Added new company: "${name}".` });
+    }
+    
     setAppData(data);
     return newCompany;
 }
@@ -155,10 +165,11 @@ export function updateCompany(id: string, name: string): Company | undefined {
     
     const oldName = data.companies[companyIndex].name;
     data.companies[companyIndex].name = name;
-
-    const currentActiveCompanyId = data.activeCompanyId;
-    data.activeCompanyId = currentActiveCompanyId; // Set context for log
-    addLog({ message: `Renamed company from "${oldName}" to "${name}".` });
+    
+    const activeCompanyData = data.companyData[data.activeCompanyId];
+    if (activeCompanyData) {
+        _addLog(activeCompanyData, { message: `Renamed company from "${oldName}" to "${name}".` });
+    }
 
     setAppData(data);
     return data.companies[companyIndex];
@@ -172,7 +183,6 @@ export function deleteCompany(id: string): boolean {
     if (companyIndex === -1) return false;
     
     const companyName = data.companies[companyIndex].name;
-    const currentActiveCompanyId = data.activeCompanyId;
     
     delete data.companyData[id];
     data.companies.splice(companyIndex, 1);
@@ -181,9 +191,10 @@ export function deleteCompany(id: string): boolean {
         data.activeCompanyId = data.companies[0].id;
     }
     
-    data.activeCompanyId = data.activeCompanyId; // Context for log
-    addLog({ message: `Deleted company: "${companyName}".`});
-    data.activeCompanyId = currentActiveCompanyId;
+    const activeCompanyData = data.companyData[data.activeCompanyId];
+    if (activeCompanyData) {
+        _addLog(activeCompanyData, { message: `Deleted company: "${companyName}".`});
+    }
 
     setAppData(data);
     return true;
@@ -507,7 +518,7 @@ export function updateUiConfig(newConfig: UiConfig): UiConfig {
 
     const logMessage = generateUiConfigUpdateLogs(oldConfig, newConfig);
     if (logMessage) {
-        addLog({ message: logMessage });
+        _addLog(companyData, { message: logMessage });
     }
     
     // Finally, update the config and save everything
@@ -536,12 +547,7 @@ export function addEnvironment(name: string): boolean {
     const realName = name.trim();
     companyData.uiConfig.environments.push(realName);
     
-    const newLog: Log = {
-        id: `log-${crypto.randomUUID()}`,
-        timestamp: new Date().toISOString(),
-        message: `Added new environment: "${realName}".`
-    };
-    companyData.logs.unshift(newLog);
+    _addLog(companyData, { message: `Added new environment: "${realName}".` });
 
     setAppData(data);
     window.dispatchEvent(new Event('config-changed'));
@@ -591,14 +597,8 @@ export function updateEnvironmentName(oldName: string, newName: string): boolean
     tasks.forEach(renameEnvInTask);
     trash.forEach(renameEnvInTask);
 
-    const newLog: Log = {
-        id: `log-${crypto.randomUUID()}`,
-        timestamp: new Date().toISOString(),
-        message: `Renamed environment from "${oldName}" to "${trimmedNewName}".`
-    };
-    companyData.logs.unshift(newLog);
+    _addLog(companyData, { message: `Renamed environment from "${oldName}" to "${trimmedNewName}".` });
 
-    data.companyData[activeCompanyId] = { ...companyData, uiConfig, tasks, trash };
     setAppData(data);
     window.dispatchEvent(new Event('config-changed'));
     return true;
@@ -643,14 +643,8 @@ export function deleteEnvironment(name: string): boolean {
     tasks.forEach(deleteEnvFromTask);
     trash.forEach(deleteEnvFromTask);
 
-    const newLog: Log = {
-        id: `log-${crypto.randomUUID()}`,
-        timestamp: new Date().toISOString(),
-        message: `Deleted environment: "${name}".`
-    };
-    companyData.logs.unshift(newLog);
+    _addLog(companyData, { message: `Deleted environment: "${name}".` });
 
-    data.companyData[activeCompanyId] = { ...companyData, uiConfig, tasks, trash };
     setAppData(data);
     window.dispatchEvent(new Event('config-changed'));
     return true;
@@ -702,15 +696,13 @@ export function addTask(taskData: Partial<Task>, isBinned: boolean = false): Tas
     customFields: taskData.customFields || {},
   };
   
-  const logMessage = `Added new task: "${newTask.title}".`;
-  
   if (isBinned) {
       newTask.deletedAt = taskData.deletedAt || now;
       companyData.trash = [newTask, ...(companyData.trash || [])];
-      addLog({ message: `Added new binned task: "${newTask.title}".`, taskId: newTask.id });
+      _addLog(companyData, { message: `Added new binned task: "${newTask.title}".`, taskId: newTask.id });
   } else {
       companyData.tasks = [newTask, ...companyData.tasks];
-      addLog({ message: logMessage, taskId: newTask.id });
+      _addLog(companyData, { message: `Added new task: "${newTask.title}".`, taskId: newTask.id });
   }
 
   setAppData(data);
@@ -852,19 +844,8 @@ export function updateTask(id: string, taskData: Partial<Omit<Task, 'id' | 'crea
   
   const uiConfig = companyData.uiConfig;
   const logsToCreate = generateTaskUpdateLogs(oldTask, taskData, uiConfig, companyData.developers, companyData.testers);
-  const now = new Date().toISOString();
 
-  logsToCreate.forEach(log => {
-      const newLog: Log = {
-          id: `log-${crypto.randomUUID()}`,
-          timestamp: now,
-          ...log
-      };
-      companyData.logs.unshift(newLog);
-  });
-  if (companyData.logs.length > 2000) {
-    companyData.logs = companyData.logs.slice(0, 2000);
-  }
+  logsToCreate.forEach(log => _addLog(companyData, log));
 
   const updatedTask = { ...oldTask, ...taskData, updatedAt: new Date().toISOString() };
   
@@ -908,13 +889,7 @@ export function moveTaskToBin(id: string): boolean {
   taskToBin.deletedAt = new Date().toISOString();
   companyData.trash.unshift(taskToBin);
   
-  const newLog: Log = {
-    id: `log-${crypto.randomUUID()}`,
-    timestamp: new Date().toISOString(),
-    message: `Moved task "${taskToBin.title}" to the bin.`,
-    taskId: id
-  };
-  companyData.logs.unshift(newLog);
+  _addLog(companyData, { message: `Moved task "${taskToBin.title}" to the bin.`, taskId: id });
 
   setAppData(data);
   return true;
@@ -931,30 +906,13 @@ export function moveMultipleTasksToBin(ids: string[]): boolean {
     const now = new Date().toISOString();
     tasksToBin.forEach(task => {
         task.deletedAt = now;
-        const individualLog: Log = {
-            id: `log-${task.id}-${now}`, // More specific ID
-            timestamp: now,
-            message: `Moved task "${task.title}" to the bin.`, 
-            taskId: task.id
-        };
-        companyData.logs.unshift(individualLog);
+        _addLog(companyData, { message: `Moved task "${task.title}" to the bin.`, taskId: task.id });
     });
     
-    const logMessage = `Moved ${tasksToBin.length} task(s) to the bin.`;
-    
-    const aggregateLog: Log = {
-        id: `log-aggregate-${crypto.randomUUID()}`,
-        timestamp: now,
-        message: logMessage,
-    };
-    companyData.logs.unshift(aggregateLog);
+    _addLog(companyData, { message: `Moved ${tasksToBin.length} task(s) to the bin.` });
 
     companyData.tasks = companyData.tasks.filter(task => !ids.includes(task.id));
     companyData.trash.unshift(...tasksToBin);
-
-    if (companyData.logs.length > 2000) {
-        companyData.logs = companyData.logs.slice(0, 2000);
-    }
     
     setAppData(data);
     return true;
@@ -972,7 +930,7 @@ export function restoreTask(id: string): boolean {
     delete taskToRestore.deletedAt;
     companyData.tasks.unshift(taskToRestore);
 
-    addLog({ message: `Restored task "${taskToRestore.title}" from the bin.`, taskId: id });
+    _addLog(companyData, { message: `Restored task "${taskToRestore.title}" from the bin.`, taskId: id });
     setAppData(data);
     return true;
 }
@@ -985,34 +943,16 @@ export function restoreMultipleTasks(ids: string[]): boolean {
     const tasksToRestore = companyData.trash.filter(task => ids.includes(task.id));
     if (tasksToRestore.length === 0) return false;
 
-    const now = new Date().toISOString();
     tasksToRestore.forEach(task => {
         delete task.deletedAt;
-        const individualLog: Log = {
-            id: `log-${task.id}-${now}`, // More specific ID
-            timestamp: now,
-            message: `Restored task "${task.title}" from the bin.`,
-            taskId: task.id
-        };
-        companyData.logs.unshift(individualLog);
+        _addLog(companyData, { message: `Restored task "${task.title}" from the bin.`, taskId: task.id });
     });
 
-    const logMessage = `Restored ${tasksToRestore.length} task(s) from the bin.`;
-    
-    const aggregateLog: Log = {
-        id: `log-aggregate-${crypto.randomUUID()}`,
-        timestamp: now,
-        message: logMessage,
-    };
-    companyData.logs.unshift(aggregateLog);
+    _addLog(companyData, { message: `Restored ${tasksToRestore.length} task(s) from the bin.` });
 
     companyData.trash = companyData.trash.filter(task => !ids.includes(task.id));
     companyData.tasks.unshift(...tasksToRestore);
     
-    if (companyData.logs.length > 2000) {
-        companyData.logs = companyData.logs.slice(0, 2000);
-    }
-
     setAppData(data);
     return true;
 }
@@ -1027,12 +967,7 @@ export function permanentlyDeleteTask(id: string): boolean {
 
     companyData.trash = companyData.trash.filter(task => task.id !== id);
     
-    const newLog: Log = {
-        id: `log-${crypto.randomUUID()}`,
-        timestamp: new Date().toISOString(),
-        message: `Permanently deleted task "${taskToDelete.title}".`
-    };
-    companyData.logs.unshift(newLog);
+    _addLog(companyData, { message: `Permanently deleted task "${taskToDelete.title}".` });
     
     setAppData(data);
     return true;
@@ -1048,19 +983,7 @@ export function permanentlyDeleteMultipleTasks(ids: string[]): boolean {
     
     companyData.trash = companyData.trash.filter(task => !ids.includes(task.id));
     
-    const now = new Date().toISOString();
-    const logMessage = `Permanently deleted ${tasksToDelete.length} task(s).`;
-    
-    const newLog: Log = {
-        id: `log-aggregate-${crypto.randomUUID()}`,
-        timestamp: now,
-        message: logMessage
-    };
-    companyData.logs.unshift(newLog);
-    
-    if (companyData.logs.length > 2000) {
-        companyData.logs = companyData.logs.slice(0, 2000);
-    }
+    _addLog(companyData, { message: `Permanently deleted ${tasksToDelete.length} task(s).` });
 
     setAppData(data);
     return true;
@@ -1074,12 +997,7 @@ export function emptyBin(): boolean {
     const logMessage = `Emptied all ${companyData.trash.length} tasks from the bin.`;
     companyData.trash = [];
 
-    const newLog: Log = {
-        id: `log-${crypto.randomUUID()}`,
-        timestamp: new Date().toISOString(),
-        message: logMessage
-    };
-    companyData.logs.unshift(newLog);
+    _addLog(companyData, { message: logMessage });
 
     setAppData(data);
     return true;
@@ -1128,7 +1046,7 @@ function _addPerson(type: PersonType, personData: Partial<Omit<Person, 'id'>>): 
         companyData.testers = [...people, newPerson];
     }
     
-    addLog({ message: `Added new ${type}: "${newPerson.name}".` });
+    _addLog(companyData, { message: `Added new ${type}: "${newPerson.name}".` });
     setAppData(data);
     return newPerson;
 }
@@ -1164,9 +1082,9 @@ function _updatePerson(type: PersonType, id: string, personData: Partial<Omit<Pe
     }
     
     if(updatedPerson.name !== oldName) {
-        addLog({ message: `Renamed ${type} from "${oldName}" to "${updatedPerson.name}".` });
+        _addLog(companyData, { message: `Renamed ${type} from "${oldName}" to "${updatedPerson.name}".` });
     } else {
-        addLog({ message: `Updated details for ${type} "${updatedPerson.name}".` });
+        _addLog(companyData, { message: `Updated details for ${type} "${updatedPerson.name}".` });
     }
     
     setAppData(data);
@@ -1204,7 +1122,7 @@ function _deletePerson(type: PersonType, id: string): boolean {
         });
     }
     
-    addLog({ message: `Deleted ${type}: "${personName}".` });
+    _addLog(companyData, { message: `Deleted ${type}: "${personName}".` });
     setAppData(data);
     return true;
 }
@@ -1244,17 +1162,29 @@ export function addComment(taskId: string, comment: string): Task | undefined {
   const task = getTaskById(taskId);
   if (!task) return undefined;
   const newComments = [...(task.comments || []), comment];
-  addLog({ message: `Added a comment to task "${task.title}": "${comment.substring(0, 50)}..."`, taskId });
+  
+  const data = getAppData();
+  const companyData = data.companyData[data.activeCompanyId];
+  if (!companyData) return undefined;
+  _addLog(companyData, { message: `Added a comment to task "${task.title}": "${comment.substring(0, 50)}..."`, taskId });
+  setAppData(data); // _addLog does not save, so we must save here after the updateTask call.
+  
   return updateTask(taskId, { comments: newComments });
 }
 
 export function updateComment(taskId: string, index: number, newComment: string): Task | undefined {
    const task = getTaskById(taskId);
    if (!task || !task.comments || index < 0 || index >= task.comments.length) return undefined;
-   const oldComment = task.comments[index];
+   
    const newComments = [...task.comments];
    newComments[index] = newComment;
-   addLog({ message: `Updated a comment on task "${task.title}".`, taskId });
+   
+   const data = getAppData();
+   const companyData = data.companyData[data.activeCompanyId];
+   if (!companyData) return undefined;
+   _addLog(companyData, { message: `Updated a comment on task "${task.title}".`, taskId });
+   setAppData(data);
+
    return updateTask(taskId, { comments: newComments });
 }
 
@@ -1263,7 +1193,13 @@ export function deleteComment(taskId: string, index: number): Task | undefined {
    if (!task || !task.comments || index < 0 || index >= task.comments.length) return undefined;
    const deletedComment = task.comments[index];
    const newComments = task.comments.filter((_, i) => i !== index);
-   addLog({ message: `Deleted a comment from task "${task.title}": "${deletedComment.substring(0, 50)}..."`, taskId });
+
+   const data = getAppData();
+   const companyData = data.companyData[data.activeCompanyId];
+   if (!companyData) return undefined;
+   _addLog(companyData, { message: `Deleted a comment from task "${task.title}": "${deletedComment.substring(0, 50)}..."`, taskId });
+   setAppData(data);
+
    return updateTask(taskId, { comments: newComments });
 }
 
@@ -1272,7 +1208,7 @@ export function getAggregatedLogs(): Log[] {
     const logs = getLogs();
 
     // Get timestamps of all aggregate logs. These are the markers for bulk operations.
-    const aggregateTimestamps = new Set(
+    const aggregateLogMarkers = new Set(
         logs.filter(log => log.id.startsWith('log-aggregate-'))
             .map(log => log.timestamp)
     );
@@ -1284,7 +1220,7 @@ export function getAggregatedLogs(): Log[] {
         }
 
         // Hide individual logs that are part of a bulk action.
-        if (aggregateTimestamps.has(log.timestamp)) {
+        if (aggregateLogMarkers.has(log.timestamp)) {
             // Check if there's an aggregate log with the same timestamp
             const isPartOfBulk = logs.some(aggLog => 
                 aggLog.id.startsWith('log-aggregate-') && 
