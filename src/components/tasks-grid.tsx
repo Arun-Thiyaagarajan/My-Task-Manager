@@ -42,20 +42,21 @@ export function TasksGrid({ tasks, onTaskDelete, onTaskUpdate, uiConfig, develop
   const priorityTitle = getPriorityTitle();
 
   const renderGrid = (tasksToRender: Task[]) => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {tasksToRender.map(task => (
-        <TaskCard 
-          key={task.id} 
-          task={task} 
-          onTaskDelete={onTaskDelete} 
-          onTaskUpdate={onTaskUpdate} 
-          uiConfig={uiConfig}
-          developers={developers}
-          testers={testers}
-          selectedTaskIds={selectedTaskIds}
-          setSelectedTaskIds={setSelectedTaskIds}
-          isSelectMode={isSelectMode}
-        />
+        <div key={task.id} className="p-1">
+          <TaskCard 
+            task={task} 
+            onTaskDelete={onTaskDelete} 
+            onTaskUpdate={onTaskUpdate} 
+            uiConfig={uiConfig}
+            developers={developers}
+            testers={testers}
+            selectedTaskIds={selectedTaskIds}
+            setSelectedTaskIds={setSelectedTaskIds}
+            isSelectMode={isSelectMode}
+          />
+        </div>
       ))}
     </div>
   );

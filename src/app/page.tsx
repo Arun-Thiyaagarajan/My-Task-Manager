@@ -1187,22 +1187,29 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <Button
-                      variant={isSelectMode ? 'secondary' : 'outline'}
-                      size="icon"
-                      onClick={handleToggleSelectMode}
-                      className="h-10 w-10 relative overflow-hidden"
-                  >
-                      <span className="sr-only">{isSelectMode ? 'Cancel Selection' : 'Select Tasks'}</span>
-                       <CheckSquare className={cn(
-                          "h-4 w-4 transition-all duration-300",
-                          isSelectMode ? "-rotate-45 scale-0 opacity-0" : "rotate-0 scale-100 opacity-100"
-                       )} />
-                       <X className={cn(
-                          "h-4 w-4 transition-all duration-300 absolute",
-                           isSelectMode ? "rotate-0 scale-100 opacity-100" : "rotate-45 scale-0 opacity-0"
-                       )} />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                          variant={isSelectMode ? 'secondary' : 'outline'}
+                          size="icon"
+                          onClick={handleToggleSelectMode}
+                          className="h-10 w-10 relative overflow-hidden"
+                      >
+                          <span className="sr-only">{isSelectMode ? 'Cancel Selection' : 'Select Tasks'}</span>
+                          <CheckSquare className={cn(
+                              "h-4 w-4 transition-all duration-300",
+                              isSelectMode ? "-rotate-45 scale-0 opacity-0" : "rotate-0 scale-100 opacity-100"
+                          )} />
+                          <X className={cn(
+                              "h-4 w-4 transition-all duration-300 absolute",
+                              isSelectMode ? "rotate-0 scale-100 opacity-100" : "rotate-45 scale-0 opacity-0"
+                          )} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{isSelectMode ? 'Cancel bulk selection' : 'Select multiple tasks'}</p>
+                    </TooltipContent>
+                  </Tooltip>
               </div>
             </div>
 
