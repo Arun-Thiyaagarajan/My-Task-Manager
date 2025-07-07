@@ -778,8 +778,37 @@ const generateTaskUpdateLogs = (
     }
     
     if (newTaskData.prLinks && JSON.stringify(newTaskData.prLinks) !== JSON.stringify(oldTask.prLinks)) {
-        createLog(`Updated Pull Request links for task "${taskTitle}".`);
+        const oldLinks = oldTask.prLinks || {};
+        const newLinks = newTaskData.prLinks || {};
+        const allEnvs = new Set([...Object.keys(oldLinks), ...Object.keys(newLinks)]);
+
+        allEnvs.forEach(env => {
+            const oldRepoLinks = oldLinks[env] || {};
+            const newRepoLinks = newLinks[env] || {};
+            const allRepos = new Set([...Object.keys(oldRepoLinks), ...Object.keys(newRepoLinks)]);
+
+            allRepos.forEach(repo => {
+                const oldIdsString = oldRepoLinks[repo] || '';
+                const newIdsString = newRepoLinks[repo] || '';
+                
+                if (oldIdsString === newIdsString) return;
+
+                const oldIdSet = new Set(oldIdsString.split(',').map(s => s.trim()).filter(Boolean));
+                const newIdSet = new Set(newIdsString.split(',').map(s => s.trim()).filter(Boolean));
+
+                const addedIds = [...newIdSet].filter(id => !oldIdSet.has(id));
+                const removedIds = [...oldIdSet].filter(id => !newIdSet.has(id));
+
+                if (addedIds.length > 0) {
+                    createLog(`Added PR(s) #${addedIds.join(', #')} to "${repo}" for the "${env}" environment in task "${taskTitle}".`);
+                }
+                if (removedIds.length > 0) {
+                    createLog(`Removed PR(s) #${removedIds.join(', #')} from "${repo}" for the "${env}" environment in task "${taskTitle}".`);
+                }
+            });
+        });
     }
+
     if (newTaskData.attachments && JSON.stringify(newTaskData.attachments) !== JSON.stringify(oldTask.attachments)) {
         createLog(`Updated attachments for task "${taskTitle}".`);
     }
