@@ -120,7 +120,8 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repository
                             <div className="flex flex-wrap gap-2">
                             {prIds.map((id) => {
                                 const baseUrl = repoConfig ? repoConfig.baseUrl : '';
-                                const url = baseUrl ? `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}${id}` : '#';
+                                const canBeLinked = baseUrl && id;
+                                const url = canBeLinked ? `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}${id}` : '#';
 
                                 return (
                                 <Badge
@@ -132,14 +133,21 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repository
                                     )}
                                 >
                                     <a
-                                    href={url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center"
-                                    onClick={(e) => { if(isEditing) e.preventDefault()}}
+                                        href={canBeLinked ? url : undefined}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className={cn(
+                                            "flex items-center",
+                                            !canBeLinked && "cursor-default"
+                                        )}
+                                        onClick={(e) => {
+                                            if (isEditing || !canBeLinked) {
+                                                e.preventDefault();
+                                            }
+                                        }}
                                     >
-                                    <GitPullRequest className="h-3 w-3 mr-1.5 text-muted-foreground" />
-                                    <span>PR #{id}</span>
+                                        <GitPullRequest className="h-3 w-3 mr-1.5 text-muted-foreground" />
+                                        <span>PR #{id}</span>
                                     </a>
                                     {isEditing && (
                                     <button 

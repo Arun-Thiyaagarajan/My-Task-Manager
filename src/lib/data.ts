@@ -1,4 +1,5 @@
 
+
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
 import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log } from './types';
 import cloneDeep from 'lodash/cloneDeep';
@@ -404,12 +405,17 @@ export function getUiConfig(): UiConfig {
     const activeCompanyId = getActiveCompanyId();
     const companyData = data.companyData[activeCompanyId];
 
-    const validatedConfig = _validateAndMigrateConfig(companyData?.uiConfig);
+    // On server, companyData can be undefined.
+    if (!companyData) {
+        return _validateAndMigrateConfig(undefined);
+    }
+
+    const validatedConfig = _validateAndMigrateConfig(companyData.uiConfig);
 
     // This is a silent migration. If the validated config is different,
     // it means the saved config was outdated or invalid. We save the
     // corrected version back to localStorage.
-    if (companyData && JSON.stringify(validatedConfig) !== JSON.stringify(companyData.uiConfig)) {
+    if (JSON.stringify(validatedConfig) !== JSON.stringify(companyData.uiConfig)) {
         companyData.uiConfig = validatedConfig;
         setAppData(data);
     }
@@ -449,40 +455,40 @@ export function updateUiConfig(newConfig: UiConfig): UiConfig {
     });
 
     if (renamedRepos.size > 0) {
-        const allTasks = [...companyData.tasks, ...companyData.trash];
-        allTasks.forEach(task => {
+        const tasksToUpdate = [
+            ...companyData.tasks,
+            ...(companyData.trash || []),
+        ];
+
+        tasksToUpdate.forEach(task => {
             let wasUpdated = false;
 
             if (task.repositories && task.repositories.length > 0) {
-                const originalRepos = [...task.repositories];
-                const updatedRepos = originalRepos.map(repoName => renamedRepos.get(repoName) || repoName);
-                if (JSON.stringify(originalRepos) !== JSON.stringify(updatedRepos)) {
+                const updatedRepos = task.repositories.map(repoName => renamedRepos.get(repoName) || repoName);
+                if (task.repositories.join() !== updatedRepos.join()) {
                     task.repositories = updatedRepos;
                     wasUpdated = true;
                 }
             }
 
             if (task.prLinks) {
-                const newPrLinks = { ...task.prLinks };
+                const newPrLinks: Task['prLinks'] = {};
                 let prLinksUpdated = false;
-                Object.keys(newPrLinks).forEach(env => {
-                    const envLinks = newPrLinks[env];
-                    if (envLinks) {
-                        const newEnvLinks = { ...envLinks };
-                        let envLinksUpdated = false;
-                        renamedRepos.forEach((newName, oldName) => {
-                            if (newEnvLinks[oldName] !== undefined) {
-                                newEnvLinks[newName] = newEnvLinks[oldName];
-                                delete newEnvLinks[oldName];
-                                envLinksUpdated = true;
+                
+                for (const env in task.prLinks) {
+                    newPrLinks[env] = {};
+                    const repoLinks = task.prLinks[env];
+                    if (repoLinks) {
+                        for (const repoName in repoLinks) {
+                            const newRepoName = renamedRepos.get(repoName) || repoName;
+                            newPrLinks[env]![newRepoName] = repoLinks[repoName];
+                            if (newRepoName !== repoName) {
+                                prLinksUpdated = true;
                             }
-                        });
-                        if (envLinksUpdated) {
-                            newPrLinks[env] = newEnvLinks;
-                            prLinksUpdated = true;
                         }
                     }
-                });
+                }
+
                 if (prLinksUpdated) {
                     task.prLinks = newPrLinks;
                     wasUpdated = true;
@@ -503,7 +509,7 @@ export function updateUiConfig(newConfig: UiConfig): UiConfig {
     
     companyData.uiConfig = newConfig;
     setAppData(data);
-    window.dispatchEvent(new Event('config-changed'));
+    window.dispatchEvent(new Event('company-changed'));
     
     return newConfig;
 }
@@ -892,7 +898,7 @@ export function moveMultipleTasksToBin(ids: string[]): boolean {
     tasksToBin.forEach(task => {
         task.deletedAt = now;
         const individualLog: Log = {
-            id: `log-individual-${task.id}`,
+            id: `log-${task.id}-${now}`, // More specific ID
             timestamp: now,
             message: `Moved task "${task.title}" to the bin.`, 
             taskId: task.id
@@ -900,15 +906,12 @@ export function moveMultipleTasksToBin(ids: string[]): boolean {
         companyData.logs.unshift(individualLog);
     });
     
-    const logMessageParts = tasksToBin.map(task => `- Moved task "${task.title}" to the bin.`);
-    const fullLogMessage = tasksToBin.length > 1 
-      ? `Moved ${tasksToBin.length} tasks to the bin:\n${logMessageParts.join('\n')}`
-      : `Moved task "${tasksToBin[0].title}" to the bin.`;
+    const logMessage = `Moved ${tasksToBin.length} task(s) to the bin.`;
     
     const aggregateLog: Log = {
         id: `log-aggregate-${crypto.randomUUID()}`,
         timestamp: now,
-        message: fullLogMessage,
+        message: logMessage,
     };
     companyData.logs.unshift(aggregateLog);
 
@@ -952,7 +955,7 @@ export function restoreMultipleTasks(ids: string[]): boolean {
     tasksToRestore.forEach(task => {
         delete task.deletedAt;
         const individualLog: Log = {
-            id: `log-individual-${task.id}`,
+            id: `log-${task.id}-${now}`, // More specific ID
             timestamp: now,
             message: `Restored task "${task.title}" from the bin.`,
             taskId: task.id
@@ -960,15 +963,12 @@ export function restoreMultipleTasks(ids: string[]): boolean {
         companyData.logs.unshift(individualLog);
     });
 
-    const logMessageParts = tasksToRestore.map(task => `- Restored task "${task.title}" from the bin.`);
-    const fullLogMessage = tasksToRestore.length > 1
-        ? `Restored ${tasksToRestore.length} tasks from the bin:\n${logMessageParts.join('\n')}`
-        : `Restored task "${tasksToRestore[0].title}" from the bin.`;
-
+    const logMessage = `Restored ${tasksToRestore.length} task(s) from the bin.`;
+    
     const aggregateLog: Log = {
         id: `log-aggregate-${crypto.randomUUID()}`,
         timestamp: now,
-        message: fullLogMessage,
+        message: logMessage,
     };
     companyData.logs.unshift(aggregateLog);
 
@@ -1015,15 +1015,12 @@ export function permanentlyDeleteMultipleTasks(ids: string[]): boolean {
     companyData.trash = companyData.trash.filter(task => !ids.includes(task.id));
     
     const now = new Date().toISOString();
-    const logMessageParts = tasksToDelete.map(task => `- Permanently deleted task "${task.title}".`);
-    const fullLogMessage = tasksToDelete.length > 1
-        ? `Permanently deleted ${tasksToDelete.length} tasks:\n${logMessageParts.join('\n')}`
-        : `Permanently deleted task "${tasksToDelete[0].title}".`;
+    const logMessage = `Permanently deleted ${tasksToDelete.length} task(s).`;
     
     const newLog: Log = {
         id: `log-aggregate-${crypto.randomUUID()}`,
         timestamp: now,
-        message: fullLogMessage
+        message: logMessage
     };
     companyData.logs.unshift(newLog);
     
@@ -1252,16 +1249,14 @@ export function getAggregatedLogs(): Log[] {
             return true;
         }
 
-        // Check if this log is an individual log that's part of a bulk action.
-        // We identify this if it shares a timestamp with an aggregate log.
-        // We also check for the old `log-individual-` prefix for backward compatibility.
-        if (aggregateTimestamps.has(log.timestamp) || log.id.startsWith('log-individual-')) {
-            const isIndividualBulkLog = logs.some(aggLog => 
+        // Hide individual logs that are part of a bulk action.
+        if (aggregateTimestamps.has(log.timestamp)) {
+            // Check if there's an aggregate log with the same timestamp
+            const isPartOfBulk = logs.some(aggLog => 
                 aggLog.id.startsWith('log-aggregate-') && 
-                aggLog.timestamp === log.timestamp &&
-                aggLog.message.includes(log.message.split('" from the bin.')[0]) // A heuristic to link them
+                aggLog.timestamp === log.timestamp
             );
-            if (isIndividualBulkLog) {
+            if (isPartOfBulk) {
                 return false;
             }
         }
