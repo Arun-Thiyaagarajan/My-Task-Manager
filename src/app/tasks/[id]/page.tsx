@@ -748,15 +748,6 @@ export default function TaskPage() {
             )}
 
             {!isBinned && (
-                <CommentsSection
-                    taskId={task.id}
-                    comments={task.comments || []}
-                    onCommentsUpdate={handleCommentsUpdate}
-                    readOnly={isBinned}
-                />
-            )}
-
-            {!isBinned && (
              <RelatedTasksSection
                 title={relatedTasksTitle}
                 tasks={relatedTasks}
@@ -931,6 +922,14 @@ export default function TaskPage() {
                       </div>
                   </CardContent>
               </Card>
+              {!isBinned && (
+                <CommentsSection
+                    taskId={task.id}
+                    comments={task.comments || []}
+                    onCommentsUpdate={handleCommentsUpdate}
+                    readOnly={isBinned}
+                />
+              )}
           </div>
         </div>
       </div>
