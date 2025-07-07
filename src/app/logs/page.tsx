@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { getAggregatedLogs, getUiConfig } from '@/lib/data';
 import type { Log, UiConfig } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,6 +21,7 @@ export default function LogsPage() {
     const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [openMonths, setOpenMonths] = useState<string[]>([]);
+    const isInitialLoad = useRef(true);
 
     useEffect(() => {
         const refreshData = () => {
@@ -33,6 +34,13 @@ export default function LogsPage() {
         };
         refreshData();
         
+        const savedState = localStorage.getItem('taskflow_logs_open_months');
+        if (savedState) {
+            try {
+                setOpenMonths(JSON.parse(savedState));
+            } catch (e) { /* ignore */ }
+        }
+
         window.addEventListener('storage', refreshData);
         window.addEventListener('company-changed', refreshData);
         
@@ -64,16 +72,25 @@ export default function LogsPage() {
         return Object.keys(groupedLogs).sort().reverse();
     }, [groupedLogs]);
     
+    // Save state to localStorage whenever it changes.
     useEffect(() => {
-        // This effect runs when the search query changes the available months.
-        // If none of the currently open months are in the new list of sorted months,
-        // it automatically opens the first available month.
-        if (sortedMonths.length > 0 && !openMonths.some(m => sortedMonths.includes(m))) {
-          setOpenMonths([sortedMonths[0]]);
-        } else if (sortedMonths.length === 0) {
-            setOpenMonths([]);
+        // Don't save on the very first render cycle.
+        if (!isInitialLoad.current) {
+            localStorage.setItem('taskflow_logs_open_months', JSON.stringify(openMonths));
         }
-    }, [sortedMonths, openMonths]);
+    }, [openMonths]);
+
+    // This effect runs once after initial data load to set a default open state if none exists.
+    useEffect(() => {
+        if (!isLoading && isInitialLoad.current) {
+            const savedState = localStorage.getItem('taskflow_logs_open_months');
+            if (!savedState && sortedMonths.length > 0) {
+                setOpenMonths([sortedMonths[0]]);
+            }
+            isInitialLoad.current = false;
+        }
+    }, [isLoading, sortedMonths]);
+
 
     if (isLoading || !uiConfig) {
         return <LoadingSpinner text="Loading logs..." />;
