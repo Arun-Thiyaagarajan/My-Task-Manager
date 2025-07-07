@@ -836,7 +836,7 @@ export function moveMultipleTasksToBin(ids: string[]): boolean {
     tasksToBin.forEach(task => {
         task.deletedAt = now;
         const individualLog: Log = {
-            id: `log-${crypto.randomUUID()}`,
+            id: `log-individual-${task.id}`,
             timestamp: now,
             message: `Moved task "${task.title}" to the bin.`, 
             taskId: task.id
@@ -896,7 +896,7 @@ export function restoreMultipleTasks(ids: string[]): boolean {
     tasksToRestore.forEach(task => {
         delete task.deletedAt;
         const individualLog: Log = {
-            id: `log-${crypto.randomUUID()}`,
+            id: `log-individual-${task.id}`,
             timestamp: now,
             message: `Restored task "${task.title}" from the bin.`,
             taskId: task.id
@@ -1198,13 +1198,19 @@ export function getAggregatedLogs(): Log[] {
 
         // Check if this log is an individual log that's part of a bulk action.
         // We identify this if it shares a timestamp with an aggregate log.
-        if (aggregateTimestamps.has(log.timestamp)) {
-            // This is an individual log from a bulk operation, so we hide it from the global view.
-            return false;
+        // We also check for the old `log-individual-` prefix for backward compatibility.
+        if (aggregateTimestamps.has(log.timestamp) || log.id.startsWith('log-individual-')) {
+            const isIndividualBulkLog = logs.some(aggLog => 
+                aggLog.id.startsWith('log-aggregate-') && 
+                aggLog.timestamp === log.timestamp &&
+                aggLog.message.includes(log.message.split('" from the bin.')[0]) // A heuristic to link them
+            );
+            if (isIndividualBulkLog) {
+                return false;
+            }
         }
-
-        // If it's not an aggregate log and doesn't share a timestamp with one, 
-        // it must be a single action log or a non-bulk log. Show it.
+        
+        // If it's not an aggregate log and not part of a known bulk operation, show it.
         return true;
     });
 
