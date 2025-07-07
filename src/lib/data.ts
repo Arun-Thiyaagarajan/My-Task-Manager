@@ -141,7 +141,7 @@ export function addCompany(name: string): Company {
     const oldActiveCompanyId = data.activeCompanyId;
     data.activeCompanyId = newCompanyId;
 
-    addLog({ message: `Created new company: "${name}".` });
+    addLog({ message: `Added new company: "${name}".` });
 
     data.activeCompanyId = oldActiveCompanyId;
     setAppData(data);
@@ -156,6 +156,8 @@ export function updateCompany(id: string, name: string): Company | undefined {
     const oldName = data.companies[companyIndex].name;
     data.companies[companyIndex].name = name;
 
+    const currentActiveCompanyId = data.activeCompanyId;
+    data.activeCompanyId = currentActiveCompanyId; // Set context for log
     addLog({ message: `Renamed company from "${oldName}" to "${name}".` });
 
     setAppData(data);
@@ -700,12 +702,12 @@ export function addTask(taskData: Partial<Task>, isBinned: boolean = false): Tas
     customFields: taskData.customFields || {},
   };
   
-  const logMessage = `Created new task: "${newTask.title}".`;
+  const logMessage = `Added new task: "${newTask.title}".`;
   
   if (isBinned) {
       newTask.deletedAt = taskData.deletedAt || now;
       companyData.trash = [newTask, ...(companyData.trash || [])];
-      addLog({ message: `Created a binned task: "${newTask.title}".`, taskId: newTask.id });
+      addLog({ message: `Added new binned task: "${newTask.title}".`, taskId: newTask.id });
   } else {
       companyData.tasks = [newTask, ...companyData.tasks];
       addLog({ message: logMessage, taskId: newTask.id });

@@ -693,15 +693,21 @@ export default function Home() {
                           attachments: validatedData.attachments || [],
                           customFields: validatedData.customFields || {},
                       };
+                      
+                      let logMessage = '';
                       if (isBinned) {
                           newTask.deletedAt = validatedData.deletedAt || now;
                           companyData.trash.unshift(newTask);
                           binnedCreatedCount++;
+                          logMessage = `Added new binned task via import: "${newTask.title}".`;
                       } else {
                           delete newTask.deletedAt;
                           companyData.tasks.unshift(newTask);
                           createdCount++;
+                          logMessage = `Added new task via import: "${newTask.title}".`;
                       }
+                      
+                      companyData.logs.unshift({ id: `log-${crypto.randomUUID()}`, timestamp: now, message: logMessage, taskId: newTask.id });
                       allTasksById.set(newTask.id, newTask);
                   }
               }
