@@ -167,8 +167,9 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   const developersLabel = fieldLabels.get('developers') || 'Developers';
   const testersLabel = fieldLabels.get('testers') || 'Testers';
 
-  const azureWorkItemUrl = task.azureWorkItemId && uiConfig?.fields.find(f => f.key === 'azureWorkItemId')?.baseUrl
-    ? `${uiConfig.fields.find(f => f.key === 'azureWorkItemId')?.baseUrl}${task.azureWorkItemId}`
+  const azureFieldConfig = uiConfig?.fields.find(f => f.key === 'azureWorkItemId');
+  const azureWorkItemUrl = task.azureWorkItemId && azureFieldConfig?.baseUrl
+    ? `${azureFieldConfig.baseUrl}${task.azureWorkItemId}`
     : null;
     
   const developersById = new Map(developers.map(d => [d.id, d]));
@@ -273,21 +274,28 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                   ))}
                 </div>
               </div>
-              {azureWorkItemUrl && (
+              
+              {task.azureWorkItemId && azureFieldConfig?.isActive && (
                 <a 
-                    href={azureWorkItemUrl} 
+                    href={azureWorkItemUrl || '#'} 
                     target="_blank" 
                     rel="noopener noreferrer" 
-                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
-                    onClick={(e) => e.stopPropagation()}
+                    className={cn(
+                        "flex items-center gap-2 text-sm text-muted-foreground transition-colors",
+                        azureWorkItemUrl ? "hover:text-primary" : "pointer-events-none"
+                    )}
+                    onClick={(e) => {
+                        if (!azureWorkItemUrl) e.preventDefault();
+                        e.stopPropagation();
+                    }}
                   >
                   <ExternalLink className="h-4 w-4 shrink-0" />
                   <span
-                    role="link"
+                    role={azureWorkItemUrl ? "link" : "text"}
                     aria-label={`View Azure Work Item ${task.azureWorkItemId}`}
                     className="line-clamp-1"
                   >
-                    Azure ID: {task.azureWorkItemId}
+                    {azureFieldConfig.label}: {task.azureWorkItemId}
                   </span>
                 </a>
               )}
