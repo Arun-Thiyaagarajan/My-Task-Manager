@@ -2,8 +2,7 @@
 
 TaskFlow is a powerful, intuitive, and highly customizable task management application designed to streamline your development workflow. Built with a modern tech stack, it provides a seamless experience for tracking tasks, pull requests, and deployments across multiple repositories and environments.
 
-![TaskFlow Screenshot](![My Task Manager](image.png)
-)
+![My Task Manager](image.png)
 
 ## ✨ Core Features
 
