@@ -806,10 +806,12 @@ export default function Home() {
                 <DropdownMenuItem onSelect={() => handleExport('current_view')} className="flex justify-between items-center pr-1">
                   <span>Export Current View</span>
                   <Tooltip>
-                    <TooltipTrigger asChild onClick={(e) => e.preventDefault()}>
-                      <HelpCircle className="h-4 w-4 ml-2 text-muted-foreground" />
+                    <TooltipTrigger asChild>
+                      <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                        <HelpCircle className="h-4 w-4 ml-2 text-muted-foreground" />
+                      </div>
                     </TooltipTrigger>
-                    <TooltipContent>
+                    <TooltipContent side="right">
                       <p>Exports the {sortedTasks.length} currently visible task(s) based on your filters.</p>
                     </TooltipContent>
                   </Tooltip>
