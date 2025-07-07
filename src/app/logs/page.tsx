@@ -67,14 +67,14 @@ export default function LogsPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead className="w-[150px]">Time</TableHead>
-                                    <TableHead>Action</TableHead>
+                                    <TableHead className="min-w-[300px]">Action</TableHead>
                                     <TableHead className="w-[150px] text-right">Related Task</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {logs.map(log => (
                                     <TableRow key={log.id}>
-                                        <TableCell className="text-muted-foreground text-xs">
+                                        <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
                                             {formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}
                                         </TableCell>
                                         <TableCell className="font-medium">
