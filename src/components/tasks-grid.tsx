@@ -3,6 +3,7 @@ import React from 'react';
 import { TaskCard } from '@/components/task-card';
 import type { Task, UiConfig, Person } from '@/lib/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
+import { Badge } from './ui/badge';
 
 interface TasksGridProps {
   tasks: Task[];
@@ -86,7 +87,10 @@ export function TasksGrid({ tasks, onTaskDelete, onTaskUpdate, uiConfig, develop
       {groups.map(({ key, title, tasks: tasksInGroup }) => (
         <AccordionItem key={key} value={key} className="border-none">
             <AccordionTrigger className="text-xl font-semibold tracking-tight text-foreground hover:no-underline rounded-lg px-4 py-3 hover:bg-muted/50 data-[state=open]:[&>svg]:text-primary">
-                <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
+                <div className="flex items-center gap-3">
+                    <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
+                    <Badge variant="secondary" className="shrink-0">{tasksInGroup.length}</Badge>
+                </div>
             </AccordionTrigger>
             <AccordionContent className="pt-4">
                 {renderGrid(tasksInGroup)}
