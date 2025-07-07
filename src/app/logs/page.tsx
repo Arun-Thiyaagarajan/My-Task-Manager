@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { FileClock, Link as LinkIcon, Activity } from 'lucide-react';
+import { FileClock, Link as LinkIcon, Activity, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
@@ -86,6 +86,13 @@ export default function LogsPage() {
                                                     <Link href={`/tasks/${log.taskId}`}>
                                                         <LinkIcon className="mr-2 h-3 w-3" />
                                                         View Task
+                                                    </Link>
+                                                </Button>
+                                            ) : log.message.includes('to the bin') ? (
+                                                <Button asChild variant="outline" size="sm">
+                                                    <Link href="/bin">
+                                                        <Trash2 className="mr-2 h-3 w-3" />
+                                                        View Bin
                                                     </Link>
                                                 </Button>
                                             ) : (
