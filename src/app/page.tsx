@@ -1214,72 +1214,88 @@ export default function Home() {
             </div>
 
             {isSelectMode && (
-              <Card className="mb-6 bg-muted border-primary/50">
-                <CardContent className="p-3 flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="select-all-tasks"
-                      checked={
-                        sortedTasks.length > 0 &&
-                        selectedTaskIds.length === sortedTasks.length
-                          ? true
-                          : selectedTaskIds.length > 0
-                          ? 'indeterminate'
-                          : false
-                      }
-                      onCheckedChange={handleToggleSelectAll}
-                      aria-label="Select all tasks"
-                      disabled={sortedTasks.length === 0}
-                    />
-                    <Label htmlFor="select-all-tasks" className="text-sm font-medium">
-                      {selectedTaskIds.length > 0
-                        ? `${selectedTaskIds.length} of ${sortedTasks.length} selected`
-                        : sortedTasks.length > 0
-                        ? `Select all tasks`
-                        : 'No tasks to select'}
-                    </Label>
-                  </div>
+              <div className="sticky top-[68px] z-30 mb-4">
+                <Card className="border-primary/50 bg-background/90 backdrop-blur-sm shadow-lg">
+                  <CardContent className="p-3 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="select-all-tasks"
+                        checked={
+                          sortedTasks.length > 0 &&
+                          selectedTaskIds.length === sortedTasks.length
+                            ? true
+                            : selectedTaskIds.length > 0
+                            ? 'indeterminate'
+                            : false
+                        }
+                        onCheckedChange={handleToggleSelectAll}
+                        aria-label="Select all tasks"
+                        disabled={sortedTasks.length === 0}
+                      />
+                      <Label
+                        htmlFor="select-all-tasks"
+                        className="text-sm font-medium"
+                      >
+                        {selectedTaskIds.length > 0
+                          ? `${selectedTaskIds.length} of ${sortedTasks.length} selected`
+                          : sortedTasks.length > 0
+                          ? `Select all tasks`
+                          : 'No tasks to select'}
+                      </Label>
+                    </div>
 
-                  <div
-                    className={cn(
-                      'flex flex-col sm:flex-row items-stretch sm:items-center gap-2 transition-opacity duration-300 w-full sm:w-auto',
-                      selectedTaskIds.length > 0
-                        ? 'opacity-100'
-                        : 'opacity-0 pointer-events-none h-0 sm:h-auto overflow-hidden'
-                    )}
-                  >
-                    <Button variant="outline" size="sm" onClick={handleBulkCopyText}>
-                      <Copy className="mr-2 h-4 w-4" /> Copy as Text
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={handleBulkExportPdf}>
-                      <Download className="mr-2 h-4 w-4" /> Export as PDF
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm">
-                          <Trash2 className="mr-2 h-4 w-4" /> Move to Bin
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Move to Bin?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to move the selected{' '}
-                            {selectedTaskIds.length} task(s) to the bin? You can restore
-                            them later.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90">
-                            Move to Bin
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </CardContent>
-              </Card>
+                    <div
+                      className={cn(
+                        'flex flex-col sm:flex-row items-stretch sm:items-center gap-2 transition-opacity duration-300 w-full sm:w-auto',
+                        selectedTaskIds.length > 0
+                          ? 'opacity-100'
+                          : 'opacity-0 pointer-events-none h-0 sm:h-auto overflow-hidden'
+                      )}
+                    >
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleBulkCopyText}
+                      >
+                        <Copy className="mr-2 h-4 w-4" /> Copy as Text
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleBulkExportPdf}
+                      >
+                        <Download className="mr-2 h-4 w-4" /> Export as PDF
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="sm">
+                            <Trash2 className="mr-2 h-4 w-4" /> Move to Bin
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Move to Bin?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to move the selected{' '}
+                              {selectedTaskIds.length} task(s) to the bin? You
+                              can restore them later.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={handleBulkDelete}
+                              className="bg-destructive hover:bg-destructive/90"
+                            >
+                              Move to Bin
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             )}
 
           {sortedTasks.length > 0 ? (
