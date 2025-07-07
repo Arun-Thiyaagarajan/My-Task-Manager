@@ -420,7 +420,7 @@ export function updateUiConfig(newConfig: UiConfig): UiConfig {
     const activeCompanyId = getActiveCompanyId();
     if (data.companyData[activeCompanyId]) {
         // Get the old config for logging *before* updating.
-        const oldConfig = _validateAndMigrateConfig(data.companyData[activeCompanyId].uiConfig);
+        const oldConfig = data.companyData[activeCompanyId].uiConfig;
 
         newConfig.fields.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
         newConfig.fields.forEach((field, index) => {
@@ -1183,46 +1183,30 @@ export function deleteComment(taskId: string, index: number): Task | undefined {
 // Global logs page view
 export function getAggregatedLogs(): Log[] {
     const logs = getLogs();
-    const visibleLogs: Log[] = [];
-    const processedAggregates = new Set<string>();
 
-    for (const log of logs) {
-        const isBulkDeleteRelated = log.message.includes(' to the bin');
-        const isBulkRestoreRelated = log.message.includes(' from the bin');
-        const isBulkPermanentDelete = log.message.includes('Permanently deleted');
+    // Get timestamps of all aggregate logs. These are the markers for bulk operations.
+    const aggregateTimestamps = new Set(
+        logs.filter(log => log.id.startsWith('log-aggregate-'))
+            .map(log => log.timestamp)
+    );
 
-        if (isBulkDeleteRelated || isBulkRestoreRelated || isBulkPermanentDelete) {
-             if (log.id.startsWith('log-aggregate-')) {
-                 const aggregateId = log.id;
-                 if (!processedAggregates.has(aggregateId)) {
-                     visibleLogs.push(log);
-                     processedAggregates.add(aggregateId);
-                 }
-             }
-             // Hide individual logs that are part of an aggregate action by just continuing.
-             continue;
-        }
-        
-        if (log.message.includes('Updated application settings with multiple changes')) {
-            visibleLogs.push(log);
-            continue;
+    const visibleLogs = logs.filter(log => {
+        // Always show aggregate logs themselves.
+        if (log.id.startsWith('log-aggregate-')) {
+            return true;
         }
 
-        visibleLogs.push(log);
-    }
-    
-    // Fallback for older data that doesn't have aggregate logs
-    const finalLogs: Log[] = [];
-    const processedIds = new Set<string>();
-    
-    for (const log of visibleLogs) {
-        if (!processedIds.has(log.id)) {
-            finalLogs.push(log);
-            processedIds.add(log.id);
+        // Check if this log is an individual log that's part of a bulk action.
+        // We identify this if it shares a timestamp with an aggregate log.
+        if (aggregateTimestamps.has(log.timestamp)) {
+            // This is an individual log from a bulk operation, so we hide it from the global view.
+            return false;
         }
-    }
-    
-    return finalLogs;
+
+        // If it's not an aggregate log and doesn't share a timestamp with one, 
+        // it must be a single action log or a non-bulk log. Show it.
+        return true;
+    });
+
+    return visibleLogs;
 }
-
-    
