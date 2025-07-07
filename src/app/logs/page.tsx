@@ -73,7 +73,7 @@ export default function LogsPage() {
         } else if (sortedMonths.length === 0) {
             setOpenMonths([]);
         }
-    }, [sortedMonths]);
+    }, [sortedMonths, openMonths]);
 
     if (isLoading || !uiConfig) {
         return <LoadingSpinner text="Loading logs..." />;
@@ -94,14 +94,16 @@ export default function LogsPage() {
                 <CardHeader>
                     <CardTitle>All Logs</CardTitle>
                     <CardDescription>{filteredLogs.length} of {logs.length} log entries found. The last 2000 entries are kept.</CardDescription>
-                     <div className="relative pt-4">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input 
-                            placeholder="Search logs..." 
-                            value={searchQuery} 
-                            onChange={(e) => setSearchQuery(e.target.value)} 
-                            className="pl-10 w-full max-w-sm"
-                        />
+                     <div className="pt-4">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                                placeholder="Search logs..." 
+                                value={searchQuery} 
+                                onChange={(e) => setSearchQuery(e.target.value)} 
+                                className="pl-10 w-full max-w-sm"
+                            />
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent>
