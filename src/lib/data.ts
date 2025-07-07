@@ -403,12 +403,14 @@ export function getUiConfig(): UiConfig {
     const data = getAppData();
     const activeCompanyId = getActiveCompanyId();
     const companyData = data.companyData[activeCompanyId];
-    
+
     const validatedConfig = _validateAndMigrateConfig(companyData?.uiConfig);
 
-    if (JSON.stringify(validatedConfig) !== JSON.stringify(companyData?.uiConfig)) {
-        // Save the migrated config directly to avoid recursion.
-        data.companyData[activeCompanyId].uiConfig = validatedConfig;
+    // This is a silent migration. If the validated config is different,
+    // it means the saved config was outdated or invalid. We save the
+    // corrected version back to localStorage.
+    if (companyData && JSON.stringify(validatedConfig) !== JSON.stringify(companyData.uiConfig)) {
+        companyData.uiConfig = validatedConfig;
         setAppData(data);
     }
     
@@ -418,37 +420,91 @@ export function getUiConfig(): UiConfig {
 export function updateUiConfig(newConfig: UiConfig): UiConfig {
     const data = getAppData();
     const activeCompanyId = getActiveCompanyId();
-    if (data.companyData[activeCompanyId]) {
-        // Get the old config for logging *before* updating.
-        const oldConfig = data.companyData[activeCompanyId].uiConfig;
+    const companyData = data.companyData[activeCompanyId];
 
-        newConfig.fields.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
-        newConfig.fields.forEach((field, index) => {
-            field.order = index;
-            const isSortable = ['select', 'multiselect', 'tags'].includes(field.type) && field.key !== 'status';
-            if (isSortable && !field.sortDirection) {
-                field.sortDirection = 'manual';
+    if (!companyData) {
+        return newConfig;
+    }
+    
+    const oldConfig = getUiConfig(); // Use getter to ensure we get a validated old config
+
+    newConfig.fields.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+    newConfig.fields.forEach((field, index) => {
+        field.order = index;
+        const isSortable = ['select', 'multiselect', 'tags'].includes(field.type) && field.key !== 'status';
+        if (isSortable && !field.sortDirection) {
+            field.sortDirection = 'manual';
+        }
+    });
+
+    const oldRepoMap = new Map((oldConfig.repositoryConfigs || []).map(r => [r.id, r]));
+    const newRepoMap = new Map((newConfig.repositoryConfigs || []).map(r => [r.id, r]));
+
+    const renamedRepos = new Map<string, string>(); // oldName -> newName
+    oldRepoMap.forEach((oldRepo, id) => {
+        const newRepo = newRepoMap.get(id);
+        if (newRepo && newRepo.name !== oldRepo.name) {
+            renamedRepos.set(oldRepo.name, newRepo.name);
+        }
+    });
+
+    if (renamedRepos.size > 0) {
+        const allTasks = [...companyData.tasks, ...companyData.trash];
+        allTasks.forEach(task => {
+            let wasUpdated = false;
+
+            if (task.repositories && task.repositories.length > 0) {
+                const originalRepos = [...task.repositories];
+                const updatedRepos = originalRepos.map(repoName => renamedRepos.get(repoName) || repoName);
+                if (JSON.stringify(originalRepos) !== JSON.stringify(updatedRepos)) {
+                    task.repositories = updatedRepos;
+                    wasUpdated = true;
+                }
+            }
+
+            if (task.prLinks) {
+                const newPrLinks = { ...task.prLinks };
+                let prLinksUpdated = false;
+                Object.keys(newPrLinks).forEach(env => {
+                    const envLinks = newPrLinks[env];
+                    if (envLinks) {
+                        const newEnvLinks = { ...envLinks };
+                        let envLinksUpdated = false;
+                        renamedRepos.forEach((newName, oldName) => {
+                            if (newEnvLinks[oldName] !== undefined) {
+                                newEnvLinks[newName] = newEnvLinks[oldName];
+                                delete newEnvLinks[oldName];
+                                envLinksUpdated = true;
+                            }
+                        });
+                        if (envLinksUpdated) {
+                            newPrLinks[env] = newEnvLinks;
+                            prLinksUpdated = true;
+                        }
+                    }
+                });
+                if (prLinksUpdated) {
+                    task.prLinks = newPrLinks;
+                    wasUpdated = true;
+                }
+            }
+            
+            if (wasUpdated) {
+                task.updatedAt = new Date().toISOString();
             }
         });
-        
-        const logMessage = generateUiConfigUpdateLogs(oldConfig, newConfig);
-        
-        if (logMessage) {
-            const newLog: Log = {
-                id: `log-${crypto.randomUUID()}`,
-                timestamp: new Date().toISOString(),
-                message: logMessage
-            };
-            data.companyData[activeCompanyId].logs.unshift(newLog);
-            if (data.companyData[activeCompanyId].logs.length > 2000) {
-                data.companyData[activeCompanyId].logs = data.companyData[activeCompanyId].logs.slice(0, 2000);
-            }
-        }
-        
-        data.companyData[activeCompanyId].uiConfig = newConfig;
-        setAppData(data);
-        window.dispatchEvent(new Event('config-changed'));
     }
+    
+    const logMessage = generateUiConfigUpdateLogs(oldConfig, newConfig);
+    
+    if (logMessage) {
+        addLog({ message: logMessage });
+    }
+    
+    companyData.uiConfig = newConfig;
+    setAppData(data);
+    window.dispatchEvent(new Event('config-changed'));
+    
     return newConfig;
 }
 
