@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester, updateUiConfig, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData } from '@/lib/data';
+import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester, updateUiConfig, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -41,7 +41,7 @@ import {
   HelpCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig } from '@/lib/types';
+import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig, Log } from '@/lib/types';
 import {
   Popover,
   PopoverContent,
@@ -306,12 +306,17 @@ export default function Home() {
 
     let activeTasksToExport: Task[] = [];
     let binnedTasksToExport: Task[] = [];
+    let logsToExport: Log[] = [];
 
     if (exportType === 'all_tasks') {
         activeTasksToExport = getTasks();
         binnedTasksToExport = getBinnedTasks();
+        logsToExport = getLogs();
     } else { // 'current_view'
         activeTasksToExport = sortedTasks;
+        const taskIdsInView = new Set(sortedTasks.map(t => t.id));
+        const allLogs = getLogs();
+        logsToExport = allLogs.filter(log => log.taskId && taskIdsInView.has(log.taskId));
     }
 
     const allTasksForPeopleMapping = [...activeTasksToExport, ...binnedTasksToExport];
@@ -351,6 +356,7 @@ export default function Home() {
         developers: developersToExport.map(cleanPerson),
         testers: testersToExport.map(cleanPerson),
         tasks: activeTasksWithNames,
+        logs: logsToExport,
     };
     
     if (binnedTasksWithNames.length > 0) {
@@ -429,6 +435,7 @@ export default function Home() {
             let importedAppName: string | undefined = undefined;
             let importedAppIcon: string | null | undefined = undefined;
             let importedCustomFieldDefs: FieldConfig[] = [];
+            let importedLogs: Log[] = [];
 
             const isIdRegex = /^[a-z]+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -443,6 +450,7 @@ export default function Home() {
                 importedAppName = parsedJson.appName;
                 importedAppIcon = parsedJson.appIcon;
                 importedCustomFieldDefs = parsedJson.customFieldDefinitions || [];
+                importedLogs = parsedJson.logs || [];
             } else {
                  throw new Error("Invalid format: The JSON file must be a valid JSON object or array.");
             }
@@ -465,7 +473,7 @@ export default function Home() {
             let configUpdated = false, devCreatedCount = 0, devUpdatedCount = 0,
                 testerCreatedCount = 0, testerUpdatedCount = 0,
                 createdCount = 0, updatedCount = 0, binnedCreatedCount = 0, 
-                binnedUpdatedCount = 0, failedCount = 0;
+                binnedUpdatedCount = 0, failedCount = 0, importedLogCount = 0;
 
             // --- Process Custom Field Definitions ---
             if (importedCustomFieldDefs.length > 0) {
@@ -507,6 +515,18 @@ export default function Home() {
                 const repoField = companyData.uiConfig.fields.find(f => f.key === 'repositories');
                 if (repoField) { repoField.options = companyData.uiConfig.repositoryConfigs.map(r => ({ id: r.id, value: r.name, label: r.name })); }
                 configUpdated = true;
+            }
+            
+            // --- Log Processing ---
+            if (importedLogs.length > 0) {
+                const existingLogIds = new Set(companyData.logs.map(l => l.id));
+                const newLogs = importedLogs.filter(log => !existingLogIds.has(log.id));
+                if (newLogs.length > 0) {
+                    companyData.logs.push(...newLogs);
+                    // Re-sort logs by timestamp to maintain chronological order (newest first)
+                    companyData.logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+                    importedLogCount = newLogs.length;
+                }
             }
 
             // --- People Update ---
@@ -710,6 +730,7 @@ export default function Home() {
             if (updatedCount > 0) summaryParts.push(`${updatedCount} active task(s) updated.`);
             if (binnedCreatedCount > 0) summaryParts.push(`${binnedCreatedCount} binned task(s) created.`);
             if (binnedUpdatedCount > 0) summaryParts.push(`${binnedUpdatedCount} binned task(s) updated.`);
+            if (importedLogCount > 0) summaryParts.push(`${importedLogCount} log(s) imported.`);
 
             if (summaryParts.length > 0) {
                 toast({ variant: 'success', title: 'Import Successful', description: summaryParts.join(' ') });
