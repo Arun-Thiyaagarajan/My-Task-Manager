@@ -407,7 +407,9 @@ export function getUiConfig(): UiConfig {
     const validatedConfig = _validateAndMigrateConfig(companyData?.uiConfig);
 
     if (JSON.stringify(validatedConfig) !== JSON.stringify(companyData?.uiConfig)) {
-        updateUiConfig(validatedConfig);
+        // Save the migrated config directly to avoid recursion.
+        data.companyData[activeCompanyId].uiConfig = validatedConfig;
+        setAppData(data);
     }
     
     return validatedConfig;
@@ -417,7 +419,8 @@ export function updateUiConfig(newConfig: UiConfig): UiConfig {
     const data = getAppData();
     const activeCompanyId = getActiveCompanyId();
     if (data.companyData[activeCompanyId]) {
-        const oldConfig = getUiConfig();
+        // Get the old config for logging *before* updating.
+        const oldConfig = _validateAndMigrateConfig(data.companyData[activeCompanyId].uiConfig);
 
         newConfig.fields.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
         newConfig.fields.forEach((field, index) => {
