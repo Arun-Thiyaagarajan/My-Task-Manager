@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester, updateUiConfig, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs } from '@/lib/data';
+import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester, updateUiConfig, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -733,8 +733,11 @@ export default function Home() {
             if (importedLogCount > 0) summaryParts.push(`${importedLogCount} log(s) imported.`);
 
             if (summaryParts.length > 0) {
+                const logMessage = `Import successful: ${summaryParts.join(' ')}`;
+                addLog({ message: logMessage });
                 toast({ variant: 'success', title: 'Import Successful', description: summaryParts.join(' ') });
             } else if (allImportedTasks.length > 0 || importedDevelopers.length > 0 || importedTesters.length > 0) {
+                addLog({ message: 'Import complete: No new data was added or existing data updated.' });
                 toast({ variant: 'default', title: 'Import Complete', description: 'No new data was added or existing data updated.' });
             } else {
                toast({ variant: 'warning', title: 'Empty or Invalid File', description: 'The imported file contained no data to process.' });
