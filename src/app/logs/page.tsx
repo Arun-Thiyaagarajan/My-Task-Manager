@@ -77,7 +77,9 @@ export default function LogsPage() {
                                         <TableCell className="text-muted-foreground text-xs">
                                             {formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}
                                         </TableCell>
-                                        <TableCell className="font-medium">{log.message}</TableCell>
+                                        <TableCell className="font-medium">
+                                            <p className="whitespace-pre-wrap">{log.message}</p>
+                                        </TableCell>
                                         <TableCell className="text-right">
                                             {log.taskId ? (
                                                 <Button asChild variant="outline" size="sm">
@@ -107,4 +109,3 @@ export default function LogsPage() {
         </div>
     );
 }
-

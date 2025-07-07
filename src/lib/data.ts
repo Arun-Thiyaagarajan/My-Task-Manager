@@ -269,6 +269,133 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
     return resultConfig;
 }
 
+const generateUiConfigUpdateLogs = (oldConfig: UiConfig, newConfig: UiConfig): Omit<Log, 'id' | 'timestamp'>[] => {
+    const logs: Omit<Log, 'id' | 'timestamp'>[] = [];
+    const createLog = (message: string) => logs.push({ message });
+
+    // Branding changes
+    if (oldConfig.appName !== newConfig.appName) {
+        createLog(`Updated app name from "${oldConfig.appName || 'My Task Manager'}" to "${newConfig.appName || 'My Task Manager'}".`);
+    }
+    if (oldConfig.appIcon !== newConfig.appIcon) {
+        if (oldConfig.appIcon && !newConfig.appIcon) {
+            createLog('Removed the app icon.');
+        } else if (!oldConfig.appIcon && newConfig.appIcon) {
+            createLog('Set a new app icon.');
+        } else {
+            createLog('Updated the app icon.');
+        }
+    }
+    
+    // Repository configuration changes
+    if (JSON.stringify(oldConfig.repositoryConfigs) !== JSON.stringify(newConfig.repositoryConfigs)) {
+        const oldRepos = new Map((oldConfig.repositoryConfigs || []).map(r => [r.id, r]));
+        const newRepos = new Map((newConfig.repositoryConfigs || []).map(r => [r.id, r]));
+        const repoLogDetails: string[] = [];
+
+        newRepos.forEach((newRepo, id) => {
+            const oldRepo = oldRepos.get(id);
+            if (!oldRepo) {
+                repoLogDetails.push(`- Added repository: "${newRepo.name}"`);
+            } else if (oldRepo.name !== newRepo.name || oldRepo.baseUrl !== newRepo.baseUrl) {
+                repoLogDetails.push(`- Updated repository "${oldRepo.name}":`);
+                if (oldRepo.name !== newRepo.name) {
+                    repoLogDetails.push(`  - Renamed to "${newRepo.name}"`);
+                }
+                if (oldRepo.baseUrl !== newRepo.baseUrl) {
+                    repoLogDetails.push(`  - Changed URL to "${newRepo.baseUrl}"`);
+                }
+            }
+        });
+        oldRepos.forEach((oldRepo, id) => {
+            if (!newRepos.has(id)) {
+                repoLogDetails.push(`- Removed repository: "${oldRepo.name}"`);
+            }
+        });
+
+        if (repoLogDetails.length > 0) {
+            createLog(`Updated repository configurations:\n${repoLogDetails.join('\n')}`);
+        }
+    }
+
+    // Field changes
+    const oldFieldsMap = new Map(oldConfig.fields.map(f => [f.id, f]));
+    const newFieldsMap = new Map(newConfig.fields.map(f => [f.id, f]));
+
+    // Check for added fields
+    newFieldsMap.forEach((newField, id) => {
+        if (!oldFieldsMap.has(id)) {
+            createLog(`Added new field "${newField.label}" to the "${newField.group}" group.`);
+        }
+    });
+
+    // Check for deleted fields
+    oldFieldsMap.forEach((oldField, id) => {
+        if (!newFieldsMap.has(id) && oldField.isCustom) {
+            createLog(`Deleted custom field "${oldField.label}" from the "${oldField.group}" group.`);
+        }
+    });
+
+    // Check for updated fields
+    newFieldsMap.forEach((newField, id) => {
+        // Skip repository field as its config changes are logged separately
+        if (newField.key === 'repositories') return;
+
+        const oldField = oldFieldsMap.get(id);
+        if (oldField) {
+            const fieldUpdateDetails: string[] = [];
+            
+            if (oldField.label !== newField.label) { fieldUpdateDetails.push(`- Renamed from "${oldField.label}" to "${newField.label}".`); }
+            if (oldField.group !== newField.group) { fieldUpdateDetails.push(`- Moved from group "${oldField.group}" to "${newField.group}".`); }
+            if (oldField.isActive !== newField.isActive) { fieldUpdateDetails.push(`- Set as ${newField.isActive ? 'Active' : 'Inactive'}.`); }
+            if (oldField.isRequired !== newField.isRequired) { fieldUpdateDetails.push(`- Set as ${newField.isRequired ? 'Required' : 'Not Required'}.`); }
+            if (oldField.baseUrl !== newField.baseUrl) { fieldUpdateDetails.push(`- Changed Base URL from "${oldField.baseUrl || 'none'}" to "${newField.baseUrl || 'none'}".`); }
+            if (oldField.sortDirection !== newField.sortDirection) { fieldUpdateDetails.push(`- Changed sort order to "${newField.sortDirection}".`); }
+            
+            const oldOptionsString = JSON.stringify(oldField.options?.map(o => ({ value: o.value, label: o.label })).sort((a,b) => a.value.localeCompare(b.value)));
+            const newOptionsString = JSON.stringify(newField.options?.map(o => ({ value: o.value, label: o.label })).sort((a,b) => a.value.localeCompare(b.value)));
+
+            if (oldOptionsString !== newOptionsString) {
+                const oldOptions = new Map((oldField.options || []).map(o => [o.value, o.label]));
+                const newOptions = new Map((newField.options || []).map(o => [o.value, o.label]));
+                
+                const optionChanges: string[] = [];
+                newOptions.forEach((label, value) => {
+                    if (!oldOptions.has(value)) {
+                        optionChanges.push(`  - Added option: "${label}"`);
+                    } else if (oldOptions.get(value) !== label) {
+                        optionChanges.push(`  - Renamed option from "${oldOptions.get(value)}" to "${label}"`);
+                    }
+                });
+                oldOptions.forEach((label, value) => {
+                    if (!newOptions.has(value)) {
+                        optionChanges.push(`  - Removed option: "${label}"`);
+                    }
+                });
+
+                if (optionChanges.length > 0) {
+                    fieldUpdateDetails.push('- Updated selection options:');
+                    fieldUpdateDetails.push(...optionChanges);
+                }
+            }
+
+            if (fieldUpdateDetails.length > 0) {
+                const logMessage = `Updated settings for field "${oldField.label}":\n${fieldUpdateDetails.join('\n')}`;
+                createLog(logMessage);
+            }
+        }
+    });
+    
+    // Check for field reordering as a fallback log
+    const oldActiveOrder = oldConfig.fields.filter(f => f.isActive).map(f => f.id).join(',');
+    const newActiveOrder = newConfig.fields.filter(f => f.isActive).map(f => f.id).join(',');
+    if (oldActiveOrder !== newActiveOrder && logs.length === 0) {
+        createLog('Reordered active fields.');
+    }
+
+    return logs;
+};
+
 // UI Config Functions
 export function getUiConfig(): UiConfig {
     const data = getAppData();
@@ -288,6 +415,8 @@ export function updateUiConfig(newConfig: UiConfig): UiConfig {
     const data = getAppData();
     const activeCompanyId = getActiveCompanyId();
     if (data.companyData[activeCompanyId]) {
+        const oldConfig = getUiConfig();
+
         newConfig.fields.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
         newConfig.fields.forEach((field, index) => {
             field.order = index;
@@ -297,13 +426,23 @@ export function updateUiConfig(newConfig: UiConfig): UiConfig {
             }
         });
         
-        const newLog: Log = {
-            id: `log-${crypto.randomUUID()}`,
-            timestamp: new Date().toISOString(),
-            message: "Application settings were updated."
-        };
-        data.companyData[activeCompanyId].logs.unshift(newLog);
-
+        const logsToCreate = generateUiConfigUpdateLogs(oldConfig, newConfig);
+        
+        if (logsToCreate.length > 0) {
+            const now = new Date().toISOString();
+            logsToCreate.forEach(log => {
+                const newLog: Log = {
+                    id: `log-${crypto.randomUUID()}`,
+                    timestamp: now,
+                    ...log,
+                };
+                data.companyData[activeCompanyId].logs.unshift(newLog);
+            });
+            if (data.companyData[activeCompanyId].logs.length > 2000) {
+                data.companyData[activeCompanyId].logs = data.companyData[activeCompanyId].logs.slice(0, 2000);
+            }
+        }
+        
         data.companyData[activeCompanyId].uiConfig = newConfig;
         setAppData(data);
         window.dispatchEvent(new Event('config-changed'));
