@@ -1,3 +1,4 @@
+
 'use client';
 
 import { TaskCard } from '@/components/task-card';
@@ -19,7 +20,7 @@ export function RelatedTasksSection({ title, tasks, onTaskUpdate, uiConfig, deve
   }
 
   return (
-    <div className="space-y-4 pt-6 border-t">
+    <div className="space-y-4 pt-6">
       <h2 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
         <Sparkles className="h-6 w-6 text-primary" />
         {title}
