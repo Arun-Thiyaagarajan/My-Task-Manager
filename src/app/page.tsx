@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester, updateUiConfig, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog } from '@/lib/data';
+import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester, updateUiConfig, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -39,6 +39,7 @@ import {
   Copy,
   X,
   HelpCircle,
+  History,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig, Log } from '@/lib/types';
@@ -92,6 +93,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { ToastAction } from '@/components/ui/toast';
 
 
 type ViewMode = 'grid' | 'table';
@@ -754,12 +756,35 @@ export default function Home() {
   };
   
   const handleBulkDelete = () => {
-    moveMultipleTasksToBin(selectedTaskIds);
-    toast({
-        variant: 'success',
+    const idsToRestore = [...selectedTaskIds];
+    const selectedTaskCount = idsToRestore.length;
+    moveMultipleTasksToBin(idsToRestore);
+    
+    const { id, dismiss, update } = toast({
+        variant: 'destructive',
         title: 'Tasks Moved to Bin',
-        description: `${selectedTaskIds.length} tasks have been moved to the bin.`,
+        description: `${selectedTaskCount} tasks have been moved to the bin.`,
+        duration: 10000,
     });
+
+    update({
+      id,
+      action: (
+        <ToastAction
+          altText="Undo move"
+          onClick={() => {
+            restoreMultipleTasks(idsToRestore);
+            refreshData();
+            dismiss();
+            toast({ variant: 'success', title: 'Tasks restored!' });
+          }}
+        >
+          <History className="mr-2 h-4 w-4" />
+          Undo
+        </ToastAction>
+      ),
+    });
+
     refreshData();
     setIsSelectMode(false);
   };
