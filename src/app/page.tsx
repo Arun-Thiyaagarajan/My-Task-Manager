@@ -811,7 +811,7 @@ export default function Home() {
                         <HelpCircle className="h-4 w-4 ml-2 text-muted-foreground" />
                       </div>
                     </TooltipTrigger>
-                    <TooltipContent side="right">
+                    <TooltipContent side="top">
                       <p>Exports the {sortedTasks.length} currently visible task(s) based on your filters.</p>
                     </TooltipContent>
                   </Tooltip>
