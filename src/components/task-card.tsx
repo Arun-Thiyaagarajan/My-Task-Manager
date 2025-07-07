@@ -212,7 +212,17 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
         <div className="flex flex-col flex-grow z-10">
           <CardHeader className="p-4 pb-2">
               <div className="flex items-start justify-between gap-2">
-                  <Link href={`/tasks/${task.id}`} className="flex-grow cursor-pointer" onClick={e => e.stopPropagation()}>
+                  <Link
+                    href={`/tasks/${task.id}`}
+                    className="flex-grow cursor-pointer"
+                    onClick={(e) => {
+                      if (isSelectMode) {
+                        e.preventDefault();
+                      } else {
+                        e.stopPropagation();
+                      }
+                    }}
+                  >
                       <CardTitle className="text-base font-semibold leading-snug line-clamp-3 text-foreground group-hover/card:text-primary">
                       {task.title}
                       </CardTitle>
@@ -275,7 +285,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                 </div>
               </div>
               
-              {task.azureWorkItemId && azureFieldConfig?.isActive && (
+              {azureFieldConfig?.isActive && task.azureWorkItemId && (
                 <a 
                     href={azureWorkItemUrl || '#'} 
                     target="_blank" 

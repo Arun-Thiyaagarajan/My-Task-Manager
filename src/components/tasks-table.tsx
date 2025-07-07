@@ -161,6 +161,12 @@ function TasksTableRow({
             <Link
               href={`/tasks/${task.id}`}
               className="font-semibold block truncate group/title"
+              onClick={(e) => {
+                if (isSelectMode) {
+                  e.preventDefault();
+                  onToggleSelection(task.id, !isSelected);
+                }
+              }}
             >
               <span className="group-hover/title:text-primary transition-colors">{task.title}</span>
             </Link>
