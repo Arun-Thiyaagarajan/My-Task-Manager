@@ -7,8 +7,8 @@ import { Icons } from './icons';
 import { Button } from './ui/button';
 import {
   DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuTrigger,
+  DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuLabel,
@@ -23,7 +23,7 @@ import {
   getUiConfig,
 } from '@/lib/data';
 import type { Company } from '@/lib/types';
-import { Building, PlusCircle, Trash2, Edit, LayoutDashboard, Cog, Menu, FileClock } from 'lucide-react';
+import { Building, PlusCircle, Trash2, Edit, LayoutDashboard, Cog, Menu, FileClock, Home } from 'lucide-react';
 import { CompaniesManager } from './companies-manager';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -92,9 +92,8 @@ export function Header() {
   
   const isDataURI = (str: string | null): str is string => !!str && str.startsWith('data:image');
 
-  const handleIconClick = (e: React.MouseEvent) => {
+  const handleIconClick = () => {
     if (isDataURI(appIcon)) {
-        e.preventDefault();
         setIsPreviewOpen(true);
     }
   };
@@ -130,19 +129,29 @@ export function Header() {
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-14 max-w-screen-2xl items-center justify-between">
           <div className="flex items-center gap-4 md:gap-6">
-            <HeaderLink href="/" className="flex items-center space-x-2" onClick={handleIconClick}>
-              {appIcon ? (
-                isDataURI(appIcon) ? (
-                    <img src={appIcon} alt="App Icon" className="h-6 w-6 object-contain rounded-md" />
+            <div className="flex items-center space-x-2">
+              <button onClick={handleIconClick} className="flex-shrink-0 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                {appIcon ? (
+                  isDataURI(appIcon) ? (
+                      <img src={appIcon} alt="App Icon" className="h-6 w-6 object-contain rounded-md" />
+                  ) : (
+                      <span className="text-2xl h-6 w-6 flex items-center justify-center">{appIcon}</span>
+                  )
                 ) : (
-                    <span className="text-2xl h-6 w-6 flex items-center justify-center">{appIcon}</span>
-                )
-              ) : (
-                <Icons.logo className="h-6 w-6 text-primary" />
-              )}
-              <span className="font-bold hidden sm:inline-block">{appName}</span>
-            </HeaderLink>
+                  <Icons.logo className="h-6 w-6 text-primary" />
+                )}
+                <span className="sr-only">Show app icon preview</span>
+              </button>
+              <HeaderLink href="/" className="hidden sm:inline-block">
+                <span className="font-bold">{appName}</span>
+              </HeaderLink>
+            </div>
+
             <nav className="hidden md:flex items-center gap-4">
+               <HeaderLink href="/" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  <Home className="mr-2 h-4 w-4" />
+                  Home
+               </HeaderLink>
                <HeaderLink href="/dashboard" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                   <LayoutDashboard className="mr-2 h-4 w-4" />
                   Dashboard
@@ -234,6 +243,11 @@ export function Header() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <HeaderLink href="/" className="w-full flex items-center gap-2">
+                       <Home className="h-4 w-4" /> Home
+                    </HeaderLink>
+                  </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <HeaderLink href="/dashboard" className="w-full flex items-center gap-2">
                       <LayoutDashboard className="h-4 w-4" /> Dashboard
