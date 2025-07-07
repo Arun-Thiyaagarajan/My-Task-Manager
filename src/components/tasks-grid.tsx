@@ -89,7 +89,7 @@ export function TasksGrid({ tasks, onTaskDelete, onTaskUpdate, uiConfig, develop
             <AccordionTrigger className="text-xl font-semibold tracking-tight text-foreground hover:no-underline rounded-lg px-4 py-3 hover:bg-muted/50 data-[state=open]:[&>svg]:text-primary">
                 <div className="flex items-center gap-3">
                     <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
-                    <Badge variant="secondary" className="shrink-0">{tasksInGroup.length}</Badge>
+                    <Badge className="shrink-0 bg-border text-foreground">{tasksInGroup.length}</Badge>
                 </div>
             </AccordionTrigger>
             <AccordionContent className="pt-4">

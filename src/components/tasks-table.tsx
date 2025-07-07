@@ -464,7 +464,7 @@ export function TasksTable({
                       <div className="flex items-center justify-between">
                           <span className="flex items-center gap-3 font-semibold text-foreground">
                               {title}
-                              <Badge variant="secondary" className="shrink-0">{tasksInGroup.length}</Badge>
+                              <Badge className="shrink-0 bg-border text-foreground">{tasksInGroup.length}</Badge>
                           </span>
                           <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform duration-300 ease-in-out", isOpen && "rotate-180")} />
                       </div>
