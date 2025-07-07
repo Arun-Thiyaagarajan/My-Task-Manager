@@ -432,8 +432,9 @@ export function updateUiConfig(newConfig: UiConfig): UiConfig {
         return newConfig;
     }
     
-    const oldConfig = getUiConfig(); // Use getter to ensure we get a validated old config
+    const oldConfig = companyData.uiConfig;
 
+    // Sort fields by order to ensure consistency
     newConfig.fields.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
     newConfig.fields.forEach((field, index) => {
         field.order = index;
@@ -442,77 +443,82 @@ export function updateUiConfig(newConfig: UiConfig): UiConfig {
             field.sortDirection = 'manual';
         }
     });
+    
+    // --- Repository Rename Logic ---
+    const oldRepoNameToId = new Map((oldConfig.repositoryConfigs || []).map(r => [r.name, r.id]));
+    const newRepoIdToName = new Map((newConfig.repositoryConfigs || []).map(r => [r.id, r.name]));
 
-    const oldRepoMap = new Map((oldConfig.repositoryConfigs || []).map(r => [r.id, r]));
-    const newRepoMap = new Map((newConfig.repositoryConfigs || []).map(r => [r.id, r]));
+    const tasksToUpdate = [
+        ...companyData.tasks,
+        ...(companyData.trash || []),
+    ];
 
-    const renamedRepos = new Map<string, string>(); // oldName -> newName
-    oldRepoMap.forEach((oldRepo, id) => {
-        const newRepo = newRepoMap.get(id);
-        if (newRepo && newRepo.name !== oldRepo.name) {
-            renamedRepos.set(oldRepo.name, newRepo.name);
-        }
-    });
+    tasksToUpdate.forEach(task => {
+        let wasUpdated = false;
 
-    if (renamedRepos.size > 0) {
-        const tasksToUpdate = [
-            ...companyData.tasks,
-            ...(companyData.trash || []),
-        ];
+        // Update task.repositories with new names
+        if (task.repositories && task.repositories.length > 0) {
+            const updatedRepos = task.repositories
+                .map(oldName => {
+                    const repoId = oldRepoNameToId.get(oldName);
+                    return repoId ? newRepoIdToName.get(repoId) : oldName;
+                })
+                .filter((r): r is string => !!r); // Filter out deleted repos
 
-        tasksToUpdate.forEach(task => {
-            let wasUpdated = false;
-
-            if (task.repositories && task.repositories.length > 0) {
-                const updatedRepos = task.repositories.map(repoName => renamedRepos.get(repoName) || repoName);
-                if (task.repositories.join() !== updatedRepos.join()) {
-                    task.repositories = updatedRepos;
-                    wasUpdated = true;
-                }
+            if (JSON.stringify(task.repositories.sort()) !== JSON.stringify(updatedRepos.sort())) {
+                task.repositories = updatedRepos;
+                wasUpdated = true;
             }
+        }
 
-            if (task.prLinks) {
-                const newPrLinks: Task['prLinks'] = {};
-                let prLinksUpdated = false;
-                
-                for (const env in task.prLinks) {
-                    newPrLinks[env] = {};
-                    const repoLinks = task.prLinks[env];
-                    if (repoLinks) {
-                        for (const repoName in repoLinks) {
-                            const newRepoName = renamedRepos.get(repoName) || repoName;
-                            newPrLinks[env]![newRepoName] = repoLinks[repoName];
-                            if (newRepoName !== repoName) {
-                                prLinksUpdated = true;
-                            }
+        // Update task.prLinks keys with new names
+        if (task.prLinks) {
+            const newPrLinks: Task['prLinks'] = {};
+            let prLinksUpdated = false;
+            
+            for (const env in task.prLinks) {
+                newPrLinks[env] = {};
+                const repoLinks = task.prLinks[env];
+                if (repoLinks) {
+                    for (const oldName in repoLinks) {
+                        const repoId = oldRepoNameToId.get(oldName);
+                        const newName = repoId ? newRepoIdToName.get(repoId) : undefined;
+                        
+                        if (newName) { // Only add if it still exists
+                            newPrLinks[env]![newName] = repoLinks[oldName];
+                        }
+
+                        if (newName !== oldName) {
+                            prLinksUpdated = true;
                         }
                     }
                 }
+            }
 
-                if (prLinksUpdated) {
-                    task.prLinks = newPrLinks;
-                    wasUpdated = true;
-                }
+            if (prLinksUpdated) {
+                task.prLinks = newPrLinks;
+                wasUpdated = true;
             }
-            
-            if (wasUpdated) {
-                task.updatedAt = new Date().toISOString();
-            }
-        });
-    }
-    
+        }
+        
+        if (wasUpdated) {
+            task.updatedAt = new Date().toISOString();
+        }
+    });
+
     const logMessage = generateUiConfigUpdateLogs(oldConfig, newConfig);
-    
     if (logMessage) {
         addLog({ message: logMessage });
     }
     
+    // Finally, update the config and save everything
     companyData.uiConfig = newConfig;
     setAppData(data);
     window.dispatchEvent(new Event('company-changed'));
     
     return newConfig;
 }
+
 
 export function addEnvironment(name: string): boolean {
     const data = getAppData();

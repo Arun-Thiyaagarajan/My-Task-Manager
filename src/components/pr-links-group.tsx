@@ -121,7 +121,7 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repository
                             {prIds.map((id) => {
                                 const baseUrl = repoConfig ? repoConfig.baseUrl : '';
                                 const canBeLinked = baseUrl && id;
-                                const url = canBeLinked ? `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}${id}` : '#';
+                                const url = canBeLinked ? `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}${id}` : undefined;
 
                                 return (
                                 <Badge
@@ -133,7 +133,7 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repository
                                     )}
                                 >
                                     <a
-                                        href={canBeLinked ? url : undefined}
+                                        href={url}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className={cn(
