@@ -1184,7 +1184,11 @@ export function getAggregatedLogs(): Log[] {
     const processedAggregates = new Set<string>();
 
     for (const log of logs) {
-        if (log.message.includes('tasks to the bin') || log.message.includes('tasks from the bin') || log.message.includes('Permanently deleted')) {
+        const isBulkDeleteRelated = log.message.includes(' to the bin');
+        const isBulkRestoreRelated = log.message.includes(' from the bin');
+        const isBulkPermanentDelete = log.message.includes('Permanently deleted');
+
+        if (isBulkDeleteRelated || isBulkRestoreRelated || isBulkPermanentDelete) {
              if (log.id.startsWith('log-aggregate-')) {
                  const aggregateId = log.id;
                  if (!processedAggregates.has(aggregateId)) {
@@ -1192,7 +1196,7 @@ export function getAggregatedLogs(): Log[] {
                      processedAggregates.add(aggregateId);
                  }
              }
-             // Hide individual logs that are part of an aggregate action
+             // Hide individual logs that are part of an aggregate action by just continuing.
              continue;
         }
         
