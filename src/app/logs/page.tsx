@@ -14,6 +14,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Input } from '@/components/ui/input';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
+import { fuzzySearch } from '@/lib/utils';
 
 export default function LogsPage() {
     const [logs, setLogs] = useState<Log[]>([]);
@@ -53,7 +54,7 @@ export default function LogsPage() {
     const filteredLogs = useMemo(() => {
         if (!searchQuery) return logs;
         return logs.filter(log =>
-            log.message.toLowerCase().includes(searchQuery.toLowerCase())
+            fuzzySearch(searchQuery, log.message)
         );
     }, [logs, searchQuery]);
 

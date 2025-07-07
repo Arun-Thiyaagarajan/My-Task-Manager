@@ -41,7 +41,7 @@ import {
   HelpCircle,
   History,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, fuzzySearch } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig, Log } from '@/lib/types';
 import {
   Popover,
@@ -200,18 +200,15 @@ export default function Home() {
     const developersById = new Map(developers.map(d => [d.id, d.name]));
     const testersById = new Map(testers.map(t => [t.id, t.name]));
 
-    const searchLower = searchQuery.toLowerCase();
     const searchMatch =
       searchQuery.trim() === '' ||
-      task.title.toLowerCase().includes(searchLower) ||
-      task.description.toLowerCase().includes(searchLower) ||
-      task.id.toLowerCase().includes(searchLower) ||
-      (task.azureWorkItemId && task.azureWorkItemId.includes(searchQuery)) ||
-      task.developers?.some((devId) => (developersById.get(devId) || '').toLowerCase().includes(searchLower)) ||
-      task.testers?.some((testerId) => (testersById.get(testerId) || '').toLowerCase().includes(searchLower)) ||
-      task.repositories?.some((repo) =>
-        repo.toLowerCase().includes(searchLower)
-      );
+      fuzzySearch(searchQuery, task.title) ||
+      fuzzySearch(searchQuery, task.description) ||
+      fuzzySearch(searchQuery, task.id) ||
+      (task.azureWorkItemId && fuzzySearch(searchQuery, task.azureWorkItemId)) ||
+      task.developers?.some((devId) => fuzzySearch(searchQuery, developersById.get(devId) || '')) ||
+      task.testers?.some((testerId) => fuzzySearch(searchQuery, testersById.get(testerId) || '')) ||
+      task.repositories?.some((repo) => fuzzySearch(searchQuery, repo));
 
     const dateMatch = (() => {
       if (mainView === 'monthly') {

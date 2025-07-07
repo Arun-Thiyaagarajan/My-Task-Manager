@@ -140,3 +140,29 @@ export const getEnvInfo = (env: string) => {
       };
   }
 };
+
+/**
+ * A simple fuzzy search function that checks if characters from the query appear in the text in order.
+ * @param query The search query string.
+ * @param text The text to search within.
+ * @returns `true` if the text is a fuzzy match for the query, `false` otherwise.
+ */
+export function fuzzySearch(query: string, text: string): boolean {
+  if (!query) return true; // if query is empty, it's a match
+  if (!text) return false;
+
+  const lowerQuery = query.toLowerCase();
+  const lowerText = text.toLowerCase();
+
+  let queryIndex = 0;
+  let textIndex = 0;
+
+  while (queryIndex < lowerQuery.length && textIndex < lowerText.length) {
+    if (lowerQuery[queryIndex] === lowerText[textIndex]) {
+      queryIndex++;
+    }
+    textIndex++;
+  }
+
+  return queryIndex === lowerQuery.length;
+}
