@@ -29,12 +29,6 @@ export default function LogsPage() {
             setLogs(allLogs);
             setUiConfig(config);
             document.title = `Logs | ${config.appName || 'My Task Manager'}`;
-            
-            if (allLogs.length > 0 && openMonths.length === 0) {
-                const firstMonthKey = format(new Date(allLogs[0].timestamp), 'yyyy-MM');
-                setOpenMonths([firstMonthKey]);
-            }
-            
             setIsLoading(false);
         };
         refreshData();
@@ -71,12 +65,15 @@ export default function LogsPage() {
     }, [groupedLogs]);
     
     useEffect(() => {
+        // This effect runs when the search query changes the available months.
+        // If none of the currently open months are in the new list of sorted months,
+        // it automatically opens the first available month.
         if (sortedMonths.length > 0 && !openMonths.some(m => sortedMonths.includes(m))) {
           setOpenMonths([sortedMonths[0]]);
         } else if (sortedMonths.length === 0) {
             setOpenMonths([]);
         }
-    }, [sortedMonths, openMonths]);
+    }, [sortedMonths]);
 
     if (isLoading || !uiConfig) {
         return <LoadingSpinner text="Loading logs..." />;
