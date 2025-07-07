@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getLogs, getUiConfig } from '@/lib/data';
+import { getAggregatedLogs, getUiConfig } from '@/lib/data';
 import type { Log, UiConfig } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -19,7 +19,7 @@ export default function LogsPage() {
 
     useEffect(() => {
         const refreshData = () => {
-            const allLogs = getLogs();
+            const allLogs = getAggregatedLogs();
             const config = getUiConfig();
             setLogs(allLogs);
             setUiConfig(config);
@@ -109,3 +109,5 @@ export default function LogsPage() {
         </div>
     );
 }
+
+    

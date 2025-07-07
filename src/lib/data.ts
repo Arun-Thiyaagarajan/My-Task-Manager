@@ -269,21 +269,21 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
     return resultConfig;
 }
 
-const generateUiConfigUpdateLogs = (oldConfig: UiConfig, newConfig: UiConfig): Omit<Log, 'id' | 'timestamp'>[] => {
-    const logs: Omit<Log, 'id' | 'timestamp'>[] = [];
-    const createLog = (message: string) => logs.push({ message });
+const generateUiConfigUpdateLogs = (oldConfig: UiConfig, newConfig: UiConfig): string | null => {
+    const logDetails: string[] = [];
+    const createDetail = (message: string) => logDetails.push(message);
 
     // Branding changes
     if (oldConfig.appName !== newConfig.appName) {
-        createLog(`Updated app name from "${oldConfig.appName || 'My Task Manager'}" to "${newConfig.appName || 'My Task Manager'}".`);
+        createDetail(`Updated app name from "${oldConfig.appName || 'My Task Manager'}" to "${newConfig.appName || 'My Task Manager'}".`);
     }
     if (oldConfig.appIcon !== newConfig.appIcon) {
         if (oldConfig.appIcon && !newConfig.appIcon) {
-            createLog('Removed the app icon.');
+            createDetail('Removed the app icon.');
         } else if (!oldConfig.appIcon && newConfig.appIcon) {
-            createLog('Set a new app icon.');
+            createDetail('Set a new app icon.');
         } else {
-            createLog('Updated the app icon.');
+            createDetail('Updated the app icon.');
         }
     }
     
@@ -314,7 +314,7 @@ const generateUiConfigUpdateLogs = (oldConfig: UiConfig, newConfig: UiConfig): O
         });
 
         if (repoLogDetails.length > 0) {
-            createLog(`Updated repository configurations:\n${repoLogDetails.join('\n')}`);
+            createDetail(`Updated repository configurations:\n${repoLogDetails.join('\n')}`);
         }
     }
 
@@ -322,27 +322,26 @@ const generateUiConfigUpdateLogs = (oldConfig: UiConfig, newConfig: UiConfig): O
     const oldFieldsMap = new Map(oldConfig.fields.map(f => [f.id, f]));
     const newFieldsMap = new Map(newConfig.fields.map(f => [f.id, f]));
 
-    // Check for added fields
-    newFieldsMap.forEach((newField, id) => {
-        if (!oldFieldsMap.has(id)) {
-            createLog(`Added new field "${newField.label}" to the "${newField.group}" group.`);
-        }
-    });
-
-    // Check for deleted fields
-    oldFieldsMap.forEach((oldField, id) => {
-        if (!newFieldsMap.has(id) && oldField.isCustom) {
-            createLog(`Deleted custom field "${oldField.label}" from the "${oldField.group}" group.`);
-        }
-    });
-
-    // Check for updated fields
-    newFieldsMap.forEach((newField, id) => {
-        // Skip repository field as its config changes are logged separately
-        if (newField.key === 'repositories') return;
-
+    // Check for added/deleted/updated fields
+    const allFieldIds = new Set([...oldFieldsMap.keys(), ...newFieldsMap.keys()]);
+    allFieldIds.forEach(id => {
         const oldField = oldFieldsMap.get(id);
-        if (oldField) {
+        const newField = newFieldsMap.get(id);
+        
+        // Skip repository field as its config changes are logged separately
+        if (newField?.key === 'repositories' || oldField?.key === 'repositories') return;
+
+        if (newField && !oldField) {
+            createDetail(`Added new field "${newField.label}" to the "${newField.group}" group.`);
+            return;
+        }
+
+        if (!newField && oldField && oldField.isCustom) {
+            createDetail(`Deleted custom field "${oldField.label}" from the "${oldField.group}" group.`);
+            return;
+        }
+
+        if (newField && oldField) {
             const fieldUpdateDetails: string[] = [];
             
             if (oldField.label !== newField.label) { fieldUpdateDetails.push(`- Renamed from "${oldField.label}" to "${newField.label}".`); }
@@ -352,8 +351,8 @@ const generateUiConfigUpdateLogs = (oldConfig: UiConfig, newConfig: UiConfig): O
             if (oldField.baseUrl !== newField.baseUrl) { fieldUpdateDetails.push(`- Changed Base URL from "${oldField.baseUrl || 'none'}" to "${newField.baseUrl || 'none'}".`); }
             if (oldField.sortDirection !== newField.sortDirection) { fieldUpdateDetails.push(`- Changed sort order to "${newField.sortDirection}".`); }
             
-            const oldOptionsString = JSON.stringify(oldField.options?.map(o => ({ value: o.value, label: o.label })).sort((a,b) => a.value.localeCompare(b.value)));
-            const newOptionsString = JSON.stringify(newField.options?.map(o => ({ value: o.value, label: o.label })).sort((a,b) => a.value.localeCompare(b.value)));
+            const oldOptionsString = JSON.stringify((oldField.options || []).map(o => ({ value: o.value, label: o.label })).sort((a,b) => a.value.localeCompare(b.value)));
+            const newOptionsString = JSON.stringify((newField.options || []).map(o => ({ value: o.value, label: o.label })).sort((a,b) => a.value.localeCompare(b.value)));
 
             if (oldOptionsString !== newOptionsString) {
                 const oldOptions = new Map((oldField.options || []).map(o => [o.value, o.label]));
@@ -381,7 +380,7 @@ const generateUiConfigUpdateLogs = (oldConfig: UiConfig, newConfig: UiConfig): O
 
             if (fieldUpdateDetails.length > 0) {
                 const logMessage = `Updated settings for field "${oldField.label}":\n${fieldUpdateDetails.join('\n')}`;
-                createLog(logMessage);
+                createDetail(logMessage);
             }
         }
     });
@@ -389,11 +388,14 @@ const generateUiConfigUpdateLogs = (oldConfig: UiConfig, newConfig: UiConfig): O
     // Check for field reordering as a fallback log
     const oldActiveOrder = oldConfig.fields.filter(f => f.isActive).map(f => f.id).join(',');
     const newActiveOrder = newConfig.fields.filter(f => f.isActive).map(f => f.id).join(',');
-    if (oldActiveOrder !== newActiveOrder && logs.length === 0) {
-        createLog('Reordered active fields.');
+    if (oldActiveOrder !== newActiveOrder && logDetails.length === 0) {
+        createDetail('Reordered active fields.');
     }
+    
+    if (logDetails.length === 0) return null;
+    if (logDetails.length === 1) return logDetails[0];
 
-    return logs;
+    return `Updated application settings with multiple changes:\n\n${logDetails.join('\n\n')}`;
 };
 
 // UI Config Functions
@@ -426,18 +428,15 @@ export function updateUiConfig(newConfig: UiConfig): UiConfig {
             }
         });
         
-        const logsToCreate = generateUiConfigUpdateLogs(oldConfig, newConfig);
+        const logMessage = generateUiConfigUpdateLogs(oldConfig, newConfig);
         
-        if (logsToCreate.length > 0) {
-            const now = new Date().toISOString();
-            logsToCreate.forEach(log => {
-                const newLog: Log = {
-                    id: `log-${crypto.randomUUID()}`,
-                    timestamp: now,
-                    ...log,
-                };
-                data.companyData[activeCompanyId].logs.unshift(newLog);
-            });
+        if (logMessage) {
+            const newLog: Log = {
+                id: `log-${crypto.randomUUID()}`,
+                timestamp: new Date().toISOString(),
+                message: logMessage
+            };
+            data.companyData[activeCompanyId].logs.unshift(newLog);
             if (data.companyData[activeCompanyId].logs.length > 2000) {
                 data.companyData[activeCompanyId].logs = data.companyData[activeCompanyId].logs.slice(0, 2000);
             }
@@ -833,14 +832,26 @@ export function moveMultipleTasksToBin(ids: string[]): boolean {
     const now = new Date().toISOString();
     tasksToBin.forEach(task => {
         task.deletedAt = now;
-        const newLog: Log = {
+        const individualLog: Log = {
             id: `log-${crypto.randomUUID()}`,
             timestamp: now,
             message: `Moved task "${task.title}" to the bin.`, 
             taskId: task.id
         };
-        companyData.logs.unshift(newLog);
+        companyData.logs.unshift(individualLog);
     });
+    
+    const logMessageParts = tasksToBin.map(task => `- Moved task "${task.title}" to the bin.`);
+    const fullLogMessage = tasksToBin.length > 1 
+      ? `Moved ${tasksToBin.length} tasks to the bin:\n${logMessageParts.join('\n')}`
+      : `Moved task "${tasksToBin[0].title}" to the bin.`;
+    
+    const aggregateLog: Log = {
+        id: `log-aggregate-${crypto.randomUUID()}`,
+        timestamp: now,
+        message: fullLogMessage,
+    };
+    companyData.logs.unshift(aggregateLog);
 
     companyData.tasks = companyData.tasks.filter(task => !ids.includes(task.id));
     companyData.trash.unshift(...tasksToBin);
@@ -881,14 +892,26 @@ export function restoreMultipleTasks(ids: string[]): boolean {
     const now = new Date().toISOString();
     tasksToRestore.forEach(task => {
         delete task.deletedAt;
-        const newLog: Log = {
+        const individualLog: Log = {
             id: `log-${crypto.randomUUID()}`,
             timestamp: now,
             message: `Restored task "${task.title}" from the bin.`,
             taskId: task.id
         };
-        companyData.logs.unshift(newLog);
+        companyData.logs.unshift(individualLog);
     });
+
+    const logMessageParts = tasksToRestore.map(task => `- Restored task "${task.title}" from the bin.`);
+    const fullLogMessage = tasksToRestore.length > 1
+        ? `Restored ${tasksToRestore.length} tasks from the bin:\n${logMessageParts.join('\n')}`
+        : `Restored task "${tasksToRestore[0].title}" from the bin.`;
+
+    const aggregateLog: Log = {
+        id: `log-aggregate-${crypto.randomUUID()}`,
+        timestamp: now,
+        message: fullLogMessage,
+    };
+    companyData.logs.unshift(aggregateLog);
 
     companyData.trash = companyData.trash.filter(task => !ids.includes(task.id));
     companyData.tasks.unshift(...tasksToRestore);
@@ -930,18 +953,21 @@ export function permanentlyDeleteMultipleTasks(ids: string[]): boolean {
     const tasksToDelete = companyData.trash.filter(task => ids.includes(task.id));
     if (tasksToDelete.length === 0) return false;
     
-    const now = new Date().toISOString();
-    tasksToDelete.forEach(task => {
-      const newLog: Log = {
-          id: `log-${crypto.randomUUID()}`,
-          timestamp: now,
-          message: `Permanently deleted task "${task.title}".`
-      };
-      companyData.logs.unshift(newLog);
-    });
-    
     companyData.trash = companyData.trash.filter(task => !ids.includes(task.id));
-
+    
+    const now = new Date().toISOString();
+    const logMessageParts = tasksToDelete.map(task => `- Permanently deleted task "${task.title}".`);
+    const fullLogMessage = tasksToDelete.length > 1
+        ? `Permanently deleted ${tasksToDelete.length} tasks:\n${logMessageParts.join('\n')}`
+        : `Permanently deleted task "${tasksToDelete[0].title}".`;
+    
+    const newLog: Log = {
+        id: `log-aggregate-${crypto.randomUUID()}`,
+        timestamp: now,
+        message: fullLogMessage
+    };
+    companyData.logs.unshift(newLog);
+    
     if (companyData.logs.length > 2000) {
         companyData.logs = companyData.logs.slice(0, 2000);
     }
@@ -1150,3 +1176,46 @@ export function deleteComment(taskId: string, index: number): Task | undefined {
    addLog({ message: `Deleted a comment from task "${task.title}": "${deletedComment.substring(0, 50)}..."`, taskId });
    return updateTask(taskId, { comments: newComments });
 }
+
+// Global logs page view
+export function getAggregatedLogs(): Log[] {
+    const logs = getLogs();
+    const visibleLogs: Log[] = [];
+    const processedAggregates = new Set<string>();
+
+    for (const log of logs) {
+        if (log.message.includes('tasks to the bin') || log.message.includes('tasks from the bin') || log.message.includes('Permanently deleted')) {
+             if (log.id.startsWith('log-aggregate-')) {
+                 const aggregateId = log.id;
+                 if (!processedAggregates.has(aggregateId)) {
+                     visibleLogs.push(log);
+                     processedAggregates.add(aggregateId);
+                 }
+             }
+             // Hide individual logs that are part of an aggregate action
+             continue;
+        }
+        
+        if (log.message.includes('Updated application settings with multiple changes')) {
+            visibleLogs.push(log);
+            continue;
+        }
+
+        visibleLogs.push(log);
+    }
+    
+    // Fallback for older data that doesn't have aggregate logs
+    const finalLogs: Log[] = [];
+    const processedIds = new Set<string>();
+    
+    for (const log of visibleLogs) {
+        if (!processedIds.has(log.id)) {
+            finalLogs.push(log);
+            processedIds.add(log.id);
+        }
+    }
+    
+    return finalLogs;
+}
+
+    
