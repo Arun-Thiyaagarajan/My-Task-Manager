@@ -347,28 +347,30 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                     </Tooltip>
                     <div className="flex -space-x-2">
                         {assignedDevelopers.map((dev) => (
-                          <Tooltip key={dev.id}>
-                            <TooltipTrigger asChild>
-                              <button
-                                  onClick={(e) => {
-                                      e.stopPropagation();
-                                      e.preventDefault();
-                                      setPersonInView({ person: dev, type: 'Developer' });
-                                  }}
-                                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
-                              >
-                                <Avatar className="h-7 w-7 border-2 border-background cursor-pointer">
-                                  <AvatarFallback 
-                                    className="text-xs font-semibold text-white"
-                                    style={{ backgroundColor: `#${getAvatarColor(dev.name)}` }}
-                                  >
-                                    {getInitials(dev.name)}
-                                  </AvatarFallback>
-                                </Avatar>
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent><p>{dev.name}</p></TooltipContent>
-                          </Tooltip>
+                          <div key={dev.id}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                        setPersonInView({ person: dev, type: 'Developer' });
+                                    }}
+                                    className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
+                                >
+                                  <Avatar className="h-7 w-7 border-2 border-background cursor-pointer">
+                                    <AvatarFallback 
+                                      className="text-xs font-semibold text-white"
+                                      style={{ backgroundColor: `#${getAvatarColor(dev.name)}` }}
+                                    >
+                                      {getInitials(dev.name)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent><p>{dev.name}</p></TooltipContent>
+                            </Tooltip>
+                          </div>
                         ))}
                     </div>
                   </div>
@@ -386,28 +388,30 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                     </Tooltip>
                     <div className="flex -space-x-2">
                         {assignedTesters.map((tester) => (
-                          <Tooltip key={tester.id}>
-                            <TooltipTrigger asChild>
-                               <button
-                                  onClick={(e) => {
-                                      e.stopPropagation();
-                                      e.preventDefault();
-                                      setPersonInView({ person: tester, type: 'Tester' });
-                                  }}
-                                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
-                              >
-                                <Avatar className="h-7 w-7 border-2 border-background cursor-pointer">
-                                  <AvatarFallback 
-                                    className="text-xs font-semibold text-white"
-                                    style={{ backgroundColor: `#${getAvatarColor(tester.name)}` }}
-                                  >
-                                    {getInitials(tester.name)}
-                                  </AvatarFallback>
-                                </Avatar>
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent><p>{tester.name}</p></TooltipContent>
-                          </Tooltip>
+                          <div key={tester.id}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                        setPersonInView({ person: tester, type: 'Tester' });
+                                    }}
+                                    className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
+                                >
+                                  <Avatar className="h-7 w-7 border-2 border-background cursor-pointer">
+                                    <AvatarFallback 
+                                      className="text-xs font-semibold text-white"
+                                      style={{ backgroundColor: `#${getAvatarColor(tester.name)}` }}
+                                    >
+                                      {getInitials(tester.name)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent><p>{tester.name}</p></TooltipContent>
+                            </Tooltip>
+                          </div>
                         ))}
                     </div>
                   </div>
