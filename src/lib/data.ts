@@ -156,10 +156,7 @@ export function updateCompany(id: string, name: string): Company | undefined {
     const oldName = data.companies[companyIndex].name;
     data.companies[companyIndex].name = name;
 
-    const currentActiveCompanyId = data.activeCompanyId;
-    data.activeCompanyId = id; // Temporarily switch context to log to the right company
     addLog({ message: `Renamed company from "${oldName}" to "${name}".` });
-    data.activeCompanyId = currentActiveCompanyId; // Switch back
 
     setAppData(data);
     return data.companies[companyIndex];
