@@ -127,12 +127,12 @@ export default function BinPage() {
 
       <Card>
         <CardHeader>
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                 <CardTitle>Deleted Tasks</CardTitle>
                  {binnedTasks.length > 0 && (
                   <AlertDialog>
                       <AlertDialogTrigger asChild>
-                          <Button variant="destructive"><Recycle className="mr-2 h-4 w-4"/> Empty Bin</Button>
+                          <Button variant="destructive" size="sm"><Recycle className="mr-2 h-4 w-4"/> Empty Bin</Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                           <AlertDialogHeader>
@@ -148,9 +148,9 @@ export default function BinPage() {
                  )}
             </div>
             {selectedTaskIds.length > 0 && (
-                <div className="mt-4 p-3 bg-muted rounded-lg flex items-center justify-between">
-                    <span className="text-sm font-medium">{selectedTaskIds.length} task(s) selected</span>
-                    <div className="flex gap-2">
+                <div className="mt-4 p-3 bg-muted rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <span className="text-sm font-medium self-start sm:self-center">{selectedTaskIds.length} task(s) selected</span>
+                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                         <Button size="sm" onClick={handleRestore}><History className="mr-2 h-4 w-4"/> Restore</Button>
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -178,14 +178,14 @@ export default function BinPage() {
               <p className="mt-1">Deleted tasks will appear here.</p>
             </div>
           ) : (
-            <div className="border rounded-lg">
+            <div className="border rounded-lg overflow-x-auto">
                 <Table>
                 <TableHeader>
                     <TableRow>
                     <TableHead className="w-[50px]">
                         <Checkbox
                         checked={selectedTaskIds.length === binnedTasks.length && binnedTasks.length > 0}
-                        onCheckedChange={handleSelectAll}
+                        onCheckedChange={(checked) => handleSelectAll(!!checked)}
                         aria-label="Select all"
                         />
                     </TableHead>
@@ -216,10 +216,10 @@ export default function BinPage() {
                                     aria-label={`Select task ${task.title}`}
                                     />
                                 </TableCell>
-                                <TableCell className="font-medium group-hover:text-primary group-hover:underline transition-colors">{task.title}</TableCell>
+                                <TableCell className="font-medium group-hover:text-primary group-hover:underline transition-colors whitespace-nowrap">{task.title}</TableCell>
                                 <TableCell><TaskStatusBadge status={task.status} /></TableCell>
                                 <TableCell className="text-muted-foreground text-xs truncate max-w-xs">{assignees.join(', ') || 'N/A'}</TableCell>
-                                <TableCell className="text-right text-muted-foreground text-xs">
+                                <TableCell className="text-right text-muted-foreground text-xs whitespace-nowrap">
                                     {task.deletedAt ? `${formatDistanceToNow(new Date(task.deletedAt))} ago` : 'Recently'}
                                 </TableCell>
                             </TableRow>
