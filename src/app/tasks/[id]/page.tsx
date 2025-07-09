@@ -462,8 +462,9 @@ export default function TaskPage() {
         )}
 
         <div className="space-y-6 lg:space-y-8">
+            {/* Top Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-                <div className="lg:col-span-2 space-y-6 lg:space-y-8">
+                <div className="lg:col-span-2">
                     <Card className={cn("relative overflow-hidden", cardClassName)}>
                       <Icon
                         className={cn(
@@ -693,9 +694,11 @@ export default function TaskPage() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+            {/* Main Content Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
+                {/* Left Column */}
                 <div className="lg:col-span-2 space-y-6 lg:space-y-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
                         {deploymentField && (
                           <Card>
                             <CardHeader>
@@ -785,7 +788,7 @@ export default function TaskPage() {
                           </Card>
                         )}
                     </div>
-
+                    
                     {Object.keys(groupedCustomFields).map(groupName => (
                       <Card key={groupName}>
                         <CardHeader>
@@ -804,7 +807,7 @@ export default function TaskPage() {
                         </CardContent>
                       </Card>
                     ))}
-
+                    
                     {attachmentsField && (
                       <Card>
                           <CardHeader>
@@ -932,6 +935,7 @@ export default function TaskPage() {
                     )}
                 </div>
                 
+                {/* Right Column */}
                 <div className="lg:col-span-1 space-y-6 lg:space-y-8">
                      {!isBinned && (
                       <CommentsSection
@@ -979,5 +983,3 @@ export default function TaskPage() {
     </>
   );
 }
-
-    
