@@ -7,11 +7,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { addComment, updateComment, deleteComment } from '@/lib/data';
 import { Pencil, Trash2, X, Check, StickyNote } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { Comment } from '@/lib/types';
+import { formatDistanceToNow } from 'date-fns';
 
 interface CommentsSectionProps {
   taskId: string;
-  comments: string[];
-  onCommentsUpdate: (newComments: string[]) => void;
+  comments: Comment[];
+  onCommentsUpdate: (newComments: Comment[]) => void;
   hideHeader?: boolean;
   readOnly?: boolean;
 }
@@ -33,7 +35,7 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, hideHeader
 
   const handleEdit = (index: number) => {
     setEditingIndex(index);
-    setEditingText(comments[index]);
+    setEditingText(comments[index].text);
   };
 
   const handleCancelEdit = () => {
@@ -71,7 +73,7 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, hideHeader
       <CardContent className={cn("space-y-4", hideHeader && "p-0")}>
         <div className="space-y-4">
           {comments.map((comment, index) => (
-            <div key={index} className="p-3 rounded-md border bg-muted/50 group min-h-[60px]">
+            <div key={index} className="p-3 rounded-md border bg-muted/50 group">
               {editingIndex === index ? (
                 <div className="space-y-2">
                    <Textarea
@@ -85,20 +87,25 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, hideHeader
                    </div>
                 </div>
               ) : (
-                <div className="flex justify-between items-start gap-2">
-                    <p className="text-foreground/80 whitespace-pre-wrap flex-1 pt-1">{comment}</p>
-                    {!readOnly && (
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(index)}>
-                              <Pencil className="h-4 w-4" />
-                              <span className="sr-only">Edit comment</span>
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(index)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                              <span className="sr-only">Delete comment</span>
-                          </Button>
-                      </div>
-                    )}
+                <div className="flex flex-col justify-between items-start gap-2">
+                    <div className="flex justify-between items-start w-full gap-2">
+                      <p className="text-foreground/80 whitespace-pre-wrap flex-1 pt-1">{comment.text}</p>
+                      {!readOnly && (
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(index)}>
+                                <Pencil className="h-4 w-4" />
+                                <span className="sr-only">Edit comment</span>
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(index)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                                <span className="sr-only">Delete comment</span>
+                            </Button>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground self-end">
+                      {formatDistanceToNow(new Date(comment.timestamp), { addSuffix: true })}
+                    </p>
                 </div>
               )}
             </div>

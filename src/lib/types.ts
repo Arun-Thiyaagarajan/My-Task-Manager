@@ -41,6 +41,11 @@ export interface Log {
   details?: Record<string, any>;
 }
 
+export interface Comment {
+  text: string;
+  timestamp: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -65,7 +70,7 @@ export interface Task {
   };
   developers?: string[]; // Storing Person IDs
   testers?: string[]; // Storing Person IDs
-  comments?: string[];
+  comments?: Comment[];
   attachments?: Attachment[];
   
   devStartDate?: string | null;

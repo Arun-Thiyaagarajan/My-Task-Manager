@@ -17,7 +17,7 @@ import { PrLinksGroup } from '@/components/pr-links-group';
 import { Badge } from '@/components/ui/badge';
 import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
 import { format } from 'date-fns';
-import type { Task, FieldConfig, UiConfig, TaskStatus, Person, Attachment, Log } from '@/lib/types';
+import type { Task, FieldConfig, UiConfig, TaskStatus, Person, Attachment, Log, Comment } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useToast } from '@/hooks/use-toast';
@@ -197,7 +197,7 @@ export default function TaskPage() {
   }, [taskId]);
 
   
-  const handleCommentsUpdate = (newComments: string[]) => {
+  const handleCommentsUpdate = (newComments: Comment[]) => {
     if (task) {
       setTask({ ...task, comments: newComments });
       setTaskLogs(getLogsForTask(task.id));
@@ -491,11 +491,9 @@ export default function TaskPage() {
                 <div className="relative z-10 flex flex-col h-full">
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start gap-4">
-                      <div className="flex items-center gap-3 flex-1">
-                        <CardTitle className="text-3xl font-bold">{task.title}</CardTitle>
+                      <CardTitle className="text-3xl font-bold flex-1">{task.title}</CardTitle>
+                      <div className="flex-shrink-0 flex items-center gap-2">
                         {!isBinned && (<FavoriteToggleButton taskId={task.id} isFavorite={!!task.isFavorite} onUpdate={loadData} className="h-9 w-9" />)}
-                      </div>
-                      <div className="flex-shrink-0">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" disabled={isBinned} className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-100">
@@ -653,13 +651,15 @@ export default function TaskPage() {
                 </CardContent>
               </Card>
             )}
-            {!isBinned && taskLogs.length > 0 && (
-                <TaskHistory logs={taskLogs} />
+             {!isBinned && taskLogs.length > 0 && (
+                <div className="lg:col-span-2">
+                    <TaskHistory logs={taskLogs} />
+                </div>
             )}
           </div>
 
           {/* Right Column */}
-          <div className="lg:col-span-1 space-y-6">
+          <div className="space-y-6">
             <Card className="h-fit">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-xl"><ListChecks className="h-5 w-5" />Task Details</CardTitle>
@@ -826,4 +826,5 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
       </div>
     );
 }
+
 

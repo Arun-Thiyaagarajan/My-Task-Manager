@@ -24,12 +24,17 @@ export const attachmentSchema = z.object({
     path: ['url'],
 });
 
+export const commentSchema = z.object({
+  text: z.string(),
+  timestamp: z.string().datetime(),
+});
+
 export const taskSchema = z.object({
   id: z.string().optional(),
   createdAt: z.string().datetime({ message: "Invalid datetime string." }).optional(),
   updatedAt: z.string().datetime({ message: "Invalid datetime string." }).optional(),
   deletedAt: z.string().datetime({ message: "Invalid datetime string." }).optional().nullable(),
-  comments: z.array(z.string()).optional(),
+  comments: z.array(commentSchema).optional(),
   summary: z.string().nullable().optional(),
   isFavorite: z.boolean().optional(),
   

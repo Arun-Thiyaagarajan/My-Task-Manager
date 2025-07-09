@@ -1,7 +1,7 @@
 
 
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log } from './types';
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment } from './types';
 import cloneDeep from 'lodash/cloneDeep';
 
 const DATA_KEY = 'my_task_manager_data';
@@ -1166,26 +1166,35 @@ export function deleteTester(id: string): boolean {
 
 
 // Comment Functions
-export function addComment(taskId: string, comment: string): Task | undefined {
+export function addComment(taskId: string, commentText: string): Task | undefined {
   const task = getTaskById(taskId);
   if (!task) return undefined;
-  const newComments = [...(task.comments || []), comment];
+
+  const newComment: Comment = {
+    text: commentText,
+    timestamp: new Date().toISOString(),
+  };
+
+  const newComments = [...(task.comments || []), newComment];
   
   const data = getAppData();
   const companyData = data.companyData[data.activeCompanyId];
   if (!companyData) return undefined;
-  _addLog(companyData, { message: `Added a comment to task "${task.title}": "${comment.substring(0, 50)}..."`, taskId });
-  setAppData(data); // _addLog does not save, so we must save here after the updateTask call.
+  _addLog(companyData, { message: `Added a comment to task "${task.title}": "${commentText.substring(0, 50)}..."`, taskId });
+  setAppData(data);
   
   return updateTask(taskId, { comments: newComments });
 }
 
-export function updateComment(taskId: string, index: number, newComment: string): Task | undefined {
+export function updateComment(taskId: string, index: number, newCommentText: string): Task | undefined {
    const task = getTaskById(taskId);
    if (!task || !task.comments || index < 0 || index >= task.comments.length) return undefined;
    
    const newComments = [...task.comments];
-   newComments[index] = newComment;
+   newComments[index] = {
+     text: newCommentText,
+     timestamp: new Date().toISOString(),
+   };
    
    const data = getAppData();
    const companyData = data.companyData[data.activeCompanyId];
@@ -1205,7 +1214,7 @@ export function deleteComment(taskId: string, index: number): Task | undefined {
    const data = getAppData();
    const companyData = data.companyData[data.activeCompanyId];
    if (!companyData) return undefined;
-   _addLog(companyData, { message: `Deleted a comment from task "${task.title}": "${deletedComment.substring(0, 50)}..."`, taskId });
+   _addLog(companyData, { message: `Deleted a comment from task "${task.title}": "${deletedComment.text.substring(0, 50)}..."`, taskId });
    setAppData(data);
 
    return updateTask(taskId, { comments: newComments });
