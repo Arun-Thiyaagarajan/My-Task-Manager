@@ -457,9 +457,9 @@ export default function TaskPage() {
           </Alert>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          <div className="md:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-6">
             <Card className={cn("relative overflow-hidden", cardClassName)}>
               <Icon
                 className={cn(
@@ -521,7 +521,7 @@ export default function TaskPage() {
               </div>
             </Card>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                   <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-xl">
@@ -609,6 +609,25 @@ export default function TaskPage() {
               </Card>
             </div>
             
+            {Object.keys(groupedCustomFields).map(groupName => (
+              <Card key={groupName}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                      <Box className="h-5 w-5" />
+                      {groupName}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {groupedCustomFields[groupName].map(field => (
+                        <div key={field.key}>
+                            <h4 className="text-sm font-semibold text-muted-foreground mb-1">{field.label}</h4>
+                            <div className="text-sm text-foreground">{renderCustomFieldValue(field.key, task.customFields?.[field.key])}</div>
+                        </div>
+                    ))}
+                </CardContent>
+              </Card>
+            ))}
+
             {uiConfig.fields.find(f => f.key === 'attachments' && f.isActive) && (
               <Card>
                   <CardHeader>
@@ -735,25 +754,6 @@ export default function TaskPage() {
               </Card>
             )}
 
-            {Object.keys(groupedCustomFields).map(groupName => (
-              <Card key={groupName}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-xl">
-                      <Box className="h-5 w-5" />
-                      {groupName}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    {groupedCustomFields[groupName].map(field => (
-                        <div key={field.key}>
-                            <h4 className="text-sm font-semibold text-muted-foreground mb-1">{field.label}</h4>
-                            <div className="text-sm text-foreground">{renderCustomFieldValue(field.key, task.customFields?.[field.key])}</div>
-                        </div>
-                    ))}
-                </CardContent>
-              </Card>
-            ))}
-            
             {!isBinned && taskLogs.length > 0 && (
                 <TaskHistory logs={taskLogs} />
             )}
@@ -771,7 +771,7 @@ export default function TaskPage() {
 
           </div>
 
-          <div className="md:col-span-1 space-y-6">
+          <div className="lg:col-span-1 space-y-6">
               <Card>
                   <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-xl">
