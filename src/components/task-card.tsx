@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getStatusConfig, TaskStatusBadge } from './task-status-badge';
-import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck, Share2, BellRing, Pin } from 'lucide-react';
+import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck, Share2, BellRing, Pin, MoreVertical } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
@@ -37,6 +37,7 @@ import { Checkbox } from './ui/checkbox';
 import { ShareMenu } from './share-menu';
 import { FavoriteToggleButton } from './favorite-toggle';
 import { ReminderDialog } from './reminder-dialog';
+import { TaskCardContextMenu } from './task-card-context-menu';
 
 interface TaskCardProps {
   task: Task;
@@ -60,6 +61,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [justUpdatedEnv, setJustUpdatedEnv] = useState<string | null>(null);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
+  const [isContextMenuOpen, setContextMenuOpen] = useState(false);
   
   const isSelectable = selectedTaskIds !== undefined && setSelectedTaskIds !== undefined;
   const isSelected = isSelectable && (selectedTaskIds || []).includes(task.id);
@@ -88,7 +90,6 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
           }
         } catch (error) {
           console.error("Failed to summarize:", error);
-          // Do not show toast for this, as it could be noisy
         } finally {
           setIsSummarizing(false);
         }
@@ -207,6 +208,11 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
             handleSelectionChange();
           }
         }}
+        onDoubleClick={(e) => {
+            if (isSelectMode) return;
+            e.preventDefault();
+            setContextMenuOpen(true);
+        }}
         className={cn(
           "h-full rounded-lg transition-all",
           isSelectMode && "cursor-pointer",
@@ -250,7 +256,15 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                         {task.title}
                         </CardTitle>
                     </Link>
-                    <div className="flex-shrink-0">
+                    <div className="flex-shrink-0 flex items-center gap-1">
+                        {uiConfig?.remindersEnabled && task.reminder && (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <BellRing className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                                </TooltipTrigger>
+                                <TooltipContent>This task has a reminder note.</TooltipContent>
+                            </Tooltip>
+                        )}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0" onClick={e => e.stopPropagation()}>
@@ -465,24 +479,6 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                   isFavorite={!!task.isFavorite}
                   onUpdate={onTaskUpdate}
               />
-              {uiConfig?.remindersEnabled && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsReminderOpen(true); }} variant="ghost" size="icon" className="h-8 w-8">
-                        <BellRing className={cn("h-4 w-4 text-muted-foreground", task.reminder && "text-amber-600 dark:text-amber-400", isPinned && "fill-amber-400/80")} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent><p>{task.reminder ? "Edit reminder note" : "Add reminder note"}</p></TooltipContent>
-                </Tooltip>
-              )}
-              {uiConfig && (
-                <ShareMenu task={task} uiConfig={uiConfig} developers={developers} testers={testers}>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <Share2 className="h-4 w-4" />
-                      <span className="sr-only">Share Task</span>
-                  </Button>
-                </ShareMenu>
-              )}
               <DeleteTaskButton
                 taskId={task.id}
                 taskTitle={task.title}
@@ -500,6 +496,17 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
         isOpen={!!personInView}
         onOpenChange={(isOpen) => !isOpen && setPersonInView(null)}
       />
+      {uiConfig && (
+        <TaskCardContextMenu
+            isOpen={isContextMenuOpen}
+            onOpenChange={setContextMenuOpen}
+            task={task}
+            uiConfig={uiConfig}
+            developers={developers}
+            testers={testers}
+            onSetReminder={() => setIsReminderOpen(true)}
+        />
+      )}
       {uiConfig?.remindersEnabled && task && (
         <ReminderDialog
           isOpen={isReminderOpen}

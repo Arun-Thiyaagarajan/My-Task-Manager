@@ -581,10 +581,10 @@ export default function TaskPage() {
                         Last updated on {format(new Date(task.updatedAt), 'PPP')}
                     </CardDescription>
                     <p className="text-foreground/80 whitespace-pre-wrap">{task.description}</p>
+                    <div className="mt-auto pt-6">
+                        <FavoriteToggleButton taskId={task.id} isFavorite={!!task.isFavorite} onUpdate={loadData} />
+                    </div>
                   </CardContent>
-                   <CardFooter className="pt-4 flex items-center gap-2">
-                        <FavoriteToggleButton taskId={task.id} isFavorite={!!task.isFavorite} onUpdate={loadData} className="h-9 w-9 -ml-2" />
-                    </CardFooter>
                 </div>
             </Card>
             
