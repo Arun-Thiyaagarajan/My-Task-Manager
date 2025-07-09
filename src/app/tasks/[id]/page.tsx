@@ -30,6 +30,17 @@ import { Input } from '@/components/ui/input';
 import { attachmentSchema } from '@/lib/validators';
 import { RelatedTasksSection } from '@/components/related-tasks-section';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { ShareMenu } from '@/components/share-menu';
 import { FavoriteToggleButton } from '@/components/favorite-toggle';
 import { TaskHistory } from '@/components/task-history';
@@ -75,18 +86,19 @@ export default function TaskPage() {
       const allTesters = getTesters();
       const foundTask = getTaskById(taskId);
       const config = getUiConfig();
-      const logs = getLogsForTask(taskId);
       
       setTask(foundTask || null);
       setUiConfig(config);
       setDevelopers(allDevs);
       setTesters(allTesters);
-      setTaskLogs(logs);
 
       if (foundTask) {
         document.title = `${foundTask.title} | ${config.appName || 'My Task Manager'}`;
+        
+        const isBinned = !!foundTask.deletedAt;
+        setTaskLogs(isBinned ? [] : getLogsForTask(taskId));
 
-        if (foundTask.deletedAt) {
+        if (isBinned) {
             setRelatedTasks([]);
             setRelatedTasksTitle('');
         } else {
@@ -189,6 +201,7 @@ export default function TaskPage() {
   }
 
   useEffect(() => {
+    setTask(null);
     loadData();
     window.addEventListener('storage', loadData);
     return () => {
@@ -356,7 +369,7 @@ export default function TaskPage() {
         title: 'Task Restored',
         description: `Task "${task.title}" has been successfully restored.`,
       });
-      router.push(`/tasks/${task.id}`);
+      router.push('/bin');
     }
   };
 
@@ -438,6 +451,7 @@ export default function TaskPage() {
   const prField = uiConfig.fields.find(f => f.key === 'prLinks' && f.isActive);
   const deploymentField = uiConfig.fields.find(f => f.key === 'deploymentStatus' && f.isActive);
   const attachmentsField = uiConfig.fields.find(f => f.key === 'attachments' && f.isActive);
+  const commentsField = uiConfig.fields.find(f => f.key === 'comments' && f.isActive);
   
 
   return (
@@ -451,10 +465,26 @@ export default function TaskPage() {
             </Link>
           </Button>
           {isBinned ? (
-            <Button variant="outline" size="sm" onClick={handleRestore}>
-                <History className="mr-2 h-4 w-4" />
-                Restore Task
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <History className="mr-2 h-4 w-4" />
+                  Restore Task
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Restore this task?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will move the task "{task.title}" back to your active tasks list.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleRestore}>Restore</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           ) : (
             <div className="flex gap-2">
                 <ShareMenu task={task} uiConfig={uiConfig} developers={developers} testers={testers}>
@@ -531,7 +561,7 @@ export default function TaskPage() {
             </Card>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {!isBinned && deploymentField && (
+                {deploymentField && (
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-xl"><CheckCircle2 className="h-5 w-5" />{fieldLabels.get('deploymentStatus') || 'Deployments'}</CardTitle>
@@ -557,7 +587,7 @@ export default function TaskPage() {
                     </CardContent>
                   </Card>
                 )}
-                {!isBinned && prField && (
+                {prField && (
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
                       <CardTitle className="flex items-center gap-2 text-xl"><GitMerge className="h-5 w-5" />{fieldLabels.get('prLinks') || 'Pull Requests'}</CardTitle>
@@ -574,13 +604,13 @@ export default function TaskPage() {
                 )}
             </div>
 
-            {customFieldGroupNames.map((groupName) => (
+            {Object.entries(groupedCustomFields).map(([groupName, fields]) => (
               <Card key={groupName}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-xl"><Box className="h-5 w-5" />{groupName}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {groupedCustomFields[groupName].map(field => (
+                  {fields.map(field => (
                     <div key={field.key} className="break-words">
                       <h4 className="text-sm font-semibold text-muted-foreground mb-1">{field.label}</h4>
                       <div className="text-sm text-foreground min-w-0">{renderCustomFieldValue(field, task.customFields?.[field.key])}</div>
@@ -590,7 +620,7 @@ export default function TaskPage() {
               </Card>
             ))}
 
-            {!isBinned && attachmentsField && (
+            {attachmentsField && (
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2"><Paperclip className="h-5 w-5" />{fieldLabels.get('attachments') || 'Attachments'}</CardTitle>
@@ -696,7 +726,7 @@ export default function TaskPage() {
                   </div>
                 </CardContent>
             </Card>
-            {!isBinned && (
+            {commentsField && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-xl"><StickyNote className="h-5 w-5" />{fieldLabels.get('comments') || 'Comments'}</CardTitle>
@@ -709,11 +739,11 @@ export default function TaskPage() {
           </div>
         </div>
         
-        <div className="mt-8">
-            {!isBinned && relatedTasks.length > 0 && (
-                <RelatedTasksSection title={relatedTasksTitle} tasks={relatedTasks} onTaskUpdate={loadData} uiConfig={uiConfig} developers={developers} testers={testers} />
-            )}
-        </div>
+        {!isBinned && relatedTasks.length > 0 && (
+          <div className="mt-8">
+            <RelatedTasksSection title={relatedTasksTitle} tasks={relatedTasks} onTaskUpdate={loadData} uiConfig={uiConfig} developers={developers} testers={testers} />
+          </div>
+        )}
       </div>
       <PersonProfileCard
         person={personInView?.person ?? null}
@@ -826,5 +856,6 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
       </div>
     );
 }
+
 
 
