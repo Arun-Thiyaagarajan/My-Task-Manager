@@ -2,7 +2,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask, getLinkAlias } from '@/lib/data';
+import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask } from '@/lib/data';
+import { getLinkAlias } from '@/ai/flows/get-link-alias-flow';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -31,6 +32,7 @@ import { RelatedTasksSection } from '@/components/related-tasks-section';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ShareMenu } from '@/components/share-menu';
 import { FavoriteToggleButton } from '@/components/favorite-toggle';
+import { TaskHistory } from '@/components/task-history';
 
 
 const isImageUrl = (url: string): boolean => {
@@ -483,120 +485,119 @@ export default function TaskPage() {
         )}
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-          {/* Left Column */}
           <div className="lg:col-span-2 space-y-6">
-            <Card className={cn("relative overflow-hidden", cardClassName)}>
-              <Icon className={cn('absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none transition-transform duration-300 ease-in-out', iconColorClassName, task.status !== 'In Progress' && 'group-hover/card:scale-110 group-hover/card:-rotate-6')} />
-              <div className="relative z-10 flex flex-col h-full">
-                <CardHeader>
-                  <div className="flex justify-between items-start gap-2">
-                    <div className="flex-1 flex items-center gap-3">
-                      <CardTitle className="text-3xl font-bold">{task.title}</CardTitle>
-                      {!isBinned && (<FavoriteToggleButton taskId={task.id} isFavorite={!!task.isFavorite} onUpdate={loadData} className="h-9 w-9" />)}
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <CardDescription>
-                      Last updated on {format(new Date(task.updatedAt), 'PPP')}
-                    </CardDescription>
-                    <div className="flex-shrink-0 flex items-center gap-1">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" disabled={isBinned} className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-100">
-                            <TaskStatusBadge status={task.status} variant="prominent" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Set Status</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          {uiConfig.taskStatuses.map(s => {
-                            const currentStatusConfig = getStatusConfig(s);
-                            const { Icon } = currentStatusConfig;
-                            return (
-                              <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)}>
-                                <div className="flex items-center gap-2">
-                                  <Icon className={cn("h-3 w-3", s === 'In Progress' && 'animate-spin')} />
-                                  <span>{s}</span>
-                                </div>
-                                {task.status === s && <Check className="ml-auto h-4 w-4" />}
-                              </DropdownMenuItem>
-                            )
-                          })}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="flex-grow">
-                  <p className="text-foreground/80 whitespace-pre-wrap">{task.description}</p>
-                </CardContent>
-              </div>
-            </Card>
-            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {!isBinned && deploymentField && (
-                <Card>
+              <Card className={cn("relative overflow-hidden md:col-span-2", cardClassName)}>
+                <Icon className={cn('absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none transition-transform duration-300 ease-in-out', iconColorClassName, task.status !== 'In Progress' && 'group-hover/card:scale-110 group-hover/card:-rotate-6')} />
+                <div className="relative z-10 flex flex-col h-full">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-xl"><CheckCircle2 className="h-5 w-5" />{fieldLabels.get('deploymentStatus') || 'Deployments'}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-1 text-sm">
-                      {allConfiguredEnvs.length > 0 ? (
-                        allConfiguredEnvs.map(env => {
-                          const isSelected = task.deploymentStatus?.[env] ?? false;
-                          const hasDate = task.deploymentDates && task.deploymentDates[env];
-                          const isDeployed = isSelected && (env === 'dev' || !!hasDate);
-                          return (
-                            <div key={env} className={cn("flex justify-between items-center p-2 -m-2 rounded-lg transition-colors",!isBinned && 'cursor-pointer hover:bg-muted/50')} onClick={!isBinned ? () => handleToggleDeployment(env) : undefined}>
-                              <span className="capitalize text-foreground font-medium">{env}</span>
-                              <div onAnimationEnd={() => setJustUpdatedEnv(null)} className={cn('flex items-center gap-2 font-medium', isDeployed ? 'text-green-600 dark:text-green-500' : 'text-yellow-600 dark:text-yellow-500', justUpdatedEnv === env && 'animate-status-in')}>
-                                {isDeployed ? (<><CheckCircle2 className="h-4 w-4" /><span>Deployed</span></>) : (<><Clock className="h-4 w-4" /><span>Pending</span></>)}
-                              </div>
-                            </div>
-                          );
-                        })
-                      ) : (<p className="text-muted-foreground text-center text-xs pt-2">No environments configured in settings.</p>)}
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="flex-1 flex items-center gap-3">
+                        <CardTitle className="text-3xl font-bold">{task.title}</CardTitle>
+                        {!isBinned && (<FavoriteToggleButton taskId={task.id} isFavorite={!!task.isFavorite} onUpdate={loadData} className="h-9 w-9" />)}
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
-              )}
-              {!isBinned && prField && (
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle className="flex items-center gap-2 text-xl"><GitMerge className="h-5 w-5" />{fieldLabels.get('prLinks') || 'Pull Requests'}</CardTitle>
-                    {!isBinned && task.repositories && task.repositories.length > 0 && allConfiguredEnvs.length > 0 && (
-                      <Button variant="ghost" size="sm" onClick={() => setIsEditingPrLinks(!isEditingPrLinks)}>
-                        {isEditingPrLinks ? 'Done' : (<><Pencil className="h-3 w-3 mr-1.5" /> Edit</>)}
-                      </Button>
-                    )}
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <CardDescription>
+                        Last updated on {format(new Date(task.updatedAt), 'PPP')}
+                      </CardDescription>
+                      <div className="flex-shrink-0 flex items-center gap-1">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" disabled={isBinned} className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-100">
+                              <TaskStatusBadge status={task.status} variant="prominent" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Set Status</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {uiConfig.taskStatuses.map(s => {
+                              const currentStatusConfig = getStatusConfig(s);
+                              const { Icon } = currentStatusConfig;
+                              return (
+                                <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)}>
+                                  <div className="flex items-center gap-2">
+                                    <Icon className={cn("h-3 w-3", s === 'In Progress' && 'animate-spin')} />
+                                    <span>{s}</span>
+                                  </div>
+                                  {task.status === s && <Check className="ml-auto h-4 w-4" />}
+                                </DropdownMenuItem>
+                              )
+                            })}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
                   </CardHeader>
-                  <CardContent>
-                    <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} configuredEnvs={uiConfig.environments} repositoryConfigs={uiConfig.repositoryConfigs} onUpdate={handlePrLinksUpdate} isEditing={isEditingPrLinks && !isBinned} />
+                  <CardContent className="flex-grow">
+                    <p className="text-foreground/80 whitespace-pre-wrap">{task.description}</p>
                   </CardContent>
-                </Card>
-              )}
+                </div>
+              </Card>
+              
+              {!isBinned && deploymentField && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-xl"><CheckCircle2 className="h-5 w-5" />{fieldLabels.get('deploymentStatus') || 'Deployments'}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-1 text-sm">
+                        {allConfiguredEnvs.length > 0 ? (
+                          allConfiguredEnvs.map(env => {
+                            const isSelected = task.deploymentStatus?.[env] ?? false;
+                            const hasDate = task.deploymentDates && task.deploymentDates[env];
+                            const isDeployed = isSelected && (env === 'dev' || !!hasDate);
+                            return (
+                              <div key={env} className={cn("flex justify-between items-center p-2 -m-2 rounded-lg transition-colors",!isBinned && 'cursor-pointer hover:bg-muted/50')} onClick={!isBinned ? () => handleToggleDeployment(env) : undefined}>
+                                <span className="capitalize text-foreground font-medium">{env}</span>
+                                <div onAnimationEnd={() => setJustUpdatedEnv(null)} className={cn('flex items-center gap-2 font-medium', isDeployed ? 'text-green-600 dark:text-green-500' : 'text-yellow-600 dark:text-yellow-500', justUpdatedEnv === env && 'animate-status-in')}>
+                                  {isDeployed ? (<><CheckCircle2 className="h-4 w-4" /><span>Deployed</span></>) : (<><Clock className="h-4 w-4" /><span>Pending</span></>)}
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (<p className="text-muted-foreground text-center text-xs pt-2">No environments configured in settings.</p>)}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+                {!isBinned && prField && (
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                      <CardTitle className="flex items-center gap-2 text-xl"><GitMerge className="h-5 w-5" />{fieldLabels.get('prLinks') || 'Pull Requests'}</CardTitle>
+                      {!isBinned && task.repositories && task.repositories.length > 0 && allConfiguredEnvs.length > 0 && (
+                        <Button variant="ghost" size="sm" onClick={() => setIsEditingPrLinks(!isEditingPrLinks)}>
+                          {isEditingPrLinks ? 'Done' : (<><Pencil className="h-3 w-3 mr-1.5" /> Edit</>)}
+                        </Button>
+                      )}
+                    </CardHeader>
+                    <CardContent>
+                      <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} configuredEnvs={uiConfig.environments} repositoryConfigs={uiConfig.repositoryConfigs} onUpdate={handlePrLinksUpdate} isEditing={isEditingPrLinks && !isBinned} />
+                    </CardContent>
+                  </Card>
+                )}
             </div>
 
             {!isBinned && customFieldGroupNames.length > 0 && (
-              Object.entries(groupedCustomFields).map(([groupName, fields]) => (
-                <Card key={groupName}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-xl"><Box className="h-5 w-5" />{groupName}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {fields.map(field => (
-                      <div key={field.key}>
-                        <h4 className="text-sm font-semibold text-muted-foreground mb-1">{field.label}</h4>
-                        <div className="text-sm text-foreground min-w-0">{renderCustomFieldValue(field, task.customFields?.[field.key])}</div>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              ))
+                Object.entries(groupedCustomFields).map(([groupName, fields]) => (
+                    <Card key={groupName} className="md:col-span-2">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-xl"><Box className="h-5 w-5" />{groupName}</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                          {fields.map(field => (
+                          <div key={field.key} className="break-words">
+                              <h4 className="text-sm font-semibold text-muted-foreground mb-1">{field.label}</h4>
+                              <div className="text-sm text-foreground min-w-0">{renderCustomFieldValue(field, task.customFields?.[field.key])}</div>
+                          </div>
+                          ))}
+                      </CardContent>
+                    </Card>
+                ))
             )}
 
             {!isBinned && attachmentsField && (
-              <Card>
+              <Card className="md:col-span-2">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2"><Paperclip className="h-5 w-5" />{fieldLabels.get('attachments') || 'Attachments'}</CardTitle>
                   {!isBinned && (<Button variant="ghost" size="sm" onClick={() => setIsEditingAttachments(!isEditingAttachments)}>{isEditingAttachments ? 'Done' : <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>}</Button>)}
@@ -610,7 +611,7 @@ export default function TaskPage() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                         {task.attachments?.map((att, index) => {
                           const shouldRenderAsImage = att.type === 'image' || isImageUrl(att.url);
                           let hostname: string | null = null;
@@ -706,13 +707,19 @@ export default function TaskPage() {
                 </CardContent>
               </Card>
             )}
+            {!isBinned && taskLogs.length > 0 && (
+                <div className="lg:hidden">
+                    <TaskHistory logs={taskLogs} />
+                </div>
+            )}
           </div>
         </div>
         
-        {/* Bottom Full-Width Sections */}
         <div className="mt-8 space-y-8">
             {!isBinned && taskLogs.length > 0 && (
-                <TaskHistory logs={taskLogs} />
+                <div className="hidden lg:block md:col-span-2">
+                    <TaskHistory logs={taskLogs} />
+                </div>
             )}
 
             {relatedTasks.length > 0 && (
