@@ -182,7 +182,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   const hasDevelopers = assignedDevelopers.length > 0;
   const hasTesters = assignedTesters.length > 0;
   
-  const MAX_VISIBLE_AVATARS = 3;
+  const MAX_VISIBLE_AVATARS = 1;
   
   const visibleDevelopers = assignedDevelopers.slice(0, MAX_VISIBLE_AVATARS);
   const hiddenDevelopersCount = assignedDevelopers.length - MAX_VISIBLE_AVATARS;
@@ -205,7 +205,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
           }
         }}
         className={cn(
-          "h-full rounded-lg transition-all p-1",
+          "h-full rounded-lg transition-all",
           isSelectMode && "cursor-pointer",
           isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-background"
         )}

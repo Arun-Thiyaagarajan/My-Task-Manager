@@ -406,7 +406,7 @@ export default function TaskPage() {
   }, {} as Record<string, FieldConfig[]>);
 
   const developersById = new Map(developers.map(d => [d.id, d]));
-  const testersById = new Map(testers.map(t => [t.id, t]));
+  const testersById = new Map(testers.map(t => [t.id, t.name]));
 
   const assignedDevelopers = (task.developers || []).map(id => developersById.get(id)).filter((d): d is Person => !!d);
   const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter((t): t is Person => !!t);
@@ -457,9 +457,7 @@ export default function TaskPage() {
           </Alert>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          <div className="lg:col-span-2 space-y-6">
+        <div className="space-y-8">
             <Card className={cn("relative overflow-hidden", cardClassName)}>
               <Icon
                 className={cn(
@@ -520,7 +518,169 @@ export default function TaskPage() {
                 </CardContent>
               </div>
             </Card>
-            
+
+              <Card>
+                  <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-xl">
+                          <ListChecks className="h-5 w-5" />
+                          Task Details
+                      </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                      <div>
+                          <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('developers') || 'Developers'}</h4>
+                          <div className="flex flex-wrap gap-4">
+                              {assignedDevelopers.length > 0 ? (
+                                  assignedDevelopers.map((dev) => (
+                                    <button 
+                                      key={dev.id} 
+                                      className="flex items-center gap-2 p-1 -m-1 rounded-md hover:bg-muted/50 transition-colors"
+                                      onClick={() => setPersonInView({ person: dev, type: 'Developer' })}
+                                    >
+                                        <Avatar className="h-7 w-7">
+                                        <AvatarFallback
+                                            className="font-semibold text-white text-[10px]"
+                                            style={{
+                                            backgroundColor: `#${getAvatarColor(dev.name)}`,
+                                            }}
+                                        >
+                                            {getInitials(dev.name)}
+                                        </AvatarFallback>
+                                        </Avatar>
+                                        <span className="text-sm font-medium text-foreground">
+                                        {dev.name}
+                                        </span>
+                                    </button>
+                                  ))
+                              ) : (
+                              <p className="text-sm text-muted-foreground">
+                                  No Developers assigned.
+                              </p>
+                              )}
+                          </div>
+                      </div>
+
+                      <Separator />
+                      
+                      <div>
+                          <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('testers') || 'Testers'}</h4>
+                          <div className="flex flex-wrap gap-4">
+                              {assignedTesters.length > 0 ? (
+                                  assignedTesters.map((tester) => (
+                                    <button 
+                                      key={tester.id} 
+                                      className="flex items-center gap-2 p-1 -m-1 rounded-md hover:bg-muted/50 transition-colors"
+                                      onClick={() => setPersonInView({ person: tester, type: 'Tester' })}
+                                    >
+                                      <Avatar className="h-7 w-7">
+                                      <AvatarFallback
+                                          className="font-semibold text-white text-[10px]"
+                                          style={{
+                                          backgroundColor: `#${getAvatarColor(tester.name)}`,
+                                          }}
+                                      >
+                                          {getInitials(tester.name)}
+                                      </AvatarFallback>
+                                      </Avatar>
+                                      <span className="text-sm font-medium text-foreground">
+                                      {tester.name}
+                                      </span>
+                                    </button>
+                                  ))
+                              ) : (
+                              <p className="text-sm text-muted-foreground">
+                                  No Testers assigned.
+                              </p>
+                              )}
+                          </div>
+                      </div>
+                      
+                      <Separator />
+
+                      <div>
+                          <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('repositories') || 'Repositories'}</h4>
+                          <div className="flex flex-wrap gap-1">
+                            {(task.repositories && task.repositories.length > 0) ? (task.repositories || []).map(repo => (
+                              <Badge
+                                key={repo}
+                                variant="repo"
+                                style={getRepoBadgeStyle(repo)}
+                              >
+                                {repo}
+                              </Badge>
+                            )) : (
+                              <p className="text-sm text-muted-foreground">No repositories assigned.</p>
+                            )}
+                          </div>
+                      </div>
+                      
+                      {azureFieldConfig && azureFieldConfig.isActive && task.azureWorkItemId && (
+                          <>
+                              <Separator />
+                              <div>
+                                  <h4 className="text-sm font-semibold text-muted-foreground mb-2">{azureFieldConfig.label || 'Azure DevOps'}</h4>
+                                  {azureFieldConfig.baseUrl ? (
+                                    <a href={`${azureFieldConfig.baseUrl}${task.azureWorkItemId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline text-sm">
+                                      <ExternalLink className="h-4 w-4" />
+                                      <span>Work Item #{task.azureWorkItemId}</span>
+                                    </a>
+                                  ) : (
+                                    <span className="text-sm text-foreground">{task.azureWorkItemId}</span>
+                                  )}
+                              </div>
+                          </>
+                      )}
+
+                      <Separator />
+
+                      <div>
+                          <h4 className="text-sm font-semibold text-muted-foreground mb-2">Important Dates</h4>
+                          <div className="space-y-2 text-sm">
+                              {task.devStartDate && (
+                                  <div className="flex justify-between">
+                                      <span className="text-muted-foreground">{fieldLabels.get('devStartDate') || 'Dev Start Date'}</span>
+                                      <span>{format(new Date(task.devStartDate), 'PPP')}</span>
+                                  </div>
+                              )}
+                              {task.devEndDate && (
+                                  <div className="flex justify-between">
+                                      <span className="text-muted-foreground">{fieldLabels.get('devEndDate') || 'Dev End Date'}</span>
+                                      <span>{format(new Date(task.devEndDate), 'PPP')}</span>
+                                  </div>
+                              )}
+                              {(task.devStartDate || task.devEndDate) && (task.qaStartDate || task.qaEndDate) && <Separator className="my-1"/>}
+                              {task.qaStartDate && (
+                                  <div className="flex justify-between">
+                                      <span className="text-muted-foreground">{fieldLabels.get('qaStartDate') || 'QA Start Date'}</span>
+                                      <span>{format(new Date(task.qaStartDate), 'PPP')}</span>
+                                  </div>
+                              )}
+                              {task.qaEndDate && (
+                                  <div className="flex justify-between">
+                                      <span className="text-muted-foreground">{fieldLabels.get('qaEndDate') || 'QA End Date'}</span>
+                                      <span>{format(new Date(task.qaEndDate), 'PPP')}</span>
+                                  </div>
+                              )}
+                              {(hasDevQaDates || hasAnyDeploymentDate) && <Separator className="my-2"/>}
+
+                              {task.deploymentDates && Object.entries(task.deploymentDates).map(([env, date]) => {
+                                  if (!date) return null;
+                                  return (
+                                      <div key={env} className="flex justify-between">
+                                          <span className="text-muted-foreground capitalize">{env} Deployed</span>
+                                          <span>{format(new Date(date), 'PPP')}</span>
+                                      </div>
+                                  )
+                              })}
+
+                               {!(hasDevQaDates || hasAnyDeploymentDate) && (
+                                  <p className="text-muted-foreground text-center text-xs">No dates have been set.</p>
+                               )}
+                          </div>
+                      </div>
+                  </CardContent>
+              </Card>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                   <CardHeader>
@@ -754,6 +914,15 @@ export default function TaskPage() {
               </Card>
             )}
 
+            {!isBinned && (
+              <CommentsSection
+                  taskId={task.id}
+                  comments={task.comments || []}
+                  onCommentsUpdate={handleCommentsUpdate}
+                  readOnly={isBinned}
+              />
+            )}
+
             {!isBinned && taskLogs.length > 0 && (
                 <TaskHistory logs={taskLogs} />
             )}
@@ -769,179 +938,6 @@ export default function TaskPage() {
              />
             )}
 
-          </div>
-
-          <div className="lg:col-span-1 space-y-6">
-              <Card>
-                  <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-xl">
-                          <ListChecks className="h-5 w-5" />
-                          Task Details
-                      </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                      <div>
-                          <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('developers') || 'Developers'}</h4>
-                          <div className="flex flex-wrap gap-4">
-                              {assignedDevelopers.length > 0 ? (
-                                  assignedDevelopers.map((dev) => (
-                                    <button 
-                                      key={dev.id} 
-                                      className="flex items-center gap-2 p-1 -m-1 rounded-md hover:bg-muted/50 transition-colors"
-                                      onClick={() => setPersonInView({ person: dev, type: 'Developer' })}
-                                    >
-                                        <Avatar className="h-7 w-7">
-                                        <AvatarFallback
-                                            className="font-semibold text-white text-[10px]"
-                                            style={{
-                                            backgroundColor: `#${getAvatarColor(dev.name)}`,
-                                            }}
-                                        >
-                                            {getInitials(dev.name)}
-                                        </AvatarFallback>
-                                        </Avatar>
-                                        <span className="text-sm font-medium text-foreground">
-                                        {dev.name}
-                                        </span>
-                                    </button>
-                                  ))
-                              ) : (
-                              <p className="text-sm text-muted-foreground">
-                                  No Developers assigned.
-                              </p>
-                              )}
-                          </div>
-                      </div>
-
-                      <Separator />
-                      
-                      <div>
-                          <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('testers') || 'Testers'}</h4>
-                          <div className="flex flex-wrap gap-4">
-                              {assignedTesters.length > 0 ? (
-                                  assignedTesters.map((tester) => (
-                                    <button 
-                                      key={tester.id} 
-                                      className="flex items-center gap-2 p-1 -m-1 rounded-md hover:bg-muted/50 transition-colors"
-                                      onClick={() => setPersonInView({ person: tester, type: 'Tester' })}
-                                    >
-                                      <Avatar className="h-7 w-7">
-                                      <AvatarFallback
-                                          className="font-semibold text-white text-[10px]"
-                                          style={{
-                                          backgroundColor: `#${getAvatarColor(tester.name)}`,
-                                          }}
-                                      >
-                                          {getInitials(tester.name)}
-                                      </AvatarFallback>
-                                      </Avatar>
-                                      <span className="text-sm font-medium text-foreground">
-                                      {tester.name}
-                                      </span>
-                                    </button>
-                                  ))
-                              ) : (
-                              <p className="text-sm text-muted-foreground">
-                                  No Testers assigned.
-                              </p>
-                              )}
-                          </div>
-                      </div>
-                      
-                      <Separator />
-
-                      <div>
-                          <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('repositories') || 'Repositories'}</h4>
-                          <div className="flex flex-wrap gap-1">
-                            {(task.repositories && task.repositories.length > 0) ? (task.repositories || []).map(repo => (
-                              <Badge
-                                key={repo}
-                                variant="repo"
-                                style={getRepoBadgeStyle(repo)}
-                              >
-                                {repo}
-                              </Badge>
-                            )) : (
-                              <p className="text-sm text-muted-foreground">No repositories assigned.</p>
-                            )}
-                          </div>
-                      </div>
-                      
-                      {azureFieldConfig && azureFieldConfig.isActive && task.azureWorkItemId && (
-                          <>
-                              <Separator />
-                              <div>
-                                  <h4 className="text-sm font-semibold text-muted-foreground mb-2">{azureFieldConfig.label || 'Azure DevOps'}</h4>
-                                  {azureFieldConfig.baseUrl ? (
-                                    <a href={`${azureFieldConfig.baseUrl}${task.azureWorkItemId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline text-sm">
-                                      <ExternalLink className="h-4 w-4" />
-                                      <span>Work Item #{task.azureWorkItemId}</span>
-                                    </a>
-                                  ) : (
-                                    <span className="text-sm text-foreground">{task.azureWorkItemId}</span>
-                                  )}
-                              </div>
-                          </>
-                      )}
-
-                      <Separator />
-
-                      <div>
-                          <h4 className="text-sm font-semibold text-muted-foreground mb-2">Important Dates</h4>
-                          <div className="space-y-2 text-sm">
-                              {task.devStartDate && (
-                                  <div className="flex justify-between">
-                                      <span className="text-muted-foreground">{fieldLabels.get('devStartDate') || 'Dev Start Date'}</span>
-                                      <span>{format(new Date(task.devStartDate), 'PPP')}</span>
-                                  </div>
-                              )}
-                              {task.devEndDate && (
-                                  <div className="flex justify-between">
-                                      <span className="text-muted-foreground">{fieldLabels.get('devEndDate') || 'Dev End Date'}</span>
-                                      <span>{format(new Date(task.devEndDate), 'PPP')}</span>
-                                  </div>
-                              )}
-                              {(task.devStartDate || task.devEndDate) && (task.qaStartDate || task.qaEndDate) && <Separator className="my-1"/>}
-                              {task.qaStartDate && (
-                                  <div className="flex justify-between">
-                                      <span className="text-muted-foreground">{fieldLabels.get('qaStartDate') || 'QA Start Date'}</span>
-                                      <span>{format(new Date(task.qaStartDate), 'PPP')}</span>
-                                  </div>
-                              )}
-                              {task.qaEndDate && (
-                                  <div className="flex justify-between">
-                                      <span className="text-muted-foreground">{fieldLabels.get('qaEndDate') || 'QA End Date'}</span>
-                                      <span>{format(new Date(task.qaEndDate), 'PPP')}</span>
-                                  </div>
-                              )}
-                              {(hasDevQaDates || hasAnyDeploymentDate) && <Separator className="my-2"/>}
-
-                              {task.deploymentDates && Object.entries(task.deploymentDates).map(([env, date]) => {
-                                  if (!date) return null;
-                                  return (
-                                      <div key={env} className="flex justify-between">
-                                          <span className="text-muted-foreground capitalize">{env} Deployed</span>
-                                          <span>{format(new Date(date), 'PPP')}</span>
-                                      </div>
-                                  )
-                              })}
-
-                               {!(hasDevQaDates || hasAnyDeploymentDate) && (
-                                  <p className="text-muted-foreground text-center text-xs">No dates have been set.</p>
-                               )}
-                          </div>
-                      </div>
-                  </CardContent>
-              </Card>
-              {!isBinned && (
-                <CommentsSection
-                    taskId={task.id}
-                    comments={task.comments || []}
-                    onCommentsUpdate={handleCommentsUpdate}
-                    readOnly={isBinned}
-                />
-              )}
-          </div>
         </div>
       </div>
       <PersonProfileCard
