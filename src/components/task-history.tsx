@@ -3,30 +3,24 @@
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import type { Log } from "@/lib/types";
-import { History, GripVertical } from "lucide-react";
+import { History } from "lucide-react";
 import { formatDistanceToNow } from 'date-fns';
 
 interface TaskHistoryProps {
     logs: Log[];
-    draggable?: boolean;
 }
 
-export function TaskHistory({ logs, draggable = false }: TaskHistoryProps) {
+export function TaskHistory({ logs }: TaskHistoryProps) {
     if (logs.length === 0) {
         return null;
     }
 
     return (
         <Accordion type="single" collapsible className="w-full" defaultValue="history">
-            <AccordionItem value="history">
-                <AccordionTrigger>
-                    <div className="flex items-center justify-between w-full">
-                        <div className="flex items-center gap-2 text-xl font-semibold">
-                            <History className="h-5 w-5" />
-                            Task History
-                        </div>
-                        {draggable && <GripVertical className="drag-handle h-6 w-6 text-muted-foreground" />}
-                    </div>
+            <AccordionItem value="history" className="border-none">
+                <AccordionTrigger className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2 hover:no-underline">
+                    <History className="h-6 w-6" />
+                    Task History
                 </AccordionTrigger>
                 <AccordionContent>
                     <div className="space-y-4 max-h-96 overflow-y-auto p-1 pr-4">

@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask } from '@/lib/data';
+import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask, getLinkAlias } from '@/lib/data';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -30,9 +30,7 @@ import { attachmentSchema } from '@/lib/validators';
 import { RelatedTasksSection } from '@/components/related-tasks-section';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ShareMenu } from '@/components/share-menu';
-import { TaskHistory } from '@/components/task-history';
 import { FavoriteToggleButton } from '@/components/favorite-toggle';
-import { getLinkAlias } from '@/ai/flows/get-link-alias-flow';
 
 
 const isImageUrl = (url: string): boolean => {
@@ -149,7 +147,6 @@ export default function TaskPage() {
                 setRelatedTasksTitle('');
             }
             
-             // Generate aliases for link-based custom fields
             config.fields.forEach(field => {
                 const isLinkField = field.type === 'url' || (field.type === 'text' && !!field.baseUrl);
                 if (isLinkField && field.isCustom) {
@@ -163,7 +160,6 @@ export default function TaskPage() {
                                 const fullUrl = (field.type === 'text' && field.baseUrl) ? `${field.baseUrl}${value}` : value;
                                 const result = await getLinkAlias({ url: fullUrl });
                                 if (result.alias) {
-                                    // Re-fetch task to avoid overwriting other concurrent changes
                                     const currentTask = getTaskById(taskId);
                                     if (currentTask) {
                                         updateTask(taskId, {
@@ -358,17 +354,18 @@ export default function TaskPage() {
         title: 'Task Restored',
         description: `Task "${task.title}" has been successfully restored.`,
       });
-      router.push(`/tasks/${task.id}`); // Stay on the page, but it will now be a regular task page
+      router.push(`/tasks/${task.id}`);
     }
   };
 
   const renderCustomFieldValue = (fieldConfig: FieldConfig, value: any) => {
       if (value === null || value === undefined || value === '') return <span className="text-muted-foreground">N/A</span>;
       
+      const aliasKey = `${fieldConfig.key}_alias`;
+      const alias = task?.customFields?.[aliasKey];
+
       switch (fieldConfig.type) {
           case 'text': {
-              const aliasKey = `${fieldConfig.key}_alias`;
-              const alias = task?.customFields?.[aliasKey];
               if (fieldConfig.baseUrl && value) {
                   const url = `${fieldConfig.baseUrl}${value}`;
                   return <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-2 break-all"><ExternalLink className="h-4 w-4 shrink-0"/> {alias || value}</a>
@@ -380,10 +377,8 @@ export default function TaskPage() {
           case 'checkbox':
               return value ? 'Yes' : 'No';
           case 'url': {
-              const urlAliasKey = `${fieldConfig.key}_alias`;
-              const urlAlias = task?.customFields?.[urlAliasKey];
               const urlValue = String(value);
-              return <a href={urlValue} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{urlAlias || urlValue}</a>
+              return <a href={urlValue} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{alias || urlValue}</a>
           }
           case 'multiselect':
           case 'tags':
@@ -424,7 +419,7 @@ export default function TaskPage() {
 
   const allConfiguredEnvs = uiConfig.environments || [];
   
-  const customFields = uiConfig.fields.filter(f => f.isCustom && f.isActive && task.customFields && task.customFields[f.key]);
+  const customFields = uiConfig.fields.filter(f => f.isCustom && f.isActive && task.customFields && typeof task.customFields[f.key] !== 'undefined' && task.customFields[f.key] !== null && task.customFields[f.key] !== '');
   const groupedCustomFields = customFields.reduce((acc, field) => {
     const group = field.group || 'Other Custom Fields';
     if (!acc[group]) acc[group] = [];
@@ -487,93 +482,56 @@ export default function TaskPage() {
           </Alert>
         )}
         
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+          {/* Left Column */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <Card className={cn("relative overflow-hidden lg:col-span-2", cardClassName)}>
-                <Icon className={cn('absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none transition-transform duration-300 ease-in-out', iconColorClassName, task.status !== 'In Progress' && 'group-hover/card:scale-110 group-hover/card:-rotate-6')} />
-                <div className="relative z-10 flex flex-col h-full">
-                  <CardHeader>
-                    <div className="flex justify-between items-start gap-2">
-                      <div className="flex-1 flex items-center gap-3">
-                        <CardTitle className="text-3xl font-bold">{task.title}</CardTitle>
-                        {!isBinned && (<FavoriteToggleButton taskId={task.id} isFavorite={!!task.isFavorite} onUpdate={loadData} className="h-9 w-9" />)}
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <CardDescription>
-                        Last updated on {format(new Date(task.updatedAt), 'PPP')}
-                      </CardDescription>
-                      <div className="flex-shrink-0 flex items-center gap-1">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" disabled={isBinned} className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-100">
-                              <TaskStatusBadge status={task.status} variant="prominent" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Set Status</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            {uiConfig.taskStatuses.map(s => {
-                              const currentStatusConfig = getStatusConfig(s);
-                              const { Icon } = currentStatusConfig;
-                              return (
-                                <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)}>
-                                  <div className="flex items-center gap-2">
-                                    <Icon className={cn("h-3 w-3", s === 'In Progress' && 'animate-spin')} />
-                                    <span>{s}</span>
-                                  </div>
-                                  {task.status === s && <Check className="ml-auto h-4 w-4" />}
-                                </DropdownMenuItem>
-                              )
-                            })}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex-grow">
-                    <p className="text-foreground/80 whitespace-pre-wrap">{task.description}</p>
-                  </CardContent>
-                </div>
-              </Card>
-              <Card className="h-full">
+            <Card className={cn("relative overflow-hidden", cardClassName)}>
+              <Icon className={cn('absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none transition-transform duration-300 ease-in-out', iconColorClassName, task.status !== 'In Progress' && 'group-hover/card:scale-110 group-hover/card:-rotate-6')} />
+              <div className="relative z-10 flex flex-col h-full">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-xl"><ListChecks className="h-5 w-5" />Task Details</CardTitle>
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex-1 flex items-center gap-3">
+                      <CardTitle className="text-3xl font-bold">{task.title}</CardTitle>
+                      {!isBinned && (<FavoriteToggleButton taskId={task.id} isFavorite={!!task.isFavorite} onUpdate={loadData} className="h-9 w-9" />)}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <CardDescription>
+                      Last updated on {format(new Date(task.updatedAt), 'PPP')}
+                    </CardDescription>
+                    <div className="flex-shrink-0 flex items-center gap-1">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" disabled={isBinned} className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-100">
+                            <TaskStatusBadge status={task.status} variant="prominent" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Set Status</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          {uiConfig.taskStatuses.map(s => {
+                            const currentStatusConfig = getStatusConfig(s);
+                            const { Icon } = currentStatusConfig;
+                            return (
+                              <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)}>
+                                <div className="flex items-center gap-2">
+                                  <Icon className={cn("h-3 w-3", s === 'In Progress' && 'animate-spin')} />
+                                  <span>{s}</span>
+                                </div>
+                                {task.status === s && <Check className="ml-auto h-4 w-4" />}
+                              </DropdownMenuItem>
+                            )
+                          })}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <TaskDetailSection title={fieldLabels.get('developers') || 'Developers'} people={task.developers} peopleMap={developersById} setPersonInView={setPersonInView} type="Developer" />
-                  <Separator />
-                  <TaskDetailSection title={fieldLabels.get('testers') || 'Testers'} people={task.testers} peopleMap={testersById} setPersonInView={setPersonInView} type="Tester" />
-                  <Separator />
-                  <div>
-                    <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('repositories') || 'Repositories'}</h4>
-                    <div className="flex flex-wrap gap-1">
-                      {(task.repositories && task.repositories.length > 0) ? (task.repositories || []).map(repo => (
-                        <Badge key={repo} variant="repo" style={getRepoBadgeStyle(repo)}>{repo}</Badge>
-                      )) : (<p className="text-sm text-muted-foreground">No repositories assigned.</p>)}
-                    </div>
-                  </div>
-                  {azureFieldConfig && azureFieldConfig.isActive && task.azureWorkItemId && (<>
-                    <Separator />
-                    <div>
-                      <h4 className="text-sm font-semibold text-muted-foreground mb-2">{azureFieldConfig.label || 'Azure DevOps'}</h4>
-                      {azureFieldConfig.baseUrl ? (
-                        <a href={`${azureFieldConfig.baseUrl}${task.azureWorkItemId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline text-sm">
-                          <ExternalLink className="h-4 w-4" />
-                          <span>Work Item #{task.azureWorkItemId}</span>
-                        </a>
-                      ) : (<span className="text-sm text-foreground">{task.azureWorkItemId}</span>)}
-                    </div>
-                  </>)}
-                  <Separator />
-                  <div>
-                    <h4 className="text-sm font-semibold text-muted-foreground mb-2">Important Dates</h4>
-                    <TimelineSection task={task} fieldLabels={fieldLabels} />
-                  </div>
+                <CardContent className="flex-grow">
+                  <p className="text-foreground/80 whitespace-pre-wrap">{task.description}</p>
                 </CardContent>
-              </Card>
-            </div>
+              </div>
+            </Card>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {!isBinned && deploymentField && (
@@ -700,7 +658,44 @@ export default function TaskPage() {
             )}
           </div>
 
+          {/* Right Column */}
           <div className="lg:col-span-1 space-y-6">
+            <Card className="h-full">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-xl"><ListChecks className="h-5 w-5" />Task Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <TaskDetailSection title={fieldLabels.get('developers') || 'Developers'} people={task.developers} peopleMap={developersById} setPersonInView={setPersonInView} type="Developer" />
+                  <Separator />
+                  <TaskDetailSection title={fieldLabels.get('testers') || 'Testers'} people={task.testers} peopleMap={testersById} setPersonInView={setPersonInView} type="Tester" />
+                  <Separator />
+                  <div>
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('repositories') || 'Repositories'}</h4>
+                    <div className="flex flex-wrap gap-1">
+                      {(task.repositories && task.repositories.length > 0) ? (task.repositories || []).map(repo => (
+                        <Badge key={repo} variant="repo" style={getRepoBadgeStyle(repo)}>{repo}</Badge>
+                      )) : (<p className="text-sm text-muted-foreground">No repositories assigned.</p>)}
+                    </div>
+                  </div>
+                  {azureFieldConfig && azureFieldConfig.isActive && task.azureWorkItemId && (<>
+                    <Separator />
+                    <div>
+                      <h4 className="text-sm font-semibold text-muted-foreground mb-2">{azureFieldConfig.label || 'Azure DevOps'}</h4>
+                      {azureFieldConfig.baseUrl ? (
+                        <a href={`${azureFieldConfig.baseUrl}${task.azureWorkItemId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline text-sm">
+                          <ExternalLink className="h-4 w-4" />
+                          <span>Work Item #{task.azureWorkItemId}</span>
+                        </a>
+                      ) : (<span className="text-sm text-foreground">{task.azureWorkItemId}</span>)}
+                    </div>
+                  </>)}
+                  <Separator />
+                  <div>
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-2">Important Dates</h4>
+                    <TimelineSection task={task} fieldLabels={fieldLabels} />
+                  </div>
+                </CardContent>
+            </Card>
             {!isBinned && (
               <Card>
                 <CardHeader>
@@ -711,19 +706,19 @@ export default function TaskPage() {
                 </CardContent>
               </Card>
             )}
-            {!isBinned && taskLogs.length > 0 && (
-              <div className="lg:col-span-2">
-                <TaskHistory logs={taskLogs} />
-              </div>
-            )}
           </div>
         </div>
+        
+        {/* Bottom Full-Width Sections */}
+        <div className="mt-8 space-y-8">
+            {!isBinned && taskLogs.length > 0 && (
+                <TaskHistory logs={taskLogs} />
+            )}
 
-        {relatedTasks.length > 0 && (
-          <div className="mt-8">
-            <RelatedTasksSection title={relatedTasksTitle} tasks={relatedTasks} onTaskUpdate={loadData} uiConfig={uiConfig} developers={developers} testers={testers} />
-          </div>
-        )}
+            {relatedTasks.length > 0 && (
+                <RelatedTasksSection title={relatedTasksTitle} tasks={relatedTasks} onTaskUpdate={loadData} uiConfig={uiConfig} developers={developers} testers={testers} />
+            )}
+        </div>
       </div>
       <PersonProfileCard
         person={personInView?.person ?? null}
