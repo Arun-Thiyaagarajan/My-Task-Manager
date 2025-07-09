@@ -73,7 +73,7 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
       const isCurrentlyPinned = pinnedTaskIds.includes(task.id);
       form.reset({
         reminder: task.reminder || '',
-        isPinned: isCurrentlyPinned,
+        isPinned: task.reminder ? isCurrentlyPinned : true,
         autoDisappear: !!task.reminderExpiresAt,
         expiresAt: task.reminderExpiresAt ? new Date(task.reminderExpiresAt) : null,
       });
