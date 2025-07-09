@@ -273,12 +273,24 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                         </CardTitle>
                     </Link>
                     <div className="flex-shrink-0 flex items-center gap-1">
-                        {uiConfig?.remindersEnabled && task.reminder && (
+                        {uiConfig?.remindersEnabled && (
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <BellRing className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setIsReminderOpen(true);
+                                        }}
+                                    >
+                                        <BellRing className={cn("h-4 w-4 text-muted-foreground", task.reminder && "text-amber-600 dark:text-amber-400")} />
+                                    </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>This task has a reminder note.</TooltipContent>
+                                <TooltipContent>
+                                    <p>{task.reminder ? 'Edit Reminder' : 'Set Reminder'}</p>
+                                </TooltipContent>
                             </Tooltip>
                         )}
                         <DropdownMenu>
@@ -504,12 +516,6 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" onClick={e => e.stopPropagation()}>
-                    {uiConfig?.remindersEnabled && (
-                      <DropdownMenuItem onSelect={() => setIsReminderOpen(true)}>
-                        <BellRing className="mr-2 h-4 w-4" />
-                        <span>{task.reminder ? 'Edit Reminder' : 'Set Reminder'}</span>
-                      </DropdownMenuItem>
-                    )}
                     <DropdownMenuSub>
                         <DropdownMenuSubTrigger>
                             <Share2 className="mr-2 h-4 w-4" />
