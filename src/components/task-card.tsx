@@ -349,7 +349,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
             </CardContent>
           </div>
           <CardFooter className="flex items-center justify-between p-4 border-t border-black/5 dark:border-white/5 z-10">
-            <div className="flex items-center gap-3 overflow-hidden">
+            <div className="flex flex-1 min-w-0 items-center gap-3 overflow-hidden">
                 {hasDevelopers && (
                   <div className="flex items-center gap-1.5">
                     <Tooltip>
@@ -387,7 +387,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                            <div>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Avatar className="h-7 w-7 border-2 border-background">
+                                <Avatar className="h-7 w-7 border-2 border-background border-dashed">
                                     <AvatarFallback className="text-xs font-semibold bg-muted text-muted-foreground">
                                         +{hiddenDevelopersCount}
                                     </AvatarFallback>
@@ -449,7 +449,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                            <div>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Avatar className="h-7 w-7 border-2 border-background">
+                                <Avatar className="h-7 w-7 border-2 border-background border-dashed">
                                     <AvatarFallback className="text-xs font-semibold bg-muted text-muted-foreground">
                                         +{hiddenTestersCount}
                                     </AvatarFallback>
