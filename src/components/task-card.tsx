@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getStatusConfig, TaskStatusBadge } from './task-status-badge';
-import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck, Share2, StickyNote, Pin } from 'lucide-react';
+import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck, Share2, BellRing } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
@@ -166,22 +166,6 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
       : [...selectedTaskIds, task.id];
     setSelectedTaskIds(newSelected);
   }
-
-  const handlePinToggle = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (task.reminder) {
-      onPinToggle(task.id);
-    } else {
-      toast({
-        variant: 'default',
-        title: "No Reminder Set",
-        description: "You need to add a reminder note before you can pin it.",
-        duration: 3000
-      });
-    }
-  };
-
 
   const fieldLabels = new Map(uiConfig?.fields.map(f => [f.key, f.label]));
   const developersLabel = fieldLabels.get('developers') || 'Developers';
@@ -484,24 +468,14 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                   onUpdate={onTaskUpdate}
               />
               {uiConfig?.remindersEnabled && (
-                <>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button onClick={(e) => {e.preventDefault(); e.stopPropagation(); setIsReminderOpen(true)}} variant="ghost" size="icon" className="h-8 w-8">
-                        <StickyNote className={cn("h-4 w-4", task.reminder && "fill-yellow-300 text-yellow-800")} />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent><p>{task.reminder ? "Edit reminder note" : "Add reminder note"}</p></TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button onClick={handlePinToggle} variant="ghost" size="icon" className="h-8 w-8">
-                        <Pin className={cn("h-4 w-4 transition-all", isPinned ? "fill-foreground" : "")} />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent><p>{isPinned ? "Unpin from main page" : "Pin to main page"}</p></TooltipContent>
-                  </Tooltip>
-                </>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsReminderOpen(true); }} variant="ghost" size="icon" className="h-8 w-8">
+                        <BellRing className={cn("h-4 w-4 text-muted-foreground", task.reminder && "text-amber-600 dark:text-amber-400", isPinned && "fill-amber-400/80")} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent><p>{task.reminder ? "Edit reminder note" : "Add reminder note"}</p></TooltipContent>
+                </Tooltip>
               )}
               {uiConfig && (
                 <ShareMenu task={task} uiConfig={uiConfig} developers={developers} testers={testers}>
@@ -539,6 +513,8 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
             const updated = updateTask(task.id, {});
             if (updated) setTask(updated);
           }}
+          pinnedTaskIds={pinnedTaskIds}
+          onPinToggle={onPinToggle}
         />
       )}
     </>

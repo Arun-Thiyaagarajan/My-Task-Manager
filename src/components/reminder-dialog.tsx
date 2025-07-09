@@ -19,10 +19,12 @@ import { Loader2, Trash2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from './ui/form';
+import { Switch } from './ui/switch';
 
 const reminderSchema = z.object({
   reminder: z.string().max(500, "Reminder cannot exceed 500 characters.").nullable(),
+  isPinned: z.boolean(),
 });
 
 type ReminderFormData = z.infer<typeof reminderSchema>;
@@ -32,9 +34,11 @@ interface ReminderDialogProps {
   onOpenChange: (open: boolean) => void;
   task: Task;
   onSuccess: () => void;
+  pinnedTaskIds: string[];
+  onPinToggle: (taskId: string) => void;
 }
 
-export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess }: ReminderDialogProps) {
+export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTaskIds, onPinToggle }: ReminderDialogProps) {
   const { toast } = useToast();
   const [isPending, setIsPending] = useState(false);
   
@@ -42,22 +46,34 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess }: Remind
     resolver: zodResolver(reminderSchema),
     defaultValues: {
       reminder: task.reminder || '',
+      isPinned: false,
     },
   });
 
   useEffect(() => {
     if (isOpen) {
+      const isCurrentlyPinned = pinnedTaskIds.includes(task.id);
       form.reset({
         reminder: task.reminder || '',
+        // If creating a new reminder, default pin to true. Otherwise, reflect current state.
+        isPinned: task.reminder ? isCurrentlyPinned : true,
       });
     }
-  }, [isOpen, task, form]);
+  }, [isOpen, task, form, pinnedTaskIds]);
 
   const onSubmit = (data: ReminderFormData) => {
     setIsPending(true);
     try {
       const newReminder = data.reminder?.trim() ? data.reminder.trim() : null;
       updateTask(task.id, { reminder: newReminder });
+      
+      const canBePinned = !!newReminder;
+      const shouldBePinned = canBePinned && data.isPinned;
+      const isCurrentlyPinned = pinnedTaskIds.includes(task.id);
+
+      if (shouldBePinned !== isCurrentlyPinned) {
+        onPinToggle(task.id);
+      }
       
       toast({ 
         variant: 'success', 
@@ -78,6 +94,12 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess }: Remind
     setIsPending(true);
     try {
       updateTask(task.id, { reminder: null });
+
+      const isCurrentlyPinned = pinnedTaskIds.includes(task.id);
+      if (isCurrentlyPinned) {
+        onPinToggle(task.id);
+      }
+      
       toast({ 
         variant: 'success', 
         title: 'Reminder Removed', 
@@ -98,7 +120,7 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess }: Remind
         <DialogHeader>
           <DialogTitle>Reminder Note</DialogTitle>
           <DialogDescription>
-            Set or edit the reminder note for this task. This note can be pinned to the main page.
+            Set or edit the reminder note for this task. Pinned notes appear on the main page.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -118,6 +140,27 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess }: Remind
                     />
                   </FormControl>
                   <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="isPinned"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <div className="space-y-0.5">
+                    <FormLabel>Pin to Main Page</FormLabel>
+                    <FormDescription>
+                      Show this note at the top of the tasks list.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={!form.watch('reminder')}
+                    />
+                  </FormControl>
                 </FormItem>
               )}
             />

@@ -8,7 +8,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles, Share2, History, MessageSquare, StickyNote } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles, Share2, History, MessageSquare, BellRing } from 'lucide-react';
 import { getStatusConfig, TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -78,7 +78,9 @@ export default function TaskPage() {
   const [relatedTasksTitle, setRelatedTasksTitle] = useState<string>('');
   const [taskLogs, setTaskLogs] = useState<Log[]>([]);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
-
+  const [pinnedTaskIds, setPinnedTaskIds] = useState<string[]>([]);
+  
+  const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
   const taskId = params.id as string;
   
   const loadData = () => {
@@ -89,6 +91,11 @@ export default function TaskPage() {
       const foundTask = getTaskById(taskId);
       const config = getUiConfig();
       
+      const savedPinnedTasks = localStorage.getItem(PINNED_TASKS_STORAGE_KEY);
+      if (savedPinnedTasks) {
+        setPinnedTaskIds(JSON.parse(savedPinnedTasks));
+      }
+
       setTask(foundTask || null);
       setUiConfig(config);
       setDevelopers(allDevs);
@@ -210,8 +217,16 @@ export default function TaskPage() {
         window.removeEventListener('storage', loadData);
     };
   }, [taskId]);
-
   
+  const handleTogglePin = (taskIdToToggle: string) => {
+    const newPinnedIds = pinnedTaskIds.includes(taskIdToToggle)
+      ? pinnedTaskIds.filter(id => id !== taskIdToToggle)
+      : [...pinnedTaskIds, taskIdToToggle];
+    
+    setPinnedTaskIds(newPinnedIds);
+    localStorage.setItem(PINNED_TASKS_STORAGE_KEY, JSON.stringify(newPinnedIds));
+  };
+
   const handleCommentsUpdate = (newComments: Comment[]) => {
     if (task) {
       setTask({ ...task, comments: newComments });
@@ -483,7 +498,7 @@ export default function TaskPage() {
             <div className="flex gap-2">
                 {uiConfig.remindersEnabled && (
                   <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setIsReminderOpen(true)}>
-                      <StickyNote className={cn("h-4 w-4", task.reminder && "fill-yellow-300 text-yellow-800")} />
+                      <BellRing className={cn("h-4 w-4", task.reminder && "text-amber-600 dark:text-amber-400")} />
                       <span className="sr-only">Set Reminder Note</span>
                   </Button>
                 )}
@@ -516,7 +531,7 @@ export default function TaskPage() {
         
         {task.reminder && (
           <Alert className="mb-6 bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800/50">
-            <StickyNote className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+            <BellRing className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
             <AlertTitle className="text-yellow-800 dark:text-yellow-200">Reminder Note</AlertTitle>
             <AlertDescription className="text-yellow-700 dark:text-yellow-300 whitespace-pre-wrap">
               {task.reminder}
@@ -739,7 +754,7 @@ export default function TaskPage() {
             {commentsField && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-xl"><StickyNote className="h-5 w-5" />{fieldLabels.get('comments') || 'Comments'}</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-xl"><MessageSquare className="h-5 w-5" />{fieldLabels.get('comments') || 'Comments'}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <CommentsSection taskId={task.id} comments={task.comments || []} onCommentsUpdate={handleCommentsUpdate} readOnly={isBinned} hideHeader />
@@ -773,6 +788,8 @@ export default function TaskPage() {
           onOpenChange={setIsReminderOpen}
           task={task}
           onSuccess={loadData}
+          pinnedTaskIds={pinnedTaskIds}
+          onPinToggle={handleTogglePin}
         />
       )}
     </>
