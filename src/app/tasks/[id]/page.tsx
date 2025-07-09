@@ -574,7 +574,7 @@ export default function TaskPage() {
             <AlertTitle className="text-amber-800 dark:text-amber-200">Reminder Note</AlertTitle>
             <AlertDescription className="text-amber-700 dark:text-amber-300 whitespace-pre-wrap">
               {task.reminder}
-              {task.reminderExpiresAt && (
+              {task.reminderExpiresAt && !isNaN(new Date(task.reminderExpiresAt).getTime()) && (
                   <span className="block text-xs italic mt-1 text-amber-600 dark:text-amber-400">
                       (Expires {format(new Date(task.reminderExpiresAt), timeFormatString)})
                   </span>
@@ -919,26 +919,26 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
 
     return (
       <div className="space-y-2 text-sm">
-          {task.devStartDate && (
+          {task.devStartDate && !isNaN(new Date(task.devStartDate).getTime()) && (
               <div className="flex justify-between">
                   <span className="text-muted-foreground">{fieldLabels.get('devStartDate') || 'Dev Start Date'}</span>
                   <span>{format(new Date(task.devStartDate), 'PPP')}</span>
               </div>
           )}
-          {task.devEndDate && (
+          {task.devEndDate && !isNaN(new Date(task.devEndDate).getTime()) && (
               <div className="flex justify-between">
                   <span className="text-muted-foreground">{fieldLabels.get('devEndDate') || 'Dev End Date'}</span>
                   <span>{format(new Date(task.devEndDate), 'PPP')}</span>
               </div>
           )}
           {(task.devStartDate || task.devEndDate) && (task.qaStartDate || task.qaEndDate) && <Separator className="my-1"/>}
-          {task.qaStartDate && (
+          {task.qaStartDate && !isNaN(new Date(task.qaStartDate).getTime()) && (
               <div className="flex justify-between">
                   <span className="text-muted-foreground">{fieldLabels.get('qaStartDate') || 'QA Start Date'}</span>
                   <span>{format(new Date(task.qaStartDate), 'PPP')}</span>
               </div>
           )}
-          {task.qaEndDate && (
+          {task.qaEndDate && !isNaN(new Date(task.qaEndDate).getTime()) && (
               <div className="flex justify-between">
                   <span className="text-muted-foreground">{fieldLabels.get('qaEndDate') || 'QA End Date'}</span>
                   <span>{format(new Date(task.qaEndDate), 'PPP')}</span>
@@ -947,7 +947,7 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
           {(hasDevQaDates && hasAnyDeploymentDate) && <Separator className="my-2"/>}
 
           {task.deploymentDates && Object.entries(task.deploymentDates).map(([env, date]) => {
-              if (!date) return null;
+              if (!date || isNaN(new Date(date).getTime())) return null;
               return (
                   <div key={env} className="flex justify-between">
                       <span className="text-muted-foreground capitalize">{env} Deployed</span>
