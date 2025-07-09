@@ -1,6 +1,6 @@
 
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment } from './types';
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder } from './types';
 import cloneDeep from 'lodash/cloneDeep';
 import { format } from 'date-fns';
 
@@ -34,6 +34,7 @@ const getInitialData = (): MyTaskManagerData => {
                     remindersEnabled: true,
                 },
                 logs: [],
+                generalReminders: [],
             },
         },
     };
@@ -61,6 +62,7 @@ export const getAppData = (): MyTaskManagerData => {
                     testers: [],
                     uiConfig: defaultConfig,
                     logs: [],
+                    generalReminders: [],
                 },
             },
         };
@@ -80,6 +82,7 @@ export const getAppData = (): MyTaskManagerData => {
         Object.values(data.companyData).forEach(company => {
             if (!company.trash) company.trash = [];
             if (!company.logs) company.logs = [];
+            if (!company.generalReminders) company.generalReminders = [];
         });
         return data;
     } catch (e) {
@@ -93,6 +96,7 @@ export const getAppData = (): MyTaskManagerData => {
 export const setAppData = (data: MyTaskManagerData) => {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(DATA_KEY, JSON.stringify(data));
+    window.dispatchEvent(new StorageEvent('storage', { key: DATA_KEY }));
 };
 
 // Internal logging helper that modifies the data object without saving it.
@@ -1315,4 +1319,60 @@ export function clearExpiredReminders(): { updatedTaskIds: string[], unpinnedTas
     }
 
     return { updatedTaskIds, unpinnedTaskIds };
+}
+
+// General Reminder Functions
+export function getGeneralReminders(): GeneralReminder[] {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    return companyData?.generalReminders || [];
+}
+
+export function addGeneralReminder(text: string): GeneralReminder {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    if (!companyData) throw new Error("Cannot add reminder, no active company data found.");
+
+    const newReminder: GeneralReminder = {
+        id: `gen-reminder-${crypto.randomUUID()}`,
+        text,
+        createdAt: new Date().toISOString(),
+    };
+
+    companyData.generalReminders = [newReminder, ...(companyData.generalReminders || [])];
+    _addLog(companyData, { message: `Added a new general reminder.` });
+    setAppData(data);
+    return newReminder;
+}
+
+export function updateGeneralReminder(id: string, text: string): GeneralReminder | undefined {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    if (!companyData || !companyData.generalReminders) return undefined;
+
+    const reminderIndex = companyData.generalReminders.findIndex(r => r.id === id);
+    if (reminderIndex === -1) return undefined;
+
+    const updatedReminder = { ...companyData.generalReminders[reminderIndex], text };
+    companyData.generalReminders[reminderIndex] = updatedReminder;
+    
+    _addLog(companyData, { message: `Updated a general reminder.` });
+    setAppData(data);
+    return updatedReminder;
+}
+
+export function deleteGeneralReminder(id: string): boolean {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    if (!companyData || !companyData.generalReminders) return false;
+    
+    const initialLength = companyData.generalReminders.length;
+    companyData.generalReminders = companyData.generalReminders.filter(r => r.id !== id);
+
+    if (companyData.generalReminders.length < initialLength) {
+        _addLog(companyData, { message: `Dismissed a general reminder.` });
+        setAppData(data);
+        return true;
+    }
+    return false;
 }

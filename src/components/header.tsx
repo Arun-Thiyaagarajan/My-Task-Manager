@@ -23,7 +23,7 @@ import {
   getUiConfig,
 } from '@/lib/data';
 import type { Company } from '@/lib/types';
-import { Building, PlusCircle, Trash2, Edit, LayoutDashboard, Cog, Menu, FileClock, Home } from 'lucide-react';
+import { Building, PlusCircle, Trash2, Edit, LayoutDashboard, Cog, Menu, FileClock, Home, Bell } from 'lucide-react';
 import { CompaniesManager } from './companies-manager';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -42,6 +42,7 @@ import { ThemeToggle } from './theme-toggle';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { useRouter } from 'next/navigation';
 import { ImagePreviewDialog } from './image-preview-dialog';
+import { GeneralRemindersDialog } from './general-reminders-dialog';
 
 const HeaderLink = ({ href, children, className, onClick }: { href: string; children: React.ReactNode, className?: string; onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void; }) => {
     const router = useRouter();
@@ -71,6 +72,7 @@ export function Header() {
   const [appName, setAppName] = useState('My Task Manager');
   const [appIcon, setAppIcon] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isRemindersOpen, setIsRemindersOpen] = useState(false);
 
   const refreshAllData = () => {
     const config = getUiConfig();
@@ -233,6 +235,10 @@ export function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+            <Button variant="ghost" size="icon" onClick={() => setIsRemindersOpen(true)}>
+              <Bell className="h-5 w-5" />
+              <span className="sr-only">General Reminders</span>
+            </Button>
             <ThemeToggle />
             <div className="md:hidden">
               <DropdownMenu>
@@ -287,6 +293,10 @@ export function Header() {
         onOpenChange={setIsPreviewOpen}
         imageUrl={isDataURI(appIcon) ? appIcon : null}
         imageName={`${appName} Icon`}
+      />
+      <GeneralRemindersDialog
+        isOpen={isRemindersOpen}
+        onOpenChange={setIsRemindersOpen}
       />
     </>
   );

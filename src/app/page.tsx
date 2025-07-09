@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester, updateUiConfig, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders } from '@/lib/data';
+import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester, updateUiConfig, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, getGeneralReminders, deleteGeneralReminder } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -43,9 +43,10 @@ import {
   Heart,
   StickyNote,
   PinOff,
+  Megaphone,
 } from 'lucide-react';
 import { cn, fuzzySearch } from '@/lib/utils';
-import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig, Log } from '@/lib/types';
+import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig, Log, GeneralReminder } from '@/lib/types';
 import {
   Popover,
   PopoverContent,
@@ -134,7 +135,7 @@ export default function Home() {
   const [openGroups, setOpenGroups] = useState<string[]>(['priority', 'completed', 'other', 'hold']);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [pinnedTaskIds, setPinnedTaskIds] = useState<string[]>([]);
-  const [dismissedPins, setDismissedPins] = useState<string[]>([]);
+  const [generalReminders, setGeneralReminders] = useState<GeneralReminder[]>([]);
 
   const handlePreviousMonth = () => setSelectedMonth(subMonths(selectedMonth, 1));
   const handleNextMonth = () => setSelectedMonth(addMonths(selectedMonth, 1));
@@ -144,6 +145,7 @@ export default function Home() {
         setTasks(getTasks());
         setDevelopers(getDevelopers());
         setTesters(getTesters());
+        setGeneralReminders(getGeneralReminders());
         const config = getUiConfig();
         setUiConfig(config);
         document.title = config.appName || 'My Task Manager';
@@ -228,9 +230,11 @@ export default function Home() {
     
     window.addEventListener('storage', refreshData);
     window.addEventListener('config-changed', refreshData);
+    window.addEventListener('company-changed', refreshData);
     return () => {
       window.removeEventListener('storage', refreshData);
       window.removeEventListener('config-changed', refreshData);
+      window.removeEventListener('company-changed', refreshData);
     };
   }, [activeCompanyId]);
 
@@ -336,7 +340,7 @@ export default function Home() {
   });
 
   const pinnedReminders = tasks
-    .filter(t => pinnedTaskIds.includes(t.id) && t.reminder && !dismissedPins.includes(t.id))
+    .filter(t => pinnedTaskIds.includes(t.id) && t.reminder)
     .sort((a, b) => pinnedTaskIds.indexOf(a.id) - pinnedTaskIds.indexOf(b.id));
 
   const handleToggleSelectAll = (checked: boolean | 'indeterminate') => {
@@ -954,9 +958,33 @@ export default function Home() {
       </div>
       
       <div className="space-y-6">
-          {uiConfig.remindersEnabled && pinnedReminders.length > 0 && (
+          {(generalReminders.length > 0 || (uiConfig.remindersEnabled && pinnedReminders.length > 0)) && (
             <div className="space-y-3">
-              {pinnedReminders.map(task => (
+              {generalReminders.map(reminder => (
+                <Alert key={reminder.id} className="bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/50 flex items-start justify-between gap-4 pr-3 py-3">
+                  <div className="flex items-start gap-4">
+                    <Megaphone className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                    <AlertDescription className="text-amber-700 dark:text-amber-300 whitespace-pre-wrap">
+                      {reminder.text}
+                    </AlertDescription>
+                  </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost" size="icon" className="h-7 w-7 text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
+                        onClick={() => {
+                          deleteGeneralReminder(reminder.id);
+                          refreshData();
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Dismiss reminder</TooltipContent>
+                  </Tooltip>
+                </Alert>
+              ))}
+              {uiConfig.remindersEnabled && pinnedReminders.map(task => (
                 <Alert key={task.id} className="bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/50 flex items-start justify-between gap-4 pr-3 py-3">
                   <div className="flex items-start gap-4">
                     <StickyNote className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />

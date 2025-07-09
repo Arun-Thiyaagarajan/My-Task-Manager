@@ -46,6 +46,12 @@ export interface Comment {
   timestamp: string;
 }
 
+export interface GeneralReminder {
+  id: string;
+  text: string;
+  createdAt: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -121,6 +127,7 @@ export interface CompanyData {
     testers: Person[];
     uiConfig: UiConfig;
     logs: Log[];
+    generalReminders?: GeneralReminder[];
 }
 
 export interface MyTaskManagerData {
