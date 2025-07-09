@@ -352,6 +352,7 @@ export default function TaskPage() {
           case 'url':
               return <a href={value} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">{value}</a>
           case 'multiselect':
+          case 'tags':
               return Array.isArray(value) ? (
                   <div className="flex flex-wrap gap-1">
                       {value.map(v => <Badge key={v} variant="secondary">{v}</Badge>)}
@@ -412,6 +413,9 @@ export default function TaskPage() {
   const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter((t): t is Person => !!t);
 
   const azureFieldConfig = uiConfig.fields.find(f => f.key === 'azureWorkItemId');
+  const prField = uiConfig.fields.find(f => f.key === 'prLinks' && f.isActive);
+  const deploymentField = uiConfig.fields.find(f => f.key === 'deploymentStatus' && f.isActive);
+  const attachmentsField = uiConfig.fields.find(f => f.key === 'attachments' && f.isActive);
 
   return (
     <>
@@ -457,8 +461,10 @@ export default function TaskPage() {
           </Alert>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-          <div className="lg:col-span-2 space-y-6">
+        <div className="space-y-6 lg:space-y-8">
+          {/* Top Section: Title & Details */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+            <div className="lg:col-span-2 space-y-6">
               <Card className={cn("relative overflow-hidden", cardClassName)}>
                 <Icon
                   className={cn(
@@ -470,9 +476,11 @@ export default function TaskPage() {
                 <div className="relative z-10">
                   <CardHeader>
                     <div className="flex flex-wrap items-start justify-between gap-4">
-                      <CardTitle className="text-3xl font-bold flex-1 flex items-center gap-3">
-                        <span>{task.title}</span>
-                        {!isBinned && (
+                      <div className="flex-1 flex items-center gap-3">
+                         <CardTitle className="text-3xl font-bold">
+                           {task.title}
+                         </CardTitle>
+                         {!isBinned && (
                           <FavoriteToggleButton
                             taskId={task.id}
                             isFavorite={!!task.isFavorite}
@@ -480,7 +488,7 @@ export default function TaskPage() {
                             className="h-9 w-9"
                           />
                         )}
-                      </CardTitle>
+                      </div>
                       <div className="flex-shrink-0 flex items-center gap-1">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -519,192 +527,8 @@ export default function TaskPage() {
                   </CardContent>
                 </div>
               </Card>
-
-              {uiConfig.fields.find(f => f.key === 'prLinks' && f.isActive) && (
-                 <Card>
-                    <CardHeader>
-                        <div className="flex justify-between items-center">
-                          <CardTitle className="flex items-center gap-2 text-xl">
-                              <GitMerge className="h-5 w-5" />
-                              {fieldLabels.get('prLinks') || 'Pull Requests'}
-                          </CardTitle>
-                          {!isBinned && task.repositories && task.repositories.length > 0 && allConfiguredEnvs.length > 0 && (
-                              <Button variant="ghost" size="sm" onClick={() => setIsEditingPrLinks(!isEditingPrLinks)}>
-                                  {isEditingPrLinks ? 'Done' : (
-                                      <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>
-                                  )}
-                              </Button>
-                          )}
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <PrLinksGroup 
-                          prLinks={task.prLinks} 
-                          repositories={task.repositories}
-                          configuredEnvs={uiConfig.environments}
-                          repositoryConfigs={uiConfig.repositoryConfigs}
-                          onUpdate={handlePrLinksUpdate}
-                          isEditing={isEditingPrLinks && !isBinned}
-                        />
-                    </CardContent>
-                </Card>
-              )}
-
-              {Object.keys(groupedCustomFields).map(groupName => (
-                <Card key={groupName}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-xl">
-                        <Box className="h-5 w-5" />
-                        {groupName}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                      {groupedCustomFields[groupName].map(field => (
-                          <div key={field.key}>
-                              <h4 className="text-sm font-semibold text-muted-foreground mb-1">{field.label}</h4>
-                              <div className="text-sm text-foreground">{renderCustomFieldValue(field.key, task.customFields?.[field.key])}</div>
-                          </div>
-                      ))}
-                  </CardContent>
-                </Card>
-              ))}
-
-              {uiConfig.fields.find(f => f.key === 'attachments' && f.isActive) && (
-                <Card>
-                    <CardHeader>
-                        <div className="flex justify-between items-center">
-                          <CardTitle className="flex items-center gap-2">
-                              <Paperclip className="h-5 w-5" />
-                              {fieldLabels.get('attachments') || 'Attachments'}
-                          </CardTitle>
-                          {!isBinned && (
-                            <Button variant="ghost" size="sm" onClick={() => setIsEditingAttachments(!isEditingAttachments)}>
-                                {isEditingAttachments ? 'Done' : <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>}
-                            </Button>
-                          )}
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                      {(!task.attachments || task.attachments.length === 0) && !isEditingAttachments ? (
-                        <div className="text-center py-10 text-muted-foreground border-2 border-dashed rounded-lg flex flex-col items-center justify-center">
-                            <Paperclip className="h-8 w-8 mb-2 text-muted-foreground/70" />
-                            <p className="text-base font-semibold">No attachments yet.</p>
-                            <p className="mt-1 text-sm">Click 'Edit' to add links or upload images.</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                              {task.attachments?.map((att, index) => {
-                                const shouldRenderAsImage = att.type === 'image' || isImageUrl(att.url);
-                                
-                                let hostname: string | null = null;
-                                let faviconUrl: string | null = null;
-                                
-                                if (!shouldRenderAsImage) {
-                                    try {
-                                        hostname = new URL(att.url).hostname;
-                                        faviconUrl = `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${hostname}&size=32`;
-                                    } catch (e) {
-                                        hostname = 'Invalid Link';
-                                    }
-                                }
-                                
-                                return (
-                                    <div key={index} className="space-y-1.5 relative group/attachment">
-                                        {isEditingAttachments && !isBinned && (
-                                            <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 z-10 rounded-full" onClick={() => handleDeleteAttachment(index)}>
-                                                <X className="h-4 w-4" />
-                                            </Button>
-                                        )}
-                                        
-                                        {shouldRenderAsImage ? (
-                                            <>
-                                                <div className="p-px bg-border rounded-lg group aspect-square w-full">
-                                                    <button onClick={() => setPreviewImage({ url: att.url, name: att.name })} className="block relative group/img aspect-square w-full rounded-md overflow-hidden">
-                                                        <img src={att.url} alt={att.name} className="object-cover w-full h-full transition-all group-hover/img:brightness-75" />
-                                                        {!isEditingAttachments && <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
-                                                            <ZoomIn className="h-8 w-8 text-white" />
-                                                        </div>}
-                                                    </button>
-                                                </div>
-                                                <p className="text-xs text-muted-foreground truncate" title={att.name}>{att.name}</p>
-                                            </>
-                                        ) : (
-                                            <a
-                                              href={att.url}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="block p-px bg-border rounded-lg group aspect-square w-full"
-                                            >
-                                              <div className="bg-card flex flex-col items-start justify-between gap-2 h-full rounded-md p-3 hover:bg-muted/50 transition-colors">
-                                                  <div className="flex items-center gap-2">
-                                                    {faviconUrl && <img src={faviconUrl} alt={`${hostname} favicon`} className="h-5 w-5 object-contain rounded" />}
-                                                  </div>
-                                                  <div className="w-full space-y-1">
-                                                      <p className="text-sm font-medium text-foreground line-clamp-2 leading-tight">{att.name}</p>
-                                                      <p className="text-xs text-muted-foreground truncate">{hostname}</p>
-                                                  </div>
-                                              </div>
-                                            </a>
-                                        )}
-                                    </div>
-                                )
-                              })}
-                            </div>
-                            {isEditingAttachments && !isBinned && (
-                                <div className="flex gap-2 pt-4 border-t">
-                                    <Popover open={isAddLinkPopoverOpen} onOpenChange={setIsAddLinkPopoverOpen}>
-                                        <PopoverTrigger asChild>
-                                            <Button variant="outline" size="sm"><Link2 className="h-4 w-4 mr-2" /> Add Link</Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-80">
-                                            <div className="grid gap-4">
-                                                <div className="space-y-2">
-                                                    <h4 className="font-medium leading-none">Add Link</h4>
-                                                    <p className="text-sm text-muted-foreground">Add an external link as an attachment.</p>
-                                                </div>
-                                                <div className="grid gap-2">
-                                                    <div className="grid grid-cols-3 items-center gap-4">
-                                                        <Label htmlFor="link-name">Name</Label>
-                                                        <Input id="link-name" value={newLink.name} onChange={(e) => setNewLink(p => ({...p, name: e.target.value}))} className="col-span-2 h-8" />
-                                                    </div>
-                                                    <div className="grid grid-cols-3 items-center gap-4">
-                                                        <Label htmlFor="link-url">URL</Label>
-                                                        <Input id="link-url" value={newLink.url} onChange={(e) => setNewLink(p => ({...p, url: e.target.value}))} className="col-span-2 h-8" />
-                                                    </div>
-                                                </div>
-                                                <Button size="sm" onClick={handleSaveLink}>Save Link</Button>
-                                            </div>
-                                        </PopoverContent>
-                                    </Popover>
-                                    <Button type="button" variant="outline" size="sm" onClick={() => imageInputRef.current?.click()}>
-                                        <Image className="h-4 w-4 mr-2" /> Add Image
-                                    </Button>
-                                    <input
-                                        type="file"
-                                        ref={imageInputRef}
-                                        onChange={handleImageUpload}
-                                        className="hidden"
-                                        accept="image/*"
-                                    />
-                                </div>
-                            )}
-                        </div>
-                      )}
-                    </CardContent>
-                </Card>
-              )}
-
-              {!isBinned && (
-                <CommentsSection
-                    taskId={task.id}
-                    comments={task.comments || []}
-                    onCommentsUpdate={handleCommentsUpdate}
-                    readOnly={isBinned}
-                />
-              )}
-          </div>
-          <div className="lg:col-span-1 space-y-6">
+            </div>
+            <div className="lg:col-span-1 space-y-6">
               <Card>
                   <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-xl">
@@ -866,81 +690,273 @@ export default function TaskPage() {
                       </div>
                   </CardContent>
               </Card>
+            </div>
+          </div>
+
+          {/* Middle Section: PRs & Deployments */}
+          {(prField || deploymentField) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+                {prField && (
+                  <Card>
+                      <CardHeader>
+                          <div className="flex justify-between items-center">
+                            <CardTitle className="flex items-center gap-2 text-xl">
+                                <GitMerge className="h-5 w-5" />
+                                {fieldLabels.get('prLinks') || 'Pull Requests'}
+                            </CardTitle>
+                            {!isBinned && task.repositories && task.repositories.length > 0 && allConfiguredEnvs.length > 0 && (
+                                <Button variant="ghost" size="sm" onClick={() => setIsEditingPrLinks(!isEditingPrLinks)}>
+                                    {isEditingPrLinks ? 'Done' : (
+                                        <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>
+                                    )}
+                                </Button>
+                            )}
+                          </div>
+                      </CardHeader>
+                      <CardContent>
+                          <PrLinksGroup 
+                            prLinks={task.prLinks} 
+                            repositories={task.repositories}
+                            configuredEnvs={uiConfig.environments}
+                            repositoryConfigs={uiConfig.repositoryConfigs}
+                            onUpdate={handlePrLinksUpdate}
+                            isEditing={isEditingPrLinks && !isBinned}
+                          />
+                      </CardContent>
+                  </Card>
+                )}
+                {deploymentField && (
+                  <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-xl">
+                            <CheckCircle2 className="h-5 w-5" />
+                            {fieldLabels.get('deploymentStatus') || 'Deployments'}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-1 text-sm">
+                            {allConfiguredEnvs.length > 0 ? (
+                                allConfiguredEnvs.map(env => {
+                                    const isSelected = task.deploymentStatus?.[env] ?? false;
+                                    const hasDate = task.deploymentDates && task.deploymentDates[env];
+                                    const isDeployed = isSelected && (env === 'dev' || !!hasDate);
+
+                                    return (
+                                        <div
+                                            key={env}
+                                            className={cn(
+                                              "flex justify-between items-center p-2 -m-2 rounded-lg transition-colors",
+                                              !isBinned && 'cursor-pointer hover:bg-muted/50'
+                                            )}
+                                            onClick={!isBinned ? () => handleToggleDeployment(env) : undefined}
+                                        >
+                                            <span className="capitalize text-foreground font-medium">
+                                                {env}
+                                            </span>
+
+                                            <div
+                                                onAnimationEnd={() => setJustUpdatedEnv(null)}
+                                                className={cn(
+                                                    'flex items-center gap-2 font-medium',
+                                                    isDeployed ? 'text-green-600 dark:text-green-500' : 'text-yellow-600 dark:text-yellow-500',
+                                                    justUpdatedEnv === env && 'animate-status-in'
+                                                )}
+                                            >
+                                                {isDeployed ? (
+                                                    <>
+                                                        <CheckCircle2 className="h-4 w-4" />
+                                                        <span>Deployed</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Clock className="h-4 w-4" />
+                                                        <span>Pending</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            ) : (
+                              <p className="text-muted-foreground text-center text-xs pt-2">No environments configured in settings.</p>
+                            )}
+                        </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+          )}
+
+          {/* Bottom Section: Other Cards */}
+          <div className="space-y-6">
+            {Object.keys(groupedCustomFields).map(groupName => (
+              <Card key={groupName}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                      <Box className="h-5 w-5" />
+                      {groupName}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {groupedCustomFields[groupName].map(field => (
+                        <div key={field.key}>
+                            <h4 className="text-sm font-semibold text-muted-foreground mb-1">{field.label}</h4>
+                            <div className="text-sm text-foreground">{renderCustomFieldValue(field.key, task.customFields?.[field.key])}</div>
+                        </div>
+                    ))}
+                </CardContent>
+              </Card>
+            ))}
+
+            {attachmentsField && (
               <Card>
                   <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-xl">
-                          <CheckCircle2 className="h-5 w-5" />
-                          {fieldLabels.get('deploymentStatus') || 'Deployments'}
-                      </CardTitle>
+                      <div className="flex justify-between items-center">
+                        <CardTitle className="flex items-center gap-2">
+                            <Paperclip className="h-5 w-5" />
+                            {fieldLabels.get('attachments') || 'Attachments'}
+                        </CardTitle>
+                        {!isBinned && (
+                          <Button variant="ghost" size="sm" onClick={() => setIsEditingAttachments(!isEditingAttachments)}>
+                              {isEditingAttachments ? 'Done' : <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>}
+                          </Button>
+                        )}
+                      </div>
                   </CardHeader>
                   <CardContent>
-                      <div className="space-y-1 text-sm">
-                          {allConfiguredEnvs.length > 0 ? (
-                              allConfiguredEnvs.map(env => {
-                                  const isSelected = task.deploymentStatus?.[env] ?? false;
-                                  const hasDate = task.deploymentDates && task.deploymentDates[env];
-                                  const isDeployed = isSelected && (env === 'dev' || !!hasDate);
-
-                                  return (
-                                      <div
-                                          key={env}
-                                          className={cn(
-                                            "flex justify-between items-center p-2 -m-2 rounded-lg transition-colors",
-                                            !isBinned && 'cursor-pointer hover:bg-muted/50'
-                                          )}
-                                          onClick={!isBinned ? () => handleToggleDeployment(env) : undefined}
-                                      >
-                                          <span className="capitalize text-foreground font-medium">
-                                              {env}
-                                          </span>
-
-                                          <div
-                                              onAnimationEnd={() => setJustUpdatedEnv(null)}
-                                              className={cn(
-                                                  'flex items-center gap-2 font-medium',
-                                                  isDeployed ? 'text-green-600 dark:text-green-500' : 'text-yellow-600 dark:text-yellow-500',
-                                                  justUpdatedEnv === env && 'animate-status-in'
-                                              )}
+                    {(!task.attachments || task.attachments.length === 0) && !isEditingAttachments ? (
+                      <div className="text-center py-10 text-muted-foreground border-2 border-dashed rounded-lg flex flex-col items-center justify-center">
+                          <Paperclip className="h-8 w-8 mb-2 text-muted-foreground/70" />
+                          <p className="text-base font-semibold">No attachments yet.</p>
+                          <p className="mt-1 text-sm">Click 'Edit' to add links or upload images.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                            {task.attachments?.map((att, index) => {
+                              const shouldRenderAsImage = att.type === 'image' || isImageUrl(att.url);
+                              
+                              let hostname: string | null = null;
+                              let faviconUrl: string | null = null;
+                              
+                              if (!shouldRenderAsImage) {
+                                  try {
+                                      hostname = new URL(att.url).hostname;
+                                      faviconUrl = `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${hostname}&size=32`;
+                                  } catch (e) {
+                                      hostname = 'Invalid Link';
+                                  }
+                              }
+                              
+                              return (
+                                  <div key={index} className="space-y-1.5 relative group/attachment">
+                                      {isEditingAttachments && !isBinned && (
+                                          <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 z-10 rounded-full" onClick={() => handleDeleteAttachment(index)}>
+                                              <X className="h-4 w-4" />
+                                          </Button>
+                                      )}
+                                      
+                                      {shouldRenderAsImage ? (
+                                          <>
+                                              <div className="p-px bg-border rounded-lg group aspect-square w-full">
+                                                  <button onClick={() => setPreviewImage({ url: att.url, name: att.name })} className="block relative group/img aspect-square w-full rounded-md overflow-hidden">
+                                                      <img src={att.url} alt={att.name} className="object-cover w-full h-full transition-all group-hover/img:brightness-75" />
+                                                      {!isEditingAttachments && <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
+                                                          <ZoomIn className="h-8 w-8 text-white" />
+                                                      </div>}
+                                                  </button>
+                                              </div>
+                                              <p className="text-xs text-muted-foreground truncate" title={att.name}>{att.name}</p>
+                                          </>
+                                      ) : (
+                                          <a
+                                            href={att.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="block p-px bg-border rounded-lg group aspect-square w-full"
                                           >
-                                              {isDeployed ? (
-                                                  <>
-                                                      <CheckCircle2 className="h-4 w-4" />
-                                                      <span>Deployed</span>
-                                                  </>
-                                              ) : (
-                                                  <>
-                                                      <Clock className="h-4 w-4" />
-                                                      <span>Pending</span>
-                                                  </>
-                                              )}
+                                            <div className="bg-card flex flex-col items-start justify-between gap-2 h-full rounded-md p-3 hover:bg-muted/50 transition-colors">
+                                                <div className="flex items-center gap-2">
+                                                  {faviconUrl && <img src={faviconUrl} alt={`${hostname} favicon`} className="h-5 w-5 object-contain rounded" />}
+                                                </div>
+                                                <div className="w-full space-y-1">
+                                                    <p className="text-sm font-medium text-foreground line-clamp-2 leading-tight">{att.name}</p>
+                                                    <p className="text-xs text-muted-foreground truncate">{hostname}</p>
+                                                </div>
+                                            </div>
+                                          </a>
+                                      )}
+                                  </div>
+                              )
+                            })}
+                          </div>
+                          {isEditingAttachments && !isBinned && (
+                              <div className="flex gap-2 pt-4 border-t">
+                                  <Popover open={isAddLinkPopoverOpen} onOpenChange={setIsAddLinkPopoverOpen}>
+                                      <PopoverTrigger asChild>
+                                          <Button variant="outline" size="sm"><Link2 className="h-4 w-4 mr-2" /> Add Link</Button>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-80">
+                                          <div className="grid gap-4">
+                                              <div className="space-y-2">
+                                                  <h4 className="font-medium leading-none">Add Link</h4>
+                                                  <p className="text-sm text-muted-foreground">Add an external link as an attachment.</p>
+                                              </div>
+                                              <div className="grid gap-2">
+                                                  <div className="grid grid-cols-3 items-center gap-4">
+                                                      <Label htmlFor="link-name">Name</Label>
+                                                      <Input id="link-name" value={newLink.name} onChange={(e) => setNewLink(p => ({...p, name: e.target.value}))} className="col-span-2 h-8" />
+                                                  </div>
+                                                  <div className="grid grid-cols-3 items-center gap-4">
+                                                      <Label htmlFor="link-url">URL</Label>
+                                                      <Input id="link-url" value={newLink.url} onChange={(e) => setNewLink(p => ({...p, url: e.target.value}))} className="col-span-2 h-8" />
+                                                  </div>
+                                              </div>
+                                              <Button size="sm" onClick={handleSaveLink}>Save Link</Button>
                                           </div>
-                                      </div>
-                                  );
-                              })
-                          ) : (
-                             <p className="text-muted-foreground text-center text-xs pt-2">No environments configured in settings.</p>
+                                      </PopoverContent>
+                                  </Popover>
+                                  <Button type="button" variant="outline" size="sm" onClick={() => imageInputRef.current?.click()}>
+                                      <Image className="h-4 w-4 mr-2" /> Add Image
+                                  </Button>
+                                  <input
+                                      type="file"
+                                      ref={imageInputRef}
+                                      onChange={handleImageUpload}
+                                      className="hidden"
+                                      accept="image/*"
+                                  />
+                              </div>
                           )}
                       </div>
+                    )}
                   </CardContent>
               </Card>
-          </div>
-          <div className="lg:col-span-3">
-            <div className="space-y-6">
-              {!isBinned && taskLogs.length > 0 && (
-                  <TaskHistory logs={taskLogs} />
-              )}
+            )}
 
-              {!isBinned && (
-              <RelatedTasksSection
-                  title={relatedTasksTitle}
-                  tasks={relatedTasks}
-                  onTaskUpdate={loadData}
-                  uiConfig={uiConfig}
-                  developers={developers}
-                  testers={testers}
+            {!isBinned && (
+              <CommentsSection
+                  taskId={task.id}
+                  comments={task.comments || []}
+                  onCommentsUpdate={handleCommentsUpdate}
+                  readOnly={isBinned}
               />
-              )}
-            </div>
+            )}
+
+            {!isBinned && taskLogs.length > 0 && (
+                <TaskHistory logs={taskLogs} />
+            )}
+
+            {!isBinned && (
+            <RelatedTasksSection
+                title={relatedTasksTitle}
+                tasks={relatedTasks}
+                onTaskUpdate={loadData}
+                uiConfig={uiConfig}
+                developers={developers}
+                testers={testers}
+            />
+            )}
           </div>
         </div>
       </div>
