@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { getUiConfig, updateUiConfig, addEnvironment, updateEnvironmentName, deleteEnvironment } from '@/lib/data';
+import { getUiConfig, updateUiConfig, addEnvironment, updateEnvironmentName, deleteEnvironment, getDevelopers, getTesters } from '@/lib/data';
 import type { UiConfig, FieldConfig, RepositoryConfig, Person } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
