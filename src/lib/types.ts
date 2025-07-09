@@ -28,7 +28,7 @@ export interface Attachment {
 }
 
 export interface RepositoryConfig {
-  id: string;
+  id:string;
   name: string;
   baseUrl: string;
 }
@@ -56,6 +56,7 @@ export interface Task {
   summary?: string | null;
   deletedAt?: string;
   isFavorite?: boolean;
+  reminder?: string | null;
   
   repositories?: Repository[];
   azureWorkItemId?: string;
@@ -109,6 +110,7 @@ export interface UiConfig {
   taskStatuses: string[];
   appName?: string;
   appIcon?: string | null;
+  remindersEnabled?: boolean;
 }
 
 export interface CompanyData {

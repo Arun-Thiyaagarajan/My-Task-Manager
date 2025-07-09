@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck, Server, Globe, Image as ImageIcon } from 'lucide-react';
+import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck, Server, Globe, Image as ImageIcon, BellRing, Settings2 } from 'lucide-react';
 import { EditFieldDialog } from '@/components/edit-field-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils';
 import { PeopleManagerDialog } from '@/components/people-manager-dialog';
 import { getDevelopers, getTesters } from '@/lib/data';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 
 export default function SettingsPage() {
@@ -51,6 +52,7 @@ export default function SettingsPage() {
 
   const [appName, setAppName] = useState('');
   const [appIcon, setAppIcon] = useState<string | null>(null);
+  const [remindersEnabled, setRemindersEnabled] = useState(false);
   const iconInputRef = useRef<HTMLInputElement>(null);
   
 
@@ -61,6 +63,7 @@ export default function SettingsPage() {
     setTesters(getTesters());
     setAppName(loadedConfig.appName || 'My Task Manager');
     setAppIcon(loadedConfig.appIcon || null);
+    setRemindersEnabled(loadedConfig.remindersEnabled || false);
   }
 
   useEffect(() => {
@@ -378,6 +381,17 @@ export default function SettingsPage() {
       if (event.target) event.target.value = '';
   };
 
+  const handleSaveFeatures = () => {
+    if (!config) return;
+    const newConfig = { ...config, remindersEnabled };
+    updateUiConfig(newConfig);
+    toast({
+        variant: 'success',
+        title: 'Features Updated',
+        description: 'Your feature settings have been saved.',
+    });
+  };
+
   const isDataURI = (str: string) => str.startsWith('data:image');
 
   const filteredAndGroupedFields = useMemo(() => {
@@ -565,6 +579,30 @@ export default function SettingsPage() {
                 </CardContent>
                 <CardFooter>
                     <Button onClick={handleSaveBranding} className="w-full">Save Branding</Button>
+                </CardFooter>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Settings2 className="h-5 w-5" />Feature Management</CardTitle>
+                    <CardDescription>Enable or disable optional features.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                        <div className="space-y-0.5">
+                            <Label htmlFor="reminders-switch" className="flex items-center gap-2"><BellRing className="h-4 w-4" /> Task Reminders</Label>
+                            <p className="text-xs text-muted-foreground">
+                                Allow users to set and pin reminder notes on tasks.
+                            </p>
+                        </div>
+                        <Switch
+                            id="reminders-switch"
+                            checked={remindersEnabled}
+                            onCheckedChange={setRemindersEnabled}
+                        />
+                    </div>
+                </CardContent>
+                <CardFooter>
+                    <Button onClick={handleSaveFeatures} className="w-full">Save Features</Button>
                 </CardFooter>
             </Card>
              <Card>

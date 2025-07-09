@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getStatusConfig, TaskStatusBadge } from './task-status-badge';
-import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck, Share2 } from 'lucide-react';
+import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck, Share2, StickyNote, Pin } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
@@ -37,6 +37,7 @@ import { EnvironmentStatus } from './environment-status';
 import { Checkbox } from './ui/checkbox';
 import { ShareMenu } from './share-menu';
 import { FavoriteToggleButton } from './favorite-toggle';
+import { ReminderDialog } from './reminder-dialog';
 
 interface TaskCardProps {
   task: Task;
@@ -48,18 +49,22 @@ interface TaskCardProps {
   selectedTaskIds?: string[];
   setSelectedTaskIds?: (ids: string[]) => void;
   isSelectMode?: boolean;
+  pinnedTaskIds: string[];
+  onPinToggle: (taskId: string) => void;
 }
 
-export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConfig, developers, testers, selectedTaskIds, setSelectedTaskIds, isSelectMode }: TaskCardProps) {
+export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConfig, developers, testers, selectedTaskIds, setSelectedTaskIds, isSelectMode, pinnedTaskIds, onPinToggle }: TaskCardProps) {
   const [task, setTask] = useState(initialTask);
   const { toast } = useToast();
   const [taskStatuses, setTaskStatuses] = useState<string[]>([]);
   const [personInView, setPersonInView] = useState<{person: Person, type: 'Developer' | 'Tester'} | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [justUpdatedEnv, setJustUpdatedEnv] = useState<string | null>(null);
+  const [isReminderOpen, setIsReminderOpen] = useState(false);
   
   const isSelectable = selectedTaskIds !== undefined && setSelectedTaskIds !== undefined;
   const isSelected = isSelectable && selectedTaskIds.includes(task.id);
+  const isPinned = pinnedTaskIds.includes(task.id);
   
   useEffect(() => {
     setTask(initialTask);
@@ -162,6 +167,21 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
       : [...selectedTaskIds, task.id];
     setSelectedTaskIds(newSelected);
   }
+
+  const handlePinToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (task.reminder) {
+      onPinToggle(task.id);
+    } else {
+      toast({
+        variant: 'default',
+        title: "No Reminder Set",
+        description: "You need to add a reminder note before you can pin it.",
+        duration: 3000
+      });
+    }
+  };
 
 
   const fieldLabels = new Map(uiConfig?.fields.map(f => [f.key, f.label]));
@@ -466,12 +486,32 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                   <div className="text-xs text-muted-foreground italic">No assignees</div>
                 )}
             </div>
-            <div className="flex items-center gap-1 shrink-0">
+            <div className="flex items-center gap-0.5 shrink-0">
               <FavoriteToggleButton
                   taskId={task.id}
                   isFavorite={!!task.isFavorite}
                   onUpdate={onTaskUpdate}
               />
+              {uiConfig?.remindersEnabled && (
+                <>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button onClick={(e) => {e.preventDefault(); e.stopPropagation(); setIsReminderOpen(true)}} variant="ghost" size="icon" className="h-8 w-8">
+                        <StickyNote className={cn("h-4 w-4", task.reminder && "fill-yellow-300 text-yellow-800")} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>{task.reminder ? "Edit reminder note" : "Add reminder note"}</p></TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button onClick={handlePinToggle} variant="ghost" size="icon" className="h-8 w-8">
+                        <Pin className={cn("h-4 w-4 transition-all", isPinned ? "fill-foreground" : "")} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>{isPinned ? "Unpin from main page" : "Pin to main page"}</p></TooltipContent>
+                  </Tooltip>
+                </>
+              )}
               {uiConfig && (
                 <ShareMenu task={task} uiConfig={uiConfig} developers={developers} testers={testers}>
                   <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -497,6 +537,19 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
         isOpen={!!personInView}
         onOpenChange={(isOpen) => !isOpen && setPersonInView(null)}
       />
+      {uiConfig?.remindersEnabled && task && (
+        <ReminderDialog
+          isOpen={isReminderOpen}
+          onOpenChange={setIsReminderOpen}
+          task={task}
+          onSuccess={() => {
+            onTaskUpdate();
+            // This re-fetches the specific task to update its state inside the card
+            const updated = updateTask(task.id, {});
+            if (updated) setTask(updated);
+          }}
+        />
+      )}
     </>
   );
 }

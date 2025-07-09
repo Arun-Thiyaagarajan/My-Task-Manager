@@ -41,6 +41,8 @@ import {
   HelpCircle,
   History,
   Heart,
+  StickyNote,
+  PinOff,
 } from 'lucide-react';
 import { cn, fuzzySearch } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig, Log } from '@/lib/types';
@@ -86,6 +88,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { generateTaskPdf, generateTasksText } from '@/lib/share-utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -99,6 +102,8 @@ import { ToastAction } from '@/components/ui/toast';
 
 type ViewMode = 'grid' | 'table';
 type MainView = 'all' | 'monthly';
+
+const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
 
 export default function Home() {
   const activeCompanyId = useActiveCompany();
@@ -128,6 +133,8 @@ export default function Home() {
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [openGroups, setOpenGroups] = useState<string[]>(['priority', 'completed', 'other', 'hold']);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [pinnedTaskIds, setPinnedTaskIds] = useState<string[]>([]);
+  const [dismissedPins, setDismissedPins] = useState<string[]>([]);
 
   const handlePreviousMonth = () => setSelectedMonth(subMonths(selectedMonth, 1));
   const handleNextMonth = () => setSelectedMonth(addMonths(selectedMonth, 1));
@@ -158,8 +165,22 @@ export default function Home() {
     if (savedOpenGroups) {
       setOpenGroups(JSON.parse(savedOpenGroups));
     }
+    
+    const savedPinnedTasks = localStorage.getItem(PINNED_TASKS_STORAGE_KEY);
+    if (savedPinnedTasks) {
+      setPinnedTaskIds(JSON.parse(savedPinnedTasks));
+    }
 
   }, []);
+
+  const handleTogglePin = (taskId: string) => {
+    const newPinnedIds = pinnedTaskIds.includes(taskId)
+      ? pinnedTaskIds.filter(id => id !== taskId)
+      : [...pinnedTaskIds, taskId];
+    
+    setPinnedTaskIds(newPinnedIds);
+    localStorage.setItem(PINNED_TASKS_STORAGE_KEY, JSON.stringify(newPinnedIds));
+  };
 
   const handleViewModeChange = (mode: ViewMode) => {
     if (mode === 'grid' || mode === 'table') {
@@ -300,6 +321,10 @@ export default function Home() {
 
     return 0;
   });
+
+  const pinnedReminders = tasks
+    .filter(t => pinnedTaskIds.includes(t.id) && t.reminder && !dismissedPins.includes(t.id))
+    .sort((a, b) => pinnedTaskIds.indexOf(a.id) - pinnedTaskIds.indexOf(b.id));
 
   const handleToggleSelectAll = (checked: boolean | 'indeterminate') => {
     setSelectedTaskIds(checked === true ? sortedTasks.map(t => t.id) : []);
@@ -693,6 +718,7 @@ export default function Home() {
                           status: validatedData.status || 'To Do',
                           summary: validatedData.summary || null,
                           isFavorite: validatedData.isFavorite || false,
+                          reminder: validatedData.reminder || null,
                           repositories: validatedData.repositories || [],
                           developers: validatedData.developers || [],
                           testers: validatedData.testers || [],
@@ -914,6 +940,34 @@ export default function Home() {
       </div>
       
       <div className="space-y-6">
+          {uiConfig.remindersEnabled && pinnedReminders.length > 0 && (
+            <div className="space-y-3">
+              {pinnedReminders.map(task => (
+                <Alert key={task.id} className="bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/50 flex items-start justify-between gap-4 pr-3 py-3">
+                  <div className="flex items-start gap-4">
+                    <StickyNote className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                    <div>
+                      <AlertTitle className="text-amber-800 dark:text-amber-200 mb-1">
+                        <Link href={`/tasks/${task.id}`} className="hover:underline">{task.title}</Link>
+                      </AlertTitle>
+                      <AlertDescription className="text-amber-700 dark:text-amber-300 whitespace-pre-wrap">
+                        {task.reminder}
+                      </AlertDescription>
+                    </div>
+                  </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300" onClick={() => handleTogglePin(task.id)}>
+                        <PinOff className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Unpin this reminder</TooltipContent>
+                  </Tooltip>
+                </Alert>
+              ))}
+            </div>
+          )}
+
           <Card>
             <CardContent className="p-4">
               <div className="flex flex-wrap items-center gap-4">
@@ -1333,7 +1387,7 @@ export default function Home() {
 
           {sortedTasks.length > 0 ? (
             viewMode === 'grid' ? (
-              <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} />
+              <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handleTogglePin} />
             ) : (
               <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} />
             )

@@ -31,6 +31,7 @@ const getInitialData = (): MyTaskManagerData => {
                     taskStatuses: [...TASK_STATUSES],
                     appName: 'My Task Manager',
                     appIcon: null,
+                    remindersEnabled: true,
                 },
                 logs: [],
             },
@@ -47,6 +48,7 @@ export const getAppData = (): MyTaskManagerData => {
             taskStatuses: [...TASK_STATUSES],
             appName: 'My Task Manager',
             appIcon: null,
+            remindersEnabled: true,
         };
         return {
             companies: [{ id: 'company-placeholder', name: 'Default Company' }],
@@ -220,6 +222,7 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
         taskStatuses: [...TASK_STATUSES],
         appName: 'My Task Manager',
         appIcon: null,
+        remindersEnabled: true,
     };
 
     if (!savedConfig || typeof savedConfig !== 'object') {
@@ -235,6 +238,7 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
     
     resultConfig.appName = savedConfig.appName || defaultConfig.appName;
     resultConfig.appIcon = savedConfig.appIcon === undefined ? defaultConfig.appIcon : savedConfig.appIcon;
+    resultConfig.remindersEnabled = savedConfig.remindersEnabled ?? defaultConfig.remindersEnabled;
     
     if (Array.isArray(savedConfig.fields)) {
         const finalFields: FieldConfig[] = [];
@@ -298,6 +302,10 @@ const generateUiConfigUpdateLogs = (oldConfig: UiConfig, newConfig: UiConfig): s
         }
     }
     
+    if (oldConfig.remindersEnabled !== newConfig.remindersEnabled) {
+        createDetail(`${newConfig.remindersEnabled ? 'Enabled' : 'Disabled'} the Task Reminders feature.`);
+    }
+
     // Repository configuration changes
     if (JSON.stringify(oldConfig.repositoryConfigs) !== JSON.stringify(newConfig.repositoryConfigs)) {
         const oldRepos = new Map((oldConfig.repositoryConfigs || []).map(r => [r.id, r]));
@@ -681,6 +689,7 @@ export function addTask(taskData: Partial<Task>, isBinned: boolean = false): Tas
     status: taskData.status || 'To Do',
     summary: taskData.summary || null,
     isFavorite: taskData.isFavorite || false,
+    reminder: taskData.reminder || null,
     repositories: taskData.repositories || [],
     developers: taskData.developers || [],
     testers: taskData.testers || [],
@@ -734,6 +743,15 @@ const generateTaskUpdateLogs = (
             createLog(`Marked task "${taskTitle}" as a favorite.`);
         } else {
             createLog(`Removed task "${taskTitle}" from favorites.`);
+        }
+    }
+    if ('reminder' in newTaskData && newTaskData.reminder !== oldTask.reminder) {
+        if (newTaskData.reminder && !oldTask.reminder) {
+            createLog(`Added a reminder note to task "${taskTitle}".`);
+        } else if (!newTaskData.reminder && oldTask.reminder) {
+            createLog(`Removed the reminder note from task "${taskTitle}".`);
+        } else {
+            createLog(`Updated the reminder note for task "${taskTitle}".`);
         }
     }
     if ('description' in newTaskData && newTaskData.description !== oldTask.description) {
@@ -1192,6 +1210,7 @@ export function updateComment(taskId: string, index: number, newCommentText: str
    
    const newComments = [...task.comments];
    newComments[index] = {
+     ...newComments[index],
      text: newCommentText,
      timestamp: new Date().toISOString(),
    };

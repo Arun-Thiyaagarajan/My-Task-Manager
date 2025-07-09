@@ -44,6 +44,7 @@ import {
 import { ShareMenu } from '@/components/share-menu';
 import { FavoriteToggleButton } from '@/components/favorite-toggle';
 import { TaskHistory } from '@/components/task-history';
+import { ReminderDialog } from '@/components/reminder-dialog';
 
 
 const isImageUrl = (url: string): boolean => {
@@ -76,6 +77,7 @@ export default function TaskPage() {
   const [relatedTasks, setRelatedTasks] = useState<Task[]>([]);
   const [relatedTasksTitle, setRelatedTasksTitle] = useState<string>('');
   const [taskLogs, setTaskLogs] = useState<Log[]>([]);
+  const [isReminderOpen, setIsReminderOpen] = useState(false);
 
   const taskId = params.id as string;
   
@@ -96,12 +98,12 @@ export default function TaskPage() {
         document.title = `${foundTask.title} | ${config.appName || 'My Task Manager'}`;
         
         const isBinned = !!foundTask.deletedAt;
-        setTaskLogs(isBinned ? [] : getLogsForTask(taskId));
-
         if (isBinned) {
+            setTaskLogs([]);
             setRelatedTasks([]);
             setRelatedTasksTitle('');
         } else {
+            setTaskLogs(getLogsForTask(taskId));
             const allTasks = getTasks().filter(t => t.id !== taskId);
             const strategies: (() => { title: string, tasks: Task[] } | null)[] = [];
 
@@ -435,15 +437,7 @@ export default function TaskPage() {
   const allConfiguredEnvs = uiConfig.environments || [];
   
   const customFields = uiConfig.fields.filter(f => f.isCustom && f.isActive && task.customFields && typeof task.customFields[f.key] !== 'undefined' && task.customFields[f.key] !== null && task.customFields[f.key] !== '');
-  const groupedCustomFields = customFields.reduce((acc, field) => {
-    const group = field.group || 'Other Custom Fields';
-    if (!acc[group]) acc[group] = [];
-    acc[group].push(field);
-    return acc;
-  }, {} as Record<string, FieldConfig[]>);
-  const customFieldGroupNames = Object.keys(groupedCustomFields).sort();
-
-
+  
   const developersById = new Map(developers.map(d => [d.id, d]));
   const testersById = new Map(testers.map(t => [t.id, t]));
 
@@ -487,6 +481,12 @@ export default function TaskPage() {
             </AlertDialog>
           ) : (
             <div className="flex gap-2">
+                {uiConfig.remindersEnabled && (
+                  <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setIsReminderOpen(true)}>
+                      <StickyNote className={cn("h-4 w-4", task.reminder && "fill-yellow-300 text-yellow-800")} />
+                      <span className="sr-only">Set Reminder Note</span>
+                  </Button>
+                )}
                 <ShareMenu task={task} uiConfig={uiConfig} developers={developers} testers={testers}>
                     <Button variant="outline" size="sm">
                         <Share2 className="mr-2 h-4 w-4" />
@@ -514,6 +514,16 @@ export default function TaskPage() {
           </Alert>
         )}
         
+        {task.reminder && (
+          <Alert className="mb-6 bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800/50">
+            <StickyNote className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+            <AlertTitle className="text-yellow-800 dark:text-yellow-200">Reminder Note</AlertTitle>
+            <AlertDescription className="text-yellow-700 dark:text-yellow-300 whitespace-pre-wrap">
+              {task.reminder}
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
           <div className="lg:col-span-2 space-y-6">
             <Card className={cn("relative overflow-hidden", cardClassName)}>
@@ -604,13 +614,13 @@ export default function TaskPage() {
                 )}
             </div>
 
-            {Object.entries(groupedCustomFields).map(([groupName, fields]) => (
-              <Card key={groupName}>
+            {customFields.length > 0 && (
+              <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-xl"><Box className="h-5 w-5" />{groupName}</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-xl"><Box className="h-5 w-5" />Other Details</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {fields.map(field => (
+                  {customFields.map(field => (
                     <div key={field.key} className="break-words">
                       <h4 className="text-sm font-semibold text-muted-foreground mb-1">{field.label}</h4>
                       <div className="text-sm text-foreground min-w-0">{renderCustomFieldValue(field, task.customFields?.[field.key])}</div>
@@ -618,7 +628,7 @@ export default function TaskPage() {
                   ))}
                 </CardContent>
               </Card>
-            ))}
+            )}
 
             {attachmentsField && (
               <Card>
@@ -757,6 +767,14 @@ export default function TaskPage() {
         imageUrl={previewImage?.url ?? null}
         imageName={previewImage?.name ?? null}
       />
+      {uiConfig.remindersEnabled && task && (
+        <ReminderDialog 
+          isOpen={isReminderOpen}
+          onOpenChange={setIsReminderOpen}
+          task={task}
+          onSuccess={loadData}
+        />
+      )}
     </>
   );
 }
@@ -856,6 +874,3 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
       </div>
     );
 }
-
-
-

@@ -37,6 +37,7 @@ export const taskSchema = z.object({
   comments: z.array(commentSchema).optional(),
   summary: z.string().nullable().optional(),
   isFavorite: z.boolean().optional(),
+  reminder: z.string().nullable().optional(),
   
   title: z.string().min(3, { message: 'Title must be at least 3 characters.' }),
   description: z.string().min(3, { message: 'Description must be at least 3 characters.' }),
