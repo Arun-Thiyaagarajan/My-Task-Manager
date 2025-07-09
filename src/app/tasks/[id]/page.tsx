@@ -38,6 +38,7 @@ import { RelatedTasksSection } from '@/components/related-tasks-section';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ShareMenu } from '@/components/share-menu';
 import { TaskHistory } from '@/components/task-history';
+import { FavoriteToggleButton } from '@/components/favorite-toggle';
 
 const isImageUrl = (url: string): boolean => {
   try {
@@ -301,7 +302,9 @@ export default function TaskPage() {
     };
     reader.readAsDataURL(file);
 
-    if (event.target) event.target.value = '';
+    if (event.target) {
+        event.target.value = '';
+    }
   };
   
   const handleSaveLink = () => {
@@ -471,7 +474,15 @@ export default function TaskPage() {
                     <CardTitle className="text-3xl font-bold flex-1">
                       {task.title}
                     </CardTitle>
-                    <div className="flex-shrink-0">
+                    <div className="flex-shrink-0 flex items-center gap-1">
+                      {!isBinned && (
+                        <FavoriteToggleButton
+                          taskId={task.id}
+                          isFavorite={!!task.isFavorite}
+                          onUpdate={loadData}
+                          className="h-9 w-9"
+                        />
+                      )}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" disabled={isBinned} className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-100">

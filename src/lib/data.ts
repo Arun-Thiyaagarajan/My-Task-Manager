@@ -680,6 +680,7 @@ export function addTask(taskData: Partial<Task>, isBinned: boolean = false): Tas
     description: taskData.description || '',
     status: taskData.status || 'To Do',
     summary: taskData.summary || null,
+    isFavorite: taskData.isFavorite || false,
     repositories: taskData.repositories || [],
     developers: taskData.developers || [],
     testers: taskData.testers || [],
@@ -727,6 +728,13 @@ const generateTaskUpdateLogs = (
 
     if (newTaskData.title && newTaskData.title !== oldTask.title) {
         createLog(`Updated title from "${oldTask.title}" to "${newTaskData.title}".`);
+    }
+    if ('isFavorite' in newTaskData && newTaskData.isFavorite !== oldTask.isFavorite) {
+        if (newTaskData.isFavorite) {
+            createLog(`Marked task "${taskTitle}" as a favorite.`);
+        } else {
+            createLog(`Removed task "${taskTitle}" from favorites.`);
+        }
     }
     if ('description' in newTaskData && newTaskData.description !== oldTask.description) {
         createLog(`Updated description for task "${taskTitle}".`);

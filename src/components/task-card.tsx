@@ -36,6 +36,7 @@ import { Skeleton } from './ui/skeleton';
 import { EnvironmentStatus } from './environment-status';
 import { Checkbox } from './ui/checkbox';
 import { ShareMenu } from './share-menu';
+import { FavoriteToggleButton } from './favorite-toggle';
 
 interface TaskCardProps {
   task: Task;
@@ -422,6 +423,11 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                 )}
             </div>
             <div className="flex items-center gap-1">
+              <FavoriteToggleButton
+                  taskId={task.id}
+                  isFavorite={!!task.isFavorite}
+                  onUpdate={onTaskUpdate}
+              />
               {uiConfig && (
                 <ShareMenu task={task} uiConfig={uiConfig} developers={developers} testers={testers}>
                   <Button variant="ghost" size="icon" className="h-8 w-8">

@@ -50,6 +50,7 @@ export interface Task {
   updatedAt: string;
   summary?: string | null;
   deletedAt?: string;
+  isFavorite?: boolean;
   
   repositories?: Repository[];
   azureWorkItemId?: string;

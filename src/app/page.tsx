@@ -40,6 +40,7 @@ import {
   X,
   HelpCircle,
   History,
+  Heart,
 } from 'lucide-react';
 import { cn, fuzzySearch } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig, Log } from '@/lib/types';
@@ -126,6 +127,7 @@ export default function Home() {
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [openGroups, setOpenGroups] = useState<string[]>(['priority', 'completed', 'other', 'hold']);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
 
   const handlePreviousMonth = () => setSelectedMonth(subMonths(selectedMonth, 1));
   const handleNextMonth = () => setSelectedMonth(addMonths(selectedMonth, 1));
@@ -172,6 +174,12 @@ export default function Home() {
   };
 
   useEffect(() => {
+    if (favoritesOnly) {
+      setMainView('all');
+    }
+  }, [favoritesOnly]);
+
+  useEffect(() => {
     localStorage.setItem('taskflow_main_view', mainView);
     localStorage.setItem('taskflow_selected_month', selectedMonth.toISOString());
     localStorage.setItem('taskflow_open_groups', JSON.stringify(openGroups));
@@ -193,6 +201,10 @@ export default function Home() {
   }, [activeCompanyId]);
 
   const filteredTasks = tasks.filter((task: Task) => {
+    if (favoritesOnly && !task.isFavorite) {
+      return false;
+    }
+
     const statusMatch = statusFilter === 'all' || task.status === statusFilter;
     
     const repoMatch = repoFilter === 'all' || task.repositories?.includes(repoFilter);
@@ -337,6 +349,7 @@ export default function Home() {
         const { developers, testers, ...restOfTask } = task;
         return {
             ...restOfTask,
+            isFavorite: task.isFavorite || false,
             developers: (developers || []).map(id => devIdToName.get(id)).filter((name): name is string => !!name),
             testers: (testers || []).map(id => testerIdToName.get(id)).filter((name): name is string => !!name),
         };
@@ -404,6 +417,7 @@ export default function Home() {
               developers: ["Grace Hopper"],
               testers: ["Ada Lovelace"],
               azureWorkItemId: "101",
+              isFavorite: true,
             }
           ]
       };
@@ -678,6 +692,7 @@ export default function Home() {
                           description: validatedData.description || '',
                           status: validatedData.status || 'To Do',
                           summary: validatedData.summary || null,
+                          isFavorite: validatedData.isFavorite || false,
                           repositories: validatedData.repositories || [],
                           developers: validatedData.developers || [],
                           testers: validatedData.testers || [],
@@ -1158,7 +1173,7 @@ export default function Home() {
                     <Tabs value={mainView} onValueChange={(v) => setMainView(v as MainView)}>
                         <TabsList>
                             <TabsTrigger value="all">All Tasks</TabsTrigger>
-                            <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                            <TabsTrigger value="monthly" disabled={favoritesOnly}>Monthly</TabsTrigger>
                         </TabsList>
                     </Tabs>
 
@@ -1190,6 +1205,21 @@ export default function Home() {
                     </div>
                   </div>
 
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                          variant={favoritesOnly ? 'secondary' : 'outline'}
+                          size="icon"
+                          onClick={() => setFavoritesOnly(prev => !prev)}
+                          className="h-10 w-10"
+                      >
+                          <Heart className={cn("h-4 w-4", favoritesOnly && "fill-red-500 text-red-500")} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{favoritesOnly ? 'Show all tasks' : 'Show favorites only'}</p>
+                    </TooltipContent>
+                  </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
