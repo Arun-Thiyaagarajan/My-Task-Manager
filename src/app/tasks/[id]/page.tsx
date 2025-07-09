@@ -432,7 +432,7 @@ export default function TaskPage() {
 
 
   const developersById = new Map(developers.map(d => [d.id, d]));
-  const testersById = new Map(testers.map(t => [t.id, t.name]));
+  const testersById = new Map(testers.map(t => [t.id, t]));
 
   const azureFieldConfig = uiConfig.fields.find(f => f.key === 'azureWorkItemId');
   const prField = uiConfig.fields.find(f => f.key === 'prLinks' && f.isActive);
@@ -489,18 +489,13 @@ export default function TaskPage() {
             <Card className={cn("relative overflow-hidden", cardClassName)}>
                 <Icon className={cn('absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none transition-transform duration-300 ease-in-out', iconColorClassName, task.status !== 'In Progress' && 'group-hover/card:scale-110 group-hover/card:-rotate-6')} />
                 <div className="relative z-10 flex flex-col h-full">
-                  <CardHeader>
-                    <div className="flex justify-between items-start gap-2">
-                      <div className="flex-1 flex items-center gap-3">
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex items-center gap-3 flex-1">
                         <CardTitle className="text-3xl font-bold">{task.title}</CardTitle>
                         {!isBinned && (<FavoriteToggleButton taskId={task.id} isFavorite={!!task.isFavorite} onUpdate={loadData} className="h-9 w-9" />)}
                       </div>
-                    </div>
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <CardDescription>
-                        Last updated on {format(new Date(task.updatedAt), 'PPP')}
-                      </CardDescription>
-                      <div className="flex-shrink-0 flex items-center gap-1">
+                      <div className="flex-shrink-0">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" disabled={isBinned} className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-100">
@@ -528,7 +523,10 @@ export default function TaskPage() {
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="flex-grow">
+                  <CardContent className="pt-2 flex-grow">
+                    <CardDescription className="mb-4">
+                        Last updated on {format(new Date(task.updatedAt), 'PPP')}
+                    </CardDescription>
                     <p className="text-foreground/80 whitespace-pre-wrap">{task.description}</p>
                   </CardContent>
                 </div>
@@ -578,7 +576,7 @@ export default function TaskPage() {
                 )}
             </div>
 
-            {!isBinned && customFieldGroupNames.map((groupName) => (
+            {customFieldGroupNames.map((groupName) => (
               <Card key={groupName}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-xl"><Box className="h-5 w-5" />{groupName}</CardTitle>
@@ -712,7 +710,7 @@ export default function TaskPage() {
         </div>
         
         <div className="mt-8">
-            {relatedTasks.length > 0 && (
+            {!isBinned && relatedTasks.length > 0 && (
                 <RelatedTasksSection title={relatedTasksTitle} tasks={relatedTasks} onTaskUpdate={loadData} uiConfig={uiConfig} developers={developers} testers={testers} />
             )}
         </div>
@@ -828,3 +826,4 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
       </div>
     );
 }
+
