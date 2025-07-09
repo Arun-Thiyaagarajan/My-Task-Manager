@@ -530,35 +530,6 @@ export default function TaskPage() {
 
                 {/* --- PRs & Deployments on LG screens --- */}
                 <div className="hidden lg:grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-                   {prField && (
-                    <Card>
-                        <CardHeader>
-                            <div className="flex justify-between items-center">
-                              <CardTitle className="flex items-center gap-2 text-xl">
-                                  <GitMerge className="h-5 w-5" />
-                                  {fieldLabels.get('prLinks') || 'Pull Requests'}
-                              </CardTitle>
-                              {!isBinned && task.repositories && task.repositories.length > 0 && allConfiguredEnvs.length > 0 && (
-                                  <Button variant="ghost" size="sm" onClick={() => setIsEditingPrLinks(!isEditingPrLinks)}>
-                                      {isEditingPrLinks ? 'Done' : (
-                                          <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>
-                                      )}
-                                  </Button>
-                              )}
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <PrLinksGroup 
-                              prLinks={task.prLinks} 
-                              repositories={task.repositories}
-                              configuredEnvs={uiConfig.environments}
-                              repositoryConfigs={uiConfig.repositoryConfigs}
-                              onUpdate={handlePrLinksUpdate}
-                              isEditing={isEditingPrLinks && !isBinned}
-                            />
-                        </CardContent>
-                    </Card>
-                  )}
                   {deploymentField && (
                     <Card>
                       <CardHeader>
@@ -616,6 +587,35 @@ export default function TaskPage() {
                               )}
                           </div>
                       </CardContent>
+                    </Card>
+                  )}
+                   {prField && (
+                    <Card>
+                        <CardHeader>
+                            <div className="flex justify-between items-center">
+                              <CardTitle className="flex items-center gap-2 text-xl">
+                                  <GitMerge className="h-5 w-5" />
+                                  {fieldLabels.get('prLinks') || 'Pull Requests'}
+                              </CardTitle>
+                              {!isBinned && task.repositories && task.repositories.length > 0 && allConfiguredEnvs.length > 0 && (
+                                  <Button variant="ghost" size="sm" onClick={() => setIsEditingPrLinks(!isEditingPrLinks)}>
+                                      {isEditingPrLinks ? 'Done' : (
+                                          <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>
+                                      )}
+                                  </Button>
+                              )}
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <PrLinksGroup 
+                              prLinks={task.prLinks} 
+                              repositories={task.repositories}
+                              configuredEnvs={uiConfig.environments}
+                              repositoryConfigs={uiConfig.repositoryConfigs}
+                              onUpdate={handlePrLinksUpdate}
+                              isEditing={isEditingPrLinks && !isBinned}
+                            />
+                        </CardContent>
                     </Card>
                   )}
                 </div>
@@ -789,36 +789,7 @@ export default function TaskPage() {
 
             {/* --- PRs & Deployments on Small/Medium screens --- */}
             <div className="grid lg:hidden grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-              {prField && (
-                  <Card>
-                      <CardHeader>
-                          <div className="flex justify-between items-center">
-                            <CardTitle className="flex items-center gap-2 text-xl">
-                                <GitMerge className="h-5 w-5" />
-                                {fieldLabels.get('prLinks') || 'Pull Requests'}
-                            </CardTitle>
-                            {!isBinned && task.repositories && task.repositories.length > 0 && allConfiguredEnvs.length > 0 && (
-                                <Button variant="ghost" size="sm" onClick={() => setIsEditingPrLinks(!isEditingPrLinks)}>
-                                    {isEditingPrLinks ? 'Done' : (
-                                        <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>
-                                    )}
-                                </Button>
-                            )}
-                          </div>
-                      </CardHeader>
-                      <CardContent>
-                          <PrLinksGroup 
-                            prLinks={task.prLinks} 
-                            repositories={task.repositories}
-                            configuredEnvs={uiConfig.environments}
-                            repositoryConfigs={uiConfig.repositoryConfigs}
-                            onUpdate={handlePrLinksUpdate}
-                            isEditing={isEditingPrLinks && !isBinned}
-                          />
-                      </CardContent>
-                  </Card>
-                )}
-                {deploymentField && (
+              {deploymentField && (
                   <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-xl">
@@ -875,6 +846,35 @@ export default function TaskPage() {
                             )}
                         </div>
                     </CardContent>
+                  </Card>
+                )}
+              {prField && (
+                  <Card>
+                      <CardHeader>
+                          <div className="flex justify-between items-center">
+                            <CardTitle className="flex items-center gap-2 text-xl">
+                                <GitMerge className="h-5 w-5" />
+                                {fieldLabels.get('prLinks') || 'Pull Requests'}
+                            </CardTitle>
+                            {!isBinned && task.repositories && task.repositories.length > 0 && allConfiguredEnvs.length > 0 && (
+                                <Button variant="ghost" size="sm" onClick={() => setIsEditingPrLinks(!isEditingPrLinks)}>
+                                    {isEditingPrLinks ? 'Done' : (
+                                        <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>
+                                    )}
+                                </Button>
+                            )}
+                          </div>
+                      </CardHeader>
+                      <CardContent>
+                          <PrLinksGroup 
+                            prLinks={task.prLinks} 
+                            repositories={task.repositories}
+                            configuredEnvs={uiConfig.environments}
+                            repositoryConfigs={uiConfig.repositoryConfigs}
+                            onUpdate={handlePrLinksUpdate}
+                            isEditing={isEditingPrLinks && !isBinned}
+                          />
+                      </CardContent>
                   </Card>
                 )}
             </div>
