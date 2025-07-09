@@ -578,23 +578,21 @@ export default function TaskPage() {
                 )}
             </div>
 
-            {!isBinned && customFieldGroupNames.length > 0 && (
-              Object.entries(groupedCustomFields).map(([groupName, fields]) => (
-                <Card key={groupName}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-xl"><Box className="h-5 w-5" />{groupName}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {fields.map(field => (
-                      <div key={field.key} className="break-words">
-                        <h4 className="text-sm font-semibold text-muted-foreground mb-1">{field.label}</h4>
-                        <div className="text-sm text-foreground min-w-0">{renderCustomFieldValue(field, task.customFields?.[field.key])}</div>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              ))
-            )}
+            {!isBinned && customFieldGroupNames.map((groupName) => (
+              <Card key={groupName}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-xl"><Box className="h-5 w-5" />{groupName}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {groupedCustomFields[groupName].map(field => (
+                    <div key={field.key} className="break-words">
+                      <h4 className="text-sm font-semibold text-muted-foreground mb-1">{field.label}</h4>
+                      <div className="text-sm text-foreground min-w-0">{renderCustomFieldValue(field, task.customFields?.[field.key])}</div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            ))}
 
             {!isBinned && attachmentsField && (
               <Card>
@@ -657,6 +655,9 @@ export default function TaskPage() {
                 </CardContent>
               </Card>
             )}
+            {!isBinned && taskLogs.length > 0 && (
+                <TaskHistory logs={taskLogs} />
+            )}
           </div>
 
           {/* Right Column */}
@@ -710,11 +711,7 @@ export default function TaskPage() {
           </div>
         </div>
         
-        <div className="mt-8 space-y-8">
-            {!isBinned && taskLogs.length > 0 && (
-                <TaskHistory logs={taskLogs} />
-            )}
-
+        <div className="mt-8">
             {relatedTasks.length > 0 && (
                 <RelatedTasksSection title={relatedTasksTitle} tasks={relatedTasks} onTaskUpdate={loadData} uiConfig={uiConfig} developers={developers} testers={testers} />
             )}
@@ -744,7 +741,8 @@ function TaskDetailSection({ title, people, peopleMap, setPersonInView, type }: 
   setPersonInView: (person: { person: Person, type: 'Developer' | 'Tester' }) => void;
   type: 'Developer' | 'Tester';
 }) {
-  const assignedPeople = (people || []).map(id => peopleMap.get(id)).filter((p): p is Person => !!p);
+  const uniquePeopleIds = [...new Set(people || [])];
+  const assignedPeople = uniquePeopleIds.map(id => peopleMap.get(id)).filter((p): p is Person => !!p);
   return (
     <div>
         <h4 className="text-sm font-semibold text-muted-foreground mb-2">{title}</h4>
