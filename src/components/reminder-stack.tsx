@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Task, UiConfig } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -37,26 +37,44 @@ export function ReminderStack({ reminders, uiConfig, onUnpin, isOpen, onOpenChan
 
       setUnpinningIds(prev => new Set(prev).add(taskId));
 
+      // After animation, remove the item
       setTimeout(() => {
           onUnpin(taskId);
+          setUnpinningIds(currentIds => {
+              const newIds = new Set(currentIds);
+              newIds.delete(taskId);
+              return newIds;
+          });
       }, 500); // Match animation duration
   };
 
-  // When all reminders are gone, close the dialog
   useEffect(() => {
-   if (reminders.length === 0 && isOpen) {
+    if (reminders.length === 0 && isOpen) {
       onOpenChange(false);
     }
   }, [reminders.length, isOpen, onOpenChange]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onOpenChange(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onOpenChange]);
 
-  if (!isOpen) {
-    return null;
+
+  if (!reminders || reminders.length === 0) {
+      return null;
   }
 
   return (
     <>
-      {/* Backdrop */}
       <div
         className={cn(
           'fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity duration-500 ease-in-out',
@@ -68,20 +86,17 @@ export function ReminderStack({ reminders, uiConfig, onUnpin, isOpen, onOpenChan
       
       <div
         className={cn(
-         "fixed inset-0 z-50 flex flex-col items-center justify-start pt-24 transition-all duration-300 ease-in-out",
-          !isOpen && "opacity-0 pointer-events-none"
+         "fixed inset-0 z-50 flex flex-col items-center justify-start pt-24",
+         !isOpen && "pointer-events-none"
         )}
       >
         <div
          className={cn(
-           "w-full max-w-2xl transition-all duration-300 ease-in-out",
+           "w-full max-w-2xl transition-all duration-500 ease-in-out",
            isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
          )}
         >
-          {/* Expanded State Header */}
-          <div className={cn(
-            "w-full flex justify-center items-center relative mb-4"
-          )}>
+          <div className="w-full flex justify-center items-center relative mb-4">
             <h2 className="text-xl font-bold text-background">Important Reminders</h2>
             <Button variant="ghost" size="icon" className="absolute right-0 text-background/70 hover:text-background h-8 w-8" onClick={() => onOpenChange(false)}>
                 <X className="h-5 w-5" />
@@ -95,37 +110,39 @@ export function ReminderStack({ reminders, uiConfig, onUnpin, isOpen, onOpenChan
                           key={task.id}
                           onClick={(e) => handleTaskClick(e, task.id)}
                           className={cn(
-                          'w-full rounded-lg border bg-amber-50 dark:bg-amber-900/20 p-4 shadow-lg transition-all duration-500 ease-in-out cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/40',
-                          unpinningIds.has(task.id) && 'opacity-0 scale-90 -translate-y-4'
+                            'w-full rounded-lg border bg-amber-50 dark:bg-amber-900/20 p-4 shadow-lg cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-all duration-500 ease-out',
+                            isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-12',
+                            unpinningIds.has(task.id) && '!opacity-0 !scale-90 !-translate-y-4'
                           )}
                           style={{
                               borderColor: 'hsl(var(--primary) / 0.2)',
+                              transitionDelay: isOpen ? `${index * 60}ms` : '0ms'
                           }}
                       >
                           <div className="flex items-start justify-between gap-4">
-                          <div className="flex items-start gap-3 flex-1 min-w-0">
-                              <BellRing className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-                              <div className="text-sm flex-1">
-                              <p className="font-semibold text-amber-800 dark:text-amber-200 truncate">
-                                  {task.title}
-                              </p>
-                              <p className="text-amber-700 dark:text-amber-300 whitespace-pre-wrap truncate">
-                                  {task.reminder}
-                              </p>
-                              {task.reminderExpiresAt && (
-                                  <span className="block text-xs italic mt-1 text-amber-600 dark:text-amber-400">
-                                      (Expires {format(new Date(task.reminderExpiresAt), timeFormatString)})
-                                  </span>
-                              )}
-                              </div>
-                          </div>
-                          <Button
-                              variant="ghost" size="icon" className="h-7 w-7 text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 flex-shrink-0"
-                              onClick={(e) => handleUnpinClick(e, task.id)}
-                          >
-                              <PinOff className="h-4 w-4" />
-                              <span className="sr-only">Unpin this reminder</span>
-                          </Button>
+                            <div className="flex items-start gap-3 flex-1 min-w-0">
+                                <BellRing className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                                <div className="text-sm flex-1">
+                                <p className="font-semibold text-amber-800 dark:text-amber-200 truncate">
+                                    {task.title}
+                                </p>
+                                <p className="text-amber-700 dark:text-amber-300 whitespace-pre-wrap truncate">
+                                    {task.reminder}
+                                </p>
+                                {task.reminderExpiresAt && (
+                                    <span className="block text-xs italic mt-1 text-amber-600 dark:text-amber-400">
+                                        (Expires {format(new Date(task.reminderExpiresAt), timeFormatString)})
+                                    </span>
+                                )}
+                                </div>
+                            </div>
+                            <Button
+                                variant="ghost" size="icon" className="h-7 w-7 text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 flex-shrink-0"
+                                onClick={(e) => handleUnpinClick(e, task.id)}
+                            >
+                                <PinOff className="h-4 w-4" />
+                                <span className="sr-only">Unpin this reminder</span>
+                            </Button>
                           </div>
                       </div>
                   )
@@ -136,3 +153,4 @@ export function ReminderStack({ reminders, uiConfig, onUnpin, isOpen, onOpenChan
     </>
   );
 }
+
