@@ -38,6 +38,5 @@ export const INITIAL_UI_CONFIG: FieldConfig[] = [
   { id: 'field_devEndDate', key: 'devEndDate', label: 'Dev End Date', type: 'date', group: 'Dates', isActive: true, isRequired: false, isCustom: false, order: 11 },
   { id: 'field_qaStartDate', key: 'qaStartDate', label: 'QA Start Date', type: 'date', group: 'Dates', isActive: true, isRequired: false, isCustom: false, order: 12 },
   { id: 'field_qaEndDate', key: 'qaEndDate', label: 'QA End Date', type: 'date', group: 'Dates', isActive: true, isRequired: false, isCustom: false, order: 13 },
+  { id: 'field_comments', key: 'comments', label: 'Comments', type: 'text', group: 'Comments', isActive: true, isRequired: false, isCustom: false, order: 14 },
 ];
-
-

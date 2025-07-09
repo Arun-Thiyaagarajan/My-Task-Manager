@@ -16,7 +16,7 @@ export function TaskHistory({ logs }: TaskHistoryProps) {
     }
 
     return (
-        <Accordion type="single" collapsible className="w-full" defaultValue="history">
+        <Accordion type="single" collapsible className="w-full">
             <AccordionItem value="history" className="border-none">
                 <AccordionTrigger className="text-2xl font-bold tracking-tight text-foreground hover:no-underline">
                     <div className="flex items-center gap-2">
