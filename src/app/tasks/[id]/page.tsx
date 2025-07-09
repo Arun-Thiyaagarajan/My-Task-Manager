@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask } from '@/lib/data';
+import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask, clearExpiredReminders } from '@/lib/data';
 import { getLinkAlias } from '@/ai/flows/get-link-alias-flow';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -208,6 +208,12 @@ export default function TaskPage() {
   }
 
   useEffect(() => {
+    // Run this first to clear any expired reminders before we read data
+    const { updatedTaskIds } = clearExpiredReminders();
+    if (updatedTaskIds.includes(taskId)) {
+        toast({ title: 'Reminder Cleared', description: 'The reminder for this task expired and was automatically cleared.' });
+    }
+
     const savedPinnedTasks = localStorage.getItem(PINNED_TASKS_STORAGE_KEY);
     if (savedPinnedTasks) {
       setPinnedTaskIds(JSON.parse(savedPinnedTasks));
@@ -397,6 +403,16 @@ export default function TaskPage() {
         description: `Task "${task.title}" has been successfully restored.`,
       });
       router.push('/bin');
+    }
+  };
+
+  const handleReminderSuccess = () => {
+    // This function provides a lighter-weight refresh than `loadData` to prevent state reversion.
+    const updatedTask = getTaskById(task.id);
+    const updatedLogs = getLogsForTask(task.id);
+    if(updatedTask) {
+        setTask(updatedTask);
+        setTaskLogs(updatedLogs);
     }
   };
 
@@ -832,7 +848,7 @@ export default function TaskPage() {
           isOpen={isReminderOpen}
           onOpenChange={setIsReminderOpen}
           task={task}
-          onSuccess={loadData}
+          onSuccess={handleReminderSuccess}
           pinnedTaskIds={pinnedTaskIds}
           onPinToggle={handleTogglePin}
         />
