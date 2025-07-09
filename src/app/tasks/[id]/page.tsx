@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles, Share2, History, MessageSquare, StickyNote } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles, Share2, History, MessageSquare, StickyNote, GripVertical } from 'lucide-react';
 import { getStatusConfig, TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -20,14 +20,7 @@ import type { Task, FieldConfig, UiConfig, TaskStatus, Person, Attachment, Log }
 import { CommentsSection } from '@/components/comments-section';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useToast } from '@/hooks/use-toast';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { PersonProfileCard } from '@/components/person-profile-card';
 import { ImagePreviewDialog } from '@/components/image-preview-dialog';
@@ -40,6 +33,10 @@ import { ShareMenu } from '@/components/share-menu';
 import { TaskHistory } from '@/components/task-history';
 import { FavoriteToggleButton } from '@/components/favorite-toggle';
 import { getLinkAlias } from '@/ai/flows/get-link-alias-flow';
+import { WidthProvider, Responsive, Layouts } from 'react-grid-layout';
+import { useDebounce } from '@/hooks/use-debounce';
+
+const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const isImageUrl = (url: string): boolean => {
   try {
@@ -71,8 +68,11 @@ export default function TaskPage() {
   const [relatedTasks, setRelatedTasks] = useState<Task[]>([]);
   const [relatedTasksTitle, setRelatedTasksTitle] = useState<string>('');
   const [taskLogs, setTaskLogs] = useState<Log[]>([]);
+  const [layouts, setLayouts] = useState<Layouts>({});
+  const [isLayoutReady, setIsLayoutReady] = useState(false);
 
   const taskId = params.id as string;
+  const LAYOUT_STORAGE_KEY = `task-detail-layout-${taskId}`;
 
   const loadData = () => {
     if (taskId) {
@@ -203,6 +203,23 @@ export default function TaskPage() {
         window.removeEventListener('storage', loadData);
     };
   }, [taskId]);
+
+  useEffect(() => {
+    const savedLayouts = localStorage.getItem(LAYOUT_STORAGE_KEY);
+    if (savedLayouts) {
+        setLayouts(JSON.parse(savedLayouts));
+    }
+    setIsLayoutReady(true);
+  }, [LAYOUT_STORAGE_KEY]);
+
+  const debouncedLayouts = useDebounce(layouts, 500);
+
+  useEffect(() => {
+    if (isLayoutReady && Object.keys(debouncedLayouts).length > 0) {
+        localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(debouncedLayouts));
+    }
+  }, [debouncedLayouts, LAYOUT_STORAGE_KEY, isLayoutReady]);
+
   
   const handleCommentsUpdate = (newComments: string[]) => {
     if (task) {
@@ -367,7 +384,6 @@ export default function TaskPage() {
     }
   };
 
-
   const renderCustomFieldValue = (task: Task, key: string, value: any) => {
       const fieldConfig = uiConfig?.fields.find(f => f.key === key);
       if (!fieldConfig) return <span className="text-muted-foreground">N/A</span>;
@@ -441,12 +457,69 @@ export default function TaskPage() {
 
 
   const developersById = new Map(developers.map(d => [d.id, d]));
-  const testersById = new Map(testers.map(t => [t.id, t]));
+  const testersById = new Map(testers.map(t => [t.id, t.name]));
 
   const azureFieldConfig = uiConfig.fields.find(f => f.key === 'azureWorkItemId');
   const prField = uiConfig.fields.find(f => f.key === 'prLinks' && f.isActive);
   const deploymentField = uiConfig.fields.find(f => f.key === 'deploymentStatus' && f.isActive);
   const attachmentsField = uiConfig.fields.find(f => f.key === 'attachments' && f.isActive);
+
+  const defaultLayouts: Layouts = {
+    lg: [
+      { i: 'titleCard', x: 0, y: 0, w: 8, h: 5, minH: 4, minW: 4 },
+      { i: 'taskDetailsCard', x: 8, y: 0, w: 4, h: 9, minH: 6, minW: 3 },
+      { i: 'deploymentCard', x: 0, y: 5, w: 4, h: 5, minH: 4, minW: 3 },
+      { i: 'prCard', x: 4, y: 5, w: 4, h: 5, minH: 4, minW: 3 },
+      { i: 'customFieldsCard', x: 0, y: 10, w: 8, h: 6, minH: 4, minW: 4 },
+      { i: 'attachmentsCard', x: 0, y: 16, w: 8, h: 7, minH: 5, minW: 4 },
+      { i: 'commentsCard', x: 8, y: 9, w: 4, h: 14, minH: 6, minW: 3 },
+      { i: 'taskHistoryCard', x: 0, y: 23, w: 12, h: 5, minH: 2, minW: 12 },
+      { i: 'relatedTasksSection', x: 0, y: 28, w: 12, h: 9, minH: 4, minW: 12 },
+    ],
+    md: [
+      // Stacked layout for medium screens
+      { i: 'titleCard', x: 0, y: 0, w: 12, h: 5, static: true },
+      { i: 'taskDetailsCard', x: 0, y: 5, w: 12, h: 9, static: true },
+      { i: 'deploymentCard', x: 0, y: 14, w: 6, h: 5, static: true },
+      { i: 'prCard', x: 6, y: 14, w: 6, h: 5, static: true },
+      { i: 'customFieldsCard', x: 0, y: 19, w: 12, h: 6, static: true },
+      { i: 'attachmentsCard', x: 0, y: 25, w: 12, h: 7, static: true },
+      { i: 'commentsCard', x: 0, y: 32, w: 12, h: 14, static: true },
+      { i: 'taskHistoryCard', x: 0, y: 46, w: 12, h: 5, static: true },
+      { i: 'relatedTasksSection', x: 0, y: 51, w: 12, h: 9, static: true },
+    ],
+  };
+  
+  const onLayoutChange = (layout: Layout[], allLayouts: Layouts) => {
+    if (isLayoutReady) {
+        setLayouts(allLayouts);
+    }
+  };
+
+  const getVisibleLayouts = (layouts: Layouts) => {
+      const activeKeys = [
+        'titleCard', 'taskDetailsCard',
+        !isBinned && deploymentField && 'deploymentCard',
+        !isBinned && prField && 'prCard',
+        !isBinned && customFieldGroupNames.length > 0 && 'customFieldsCard',
+        !isBinned && attachmentsField && 'attachmentsCard',
+        !isBinned && 'commentsCard',
+        !isBinned && taskLogs.length > 0 && 'taskHistoryCard',
+        relatedTasks.length > 0 && 'relatedTasksSection',
+      ].filter(Boolean);
+    
+      const filtered: Layouts = {};
+      for (const breakpoint in layouts) {
+        if (layouts[breakpoint]) {
+            filtered[breakpoint] = layouts[breakpoint].filter(l => activeKeys.includes(l.i));
+        }
+      }
+      return filtered;
+    };
+  
+  if (!isLayoutReady) {
+    return <LoadingSpinner text="Preparing layout..." />;
+  }
 
   return (
     <>
@@ -492,173 +565,164 @@ export default function TaskPage() {
           </Alert>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-            <div className="lg:col-span-2 space-y-6 lg:space-y-8">
-                {/* Main Content Area */}
-                <Card className={cn("relative overflow-hidden", cardClassName)}>
-                    <Icon
-                    className={cn(
-                        'absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none transition-transform duration-300 ease-in-out',
-                        iconColorClassName,
-                        task.status !== 'In Progress' && 'group-hover/card:scale-110 group-hover/card:-rotate-6'
-                    )}
-                    />
-                    <div className="relative z-10">
-                    <CardHeader>
-                        <div className="flex flex-wrap items-start justify-between gap-4">
+        <ResponsiveGridLayout
+          layouts={getVisibleLayouts(Object.keys(layouts).length > 0 ? layouts : defaultLayouts)}
+          onLayoutChange={onLayoutChange}
+          breakpoints={{ lg: 1024, md: 768, sm: 640, xs: 0 }}
+          cols={{ lg: 12, md: 12, sm: 1, xs: 1 }}
+          rowHeight={30}
+          draggableHandle=".drag-handle"
+          isBounded={true}
+        >
+          <div key="titleCard">
+            <Card className={cn("relative overflow-hidden h-full", cardClassName)}>
+                <Icon className={cn('absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none transition-transform duration-300 ease-in-out', iconColorClassName, task.status !== 'In Progress' && 'group-hover/card:scale-110 group-hover/card:-rotate-6')} />
+                <div className="relative z-10 flex flex-col h-full">
+                <CardHeader>
+                    <div className="flex justify-between items-start gap-2">
                         <div className="flex-1 flex items-center gap-3">
-                            <CardTitle className="text-3xl font-bold">
-                                {task.title}
-                            </CardTitle>
-                            {!isBinned && (
-                            <FavoriteToggleButton
-                                taskId={task.id}
-                                isFavorite={!!task.isFavorite}
-                                onUpdate={loadData}
-                                className="h-9 w-9"
-                            />
-                            )}
+                            <CardTitle className="text-3xl font-bold">{task.title}</CardTitle>
+                             {!isBinned && (<FavoriteToggleButton taskId={task.id} isFavorite={!!task.isFavorite} onUpdate={loadData} className="h-9 w-9" />)}
                         </div>
-                        <div className="flex-shrink-0 flex items-center gap-1">
-                            <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" disabled={isBinned} className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-100">
-                                <TaskStatusBadge status={task.status} variant="prominent" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Set Status</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                {uiConfig.taskStatuses.map(s => {
-                                const currentStatusConfig = getStatusConfig(s);
-                                const { Icon } = currentStatusConfig;
-                                return (
-                                    <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)}>
-                                    <div className="flex items-center gap-2">
-                                        <Icon className={cn("h-3 w-3", s === 'In Progress' && 'animate-spin')} />
-                                        <span>{s}</span>
-                                    </div>
-                                    {task.status === s && <Check className="ml-auto h-4 w-4" />}
-                                    </DropdownMenuItem>
-                                )
-                                })}
-                            </DropdownMenuContent>
-                            </DropdownMenu>
-                        </div>
-                        </div>
-                        <CardDescription>
-                        Last updated on {format(new Date(task.updatedAt), 'PPP')}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-foreground/80 whitespace-pre-wrap">
-                        {task.description}
-                        </p>
-                    </CardContent>
+                        <GripVertical className="drag-handle h-6 w-6 text-muted-foreground shrink-0" />
                     </div>
-                </Card>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-                    {deploymentField && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2 text-xl">
-                                    <CheckCircle2 className="h-5 w-5" />
-                                    {fieldLabels.get('deploymentStatus') || 'Deployments'}
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-1 text-sm">
-                                    {allConfiguredEnvs.length > 0 ? (
-                                        allConfiguredEnvs.map(env => {
-                                            const isSelected = task.deploymentStatus?.[env] ?? false;
-                                            const hasDate = task.deploymentDates && task.deploymentDates[env];
-                                            const isDeployed = isSelected && (env === 'dev' || !!hasDate);
-
-                                            return (
-                                                <div
-                                                    key={env}
-                                                    className={cn(
-                                                    "flex justify-between items-center p-2 -m-2 rounded-lg transition-colors",
-                                                    !isBinned && 'cursor-pointer hover:bg-muted/50'
-                                                    )}
-                                                    onClick={!isBinned ? () => handleToggleDeployment(env) : undefined}
-                                                >
-                                                    <span className="capitalize text-foreground font-medium">
-                                                        {env}
-                                                    </span>
-
-                                                    <div
-                                                        onAnimationEnd={() => setJustUpdatedEnv(null)}
-                                                        className={cn(
-                                                            'flex items-center gap-2 font-medium',
-                                                            isDeployed ? 'text-green-600 dark:text-green-500' : 'text-yellow-600 dark:text-yellow-500',
-                                                            justUpdatedEnv === env && 'animate-status-in'
-                                                        )}
-                                                    >
-                                                        {isDeployed ? (
-                                                            <>
-                                                                <CheckCircle2 className="h-4 w-4" />
-                                                                <span>Deployed</span>
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <Clock className="h-4 w-4" />
-                                                                <span>Pending</span>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })
-                                    ) : (
-                                    <p className="text-muted-foreground text-center text-xs pt-2">No environments configured in settings.</p>
-                                    )}
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                    <CardDescription>
+                        Last updated on {format(new Date(task.updatedAt), 'PPP')}
+                    </CardDescription>
+                    <div className="flex-shrink-0 flex items-center gap-1">
+                        <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" disabled={isBinned} className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-100">
+                            <TaskStatusBadge status={task.status} variant="prominent" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Set Status</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {uiConfig.taskStatuses.map(s => {
+                            const currentStatusConfig = getStatusConfig(s);
+                            const { Icon } = currentStatusConfig;
+                            return (
+                                <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)}>
+                                <div className="flex items-center gap-2">
+                                    <Icon className={cn("h-3 w-3", s === 'In Progress' && 'animate-spin')} />
+                                    <span>{s}</span>
                                 </div>
-                            </CardContent>
-                        </Card>
-                    )}
-                    {prField && (
-                        <Card>
-                            <CardHeader>
-                                <div className="flex justify-between items-center">
-                                    <CardTitle className="flex items-center gap-2 text-xl">
-                                        <GitMerge className="h-5 w-5" />
-                                        {fieldLabels.get('prLinks') || 'Pull Requests'}
-                                    </CardTitle>
-                                    {!isBinned && task.repositories && task.repositories.length > 0 && allConfiguredEnvs.length > 0 && (
-                                        <Button variant="ghost" size="sm" onClick={() => setIsEditingPrLinks(!isEditingPrLinks)}>
-                                            {isEditingPrLinks ? 'Done' : (
-                                                <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>
-                                            )}
-                                        </Button>
-                                    )}
-                                </div>
-                            </CardHeader>
-                            <CardContent>
-                                <PrLinksGroup 
-                                    prLinks={task.prLinks} 
-                                    repositories={task.repositories}
-                                    configuredEnvs={uiConfig.environments}
-                                    repositoryConfigs={uiConfig.repositoryConfigs}
-                                    onUpdate={handlePrLinksUpdate}
-                                    isEditing={isEditingPrLinks && !isBinned}
-                                />
-                            </CardContent>
-                        </Card>
-                    )}
+                                {task.status === s && <Check className="ml-auto h-4 w-4" />}
+                                </DropdownMenuItem>
+                            )
+                            })}
+                        </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                    </div>
+                </CardHeader>
+                <CardContent className="flex-grow">
+                    <p className="text-foreground/80 whitespace-pre-wrap">{task.description}</p>
+                </CardContent>
                 </div>
-                
-                {customFieldGroupNames.map((groupName) => (
-                    <Card key={groupName} className="break-inside-avoid lg:col-span-2">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-xl">
-                                <Box className="h-5 w-5" />
-                                {groupName}
-                            </CardTitle>
+            </Card>
+          </div>
+          <div key="taskDetailsCard">
+            <Card className="h-full">
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-xl"><ListChecks className="h-5 w-5" />Task Details</CardTitle>
+                    <GripVertical className="drag-handle h-6 w-6 text-muted-foreground" />
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <TaskDetailSection title={fieldLabels.get('developers') || 'Developers'} people={task.developers} peopleMap={developersById} setPersonInView={setPersonInView} type="Developer" />
+                    <Separator />
+                    <TaskDetailSection title={fieldLabels.get('testers') || 'Testers'} people={task.testers} peopleMap={testersById} setPersonInView={setPersonInView} type="Tester" />
+                    <Separator />
+                    <div>
+                        <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('repositories') || 'Repositories'}</h4>
+                        <div className="flex flex-wrap gap-1">
+                          {(task.repositories && task.repositories.length > 0) ? (task.repositories || []).map(repo => (
+                            <Badge key={repo} variant="repo" style={getRepoBadgeStyle(repo)}>{repo}</Badge>
+                          )) : (<p className="text-sm text-muted-foreground">No repositories assigned.</p>)}
+                        </div>
+                    </div>
+                    {azureFieldConfig && azureFieldConfig.isActive && task.azureWorkItemId && (<>
+                        <Separator />
+                        <div>
+                            <h4 className="text-sm font-semibold text-muted-foreground mb-2">{azureFieldConfig.label || 'Azure DevOps'}</h4>
+                            {azureFieldConfig.baseUrl ? (
+                              <a href={`${azureFieldConfig.baseUrl}${task.azureWorkItemId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline text-sm">
+                                <ExternalLink className="h-4 w-4" />
+                                <span>Work Item #{task.azureWorkItemId}</span>
+                              </a>
+                            ) : (<span className="text-sm text-foreground">{task.azureWorkItemId}</span>)}
+                        </div>
+                    </>)}
+                    <Separator />
+                    <div>
+                        <h4 className="text-sm font-semibold text-muted-foreground mb-2">Important Dates</h4>
+                        <TimelineSection task={task} fieldLabels={fieldLabels} />
+                    </div>
+                </CardContent>
+            </Card>
+          </div>
+          {!isBinned && deploymentField && (
+            <div key="deploymentCard">
+              <Card className="h-full">
+                  <CardHeader className="flex flex-row items-center justify-between">
+                      <CardTitle className="flex items-center gap-2 text-xl"><CheckCircle2 className="h-5 w-5" />{fieldLabels.get('deploymentStatus') || 'Deployments'}</CardTitle>
+                      <GripVertical className="drag-handle h-6 w-6 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                      <div className="space-y-1 text-sm">
+                          {allConfiguredEnvs.length > 0 ? (
+                              allConfiguredEnvs.map(env => {
+                                  const isSelected = task.deploymentStatus?.[env] ?? false;
+                                  const hasDate = task.deploymentDates && task.deploymentDates[env];
+                                  const isDeployed = isSelected && (env === 'dev' || !!hasDate);
+                                  return (
+                                      <div key={env} className={cn("flex justify-between items-center p-2 -m-2 rounded-lg transition-colors",!isBinned && 'cursor-pointer hover:bg-muted/50')} onClick={!isBinned ? () => handleToggleDeployment(env) : undefined}>
+                                          <span className="capitalize text-foreground font-medium">{env}</span>
+                                          <div onAnimationEnd={() => setJustUpdatedEnv(null)} className={cn('flex items-center gap-2 font-medium', isDeployed ? 'text-green-600 dark:text-green-500' : 'text-yellow-600 dark:text-yellow-500', justUpdatedEnv === env && 'animate-status-in')}>
+                                              {isDeployed ? (<><CheckCircle2 className="h-4 w-4" /><span>Deployed</span></>) : (<><Clock className="h-4 w-4" /><span>Pending</span></>)}
+                                          </div>
+                                      </div>
+                                  );
+                              })
+                          ) : (<p className="text-muted-foreground text-center text-xs pt-2">No environments configured in settings.</p>)}
+                      </div>
+                  </CardContent>
+              </Card>
+            </div>
+          )}
+          {!isBinned && prField && (
+            <div key="prCard">
+              <Card className="h-full">
+                  <CardHeader className="flex flex-row items-center justify-between">
+                      <div className="flex justify-between items-center flex-1">
+                          <CardTitle className="flex items-center gap-2 text-xl"><GitMerge className="h-5 w-5" />{fieldLabels.get('prLinks') || 'Pull Requests'}</CardTitle>
+                          {!isBinned && task.repositories && task.repositories.length > 0 && allConfiguredEnvs.length > 0 && (
+                              <Button variant="ghost" size="sm" onClick={() => setIsEditingPrLinks(!isEditingPrLinks)}>
+                                  {isEditingPrLinks ? 'Done' : (<><Pencil className="h-3 w-3 mr-1.5" /> Edit</>)}
+                              </Button>
+                          )}
+                      </div>
+                      <GripVertical className="drag-handle h-6 w-6 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                      <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} configuredEnvs={uiConfig.environments} repositoryConfigs={uiConfig.repositoryConfigs} onUpdate={handlePrLinksUpdate} isEditing={isEditingPrLinks && !isBinned} />
+                  </CardContent>
+              </Card>
+            </div>
+          )}
+          {!isBinned && customFieldGroupNames.length > 0 && (
+            <div key="customFieldsCard">
+                <div className="space-y-6 h-full">
+                    {Object.entries(groupedCustomFields).map(([groupName, fields]) => (
+                    <Card key={groupName} className="break-inside-avoid">
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <CardTitle className="flex items-center gap-2 text-xl"><Box className="h-5 w-5" />{groupName}</CardTitle>
+                            <GripVertical className="drag-handle h-6 w-6 text-muted-foreground" />
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            {groupedCustomFields[groupName].map(field => (
+                            {fields.map(field => (
                                 <div key={field.key}>
                                     <h4 className="text-sm font-semibold text-muted-foreground mb-1">{field.label}</h4>
                                     <div className="text-sm text-foreground min-w-0">{renderCustomFieldValue(task, field.key, task.customFields?.[field.key])}</div>
@@ -666,231 +730,101 @@ export default function TaskPage() {
                             ))}
                         </CardContent>
                     </Card>
-                ))}
-
-                {attachmentsField && (
-                    <Card className="lg:col-span-2">
-                        <CardHeader>
-                            <div className="flex justify-between items-center">
-                                <CardTitle className="flex items-center gap-2">
-                                    <Paperclip className="h-5 w-5" />
-                                    {fieldLabels.get('attachments') || 'Attachments'}
-                                </CardTitle>
-                                {!isBinned && (
-                                <Button variant="ghost" size="sm" onClick={() => setIsEditingAttachments(!isEditingAttachments)}>
-                                    {isEditingAttachments ? 'Done' : <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>}
-                                </Button>
-                                )}
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            {(!task.attachments || task.attachments.length === 0) && !isEditingAttachments ? (
-                            <div className="text-center py-10 text-muted-foreground border-2 border-dashed rounded-lg flex flex-col items-center justify-center">
-                                <Paperclip className="h-8 w-8 mb-2 text-muted-foreground/70" />
-                                <p className="text-base font-semibold">No attachments yet.</p>
-                                <p className="mt-1 text-sm">Click 'Edit' to add links or upload images.</p>
-                            </div>
-                            ) : (
-                            <div className="space-y-4">
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                                    {task.attachments?.map((att, index) => {
-                                    const shouldRenderAsImage = att.type === 'image' || isImageUrl(att.url);
-                                    
-                                    let hostname: string | null = null;
-                                    let faviconUrl: string | null = null;
-                                    
-                                    if (!shouldRenderAsImage) {
-                                        try {
-                                            hostname = new URL(att.url).hostname;
-                                            faviconUrl = `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${hostname}&size=32`;
-                                        } catch (e) {
-                                            hostname = 'Invalid Link';
-                                        }
-                                    }
-                                    
-                                    return (
-                                        <div key={index} className="space-y-1.5 relative group/attachment">
-                                            {isEditingAttachments && !isBinned && (
-                                                <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 z-10 rounded-full" onClick={() => handleDeleteAttachment(index)}>
-                                                    <X className="h-4 w-4" />
-                                                </Button>
-                                            )}
-                                            
-                                            {shouldRenderAsImage ? (
-                                                <>
-                                                    <div className="p-px bg-border rounded-lg group aspect-square w-full">
-                                                        <button onClick={() => setPreviewImage({ url: att.url, name: att.name })} className="block relative group/img aspect-square w-full rounded-md overflow-hidden">
-                                                            <img src={att.url} alt={att.name} className="object-cover w-full h-full transition-all group-hover/img:brightness-75" />
-                                                            {!isEditingAttachments && <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
-                                                                <ZoomIn className="h-8 w-8 text-white" />
-                                                            </div>}
-                                                        </button>
-                                                    </div>
-                                                    <p className="text-xs text-muted-foreground truncate" title={att.name}>{att.name}</p>
-                                                </>
-                                            ) : (
-                                                <a
-                                                    href={att.url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="block p-px bg-border rounded-lg group aspect-square w-full"
-                                                >
-                                                    <div className="bg-card flex flex-col items-start justify-between gap-2 h-full rounded-md p-3 hover:bg-muted/50 transition-colors">
-                                                        <div className="flex items-center gap-2">
-                                                        {faviconUrl && <img src={faviconUrl} alt={`${hostname} favicon`} className="h-5 w-5 object-contain rounded" />}
-                                                        </div>
-                                                        <div className="w-full space-y-1">
-                                                            <p className="text-sm font-medium text-foreground line-clamp-2 leading-tight">{att.name}</p>
-                                                            <p className="text-xs text-muted-foreground truncate">{hostname}</p>
-                                                        </div>
-                                                    </div>
-                                                </a>
-                                            )}
-                                        </div>
-                                    )
-                                    })}
-                                </div>
-                                {isEditingAttachments && !isBinned && (
-                                    <div className="flex gap-2 pt-4 border-t">
-                                        <Popover open={isAddLinkPopoverOpen} onOpenChange={setIsAddLinkPopoverOpen}>
-                                            <PopoverTrigger asChild>
-                                                <Button variant="outline" size="sm"><Link2 className="h-4 w-4 mr-2" /> Add Link</Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-80">
-                                                <div className="grid gap-4">
-                                                    <div className="space-y-2">
-                                                        <h4 className="font-medium leading-none">Add Link</h4>
-                                                        <p className="text-sm text-muted-foreground">Add an external link as an attachment.</p>
-                                                    </div>
-                                                    <div className="grid gap-2">
-                                                        <div className="grid grid-cols-3 items-center gap-4">
-                                                            <Label htmlFor="link-name">Name</Label>
-                                                            <Input id="link-name" value={newLink.name} onChange={(e) => setNewLink(p => ({...p, name: e.target.value}))} className="col-span-2 h-8" />
-                                                        </div>
-                                                        <div className="grid grid-cols-3 items-center gap-4">
-                                                            <Label htmlFor="link-url">URL</Label>
-                                                            <Input id="link-url" value={newLink.url} onChange={(e) => setNewLink(p => ({...p, url: e.target.value}))} className="col-span-2 h-8" />
-                                                        </div>
-                                                    </div>
-                                                    <Button size="sm" onClick={handleSaveLink}>Save Link</Button>
-                                                </div>
-                                            </PopoverContent>
-                                        </Popover>
-                                        <Button type="button" variant="outline" size="sm" onClick={() => imageInputRef.current?.click()}>
-                                            <Image className="h-4 w-4 mr-2" /> Add Image
-                                        </Button>
-                                        <input
-                                            type="file"
-                                            ref={imageInputRef}
-                                            onChange={handleImageUpload}
-                                            className="hidden"
-                                            accept="image/*"
-                                        />
-                                    </div>
-                                )}
-                            </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                )}
-                 {!isBinned && taskLogs.length > 0 && (
-                    <div className="lg:col-span-2">
-                        <TaskHistory logs={taskLogs} />
-                    </div>
-                )}
+                    ))}
+                </div>
             </div>
-
-            {/* Right Column */}
-            <div className="lg:col-span-1 space-y-6 lg:space-y-8">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-xl">
-                            <ListChecks className="h-5 w-5" />
-                            Task Details
-                        </CardTitle>
+          )}
+          {!isBinned && attachmentsField && (
+            <div key="attachmentsCard">
+              <Card className="h-full">
+                  <CardHeader className="flex flex-row items-center justify-between">
+                      <div className="flex justify-between items-center flex-1">
+                          <CardTitle className="flex items-center gap-2"><Paperclip className="h-5 w-5" />{fieldLabels.get('attachments') || 'Attachments'}</CardTitle>
+                          {!isBinned && (<Button variant="ghost" size="sm" onClick={() => setIsEditingAttachments(!isEditingAttachments)}>{isEditingAttachments ? 'Done' : <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>}</Button>)}
+                      </div>
+                      <GripVertical className="drag-handle h-6 w-6 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                      {(!task.attachments || task.attachments.length === 0) && !isEditingAttachments ? (
+                      <div className="text-center py-10 text-muted-foreground border-2 border-dashed rounded-lg flex flex-col items-center justify-center">
+                          <Paperclip className="h-8 w-8 mb-2 text-muted-foreground/70" />
+                          <p className="text-base font-semibold">No attachments yet.</p>
+                          <p className="mt-1 text-sm">Click 'Edit' to add links or upload images.</p>
+                      </div>
+                      ) : (
+                      <div className="space-y-4">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                              {task.attachments?.map((att, index) => {
+                              const shouldRenderAsImage = att.type === 'image' || isImageUrl(att.url);
+                              let hostname: string | null = null;
+                              let faviconUrl: string | null = null;
+                              if (!shouldRenderAsImage) { try { hostname = new URL(att.url).hostname; faviconUrl = `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${hostname}&size=32`; } catch (e) { hostname = 'Invalid Link'; } }
+                              return (
+                                  <div key={index} className="space-y-1.5 relative group/attachment">
+                                      {isEditingAttachments && !isBinned && ( <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 z-10 rounded-full" onClick={() => handleDeleteAttachment(index)}><X className="h-4 w-4" /></Button> )}
+                                      {shouldRenderAsImage ? (<>
+                                          <div className="p-px bg-border rounded-lg group aspect-square w-full">
+                                              <button onClick={() => setPreviewImage({ url: att.url, name: att.name })} className="block relative group/img aspect-square w-full rounded-md overflow-hidden">
+                                                  <img src={att.url} alt={att.name} className="object-cover w-full h-full transition-all group-hover/img:brightness-75" />
+                                                  {!isEditingAttachments && <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center"><ZoomIn className="h-8 w-8 text-white" /></div>}
+                                              </button>
+                                          </div>
+                                          <p className="text-xs text-muted-foreground truncate" title={att.name}>{att.name}</p>
+                                      </>) : (
+                                          <a href={att.url} target="_blank" rel="noopener noreferrer" className="block p-px bg-border rounded-lg group aspect-square w-full">
+                                              <div className="bg-card flex flex-col items-start justify-between gap-2 h-full rounded-md p-3 hover:bg-muted/50 transition-colors">
+                                                  <div className="flex items-center gap-2">{faviconUrl && <img src={faviconUrl} alt={`${hostname} favicon`} className="h-5 w-5 object-contain rounded" />}</div>
+                                                  <div className="w-full space-y-1">
+                                                      <p className="text-sm font-medium text-foreground line-clamp-2 leading-tight">{att.name}</p>
+                                                      <p className="text-xs text-muted-foreground truncate">{hostname}</p>
+                                                  </div>
+                                              </div>
+                                          </a>
+                                      )}
+                                  </div>
+                              )})}
+                          </div>
+                          {isEditingAttachments && !isBinned && (
+                              <div className="flex gap-2 pt-4 border-t">
+                                  <Popover open={isAddLinkPopoverOpen} onOpenChange={setIsAddLinkPopoverOpen}>
+                                      <PopoverTrigger asChild><Button variant="outline" size="sm"><Link2 className="h-4 w-4 mr-2" /> Add Link</Button></PopoverTrigger>
+                                      <PopoverContent className="w-80"><div className="grid gap-4"><div className="space-y-2"><h4 className="font-medium leading-none">Add Link</h4><p className="text-sm text-muted-foreground">Add an external link as an attachment.</p></div><div className="grid gap-2"><div className="grid grid-cols-3 items-center gap-4"><Label htmlFor="link-name">Name</Label><Input id="link-name" value={newLink.name} onChange={(e) => setNewLink(p => ({...p, name: e.target.value}))} className="col-span-2 h-8" /></div><div className="grid grid-cols-3 items-center gap-4"><Label htmlFor="link-url">URL</Label><Input id="link-url" value={newLink.url} onChange={(e) => setNewLink(p => ({...p, url: e.target.value}))} className="col-span-2 h-8" /></div></div><Button size="sm" onClick={handleSaveLink}>Save Link</Button></div></PopoverContent>
+                                  </Popover>
+                                  <Button type="button" variant="outline" size="sm" onClick={() => imageInputRef.current?.click()}><Image className="h-4 w-4 mr-2" /> Add Image</Button>
+                                  <input type="file" ref={imageInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" />
+                              </div>
+                          )}
+                      </div>
+                      )}
+                  </CardContent>
+              </Card>
+            </div>
+          )}
+          {!isBinned && (
+            <div key="commentsCard">
+                <Card className="h-full">
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <CardTitle className="flex items-center gap-2 text-xl"><StickyNote className="h-5 w-5" />{fieldLabels.get('comments') || 'Comments'}</CardTitle>
+                         <GripVertical className="drag-handle h-6 w-6 text-muted-foreground" />
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                        <TaskDetailSection title={fieldLabels.get('developers') || 'Developers'} people={task.developers} peopleMap={developersById} setPersonInView={setPersonInView} type="Developer" />
-                        <Separator />
-                        <TaskDetailSection title={fieldLabels.get('testers') || 'Testers'} people={task.testers} peopleMap={testersById} setPersonInView={setPersonInView} type="Tester" />
-                        <Separator />
-
-                        <div>
-                            <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('repositories') || 'Repositories'}</h4>
-                            <div className="flex flex-wrap gap-1">
-                              {(task.repositories && task.repositories.length > 0) ? (task.repositories || []).map(repo => (
-                                <Badge
-                                  key={repo}
-                                  variant="repo"
-                                  style={getRepoBadgeStyle(repo)}
-                                >
-                                  {repo}
-                                </Badge>
-                              )) : (
-                                <p className="text-sm text-muted-foreground">No repositories assigned.</p>
-                              )}
-                            </div>
-                        </div>
-                        
-                        {azureFieldConfig && azureFieldConfig.isActive && task.azureWorkItemId && (
-                            <>
-                                <Separator />
-                                <div>
-                                    <h4 className="text-sm font-semibold text-muted-foreground mb-2">{azureFieldConfig.label || 'Azure DevOps'}</h4>
-                                    {azureFieldConfig.baseUrl ? (
-                                      <a href={`${azureFieldConfig.baseUrl}${task.azureWorkItemId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline text-sm">
-                                        <ExternalLink className="h-4 w-4" />
-                                        <span>Work Item #{task.azureWorkItemId}</span>
-                                      </a>
-                                    ) : (
-                                      <span className="text-sm text-foreground">{task.azureWorkItemId}</span>
-                                    )}
-                                </div>
-                            </>
-                        )}
-
-                        <Separator />
-
-                        <div>
-                            <h4 className="text-sm font-semibold text-muted-foreground mb-2">Important Dates</h4>
-                            <TimelineSection task={task} fieldLabels={fieldLabels} />
-                        </div>
+                    <CardContent>
+                        <CommentsSection taskId={task.id} comments={task.comments || []} onCommentsUpdate={handleCommentsUpdate} readOnly={isBinned} hideHeader />
                     </CardContent>
                 </Card>
-
-                {!isBinned && (
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-xl">
-                                <StickyNote className="h-5 w-5" />
-                                {fieldLabels.get('comments') || 'Comments'}
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <CommentsSection
-                                taskId={task.id}
-                                comments={task.comments || []}
-                                onCommentsUpdate={handleCommentsUpdate}
-                                readOnly={isBinned}
-                                hideHeader
-                            />
-                        </CardContent>
-                    </Card>
-                )}
             </div>
-          </div>
-          
-          <div className="mt-6 lg:mt-8">
-            <RelatedTasksSection
-                title={relatedTasksTitle}
-                tasks={relatedTasks}
-                onTaskUpdate={loadData}
-                uiConfig={uiConfig}
-                developers={developers}
-                testers={testers}
-            />
-          </div>
-        </div>
+          )}
+          {!isBinned && taskLogs.length > 0 && (
+            <div key="taskHistoryCard">
+                <TaskHistory logs={taskLogs} draggable />
+            </div>
+          )}
+          {relatedTasks.length > 0 && (
+            <div key="relatedTasksSection">
+              <RelatedTasksSection title={relatedTasksTitle} tasks={relatedTasks} onTaskUpdate={loadData} uiConfig={uiConfig} developers={developers} testers={testers} draggable />
+            </div>
+          )}
+        </ResponsiveGridLayout>
+      </div>
       <PersonProfileCard
         person={personInView?.person ?? null}
         type={personInView?.type ?? 'Developer'}
@@ -899,11 +833,7 @@ export default function TaskPage() {
       />
       <ImagePreviewDialog
         isOpen={!!previewImage}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) {
-            setPreviewImage(null);
-          }
-        }}
+        onOpenChange={(isOpen) => { if (!isOpen) { setPreviewImage(null); }}}
         imageUrl={previewImage?.url ?? null}
         imageName={previewImage?.name ?? null}
       />
@@ -1005,5 +935,3 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
       </div>
     );
 }
-
-    

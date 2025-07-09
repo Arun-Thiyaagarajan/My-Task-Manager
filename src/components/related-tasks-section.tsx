@@ -3,7 +3,7 @@
 
 import { TaskCard } from '@/components/task-card';
 import type { Task, UiConfig, Person } from '@/lib/types';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, GripVertical } from 'lucide-react';
 
 interface RelatedTasksSectionProps {
   title: string;
@@ -12,20 +12,24 @@ interface RelatedTasksSectionProps {
   uiConfig: UiConfig | null;
   developers: Person[];
   testers: Person[];
+  draggable?: boolean;
 }
 
-export function RelatedTasksSection({ title, tasks, onTaskUpdate, uiConfig, developers, testers }: RelatedTasksSectionProps) {
+export function RelatedTasksSection({ title, tasks, onTaskUpdate, uiConfig, developers, testers, draggable = false }: RelatedTasksSectionProps) {
   if (tasks.length === 0) {
     return null;
   }
 
   return (
-    <div className="space-y-4 pt-6">
-      <h2 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-        <Sparkles className="h-6 w-6 text-primary" />
-        {title}
-      </h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    <div className="h-full">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+          <Sparkles className="h-6 w-6 text-primary" />
+          {title}
+        </h2>
+        {draggable && <GripVertical className="drag-handle h-6 w-6 text-muted-foreground" />}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-4">
         {tasks.map(task => (
           <TaskCard 
             key={task.id} 
