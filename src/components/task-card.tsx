@@ -29,7 +29,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Separator } from './ui/separator';
 import { PersonProfileCard } from './person-profile-card';
 import { summarizeText } from '@/ai/flows/summarize-flow';
 import { Skeleton } from './ui/skeleton';
@@ -369,14 +368,14 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
             </CardContent>
           </div>
           <CardFooter className="flex items-center justify-between p-4 border-t border-black/5 dark:border-white/5 z-10">
-            <div className="flex flex-1 min-w-0 items-center gap-3">
+            <div className="flex flex-1 min-w-0 items-center gap-4">
                 {hasDevelopers && (
                   <div className="flex items-center gap-1.5">
                     <Tooltip>
                         <TooltipTrigger asChild><Code2 className="h-4 w-4 text-muted-foreground" /></TooltipTrigger>
                         <TooltipContent><p>{developersLabel}</p></TooltipContent>
                     </Tooltip>
-                    <div className="flex -space-x-2">
+                    <div className="flex items-center -space-x-2">
                         {visibleDevelopers.map((dev) => (
                           <Tooltip key={dev.id}>
                             <TooltipTrigger asChild>
@@ -404,11 +403,9 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                         {hiddenDevelopersCount > 0 && (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Avatar className="h-7 w-7 border-2 border-background">
-                                  <AvatarFallback className="text-xs font-semibold bg-muted text-muted-foreground border-dashed border-2 border-muted-foreground/50">
-                                      +{hiddenDevelopersCount}
-                                  </AvatarFallback>
-                              </Avatar>
+                              <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-background bg-muted">
+                                <span className="text-xs font-medium text-muted-foreground">+{hiddenDevelopersCount}</span>
+                              </div>
                             </TooltipTrigger>
                             <TooltipContent>
                               <div className="text-sm p-1 space-y-1">
@@ -422,10 +419,6 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                         )}
                     </div>
                   </div>
-                )}
-
-                {hasDevelopers && hasTesters && (
-                  <Separator orientation="vertical" className="h-5" />
                 )}
 
                 {hasTesters && (
@@ -462,11 +455,9 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                          {hiddenTestersCount > 0 && (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                               <Avatar className="h-7 w-7 border-2 border-background">
-                                  <AvatarFallback className="text-xs font-semibold bg-muted text-muted-foreground border-dashed border-2 border-muted-foreground/50">
-                                      +{hiddenTestersCount}
-                                  </AvatarFallback>
-                              </Avatar>
+                               <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-background bg-muted">
+                                  <span className="text-xs font-medium text-muted-foreground">+{hiddenTestersCount}</span>
+                               </div>
                             </TooltipTrigger>
                             <TooltipContent>
                               <div className="text-sm p-1 space-y-1">
@@ -486,7 +477,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                   <div className="text-xs text-muted-foreground italic">No assignees</div>
                 )}
             </div>
-            <div className="flex items-center gap-0.5 shrink-0">
+            <div className="flex items-center gap-1 shrink-0">
               <FavoriteToggleButton
                   taskId={task.id}
                   isFavorite={!!task.isFavorite}
