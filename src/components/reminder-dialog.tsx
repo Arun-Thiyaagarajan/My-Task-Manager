@@ -13,8 +13,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { updateTask } from '@/lib/data';
-import type { Task } from '@/lib/types';
+import { getUiConfig, updateTask } from '@/lib/data';
+import type { Task, UiConfig } from '@/lib/types';
 import { Loader2, Trash2, Pin, PinOff, CalendarIcon } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -57,6 +57,7 @@ interface ReminderDialogProps {
 export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTaskIds, onPinToggle }: ReminderDialogProps) {
   const { toast } = useToast();
   const [isPending, setIsPending] = useState(false);
+  const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
   
   const form = useForm<ReminderFormData>({
     resolver: zodResolver(reminderSchema),
@@ -70,6 +71,7 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
 
   useEffect(() => {
     if (isOpen) {
+      setUiConfig(getUiConfig());
       const isCurrentlyPinned = pinnedTaskIds.includes(task.id);
       form.reset({
         reminder: task.reminder || '',
@@ -139,6 +141,8 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
   };
 
   const autoDisappearEnabled = form.watch('autoDisappear');
+  const timeFormat = uiConfig?.timeFormat || '12h';
+  const timeFormatString = timeFormat === '24h' ? 'PPP HH:mm' : 'PPP p';
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -210,7 +214,7 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
                                         className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}
                                     >
                                         <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {field.value ? format(field.value, "PPP p") : <span>Pick a date and time</span>}
+                                        {field.value ? format(field.value, timeFormatString) : <span>Pick a date and time</span>}
                                     </Button>
                                     </FormControl>
                                 </PopoverTrigger>
@@ -229,20 +233,36 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
                                     />
                                     <div className="p-2 border-l flex flex-col justify-center gap-2">
                                         <Select
-                                            value={String(field.value?.getHours() ?? 0)}
-                                            onValueChange={(h) => {
+                                            value={
+                                                timeFormat === '12h'
+                                                    ? String(((field.value?.getHours() ?? 0) + 11) % 12 + 1)
+                                                    : String(field.value?.getHours() ?? 0).padStart(2, '0')
+                                            }
+                                            onValueChange={(hStr) => {
+                                                const h = Number(hStr);
                                                 const newDate = field.value || new Date();
-                                                newDate.setHours(Number(h));
+                                                const isPM = newDate.getHours() >= 12;
+
+                                                let newHour = h;
+                                                if (timeFormat === '12h') {
+                                                    if (isPM && h !== 12) newHour = h + 12;
+                                                    else if (!isPM && h === 12) newHour = 0;
+                                                    else if (isPM && h === 12) newHour = 12;
+                                                }
+                                                newDate.setHours(newHour);
                                                 field.onChange(new Date(newDate));
                                             }}
                                         >
                                             <SelectTrigger><SelectValue/></SelectTrigger>
                                             <SelectContent position="popper" className="max-h-48">
-                                                {Array.from({length: 24}, (_, i) => String(i).padStart(2,'0')).map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)}
+                                                {timeFormat === '12h'
+                                                    ? Array.from({length: 12}, (_, i) => String(i+1)).map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)
+                                                    : Array.from({length: 24}, (_, i) => String(i).padStart(2,'0')).map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)
+                                                }
                                             </SelectContent>
                                         </Select>
                                         <Select
-                                            value={String(field.value?.getMinutes() ?? 0)}
+                                            value={String(field.value?.getMinutes() ?? 0).padStart(2, '0')}
                                             onValueChange={(m) => {
                                                 const newDate = field.value || new Date();
                                                 newDate.setMinutes(Number(m));
@@ -254,6 +274,27 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
                                                 {Array.from({length: 60}, (_, i) => String(i).padStart(2,'0')).map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
                                             </SelectContent>
                                         </Select>
+                                        {timeFormat === '12h' && (
+                                            <Select
+                                                value={field.value && field.value.getHours() >= 12 ? 'pm' : 'am'}
+                                                onValueChange={(val) => {
+                                                    const newDate = field.value || new Date();
+                                                    const currentHour = newDate.getHours();
+                                                    if (val === 'pm' && currentHour < 12) {
+                                                        newDate.setHours(currentHour + 12);
+                                                    } else if (val === 'am' && currentHour >= 12) {
+                                                        newDate.setHours(currentHour - 12);
+                                                    }
+                                                    field.onChange(new Date(newDate));
+                                                }}
+                                            >
+                                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                                <SelectContent position="popper">
+                                                    <SelectItem value="am">AM</SelectItem>
+                                                    <SelectItem value="pm">PM</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        )}
                                     </div>
                                 </PopoverContent>
                             </Popover>

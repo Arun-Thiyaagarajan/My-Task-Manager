@@ -32,6 +32,7 @@ const getInitialData = (): MyTaskManagerData => {
                     appName: 'My Task Manager',
                     appIcon: null,
                     remindersEnabled: true,
+                    timeFormat: '12h',
                 },
                 logs: [],
                 generalReminders: [],
@@ -50,6 +51,7 @@ export const getAppData = (): MyTaskManagerData => {
             appName: 'My Task Manager',
             appIcon: null,
             remindersEnabled: true,
+            timeFormat: '12h',
         };
         return {
             companies: [{ id: 'company-placeholder', name: 'Default Company' }],
@@ -227,6 +229,7 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
         appName: 'My Task Manager',
         appIcon: null,
         remindersEnabled: true,
+        timeFormat: '12h',
     };
 
     if (!savedConfig || typeof savedConfig !== 'object') {
@@ -243,6 +246,7 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
     resultConfig.appName = savedConfig.appName || defaultConfig.appName;
     resultConfig.appIcon = savedConfig.appIcon === undefined ? defaultConfig.appIcon : savedConfig.appIcon;
     resultConfig.remindersEnabled = savedConfig.remindersEnabled ?? defaultConfig.remindersEnabled;
+    resultConfig.timeFormat = savedConfig.timeFormat || defaultConfig.timeFormat;
     
     if (Array.isArray(savedConfig.fields)) {
         const finalFields: FieldConfig[] = [];
@@ -308,6 +312,10 @@ const generateUiConfigUpdateLogs = (oldConfig: UiConfig, newConfig: UiConfig): s
     
     if (oldConfig.remindersEnabled !== newConfig.remindersEnabled) {
         createDetail(`${newConfig.remindersEnabled ? 'Enabled' : 'Disabled'} the Task Reminders feature.`);
+    }
+
+    if (oldConfig.timeFormat !== newConfig.timeFormat) {
+        createDetail(`Changed time format to ${newConfig.timeFormat === '24h' ? '24-hour' : '12-hour'}.`);
     }
 
     // Repository configuration changes
@@ -695,19 +703,22 @@ export function addTask(taskData: Partial<Task>, isBinned: boolean = false): Tas
     isFavorite: taskData.isFavorite || false,
     reminder: taskData.reminder || null,
     reminderExpiresAt: taskData.reminderExpiresAt || null,
+    
     repositories: taskData.repositories || [],
-    developers: taskData.developers || [],
-    testers: taskData.testers || [],
     azureWorkItemId: taskData.azureWorkItemId || '',
+    prLinks: taskData.prLinks || {},
     deploymentStatus: taskData.deploymentStatus || {},
     deploymentDates: taskData.deploymentDates || {},
-    prLinks: taskData.prLinks || {},
+    developers: taskData.developers || [],
+    testers: taskData.testers || [],
+    comments: taskData.comments || [],
+    attachments: taskData.attachments || [],
+    
     devStartDate: taskData.devStartDate || null,
     devEndDate: taskData.devEndDate || null,
     qaStartDate: taskData.qaStartDate || null,
     qaEndDate: taskData.qaEndDate || null,
-    comments: taskData.comments || [],
-    attachments: taskData.attachments || [],
+
     customFields: taskData.customFields || {},
   };
   
@@ -739,6 +750,7 @@ const generateTaskUpdateLogs = (
     const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
     const developersById = new Map(developers.map(p => [p.id, p.name]));
     const testersById = new Map(testers.map(p => [p.id, p.name]));
+    const timeFormatString = uiConfig.timeFormat === '24h' ? 'PPP HH:mm' : 'PPP p';
 
     if (newTaskData.title && newTaskData.title !== oldTask.title) {
         createLog(`Updated title from "${oldTask.title}" to "${newTaskData.title}".`);
@@ -763,7 +775,7 @@ const generateTaskUpdateLogs = (
 
     if ('reminderExpiresAt' in newTaskData && newTaskData.reminderExpiresAt !== oldTask.reminderExpiresAt) {
         if (newTaskData.reminderExpiresAt) {
-            const dateStr = format(new Date(newTaskData.reminderExpiresAt), 'PPP p');
+            const dateStr = format(new Date(newTaskData.reminderExpiresAt), timeFormatString);
             createLog(`Set reminder for task "${taskTitle}" to expire on ${dateStr}.`);
         } else {
             createLog(`Removed expiration date from reminder on task "${taskTitle}".`);

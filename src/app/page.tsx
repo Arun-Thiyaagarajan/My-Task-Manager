@@ -20,6 +20,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
 import { INITIAL_REPOSITORY_CONFIGS } from '@/lib/constants';
 import {
@@ -45,6 +48,7 @@ import {
   PinOff,
   Megaphone,
   BellRing,
+  MoreVertical,
 } from 'lucide-react';
 import { cn, fuzzySearch } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig, Log, GeneralReminder } from '@/lib/types';
@@ -880,6 +884,7 @@ export default function Home() {
     return <LoadingSpinner text="Loading tasks..." />;
   }
   
+  const timeFormatString = uiConfig.timeFormat === '24h' ? 'PPP HH:mm' : 'PPP p';
   const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
   const repoFieldConfig = uiConfig.fields.find(f => f.key === 'repositories');
   let REPOSITORIES = (repoFieldConfig?.options?.map(opt => opt.value) ?? uiConfig.repositoryConfigs?.map(r => r.name)) ?? INITIAL_REPOSITORY_CONFIGS.map(r => r.name);
@@ -1004,6 +1009,11 @@ export default function Home() {
                                 </p>
                                 <p className="text-amber-700 dark:text-amber-300 whitespace-pre-wrap">
                                 {task.reminder}
+                                {task.reminderExpiresAt && (
+                                    <span className="block text-xs italic mt-1 text-amber-600 dark:text-amber-400">
+                                        (Expires {format(new Date(task.reminderExpiresAt), timeFormatString)})
+                                    </span>
+                                )}
                                 </p>
                             </div>
                         </div>

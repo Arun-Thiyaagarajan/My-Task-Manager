@@ -8,7 +8,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles, Share2, History, MessageSquare, StickyNote, BellRing } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles, Share2, History, MessageSquare, BellRing, MoreVertical } from 'lucide-react';
 import { getStatusConfig, TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -21,7 +21,7 @@ import type { Task, FieldConfig, UiConfig, TaskStatus, Person, Attachment, Log, 
 import { CommentsSection } from '@/components/comments-section';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useToast } from '@/hooks/use-toast';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { PersonProfileCard } from '@/components/person-profile-card';
 import { ImagePreviewDialog } from '@/components/image-preview-dialog';
@@ -41,7 +41,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { ShareMenu } from '@/components/share-menu';
 import { FavoriteToggleButton } from '@/components/favorite-toggle';
 import { TaskHistory } from '@/components/task-history';
 import { ReminderDialog } from '@/components/reminder-dialog';
@@ -465,6 +464,7 @@ export default function TaskPage() {
   const attachmentsField = uiConfig.fields.find(f => f.key === 'attachments' && f.isActive);
   const commentsField = uiConfig.fields.find(f => f.key === 'comments' && f.isActive);
   const historyField = !isBinned && taskLogs.length > 0;
+  const timeFormatString = uiConfig.timeFormat === '24h' ? 'PPP HH:mm' : 'PPP p';
   
 
   return (
@@ -500,12 +500,23 @@ export default function TaskPage() {
             </AlertDialog>
           ) : (
             <div className="flex gap-2">
-                <ShareMenu task={task} uiConfig={uiConfig} developers={developers} testers={testers}>
-                    <Button variant="outline" size="sm">
-                        <Share2 className="mr-2 h-4 w-4" />
-                        Share
-                    </Button>
-                </ShareMenu>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">
+                            <Share2 className="mr-2 h-4 w-4" />
+                            Share
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem onSelect={() => generateTaskPdf([task], uiConfig, developers, testers, 'save')}>
+                            Download as PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => generateTasksText([task], uiConfig, developers, testers)}>
+                            Copy as Text
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+
                 <Button asChild variant="outline" size="sm">
                   <Link href={`/tasks/${task.id}/edit`}>
                     <Pencil className="mr-2 h-4 w-4" />
@@ -533,6 +544,11 @@ export default function TaskPage() {
             <AlertTitle className="text-amber-800 dark:text-amber-200">Reminder Note</AlertTitle>
             <AlertDescription className="text-amber-700 dark:text-amber-300 whitespace-pre-wrap">
               {task.reminder}
+              {task.reminderExpiresAt && (
+                  <span className="block text-xs italic mt-1 text-amber-600 dark:text-amber-400">
+                      (Expires {format(new Date(task.reminderExpiresAt), timeFormatString)})
+                  </span>
+              )}
             </AlertDescription>
           </Alert>
         )}
@@ -544,20 +560,20 @@ export default function TaskPage() {
                 <div className="relative z-10 flex flex-col h-full">
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start gap-4">
-                      <div className="flex-1">
-                          <CardTitle className="text-3xl font-bold flex items-center gap-3">
-                              <span>{task.title}</span>
-                              {uiConfig.remindersEnabled && !isBinned && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsReminderOpen(true)}>
-                                      <BellRing className={cn("h-5 w-5 text-muted-foreground", task.reminder && "text-amber-600 dark:text-amber-400")} />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>{task.reminder ? 'Edit Reminder' : 'Set Reminder'}</TooltipContent>
-                                </Tooltip>
-                              )}
-                          </CardTitle>
+                      <div className="flex-1 flex items-center gap-3">
+                        <CardTitle className="text-3xl font-bold">
+                          {task.title}
+                        </CardTitle>
+                        {uiConfig.remindersEnabled && !isBinned && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsReminderOpen(true)}>
+                                <BellRing className={cn("h-5 w-5 text-muted-foreground", task.reminder && "text-amber-600 dark:text-amber-400")} />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{task.reminder ? 'Edit Reminder' : 'Set Reminder'}</TooltipContent>
+                          </Tooltip>
+                        )}
                       </div>
                       <div className="flex-shrink-0 flex items-center gap-2">
                         {!isBinned && <FavoriteToggleButton taskId={task.id} isFavorite={!!task.isFavorite} onUpdate={loadData} />}

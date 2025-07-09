@@ -25,9 +25,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { PeopleManagerDialog } from '@/components/people-manager-dialog';
-import { getDevelopers, getTesters } from '@/lib/data';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 
 export default function SettingsPage() {
@@ -53,6 +53,7 @@ export default function SettingsPage() {
   const [appName, setAppName] = useState('');
   const [appIcon, setAppIcon] = useState<string | null>(null);
   const [remindersEnabled, setRemindersEnabled] = useState(false);
+  const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>('12h');
   const iconInputRef = useRef<HTMLInputElement>(null);
   
 
@@ -64,6 +65,7 @@ export default function SettingsPage() {
     setAppName(loadedConfig.appName || 'My Task Manager');
     setAppIcon(loadedConfig.appIcon || null);
     setRemindersEnabled(loadedConfig.remindersEnabled || false);
+    setTimeFormat(loadedConfig.timeFormat || '12h');
   }
 
   useEffect(() => {
@@ -296,18 +298,19 @@ export default function SettingsPage() {
     }
   };
   
-  const handleSaveBranding = () => {
+  const handleSaveDisplaySettings = () => {
     if(!config) return;
     const newConfig = {
         ...config,
         appName: appName.trim() || 'My Task Manager',
         appIcon: appIcon,
+        timeFormat: timeFormat,
     };
     updateUiConfig(newConfig);
     toast({
         variant: 'success',
-        title: 'Branding Updated',
-        description: 'Your application name and icon have been saved.',
+        title: 'Display Settings Updated',
+        description: 'Your application display settings have been saved.',
     });
     // This event will trigger the header to re-fetch the config.
     window.dispatchEvent(new Event('company-changed'));
@@ -361,7 +364,7 @@ export default function SettingsPage() {
               toast({
                 variant: 'success',
                 title: 'Icon Ready',
-                description: "Your new icon has been compressed. Click 'Save Branding' to apply it."
+                description: "Your new icon has been compressed. Click 'Save Display Settings' to apply it."
               });
           };
           img.onerror = () => {
@@ -532,53 +535,74 @@ export default function SettingsPage() {
         <div className="lg:col-span-1 space-y-8">
              <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Globe className="h-5 w-5" />App Branding</CardTitle>
-                    <CardDescription>Customize your application's name and icon.</CardDescription>
+                    <CardTitle className="flex items-center gap-2"><Globe className="h-5 w-5" />Display Settings</CardTitle>
+                    <CardDescription>Customize your application's appearance and formatting.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="app-name">App Name</Label>
-                        <Input id="app-name" value={appName} onChange={(e) => setAppName(e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>App Icon</Label>
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 flex items-center justify-center bg-muted rounded-md shrink-0">
-                                {appIcon && isDataURI(appIcon) ? (
-                                    <img src={appIcon} alt="App Icon Preview" className="h-full w-full object-contain rounded-md" />
-                                ) : appIcon ? (
-                                    <span className="text-3xl">{appIcon}</span>
-                                ) : (
-                                    <Globe className="h-6 w-6 text-muted-foreground"/>
-                                )}
-                            </div>
-                            <div className="space-y-2 flex-1">
-                                 <Input
-                                    placeholder="Paste an emoji..."
-                                    value={appIcon && !isDataURI(appIcon) ? appIcon : ''}
-                                    onChange={(e) => setAppIcon(e.target.value.slice(0, 2))}
-                                    maxLength={2}
-                                />
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                    <div className="flex-1 border-t"></div>
-                                    <span>OR</span>
-                                    <div className="flex-1 border-t"></div>
-                                </div>
-                                <Button variant="outline" size="sm" className="w-full" onClick={() => iconInputRef.current?.click()}>
-                                    <ImageIcon className="h-4 w-4 mr-2" /> Upload Image
-                                </Button>
-                                <input type="file" ref={iconInputRef} onChange={handleIconUpload} className="hidden" accept="image/png, image/jpeg, image/svg+xml" />
-                            </div>
+                <CardContent className="space-y-6">
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="app-name">App Name</Label>
+                            <Input id="app-name" value={appName} onChange={(e) => setAppName(e.target.value)} />
                         </div>
-                        {appIcon && (
-                             <Button variant="link" size="sm" className="p-0 h-auto text-destructive" onClick={() => setAppIcon(null)}>
-                                <Trash2 className="mr-1 h-3 w-3" /> Remove Icon
-                            </Button>
-                        )}
+                        <div className="space-y-2">
+                            <Label>App Icon</Label>
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 flex items-center justify-center bg-muted rounded-md shrink-0">
+                                    {appIcon && isDataURI(appIcon) ? (
+                                        <img src={appIcon} alt="App Icon Preview" className="h-full w-full object-contain rounded-md" />
+                                    ) : appIcon ? (
+                                        <span className="text-3xl">{appIcon}</span>
+                                    ) : (
+                                        <Globe className="h-6 w-6 text-muted-foreground"/>
+                                    )}
+                                </div>
+                                <div className="space-y-2 flex-1">
+                                    <Input
+                                        placeholder="Paste an emoji..."
+                                        value={appIcon && !isDataURI(appIcon) ? appIcon : ''}
+                                        onChange={(e) => setAppIcon(e.target.value.slice(0, 2))}
+                                        maxLength={2}
+                                    />
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        <div className="flex-1 border-t"></div>
+                                        <span>OR</span>
+                                        <div className="flex-1 border-t"></div>
+                                    </div>
+                                    <Button variant="outline" size="sm" className="w-full" onClick={() => iconInputRef.current?.click()}>
+                                        <ImageIcon className="h-4 w-4 mr-2" /> Upload Image
+                                    </Button>
+                                    <input type="file" ref={iconInputRef} onChange={handleIconUpload} className="hidden" accept="image/png, image/jpeg, image/svg+xml" />
+                                </div>
+                            </div>
+                            {appIcon && (
+                                <Button variant="link" size="sm" className="p-0 h-auto text-destructive" onClick={() => setAppIcon(null)}>
+                                    <Trash2 className="mr-1 h-3 w-3" /> Remove Icon
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                    <div className="space-y-2 pt-6 border-t">
+                        <Label>Time Format</Label>
+                        <RadioGroup
+                            value={timeFormat}
+                            onValueChange={(value: '12h' | '24h') => setTimeFormat(value)}
+                            className="grid grid-cols-2 gap-4"
+                        >
+                            <Label className="flex flex-col items-center justify-center text-center gap-2 rounded-lg border p-3 cursor-pointer hover:bg-muted/50 has-[input:checked]:border-primary">
+                                <RadioGroupItem value="12h" id="12h" />
+                                <span>12-hour</span>
+                                <span className="text-xs text-muted-foreground">(e.g. 4:00 PM)</span>
+                            </Label>
+                            <Label className="flex flex-col items-center justify-center text-center gap-2 rounded-lg border p-3 cursor-pointer hover:bg-muted/50 has-[input:checked]:border-primary">
+                                <RadioGroupItem value="24h" id="24h" />
+                                <span>24-hour</span>
+                                <span className="text-xs text-muted-foreground">(e.g. 16:00)</span>
+                            </Label>
+                        </RadioGroup>
                     </div>
                 </CardContent>
                 <CardFooter>
-                    <Button onClick={handleSaveBranding} className="w-full">Save Branding</Button>
+                    <Button onClick={handleSaveDisplaySettings} className="w-full">Save Display Settings</Button>
                 </CardFooter>
             </Card>
             <Card>

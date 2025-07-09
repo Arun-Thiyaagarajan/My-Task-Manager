@@ -118,6 +118,7 @@ export interface UiConfig {
   appName?: string;
   appIcon?: string | null;
   remindersEnabled?: boolean;
+  timeFormat?: '12h' | '24h';
 }
 
 export interface CompanyData {
