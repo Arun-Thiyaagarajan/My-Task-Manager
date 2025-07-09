@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester, updateUiConfig, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder } from '@/lib/data';
+import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester, updateUiConfig, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -47,6 +47,7 @@ import {
   StickyNote,
   PinOff,
   BellRing,
+  MoreVertical,
 } from 'lucide-react';
 import { cn, fuzzySearch } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig, Log, GeneralReminder } from '@/lib/types';
@@ -177,10 +178,18 @@ export default function Home() {
 
   }, []);
 
-  const handleUnpin = (taskId: string) => {
-    const newPinnedIds = pinnedTaskIds.filter(id => id !== taskId);
-    setPinnedTaskIds(newPinnedIds);
-    localStorage.setItem(PINNED_TASKS_STORAGE_KEY, JSON.stringify(newPinnedIds));
+  const handlePinToggle = (taskIdToToggle: string) => {
+    setPinnedTaskIds(currentIds => {
+      const newPinnedIds = currentIds.includes(taskIdToToggle)
+        ? currentIds.filter(id => id !== taskIdToToggle)
+        : [...currentIds, taskIdToToggle];
+      localStorage.setItem(PINNED_TASKS_STORAGE_KEY, JSON.stringify(newPinnedIds));
+      return newPinnedIds;
+    });
+  };
+
+  const handleUnpinFromStack = (taskId: string) => {
+    handlePinToggle(taskId);
     toast({
         title: 'Reminder Unpinned',
         description: 'The reminder will no longer appear on the main page.',
@@ -962,7 +971,7 @@ export default function Home() {
       
       <div className="space-y-6">
           {uiConfig.remindersEnabled && pinnedReminders.length > 0 && (
-             <ReminderStack reminders={pinnedReminders} uiConfig={uiConfig} onUnpin={handleUnpin} />
+             <ReminderStack reminders={pinnedReminders} uiConfig={uiConfig} onUnpin={handleUnpinFromStack} />
           )}
 
           <Card>
@@ -1384,7 +1393,7 @@ export default function Home() {
 
           {sortedTasks.length > 0 ? (
             viewMode === 'grid' ? (
-              <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handleUnpin} />
+              <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handlePinToggle} />
             ) : (
               <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} />
             )

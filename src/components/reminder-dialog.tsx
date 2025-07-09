@@ -101,11 +101,18 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
         onPinToggle(task.id);
       }
       
-      toast({ 
-        variant: 'success', 
-        title: 'Reminder Saved', 
-        description: `The reminder for "${task.title}" has been updated.` 
-      });
+      if (!shouldBePinned && isCurrentlyPinned) {
+        toast({
+          title: 'Reminder Unpinned',
+          description: `The reminder for "${task.title}" will no longer appear on the main page.`,
+        });
+      } else {
+        toast({ 
+          variant: 'success', 
+          title: 'Reminder Saved', 
+          description: `The reminder for "${task.title}" has been updated.` 
+        });
+      }
       
       onSuccess();
       onOpenChange(false);
