@@ -471,10 +471,8 @@ export default function TaskPage() {
               <div className="relative z-10">
                 <CardHeader>
                   <div className="flex flex-wrap items-start justify-between gap-4">
-                    <CardTitle className="text-3xl font-bold flex-1">
-                      {task.title}
-                    </CardTitle>
-                    <div className="flex-shrink-0 flex items-center gap-1">
+                    <CardTitle className="text-3xl font-bold flex-1 flex items-center gap-3">
+                      <span>{task.title}</span>
                       {!isBinned && (
                         <FavoriteToggleButton
                           taskId={task.id}
@@ -483,6 +481,8 @@ export default function TaskPage() {
                           className="h-9 w-9"
                         />
                       )}
+                    </CardTitle>
+                    <div className="flex-shrink-0 flex items-center gap-1">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" disabled={isBinned} className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-100">
