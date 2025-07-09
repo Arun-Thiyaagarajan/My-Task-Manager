@@ -118,6 +118,7 @@ export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [developers, setDevelopers] = useState<Person[]>([]);
   const [testers, setTesters] = useState<Person[]>([]);
+  const [generalReminders, setGeneralReminders] = useState<GeneralReminder[]>([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [repoFilter, setRepoFilter] = useState('all');
   const [deploymentFilter, setDeploymentFilter] = useState('all');
@@ -151,6 +152,7 @@ export default function Home() {
         setTasks(getTasks());
         setDevelopers(getDevelopers());
         setTesters(getTesters());
+        setGeneralReminders(getGeneralReminders());
         const config = getUiConfig();
         setUiConfig(config);
         document.title = config.appName || 'My Task Manager';
@@ -196,6 +198,16 @@ export default function Home() {
         title: 'Reminder Unpinned',
         description: 'The reminder will no longer appear on the main page.',
     });
+  };
+  
+  const handleDismissGeneralReminder = (reminderId: string) => {
+    if (deleteGeneralReminder(reminderId)) {
+      setGeneralReminders(prev => prev.filter(r => r.id !== reminderId));
+      toast({
+        title: 'Reminder Dismissed',
+        description: 'The general reminder has been removed.',
+      });
+    }
   };
 
   const handleViewModeChange = (mode: ViewMode) => {
@@ -913,6 +925,8 @@ export default function Home() {
     ? 'Based on your current filters.'
     : `Tasks with a start date in ${format(selectedMonth, 'MMMM yyyy')}.`;
 
+  const remindersCount = pinnedReminders.length + generalReminders.length;
+
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
@@ -920,11 +934,11 @@ export default function Home() {
           Tasks
         </h1>
         <div className="flex items-center gap-2 flex-wrap justify-end">
-            {uiConfig.remindersEnabled && pinnedReminders.length > 0 && (
+            {uiConfig.remindersEnabled && remindersCount > 0 && (
               <Button variant="outline" className="h-10 border-amber-500/50 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-200 dark:border-amber-800/50 dark:hover:bg-amber-900/40" onClick={() => setIsReminderStackOpen(true)}>
                 <BellRing className="mr-2 h-4 w-4" />
                  Important Reminders
-                <Badge variant="secondary" className="ml-2 bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100">{pinnedReminders.length}</Badge>
+                <Badge variant="secondary" className="ml-2 bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100">{remindersCount}</Badge>
               </Button>
             )}
             <DropdownMenu>
@@ -1419,11 +1433,13 @@ export default function Home() {
           )}
       </div>
 
-      {uiConfig.remindersEnabled && pinnedReminders.length > 0 && (
+      {uiConfig.remindersEnabled && remindersCount > 0 && (
         <ReminderStack 
             reminders={pinnedReminders} 
+            generalReminders={generalReminders}
             uiConfig={uiConfig} 
             onUnpin={handleUnpinFromStack}
+            onDismissGeneralReminder={handleDismissGeneralReminder}
             isOpen={isReminderStackOpen}
             onOpenChange={setIsReminderStackOpen}
         />

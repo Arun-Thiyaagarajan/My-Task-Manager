@@ -128,7 +128,7 @@ export interface CompanyData {
     testers: Person[];
     uiConfig: UiConfig;
     logs: Log[];
-    generalReminders?: GeneralReminder[];
+    generalReminders: GeneralReminder[];
 }
 
 export interface MyTaskManagerData {
