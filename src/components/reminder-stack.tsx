@@ -5,7 +5,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Task, UiConfig } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { BellRing, PinOff, X } from 'lucide-react';
+import { BellRing, PinOff, X, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
@@ -44,27 +44,8 @@ export function ReminderStack({ reminders, uiConfig, onUnpin }: ReminderStackPro
   };
   
   const handleToggleExpand = useCallback(() => {
-    // Prevent toggling if there's only one reminder
-    if (reminders.length <= 1) return;
     setIsExpanded(prev => !prev);
-  }, [reminders.length]);
-
-  const handleClickOutside = useCallback((event: MouseEvent) => {
-    if (stackRef.current && !stackRef.current.contains(event.target as Node)) {
-      setIsExpanded(false);
-    }
   }, []);
-
-  useEffect(() => {
-    if (isExpanded) {
-      document.addEventListener('mousedown', handleClickOutside);
-    } else {
-      document.removeEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isExpanded, handleClickOutside]);
 
   // When all reminders are gone, animate out the container
   useEffect(() => {
@@ -87,17 +68,38 @@ export function ReminderStack({ reminders, uiConfig, onUnpin }: ReminderStackPro
   const MAX_VISIBLE_STACKED = 3;
 
   return (
-    <div
-      ref={stackRef}
-      className={cn(
-        "relative mb-6 w-full max-w-2xl mx-auto transition-all duration-500 ease-in-out",
-        isExpanded ? `h-[${reminders.length * 95}px]` : `h-[90px]`,
-        isExiting && "opacity-0 -translate-y-4"
-      )}
-      onClick={handleToggleExpand}
-      aria-label={`${reminders.length} pinned reminders`}
-    >
-      {reminders.map((task, index) => {
+    <>
+      {/* Backdrop */}
+      <div
+        className={cn(
+          'fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity duration-500 ease-in-out',
+          isExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        )}
+        onClick={() => setIsExpanded(false)}
+        aria-hidden="true"
+      />
+      
+      <div
+        ref={stackRef}
+        className={cn(
+          "relative mb-6 w-full max-w-2xl mx-auto transition-all duration-500 ease-in-out z-50",
+          isExpanded ? `h-[${reminders.length * 95}px]` : `h-[${(Math.min(reminders.length, MAX_VISIBLE_STACKED) * 8) + 82}px]`,
+          isExiting && "opacity-0 -translate-y-4"
+        )}
+        aria-label={`${reminders.length} pinned reminders`}
+      >
+        {/* Expanded State Header */}
+        <div className={cn(
+          "absolute -top-12 left-1/2 -translate-x-1/2 w-full flex justify-center items-center transition-all duration-300 ease-in-out",
+          isExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        )}>
+           <h2 className="text-xl font-bold text-background">Important Reminders</h2>
+           <Button variant="ghost" size="icon" className="absolute right-0 text-background/70 hover:text-background h-8 w-8" onClick={() => setIsExpanded(false)}>
+              <X className="h-5 w-5" />
+           </Button>
+        </div>
+
+        {reminders.map((task, index) => {
          if (!isExpanded && index >= MAX_VISIBLE_STACKED) {
             return null;
          }
@@ -105,11 +107,16 @@ export function ReminderStack({ reminders, uiConfig, onUnpin }: ReminderStackPro
         return (
           <div
             key={task.id}
+            onClick={(e) => {
+              if (isExpanded) {
+                handleTaskClick(e, task.id);
+              }
+            }}
             className={cn(
-              'absolute w-full rounded-lg border bg-amber-50 dark:bg-amber-900/20 p-4 shadow-md transition-all duration-500 ease-in-out',
+              'absolute w-full rounded-lg border bg-amber-50 dark:bg-amber-900/20 p-4 shadow-lg transition-all duration-500 ease-in-out',
               isExpanded
-                ? 'cursor-default'
-                : 'cursor-pointer hover:scale-105 hover:-translate-y-1',
+                ? 'cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/40'
+                : 'cursor-default',
               isExiting && 'opacity-0 scale-95',
               unpinningIds.has(task.id) && 'opacity-0 scale-90 -translate-y-4'
             )}
@@ -122,7 +129,7 @@ export function ReminderStack({ reminders, uiConfig, onUnpin }: ReminderStackPro
             }}
           >
             <div className="flex items-start justify-between gap-4">
-              <div className="flex items-start gap-3 flex-1 min-w-0" onClick={(e) => handleTaskClick(e, task.id)}>
+              <div className="flex items-start gap-3 flex-1 min-w-0">
                 <BellRing className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
                 <div className="text-sm flex-1">
                   <p className="font-semibold text-amber-800 dark:text-amber-200 truncate">
@@ -149,6 +156,20 @@ export function ReminderStack({ reminders, uiConfig, onUnpin }: ReminderStackPro
           </div>
         )
       })}
-    </div>
+       {reminders.length > 0 && !isExpanded && (
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2" style={{ zIndex: reminders.length + 1 }}>
+            <Button 
+                variant="secondary" 
+                size="sm" 
+                className="rounded-full shadow-lg"
+                onClick={handleToggleExpand}
+            >
+                <ChevronsUpDown className="h-4 w-4 mr-2" />
+                Show {reminders.length > 1 ? `${reminders.length} Reminders` : 'Reminder'}
+            </Button>
+          </div>
+        )}
+      </div>
+    </>
   );
 }
