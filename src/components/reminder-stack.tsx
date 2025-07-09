@@ -100,24 +100,29 @@ export function ReminderStack({
       
       <div
         className={cn(
-         "fixed inset-0 z-50 flex flex-col items-center justify-start pt-24",
-         !isOpen && "pointer-events-none"
+         "fixed inset-0 z-50 flex flex-col items-center justify-start pt-16 sm:pt-24 pointer-events-none",
+         !isOpen && "hidden"
         )}
       >
         <div
          className={cn(
-           "w-full max-w-2xl transition-all duration-500 ease-in-out",
+           "w-full max-w-2xl transition-all duration-500 ease-in-out pointer-events-auto px-4",
            isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
          )}
         >
           <div className="w-full flex justify-center items-center relative mb-4">
             <h2 className="text-xl font-bold text-background">Important Reminders</h2>
-            <Button variant="ghost" size="icon" className="absolute right-0 text-background/70 hover:text-background h-8 w-8" onClick={() => onOpenChange(false)}>
+            <Button 
+                variant="ghost" 
+                size="icon" 
+                className="absolute right-0 text-background/70 hover:text-background h-8 w-8 hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-background/50 focus-visible:ring-offset-0" 
+                onClick={() => onOpenChange(false)}
+            >
                 <X className="h-5 w-5" />
             </Button>
           </div>
 
-          <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+          <div className="space-y-3 max-h-[calc(100vh-150px)] sm:max-h-[calc(100vh-200px)] overflow-y-auto pr-2">
               {generalReminders.length > 0 && (
                 <div className='space-y-3'>
                     <h3 className="font-semibold text-background/80 pl-2">General</h3>
