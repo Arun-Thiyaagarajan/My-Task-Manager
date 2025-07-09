@@ -372,7 +372,7 @@ export default function TaskPage() {
                   const url = `${fieldConfig.baseUrl}${value}`;
                   return <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-2 break-all"><ExternalLink className="h-4 w-4 shrink-0"/> {alias || value}</a>
               }
-              return <span className="break-all">{String(value)}</span>;
+              return <span className="break-words">{String(value)}</span>;
           }
           case 'date':
               return value ? format(new Date(value), 'PPP') : 'Not set';
@@ -388,9 +388,9 @@ export default function TaskPage() {
                   <div className="flex flex-wrap gap-1">
                       {value.map((v: any) => <Badge key={v} variant="secondary">{v}</Badge>)}
                   </div>
-              ) : <span className="break-all">{String(value)}</span>;
+              ) : <span className="break-words">{String(value)}</span>;
           default:
-              return <span className="break-all">{String(value)}</span>;
+              return <span className="break-words">{String(value)}</span>;
       }
   }
 
@@ -486,8 +486,7 @@ export default function TaskPage() {
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
           <div className="lg:col-span-2 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className={cn("relative overflow-hidden md:col-span-2", cardClassName)}>
+            <Card className={cn("relative overflow-hidden", cardClassName)}>
                 <Icon className={cn('absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none transition-transform duration-300 ease-in-out', iconColorClassName, task.status !== 'In Progress' && 'group-hover/card:scale-110 group-hover/card:-rotate-6')} />
                 <div className="relative z-10 flex flex-col h-full">
                   <CardHeader>
@@ -533,9 +532,10 @@ export default function TaskPage() {
                     <p className="text-foreground/80 whitespace-pre-wrap">{task.description}</p>
                   </CardContent>
                 </div>
-              </Card>
-              
-              {!isBinned && deploymentField && (
+            </Card>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {!isBinned && deploymentField && (
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-xl"><CheckCircle2 className="h-5 w-5" />{fieldLabels.get('deploymentStatus') || 'Deployments'}</CardTitle>
@@ -579,25 +579,25 @@ export default function TaskPage() {
             </div>
 
             {!isBinned && customFieldGroupNames.length > 0 && (
-                Object.entries(groupedCustomFields).map(([groupName, fields]) => (
-                    <Card key={groupName} className="md:col-span-2">
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-xl"><Box className="h-5 w-5" />{groupName}</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                          {fields.map(field => (
-                          <div key={field.key} className="break-words">
-                              <h4 className="text-sm font-semibold text-muted-foreground mb-1">{field.label}</h4>
-                              <div className="text-sm text-foreground min-w-0">{renderCustomFieldValue(field, task.customFields?.[field.key])}</div>
-                          </div>
-                          ))}
-                      </CardContent>
-                    </Card>
-                ))
+              Object.entries(groupedCustomFields).map(([groupName, fields]) => (
+                <Card key={groupName}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-xl"><Box className="h-5 w-5" />{groupName}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {fields.map(field => (
+                      <div key={field.key} className="break-words">
+                        <h4 className="text-sm font-semibold text-muted-foreground mb-1">{field.label}</h4>
+                        <div className="text-sm text-foreground min-w-0">{renderCustomFieldValue(field, task.customFields?.[field.key])}</div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              ))
             )}
 
             {!isBinned && attachmentsField && (
-              <Card className="md:col-span-2">
+              <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2"><Paperclip className="h-5 w-5" />{fieldLabels.get('attachments') || 'Attachments'}</CardTitle>
                   {!isBinned && (<Button variant="ghost" size="sm" onClick={() => setIsEditingAttachments(!isEditingAttachments)}>{isEditingAttachments ? 'Done' : <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>}</Button>)}
@@ -661,7 +661,7 @@ export default function TaskPage() {
 
           {/* Right Column */}
           <div className="lg:col-span-1 space-y-6">
-            <Card className="h-full">
+            <Card className="h-fit">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-xl"><ListChecks className="h-5 w-5" />Task Details</CardTitle>
                 </CardHeader>
@@ -707,19 +707,12 @@ export default function TaskPage() {
                 </CardContent>
               </Card>
             )}
-            {!isBinned && taskLogs.length > 0 && (
-                <div className="lg:hidden">
-                    <TaskHistory logs={taskLogs} />
-                </div>
-            )}
           </div>
         </div>
         
         <div className="mt-8 space-y-8">
             {!isBinned && taskLogs.length > 0 && (
-                <div className="hidden lg:block md:col-span-2">
-                    <TaskHistory logs={taskLogs} />
-                </div>
+                <TaskHistory logs={taskLogs} />
             )}
 
             {relatedTasks.length > 0 && (
