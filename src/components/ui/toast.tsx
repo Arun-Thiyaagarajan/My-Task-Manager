@@ -30,7 +30,7 @@ const toastVariants = cva(
   {
     variants: {
       variant: {
-        default: "border bg-background text-foreground",
+        default: "default group border-transparent bg-primary text-primary-foreground",
         destructive:
           "destructive group border-destructive bg-destructive text-destructive-foreground",
         success: "success group border-transparent bg-green-600 text-white",
@@ -56,7 +56,7 @@ const Toast = React.forwardRef<
     >
         {props.children}
         {props.duration && props.duration < Infinity && (
-            <div className="absolute bottom-0 left-0 h-1 bg-foreground/30 w-full">
+            <div className="absolute bottom-0 left-0 h-1 bg-black/20 w-full">
                 <div 
                     className="h-full bg-white/50 animate-timer" 
                     style={{'--toast-duration': `${props.duration / 1000}s`} as React.CSSProperties}
@@ -76,6 +76,7 @@ const ToastAction = React.forwardRef<
     ref={ref}
     className={cn(
       "inline-flex h-8 shrink-0 items-center justify-center rounded-md border bg-transparent px-3 text-sm font-medium ring-offset-background transition-colors hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+      "group-[.default]:border-primary-foreground/40 group-[.default]:hover:bg-primary-foreground/10",
       "group-[.destructive]:border-muted group-[.destructive]:text-destructive-foreground group-[.destructive]:hover:bg-destructive group-[.destructive]:hover:text-destructive-foreground group-[.destructive]:focus:ring-destructive",
       "group-[.success]:border-green-700 group-[.success]:hover:bg-green-700",
       "group-[.warning]:border-yellow-600 group-[.warning]:hover:bg-yellow-600",
@@ -94,6 +95,7 @@ const ToastClose = React.forwardRef<
     ref={ref}
     className={cn(
       "absolute right-2 top-2 rounded-md p-1 text-foreground/50 opacity-0 transition-opacity hover:text-foreground focus:opacity-100 focus:outline-none focus:ring-2 group-hover:opacity-100",
+      "group-[.default]:text-primary-foreground/80 group-[.default]:hover:text-primary-foreground group-[.default]:focus:ring-primary-foreground",
       "group-[.destructive]:text-destructive-foreground/80 group-[.destructive]:hover:text-destructive-foreground group-[.destructive]:focus:ring-destructive",
       "group-[.success]:text-green-300 group-[.success]:hover:text-green-50 group-[.success]:focus:ring-green-400 group-[.success]:focus:ring-offset-green-600",
       "group-[.warning]:text-yellow-900 group-[.warning]:hover:text-black group-[.warning]:focus:ring-yellow-400 group-[.warning]:focus:ring-offset-yellow-600",
