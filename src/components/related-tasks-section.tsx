@@ -1,4 +1,3 @@
-
 'use client';
 
 import { TaskCard } from '@/components/task-card';
@@ -13,9 +12,11 @@ interface RelatedTasksSectionProps {
   developers: Person[];
   testers: Person[];
   draggable?: boolean;
+  pinnedTaskIds: string[];
+  onPinToggle: (taskId: string) => void;
 }
 
-export function RelatedTasksSection({ title, tasks, onTaskUpdate, uiConfig, developers, testers, draggable = false }: RelatedTasksSectionProps) {
+export function RelatedTasksSection({ title, tasks, onTaskUpdate, uiConfig, developers, testers, draggable = false, pinnedTaskIds, onPinToggle }: RelatedTasksSectionProps) {
   if (tasks.length === 0) {
     return null;
   }
@@ -39,6 +40,8 @@ export function RelatedTasksSection({ title, tasks, onTaskUpdate, uiConfig, deve
             uiConfig={uiConfig}
             developers={developers}
             testers={testers}
+            pinnedTaskIds={pinnedTaskIds}
+            onPinToggle={onPinToggle}
           />
         ))}
       </div>

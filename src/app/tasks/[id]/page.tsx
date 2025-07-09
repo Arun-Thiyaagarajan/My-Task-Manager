@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -10,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles, Share2, History, MessageSquare, BellRing } from 'lucide-react';
 import { getStatusConfig, TaskStatusBadge } from '@/components/task-status-badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { DeleteTaskButton } from '@/components/delete-task-button';
 import { PrLinksGroup } from '@/components/pr-links-group';
@@ -84,6 +83,7 @@ export default function TaskPage() {
   const taskId = params.id as string;
   
   const loadData = () => {
+    setTask(null);
     if (taskId) {
       setIsLoading(true);
       const allDevs = getDevelopers();
@@ -210,7 +210,6 @@ export default function TaskPage() {
   }
 
   useEffect(() => {
-    setTask(null);
     loadData();
     window.addEventListener('storage', loadData);
     return () => {
@@ -461,6 +460,7 @@ export default function TaskPage() {
   const deploymentField = uiConfig.fields.find(f => f.key === 'deploymentStatus' && f.isActive);
   const attachmentsField = uiConfig.fields.find(f => f.key === 'attachments' && f.isActive);
   const commentsField = uiConfig.fields.find(f => f.key === 'comments' && f.isActive);
+  const historyField = !isBinned && taskLogs.length > 0;
   
 
   return (
@@ -547,8 +547,7 @@ export default function TaskPage() {
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start gap-4">
                       <CardTitle className="text-3xl font-bold flex-1">{task.title}</CardTitle>
-                      <div className="flex-shrink-0 flex items-center gap-2">
-                        {!isBinned && (<FavoriteToggleButton taskId={task.id} isFavorite={!!task.isFavorite} onUpdate={loadData} className="h-9 w-9" />)}
+                      <div className="flex-shrink-0">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" disabled={isBinned} className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-100">
@@ -582,6 +581,9 @@ export default function TaskPage() {
                     </CardDescription>
                     <p className="text-foreground/80 whitespace-pre-wrap">{task.description}</p>
                   </CardContent>
+                   <CardFooter className="pt-4 flex items-center gap-2">
+                        <FavoriteToggleButton taskId={task.id} isFavorite={!!task.isFavorite} onUpdate={loadData} className="h-9 w-9 -ml-2" />
+                    </CardFooter>
                 </div>
             </Card>
             
@@ -706,7 +708,7 @@ export default function TaskPage() {
                 </CardContent>
               </Card>
             )}
-             {!isBinned && taskLogs.length > 0 && (
+             {historyField && (
                 <div className="lg:col-span-2">
                     <TaskHistory logs={taskLogs} />
                 </div>
@@ -765,8 +767,17 @@ export default function TaskPage() {
         </div>
         
         {!isBinned && relatedTasks.length > 0 && (
-          <div className="mt-8">
-            <RelatedTasksSection title={relatedTasksTitle} tasks={relatedTasks} onTaskUpdate={loadData} uiConfig={uiConfig} developers={developers} testers={testers} />
+          <div className="mt-8 lg:col-span-3">
+            <RelatedTasksSection
+              title={relatedTasksTitle}
+              tasks={relatedTasks}
+              onTaskUpdate={loadData}
+              uiConfig={uiConfig}
+              developers={developers}
+              testers={testers}
+              pinnedTaskIds={pinnedTaskIds}
+              onPinToggle={handleTogglePin}
+            />
           </div>
         )}
       </div>
@@ -847,7 +858,7 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
     const hasAnyDeploymentDate = Object.values(task.deploymentDates || {}).some(date => date);
 
     if (!hasDevQaDates && !hasAnyDeploymentDate) {
-      return <p className="text-muted-foreground text-center text-xs">No dates have been set.</p>
+      return <p className="text-muted-foreground text-center text-xs py-2">No dates have been set.</p>
     }
 
     return (

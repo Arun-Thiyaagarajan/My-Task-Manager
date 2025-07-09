@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -62,8 +61,8 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   const [isReminderOpen, setIsReminderOpen] = useState(false);
   
   const isSelectable = selectedTaskIds !== undefined && setSelectedTaskIds !== undefined;
-  const isSelected = isSelectable && selectedTaskIds.includes(task.id);
-  const isPinned = pinnedTaskIds.includes(task.id);
+  const isSelected = isSelectable && (selectedTaskIds || []).includes(task.id);
+  const isPinned = (pinnedTaskIds || []).includes(task.id);
   
   useEffect(() => {
     setTask(initialTask);
@@ -162,8 +161,8 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   const handleSelectionChange = () => {
     if (!isSelectable) return;
     const newSelected = isSelected
-      ? selectedTaskIds.filter(id => id !== task.id)
-      : [...selectedTaskIds, task.id];
+      ? (selectedTaskIds || []).filter(id => id !== task.id)
+      : [...(selectedTaskIds || []), task.id];
     setSelectedTaskIds(newSelected);
   }
 
