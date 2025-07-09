@@ -19,6 +19,7 @@ interface ReminderStackProps {
 export function ReminderStack({ reminders, uiConfig, onUnpin }: ReminderStackProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
+  const [unpinningIds, setUnpinningIds] = useState<Set<string>>(new Set());
   const stackRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { prompt } = useUnsavedChanges();
@@ -32,7 +33,14 @@ export function ReminderStack({ reminders, uiConfig, onUnpin }: ReminderStackPro
   
   const handleUnpinClick = (e: React.MouseEvent, taskId: string) => {
       e.stopPropagation();
-      onUnpin(taskId);
+      
+      if (unpinningIds.has(taskId)) return;
+
+      setUnpinningIds(prev => new Set(prev).add(taskId));
+
+      setTimeout(() => {
+          onUnpin(taskId);
+      }, 500); // Match animation duration
   };
   
   const handleToggleExpand = useCallback(() => {
@@ -102,7 +110,8 @@ export function ReminderStack({ reminders, uiConfig, onUnpin }: ReminderStackPro
               isExpanded
                 ? 'cursor-default'
                 : 'cursor-pointer hover:scale-105 hover:-translate-y-1',
-              isExiting && 'opacity-0 scale-95'
+              isExiting && 'opacity-0 scale-95',
+              unpinningIds.has(task.id) && 'opacity-0 scale-90 -translate-y-4'
             )}
             style={{
               transform: isExpanded
