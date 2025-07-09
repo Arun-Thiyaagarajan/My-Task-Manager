@@ -44,6 +44,7 @@ import {
   StickyNote,
   PinOff,
   Megaphone,
+  BellRing,
 } from 'lucide-react';
 import { cn, fuzzySearch } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig, Log, GeneralReminder } from '@/lib/types';
@@ -987,7 +988,7 @@ export default function Home() {
               {uiConfig.remindersEnabled && pinnedReminders.map(task => (
                 <Alert key={task.id} className="bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/50 flex items-start justify-between gap-4 pr-3 py-3">
                   <div className="flex items-start gap-4">
-                    <StickyNote className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                    <BellRing className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
                     <div>
                       <AlertTitle className="text-amber-800 dark:text-amber-200 mb-1">
                         <Link href={`/tasks/${task.id}`} className="hover:underline">{task.title}</Link>

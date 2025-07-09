@@ -532,7 +532,7 @@ export default function TaskPage() {
         
         {task.reminder && (
            <Alert className="mb-6 bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/50">
-            <StickyNote className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <BellRing className="h-4 w-4 text-amber-600 dark:text-amber-400" />
             <AlertTitle className="text-amber-800 dark:text-amber-200">Reminder Note</AlertTitle>
             <AlertDescription className="text-amber-700 dark:text-amber-300 whitespace-pre-wrap">
               {task.reminder}
