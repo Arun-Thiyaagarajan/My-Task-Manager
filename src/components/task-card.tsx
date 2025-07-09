@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getStatusConfig, TaskStatusBadge } from './task-status-badge';
-import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck, Share2, BellRing, Pin, MoreVertical, Download, Copy } from 'lucide-react';
+import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck, Share2, BellRing } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
@@ -28,9 +28,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent
 } from '@/components/ui/dropdown-menu';
 import { PersonProfileCard } from './person-profile-card';
 import { summarizeText } from '@/ai/flows/summarize-flow';
@@ -39,7 +36,7 @@ import { EnvironmentStatus } from './environment-status';
 import { Checkbox } from './ui/checkbox';
 import { FavoriteToggleButton } from './favorite-toggle';
 import { ReminderDialog } from './reminder-dialog';
-import { generateTaskPdf, generateTasksText } from '@/lib/share-utils';
+import { ShareMenu } from './share-menu';
 
 interface TaskCardProps {
   task: Task;
@@ -168,27 +165,6 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
     setSelectedTaskIds(newSelected);
   };
 
-  const handleDownloadPdf = async () => {
-    if (!uiConfig) return;
-    try {
-      const filename = `${task.title.replace(/[<>:"/\\|?*]+/g, '_').substring(0, 100)}.pdf`;
-      await generateTaskPdf(task, uiConfig, developers, testers, 'save', filename);
-      toast({ variant: 'success', title: 'PDF Generated', description: 'Your PDF has started downloading.' });
-    } catch (e) {
-      toast({ variant: 'destructive', title: 'PDF Generation Failed' });
-    }
-  };
-
-  const handleCopyToClipboard = () => {
-    if (!uiConfig) return;
-    const textContent = generateTasksText([task], uiConfig, developers, testers);
-    navigator.clipboard.writeText(textContent).then(() => {
-        toast({ variant: 'success', title: 'Copied to Clipboard' });
-    }).catch(() => {
-        toast({ variant: 'destructive', title: 'Failed to Copy' });
-    });
-  };
-
   const fieldLabels = new Map(uiConfig?.fields.map(f => [f.key, f.label]));
   const developersLabel = fieldLabels.get('developers') || 'Developers';
   const testersLabel = fieldLabels.get('testers') || 'Testers';
@@ -259,40 +235,46 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
           <div className="flex flex-col flex-grow z-10">
             <CardHeader className="p-4 pb-2">
                 <div className="flex items-start justify-between gap-2">
-                    <Link
-                      href={`/tasks/${task.id}`}
-                      className="flex-grow cursor-pointer"
-                      onClick={(e) => {
-                        if (isSelectMode) {
-                          e.preventDefault();
-                        }
-                      }}
-                    >
-                        <CardTitle className="text-base font-semibold leading-snug line-clamp-3 text-foreground group-hover/card:text-primary">
-                        {task.title}
-                        </CardTitle>
-                    </Link>
-                    <div className="flex-shrink-0 flex items-center gap-1">
+                    <div className="flex-grow min-w-0 flex items-center gap-2">
+                        <Link
+                          href={`/tasks/${task.id}`}
+                          className="flex-grow min-w-0 cursor-pointer group/title"
+                          onClick={(e) => {
+                            if (isSelectMode) {
+                              e.preventDefault();
+                            }
+                          }}
+                        >
+                            <CardTitle className="text-base font-semibold leading-snug line-clamp-2 text-foreground group-hover/card:text-primary transition-colors">
+                              {task.title}
+                            </CardTitle>
+                        </Link>
+                        
                         {uiConfig?.remindersEnabled && (
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setIsReminderOpen(true);
-                                        }}
-                                    >
-                                        <BellRing className={cn("h-4 w-4 text-muted-foreground", task.reminder && "text-amber-600 dark:text-amber-400")} />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>{task.reminder ? 'Edit Reminder' : 'Set Reminder'}</p>
-                                </TooltipContent>
-                            </Tooltip>
+                            <div className="flex-shrink-0">
+                              <Tooltip>
+                                  <TooltipTrigger asChild>
+                                      <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7"
+                                          onClick={(e) => {
+                                              e.stopPropagation();
+                                              setIsReminderOpen(true);
+                                          }}
+                                      >
+                                          <BellRing className={cn("h-4 w-4 text-muted-foreground", task.reminder && "text-amber-600 dark:text-amber-400")} />
+                                      </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                      <p>{task.reminder ? 'Edit Reminder' : 'Set Reminder'}</p>
+                                  </TooltipContent>
+                              </Tooltip>
+                            </div>
                         )}
+                    </div>
+                    
+                    <div className="flex-shrink-0 flex items-center">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0" onClick={e => e.stopPropagation()}>
@@ -508,32 +490,12 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                     onUpdate={onTaskUpdate}
                 />
                 
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => e.stopPropagation()}>
-                        <MoreVertical className="h-4 w-4" />
-                        <span className="sr-only">More options</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" onClick={e => e.stopPropagation()}>
-                    <DropdownMenuSub>
-                        <DropdownMenuSubTrigger>
-                            <Share2 className="mr-2 h-4 w-4" />
-                            <span>Share</span>
-                        </DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent>
-                            <DropdownMenuItem onSelect={handleDownloadPdf}>
-                                <Download className="mr-2 h-4 w-4" />
-                                <span>Download as PDF</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={handleCopyToClipboard}>
-                                <Copy className="mr-2 h-4 w-4" />
-                                <span>Copy as Text</span>
-                            </DropdownMenuItem>
-                        </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <ShareMenu task={task} uiConfig={uiConfig!} developers={developers} testers={testers}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => e.stopPropagation()}>
+                    <Share2 className="h-4 w-4" />
+                    <span className="sr-only">Share Task</span>
+                  </Button>
+                </ShareMenu>
 
                 <DeleteTaskButton
                     taskId={task.id}
