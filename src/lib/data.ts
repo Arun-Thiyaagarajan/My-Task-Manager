@@ -1,8 +1,8 @@
 
-
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
 import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment } from './types';
 import cloneDeep from 'lodash/cloneDeep';
+import { format } from 'date-fns';
 
 const DATA_KEY = 'my_task_manager_data';
 
@@ -690,6 +690,7 @@ export function addTask(taskData: Partial<Task>, isBinned: boolean = false): Tas
     summary: taskData.summary || null,
     isFavorite: taskData.isFavorite || false,
     reminder: taskData.reminder || null,
+    reminderExpiresAt: taskData.reminderExpiresAt || null,
     repositories: taskData.repositories || [],
     developers: taskData.developers || [],
     testers: taskData.testers || [],
@@ -745,6 +746,7 @@ const generateTaskUpdateLogs = (
             createLog(`Removed task "${taskTitle}" from favorites.`);
         }
     }
+    
     if ('reminder' in newTaskData && newTaskData.reminder !== oldTask.reminder) {
         if (newTaskData.reminder && !oldTask.reminder) {
             createLog(`Added a reminder note to task "${taskTitle}".`);
@@ -754,6 +756,16 @@ const generateTaskUpdateLogs = (
             createLog(`Updated the reminder note for task "${taskTitle}".`);
         }
     }
+
+    if ('reminderExpiresAt' in newTaskData && newTaskData.reminderExpiresAt !== oldTask.reminderExpiresAt) {
+        if (newTaskData.reminderExpiresAt) {
+            const dateStr = format(new Date(newTaskData.reminderExpiresAt), 'PPP p');
+            createLog(`Set reminder for task "${taskTitle}" to expire on ${dateStr}.`);
+        } else {
+            createLog(`Removed expiration date from reminder on task "${taskTitle}".`);
+        }
+    }
+
     if ('description' in newTaskData && newTaskData.description !== oldTask.description) {
         createLog(`Updated description for task "${taskTitle}".`);
     }
@@ -1272,4 +1284,35 @@ export function getAggregatedLogs(): Log[] {
     });
 
     return visibleLogs;
+}
+
+export function clearExpiredReminders(): { updatedTaskIds: string[], unpinnedTaskIds: string[] } {
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    const companyData = data.companyData[activeCompanyId];
+    if (!companyData) return { updatedTaskIds: [], unpinnedTaskIds: [] };
+
+    const now = new Date();
+    const updatedTaskIds: string[] = [];
+    const unpinnedTaskIds: string[] = [];
+
+    const processTask = (task: Task) => {
+        if (task.reminder && task.reminderExpiresAt && new Date(task.reminderExpiresAt) < now) {
+            task.reminder = null;
+            task.reminderExpiresAt = null;
+            task.updatedAt = now.toISOString();
+            updatedTaskIds.push(task.id);
+            unpinnedTaskIds.push(task.id); // The client will use this to update its state
+            _addLog(companyData, { message: `Reminder expired and was cleared for task "${task.title}".`, taskId: task.id });
+        }
+    };
+
+    companyData.tasks.forEach(processTask);
+    companyData.trash.forEach(processTask); // Also clear from binned tasks
+
+    if (updatedTaskIds.length > 0) {
+        setAppData(data);
+    }
+
+    return { updatedTaskIds, unpinnedTaskIds };
 }

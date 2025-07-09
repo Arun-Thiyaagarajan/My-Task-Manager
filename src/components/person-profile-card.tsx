@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -55,7 +56,7 @@ export function PersonProfileCard({ person, type, isOpen, onOpenChange }: Person
               <DialogDescription className="sr-only">
                 {type}
               </DialogDescription>
-              <Badge variant="outline" className="mt-1" aria-hidden="true" style={badgeStyle}>
+              <Badge variant="outline" className="mt-1 border" aria-hidden="true" style={badgeStyle}>
                 <TypeIcon className="h-3 w-3 mr-1.5"/>
                 {type}
               </Badge>

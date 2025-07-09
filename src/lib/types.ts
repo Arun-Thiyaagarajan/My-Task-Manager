@@ -57,6 +57,7 @@ export interface Task {
   deletedAt?: string;
   isFavorite?: boolean;
   reminder?: string | null;
+  reminderExpiresAt?: string | null;
   
   repositories?: Repository[];
   azureWorkItemId?: string;

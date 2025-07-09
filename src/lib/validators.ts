@@ -38,6 +38,7 @@ export const taskSchema = z.object({
   summary: z.string().nullable().optional(),
   isFavorite: z.boolean().optional(),
   reminder: z.string().nullable().optional(),
+  reminderExpiresAt: z.coerce.date().optional().nullable(),
   
   title: z.string().min(3, { message: 'Title must be at least 3 characters.' }),
   description: z.string().min(3, { message: 'Description must be at least 3 characters.' }),

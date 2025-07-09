@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -12,7 +13,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getStatusConfig, TaskStatusBadge } from './task-status-badge';
-import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck, Share2, BellRing } from 'lucide-react';
+import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck, Share2, BellRing, Pin } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
@@ -352,113 +353,111 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
           </div>
           <CardFooter className="flex items-center justify-between p-4 border-t border-black/5 dark:border-white/5 z-10">
             <div className="flex flex-1 min-w-0 items-center gap-4">
-                {hasDevelopers && (
-                  <div className="flex items-center gap-1.5">
-                    <Tooltip>
-                        <TooltipTrigger asChild><Code2 className="h-4 w-4 text-muted-foreground" /></TooltipTrigger>
-                        <TooltipContent><p>{developersLabel}</p></TooltipContent>
-                    </Tooltip>
-                    <div className="flex items-center -space-x-2">
-                        {visibleDevelopers.map((dev) => (
-                          <Tooltip key={dev.id}>
-                            <TooltipTrigger asChild>
-                              <button
-                                  onClick={(e) => {
-                                      e.stopPropagation();
-                                      e.preventDefault();
-                                      setPersonInView({ person: dev, type: 'Developer' });
-                                  }}
-                                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
-                              >
-                                <Avatar className="h-7 w-7 border-2 border-background cursor-pointer">
-                                  <AvatarFallback 
-                                    className="text-xs font-semibold text-white"
-                                    style={{ backgroundColor: `#${getAvatarColor(dev.name)}` }}
-                                  >
-                                    {getInitials(dev.name)}
-                                  </AvatarFallback>
-                                </Avatar>
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent><p>{dev.name}</p></TooltipContent>
-                          </Tooltip>
-                        ))}
-                        {hiddenDevelopersCount > 0 && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-background bg-muted">
-                                <span className="text-xs font-medium text-muted-foreground">+{hiddenDevelopersCount}</span>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <div className="text-sm p-1 space-y-1">
-                                  <p className="font-semibold">More {developersLabel}:</p>
-                                  <ul className="list-disc list-inside space-y-0.5">
-                                      {hiddenDevelopers.map(dev => <li key={dev.id}>{dev.name}</li>)}
-                                  </ul>
-                              </div>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
+              <div className="flex items-center gap-2">
+                  {hasDevelopers && (
+                    <div className="flex items-center gap-1.5">
+                      <Tooltip>
+                          <TooltipTrigger asChild><Code2 className="h-4 w-4 text-muted-foreground" /></TooltipTrigger>
+                          <TooltipContent><p>{developersLabel}</p></TooltipContent>
+                      </Tooltip>
+                      <div className="flex items-center -space-x-2">
+                          {visibleDevelopers.map((dev) => (
+                            <Tooltip key={dev.id}>
+                              <TooltipTrigger asChild>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                        setPersonInView({ person: dev, type: 'Developer' });
+                                    }}
+                                    className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
+                                >
+                                  <Avatar className="h-7 w-7 border-2 border-background cursor-pointer">
+                                    <AvatarFallback 
+                                      className="text-xs font-semibold text-white"
+                                      style={{ backgroundColor: `#${getAvatarColor(dev.name)}` }}
+                                    >
+                                      {getInitials(dev.name)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent><p>{dev.name}</p></TooltipContent>
+                            </Tooltip>
+                          ))}
+                          {hiddenDevelopersCount > 0 && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-background bg-muted">
+                                  <span className="text-xs font-medium text-muted-foreground">+{hiddenDevelopersCount}</span>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <div className="text-sm p-1 space-y-1">
+                                    <p className="font-semibold">More {developersLabel}:</p>
+                                    <ul className="list-disc list-inside space-y-0.5">
+                                        {hiddenDevelopers.map(dev => <li key={dev.id}>{dev.name}</li>)}
+                                    </ul>
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {hasTesters && (
-                  <div className="flex items-center gap-1.5">
-                    <Tooltip>
-                        <TooltipTrigger asChild><ClipboardCheck className="h-4 w-4 text-muted-foreground" /></TooltipTrigger>
-                        <TooltipContent><p>{testersLabel}</p></TooltipContent>
-                    </Tooltip>
-                    <div className="flex -space-x-2">
-                        {visibleTesters.map((tester) => (
-                          <Tooltip key={tester.id}>
-                            <TooltipTrigger asChild>
-                              <button
-                                  onClick={(e) => {
-                                      e.stopPropagation();
-                                      e.preventDefault();
-                                      setPersonInView({ person: tester, type: 'Tester' });
-                                  }}
-                                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
-                              >
-                                <Avatar className="h-7 w-7 border-2 border-background cursor-pointer">
-                                  <AvatarFallback 
-                                    className="text-xs font-semibold text-white"
-                                    style={{ backgroundColor: `#${getAvatarColor(tester.name)}` }}
-                                  >
-                                    {getInitials(tester.name)}
-                                  </AvatarFallback>
-                                </Avatar>
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent><p>{tester.name}</p></TooltipContent>
-                          </Tooltip>
-                        ))}
-                         {hiddenTestersCount > 0 && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                               <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-background bg-muted">
-                                  <span className="text-xs font-medium text-muted-foreground">+{hiddenTestersCount}</span>
-                               </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <div className="text-sm p-1 space-y-1">
-                                  <p className="font-semibold">More {testersLabel}:</p>
-                                  <ul className="list-disc list-inside space-y-0.5">
-                                      {hiddenTesters.map(tester => <li key={tester.id}>{tester.name}</li>)}
-                                  </ul>
-                              </div>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
+                  {hasTesters && (
+                    <div className="flex items-center gap-1.5">
+                      <Tooltip>
+                          <TooltipTrigger asChild><ClipboardCheck className="h-4 w-4 text-muted-foreground" /></TooltipTrigger>
+                          <TooltipContent><p>{testersLabel}</p></TooltipContent>
+                      </Tooltip>
+                      <div className="flex -space-x-2">
+                          {visibleTesters.map((tester) => (
+                            <Tooltip key={tester.id}>
+                              <TooltipTrigger asChild>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                        setPersonInView({ person: tester, type: 'Tester' });
+                                    }}
+                                    className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
+                                >
+                                  <Avatar className="h-7 w-7 border-2 border-background cursor-pointer">
+                                    <AvatarFallback 
+                                      className="text-xs font-semibold text-white"
+                                      style={{ backgroundColor: `#${getAvatarColor(tester.name)}` }}
+                                    >
+                                      {getInitials(tester.name)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent><p>{tester.name}</p></TooltipContent>
+                            </Tooltip>
+                          ))}
+                          {hiddenTestersCount > 0 && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-background bg-muted">
+                                    <span className="text-xs font-medium text-muted-foreground">+{hiddenTestersCount}</span>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <div className="text-sm p-1 space-y-1">
+                                    <p className="font-semibold">More {testersLabel}:</p>
+                                    <ul className="list-disc list-inside space-y-0.5">
+                                        {hiddenTesters.map(tester => <li key={tester.id}>{tester.name}</li>)}
+                                    </ul>
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                      </div>
                     </div>
-                  </div>
-                )}
-                
-                {!hasDevelopers && !hasTesters && (
-                  <div className="text-xs text-muted-foreground italic">No assignees</div>
-                )}
+                  )}
+              </div>
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <FavoriteToggleButton

@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester, updateUiConfig, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks } from '@/lib/data';
+import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester, updateUiConfig, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -210,6 +210,19 @@ export default function Home() {
     if (!activeCompanyId) {
       return;
     }
+
+    const { updatedTaskIds, unpinnedTaskIds } = clearExpiredReminders();
+    if (updatedTaskIds.length > 0) {
+        toast({ title: `${updatedTaskIds.length} reminder(s) expired and were cleared.` });
+        if (unpinnedTaskIds.length > 0) {
+            // Update local state first to avoid stale data
+            const currentPinned = JSON.parse(localStorage.getItem(PINNED_TASKS_STORAGE_KEY) || '[]');
+            const newPinned = currentPinned.filter((id: string) => !unpinnedTaskIds.includes(id));
+            setPinnedTaskIds(newPinned);
+            localStorage.setItem(PINNED_TASKS_STORAGE_KEY, JSON.stringify(newPinned));
+        }
+    }
+
     refreshData();
     setIsLoading(false);
     
@@ -719,6 +732,7 @@ export default function Home() {
                           summary: validatedData.summary || null,
                           isFavorite: validatedData.isFavorite || false,
                           reminder: validatedData.reminder || null,
+                          reminderExpiresAt: validatedData.reminderExpiresAt ? (validatedData.reminderExpiresAt as Date).toISOString() : null,
                           repositories: validatedData.repositories || [],
                           developers: validatedData.developers || [],
                           testers: validatedData.testers || [],
