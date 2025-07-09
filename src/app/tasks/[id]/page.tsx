@@ -45,6 +45,7 @@ import { ShareMenu } from '@/components/share-menu';
 import { FavoriteToggleButton } from '@/components/favorite-toggle';
 import { TaskHistory } from '@/components/task-history';
 import { ReminderDialog } from '@/components/reminder-dialog';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 const isImageUrl = (url: string): boolean => {
@@ -84,9 +85,11 @@ export default function TaskPage() {
   const taskId = params.id as string;
   
   const loadData = () => {
-    setTask(null);
+    // Clear state before loading new task data to prevent content bleed
+    setTask(null); 
+    setIsLoading(true);
+
     if (taskId) {
-      setIsLoading(true);
       const allDevs = getDevelopers();
       const allTesters = getTesters();
       const foundTask = getTaskById(taskId);
@@ -497,12 +500,6 @@ export default function TaskPage() {
             </AlertDialog>
           ) : (
             <div className="flex gap-2">
-                {uiConfig.remindersEnabled && (
-                  <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setIsReminderOpen(true)}>
-                      <BellRing className={cn("h-4 w-4", task.reminder && "text-amber-600 dark:text-amber-400")} />
-                      <span className="sr-only">Set Reminder Note</span>
-                  </Button>
-                )}
                 <ShareMenu task={task} uiConfig={uiConfig} developers={developers} testers={testers}>
                     <Button variant="outline" size="sm">
                         <Share2 className="mr-2 h-4 w-4" />
@@ -547,8 +544,23 @@ export default function TaskPage() {
                 <div className="relative z-10 flex flex-col h-full">
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start gap-4">
-                      <CardTitle className="text-3xl font-bold flex-1">{task.title}</CardTitle>
-                      <div className="flex-shrink-0">
+                      <div className="flex-1">
+                          <CardTitle className="text-3xl font-bold flex items-center gap-3">
+                              <span>{task.title}</span>
+                              {uiConfig.remindersEnabled && !isBinned && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsReminderOpen(true)}>
+                                      <BellRing className={cn("h-5 w-5 text-muted-foreground", task.reminder && "text-amber-600 dark:text-amber-400")} />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>{task.reminder ? 'Edit Reminder' : 'Set Reminder'}</TooltipContent>
+                                </Tooltip>
+                              )}
+                          </CardTitle>
+                      </div>
+                      <div className="flex-shrink-0 flex items-center gap-2">
+                        {!isBinned && <FavoriteToggleButton taskId={task.id} isFavorite={!!task.isFavorite} onUpdate={loadData} />}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" disabled={isBinned} className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-100">
@@ -581,9 +593,6 @@ export default function TaskPage() {
                         Last updated on {format(new Date(task.updatedAt), 'PPP')}
                     </CardDescription>
                     <p className="text-foreground/80 whitespace-pre-wrap">{task.description}</p>
-                    <div className="mt-auto pt-6">
-                        <FavoriteToggleButton taskId={task.id} isFavorite={!!task.isFavorite} onUpdate={loadData} />
-                    </div>
                   </CardContent>
                 </div>
             </Card>

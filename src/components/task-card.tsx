@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getStatusConfig, TaskStatusBadge } from './task-status-badge';
-import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck, Share2, BellRing, Pin, MoreVertical } from 'lucide-react';
+import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck, Share2, BellRing, Pin, MoreVertical, Download, Copy } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
@@ -28,16 +28,18 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent
 } from '@/components/ui/dropdown-menu';
 import { PersonProfileCard } from './person-profile-card';
 import { summarizeText } from '@/ai/flows/summarize-flow';
 import { Skeleton } from './ui/skeleton';
 import { EnvironmentStatus } from './environment-status';
 import { Checkbox } from './ui/checkbox';
-import { ShareMenu } from './share-menu';
 import { FavoriteToggleButton } from './favorite-toggle';
 import { ReminderDialog } from './reminder-dialog';
-import { TaskCardContextMenu } from './task-card-context-menu';
+import { generateTaskPdf, generateTasksText } from '@/lib/share-utils';
 
 interface TaskCardProps {
   task: Task;
@@ -61,11 +63,9 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [justUpdatedEnv, setJustUpdatedEnv] = useState<string | null>(null);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
-  const [isContextMenuOpen, setContextMenuOpen] = useState(false);
   
   const isSelectable = selectedTaskIds !== undefined && setSelectedTaskIds !== undefined;
   const isSelected = isSelectable && (selectedTaskIds || []).includes(task.id);
-  const isPinned = (pinnedTaskIds || []).includes(task.id);
   
   useEffect(() => {
     setTask(initialTask);
@@ -166,7 +166,28 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
       ? (selectedTaskIds || []).filter(id => id !== task.id)
       : [...(selectedTaskIds || []), task.id];
     setSelectedTaskIds(newSelected);
-  }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!uiConfig) return;
+    try {
+      const filename = `${task.title.replace(/[<>:"/\\|?*]+/g, '_').substring(0, 100)}.pdf`;
+      await generateTaskPdf(task, uiConfig, developers, testers, 'save', filename);
+      toast({ variant: 'success', title: 'PDF Generated', description: 'Your PDF has started downloading.' });
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'PDF Generation Failed' });
+    }
+  };
+
+  const handleCopyToClipboard = () => {
+    if (!uiConfig) return;
+    const textContent = generateTasksText([task], uiConfig, developers, testers);
+    navigator.clipboard.writeText(textContent).then(() => {
+        toast({ variant: 'success', title: 'Copied to Clipboard' });
+    }).catch(() => {
+        toast({ variant: 'destructive', title: 'Failed to Copy' });
+    });
+  };
 
   const fieldLabels = new Map(uiConfig?.fields.map(f => [f.key, f.label]));
   const developersLabel = fieldLabels.get('developers') || 'Developers';
@@ -207,11 +228,6 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
           if (isSelectMode) {
             handleSelectionChange();
           }
-        }}
-        onDoubleClick={(e) => {
-            if (isSelectMode) return;
-            e.preventDefault();
-            setContextMenuOpen(true);
         }}
         className={cn(
           "h-full rounded-lg transition-all",
@@ -474,18 +490,52 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
               </div>
             </div>
             <div className="flex items-center gap-1 shrink-0">
-              <FavoriteToggleButton
-                  taskId={task.id}
-                  isFavorite={!!task.isFavorite}
-                  onUpdate={onTaskUpdate}
-              />
-              <DeleteTaskButton
-                taskId={task.id}
-                taskTitle={task.title}
-                onSuccess={onTaskDelete}
-                iconOnly
-                className="h-8 w-8"
-              />
+                <FavoriteToggleButton
+                    taskId={task.id}
+                    isFavorite={!!task.isFavorite}
+                    onUpdate={onTaskUpdate}
+                />
+                
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => e.stopPropagation()}>
+                        <MoreVertical className="h-4 w-4" />
+                        <span className="sr-only">More options</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" onClick={e => e.stopPropagation()}>
+                    {uiConfig?.remindersEnabled && (
+                      <DropdownMenuItem onSelect={() => setIsReminderOpen(true)}>
+                        <BellRing className="mr-2 h-4 w-4" />
+                        <span>{task.reminder ? 'Edit Reminder' : 'Set Reminder'}</span>
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                            <Share2 className="mr-2 h-4 w-4" />
+                            <span>Share</span>
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                            <DropdownMenuItem onSelect={handleDownloadPdf}>
+                                <Download className="mr-2 h-4 w-4" />
+                                <span>Download as PDF</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={handleCopyToClipboard}>
+                                <Copy className="mr-2 h-4 w-4" />
+                                <span>Copy as Text</span>
+                            </DropdownMenuItem>
+                        </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <DeleteTaskButton
+                    taskId={task.id}
+                    taskTitle={task.title}
+                    onSuccess={onTaskDelete}
+                    iconOnly
+                    className="h-8 w-8"
+                />
             </div>
           </CardFooter>
         </Card>
@@ -496,17 +546,6 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
         isOpen={!!personInView}
         onOpenChange={(isOpen) => !isOpen && setPersonInView(null)}
       />
-      {uiConfig && (
-        <TaskCardContextMenu
-            isOpen={isContextMenuOpen}
-            onOpenChange={setContextMenuOpen}
-            task={task}
-            uiConfig={uiConfig}
-            developers={developers}
-            testers={testers}
-            onSetReminder={() => setIsReminderOpen(true)}
-        />
-      )}
       {uiConfig?.remindersEnabled && task && (
         <ReminderDialog
           isOpen={isReminderOpen}
@@ -514,11 +553,10 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
           task={task}
           onSuccess={() => {
             onTaskUpdate();
-            // This re-fetches the specific task to update its state inside the card
             const updated = updateTask(task.id, {});
             if (updated) setTask(updated);
           }}
-          pinnedTaskIds={pinnedTaskIds}
+          pinnedTaskIds={pinnedTaskIds || []}
           onPinToggle={onPinToggle}
         />
       )}
