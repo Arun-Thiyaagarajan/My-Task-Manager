@@ -100,6 +100,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { ToastAction } from '@/components/ui/toast';
+import { Separator } from '@/components/ui/separator';
 
 
 type ViewMode = 'grid' | 'table';
@@ -960,55 +961,65 @@ export default function Home() {
       
       <div className="space-y-6">
           {(generalReminders.length > 0 || (uiConfig.remindersEnabled && pinnedReminders.length > 0)) && (
-            <div className="space-y-3">
-              {generalReminders.map(reminder => (
-                <Alert key={reminder.id} className="bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/50 flex items-start justify-between gap-4 pr-3 py-3">
-                  <div className="flex items-start gap-4">
-                    <Megaphone className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-                    <AlertDescription className="text-amber-700 dark:text-amber-300 whitespace-pre-wrap">
-                      {reminder.text}
-                    </AlertDescription>
-                  </div>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost" size="icon" className="h-7 w-7 text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
-                        onClick={() => {
-                          deleteGeneralReminder(reminder.id);
-                          refreshData();
-                        }}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Dismiss reminder</TooltipContent>
-                  </Tooltip>
-                </Alert>
-              ))}
-              {uiConfig.remindersEnabled && pinnedReminders.map(task => (
-                <Alert key={task.id} className="bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/50 flex items-start justify-between gap-4 pr-3 py-3">
-                  <div className="flex items-start gap-4">
-                    <BellRing className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-                    <div>
-                      <AlertTitle className="text-amber-800 dark:text-amber-200 mb-1">
-                        <Link href={`/tasks/${task.id}`} className="hover:underline">{task.title}</Link>
-                      </AlertTitle>
-                      <AlertDescription className="text-amber-700 dark:text-amber-300 whitespace-pre-wrap">
-                        {task.reminder}
-                      </AlertDescription>
+            <Alert className="bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/50">
+                <AlertTitle className="text-amber-800 dark:text-amber-200 mb-3">Important Reminders</AlertTitle>
+                <AlertDescription>
+                <div className="space-y-4">
+                    {generalReminders.map(reminder => (
+                    <div key={reminder.id} className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3">
+                        <Megaphone className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                        <p className="text-sm text-amber-700 dark:text-amber-300 whitespace-pre-wrap">
+                            {reminder.text}
+                        </p>
+                        </div>
+                        <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                            variant="ghost" size="icon" className="h-7 w-7 text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 flex-shrink-0"
+                            onClick={() => {
+                                deleteGeneralReminder(reminder.id);
+                                refreshData();
+                            }}
+                            >
+                            <X className="h-4 w-4" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Dismiss reminder</TooltipContent>
+                        </Tooltip>
                     </div>
-                  </div>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300" onClick={() => handleTogglePin(task.id)}>
-                        <PinOff className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Unpin this reminder</TooltipContent>
-                  </Tooltip>
-                </Alert>
-              ))}
-            </div>
+                    ))}
+                    
+                    {generalReminders.length > 0 && uiConfig.remindersEnabled && pinnedReminders.length > 0 && (
+                        <Separator className="my-3 bg-amber-300/50 dark:bg-amber-700/50" />
+                    )}
+
+                    {uiConfig.remindersEnabled && pinnedReminders.map(task => (
+                    <div key={task.id} className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3">
+                            <BellRing className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                            <div className="text-sm">
+                                <p className="font-semibold text-amber-800 dark:text-amber-200">
+                                <Link href={`/tasks/${task.id}`} className="hover:underline">{task.title}</Link>
+                                </p>
+                                <p className="text-amber-700 dark:text-amber-300 whitespace-pre-wrap">
+                                {task.reminder}
+                                </p>
+                            </div>
+                        </div>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 flex-shrink-0" onClick={() => handleTogglePin(task.id)}>
+                                <PinOff className="h-4 w-4" />
+                            </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Unpin this reminder</TooltipContent>
+                        </Tooltip>
+                    </div>
+                    ))}
+                </div>
+                </AlertDescription>
+            </Alert>
           )}
 
           <Card>
