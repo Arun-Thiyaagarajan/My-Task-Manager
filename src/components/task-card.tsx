@@ -181,6 +181,16 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
 
   const hasDevelopers = assignedDevelopers.length > 0;
   const hasTesters = assignedTesters.length > 0;
+  
+  const MAX_VISIBLE_AVATARS = 3;
+  
+  const visibleDevelopers = assignedDevelopers.slice(0, MAX_VISIBLE_AVATARS);
+  const hiddenDevelopersCount = assignedDevelopers.length - MAX_VISIBLE_AVATARS;
+  const hiddenDevelopers = assignedDevelopers.slice(MAX_VISIBLE_AVATARS);
+
+  const visibleTesters = assignedTesters.slice(0, MAX_VISIBLE_AVATARS);
+  const hiddenTestersCount = assignedTesters.length - MAX_VISIBLE_AVATARS;
+  const hiddenTesters = assignedTesters.slice(MAX_VISIBLE_AVATARS);
 
   const statusConfig = getStatusConfig(task.status);
   const { Icon, cardClassName, iconColorClassName } = statusConfig;
@@ -339,7 +349,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
             </CardContent>
           </div>
           <CardFooter className="flex items-center justify-between p-4 border-t border-black/5 dark:border-white/5 z-10">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 overflow-hidden">
                 {hasDevelopers && (
                   <div className="flex items-center gap-1.5">
                     <Tooltip>
@@ -347,7 +357,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                         <TooltipContent><p>{developersLabel}</p></TooltipContent>
                     </Tooltip>
                     <div className="flex -space-x-2">
-                        {assignedDevelopers.map((dev) => (
+                        {visibleDevelopers.map((dev) => (
                           <div key={dev.id}>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -373,6 +383,27 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                             </Tooltip>
                           </div>
                         ))}
+                        {hiddenDevelopersCount > 0 && (
+                           <div>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Avatar className="h-7 w-7 border-2 border-background">
+                                    <AvatarFallback className="text-xs font-semibold bg-muted text-muted-foreground">
+                                        +{hiddenDevelopersCount}
+                                    </AvatarFallback>
+                                </Avatar>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <div className="text-sm p-1 space-y-1">
+                                    <p className="font-semibold">More Developers:</p>
+                                    <ul className="list-disc list-inside space-y-0.5">
+                                        {hiddenDevelopers.map(dev => <li key={dev.id}>{dev.name}</li>)}
+                                    </ul>
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        )}
                     </div>
                   </div>
                 )}
@@ -388,7 +419,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                         <TooltipContent><p>{testersLabel}</p></TooltipContent>
                     </Tooltip>
                     <div className="flex -space-x-2">
-                        {assignedTesters.map((tester) => (
+                        {visibleTesters.map((tester) => (
                           <div key={tester.id}>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -414,6 +445,27 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                             </Tooltip>
                           </div>
                         ))}
+                         {hiddenTestersCount > 0 && (
+                           <div>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Avatar className="h-7 w-7 border-2 border-background">
+                                    <AvatarFallback className="text-xs font-semibold bg-muted text-muted-foreground">
+                                        +{hiddenTestersCount}
+                                    </AvatarFallback>
+                                </Avatar>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <div className="text-sm p-1 space-y-1">
+                                    <p className="font-semibold">More Testers:</p>
+                                    <ul className="list-disc list-inside space-y-0.5">
+                                        {hiddenTesters.map(tester => <li key={tester.id}>{tester.name}</li>)}
+                                    </ul>
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        )}
                     </div>
                   </div>
                 )}
@@ -422,7 +474,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                   <div className="text-xs text-muted-foreground italic">No assignees</div>
                 )}
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 shrink-0">
               <FavoriteToggleButton
                   taskId={task.id}
                   isFavorite={!!task.isFavorite}
