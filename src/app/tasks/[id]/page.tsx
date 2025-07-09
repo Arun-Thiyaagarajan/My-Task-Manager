@@ -105,69 +105,8 @@ export default function TaskPage() {
         const isBinned = !!foundTask.deletedAt;
         if (isBinned) {
             setTaskLogs([]);
-            setRelatedTasks([]);
-            setRelatedTasksTitle('');
         } else {
             setTaskLogs(getLogsForTask(taskId));
-            const allTasks = getTasks().filter(t => t.id !== taskId);
-            const strategies: (() => { title: string, tasks: Task[] } | null)[] = [];
-
-            if (foundTask.developers && foundTask.developers.length > 0) {
-                const primaryDevId = foundTask.developers[0];
-                const primaryDev = allDevs.find(d => d.id === primaryDevId);
-                if (primaryDev) {
-                    strategies.push(() => {
-                      const related = allTasks.filter(t => t.developers?.includes(primaryDevId));
-                      return related.length > 0 ? {
-                        title: `More from ${primaryDev.name}`,
-                        tasks: related
-                      } : null;
-                    });
-                }
-            }
-
-            if (foundTask.repositories && foundTask.repositories.length > 0) {
-                const primaryRepo = foundTask.repositories[0];
-                strategies.push(() => {
-                  const related = allTasks.filter(t => t.repositories?.includes(primaryRepo));
-                  return related.length > 0 ? {
-                    title: `More in ${primaryRepo}`,
-                    tasks: related
-                  } : null;
-                });
-            }
-
-            if (foundTask.devStartDate) {
-                const taskDate = new Date(foundTask.devStartDate);
-                const taskMonth = taskDate.getMonth();
-                const taskYear = taskDate.getFullYear();
-                strategies.push(() => {
-                  const related = allTasks.filter(t => {
-                      if (!t.devStartDate) return false;
-                      const otherDate = new Date(t.devStartDate);
-                      return otherDate.getMonth() === taskMonth && otherDate.getFullYear() === taskYear;
-                  });
-                  return related.length > 0 ? {
-                    title: `Also from ${format(taskDate, 'MMMM yyyy')}`,
-                    tasks: related
-                  } : null;
-                });
-            }
-            
-            const validStrategies = strategies.map(s => s()).filter(s => s !== null) as { title: string, tasks: Task[] }[];
-
-            if (validStrategies.length > 0) {
-                const randomIndex = Math.floor(Math.random() * validStrategies.length);
-                const selectedStrategy = validStrategies[randomIndex];
-                
-                const shuffled = selectedStrategy.tasks.sort(() => 0.5 - Math.random());
-                setRelatedTasks(shuffled.slice(0, 4));
-                setRelatedTasksTitle(selectedStrategy.title);
-            } else {
-                setRelatedTasks([]);
-                setRelatedTasksTitle('');
-            }
-            
             config.fields.forEach(field => {
                 const isLinkField = field.type === 'url' || (field.type === 'text' && !!field.baseUrl);
                 if (isLinkField && field.isCustom) {
@@ -199,7 +138,6 @@ export default function TaskPage() {
                 }
             });
         }
-
       } else {
         document.title = `Task Not Found | ${config.appName || 'My Task Manager'}`;
       }
@@ -233,6 +171,76 @@ export default function TaskPage() {
         window.removeEventListener('storage', handleStorageChange);
     };
   }, [taskId]);
+
+  useEffect(() => {
+    if (!task || task.deletedAt) {
+      setRelatedTasks([]);
+      setRelatedTasksTitle('');
+      return;
+    }
+    
+    // This logic runs only on the client, after the task has been loaded.
+    // This avoids hydration errors from Math.random().
+    const allDevs = getDevelopers();
+    const allTasks = getTasks().filter(t => t.id !== task.id);
+    const strategies: (() => { title: string, tasks: Task[] } | null)[] = [];
+
+    if (task.developers && task.developers.length > 0) {
+        const primaryDevId = task.developers[0];
+        const primaryDev = allDevs.find(d => d.id === primaryDevId);
+        if (primaryDev) {
+            strategies.push(() => {
+              const related = allTasks.filter(t => t.developers?.includes(primaryDevId));
+              return related.length > 0 ? {
+                title: `More from ${primaryDev.name}`,
+                tasks: related
+              } : null;
+            });
+        }
+    }
+
+    if (task.repositories && task.repositories.length > 0) {
+        const primaryRepo = task.repositories[0];
+        strategies.push(() => {
+          const related = allTasks.filter(t => t.repositories?.includes(primaryRepo));
+          return related.length > 0 ? {
+            title: `More in ${primaryRepo}`,
+            tasks: related
+          } : null;
+        });
+    }
+
+    if (task.devStartDate) {
+        const taskDate = new Date(task.devStartDate);
+        const taskMonth = taskDate.getMonth();
+        const taskYear = taskDate.getFullYear();
+        strategies.push(() => {
+          const related = allTasks.filter(t => {
+              if (!t.devStartDate) return false;
+              const otherDate = new Date(t.devStartDate);
+              return otherDate.getMonth() === taskMonth && otherDate.getFullYear() === taskYear;
+          });
+          return related.length > 0 ? {
+            title: `Also from ${format(taskDate, 'MMMM yyyy')}`,
+            tasks: related
+          } : null;
+        });
+    }
+    
+    const validStrategies = strategies.map(s => s()).filter(s => s !== null) as { title: string, tasks: Task[] }[];
+
+    if (validStrategies.length > 0) {
+        const randomIndex = Math.floor(Math.random() * validStrategies.length);
+        const selectedStrategy = validStrategies[randomIndex];
+        
+        const shuffled = selectedStrategy.tasks.sort(() => 0.5 - Math.random());
+        setRelatedTasks(shuffled.slice(0, 4));
+        setRelatedTasksTitle(selectedStrategy.title);
+    } else {
+        setRelatedTasks([]);
+        setRelatedTasksTitle('');
+    }
+  }, [task]);
   
   const handleTogglePin = (taskIdToToggle: string) => {
     const newPinnedIds = pinnedTaskIds.includes(taskIdToToggle)
@@ -407,12 +415,10 @@ export default function TaskPage() {
   };
 
   const handleReminderSuccess = () => {
-    // This function provides a lighter-weight refresh than `loadData` to prevent state reversion.
-    const updatedTask = getTaskById(task.id);
-    const updatedLogs = getLogsForTask(task.id);
+    const updatedTask = getTaskById(taskId);
     if(updatedTask) {
         setTask(updatedTask);
-        setTaskLogs(updatedLogs);
+        setTaskLogs(getLogsForTask(taskId));
     }
   };
 
