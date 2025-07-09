@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles, Share2, History } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles, Share2, History, MessageSquare, StickyNote } from 'lucide-react';
 import { getStatusConfig, TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -147,7 +147,7 @@ export default function TaskPage() {
                 const selectedStrategy = validStrategies[randomIndex];
                 
                 const shuffled = selectedStrategy.tasks.sort(() => 0.5 - Math.random());
-                setRelatedTasks(shuffled.slice(0, 2));
+                setRelatedTasks(shuffled.slice(0, 4));
                 setRelatedTasksTitle(selectedStrategy.title);
             } else {
                 setRelatedTasks([]);
@@ -355,7 +355,7 @@ export default function TaskPage() {
           case 'tags':
               return Array.isArray(value) ? (
                   <div className="flex flex-wrap gap-1">
-                      {value.map(v => <Badge key={v} variant="secondary">{v}</Badge>)}
+                      {value.map((v: any) => <Badge key={v} variant="secondary">{v}</Badge>)}
                   </div>
               ) : String(value);
           default:
@@ -464,7 +464,7 @@ export default function TaskPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
             {/* Left Column */}
             <div className="lg:col-span-2 space-y-6 lg:space-y-8">
-                {/* Top Section: Title */}
+                {/* Top Section: Title & Description */}
                 <Card className={cn("relative overflow-hidden", cardClassName)}>
                     <Icon
                     className={cn(
@@ -780,9 +780,9 @@ export default function TaskPage() {
                             <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('developers') || 'Developers'}</h4>
                             <div className="flex flex-wrap gap-4">
                                 {assignedDevelopers.length > 0 ? (
-                                    assignedDevelopers.map((dev, index) => (
+                                    assignedDevelopers.map((dev) => (
                                       <button 
-                                        key={`${dev.id}-${index}`}
+                                        key={`${dev.id}-${dev.name}`}
                                         className="flex items-center gap-2 p-1 -m-1 rounded-md hover:bg-muted/50 transition-colors"
                                         onClick={() => setPersonInView({ person: dev, type: 'Developer' })}
                                       >
@@ -815,9 +815,9 @@ export default function TaskPage() {
                             <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('testers') || 'Testers'}</h4>
                             <div className="flex flex-wrap gap-4">
                                 {assignedTesters.length > 0 ? (
-                                    assignedTesters.map((tester, index) => (
+                                    assignedTesters.map((tester) => (
                                       <button 
-                                        key={`${tester.id}-${index}`}
+                                        key={`${tester.id}-${tester.name}`}
                                         className="flex items-center gap-2 p-1 -m-1 rounded-md hover:bg-muted/50 transition-colors"
                                         onClick={() => setPersonInView({ person: tester, type: 'Tester' })}
                                       >
@@ -931,21 +931,32 @@ export default function TaskPage() {
                 </Card>
 
                 {!isBinned && (
-                    <CommentsSection
-                        taskId={task.id}
-                        comments={task.comments || []}
-                        onCommentsUpdate={handleCommentsUpdate}
-                        readOnly={isBinned}
-                    />
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-xl">
+                                <StickyNote className="h-5 w-5" />
+                                {fieldLabels.get('comments') || 'Comments'}
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <CommentsSection
+                                taskId={task.id}
+                                comments={task.comments || []}
+                                onCommentsUpdate={handleCommentsUpdate}
+                                readOnly={isBinned}
+                                hideHeader
+                            />
+                        </CardContent>
+                    </Card>
+                )}
+                {!isBinned && taskLogs.length > 0 && (
+                    <TaskHistory logs={taskLogs} />
                 )}
             </div>
           </div>
           
-          <div className="mt-6 lg:mt-8 space-y-6 lg:space-y-8">
-              {!isBinned && taskLogs.length > 0 && (
-                  <TaskHistory logs={taskLogs} />
-              )}
-              {!isBinned && (
+          {!isBinned && (
+              <div className="mt-6 lg:mt-8">
                 <RelatedTasksSection
                     title={relatedTasksTitle}
                     tasks={relatedTasks}
@@ -954,8 +965,8 @@ export default function TaskPage() {
                     developers={developers}
                     testers={testers}
                 />
-              )}
-          </div>
+              </div>
+          )}
         </div>
       <PersonProfileCard
         person={personInView?.person ?? null}
