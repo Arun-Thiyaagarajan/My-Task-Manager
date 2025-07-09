@@ -94,11 +94,6 @@ export default function TaskPage() {
       const foundTask = getTaskById(taskId);
       const config = getUiConfig();
       
-      const savedPinnedTasks = localStorage.getItem(PINNED_TASKS_STORAGE_KEY);
-      if (savedPinnedTasks) {
-        setPinnedTaskIds(JSON.parse(savedPinnedTasks));
-      }
-
       setTask(foundTask || null);
       setUiConfig(config);
       setDevelopers(allDevs);
@@ -213,10 +208,23 @@ export default function TaskPage() {
   }
 
   useEffect(() => {
+    const savedPinnedTasks = localStorage.getItem(PINNED_TASKS_STORAGE_KEY);
+    if (savedPinnedTasks) {
+      setPinnedTaskIds(JSON.parse(savedPinnedTasks));
+    }
     loadData();
-    window.addEventListener('storage', loadData);
+
+    const handleStorageChange = () => {
+        const updatedPinnedTasks = localStorage.getItem(PINNED_TASKS_STORAGE_KEY);
+        if (updatedPinnedTasks) {
+          setPinnedTaskIds(JSON.parse(updatedPinnedTasks));
+        }
+        loadData();
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
     return () => {
-        window.removeEventListener('storage', loadData);
+        window.removeEventListener('storage', handleStorageChange);
     };
   }, [taskId]);
   
