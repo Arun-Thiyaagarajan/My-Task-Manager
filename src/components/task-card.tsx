@@ -392,7 +392,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                             </TooltipTrigger>
                             <TooltipContent>
                               <div className="text-sm p-1 space-y-1">
-                                  <p className="font-semibold">More Developers:</p>
+                                  <p className="font-semibold">More {developersLabel}:</p>
                                   <ul className="list-disc list-inside space-y-0.5">
                                       {hiddenDevelopers.map(dev => <li key={dev.id}>{dev.name}</li>)}
                                   </ul>
@@ -450,7 +450,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                             </TooltipTrigger>
                             <TooltipContent>
                               <div className="text-sm p-1 space-y-1">
-                                  <p className="font-semibold">More Testers:</p>
+                                  <p className="font-semibold">More {testersLabel}:</p>
                                   <ul className="list-disc list-inside space-y-0.5">
                                       {hiddenTesters.map(tester => <li key={tester.id}>{tester.name}</li>)}
                                   </ul>
