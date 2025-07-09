@@ -147,7 +147,7 @@ export default function TaskPage() {
                 const selectedStrategy = validStrategies[randomIndex];
                 
                 const shuffled = selectedStrategy.tasks.sort(() => 0.5 - Math.random());
-                setRelatedTasks(shuffled.slice(0, 3));
+                setRelatedTasks(shuffled.slice(0, 2));
                 setRelatedTasksTitle(selectedStrategy.title);
             } else {
                 setRelatedTasks([]);
@@ -462,72 +462,241 @@ export default function TaskPage() {
         )}
 
         <div className="space-y-6 lg:space-y-8">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-              <div className="lg:col-span-2 space-y-6 lg:space-y-8">
-                {/* Title Card */}
-                <Card className={cn("relative overflow-hidden", cardClassName)}>
-                  <Icon
-                    className={cn(
-                      'absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none transition-transform duration-300 ease-in-out',
-                      iconColorClassName,
-                      task.status !== 'In Progress' && 'group-hover/card:scale-110 group-hover/card:-rotate-6'
-                    )}
-                  />
-                  <div className="relative z-10">
-                    <CardHeader>
-                      <div className="flex flex-wrap items-start justify-between gap-4">
-                        <div className="flex-1 flex items-center gap-3">
-                            <CardTitle className="text-3xl font-bold">
-                              {task.title}
-                            </CardTitle>
-                            {!isBinned && (
-                            <FavoriteToggleButton
-                              taskId={task.id}
-                              isFavorite={!!task.isFavorite}
-                              onUpdate={loadData}
-                              className="h-9 w-9"
-                            />
-                          )}
-                        </div>
-                        <div className="flex-shrink-0 flex items-center gap-1">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" disabled={isBinned} className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-100">
-                                <TaskStatusBadge status={task.status} variant="prominent" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Set Status</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              {uiConfig.taskStatuses.map(s => {
-                                const currentStatusConfig = getStatusConfig(s);
-                                const { Icon } = currentStatusConfig;
-                                return (
-                                  <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)}>
-                                    <div className="flex items-center gap-2">
-                                      <Icon className={cn("h-3 w-3", s === 'In Progress' && 'animate-spin')} />
-                                      <span>{s}</span>
-                                    </div>
-                                    {task.status === s && <Check className="ml-auto h-4 w-4" />}
-                                  </DropdownMenuItem>
-                                )
-                              })}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
+          {/* Top Grid: Title and Details */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
+            <div className="lg:col-span-2">
+              {/* Title Card */}
+              <Card className={cn("relative overflow-hidden", cardClassName)}>
+                <Icon
+                  className={cn(
+                    'absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none transition-transform duration-300 ease-in-out',
+                    iconColorClassName,
+                    task.status !== 'In Progress' && 'group-hover/card:scale-110 group-hover/card:-rotate-6'
+                  )}
+                />
+                <div className="relative z-10">
+                  <CardHeader>
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="flex-1 flex items-center gap-3">
+                          <CardTitle className="text-3xl font-bold">
+                            {task.title}
+                          </CardTitle>
+                          {!isBinned && (
+                          <FavoriteToggleButton
+                            taskId={task.id}
+                            isFavorite={!!task.isFavorite}
+                            onUpdate={loadData}
+                            className="h-9 w-9"
+                          />
+                        )}
                       </div>
-                      <CardDescription>
-                        Last updated on {format(new Date(task.updatedAt), 'PPP')}
-                      </CardDescription>
+                      <div className="flex-shrink-0 flex items-center gap-1">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" disabled={isBinned} className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-100">
+                              <TaskStatusBadge status={task.status} variant="prominent" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Set Status</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {uiConfig.taskStatuses.map(s => {
+                              const currentStatusConfig = getStatusConfig(s);
+                              const { Icon } = currentStatusConfig;
+                              return (
+                                <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)}>
+                                  <div className="flex items-center gap-2">
+                                    <Icon className={cn("h-3 w-3", s === 'In Progress' && 'animate-spin')} />
+                                    <span>{s}</span>
+                                  </div>
+                                  {task.status === s && <Check className="ml-auto h-4 w-4" />}
+                                </DropdownMenuItem>
+                              )
+                            })}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                    <CardDescription>
+                      Last updated on {format(new Date(task.updatedAt), 'PPP')}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-foreground/80 whitespace-pre-wrap">
+                      {task.description}
+                    </p>
+                  </CardContent>
+                </div>
+              </Card>
+            </div>
+            <div className="lg:col-span-1">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-xl">
+                            <ListChecks className="h-5 w-5" />
+                            Task Details
+                        </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <p className="text-foreground/80 whitespace-pre-wrap">
-                        {task.description}
-                      </p>
-                    </CardContent>
-                  </div>
-                </Card>
+                    <CardContent className="space-y-4">
+                        <div>
+                            <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('developers') || 'Developers'}</h4>
+                            <div className="flex flex-wrap gap-4">
+                                {assignedDevelopers.length > 0 ? (
+                                    assignedDevelopers.map((dev, index) => (
+                                      <button 
+                                        key={`${dev.id}-${index}`}
+                                        className="flex items-center gap-2 p-1 -m-1 rounded-md hover:bg-muted/50 transition-colors"
+                                        onClick={() => setPersonInView({ person: dev, type: 'Developer' })}
+                                      >
+                                          <Avatar className="h-7 w-7">
+                                          <AvatarFallback
+                                              className="font-semibold text-white text-[10px]"
+                                              style={{
+                                              backgroundColor: `#${getAvatarColor(dev.name)}`,
+                                              }}
+                                          >
+                                              {getInitials(dev.name)}
+                                          </AvatarFallback>
+                                          </Avatar>
+                                          <span className="text-sm font-medium text-foreground">
+                                          {dev.name}
+                                          </span>
+                                      </button>
+                                    ))
+                                ) : (
+                                <p className="text-sm text-muted-foreground">
+                                    No Developers assigned.
+                                </p>
+                                )}
+                            </div>
+                        </div>
 
+                        <Separator />
+                        
+                        <div>
+                            <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('testers') || 'Testers'}</h4>
+                            <div className="flex flex-wrap gap-4">
+                                {assignedTesters.length > 0 ? (
+                                    assignedTesters.map((tester, index) => (
+                                      <button 
+                                        key={`${tester.id}-${index}`}
+                                        className="flex items-center gap-2 p-1 -m-1 rounded-md hover:bg-muted/50 transition-colors"
+                                        onClick={() => setPersonInView({ person: tester, type: 'Tester' })}
+                                      >
+                                        <Avatar className="h-7 w-7">
+                                        <AvatarFallback
+                                            className="font-semibold text-white text-[10px]"
+                                            style={{
+                                            backgroundColor: `#${getAvatarColor(tester.name)}`,
+                                            }}
+                                        >
+                                            {getInitials(tester.name)}
+                                        </AvatarFallback>
+                                        </Avatar>
+                                        <span className="text-sm font-medium text-foreground">
+                                        {tester.name}
+                                        </span>
+                                      </button>
+                                    ))
+                                ) : (
+                                <p className="text-sm text-muted-foreground">
+                                    No Testers assigned.
+                                </p>
+                                )}
+                            </div>
+                        </div>
+                        
+                        <Separator />
+
+                        <div>
+                            <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('repositories') || 'Repositories'}</h4>
+                            <div className="flex flex-wrap gap-1">
+                              {(task.repositories && task.repositories.length > 0) ? (task.repositories || []).map(repo => (
+                                <Badge
+                                  key={repo}
+                                  variant="repo"
+                                  style={getRepoBadgeStyle(repo)}
+                                >
+                                  {repo}
+                                </Badge>
+                              )) : (
+                                <p className="text-sm text-muted-foreground">No repositories assigned.</p>
+                              )}
+                            </div>
+                        </div>
+                        
+                        {azureFieldConfig && azureFieldConfig.isActive && task.azureWorkItemId && (
+                            <>
+                                <Separator />
+                                <div>
+                                    <h4 className="text-sm font-semibold text-muted-foreground mb-2">{azureFieldConfig.label || 'Azure DevOps'}</h4>
+                                    {azureFieldConfig.baseUrl ? (
+                                      <a href={`${azureFieldConfig.baseUrl}${task.azureWorkItemId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline text-sm">
+                                        <ExternalLink className="h-4 w-4" />
+                                        <span>Work Item #{task.azureWorkItemId}</span>
+                                      </a>
+                                    ) : (
+                                      <span className="text-sm text-foreground">{task.azureWorkItemId}</span>
+                                    )}
+                                </div>
+                            </>
+                        )}
+
+                        <Separator />
+
+                        <div>
+                            <h4 className="text-sm font-semibold text-muted-foreground mb-2">Important Dates</h4>
+                            <div className="space-y-2 text-sm">
+                                {task.devStartDate && (
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">{fieldLabels.get('devStartDate') || 'Dev Start Date'}</span>
+                                        <span>{format(new Date(task.devStartDate), 'PPP')}</span>
+                                    </div>
+                                )}
+                                {task.devEndDate && (
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">{fieldLabels.get('devEndDate') || 'Dev End Date'}</span>
+                                        <span>{format(new Date(task.devEndDate), 'PPP')}</span>
+                                    </div>
+                                )}
+                                {(task.devStartDate || task.devEndDate) && (task.qaStartDate || task.qaEndDate) && <Separator className="my-1"/>}
+                                {task.qaStartDate && (
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">{fieldLabels.get('qaStartDate') || 'QA Start Date'}</span>
+                                        <span>{format(new Date(task.qaStartDate), 'PPP')}</span>
+                                    </div>
+                                )}
+                                {task.qaEndDate && (
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">{fieldLabels.get('qaEndDate') || 'QA End Date'}</span>
+                                        <span>{format(new Date(task.qaEndDate), 'PPP')}</span>
+                                    </div>
+                                )}
+                                {(hasDevQaDates || hasAnyDeploymentDate) && <Separator className="my-2"/>}
+
+                                {task.deploymentDates && Object.entries(task.deploymentDates).map(([env, date]) => {
+                                    if (!date) return null;
+                                    return (
+                                        <div key={env} className="flex justify-between">
+                                            <span className="text-muted-foreground capitalize">{env} Deployed</span>
+                                            <span>{format(new Date(date), 'PPP')}</span>
+                                        </div>
+                                    )
+                                })}
+
+                                 {!(hasDevQaDates || hasAnyDeploymentDate) && (
+                                    <p className="text-muted-foreground text-center text-xs">No dates have been set.</p>
+                                 )}
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+          </div>
+          
+          {/* Main Content Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
+            <div className="lg:col-span-2 space-y-6 lg:space-y-8">
                 {/* Deploy & PR Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
                     {deploymentField && (
@@ -620,7 +789,7 @@ export default function TaskPage() {
                     )}
                 </div>
                 
-                {Object.keys(groupedCustomFields).map(groupName => (
+                {Object.entries(groupedCustomFields).map(groupName => (
                   <Card key={groupName}>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-xl">
@@ -764,200 +933,38 @@ export default function TaskPage() {
                       </CardContent>
                   </Card>
                 )}
-              </div>
-              
-              <div className="lg:col-span-1 flex flex-col gap-6 lg:gap-8">
-                  <Card>
-                      <CardHeader>
-                          <CardTitle className="flex items-center gap-2 text-xl">
-                              <ListChecks className="h-5 w-5" />
-                              Task Details
-                          </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                          <div>
-                              <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('developers') || 'Developers'}</h4>
-                              <div className="flex flex-wrap gap-4">
-                                  {assignedDevelopers.length > 0 ? (
-                                      assignedDevelopers.map((dev, index) => (
-                                        <button 
-                                          key={`${dev.id}-${index}`}
-                                          className="flex items-center gap-2 p-1 -m-1 rounded-md hover:bg-muted/50 transition-colors"
-                                          onClick={() => setPersonInView({ person: dev, type: 'Developer' })}
-                                        >
-                                            <Avatar className="h-7 w-7">
-                                            <AvatarFallback
-                                                className="font-semibold text-white text-[10px]"
-                                                style={{
-                                                backgroundColor: `#${getAvatarColor(dev.name)}`,
-                                                }}
-                                            >
-                                                {getInitials(dev.name)}
-                                            </AvatarFallback>
-                                            </Avatar>
-                                            <span className="text-sm font-medium text-foreground">
-                                            {dev.name}
-                                            </span>
-                                        </button>
-                                      ))
-                                  ) : (
-                                  <p className="text-sm text-muted-foreground">
-                                      No Developers assigned.
-                                  </p>
-                                  )}
-                              </div>
-                          </div>
-
-                          <Separator />
-                          
-                          <div>
-                              <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('testers') || 'Testers'}</h4>
-                              <div className="flex flex-wrap gap-4">
-                                  {assignedTesters.length > 0 ? (
-                                      assignedTesters.map((tester, index) => (
-                                        <button 
-                                          key={`${tester.id}-${index}`}
-                                          className="flex items-center gap-2 p-1 -m-1 rounded-md hover:bg-muted/50 transition-colors"
-                                          onClick={() => setPersonInView({ person: tester, type: 'Tester' })}
-                                        >
-                                          <Avatar className="h-7 w-7">
-                                          <AvatarFallback
-                                              className="font-semibold text-white text-[10px]"
-                                              style={{
-                                              backgroundColor: `#${getAvatarColor(tester.name)}`,
-                                              }}
-                                          >
-                                              {getInitials(tester.name)}
-                                          </AvatarFallback>
-                                          </Avatar>
-                                          <span className="text-sm font-medium text-foreground">
-                                          {tester.name}
-                                          </span>
-                                        </button>
-                                      ))
-                                  ) : (
-                                  <p className="text-sm text-muted-foreground">
-                                      No Testers assigned.
-                                  </p>
-                                  )}
-                              </div>
-                          </div>
-                          
-                          <Separator />
-
-                          <div>
-                              <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('repositories') || 'Repositories'}</h4>
-                              <div className="flex flex-wrap gap-1">
-                                {(task.repositories && task.repositories.length > 0) ? (task.repositories || []).map(repo => (
-                                  <Badge
-                                    key={repo}
-                                    variant="repo"
-                                    style={getRepoBadgeStyle(repo)}
-                                  >
-                                    {repo}
-                                  </Badge>
-                                )) : (
-                                  <p className="text-sm text-muted-foreground">No repositories assigned.</p>
-                                )}
-                              </div>
-                          </div>
-                          
-                          {azureFieldConfig && azureFieldConfig.isActive && task.azureWorkItemId && (
-                              <>
-                                  <Separator />
-                                  <div>
-                                      <h4 className="text-sm font-semibold text-muted-foreground mb-2">{azureFieldConfig.label || 'Azure DevOps'}</h4>
-                                      {azureFieldConfig.baseUrl ? (
-                                        <a href={`${azureFieldConfig.baseUrl}${task.azureWorkItemId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline text-sm">
-                                          <ExternalLink className="h-4 w-4" />
-                                          <span>Work Item #{task.azureWorkItemId}</span>
-                                        </a>
-                                      ) : (
-                                        <span className="text-sm text-foreground">{task.azureWorkItemId}</span>
-                                      )}
-                                  </div>
-                              </>
-                          )}
-
-                          <Separator />
-
-                          <div>
-                              <h4 className="text-sm font-semibold text-muted-foreground mb-2">Important Dates</h4>
-                              <div className="space-y-2 text-sm">
-                                  {task.devStartDate && (
-                                      <div className="flex justify-between">
-                                          <span className="text-muted-foreground">{fieldLabels.get('devStartDate') || 'Dev Start Date'}</span>
-                                          <span>{format(new Date(task.devStartDate), 'PPP')}</span>
-                                      </div>
-                                  )}
-                                  {task.devEndDate && (
-                                      <div className="flex justify-between">
-                                          <span className="text-muted-foreground">{fieldLabels.get('devEndDate') || 'Dev End Date'}</span>
-                                          <span>{format(new Date(task.devEndDate), 'PPP')}</span>
-                                      </div>
-                                  )}
-                                  {(task.devStartDate || task.devEndDate) && (task.qaStartDate || task.qaEndDate) && <Separator className="my-1"/>}
-                                  {task.qaStartDate && (
-                                      <div className="flex justify-between">
-                                          <span className="text-muted-foreground">{fieldLabels.get('qaStartDate') || 'QA Start Date'}</span>
-                                          <span>{format(new Date(task.qaStartDate), 'PPP')}</span>
-                                      </div>
-                                  )}
-                                  {task.qaEndDate && (
-                                      <div className="flex justify-between">
-                                          <span className="text-muted-foreground">{fieldLabels.get('qaEndDate') || 'QA End Date'}</span>
-                                          <span>{format(new Date(task.qaEndDate), 'PPP')}</span>
-                                      </div>
-                                  )}
-                                  {(hasDevQaDates || hasAnyDeploymentDate) && <Separator className="my-2"/>}
-
-                                  {task.deploymentDates && Object.entries(task.deploymentDates).map(([env, date]) => {
-                                      if (!date) return null;
-                                      return (
-                                          <div key={env} className="flex justify-between">
-                                              <span className="text-muted-foreground capitalize">{env} Deployed</span>
-                                              <span>{format(new Date(date), 'PPP')}</span>
-                                          </div>
-                                      )
-                                  })}
-
-                                   {!(hasDevQaDates || hasAnyDeploymentDate) && (
-                                      <p className="text-muted-foreground text-center text-xs">No dates have been set.</p>
-                                   )}
-                              </div>
-                          </div>
-                      </CardContent>
-                  </Card>
-
-                   {!isBinned && (
-                    <CommentsSection
-                        taskId={task.id}
-                        comments={task.comments || []}
-                        onCommentsUpdate={handleCommentsUpdate}
-                        readOnly={isBinned}
-                    />
-                  )}
-              </div>
             </div>
-
-            <div className="space-y-6 lg:space-y-8">
-                {!isBinned && taskLogs.length > 0 && (
+            
+            <div className="lg:col-span-1 flex flex-col gap-6 lg:gap-8">
+               {!isBinned && (
+                <CommentsSection
+                    taskId={task.id}
+                    comments={task.comments || []}
+                    onCommentsUpdate={handleCommentsUpdate}
+                    readOnly={isBinned}
+                />
+              )}
+               {!isBinned && taskLogs.length > 0 && (
                   <TaskHistory logs={taskLogs} />
-                )}
-
-                {!isBinned && (
-                  <RelatedTasksSection
-                      title={relatedTasksTitle}
-                      tasks={relatedTasks}
-                      onTaskUpdate={loadData}
-                      uiConfig={uiConfig}
-                      developers={developers}
-                      testers={testers}
-                  />
                 )}
             </div>
           </div>
+          {/* End Main Content Grid */}
+
+          <div className="space-y-6 lg:space-y-8">
+              {!isBinned && (
+                <RelatedTasksSection
+                    title={relatedTasksTitle}
+                    tasks={relatedTasks}
+                    onTaskUpdate={loadData}
+                    uiConfig={uiConfig}
+                    developers={developers}
+                    testers={testers}
+                />
+              )}
+          </div>
         </div>
+      </div>
       <PersonProfileCard
         person={personInView?.person ?? null}
         type={personInView?.type ?? 'Developer'}
