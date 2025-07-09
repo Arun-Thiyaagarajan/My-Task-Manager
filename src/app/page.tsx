@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester, updateUiConfig, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, getGeneralReminders, deleteGeneralReminder } from '@/lib/data';
+import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester, updateUiConfig, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -46,9 +46,7 @@ import {
   Heart,
   StickyNote,
   PinOff,
-  Megaphone,
   BellRing,
-  MoreVertical,
 } from 'lucide-react';
 import { cn, fuzzySearch } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig, Log, GeneralReminder } from '@/lib/types';
@@ -104,7 +102,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { ToastAction } from '@/components/ui/toast';
-import { Separator } from '@/components/ui/separator';
+import { ReminderStack } from '@/components/reminder-stack';
 
 
 type ViewMode = 'grid' | 'table';
@@ -141,7 +139,6 @@ export default function Home() {
   const [openGroups, setOpenGroups] = useState<string[]>(['priority', 'completed', 'other', 'hold']);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [pinnedTaskIds, setPinnedTaskIds] = useState<string[]>([]);
-  const [generalReminders, setGeneralReminders] = useState<GeneralReminder[]>([]);
 
   const handlePreviousMonth = () => setSelectedMonth(subMonths(selectedMonth, 1));
   const handleNextMonth = () => setSelectedMonth(addMonths(selectedMonth, 1));
@@ -151,7 +148,6 @@ export default function Home() {
         setTasks(getTasks());
         setDevelopers(getDevelopers());
         setTesters(getTesters());
-        setGeneralReminders(getGeneralReminders());
         const config = getUiConfig();
         setUiConfig(config);
         document.title = config.appName || 'My Task Manager';
@@ -181,13 +177,14 @@ export default function Home() {
 
   }, []);
 
-  const handleTogglePin = (taskId: string) => {
-    const newPinnedIds = pinnedTaskIds.includes(taskId)
-      ? pinnedTaskIds.filter(id => id !== taskId)
-      : [...pinnedTaskIds, taskId];
-    
+  const handleUnpin = (taskId: string) => {
+    const newPinnedIds = pinnedTaskIds.filter(id => id !== taskId);
     setPinnedTaskIds(newPinnedIds);
     localStorage.setItem(PINNED_TASKS_STORAGE_KEY, JSON.stringify(newPinnedIds));
+    toast({
+        title: 'Reminder Unpinned',
+        description: 'The reminder will no longer appear on the main page.',
+    });
   };
 
   const handleViewModeChange = (mode: ViewMode) => {
@@ -884,7 +881,6 @@ export default function Home() {
     return <LoadingSpinner text="Loading tasks..." />;
   }
   
-  const timeFormatString = uiConfig.timeFormat === '24h' ? 'PPP HH:mm' : 'PPP p';
   const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
   const repoFieldConfig = uiConfig.fields.find(f => f.key === 'repositories');
   let REPOSITORIES = (repoFieldConfig?.options?.map(opt => opt.value) ?? uiConfig.repositoryConfigs?.map(r => r.name)) ?? INITIAL_REPOSITORY_CONFIGS.map(r => r.name);
@@ -965,71 +961,8 @@ export default function Home() {
       </div>
       
       <div className="space-y-6">
-          {(generalReminders.length > 0 || (uiConfig.remindersEnabled && pinnedReminders.length > 0)) && (
-            <Alert className="bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/50">
-                <AlertTitle className="text-amber-800 dark:text-amber-200 mb-3">Important Reminders</AlertTitle>
-                <AlertDescription>
-                <div className="space-y-4">
-                    {generalReminders.map(reminder => (
-                    <div key={reminder.id} className="flex items-start justify-between gap-4">
-                        <div className="flex items-start gap-3">
-                        <Megaphone className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-                        <p className="text-sm text-amber-700 dark:text-amber-300 whitespace-pre-wrap">
-                            {reminder.text}
-                        </p>
-                        </div>
-                        <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                            variant="ghost" size="icon" className="h-7 w-7 text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 flex-shrink-0"
-                            onClick={() => {
-                                deleteGeneralReminder(reminder.id);
-                                refreshData();
-                            }}
-                            >
-                            <X className="h-4 w-4" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Dismiss reminder</TooltipContent>
-                        </Tooltip>
-                    </div>
-                    ))}
-                    
-                    {generalReminders.length > 0 && uiConfig.remindersEnabled && pinnedReminders.length > 0 && (
-                        <Separator className="my-3 bg-amber-300/50 dark:bg-amber-700/50" />
-                    )}
-
-                    {uiConfig.remindersEnabled && pinnedReminders.map(task => (
-                    <div key={task.id} className="flex items-start justify-between gap-4">
-                        <div className="flex items-start gap-3">
-                            <BellRing className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-                            <div className="text-sm">
-                                <p className="font-semibold text-amber-800 dark:text-amber-200">
-                                <Link href={`/tasks/${task.id}`} className="hover:underline">{task.title}</Link>
-                                </p>
-                                <p className="text-amber-700 dark:text-amber-300 whitespace-pre-wrap">
-                                {task.reminder}
-                                {task.reminderExpiresAt && (
-                                    <span className="block text-xs italic mt-1 text-amber-600 dark:text-amber-400">
-                                        (Expires {format(new Date(task.reminderExpiresAt), timeFormatString)})
-                                    </span>
-                                )}
-                                </p>
-                            </div>
-                        </div>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 flex-shrink-0" onClick={() => handleTogglePin(task.id)}>
-                                <PinOff className="h-4 w-4" />
-                            </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Unpin this reminder</TooltipContent>
-                        </Tooltip>
-                    </div>
-                    ))}
-                </div>
-                </AlertDescription>
-            </Alert>
+          {uiConfig.remindersEnabled && pinnedReminders.length > 0 && (
+             <ReminderStack reminders={pinnedReminders} uiConfig={uiConfig} onUnpin={handleUnpin} />
           )}
 
           <Card>
@@ -1451,7 +1384,7 @@ export default function Home() {
 
           {sortedTasks.length > 0 ? (
             viewMode === 'grid' ? (
-              <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handleTogglePin} />
+              <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handleUnpin} />
             ) : (
               <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} />
             )

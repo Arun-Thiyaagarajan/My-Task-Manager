@@ -21,6 +21,7 @@ import {
   setActiveCompanyId,
   deleteCompany,
   getUiConfig,
+  getGeneralReminders,
 } from '@/lib/data';
 import type { Company } from '@/lib/types';
 import { Building, PlusCircle, Trash2, Edit, LayoutDashboard, Cog, Menu, FileClock, Home, Bell } from 'lucide-react';
@@ -43,6 +44,7 @@ import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { useRouter } from 'next/navigation';
 import { ImagePreviewDialog } from './image-preview-dialog';
 import { GeneralRemindersDialog } from './general-reminders-dialog';
+import { cn } from '@/lib/utils';
 
 const HeaderLink = ({ href, children, className, onClick }: { href: string; children: React.ReactNode, className?: string; onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void; }) => {
     const router = useRouter();
@@ -73,21 +75,24 @@ export function Header() {
   const [appIcon, setAppIcon] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isRemindersOpen, setIsRemindersOpen] = useState(false);
+  const [generalRemindersCount, setGeneralRemindersCount] = useState(0);
 
   const refreshAllData = () => {
     const config = getUiConfig();
     setCompanies(getCompanies());
     setAppName(config.appName || 'My Task Manager');
     setAppIcon(config.appIcon || null);
+    setGeneralRemindersCount(getGeneralReminders().length);
   };
 
   useEffect(() => {
     refreshAllData();
     
-    // This custom event is dispatched on company switch, add/edit/delete company, and branding save.
     window.addEventListener('company-changed', refreshAllData);
+    window.addEventListener('storage', refreshAllData);
     return () => {
         window.removeEventListener('company-changed', refreshAllData);
+        window.removeEventListener('storage', refreshAllData);
     };
 
   }, []);
@@ -235,9 +240,15 @@ export function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            <Button variant="ghost" size="icon" onClick={() => setIsRemindersOpen(true)}>
-              <Bell className="h-5 w-5" />
-              <span className="sr-only">General Reminders</span>
+            <Button variant="ghost" size="icon" onClick={() => setIsRemindersOpen(true)} className="relative">
+                <Bell className="h-5 w-5" />
+                {generalRemindersCount > 0 && (
+                    <div className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/75" />
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary" />
+                    </div>
+                )}
+                <span className="sr-only">General Reminders</span>
             </Button>
             <ThemeToggle />
             <div className="md:hidden">
