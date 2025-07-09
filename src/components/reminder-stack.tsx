@@ -83,7 +83,7 @@ export function ReminderStack({
   }, [isOpen, onOpenChange]);
 
 
-  if ((reminders.length + generalReminders.length) === 0) {
+  if (!isOpen && (reminders.length + generalReminders.length) === 0) {
       return null;
   }
 
@@ -111,11 +111,11 @@ export function ReminderStack({
          )}
         >
           <div className="w-full flex justify-center items-center relative mb-4">
-            <h2 className="text-xl font-bold text-background">Important Reminders</h2>
+            <h2 className="text-xl font-bold text-primary-foreground">Important Reminders</h2>
             <Button 
                 variant="ghost" 
                 size="icon" 
-                className="absolute right-0 text-background/70 hover:text-background h-8 w-8 hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-background/50 focus-visible:ring-offset-0" 
+                className="absolute right-0 text-primary-foreground/70 hover:text-primary-foreground h-8 w-8 hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-primary-foreground/50 focus-visible:ring-offset-0" 
                 onClick={() => onOpenChange(false)}
             >
                 <X className="h-5 w-5" />
@@ -125,7 +125,7 @@ export function ReminderStack({
           <div className="space-y-3 max-h-[calc(100vh-150px)] sm:max-h-[calc(100vh-200px)] overflow-y-auto pr-2">
               {generalReminders.length > 0 && (
                 <div className='space-y-3'>
-                    <h3 className="font-semibold text-background/80 pl-2">General</h3>
+                    <h3 className="font-semibold text-primary-foreground/80 pl-2">General</h3>
                     {generalReminders.map((reminder, index) => (
                       <div
                           key={reminder.id}
@@ -155,12 +155,12 @@ export function ReminderStack({
               )}
 
               {generalReminders.length > 0 && reminders.length > 0 && (
-                <Separator className="bg-background/20" />
+                <Separator className="bg-primary-foreground/20" />
               )}
 
               {reminders.length > 0 && (
                 <div className='space-y-3'>
-                    <h3 className="font-semibold text-background/80 pl-2">Tasks</h3>
+                    <h3 className="font-semibold text-primary-foreground/80 pl-2">Tasks</h3>
                     {reminders.map((task, index) => (
                       <div
                           key={task.id}
