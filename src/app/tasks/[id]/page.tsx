@@ -531,9 +531,9 @@ export default function TaskPage() {
                           <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('developers') || 'Developers'}</h4>
                           <div className="flex flex-wrap gap-4">
                               {assignedDevelopers.length > 0 ? (
-                                  assignedDevelopers.map((dev) => (
+                                  assignedDevelopers.map((dev, index) => (
                                     <button 
-                                      key={dev.id} 
+                                      key={`${dev.id}-${index}`}
                                       className="flex items-center gap-2 p-1 -m-1 rounded-md hover:bg-muted/50 transition-colors"
                                       onClick={() => setPersonInView({ person: dev, type: 'Developer' })}
                                     >
@@ -566,9 +566,9 @@ export default function TaskPage() {
                           <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('testers') || 'Testers'}</h4>
                           <div className="flex flex-wrap gap-4">
                               {assignedTesters.length > 0 ? (
-                                  assignedTesters.map((tester) => (
+                                  assignedTesters.map((tester, index) => (
                                     <button 
-                                      key={tester.id} 
+                                      key={`${tester.id}-${index}`}
                                       className="flex items-center gap-2 p-1 -m-1 rounded-md hover:bg-muted/50 transition-colors"
                                       onClick={() => setPersonInView({ person: tester, type: 'Tester' })}
                                     >
