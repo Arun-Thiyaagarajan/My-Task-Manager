@@ -12,6 +12,7 @@ import { Mail, Phone, Briefcase, UserCheck } from 'lucide-react';
 import type { Person } from '@/lib/types';
 import { getInitials, getAvatarColor } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import type { CSSProperties } from 'react';
 
 interface PersonProfileCardProps {
   person: Person | null;
@@ -26,6 +27,13 @@ export function PersonProfileCard({ person, type, isOpen, onOpenChange }: Person
   }
   
   const TypeIcon = type === 'Developer' ? Briefcase : UserCheck;
+  
+  const nameColor = getAvatarColor(person.name);
+  const badgeStyle: CSSProperties = {
+    backgroundColor: `#${nameColor}20`,
+    color: `#${nameColor}`,
+    borderColor: `#${nameColor}40`,
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -47,7 +55,7 @@ export function PersonProfileCard({ person, type, isOpen, onOpenChange }: Person
               <DialogDescription className="sr-only">
                 {type}
               </DialogDescription>
-              <Badge variant="secondary" className="mt-1" aria-hidden="true">
+              <Badge variant="outline" className="mt-1" aria-hidden="true" style={badgeStyle}>
                 <TypeIcon className="h-3 w-3 mr-1.5"/>
                 {type}
               </Badge>
