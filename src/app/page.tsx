@@ -104,6 +104,7 @@ import {
 } from '@/components/ui/tooltip';
 import { ToastAction } from '@/components/ui/toast';
 import { ReminderStack } from '@/components/reminder-stack';
+import { Badge } from '@/components/ui/badge';
 
 
 type ViewMode = 'grid' | 'table';
@@ -140,6 +141,7 @@ export default function Home() {
   const [openGroups, setOpenGroups] = useState<string[]>(['priority', 'completed', 'other', 'hold']);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [pinnedTaskIds, setPinnedTaskIds] = useState<string[]>([]);
+  const [isReminderStackOpen, setIsReminderStackOpen] = useState(false);
 
   const handlePreviousMonth = () => setSelectedMonth(subMonths(selectedMonth, 1));
   const handleNextMonth = () => setSelectedMonth(addMonths(selectedMonth, 1));
@@ -821,7 +823,7 @@ export default function Home() {
             
         } catch (error: any) {
             console.error("Error importing file:", error);
-            toast({ variant: 'destructive', title: 'Import Failed', description: error.message || 'There was an error processing your file. Please ensure it is a valid JSON file.' });
+            toast({ variant: 'destructive', title: 'Import Failed', description: error.message || 'There was an error processing your file.' });
         } finally {
             if(fileInputRef.current) { fileInputRef.current.value = ''; }
         }
@@ -917,7 +919,14 @@ export default function Home() {
         <h1 className="text-3xl font-bold tracking-tight text-foreground">
           Tasks
         </h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+            {uiConfig.remindersEnabled && pinnedReminders.length > 0 && (
+              <Button variant="outline" className="h-10 border-amber-500/50 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-200 dark:border-amber-800/50 dark:hover:bg-amber-900/40" onClick={() => setIsReminderStackOpen(true)}>
+                <BellRing className="mr-2 h-4 w-4" />
+                 Important Reminders
+                <Badge variant="secondary" className="ml-2 bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100">{pinnedReminders.length}</Badge>
+              </Button>
+            )}
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm">
@@ -970,10 +979,6 @@ export default function Home() {
       </div>
       
       <div className="space-y-6">
-          {uiConfig.remindersEnabled && pinnedReminders.length > 0 && (
-             <ReminderStack reminders={pinnedReminders} uiConfig={uiConfig} onUnpin={handleUnpinFromStack} />
-          )}
-
           <Card>
             <CardContent className="p-4">
               <div className="flex flex-wrap items-center gap-4">
@@ -1413,6 +1418,16 @@ export default function Home() {
             </div>
           )}
       </div>
+
+      {uiConfig.remindersEnabled && pinnedReminders.length > 0 && (
+        <ReminderStack 
+            reminders={pinnedReminders} 
+            uiConfig={uiConfig} 
+            onUnpin={handleUnpinFromStack}
+            isOpen={isReminderStackOpen}
+            onOpenChange={setIsReminderStackOpen}
+        />
+     )}
     </div>
   );
 }
