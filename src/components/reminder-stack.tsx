@@ -131,9 +131,9 @@ export function ReminderStack({
                           )}
                           style={{ borderColor: 'hsl(var(--primary) / 0.2)', transitionDelay: isOpen ? `${index * 60}ms` : '0ms' }}
                       >
-                           <div className="flex items-start justify-between gap-4">
-                               <div className="flex items-start gap-3 flex-1 min-w-0">
-                                   <Megaphone className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                           <div className="flex items-center justify-between gap-4">
+                               <div className="flex items-center gap-3 flex-1 min-w-0">
+                                   <Megaphone className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
                                    <div className="text-sm flex-1"><p className="text-amber-700 dark:text-amber-300 whitespace-pre-wrap">{reminder.text}</p></div>
                                </div>
                                 <Button
@@ -170,9 +170,9 @@ export function ReminderStack({
                               transitionDelay: isOpen ? `${(generalReminders.length + index) * 60}ms` : '0ms'
                           }}
                       >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex items-start gap-3 flex-1 min-w-0">
-                                <BellRing className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <BellRing className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
                                 <div className="text-sm flex-1">
                                 <p className="font-semibold text-amber-800 dark:text-amber-200 truncate">
                                     {task.title}
