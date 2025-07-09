@@ -388,16 +388,8 @@ export default function TaskPage() {
 
   const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
 
-  const hasDevQaDates = task.devStartDate || task.devEndDate || task.qaStartDate || task.qaEndDate;
-  
   const allConfiguredEnvs = uiConfig.environments || [];
   
-  const hasAnyDeploymentDate = allConfiguredEnvs.some(env => {
-    const isSelected = task.deploymentStatus?.[env] ?? false;
-    const hasDate = task.deploymentDates && task.deploymentDates[env];
-    return isSelected && hasDate;
-  });
-
   const customFields = uiConfig.fields.filter(f => f.isCustom && f.isActive && task.customFields && task.customFields[f.key]);
   const groupedCustomFields = customFields.reduce((acc, field) => {
     const group = field.group || 'Other Custom Fields';
@@ -405,12 +397,11 @@ export default function TaskPage() {
     acc[group].push(field);
     return acc;
   }, {} as Record<string, FieldConfig[]>);
+  const customFieldGroupNames = Object.keys(groupedCustomFields).sort();
+
 
   const developersById = new Map(developers.map(d => [d.id, d]));
-  const testersById = new Map(testers.map(t => [t.id, t]));
-
-  const assignedDevelopers = (task.developers || []).map(id => developersById.get(id)).filter((d): d is Person => !!d);
-  const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter((t): t is Person => !!t);
+  const testersById = new Map(testers.map(t => [t.id, t.name]));
 
   const azureFieldConfig = uiConfig.fields.find(f => f.key === 'azureWorkItemId');
   const prField = uiConfig.fields.find(f => f.key === 'prLinks' && f.isActive);
@@ -528,8 +519,7 @@ export default function TaskPage() {
                     </div>
                 </Card>
 
-                {/* Main Content Grid Left */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 items-start">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
                     {deploymentField && (
                         <Card>
                             <CardHeader>
@@ -620,7 +610,7 @@ export default function TaskPage() {
                     )}
                 </div>
 
-                {Object.entries(groupedCustomFields).map(([groupName, fields]) => (
+                {customFieldGroupNames.map((groupName) => (
                     <Card key={groupName}>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-xl">
@@ -629,7 +619,7 @@ export default function TaskPage() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            {fields.map(field => (
+                            {groupedCustomFields[groupName].map(field => (
                                 <div key={field.key}>
                                     <h4 className="text-sm font-semibold text-muted-foreground mb-1">{field.label}</h4>
                                     <div className="text-sm text-foreground">{renderCustomFieldValue(field.key, task.customFields?.[field.key])}</div>
@@ -764,6 +754,10 @@ export default function TaskPage() {
                       </CardContent>
                   </Card>
                 )}
+
+                 {!isBinned && taskLogs.length > 0 && (
+                    <TaskHistory logs={taskLogs} />
+                )}
             </div>
 
             {/* Right Column */}
@@ -776,74 +770,9 @@ export default function TaskPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <div>
-                            <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('developers') || 'Developers'}</h4>
-                            <div className="flex flex-wrap gap-4">
-                                {assignedDevelopers.length > 0 ? (
-                                    assignedDevelopers.map((dev) => (
-                                      <button 
-                                        key={`${dev.id}-${dev.name}`}
-                                        className="flex items-center gap-2 p-1 -m-1 rounded-md hover:bg-muted/50 transition-colors"
-                                        onClick={() => setPersonInView({ person: dev, type: 'Developer' })}
-                                      >
-                                          <Avatar className="h-7 w-7">
-                                          <AvatarFallback
-                                              className="font-semibold text-white text-[10px]"
-                                              style={{
-                                              backgroundColor: `#${getAvatarColor(dev.name)}`,
-                                              }}
-                                          >
-                                              {getInitials(dev.name)}
-                                          </AvatarFallback>
-                                          </Avatar>
-                                          <span className="text-sm font-medium text-foreground">
-                                          {dev.name}
-                                          </span>
-                                      </button>
-                                    ))
-                                ) : (
-                                <p className="text-sm text-muted-foreground">
-                                    No Developers assigned.
-                                </p>
-                                )}
-                            </div>
-                        </div>
-
+                        <TaskDetailSection title={fieldLabels.get('developers') || 'Developers'} people={task.developers} peopleMap={developersById} setPersonInView={setPersonInView} type="Developer" />
                         <Separator />
-                        
-                        <div>
-                            <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('testers') || 'Testers'}</h4>
-                            <div className="flex flex-wrap gap-4">
-                                {assignedTesters.length > 0 ? (
-                                    assignedTesters.map((tester) => (
-                                      <button 
-                                        key={`${tester.id}-${tester.name}`}
-                                        className="flex items-center gap-2 p-1 -m-1 rounded-md hover:bg-muted/50 transition-colors"
-                                        onClick={() => setPersonInView({ person: tester, type: 'Tester' })}
-                                      >
-                                        <Avatar className="h-7 w-7">
-                                        <AvatarFallback
-                                            className="font-semibold text-white text-[10px]"
-                                            style={{
-                                            backgroundColor: `#${getAvatarColor(tester.name)}`,
-                                            }}
-                                        >
-                                            {getInitials(tester.name)}
-                                        </AvatarFallback>
-                                        </Avatar>
-                                        <span className="text-sm font-medium text-foreground">
-                                        {tester.name}
-                                        </span>
-                                      </button>
-                                    ))
-                                ) : (
-                                <p className="text-sm text-muted-foreground">
-                                    No Testers assigned.
-                                </p>
-                                )}
-                            </div>
-                        </div>
-                        
+                        <TaskDetailSection title={fieldLabels.get('testers') || 'Testers'} people={task.testers} peopleMap={testersById} setPersonInView={setPersonInView} type="Tester" />
                         <Separator />
 
                         <div>
@@ -884,48 +813,7 @@ export default function TaskPage() {
 
                         <div>
                             <h4 className="text-sm font-semibold text-muted-foreground mb-2">Important Dates</h4>
-                            <div className="space-y-2 text-sm">
-                                {task.devStartDate && (
-                                    <div className="flex justify-between">
-                                        <span className="text-muted-foreground">{fieldLabels.get('devStartDate') || 'Dev Start Date'}</span>
-                                        <span>{format(new Date(task.devStartDate), 'PPP')}</span>
-                                    </div>
-                                )}
-                                {task.devEndDate && (
-                                    <div className="flex justify-between">
-                                        <span className="text-muted-foreground">{fieldLabels.get('devEndDate') || 'Dev End Date'}</span>
-                                        <span>{format(new Date(task.devEndDate), 'PPP')}</span>
-                                    </div>
-                                )}
-                                {(task.devStartDate || task.devEndDate) && (task.qaStartDate || task.qaEndDate) && <Separator className="my-1"/>}
-                                {task.qaStartDate && (
-                                    <div className="flex justify-between">
-                                        <span className="text-muted-foreground">{fieldLabels.get('qaStartDate') || 'QA Start Date'}</span>
-                                        <span>{format(new Date(task.qaStartDate), 'PPP')}</span>
-                                    </div>
-                                )}
-                                {task.qaEndDate && (
-                                    <div className="flex justify-between">
-                                        <span className="text-muted-foreground">{fieldLabels.get('qaEndDate') || 'QA End Date'}</span>
-                                        <span>{format(new Date(task.qaEndDate), 'PPP')}</span>
-                                    </div>
-                                )}
-                                {(hasDevQaDates || hasAnyDeploymentDate) && <Separator className="my-2"/>}
-
-                                {task.deploymentDates && Object.entries(task.deploymentDates).map(([env, date]) => {
-                                    if (!date) return null;
-                                    return (
-                                        <div key={env} className="flex justify-between">
-                                            <span className="text-muted-foreground capitalize">{env} Deployed</span>
-                                            <span>{format(new Date(date), 'PPP')}</span>
-                                        </div>
-                                    )
-                                })}
-
-                                 {!(hasDevQaDates || hasAnyDeploymentDate) && (
-                                    <p className="text-muted-foreground text-center text-xs">No dates have been set.</p>
-                                 )}
-                            </div>
+                            <TimelineSection task={task} fieldLabels={fieldLabels} />
                         </div>
                     </CardContent>
                 </Card>
@@ -949,24 +837,19 @@ export default function TaskPage() {
                         </CardContent>
                     </Card>
                 )}
-                {!isBinned && taskLogs.length > 0 && (
-                    <TaskHistory logs={taskLogs} />
-                )}
             </div>
           </div>
           
-          {!isBinned && (
-              <div className="mt-6 lg:mt-8">
-                <RelatedTasksSection
-                    title={relatedTasksTitle}
-                    tasks={relatedTasks}
-                    onTaskUpdate={loadData}
-                    uiConfig={uiConfig}
-                    developers={developers}
-                    testers={testers}
-                />
-              </div>
-          )}
+          <div className="mt-6 lg:mt-8">
+            <RelatedTasksSection
+                title={relatedTasksTitle}
+                tasks={relatedTasks}
+                onTaskUpdate={loadData}
+                uiConfig={uiConfig}
+                developers={developers}
+                testers={testers}
+            />
+          </div>
         </div>
       <PersonProfileCard
         person={personInView?.person ?? null}
@@ -986,4 +869,99 @@ export default function TaskPage() {
       />
     </>
   );
+}
+
+
+function TaskDetailSection({ title, people, peopleMap, setPersonInView, type }: {
+  title: string;
+  people?: string[];
+  peopleMap: Map<string, Person>;
+  setPersonInView: (person: { person: Person, type: 'Developer' | 'Tester' }) => void;
+  type: 'Developer' | 'Tester';
+}) {
+  const assignedPeople = (people || []).map(id => peopleMap.get(id)).filter((p): p is Person => !!p);
+  return (
+    <div>
+        <h4 className="text-sm font-semibold text-muted-foreground mb-2">{title}</h4>
+        <div className="flex flex-wrap gap-4">
+            {assignedPeople.length > 0 ? (
+                assignedPeople.map((person) => (
+                  <button 
+                    key={person.id}
+                    className="flex items-center gap-2 p-1 -m-1 rounded-md hover:bg-muted/50 transition-colors"
+                    onClick={() => setPersonInView({ person, type })}
+                  >
+                      <Avatar className="h-7 w-7">
+                      <AvatarFallback
+                          className="font-semibold text-white text-[10px]"
+                          style={{
+                          backgroundColor: `#${getAvatarColor(person.name)}`,
+                          }}
+                      >
+                          {getInitials(person.name)}
+                      </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm font-medium text-foreground">
+                      {person.name}
+                      </span>
+                  </button>
+                ))
+            ) : (
+            <p className="text-sm text-muted-foreground">
+                No {type}s assigned.
+            </p>
+            )}
+        </div>
+    </div>
+  )
+}
+
+function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<string, string>}) {
+    const hasDevQaDates = task.devStartDate || task.devEndDate || task.qaStartDate || task.qaEndDate;
+    const hasAnyDeploymentDate = Object.values(task.deploymentDates || {}).some(date => date);
+
+    if (!hasDevQaDates && !hasAnyDeploymentDate) {
+      return <p className="text-muted-foreground text-center text-xs">No dates have been set.</p>
+    }
+
+    return (
+      <div className="space-y-2 text-sm">
+          {task.devStartDate && (
+              <div className="flex justify-between">
+                  <span className="text-muted-foreground">{fieldLabels.get('devStartDate') || 'Dev Start Date'}</span>
+                  <span>{format(new Date(task.devStartDate), 'PPP')}</span>
+              </div>
+          )}
+          {task.devEndDate && (
+              <div className="flex justify-between">
+                  <span className="text-muted-foreground">{fieldLabels.get('devEndDate') || 'Dev End Date'}</span>
+                  <span>{format(new Date(task.devEndDate), 'PPP')}</span>
+              </div>
+          )}
+          {(task.devStartDate || task.devEndDate) && (task.qaStartDate || task.qaEndDate) && <Separator className="my-1"/>}
+          {task.qaStartDate && (
+              <div className="flex justify-between">
+                  <span className="text-muted-foreground">{fieldLabels.get('qaStartDate') || 'QA Start Date'}</span>
+                  <span>{format(new Date(task.qaStartDate), 'PPP')}</span>
+              </div>
+          )}
+          {task.qaEndDate && (
+              <div className="flex justify-between">
+                  <span className="text-muted-foreground">{fieldLabels.get('qaEndDate') || 'QA End Date'}</span>
+                  <span>{format(new Date(task.qaEndDate), 'PPP')}</span>
+              </div>
+          )}
+          {(hasDevQaDates && hasAnyDeploymentDate) && <Separator className="my-2"/>}
+
+          {task.deploymentDates && Object.entries(task.deploymentDates).map(([env, date]) => {
+              if (!date) return null;
+              return (
+                  <div key={env} className="flex justify-between">
+                      <span className="text-muted-foreground capitalize">{env} Deployed</span>
+                      <span>{format(new Date(date), 'PPP')}</span>
+                  </div>
+              )
+          })}
+      </div>
+    );
 }
