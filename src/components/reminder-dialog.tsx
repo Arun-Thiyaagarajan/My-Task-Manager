@@ -30,7 +30,6 @@ import { format } from 'date-fns';
 
 const reminderSchema = z.object({
   reminder: z.string().max(500, "Reminder cannot exceed 500 characters.").nullable(),
-  isPinned: z.boolean(),
   autoDisappear: z.boolean(),
   expiresAt: z.date().optional().nullable(),
 }).refine(data => {
@@ -58,12 +57,12 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
   const { toast } = useToast();
   const [isPending, setIsPending] = useState(false);
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
+  const [isPinned, setIsPinned] = useState(false);
   
   const form = useForm<ReminderFormData>({
     resolver: zodResolver(reminderSchema),
     defaultValues: {
-      reminder: task.reminder || '',
-      isPinned: false, // will be set in useEffect
+      reminder: '',
       autoDisappear: false,
       expiresAt: null,
     },
@@ -72,15 +71,29 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
   useEffect(() => {
     if (isOpen) {
       setUiConfig(getUiConfig());
-      const isCurrentlyPinned = pinnedTaskIds.includes(task.id);
+      setIsPinned(pinnedTaskIds.includes(task.id));
       form.reset({
         reminder: task.reminder || '',
-        isPinned: task.reminder ? isCurrentlyPinned : true,
         autoDisappear: !!task.reminderExpiresAt,
         expiresAt: task.reminderExpiresAt ? new Date(task.reminderExpiresAt) : null,
       });
     }
   }, [isOpen, task, form, pinnedTaskIds]);
+
+  const handlePinClick = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      
+      const newPinState = !isPinned;
+      onPinToggle(task.id);
+      setIsPinned(newPinState);
+      
+      toast({
+          title: newPinState ? 'Reminder Pinned' : 'Reminder Unpinned',
+          description: `This reminder will ${newPinState ? 'now' : 'no longer'} appear on the main page.`,
+          duration: 2000
+      });
+  };
 
   const onSubmit = (data: ReminderFormData) => {
     setIsPending(true);
@@ -93,14 +106,10 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
         reminderExpiresAt: newExpiresAt,
       });
       
-      const isCurrentlyPinned = pinnedTaskIds.includes(task.id);
-      
-      if (newReminder && data.isPinned && !isCurrentlyPinned) {
+      // If user clears the reminder text, also unpin it.
+      if (!newReminder && isPinned) {
           onPinToggle(task.id);
-          toast({ title: 'Reminder Pinned' });
-      } else if ((!newReminder || !data.isPinned) && isCurrentlyPinned) {
-          onPinToggle(task.id);
-          toast({ title: 'Reminder Unpinned' });
+          setIsPinned(false);
       }
       
       toast({ 
@@ -123,8 +132,7 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
     try {
       updateTask(task.id, { reminder: null, reminderExpiresAt: null });
 
-      const isCurrentlyPinned = pinnedTaskIds.includes(task.id);
-      if (isCurrentlyPinned) {
+      if (isPinned) {
         onPinToggle(task.id);
       }
       
@@ -143,9 +151,9 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
   };
 
   const autoDisappearEnabled = form.watch('autoDisappear');
-  const isPinned = form.watch('isPinned');
   const timeFormat = uiConfig?.timeFormat || '12h';
   const timeFormatString = timeFormat === '24h' ? 'PPP HH:mm' : 'PPP p';
+  const hasReminderText = !!form.watch('reminder')?.trim();
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -155,33 +163,23 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
             <DialogHeader>
                <div className="flex items-center gap-2">
                 <DialogTitle>Reminder Note</DialogTitle>
-                <FormField
-                    control={form.control}
-                    name="isPinned"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormControl>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => field.onChange(!field.value)}
-                                    disabled={!form.watch('reminder')}
-                                    className="h-8 w-8"
-                                >
-                                    {field.value ? <Pin className="h-4 w-4 fill-amber-500 text-amber-500" /> : <PinOff className="h-4 w-4 text-muted-foreground" />}
-                                </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                <p>{field.value ? "Unpin from main page" : "Pin to main page"}</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </FormControl>
-                    </FormItem>
-                    )}
-                />
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={handlePinClick}
+                        disabled={!hasReminderText}
+                        className="h-8 w-8"
+                    >
+                        {isPinned ? <Pin className="h-4 w-4 fill-amber-500 text-amber-500" /> : <PinOff className="h-4 w-4 text-muted-foreground" />}
+                    </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>{isPinned ? "Unpin from main page" : "Pin to main page"}</p>
+                    </TooltipContent>
+                </Tooltip>
               </div>
               <DialogDescription>
                 Set or edit a reminder. Pinned notes appear on the main page.
