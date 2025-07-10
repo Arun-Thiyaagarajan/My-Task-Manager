@@ -156,7 +156,7 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-           <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
             <DialogTitle>Reminder Note</DialogTitle>
             <FormField
               control={form.control}
