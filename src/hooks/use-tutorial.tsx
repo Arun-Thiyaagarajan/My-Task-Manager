@@ -12,29 +12,6 @@ export function useTutorial() {
     const { prompt } = useUnsavedChanges();
 
     const homePageSteps: DriveStep[] = [
-        { 
-            element: '#main-header', 
-            popover: { 
-                title: `Welcome!`,
-                description: 'This is your central hub for managing tasks. This tour will guide you through the features on this page.' 
-            } 
-        },
-        {
-            element: '#new-task-btn',
-            popover: {
-                title: 'Create a Task',
-                description: 'Click here to start a new task. The form allows you to add all necessary details.'
-            },
-            onNextClick: ({
-                next
-            }) => {
-                prompt(() => {
-                    router.push('/tasks/new');
-                    // We need a slight delay for the page to navigate before driver.js tries to find the next element.
-                    setTimeout(() => next(), 500);
-                });
-            }
-        },
         {
             element: '#task-filters',
             popover: {
@@ -54,6 +31,21 @@ export function useTutorial() {
             popover: {
                 title: 'AI-Powered Summaries',
                 description: 'For longer descriptions, the system automatically generates a concise one-sentence summary to help you quickly grasp the task\'s objective.'
+            }
+        },
+         {
+            element: '#new-task-btn',
+            popover: {
+                title: 'Create a Task',
+                description: 'Click here to start a new task. The form allows you to add all necessary details.'
+            },
+            onNextClick: ({
+                next
+            }) => {
+                prompt(() => {
+                    router.push('/tasks/new');
+                    setTimeout(() => next(), 500);
+                });
             }
         },
     ];
@@ -186,7 +178,7 @@ export function useTutorial() {
                 steps: [{
                     element: '#main-header',
                     popover: {
-                        title: 'No Tour Available',
+                        title: 'Task Manager Tutorial',
                         description: 'There is no specific tour for this page.'
                     }
                 }]
