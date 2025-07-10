@@ -10,6 +10,18 @@ export function useTutorial() {
     const router = useRouter();
     const pathname = usePathname();
     const { prompt } = useUnsavedChanges();
+    
+    const navigateTo = (path: string, onNavigated: () => void) => {
+        if (pathname === path) {
+            onNavigated();
+        } else {
+            prompt(() => {
+                router.push(path);
+                // A timeout is needed to allow the page to render before driver.js tries to find the element
+                setTimeout(() => onNavigated(), 500);
+            });
+        }
+    };
 
     const homePageSteps: DriveStep[] = [
         {
@@ -39,12 +51,10 @@ export function useTutorial() {
                 title: 'Task Manager Tutorial',
                 description: 'Click here to start a new task. The form allows you to add all necessary details.'
             },
-            onNextClick: ({
-                next
-            }) => {
-                prompt(() => {
-                    router.push('/tasks/new');
-                    setTimeout(() => next(), 500);
+            onNextClick: ({ driver }) => {
+                driver.destroy();
+                navigateTo('/tasks/new', () => {
+                    startTutorialForPage('/tasks/new', 0);
                 });
             }
         },
@@ -57,12 +67,10 @@ export function useTutorial() {
                 title: 'Task Manager Tutorial',
                 description: 'Fill in core details like title, description, status, and assignees.'
             },
-            onPrevClick: ({
-                previous
-            }) => {
-                prompt(() => {
-                    router.push('/');
-                    setTimeout(() => previous(), 500);
+            onPrevClick: ({ driver }) => {
+                driver.destroy();
+                navigateTo('/', () => {
+                    startTutorialForPage('/', homePageSteps.length - 1);
                 });
             }
         },
@@ -84,7 +92,7 @@ export function useTutorial() {
             },
         },
         {
-            element: 'button[aria-label="Set Reminder"]',
+            element: 'button.h-8.w-8[aria-label="Set Reminder"]',
             popover: {
                 title: 'Task Manager Tutorial',
                 description: 'Click the bell icon to add a reminder note to this task. You can also pin it to the main page for visibility.'
@@ -101,7 +109,7 @@ export function useTutorial() {
             }
         },
         {
-             element: '.flex.items-center.gap-2 > button:not(.hidden)',
+             element: '#add-field-button',
              popover: {
                 title: 'Task Manager Tutorial',
                 description: 'Click here to create your own custom fields to tailor the application to your specific needs (e.g., text, date, select, etc.).'
@@ -154,21 +162,25 @@ export function useTutorial() {
     ];
 
     const startTutorial = () => {
+        startTutorialForPage(pathname);
+    };
+
+    const startTutorialForPage = (path: string, initialStep: number = 0) => {
         let steps: DriveStep[] = [];
         
-        if (pathname === '/') {
+        if (path === '/') {
             steps = homePageSteps;
-        } else if (pathname.startsWith('/tasks/new')) {
+        } else if (path.startsWith('/tasks/new')) {
              steps = newTaskPageSteps;
-        } else if (pathname.match(/\/tasks\/[a-zA-Z0-9-]+/)) {
+        } else if (path.match(/\/tasks\/[a-zA-Z0-9-]+/)) {
             steps = taskDetailPageSteps;
-        } else if (pathname === '/settings') {
+        } else if (path === '/settings') {
             steps = settingsPageSteps;
-        } else if (pathname === '/dashboard') {
+        } else if (path === '/dashboard') {
             steps = dashboardPageSteps;
-        } else if (pathname === '/logs') {
+        } else if (path === '/logs') {
             steps = logsPageSteps;
-        } else if (pathname === '/bin') {
+        } else if (path === '/bin') {
             steps = binPageSteps;
         }
 
@@ -196,7 +208,7 @@ export function useTutorial() {
             },
         });
 
-        driverObj.drive();
+        driverObj.drive(initialStep);
     }
 
     return { startTutorial };

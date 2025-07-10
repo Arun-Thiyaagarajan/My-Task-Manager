@@ -508,7 +508,7 @@ export default function SettingsPage() {
             <p className="text-muted-foreground mt-1">Manage and customize fields and environments across your application.</p>
         </div>
         <div className="flex items-center gap-2">
-            <Button onClick={() => handleOpenDialog(null)}><PlusCircle className="mr-2 h-4 w-4" /> Add Field</Button>
+            <Button onClick={() => handleOpenDialog(null)} id="add-field-button"><PlusCircle className="mr-2 h-4 w-4" /> Add Field</Button>
         </div>
       </div>
       
