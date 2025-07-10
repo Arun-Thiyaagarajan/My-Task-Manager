@@ -80,7 +80,7 @@ export default function SettingsPage() {
     const field = config.fields.find(f => f.id === fieldId);
     if (!field) return;
 
-    const protectedDateFields = ['devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate'];
+    const protectedDateFields = ['devStartDate', 'devEndDate'];
     if (field.isRequired || protectedDateFields.includes(field.key)) {
         toast({
             variant: 'warning',
@@ -437,7 +437,7 @@ export default function SettingsPage() {
   }
 
   const renderFieldRow = (field: FieldConfig, isActiveList: boolean) => {
-    const protectedDateFields = ['devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate'];
+    const protectedDateFields = ['devStartDate', 'devEndDate'];
     const isDateProtected = protectedDateFields.includes(field.key);
     const isToggleDisabled = field.isRequired || isDateProtected;
 
