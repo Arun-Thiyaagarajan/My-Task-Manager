@@ -81,6 +81,7 @@ export default function TaskPage() {
   const [taskLogs, setTaskLogs] = useState<Log[]>([]);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
   const [pinnedTaskIds, setPinnedTaskIds] = useState<string[]>([]);
+  const [isCopying, setIsCopying] = useState(false);
   
   const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
   const taskId = params.id as string;
@@ -256,6 +257,14 @@ export default function TaskPage() {
     
     setPinnedTaskIds(newPinnedIds);
     localStorage.setItem(PINNED_TASKS_STORAGE_KEY, JSON.stringify(newPinnedIds));
+
+    if (task.reminder) {
+        toast({
+            title: newPinnedIds.includes(taskIdToToggle) ? 'Reminder Pinned' : 'Reminder Unpinned',
+            description: `This reminder will ${newPinnedIds.includes(taskIdToToggle) ? 'now' : 'no longer'} appear on the main page.`,
+            duration: 3000,
+        });
+    }
   };
 
   const handleCommentsUpdate = (newComments: Comment[]) => {
@@ -491,6 +500,17 @@ export default function TaskPage() {
     });
 };
 
+const handleCopyDescription = () => {
+    if (!task || isCopying) return;
+    navigator.clipboard.writeText(task.description.trim());
+    setIsCopying(true);
+    toast({
+        variant: 'success',
+        title: 'Copied successfully!'
+    });
+    setTimeout(() => setIsCopying(false), 1500);
+};
+
 
   const renderCustomFieldValue = (fieldConfig: FieldConfig, value: any) => {
       if (value === null || value === undefined || value === '') return <span className="text-muted-foreground">N/A</span>;
@@ -688,15 +708,15 @@ export default function TaskPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
           <div className="lg:col-span-2 space-y-6">
-            <Card className={cn("relative overflow-hidden", cardClassName)}>
+            <Card className={cn("relative overflow-hidden group/card", cardClassName)}>
                 <Icon className={cn('absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none transition-transform duration-300 ease-in-out', iconColorClassName, task.status !== 'In Progress' && 'group-hover/card:scale-110 group-hover/card:-rotate-6')} />
                 <div className="relative z-10 flex flex-col h-full">
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start gap-4">
-                      <div className="flex-1 flex items-center gap-3">
-                        <CardTitle className="text-3xl font-bold">
+                      <div className="flex-1 flex items-center gap-2">
+                        <DialogTitle className="text-3xl font-bold">
                           {task.title}
-                        </CardTitle>
+                        </DialogTitle>
                         {uiConfig.remindersEnabled && !isBinned && (
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -741,7 +761,24 @@ export default function TaskPage() {
                     <CardDescription className="mb-4">
                         Last updated on {isValidDate(task.updatedAt) ? format(new Date(task.updatedAt), 'PPP') : 'N/A'}
                     </CardDescription>
-                    <p className="text-foreground/80 whitespace-pre-wrap">{task.description}</p>
+                    <div className="relative">
+                       {task.description && !isBinned && (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="absolute top-0 right-0 h-7 w-7 text-muted-foreground opacity-0 group-hover/card:opacity-100 transition-opacity"
+                                        onClick={handleCopyDescription}
+                                    >
+                                        {isCopying ? <Check className="h-4 w-4 text-green-500 animate-in fade-in" /> : <Copy className="h-4 w-4" />}
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Copy description</TooltipContent>
+                            </Tooltip>
+                        )}
+                        <p className="text-foreground/80 whitespace-pre-wrap">{task.description}</p>
+                    </div>
                   </CardContent>
                 </div>
             </Card>
@@ -978,6 +1015,10 @@ function TaskDetailSection({ title, people, peopleMap, setPersonInView, isDevelo
   const uniquePeopleIds = [...new Set(people || [])];
   const assignedPeople = uniquePeopleIds.map(id => peopleMap.get(id)).filter((p): p is Person => !!p);
   
+  const canOpenPopup = (person: Person): boolean => {
+    return !!(person.email || person.phone || (person.additionalFields && person.additionalFields.length > 0));
+  };
+  
   return (
     <div>
         <h4 className="text-sm font-semibold text-muted-foreground mb-2">{title}</h4>
@@ -1069,4 +1110,5 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
       </div>
     );
 }
+
 
