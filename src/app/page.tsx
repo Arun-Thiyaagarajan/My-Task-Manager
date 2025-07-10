@@ -94,7 +94,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Dialog, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { generateTaskPdf, generateTasksText } from '@/lib/share-utils';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -1498,3 +1498,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
