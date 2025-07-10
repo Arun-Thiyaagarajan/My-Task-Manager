@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -45,6 +46,7 @@ import { useRouter } from 'next/navigation';
 import { ImagePreviewDialog } from './image-preview-dialog';
 import { GeneralRemindersDialog } from './general-reminders-dialog';
 import { useTutorial } from '@/hooks/use-tutorial';
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
 const HeaderLink = ({ href, children, className, onClick }: { href: string; children: React.ReactNode, className?: string; onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void; }) => {
     const router = useRouter();
@@ -242,10 +244,17 @@ export function Header() {
               </DropdownMenu>
             )}
             <div id="tutorial-trigger-wrapper">
-                <Button variant="ghost" size="icon" onClick={() => startTutorial(appName)}>
-                    <GraduationCap className="h-5 w-5" />
-                    <span className="sr-only">Show Tutorial</span>
-                </Button>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" onClick={() => startTutorial()}>
+                            <GraduationCap className="h-5 w-5" />
+                            <span className="sr-only">Show Tutorial</span>
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>Show Tutorial</p>
+                    </TooltipContent>
+                </Tooltip>
             </div>
             <Button variant="ghost" size="icon" onClick={() => setIsRemindersOpen(true)} className="relative">
                 <Bell className="h-5 w-5" />
