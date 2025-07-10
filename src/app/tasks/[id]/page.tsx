@@ -69,7 +69,7 @@ export default function TaskPage() {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const [justUpdatedEnv, setJustUpdatedEnv] = useState<string | null>(null);
-  const [personInView, setPersonInView] = useState<{person: Person, type: 'Developer' | 'Tester'} | null>(null);
+  const [personInView, setPersonInView] = useState<{person: Person, isDeveloper: boolean} | null>(null);
   const [isEditingPrLinks, setIsEditingPrLinks] = useState(false);
   const [previewImage, setPreviewImage] = useState<{url: string; name: string} | null>(null);
   const [isEditingAttachments, setIsEditingAttachments] = useState(false);
@@ -876,9 +876,9 @@ export default function TaskPage() {
                   <CardTitle className="flex items-center gap-2 text-xl"><ListChecks className="h-5 w-5" />Task Details</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <TaskDetailSection title={fieldLabels.get('developers') || 'Developers'} people={task.developers} peopleMap={developersById} setPersonInView={setPersonInView} type="Developer" />
+                  <TaskDetailSection title={fieldLabels.get('developers') || 'Developers'} people={task.developers} peopleMap={developersById} setPersonInView={setPersonInView} isDeveloper={true} />
                   <Separator />
-                  <TaskDetailSection title={fieldLabels.get('testers') || 'Testers'} people={task.testers} peopleMap={testersById} setPersonInView={setPersonInView} type="Tester" />
+                  <TaskDetailSection title={fieldLabels.get('testers') || 'Testers'} people={task.testers} peopleMap={testersById} setPersonInView={setPersonInView} isDeveloper={false} />
                   <Separator />
                   <div>
                     <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('repositories') || 'Repositories'}</h4>
@@ -937,7 +937,8 @@ export default function TaskPage() {
       </div>
       <PersonProfileCard
         person={personInView?.person ?? null}
-        type={personInView?.type ?? 'Developer'}
+        isDeveloper={personInView?.isDeveloper ?? true}
+        typeLabel={personInView?.isDeveloper ? (fieldLabels.get('developers') || 'Developer') : (fieldLabels.get('testers') || 'Tester')}
         isOpen={!!personInView}
         onOpenChange={(isOpen) => !isOpen && setPersonInView(null)}
       />
@@ -962,12 +963,12 @@ export default function TaskPage() {
 }
 
 
-function TaskDetailSection({ title, people, peopleMap, setPersonInView, type }: {
+function TaskDetailSection({ title, people, peopleMap, setPersonInView, isDeveloper }: {
   title: string;
   people?: string[];
   peopleMap: Map<string, Person>;
-  setPersonInView: (person: { person: Person, type: 'Developer' | 'Tester' }) => void;
-  type: 'Developer' | 'Tester';
+  setPersonInView: (person: { person: Person, isDeveloper: boolean }) => void;
+  isDeveloper: boolean;
 }) {
   const uniquePeopleIds = [...new Set(people || [])];
   const assignedPeople = uniquePeopleIds.map(id => peopleMap.get(id)).filter((p): p is Person => !!p);
@@ -979,9 +980,9 @@ function TaskDetailSection({ title, people, peopleMap, setPersonInView, type }: 
             {assignedPeople.length > 0 ? (
                 assignedPeople.map((person) => (
                   <button 
-                    key={`${type}-${person.id}`}
+                    key={`${isDeveloper ? 'dev' : 'test'}-${person.id}`}
                     className="flex items-center gap-2 p-1 -m-1 rounded-md hover:bg-muted/50 transition-colors"
-                    onClick={() => setPersonInView({ person, type })}
+                    onClick={() => setPersonInView({ person, isDeveloper })}
                   >
                       <Avatar className="h-7 w-7">
                       <AvatarFallback
@@ -1000,7 +1001,7 @@ function TaskDetailSection({ title, people, peopleMap, setPersonInView, type }: 
                 ))
             ) : (
             <p className="text-sm text-muted-foreground">
-                No {type}s assigned.
+                No {isDeveloper ? 'Developers' : 'Testers'} assigned.
             </p>
             )}
         </div>

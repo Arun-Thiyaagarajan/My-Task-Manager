@@ -56,7 +56,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   const [task, setTask] = useState(initialTask);
   const { toast } = useToast();
   const [taskStatuses, setTaskStatuses] = useState<string[]>([]);
-  const [personInView, setPersonInView] = useState<{person: Person, type: 'Developer' | 'Tester'} | null>(null);
+  const [personInView, setPersonInView] = useState<{person: Person, isDeveloper: boolean} | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [justUpdatedEnv, setJustUpdatedEnv] = useState<string | null>(null);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
@@ -392,7 +392,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         e.preventDefault();
-                                        setPersonInView({ person: dev, type: 'Developer' });
+                                        setPersonInView({ person: dev, isDeveloper: true });
                                     }}
                                     className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
                                 >
@@ -444,7 +444,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         e.preventDefault();
-                                        setPersonInView({ person: tester, type: 'Tester' });
+                                        setPersonInView({ person: tester, isDeveloper: false });
                                     }}
                                     className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
                                 >
@@ -510,7 +510,8 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
       </div>
       <PersonProfileCard
         person={personInView?.person ?? null}
-        type={personInView?.type ?? 'Developer'}
+        isDeveloper={personInView?.isDeveloper ?? true}
+        typeLabel={personInView?.isDeveloper ? developersLabel : testersLabel}
         isOpen={!!personInView}
         onOpenChange={(isOpen) => !isOpen && setPersonInView(null)}
       />

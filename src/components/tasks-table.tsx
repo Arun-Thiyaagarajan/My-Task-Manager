@@ -49,7 +49,7 @@ interface TasksTableRowProps {
   uiConfig: UiConfig;
   developersById: Map<string, Person>;
   testersById: Map<string, Person>;
-  onAvatarClick: (person: Person, type: 'Developer' | 'Tester') => void;
+  onAvatarClick: (person: Person, isDeveloper: boolean) => void;
   isSelected: boolean;
   onToggleSelection: (taskId: string, checked: boolean) => void;
   isSelectMode: boolean;
@@ -210,7 +210,7 @@ function TasksTableRow({
             <Tooltip key={dev.id}>
               <TooltipTrigger asChild>
                 <button
-                  onClick={() => onAvatarClick(dev, 'Developer')}
+                  onClick={() => onAvatarClick(dev, true)}
                   className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
                 >
                   <Avatar className="h-8 w-8 border-2 border-background cursor-pointer">
@@ -238,7 +238,7 @@ function TasksTableRow({
             <Tooltip key={tester.id}>
               <TooltipTrigger asChild>
                 <button
-                  onClick={() => onAvatarClick(tester, 'Tester')}
+                  onClick={() => onAvatarClick(tester, false)}
                   className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
                 >
                   <Avatar className="h-8 w-8 border-2 border-background cursor-pointer">
@@ -358,7 +358,7 @@ export function TasksTable({
 }) {
   const [personInView, setPersonInView] = useState<{
     person: Person;
-    type: 'Developer' | 'Tester';
+    isDeveloper: boolean;
   } | null>(null);
 
   if (!uiConfig) {
@@ -377,11 +377,14 @@ export function TasksTable({
   );
 
   const fieldLabels = new Map(uiConfig.fields.map((f) => [f.key, f.label]));
+  const developersLabel = fieldLabels.get('developers') || 'Developers';
+  const testersLabel = fieldLabels.get('testers') || 'Testers';
+
   const developersById = new Map(developers.map((d) => [d.id, d]));
   const testersById = new Map(testers.map((t) => [t.id, t]));
 
-  const handleAvatarClick = (person: Person, type: 'Developer' | 'Tester') => {
-    setPersonInView({ person, type });
+  const handleAvatarClick = (person: Person, isDeveloper: boolean) => {
+    setPersonInView({ person, isDeveloper });
   };
   
   const handleToggleSelection = (taskId: string, checked: boolean) => {
@@ -437,8 +440,8 @@ export function TasksTable({
              )}
             <TableHead>{fieldLabels.get('title') || 'Title'}</TableHead>
             <TableHead>{fieldLabels.get('status') || 'Status'}</TableHead>
-            <TableHead>Developers</TableHead>
-            <TableHead>Testers</TableHead>
+            <TableHead>{developersLabel}</TableHead>
+            <TableHead>{testersLabel}</TableHead>
             <TableHead>
               {fieldLabels.get('repositories') || 'Repositories'}
             </TableHead>
@@ -477,7 +480,8 @@ export function TasksTable({
       </Table>
       <PersonProfileCard
         person={personInView?.person ?? null}
-        type={personInView?.type ?? 'Developer'}
+        isDeveloper={personInView?.isDeveloper ?? true}
+        typeLabel={personInView?.isDeveloper ? developersLabel : testersLabel}
         isOpen={!!personInView}
         onOpenChange={(isOpen) => !isOpen && setPersonInView(null)}
       />

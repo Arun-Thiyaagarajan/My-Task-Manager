@@ -17,17 +17,18 @@ import type { CSSProperties } from 'react';
 
 interface PersonProfileCardProps {
   person: Person | null;
-  type: 'Developer' | 'Tester';
+  typeLabel: string;
+  isDeveloper: boolean;
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
 }
 
-export function PersonProfileCard({ person, type, isOpen, onOpenChange }: PersonProfileCardProps) {
+export function PersonProfileCard({ person, typeLabel, isDeveloper, isOpen, onOpenChange }: PersonProfileCardProps) {
   if (!person) {
     return null;
   }
   
-  const TypeIcon = type === 'Developer' ? Briefcase : UserCheck;
+  const TypeIcon = isDeveloper ? Briefcase : UserCheck;
   
   const nameColor = getAvatarColor(person.name);
   const badgeStyle: CSSProperties = {
@@ -54,11 +55,11 @@ export function PersonProfileCard({ person, type, isOpen, onOpenChange }: Person
               <DialogTitle className="text-2xl font-bold">{person.name}</DialogTitle>
               {/* The DialogDescription is for accessibility. The Badge provides the visual cue. */}
               <DialogDescription className="sr-only">
-                {type}
+                {typeLabel}
               </DialogDescription>
               <Badge variant="outline" className="mt-1 border" aria-hidden="true" style={badgeStyle}>
                 <TypeIcon className="h-3 w-3 mr-1.5"/>
-                {type}
+                {typeLabel}
               </Badge>
             </div>
         </DialogHeader>

@@ -150,6 +150,7 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
   const autoDisappearEnabled = form.watch('autoDisappear');
   const timeFormat = uiConfig?.timeFormat || '12h';
   const timeFormatString = timeFormat === '24h' ? 'PPP HH:mm' : 'PPP p';
+  const isPinned = form.watch('isPinned');
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -331,7 +332,7 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
                                     onClick={() => field.onChange(!field.value)}
                                     disabled={!form.watch('reminder')}
                                 >
-                                    {field.value ? <Pin className="h-4 w-4" /> : <PinOff className="h-4 w-4" />}
+                                    {isPinned ? <Pin className="h-4 w-4 fill-amber-500 text-amber-500" /> : <PinOff className="h-4 w-4" />}
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent>
