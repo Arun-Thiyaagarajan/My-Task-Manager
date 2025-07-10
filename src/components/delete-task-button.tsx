@@ -18,6 +18,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
+import * as React from 'react';
 
 interface DeleteTaskButtonProps {
   taskId: string;
@@ -25,9 +26,10 @@ interface DeleteTaskButtonProps {
   onSuccess: () => void;
   iconOnly?: boolean;
   className?: string;
+  children?: React.ReactNode;
 }
 
-export function DeleteTaskButton({ taskId, taskTitle, onSuccess, iconOnly = false, className }: DeleteTaskButtonProps) {
+export function DeleteTaskButton({ taskId, taskTitle, onSuccess, iconOnly = false, className, children }: DeleteTaskButtonProps) {
   const { toast } = useToast();
 
   const handleMoveToBin = () => {
@@ -60,6 +62,22 @@ export function DeleteTaskButton({ taskId, taskTitle, onSuccess, iconOnly = fals
     });
   };
   
+  if (children) {
+     return (
+        <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }} className="w-full">
+            <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    {children}
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will move the task "{taskTitle}" to the bin. You can restore it later.</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleMoveToBin} className="bg-destructive hover:bg-destructive/90">Move to Bin</AlertDialogAction></AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </div>
+     )
+  }
+
   return (
     <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
       <AlertDialog>

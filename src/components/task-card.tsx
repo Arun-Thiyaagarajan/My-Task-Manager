@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getStatusConfig, TaskStatusBadge } from './task-status-badge';
-import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck, Share2, BellRing } from 'lucide-react';
+import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck, Share2, BellRing, MoreVertical, Trash2 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
@@ -485,26 +485,59 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
               </div>
             </div>
             <div className="flex items-center gap-1 shrink-0">
-                <FavoriteToggleButton
-                    taskId={task.id}
-                    isFavorite={!!task.isFavorite}
-                    onUpdate={onTaskUpdate}
-                />
-                
+              <FavoriteToggleButton
+                taskId={task.id}
+                isFavorite={!!task.isFavorite}
+                onUpdate={onTaskUpdate}
+              />
+              <div className="hidden sm:flex">
                 <ShareMenu task={task} uiConfig={uiConfig!} developers={developers} testers={testers}>
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => e.stopPropagation()}>
                     <Share2 className="h-4 w-4" />
                     <span className="sr-only">Share Task</span>
                   </Button>
                 </ShareMenu>
-
                 <DeleteTaskButton
-                    taskId={task.id}
-                    taskTitle={task.title}
-                    onSuccess={onTaskDelete}
-                    iconOnly
-                    className="h-8 w-8"
+                  taskId={task.id}
+                  taskTitle={task.title}
+                  onSuccess={onTaskDelete}
+                  iconOnly
+                  className="h-8 w-8"
                 />
+              </div>
+              <div className="sm:hidden">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <MoreVertical className="h-4 w-4" />
+                      <span className="sr-only">More options</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" onClick={e => e.stopPropagation()}>
+                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                      <ShareMenu task={task} uiConfig={uiConfig!} developers={developers} testers={testers}>
+                        <div className="flex items-center w-full">
+                          <Share2 className="mr-2 h-4 w-4" />
+                          <span>Share...</span>
+                        </div>
+                      </ShareMenu>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                      <DeleteTaskButton
+                        taskId={task.id}
+                        taskTitle={task.title}
+                        onSuccess={onTaskDelete}
+                      >
+                        <div className="flex items-center">
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          <span>Delete</span>
+                        </div>
+                      </DeleteTaskButton>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
           </CardFooter>
         </Card>
