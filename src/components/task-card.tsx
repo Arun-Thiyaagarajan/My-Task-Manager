@@ -194,6 +194,8 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   const hiddenTestersCount = assignedTesters.length - MAX_VISIBLE_AVATARS;
   const hiddenTesters = assignedTesters.slice(MAX_VISIBLE_AVATARS);
 
+  const showMoreOptions = assignedDevelopers.length > 2 || assignedTesters.length > 2;
+
   const statusConfig = getStatusConfig(task.status);
   const { Icon, cardClassName, iconColorClassName } = statusConfig;
 
@@ -413,9 +415,9 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                           {hiddenDevelopersCount > 0 && (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-background bg-muted">
-                                  <span className="text-xs font-medium text-muted-foreground">+{hiddenDevelopersCount}</span>
-                                </div>
+                                <Avatar className="h-7 w-7 border-2 border-background">
+                                  <AvatarFallback className="bg-muted text-xs font-medium text-muted-foreground">+{hiddenDevelopersCount}</AvatarFallback>
+                                </Avatar>
                               </TooltipTrigger>
                               <TooltipContent>
                                 <div className="text-sm p-1 space-y-1">
@@ -465,9 +467,9 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                           {hiddenTestersCount > 0 && (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-background bg-muted">
-                                    <span className="text-xs font-medium text-muted-foreground">+{hiddenTestersCount}</span>
-                                </div>
+                                <Avatar className="h-7 w-7 border-2 border-background">
+                                  <AvatarFallback className="bg-muted text-xs font-medium text-muted-foreground">+{hiddenTestersCount}</AvatarFallback>
+                                </Avatar>
                               </TooltipTrigger>
                               <TooltipContent>
                                 <div className="text-sm p-1 space-y-1">
@@ -490,23 +492,8 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                 isFavorite={!!task.isFavorite}
                 onUpdate={onTaskUpdate}
               />
-              <div className="hidden sm:flex">
-                <ShareMenu task={task} uiConfig={uiConfig!} developers={developers} testers={testers}>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => e.stopPropagation()}>
-                    <Share2 className="h-4 w-4" />
-                    <span className="sr-only">Share Task</span>
-                  </Button>
-                </ShareMenu>
-                <DeleteTaskButton
-                  taskId={task.id}
-                  taskTitle={task.title}
-                  onSuccess={onTaskDelete}
-                  iconOnly
-                  className="h-8 w-8"
-                />
-              </div>
-              <div className="sm:hidden">
-                <DropdownMenu>
+              {showMoreOptions ? (
+                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-8 w-8">
                       <MoreVertical className="h-4 w-4" />
@@ -537,7 +524,23 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </div>
+              ) : (
+                <>
+                  <ShareMenu task={task} uiConfig={uiConfig!} developers={developers} testers={testers}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => e.stopPropagation()}>
+                      <Share2 className="h-4 w-4" />
+                      <span className="sr-only">Share Task</span>
+                    </Button>
+                  </ShareMenu>
+                  <DeleteTaskButton
+                    taskId={task.id}
+                    taskTitle={task.title}
+                    onSuccess={onTaskDelete}
+                    iconOnly
+                    className="h-8 w-8"
+                  />
+                </>
+              )}
             </div>
           </CardFooter>
         </Card>
