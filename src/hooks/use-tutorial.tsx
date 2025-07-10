@@ -15,28 +15,28 @@ export function useTutorial() {
         {
             element: '#task-filters',
             popover: {
-                title: 'Filtering and Searching',
+                title: 'Task Manager Tutorial',
                 description: 'Easily find any task by using the search bar or filtering by status, repository, or deployment.'
             }
         },
         {
             element: '#view-mode-toggle',
             popover: {
-                title: 'Switch Views',
+                title: 'Task Manager Tutorial',
                 description: 'You can switch between a visual Grid view and a detailed Table view to suit your workflow.'
             }
         },
         {
             element: '.relative.mb-3.text-sm.text-muted-foreground',
             popover: {
-                title: 'AI-Powered Summaries',
+                title: 'Task Manager Tutorial',
                 description: 'For longer descriptions, the system automatically generates a concise one-sentence summary to help you quickly grasp the task\'s objective.'
             }
         },
          {
             element: '#new-task-btn',
             popover: {
-                title: 'Create a Task',
+                title: 'Task Manager Tutorial',
                 description: 'Click here to start a new task. The form allows you to add all necessary details.'
             },
             onNextClick: ({
@@ -54,7 +54,7 @@ export function useTutorial() {
         {
             element: '#task-form-main-card',
             popover: {
-                title: 'Task Details',
+                title: 'Task Manager Tutorial',
                 description: 'Fill in core details like title, description, status, and assignees.'
             },
             onPrevClick: ({
@@ -69,7 +69,7 @@ export function useTutorial() {
         {
             element: '#task-form-submit',
             popover: {
-                title: 'Save Your Task',
+                title: 'Task Manager Tutorial',
                 description: 'Once you\'re done, click here to create the task and return to the main list.'
             }
         }
@@ -79,15 +79,15 @@ export function useTutorial() {
         {
             element: '.group\\/card',
             popover: {
-                title: 'Task Details',
+                title: 'Task Manager Tutorial',
                 description: 'This is the main view for a single task, showing its title, description, and current status.'
             },
         },
         {
             element: 'button[aria-label="Set Reminder"]',
             popover: {
-                title: 'Set a Reminder',
-                description: 'Click here to add a reminder note to this task. You can also pin it to the main page for visibility.'
+                title: 'Task Manager Tutorial',
+                description: 'Click the bell icon to add a reminder note to this task. You can also pin it to the main page for visibility.'
             }
         },
     ];
@@ -96,28 +96,28 @@ export function useTutorial() {
         {
             element: '#settings-field-config-card',
             popover: {
-                title: 'Field Configuration',
+                title: 'Task Manager Tutorial',
                 description: 'Here you can edit, reorder, and manage all the fields that appear on your tasks.'
             }
         },
         {
-             element: 'button:not([disabled]):not([aria-label]):not([size="icon"]):not([type="submit"]):not([role="combobox"])',
+             element: '.flex.items-center.gap-2 > button:not(.hidden)',
              popover: {
-                title: 'Add Custom Fields',
+                title: 'Task Manager Tutorial',
                 description: 'Click here to create your own custom fields to tailor the application to your specific needs (e.g., text, date, select, etc.).'
              }
         },
         {
             element: '#settings-people-management',
             popover: {
-                title: 'Manage People',
+                title: 'Task Manager Tutorial',
                 description: 'Add and manage your lists of developers and testers in these sections.'
             }
         },
         {
             element: '#settings-environment-card',
             popover: {
-                title: 'Manage Environments',
+                title: 'Task Manager Tutorial',
                 description: 'Define your deployment environments beyond the standard dev, stage, and production.'
             }
         },
@@ -127,7 +127,7 @@ export function useTutorial() {
         {
             element: '.grid.grid-cols-1.lg\\:grid-cols-2.gap-8',
             popover: {
-                title: 'Dashboard Overview',
+                title: 'Task Manager Tutorial',
                 description: 'This dashboard provides a high-level overview of your team\'s progress with visual charts tracking tasks by status, assignees, and deployments.'
             }
         }
@@ -137,7 +137,7 @@ export function useTutorial() {
         {
             element: '.relative.w-full.max-w-sm',
             popover: {
-                title: 'Activity Logs',
+                title: 'Task Manager Tutorial',
                 description: 'Here you can view a complete, filterable audit trail of every change made to tasks and settings.'
             }
         }
@@ -147,7 +147,7 @@ export function useTutorial() {
         {
             element: '.border.rounded-lg.overflow-x-auto',
             popover: {
-                title: 'The Bin',
+                title: 'Task Manager Tutorial',
                 description: 'Deleted tasks are held here for 30 days, allowing you to restore them anytime.'
             }
         }
@@ -188,13 +188,7 @@ export function useTutorial() {
 
         const driverObj = driver({
           showProgress: true,
-          steps: steps.map(step => ({
-              ...step,
-              popover: {
-                  ...step.popover,
-                  title: 'Task Manager Tutorial'
-              }
-          })),
+          steps,
           onCloseClick: () => {
                 prompt(() => {
                     driverObj.destroy();
