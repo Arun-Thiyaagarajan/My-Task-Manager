@@ -250,12 +250,10 @@ export default function TaskPage() {
 
     if (isCurrentlyPinned) {
         newPinnedIds = pinnedTaskIds.filter(id => id !== taskIdToToggle);
-        toast({ title: 'Reminder Unpinned', description: 'The reminder will no longer appear on the main page.', duration: 3000 });
     } else {
         newPinnedIds = [...pinnedTaskIds, taskIdToToggle];
-        toast({ title: 'Reminder Pinned', description: 'This reminder will now appear on the main page.', duration: 3000 });
     }
-
+    
     setPinnedTaskIds(newPinnedIds);
     localStorage.setItem(PINNED_TASKS_STORAGE_KEY, JSON.stringify(newPinnedIds));
   };
@@ -980,14 +978,6 @@ function TaskDetailSection({ title, people, peopleMap, setPersonInView, isDevelo
   const uniquePeopleIds = [...new Set(people || [])];
   const assignedPeople = uniquePeopleIds.map(id => peopleMap.get(id)).filter((p): p is Person => !!p);
   
-  const handlePersonClick = (person: Person) => {
-    const hasContactInfo = person.email || person.phone;
-    const hasAdditionalFields = person.additionalFields && person.additionalFields.length > 0;
-    if (hasContactInfo || hasAdditionalFields) {
-      setPersonInView({ person, isDeveloper });
-    }
-  };
-
   return (
     <div>
         <h4 className="text-sm font-semibold text-muted-foreground mb-2">{title}</h4>
@@ -997,7 +987,7 @@ function TaskDetailSection({ title, people, peopleMap, setPersonInView, isDevelo
                   <button 
                     key={`${isDeveloper ? 'dev' : 'test'}-${person.id}`}
                     className="flex items-center gap-2 p-1 -m-1 rounded-md hover:bg-muted/50 transition-colors"
-                    onClick={() => handlePersonClick(person)}
+                    onClick={() => setPersonInView({ person, isDeveloper })}
                   >
                       <Avatar className="h-7 w-7">
                       <AvatarFallback
@@ -1050,7 +1040,7 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
               </div>
           )}
 
-          {hasDevDates && (hasQaDates || hasAnyDeploymentDate) && <Separator className="my-2"/>}
+          {hasDevDates && hasQaDates && <Separator className="my-2"/>}
           
           {isValidDate(task.qaStartDate) && (
               <div className="flex justify-between">
@@ -1065,7 +1055,7 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
               </div>
           )}
           
-          {hasQaDates && hasAnyDeploymentDate && <Separator className="my-2"/>}
+          {(hasQaDates || hasDevDates) && hasAnyDeploymentDate && <Separator className="my-2"/>}
 
           {task.deploymentDates && Object.entries(task.deploymentDates).map(([env, date]) => {
               if (!isValidDate(date)) return null;
@@ -1079,3 +1069,4 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
       </div>
     );
 }
+

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -532,3 +533,4 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
     </>
   );
 }
+
