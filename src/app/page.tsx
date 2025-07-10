@@ -392,8 +392,11 @@ export default function Home() {
         binnedTasksToExport = getBinnedTasks();
         logsToExport = getLogs();
     } else { // 'current_view'
-        activeTasksToExport = sortedTasks;
-        const taskIdsInView = new Set(sortedTasks.map(t => t.id));
+        activeTasksToExport = isSelectMode && selectedTaskIds.length > 0
+            ? getTasks().filter(t => selectedTaskIds.includes(t.id))
+            : sortedTasks;
+        
+        const taskIdsInView = new Set(activeTasksToExport.map(t => t.id));
         const allLogs = getLogs();
         logsToExport = allLogs.filter(log => log.taskId && taskIdsInView.has(log.taskId));
     }
@@ -958,7 +961,10 @@ export default function Home() {
                       </div>
                     </TooltipTrigger>
                     <TooltipContent side="top">
-                      <p>Exports the {sortedTasks.length} currently visible task(s) based on your filters.</p>
+                      <p>
+                        Exports the {isSelectMode && selectedTaskIds.length > 0 ? selectedTaskIds.length : sortedTasks.length} task(s) currently
+                        {isSelectMode && selectedTaskIds.length > 0 ? ' selected' : ' visible'}.
+                      </p>
                     </TooltipContent>
                   </Tooltip>
                 </DropdownMenuItem>
