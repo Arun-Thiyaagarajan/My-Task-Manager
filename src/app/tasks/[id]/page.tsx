@@ -916,29 +916,31 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
     if (!hasDevQaDates && !hasAnyDeploymentDate) {
       return <p className="text-muted-foreground text-center text-xs py-2">No dates have been set.</p>
     }
+    
+    const isValidDate = (d: any): d is string => d && !isNaN(new Date(d).getTime());
 
     return (
       <div className="space-y-2 text-sm">
-          {task.devStartDate && !isNaN(new Date(task.devStartDate).getTime()) && (
+          {isValidDate(task.devStartDate) && (
               <div className="flex justify-between">
                   <span className="text-muted-foreground">{fieldLabels.get('devStartDate') || 'Dev Start Date'}</span>
                   <span>{format(new Date(task.devStartDate), 'PPP')}</span>
               </div>
           )}
-          {task.devEndDate && !isNaN(new Date(task.devEndDate).getTime()) && (
+          {isValidDate(task.devEndDate) && (
               <div className="flex justify-between">
                   <span className="text-muted-foreground">{fieldLabels.get('devEndDate') || 'Dev End Date'}</span>
                   <span>{format(new Date(task.devEndDate), 'PPP')}</span>
               </div>
           )}
-          {(task.devStartDate || task.devEndDate) && (task.qaStartDate || task.qaEndDate) && <Separator className="my-1"/>}
-          {task.qaStartDate && !isNaN(new Date(task.qaStartDate).getTime()) && (
+          {(isValidDate(task.devStartDate) || isValidDate(task.devEndDate)) && (isValidDate(task.qaStartDate) || isValidDate(task.qaEndDate)) && <Separator className="my-1"/>}
+          {isValidDate(task.qaStartDate) && (
               <div className="flex justify-between">
                   <span className="text-muted-foreground">{fieldLabels.get('qaStartDate') || 'QA Start Date'}</span>
                   <span>{format(new Date(task.qaStartDate), 'PPP')}</span>
               </div>
           )}
-          {task.qaEndDate && !isNaN(new Date(task.qaEndDate).getTime()) && (
+          {isValidDate(task.qaEndDate) && (
               <div className="flex justify-between">
                   <span className="text-muted-foreground">{fieldLabels.get('qaEndDate') || 'QA End Date'}</span>
                   <span>{format(new Date(task.qaEndDate), 'PPP')}</span>
@@ -947,7 +949,7 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
           {(hasDevQaDates && hasAnyDeploymentDate) && <Separator className="my-2"/>}
 
           {task.deploymentDates && Object.entries(task.deploymentDates).map(([env, date]) => {
-              if (!date || isNaN(new Date(date).getTime())) return null;
+              if (!isValidDate(date)) return null;
               return (
                   <div key={env} className="flex justify-between">
                       <span className="text-muted-foreground capitalize">{env} Deployed</span>

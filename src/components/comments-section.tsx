@@ -12,7 +12,7 @@ import { formatDistanceToNow } from 'date-fns';
 
 interface CommentsSectionProps {
   taskId: string;
-  comments: Comment[];
+  comments: (Comment | string)[]; // Allow old string format for backward compatibility
   onCommentsUpdate: (newComments: Comment[]) => void;
   hideHeader?: boolean;
   readOnly?: boolean;
@@ -22,6 +22,10 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, hideHeader
   const [newComment, setNewComment] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingText, setEditingText] = useState('');
+  
+  const getCommentText = (comment: Comment | string) => typeof comment === 'string' ? comment : comment.text;
+  const getCommentTimestamp = (comment: Comment | string) => (typeof comment !== 'string' && comment.timestamp) ? new Date(comment.timestamp) : null;
+
 
   const handleAddComment = () => {
     if (newComment.trim()) {
@@ -35,7 +39,7 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, hideHeader
 
   const handleEdit = (index: number) => {
     setEditingIndex(index);
-    setEditingText(comments[index].text);
+    setEditingText(getCommentText(comments[index]));
   };
 
   const handleCancelEdit = () => {
@@ -72,44 +76,51 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, hideHeader
       )}
       <CardContent className={cn("space-y-4", hideHeader && "p-0")}>
         <div className="space-y-4">
-          {comments.map((comment, index) => (
-            <div key={index} className="p-3 rounded-md border bg-muted/50 group">
-              {editingIndex === index ? (
-                <div className="space-y-2">
-                   <Textarea
-                     value={editingText}
-                     onChange={(e) => setEditingText(e.target.value)}
-                     className="bg-background"
-                   />
-                   <div className="flex gap-2 justify-end">
-                     <Button size="sm" variant="ghost" onClick={handleCancelEdit}><X className="h-4 w-4 mr-1" />Cancel</Button>
-                     <Button size="sm" onClick={() => handleSaveEdit(index)}><Check className="h-4 w-4 mr-1" />Save</Button>
-                   </div>
-                </div>
-              ) : (
-                <div className="flex flex-col justify-between items-start gap-2">
-                    <div className="flex justify-between items-start w-full gap-2">
-                      <p className="text-foreground/80 whitespace-pre-wrap flex-1 pt-1">{comment.text}</p>
-                      {!readOnly && (
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(index)}>
-                                <Pencil className="h-4 w-4" />
-                                <span className="sr-only">Edit comment</span>
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(index)}>
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                                <span className="sr-only">Delete comment</span>
-                            </Button>
-                        </div>
+          {comments.map((comment, index) => {
+             const text = getCommentText(comment);
+             const timestamp = getCommentTimestamp(comment);
+             
+             return (
+              <div key={index} className="p-3 rounded-md border bg-muted/50 group">
+                {editingIndex === index ? (
+                  <div className="space-y-2">
+                     <Textarea
+                       value={editingText}
+                       onChange={(e) => setEditingText(e.target.value)}
+                       className="bg-background"
+                     />
+                     <div className="flex gap-2 justify-end">
+                       <Button size="sm" variant="ghost" onClick={handleCancelEdit}><X className="h-4 w-4 mr-1" />Cancel</Button>
+                       <Button size="sm" onClick={() => handleSaveEdit(index)}><Check className="h-4 w-4 mr-1" />Save</Button>
+                     </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col justify-between items-start gap-2">
+                      <div className="flex justify-between items-start w-full gap-2">
+                        <p className="text-foreground/80 whitespace-pre-wrap flex-1 pt-1">{text}</p>
+                        {!readOnly && (
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(index)}>
+                                  <Pencil className="h-4 w-4" />
+                                  <span className="sr-only">Edit comment</span>
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(index)}>
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                  <span className="sr-only">Delete comment</span>
+                              </Button>
+                          </div>
+                        )}
+                      </div>
+                      {timestamp && (
+                        <p className="text-xs text-muted-foreground self-end">
+                          {formatDistanceToNow(timestamp, { addSuffix: true })}
+                        </p>
                       )}
-                    </div>
-                    <p className="text-xs text-muted-foreground self-end">
-                      {formatDistanceToNow(new Date(comment.timestamp), { addSuffix: true })}
-                    </p>
-                </div>
-              )}
-            </div>
-          ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
            {comments.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No comments yet. {readOnly ? '' : 'Add one below!'}</p>}
         </div>
         {!readOnly && (
