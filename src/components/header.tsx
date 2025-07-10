@@ -24,7 +24,7 @@ import {
   getGeneralReminders,
 } from '@/lib/data';
 import type { Company } from '@/lib/types';
-import { Building, PlusCircle, Trash2, Edit, LayoutDashboard, Cog, Menu, FileClock, Home, Bell } from 'lucide-react';
+import { Building, PlusCircle, Trash2, Edit, LayoutDashboard, Cog, Menu, FileClock, Home, Bell, GraduationCap } from 'lucide-react';
 import { CompaniesManager } from './companies-manager';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -44,7 +44,7 @@ import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { useRouter } from 'next/navigation';
 import { ImagePreviewDialog } from './image-preview-dialog';
 import { GeneralRemindersDialog } from './general-reminders-dialog';
-import { cn } from '@/lib/utils';
+import { useTutorial } from '@/hooks/use-tutorial';
 
 const HeaderLink = ({ href, children, className, onClick }: { href: string; children: React.ReactNode, className?: string; onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void; }) => {
     const router = useRouter();
@@ -76,6 +76,7 @@ export function Header() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isRemindersOpen, setIsRemindersOpen] = useState(false);
   const [generalRemindersCount, setGeneralRemindersCount] = useState(0);
+  const { startTutorial } = useTutorial();
 
   const refreshAllData = () => {
     const config = getUiConfig();
@@ -133,7 +134,7 @@ export function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header id="main-header" className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-14 max-w-screen-2xl items-center justify-between">
           <div className="flex items-center gap-4 md:gap-6">
             <div className="flex items-center space-x-2">
@@ -240,6 +241,10 @@ export function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+            <Button variant="ghost" size="icon" onClick={() => startTutorial()}>
+                <GraduationCap className="h-5 w-5" />
+                <span className="sr-only">Show Tutorial</span>
+            </Button>
             <Button variant="ghost" size="icon" onClick={() => setIsRemindersOpen(true)} className="relative">
                 <Bell className="h-5 w-5" />
                 {generalRemindersCount > 0 && (

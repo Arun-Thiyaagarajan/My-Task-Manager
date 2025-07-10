@@ -437,7 +437,7 @@ export default function SettingsPage() {
   }
 
   const renderFieldRow = (field: FieldConfig, isActiveList: boolean) => {
-    const protectedDateFields = ['devStartDate', 'devEndDate'];
+    const protectedDateFields = ['devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate'];
     const isToggleDisabled = field.isRequired || protectedDateFields.includes(field.key);
 
     return (
@@ -513,7 +513,7 @@ export default function SettingsPage() {
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
+        <div id="settings-field-config-card" className="lg:col-span-2">
             <Card>
                 <CardHeader>
                     <CardTitle>Field Configuration</CardTitle>
@@ -631,7 +631,7 @@ export default function SettingsPage() {
                         <Button onClick={handleSaveFeatures} className="w-full">Save Features</Button>
                     </CardFooter>
                 </Card>
-                 <Card>
+                 <Card id="settings-environment-card">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2"><Server className="h-5 w-5" />Environment Management</CardTitle>
                         <CardDescription>Add or rename deployment environments. `dev` and `production` are protected.</CardDescription>
@@ -689,14 +689,16 @@ export default function SettingsPage() {
                         </div>
                     </CardContent>
                 </Card>
-                <Card>
-                    <CardHeader><CardTitle className="flex items-center justify-between"><span className="flex items-center gap-2"><Code2 className="h-5 w-5" />Developer Management</span><Badge variant="outline">{developers.length}</Badge></CardTitle><CardDescription>Manage their names, contact info, and assignments.</CardDescription></CardHeader>
-                    <CardContent><Button onClick={() => openPeopleManager('developer')} className="w-full">Manage Developers</Button></CardContent>
-                </Card>
-                <Card>
-                    <CardHeader><CardTitle className="flex items-center justify-between"><span className="flex items-center gap-2"><ClipboardCheck className="h-5 w-5" />Tester Management</span><Badge variant="outline">{testers.length}</Badge></CardTitle><CardDescription>Manage their names, contact info, and assignments.</CardDescription></CardHeader>
-                    <CardContent><Button onClick={() => openPeopleManager('tester')} className="w-full">Manage Testers</Button></CardContent>
-                </Card>
+                <div id="settings-people-management" className="space-y-8">
+                    <Card>
+                        <CardHeader><CardTitle className="flex items-center justify-between"><span className="flex items-center gap-2"><Code2 className="h-5 w-5" />Developer Management</span><Badge variant="outline">{developers.length}</Badge></CardTitle><CardDescription>Manage their names, contact info, and assignments.</CardDescription></CardHeader>
+                        <CardContent><Button onClick={() => openPeopleManager('developer')} className="w-full">Manage Developers</Button></CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader><CardTitle className="flex items-center justify-between"><span className="flex items-center gap-2"><ClipboardCheck className="h-5 w-5" />Tester Management</span><Badge variant="outline">{testers.length}</Badge></CardTitle><CardDescription>Manage their names, contact info, and assignments.</CardDescription></CardHeader>
+                        <CardContent><Button onClick={() => openPeopleManager('tester')} className="w-full">Manage Testers</Button></CardContent>
+                    </Card>
+                </div>
             </div>
         </div>
       </div>

@@ -989,7 +989,7 @@ export default function Home() {
                 accept=".json"
             />
             
-            <Button asChild size="sm">
+            <Button asChild size="sm" id="new-task-btn">
             <a href="/tasks/new" onClick={handleNewTaskClick}>
                 <Plus className="mr-2 h-4 w-4" />
                 New Task
@@ -999,7 +999,7 @@ export default function Home() {
       </div>
       
       <div className="space-y-6">
-          <Card>
+          <Card id="task-filters">
             <CardContent className="p-4">
               <div className="flex flex-wrap items-center gap-4">
                 <div className="relative flex-1 min-w-[240px] sm:flex-grow-[2]">
@@ -1239,7 +1239,7 @@ export default function Home() {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-x-2 gap-y-2 flex-wrap justify-start sm:justify-end">
+                <div id="view-mode-toggle" className="flex items-center gap-x-2 gap-y-2 flex-wrap justify-start sm:justify-end">
                   <Select value={sortDescriptor} onValueChange={setSortDescriptor}>
                       <SelectTrigger className="w-auto sm:w-[180px] h-10">
                           <SelectValue placeholder="Sort by" />

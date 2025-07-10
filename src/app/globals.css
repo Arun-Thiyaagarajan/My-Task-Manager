@@ -134,3 +134,54 @@
       animation: heart-pulse 0.4s ease-in-out;
     }
 }
+
+/* Driver.js styles */
+@layer components {
+    div#driver-popover-item {
+        background-color: hsl(var(--popover));
+        color: hsl(var(--popover-foreground));
+        border-radius: var(--radius);
+        border-width: 1px;
+        border-color: hsl(var(--border));
+    }
+    .driver-popover-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        line-height: 1.75rem;
+        color: hsl(var(--foreground));
+    }
+    .driver-popover-description {
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+        color: hsl(var(--muted-foreground));
+    }
+    .driver-popover-footer {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: flex-end;
+    }
+    .driver-popover-footer button {
+        @apply text-sm font-medium transition-colors;
+    }
+    .driver-popover-close-btn {
+        @apply text-secondary-foreground hover:bg-secondary/80 rounded-md px-3 py-1.5;
+        color: hsl(var(--foreground));
+    }
+    .driver-popover-close-btn:hover {
+        background-color: hsl(var(--secondary));
+    }
+    .driver-popover-prev-btn, .driver-popover-next-btn {
+        @apply rounded-md px-3 py-1.5;
+        background-color: hsl(var(--primary));
+        color: hsl(var(--primary-foreground));
+    }
+    .driver-popover-prev-btn:hover, .driver-popover-next-btn:hover {
+        background-color: hsl(var(--primary) / 0.9);
+    }
+    .driver-popover-arrow {
+        border-top-color: hsl(var(--border)) !important;
+    }
+    .driver-popover-arrow-side-top {
+        border-top-color: hsl(var(--popover)) !important;
+    }
+}
