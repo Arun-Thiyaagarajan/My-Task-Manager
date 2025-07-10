@@ -39,7 +39,14 @@ export function useTutorial() {
             }
         },
         {
-            element: '.relative.mb-3.text-sm.text-muted-foreground',
+            element: '[id^="task-card-reminder-btn-"]',
+            popover: {
+                title: 'Set Reminders',
+                description: 'Quickly set a reminder for a task by clicking the bell icon. You can also pin important reminders to the main page.'
+            }
+        },
+        {
+            element: '.group\\/card .text-muted-foreground.line-clamp-2',
             popover: {
                 title: 'AI-Powered Summaries',
                 description: 'For longer descriptions, the system automatically generates a concise one-sentence summary to help you quickly grasp the task\'s objective.'
@@ -92,7 +99,7 @@ export function useTutorial() {
             },
         },
         {
-            element: 'button.h-8.w-8[aria-label="Set Reminder"], button.h-7.w-7[aria-label="Set Reminder"]',
+            element: 'button[aria-label="Set Reminder"]',
             popover: {
                 title: 'Set Reminders',
                 description: 'Click the bell icon to add a reminder note to this task. You can also pin it to the main page for visibility.'
@@ -172,7 +179,9 @@ export function useTutorial() {
             steps = homePageSteps;
         } else if (path.startsWith('/tasks/new')) {
              steps = newTaskPageSteps;
-        } else if (path.match(/\/tasks\/[a-zA-Z0-9-]+/)) {
+        } else if (path.match(/\/tasks\/[a-zA-Z0-9-]+$/)) {
+            steps = taskDetailPageSteps;
+        } else if (path.startsWith('/tasks/')) { // Catch edit page too
             steps = taskDetailPageSteps;
         } else if (path === '/settings') {
             steps = settingsPageSteps;

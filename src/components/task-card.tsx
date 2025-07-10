@@ -202,6 +202,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   return (
     <>
       <div
+        id={`task-card-${task.id}`}
         onClick={(e) => {
           e.stopPropagation();
           if (isSelectMode) {
@@ -254,7 +255,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                         </Link>
                         
                         {uiConfig?.remindersEnabled && (
-                            <div className="flex-shrink-0">
+                            <div className="flex-shrink-0" id={`task-card-reminder-btn-${task.id}`}>
                               <Tooltip>
                                   <TooltipTrigger asChild>
                                       <Button

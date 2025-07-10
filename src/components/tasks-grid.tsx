@@ -47,8 +47,7 @@ export function TasksGrid({ tasks, onTaskDelete, onTaskUpdate, uiConfig, develop
   const renderGrid = (tasksToRender: Task[]) => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {tasksToRender.map(task => (
-        <div key={task.id} className="p-1">
-          <TaskCard 
+        <TaskCard 
             key={task.id}
             task={task} 
             onTaskDelete={onTaskDelete} 
@@ -61,8 +60,7 @@ export function TasksGrid({ tasks, onTaskDelete, onTaskUpdate, uiConfig, develop
             isSelectMode={isSelectMode}
             pinnedTaskIds={pinnedTaskIds}
             onPinToggle={onPinToggle}
-          />
-        </div>
+        />
       ))}
     </div>
   );
