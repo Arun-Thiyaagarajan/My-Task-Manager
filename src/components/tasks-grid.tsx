@@ -49,6 +49,7 @@ export function TasksGrid({ tasks, onTaskDelete, onTaskUpdate, uiConfig, develop
       {tasksToRender.map(task => (
         <div key={task.id} className="p-1">
           <TaskCard 
+            key={task.id}
             task={task} 
             onTaskDelete={onTaskDelete} 
             onTaskUpdate={onTaskUpdate} 
