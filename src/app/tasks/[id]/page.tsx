@@ -561,6 +561,7 @@ export default function TaskPage() {
   const historyField = !isBinned && taskLogs.length > 0;
   const timeFormatString = uiConfig.timeFormat === '24h' ? 'PPP HH:mm' : 'PPP p';
   
+  const isValidDate = (d: any): d is string => d && !isNaN(new Date(d).getTime());
 
   return (
     <>
@@ -645,7 +646,7 @@ export default function TaskPage() {
                   <AlertTitle className="text-amber-800 dark:text-amber-200">Reminder Note</AlertTitle>
                   <AlertDescription className="text-amber-700 dark:text-amber-300 whitespace-pre-wrap">
                     {task.reminder}
-                    {task.reminderExpiresAt && !isNaN(new Date(task.reminderExpiresAt).getTime()) && (
+                    {isValidDate(task.reminderExpiresAt) && (
                       <span className="block text-xs italic mt-1 text-amber-600 dark:text-amber-400">
                         (Expires {format(new Date(task.reminderExpiresAt), timeFormatString)})
                       </span>
@@ -733,7 +734,7 @@ export default function TaskPage() {
                   </CardHeader>
                   <CardContent className="pt-2 flex-grow">
                     <CardDescription className="mb-4">
-                        Last updated on {format(new Date(task.updatedAt), 'PPP')}
+                        Last updated on {isValidDate(task.updatedAt) ? format(new Date(task.updatedAt), 'PPP') : 'N/A'}
                     </CardDescription>
                     <p className="text-foreground/80 whitespace-pre-wrap">{task.description}</p>
                   </CardContent>
@@ -970,6 +971,7 @@ function TaskDetailSection({ title, people, peopleMap, setPersonInView, type }: 
 }) {
   const uniquePeopleIds = [...new Set(people || [])];
   const assignedPeople = uniquePeopleIds.map(id => peopleMap.get(id)).filter((p): p is Person => !!p);
+  
   return (
     <div>
         <h4 className="text-sm font-semibold text-muted-foreground mb-2">{title}</h4>
@@ -1007,15 +1009,20 @@ function TaskDetailSection({ title, people, peopleMap, setPersonInView, type }: 
 }
 
 function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<string, string>}) {
-    const hasDevQaDates = task.devStartDate || task.devEndDate || task.qaStartDate || task.qaEndDate;
-    const hasAnyDeploymentDate = Object.values(task.deploymentDates || {}).some(date => date);
+    const isValidDate = (d: any): d is string => d && !isNaN(new Date(d).getTime());
+
+    const hasDevQaDates =
+      isValidDate(task.devStartDate) ||
+      isValidDate(task.devEndDate) ||
+      isValidDate(task.qaStartDate) ||
+      isValidDate(task.qaEndDate);
+
+    const hasAnyDeploymentDate = Object.values(task.deploymentDates || {}).some(date => isValidDate(date));
 
     if (!hasDevQaDates && !hasAnyDeploymentDate) {
       return <p className="text-muted-foreground text-center text-xs py-2">No dates have been set.</p>
     }
     
-    const isValidDate = (d: any): d is string => d && !isNaN(new Date(d).getTime());
-
     return (
       <div className="space-y-2 text-sm">
           {isValidDate(task.devStartDate) && (
@@ -1030,7 +1037,7 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
                   <span>{format(new Date(task.devEndDate), 'PPP')}</span>
               </div>
           )}
-          {(isValidDate(task.devStartDate) || isValidDate(task.devEndDate)) && (isValidDate(task.qaStartDate) || isValidDate(task.qaEndDate)) && <Separator className="my-1"/>}
+          {(hasDevQaDates && hasAnyDeploymentDate) && <Separator className="my-1"/>}
           {isValidDate(task.qaStartDate) && (
               <div className="flex justify-between">
                   <span className="text-muted-foreground">{fieldLabels.get('qaStartDate') || 'QA Start Date'}</span>
