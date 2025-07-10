@@ -703,7 +703,7 @@ export default function TaskPage() {
                           </Tooltip>
                         )}
                       </div>
-                      <div className="flex-shrink-0 flex items-center gap-2">
+                      <div className="flex-shrink-0 flex items-center">
                         {!isBinned && <FavoriteToggleButton taskId={task.id} isFavorite={!!task.isFavorite} onUpdate={loadData} />}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -878,7 +878,7 @@ export default function TaskPage() {
                 <CardContent className="space-y-4">
                   <TaskDetailSection title={fieldLabels.get('developers') || 'Developers'} people={task.developers} peopleMap={developersById} setPersonInView={setPersonInView} isDeveloper={true} />
                   <Separator />
-                  <TaskDetailSection title={fieldLabels.get('testers') || 'Testers'} people={task.testers} peopleMap={testersById} setPersonInView={setPersonInView} isDeveloper={false} />
+                  <TaskDetailSection title={fieldLabels.get('testers') || 'QA'} people={task.testers} peopleMap={testersById} setPersonInView={setPersonInView} isDeveloper={false} />
                   <Separator />
                   <div>
                     <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('repositories') || 'Repositories'}</h4>
@@ -938,7 +938,7 @@ export default function TaskPage() {
       <PersonProfileCard
         person={personInView?.person ?? null}
         isDeveloper={personInView?.isDeveloper ?? true}
-        typeLabel={personInView?.isDeveloper ? (fieldLabels.get('developers') || 'Developer') : (fieldLabels.get('testers') || 'Tester')}
+        typeLabel={personInView?.isDeveloper ? (fieldLabels.get('developers') || 'Developer') : (fieldLabels.get('testers') || 'QA')}
         isOpen={!!personInView}
         onOpenChange={(isOpen) => !isOpen && setPersonInView(null)}
       />
@@ -1012,15 +1012,11 @@ function TaskDetailSection({ title, people, peopleMap, setPersonInView, isDevelo
 function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<string, string>}) {
     const isValidDate = (d: any): d is string | Date => d && !isNaN(new Date(d).getTime());
 
-    const hasDevQaDates =
-      isValidDate(task.devStartDate) ||
-      isValidDate(task.devEndDate) ||
-      isValidDate(task.qaStartDate) ||
-      isValidDate(task.qaEndDate);
-
+    const hasDevDates = isValidDate(task.devStartDate) || isValidDate(task.devEndDate);
+    const hasQaDates = isValidDate(task.qaStartDate) || isValidDate(task.qaEndDate);
     const hasAnyDeploymentDate = Object.values(task.deploymentDates || {}).some(date => isValidDate(date));
 
-    if (!hasDevQaDates && !hasAnyDeploymentDate) {
+    if (!hasDevDates && !hasQaDates && !hasAnyDeploymentDate) {
       return <p className="text-muted-foreground text-center text-xs py-2">No dates have been set.</p>
     }
     
@@ -1038,7 +1034,9 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
                   <span>{format(new Date(task.devEndDate), 'PPP')}</span>
               </div>
           )}
-          {(hasDevQaDates && hasAnyDeploymentDate) && <Separator className="my-1"/>}
+
+          {hasDevDates && (hasQaDates || hasAnyDeploymentDate) && <Separator className="my-2"/>}
+          
           {isValidDate(task.qaStartDate) && (
               <div className="flex justify-between">
                   <span className="text-muted-foreground">{fieldLabels.get('qaStartDate') || 'QA Start Date'}</span>
@@ -1051,7 +1049,8 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
                   <span>{format(new Date(task.qaEndDate), 'PPP')}</span>
               </div>
           )}
-          {(hasDevQaDates && hasAnyDeploymentDate) && <Separator className="my-2"/>}
+          
+          {hasQaDates && hasAnyDeploymentDate && <Separator className="my-2"/>}
 
           {task.deploymentDates && Object.entries(task.deploymentDates).map(([env, date]) => {
               if (!isValidDate(date)) return null;
