@@ -437,7 +437,7 @@ export default function SettingsPage() {
   }
 
   const renderFieldRow = (field: FieldConfig, isActiveList: boolean) => {
-    const protectedDateFields = ['devStartDate', 'devEndDate'];
+    const protectedDateFields = ['devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate'];
     const isDateProtected = protectedDateFields.includes(field.key);
     const isToggleDisabled = field.isRequired || isDateProtected;
 
@@ -572,13 +572,15 @@ export default function SettingsPage() {
                                         <ImageIcon className="h-4 w-4 mr-2" /> Upload Image
                                     </Button>
                                     <input type="file" ref={iconInputRef} onChange={handleIconUpload} className="hidden" accept="image/png, image/jpeg, image/svg+xml" />
+                                    {appIcon && (
+                                        <div className="text-center pt-1">
+                                            <Button variant="link" size="sm" className="p-0 h-auto text-destructive text-xs" onClick={() => setAppIcon(null)}>
+                                                <Trash2 className="mr-1 h-3 w-3" /> Remove Icon
+                                            </Button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
-                            {appIcon && (
-                                <Button variant="link" size="sm" className="p-0 h-auto text-destructive" onClick={() => setAppIcon(null)}>
-                                    <Trash2 className="mr-1 h-3 w-3" /> Remove Icon
-                                </Button>
-                            )}
                         </div>
                     </div>
                     <div className="space-y-2 pt-6 border-t">
@@ -707,3 +709,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+
