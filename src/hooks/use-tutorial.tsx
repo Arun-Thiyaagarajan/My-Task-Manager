@@ -5,7 +5,6 @@ import { driver, DriveStep } from "driver.js";
 import "driver.js/dist/driver.css";
 import { useRouter, usePathname } from "next/navigation";
 import { useUnsavedChanges } from "./use-unsaved-changes";
-import { getUiConfig } from "@/lib/data";
 
 export function useTutorial() {
     const router = useRouter();
@@ -31,7 +30,8 @@ export function useTutorial() {
             }) => {
                 prompt(() => {
                     router.push('/tasks/new');
-                    next();
+                    // We need a slight delay for the page to navigate before driver.js tries to find the next element.
+                    setTimeout(() => next(), 500);
                 });
             }
         },
@@ -70,7 +70,7 @@ export function useTutorial() {
             }) => {
                 prompt(() => {
                     router.push('/');
-                    previous();
+                    setTimeout(() => previous(), 500);
                 });
             }
         },
@@ -162,7 +162,6 @@ export function useTutorial() {
     ];
 
     const startTutorial = () => {
-        const config = getUiConfig();
         let steps: DriveStep[] = [];
         
         if (pathname === '/') {
@@ -201,7 +200,7 @@ export function useTutorial() {
               ...step,
               popover: {
                   ...step.popover,
-                  title: `${config.appName || 'TaskFlow'} Tutorial`
+                  title: 'Task Manager Tutorial'
               }
           })),
           onCloseClick: () => {
