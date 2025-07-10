@@ -241,10 +241,12 @@ export function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            <Button variant="ghost" size="icon" onClick={() => startTutorial(appName)}>
-                <GraduationCap className="h-5 w-5" />
-                <span className="sr-only">Show Tutorial</span>
-            </Button>
+            <div id="tutorial-trigger-wrapper">
+                <Button variant="ghost" size="icon" onClick={() => startTutorial(appName)}>
+                    <GraduationCap className="h-5 w-5" />
+                    <span className="sr-only">Show Tutorial</span>
+                </Button>
+            </div>
             <Button variant="ghost" size="icon" onClick={() => setIsRemindersOpen(true)} className="relative">
                 <Bell className="h-5 w-5" />
                 {generalRemindersCount > 0 && (

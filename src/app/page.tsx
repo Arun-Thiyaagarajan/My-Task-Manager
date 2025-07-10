@@ -48,6 +48,7 @@ import {
   PinOff,
   BellRing,
   MoreVertical,
+  GraduationCap,
 } from 'lucide-react';
 import { cn, fuzzySearch } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig, Log, GeneralReminder } from '@/lib/types';
@@ -105,12 +106,14 @@ import {
 import { ToastAction } from '@/components/ui/toast';
 import { ReminderStack } from '@/components/reminder-stack';
 import { Badge } from '@/components/ui/badge';
+import { useTutorial } from '@/hooks/use-tutorial';
 
 
 type ViewMode = 'grid' | 'table';
 type MainView = 'all' | 'monthly';
 
 const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
+const TUTORIAL_PROMPTED_KEY = 'taskflow_tutorial_prompted';
 
 export default function Home() {
   const activeCompanyId = useActiveCompany();
@@ -143,6 +146,9 @@ export default function Home() {
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [pinnedTaskIds, setPinnedTaskIds] = useState<string[]>([]);
   const [isReminderStackOpen, setIsReminderStackOpen] = useState(false);
+  
+  const { startTutorial } = useTutorial();
+  const [showTutorialPrompt, setShowTutorialPrompt] = useState(false);
 
   const handlePreviousMonth = () => setSelectedMonth(subMonths(selectedMonth, 1));
   const handleNextMonth = () => setSelectedMonth(addMonths(selectedMonth, 1));
@@ -161,6 +167,12 @@ export default function Home() {
   };
 
   useEffect(() => {
+    const tutorialPrompted = localStorage.getItem(TUTORIAL_PROMPTED_KEY);
+    if (!tutorialPrompted) {
+      // Use a timeout to ensure the UI is ready before showing the prompt
+      setTimeout(() => setShowTutorialPrompt(true), 1000);
+    }
+    
     const savedViewMode = localStorage.getItem('taskflow_view_mode') as ViewMode;
     if (savedViewMode) setViewMode(savedViewMode);
     
@@ -929,6 +941,17 @@ export default function Home() {
     : `Tasks with a start date in ${format(selectedMonth, 'MMMM yyyy')}.`;
 
   const remindersCount = pinnedReminders.length + generalReminders.length;
+  
+  const handleStartTutorial = () => {
+    setShowTutorialPrompt(false);
+    localStorage.setItem(TUTORIAL_PROMPTED_KEY, 'true');
+    startTutorial(uiConfig.appName || 'My Task Manager');
+  };
+
+  const handleDismissTutorialPrompt = () => {
+    setShowTutorialPrompt(false);
+    localStorage.setItem(TUTORIAL_PROMPTED_KEY, 'true');
+  };
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -937,6 +960,28 @@ export default function Home() {
           Tasks
         </h1>
         <div className="flex items-center gap-2 flex-wrap justify-end">
+            <Popover open={showTutorialPrompt} onOpenChange={setShowTutorialPrompt}>
+              <PopoverTrigger asChild>
+                <div id="tutorial-popover-anchor" className="relative">
+                  {showTutorialPrompt && <div className="absolute inset-0 rounded-md animate-ping-slow bg-primary/50 -z-10" />}
+                </div>
+              </PopoverTrigger>
+              <PopoverContent side="bottom" align="end" className="w-80">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold leading-none flex items-center gap-2"><GraduationCap className="h-5 w-5 text-primary" /> Welcome!</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Want a quick tour to see how everything works?
+                    </p>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="ghost" size="sm" onClick={handleDismissTutorialPrompt}>Maybe later</Button>
+                    <Button size="sm" onClick={handleStartTutorial}>Start Tutorial</Button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+            
             {uiConfig.remindersEnabled && remindersCount > 0 && (
               <Button variant="outline" className="h-10 border-amber-500/50 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-200 dark:border-amber-800/50 dark:hover:bg-amber-900/40" onClick={() => setIsReminderStackOpen(true)}>
                 <BellRing className="mr-2 h-4 w-4" />
