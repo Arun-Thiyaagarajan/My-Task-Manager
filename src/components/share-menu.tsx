@@ -10,10 +10,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { Download, Share2, Copy } from 'lucide-react';
+import { Download, Share2, Copy, FileJson } from 'lucide-react';
 import { generateTaskPdf, generateTasksText } from '@/lib/share-utils';
 import type { Task, UiConfig, Person } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { getLogsForTask } from '@/lib/data';
+
+
+const sanitizeFilename = (name: string): string => {
+    return name.replace(/[<>:"/\\|?*]+/g, '_').substring(0, 100);
+};
 
 interface ShareMenuProps {
   task: Task;
@@ -35,17 +41,53 @@ export function ShareMenu({ task, uiConfig, developers, testers, children }: Sha
     }
   }, []);
 
-  const sanitizeFilename = (name: string): string => {
-    // Replace invalid filename characters with an underscore
-    return name.replace(/[<>:"/\\|?*]+/g, '_').substring(0, 100);
-  };
-  
   const pdfFilename = `${sanitizeFilename(task.title)}.pdf`;
+  const jsonFilename = `${sanitizeFilename(task.title)}.json`;
+  
+  const handleExportJson = () => {
+    const devIdsInTask = new Set(task.developers || []);
+    const testerIdsInTask = new Set(task.testers || []);
+    
+    const developersToExport = developers.filter(d => devIdsInTask.has(d.id));
+    const testersToExport = testers.filter(t => testerIdsInTask.has(t.id));
+    const logsToExport = getLogsForTask(task.id);
+    
+    const devIdToName = new Map(developers.map(d => [d.id, d.name]));
+    const testerIdToName = new Map(testers.map(t => [t.id, t.name]));
+
+    const taskWithNames = {
+      ...task,
+      developers: (task.developers || []).map(id => devIdToName.get(id)).filter(Boolean),
+      testers: (task.testers || []).map(id => testerIdToName.get(id)).filter(Boolean),
+    };
+    
+    const exportData = {
+        appName: uiConfig.appName,
+        appIcon: uiConfig.appIcon,
+        repositoryConfigs: uiConfig.repositoryConfigs,
+        developers: developersToExport.map(p => ({ name: p.name, email: p.email, phone: p.phone })),
+        testers: testersToExport.map(p => ({ name: p.name, email: p.email, phone: p.phone })),
+        tasks: [taskWithNames],
+        logs: logsToExport,
+    };
+    
+    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(exportData, null, 2))}`;
+    const link = document.createElement("a");
+    link.href = jsonString;
+    link.download = jsonFilename;
+    link.click();
+
+    toast({
+      variant: 'success',
+      title: 'JSON Exported',
+      description: `Task "${task.title}" has been exported.`,
+    });
+  };
 
   const handleSharePdf = async () => {
     try {
       // Generate PDF as a blob
-      const pdfBlob = await generateTaskPdf(task, uiConfig, developers, testers, 'blob');
+      const pdfBlob = await generateTaskPdf([task], uiConfig, developers, testers, 'blob');
       if (!pdfBlob) throw new Error("Could not generate PDF blob.");
       
       const pdfFile = new File([pdfBlob], pdfFilename, {
@@ -69,7 +111,7 @@ export function ShareMenu({ task, uiConfig, developers, testers, children }: Sha
   
   const handleDownloadPdf = async () => {
     try {
-      await generateTaskPdf(task, uiConfig, developers, testers, 'save', pdfFilename);
+      await generateTaskPdf([task], uiConfig, developers, testers, 'save', pdfFilename);
       toast({ variant: 'success', title: 'PDF Generated', description: 'Your PDF has started downloading.' });
     } catch (e) {
       console.error("PDF generation failed:", e);
@@ -95,6 +137,10 @@ export function ShareMenu({ task, uiConfig, developers, testers, children }: Sha
           <Download className="mr-2 h-4 w-4" />
           <span>Download as PDF</span>
         </DropdownMenuItem>
+         <DropdownMenuItem onSelect={handleExportJson}>
+          <FileJson className="mr-2 h-4 w-4" />
+          <span>Export as JSON</span>
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={handleCopyToClipboard}>
             <Copy className="mr-2 h-4 w-4" />
             <span>Copy as Text</span>
@@ -112,5 +158,3 @@ export function ShareMenu({ task, uiConfig, developers, testers, children }: Sha
     </DropdownMenu>
   );
 }
-
-      

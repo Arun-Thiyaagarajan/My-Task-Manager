@@ -9,7 +9,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles, Share2, History, MessageSquare, BellRing, MoreVertical, Trash2 } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles, Share2, History, MessageSquare, BellRing, MoreVertical, Trash2, FileJson, Copy, Download } from 'lucide-react';
 import { getStatusConfig, TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -46,6 +46,7 @@ import { FavoriteToggleButton } from '@/components/favorite-toggle';
 import { TaskHistory } from '@/components/task-history';
 import { ReminderDialog } from '@/components/reminder-dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { generateTaskPdf, generateTasksText } from '@/lib/share-utils';
 
 
 const isImageUrl = (url: string): boolean => {
@@ -439,6 +440,52 @@ export default function TaskPage() {
       
       handleReminderSuccess(); // This reloads the task data
   };
+  
+  const handleExportJson = () => {
+    if (!task) return;
+
+    const sanitizeFilename = (name: string): string => name.replace(/[<>:"/\\|?*]+/g, '_').substring(0, 100);
+    const jsonFilename = `${sanitizeFilename(task.title)}.json`;
+
+    const devIdsInTask = new Set(task.developers || []);
+    const testerIdsInTask = new Set(task.testers || []);
+
+    const developersToExport = developers.filter(d => devIdsInTask.has(d.id));
+    const testersToExport = testers.filter(t => testerIdsInTask.has(t.id));
+    const logsToExport = getLogsForTask(task.id);
+
+    const devIdToName = new Map(developers.map(d => [d.id, d.name]));
+    const testerIdToName = new Map(testers.map(t => [t.id, t.name]));
+
+    const taskWithNames = {
+        ...task,
+        developers: (task.developers || []).map(id => devIdToName.get(id)).filter(Boolean),
+        testers: (task.testers || []).map(id => testerIdToName.get(id)).filter(Boolean),
+    };
+
+    const exportData = {
+        appName: uiConfig?.appName,
+        appIcon: uiConfig?.appIcon,
+        repositoryConfigs: uiConfig?.repositoryConfigs,
+        developers: developersToExport.map(p => ({ name: p.name, email: p.email, phone: p.phone })),
+        testers: testersToExport.map(p => ({ name: p.name, email: p.email, phone: p.phone })),
+        tasks: [taskWithNames],
+        logs: logsToExport,
+    };
+
+    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(exportData, null, 2))}`;
+    const link = document.createElement("a");
+    link.href = jsonString;
+    link.download = jsonFilename;
+    link.click();
+
+    toast({
+        variant: 'success',
+        title: 'JSON Exported',
+        description: `Task "${task.title}" has been exported.`,
+    });
+};
+
 
   const renderCustomFieldValue = (fieldConfig: FieldConfig, value: any) => {
       if (value === null || value === undefined || value === '') return <span className="text-muted-foreground">N/A</span>;
@@ -504,7 +551,7 @@ export default function TaskPage() {
   const customFields = uiConfig.fields.filter(f => f.isCustom && f.isActive && task.customFields && typeof task.customFields[f.key] !== 'undefined' && task.customFields[f.key] !== null && task.customFields[f.key] !== '');
   
   const developersById = new Map(developers.map(d => [d.id, d]));
-  const testersById = new Map(testers.map(t => [t.id, t]));
+  const testersById = new Map(testers.map(t => [t.id, t.name]));
 
   const azureFieldConfig = uiConfig.fields.find(f => f.key === 'azureWorkItemId');
   const prField = uiConfig.fields.find(f => f.key === 'prLinks' && f.isActive);
@@ -557,10 +604,13 @@ export default function TaskPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                         <DropdownMenuItem onSelect={() => generateTaskPdf([task], uiConfig, developers, testers, 'save')}>
-                            Download as PDF
+                           <Download className="mr-2 h-4 w-4" /> Download as PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={handleExportJson}>
+                            <FileJson className="mr-2 h-4 w-4" /> Export as JSON
                         </DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => generateTasksText([task], uiConfig, developers, testers)}>
-                            Copy as Text
+                           <Copy className="mr-2 h-4 w-4" /> Copy as Text
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
