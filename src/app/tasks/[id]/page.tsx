@@ -639,7 +639,7 @@ export default function TaskPage() {
         {task.reminder && (
           <Alert className="mb-6 bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/50">
             <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 flex-1 min-w-0">
                 <BellRing className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
                 <div className="flex-1">
                   <AlertTitle className="text-amber-800 dark:text-amber-200">Reminder Note</AlertTitle>
