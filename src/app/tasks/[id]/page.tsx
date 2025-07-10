@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -8,7 +9,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles, Share2, History, MessageSquare, BellRing, MoreVertical } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles, Share2, History, MessageSquare, BellRing, MoreVertical, Trash2 } from 'lucide-react';
 import { getStatusConfig, TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -422,6 +423,23 @@ export default function TaskPage() {
     }
   };
 
+  const handleRemoveReminder = () => {
+      if (!task) return;
+      
+      updateTask(task.id, { reminder: null, reminderExpiresAt: null });
+      if (pinnedTaskIds.includes(task.id)) {
+        handleTogglePin(task.id);
+      }
+      
+      toast({ 
+        variant: 'success', 
+        title: 'Reminder Removed', 
+        description: `The reminder for "${task.title}" has been removed.` 
+      });
+      
+      handleReminderSuccess(); // This reloads the task data
+  };
+
   const renderCustomFieldValue = (fieldConfig: FieldConfig, value: any) => {
       if (value === null || value === undefined || value === '') return <span className="text-muted-foreground">N/A</span>;
       
@@ -569,19 +587,48 @@ export default function TaskPage() {
         )}
         
         {task.reminder && (
-           <Alert className="mb-6 bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/50">
-            <BellRing className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-            <AlertTitle className="text-amber-800 dark:text-amber-200">Reminder Note</AlertTitle>
-            <AlertDescription className="text-amber-700 dark:text-amber-300 whitespace-pre-wrap">
-              {task.reminder}
-              {task.reminderExpiresAt && !isNaN(new Date(task.reminderExpiresAt).getTime()) && (
-                  <span className="block text-xs italic mt-1 text-amber-600 dark:text-amber-400">
-                      (Expires {format(new Date(task.reminderExpiresAt), timeFormatString)})
-                  </span>
+          <Alert className="mb-6 bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/50">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <BellRing className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                <div className="flex-1">
+                  <AlertTitle className="text-amber-800 dark:text-amber-200">Reminder Note</AlertTitle>
+                  <AlertDescription className="text-amber-700 dark:text-amber-300 whitespace-pre-wrap">
+                    {task.reminder}
+                    {task.reminderExpiresAt && !isNaN(new Date(task.reminderExpiresAt).getTime()) && (
+                      <span className="block text-xs italic mt-1 text-amber-600 dark:text-amber-400">
+                        (Expires {format(new Date(task.reminderExpiresAt), timeFormatString)})
+                      </span>
+                    )}
+                  </AlertDescription>
+                </div>
+              </div>
+              {!isBinned && (
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-600 hover:bg-amber-100 hover:text-amber-800 dark:text-amber-400 dark:hover:bg-amber-900/40 dark:hover:text-amber-300">
+                          <Trash2 className="h-4 w-4" />
+                          <span className="sr-only">Remove reminder</span>
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Remove Reminder?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This will permanently remove the reminder note from this task.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleRemoveReminder}>Remove</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
               )}
-            </AlertDescription>
+            </div>
           </Alert>
         )}
+
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
           <div className="lg:col-span-2 space-y-6">
