@@ -551,7 +551,7 @@ export default function TaskPage() {
   const customFields = uiConfig.fields.filter(f => f.isCustom && f.isActive && task.customFields && typeof task.customFields[f.key] !== 'undefined' && task.customFields[f.key] !== null && task.customFields[f.key] !== '');
   
   const developersById = new Map(developers.map(d => [d.id, d]));
-  const testersById = new Map(testers.map(t => [t.id, t.name]));
+  const testersById = new Map(testers.map(t => [t.id, t]));
 
   const azureFieldConfig = uiConfig.fields.find(f => f.key === 'azureWorkItemId');
   const prField = uiConfig.fields.find(f => f.key === 'prLinks' && f.isActive);
@@ -979,7 +979,7 @@ function TaskDetailSection({ title, people, peopleMap, setPersonInView, type }: 
             {assignedPeople.length > 0 ? (
                 assignedPeople.map((person) => (
                   <button 
-                    key={person.id}
+                    key={`${type}-${person.id}`}
                     className="flex items-center gap-2 p-1 -m-1 rounded-md hover:bg-muted/50 transition-colors"
                     onClick={() => setPersonInView({ person, type })}
                   >
@@ -1009,7 +1009,7 @@ function TaskDetailSection({ title, people, peopleMap, setPersonInView, type }: 
 }
 
 function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<string, string>}) {
-    const isValidDate = (d: any): d is string => d && !isNaN(new Date(d).getTime());
+    const isValidDate = (d: any): d is string | Date => d && !isNaN(new Date(d).getTime());
 
     const hasDevQaDates =
       isValidDate(task.devStartDate) ||
