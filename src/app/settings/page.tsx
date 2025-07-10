@@ -395,7 +395,7 @@ export default function SettingsPage() {
     });
   };
 
-  const isDataURI = (str: string) => str.startsWith('data:image');
+  const isDataURI = (str: string | null): str is string => !!str && str.startsWith('data:image');
 
   const filteredAndGroupedFields = useMemo(() => {
     if (!config) return { active: {}, inactive: {} };
@@ -437,8 +437,7 @@ export default function SettingsPage() {
   }
 
   const renderFieldRow = (field: FieldConfig, isActiveList: boolean) => {
-    const protectedDateFields = ['devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate'];
-    const isDateProtected = protectedDateFields.includes(field.key);
+    const protectedDateFields = ['devStartDate', 'devEndDate'];
     const isToggleDisabled = field.isRequired || protectedDateFields.includes(field.key);
 
     return (
