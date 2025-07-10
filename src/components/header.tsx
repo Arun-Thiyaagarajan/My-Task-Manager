@@ -156,23 +156,23 @@ export function Header() {
             </div>
 
             <nav className="hidden md:flex items-center gap-4">
-               <HeaderLink href="/" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+               <HeaderLink href="/" id="header-nav-home" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                   <Home className="mr-2 h-4 w-4" />
                   Home
                </HeaderLink>
-               <HeaderLink href="/dashboard" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+               <HeaderLink href="/dashboard" id="header-nav-dashboard" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                   <LayoutDashboard className="mr-2 h-4 w-4" />
                   Dashboard
                </HeaderLink>
-               <HeaderLink href="/settings" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+               <HeaderLink href="/settings" id="header-nav-settings" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                   <Cog className="mr-2 h-4 w-4" />
                   Settings
                </HeaderLink>
-               <HeaderLink href="/logs" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+               <HeaderLink href="/logs" id="header-nav-logs" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                   <FileClock className="mr-2 h-4 w-4" />
                   Logs
                </HeaderLink>
-               <HeaderLink href="/bin" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+               <HeaderLink href="/bin" id="header-nav-bin" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                   <Trash2 className="mr-2 h-4 w-4" />
                   Bin
                </HeaderLink>
@@ -241,7 +241,7 @@ export function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            <Button variant="ghost" size="icon" onClick={() => startTutorial()}>
+            <Button variant="ghost" size="icon" onClick={() => startTutorial(appName)}>
                 <GraduationCap className="h-5 w-5" />
                 <span className="sr-only">Show Tutorial</span>
             </Button>

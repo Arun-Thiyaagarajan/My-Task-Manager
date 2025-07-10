@@ -428,7 +428,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
             const gridColsClass = fieldsInGroup.length > 1 ? 'md:grid-cols-2' : 'md:grid-cols-1';
 
             return (
-                <Card key={groupName}>
+                <Card key={groupName} id={groupName === 'Core Details' ? 'task-form-main-card' : undefined}>
                     <CardHeader>
                         <CardTitle>{groupName}</CardTitle>
                     </CardHeader>
@@ -607,7 +607,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
             </Card>
         )}
 
-        <div className="flex justify-end gap-4 pt-4 border-t">
+        <div id="task-form-submit" className="flex justify-end gap-4 pt-4 border-t">
             <Button
               type="button"
               variant="outline"

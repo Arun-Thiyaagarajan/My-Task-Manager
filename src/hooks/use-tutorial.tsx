@@ -10,14 +10,14 @@ export function useTutorial() {
     const router = useRouter();
     const { prompt } = useUnsavedChanges();
 
-    const startTutorial = () => {
+    const startTutorial = (appName: string) => {
         const driverObj = driver({
           showProgress: true,
           steps: [
             { 
                 element: '#main-header', 
                 popover: { 
-                    title: 'Welcome to TaskFlow!', 
+                    title: `Welcome to ${appName}!`,
                     description: 'This quick tour will guide you through the main features of the application. Let\'s get started!' 
                 } 
             },
