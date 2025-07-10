@@ -156,7 +156,34 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Reminder Note</DialogTitle>
+           <div className="flex items-center justify-between">
+            <DialogTitle>Reminder Note</DialogTitle>
+            <FormField
+              control={form.control}
+              name="isPinned"
+              render={({ field }) => (
+                <FormItem>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => field.onChange(!field.value)}
+                        disabled={!form.watch('reminder')}
+                        className="h-8 w-8"
+                      >
+                        {isPinned ? <Pin className="h-4 w-4 fill-amber-500 text-amber-500" /> : <PinOff className="h-4 w-4 text-muted-foreground" />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{field.value ? "Unpin from main page" : "Pin to main page"}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </FormItem>
+              )}
+            />
+          </div>
           <DialogDescription>
             Set or edit a reminder. Pinned notes appear on the main page.
           </DialogDescription>
@@ -313,36 +340,10 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
             )}
 
             <DialogFooter className="gap-2 sm:justify-between pt-4 border-t">
-              <div className="flex items-center gap-2">
-                <Button type="button" variant="destructive" onClick={handleDelete} disabled={isPending || !task.reminder}>
-                  {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                  Remove
-                </Button>
-                <FormField
-                    control={form.control}
-                    name="isPinned"
-                    render={({ field }) => (
-                        <FormItem>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => field.onChange(!field.value)}
-                                    disabled={!form.watch('reminder')}
-                                >
-                                    {isPinned ? <Pin className="h-4 w-4 fill-amber-500 text-amber-500" /> : <PinOff className="h-4 w-4" />}
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                               <p>{field.value ? "Unpin from main page" : "Pin to main page"}</p>
-                            </TooltipContent>
-                        </Tooltip>
-                        </FormItem>
-                    )}
-                />
-              </div>
+              <Button type="button" variant="destructive" onClick={handleDelete} disabled={isPending || !task.reminder}>
+                {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                Remove
+              </Button>
               <div className="flex gap-2">
                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
                   Cancel
