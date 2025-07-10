@@ -439,7 +439,7 @@ export default function SettingsPage() {
   const renderFieldRow = (field: FieldConfig, isActiveList: boolean) => {
     const protectedDateFields = ['devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate'];
     const isDateProtected = protectedDateFields.includes(field.key);
-    const isToggleDisabled = field.isRequired || isDateProtected;
+    const isToggleDisabled = field.isRequired || protectedDateFields.includes(field.key);
 
     return (
         <div 
@@ -607,96 +607,98 @@ export default function SettingsPage() {
                     <Button onClick={handleSaveDisplaySettings} className="w-full">Save Display Settings</Button>
                 </CardFooter>
             </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Settings2 className="h-5 w-5" />Feature Management</CardTitle>
-                    <CardDescription>Enable or disable optional features.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
-                        <div className="space-y-0.5">
-                            <Label htmlFor="reminders-switch" className="flex items-center gap-2"><BellRing className="h-4 w-4" /> Task Reminders</Label>
-                            <p className="text-xs text-muted-foreground">
-                                Allow users to set and pin reminder notes on tasks.
-                            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-8">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Settings2 className="h-5 w-5" />Feature Management</CardTitle>
+                        <CardDescription>Enable or disable optional features.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                            <div className="space-y-0.5">
+                                <Label htmlFor="reminders-switch" className="flex items-center gap-2"><BellRing className="h-4 w-4" /> Task Reminders</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Allow users to set and pin reminder notes on tasks.
+                                </p>
+                            </div>
+                            <Switch
+                                id="reminders-switch"
+                                checked={remindersEnabled}
+                                onCheckedChange={setRemindersEnabled}
+                            />
                         </div>
-                        <Switch
-                            id="reminders-switch"
-                            checked={remindersEnabled}
-                            onCheckedChange={setRemindersEnabled}
-                        />
-                    </div>
-                </CardContent>
-                <CardFooter>
-                    <Button onClick={handleSaveFeatures} className="w-full">Save Features</Button>
-                </CardFooter>
-            </Card>
-             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Server className="h-5 w-5" />Environment Management</CardTitle>
-                    <CardDescription>Add or rename deployment environments. `dev` and `production` are protected.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                    <div className="space-y-2">
-                        {config.environments.map(env => {
-                            const isProtected = ['dev', 'production'].includes(env.toLowerCase());
-                            return (
-                                <div key={env}>
-                                    {editingEnv === env ? (
-                                        <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">
-                                            <Input value={editingEnvText} onChange={e => setEditingEnvText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleRenameEnvironment(env); }} className="h-8" />
-                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRenameEnvironment(env)}><Check className="h-4 w-4" /></Button>
-                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingEnv(null)}><X className="h-4 w-4" /></Button>
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center justify-between p-2 border rounded-md bg-card group">
-                                            <span className="font-medium">{env}</span>
-                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingEnv(env); setEditingEnvText(env); }}><Edit className="h-4 w-4" /></Button>
-                                                {!isProtected && (
-                                                    <AlertDialog>
-                                                        <AlertDialogTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                                                        </AlertDialogTrigger>
-                                                        <AlertDialogContent>
-                                                            <AlertDialogHeader>
-                                                                <AlertDialogTitle>Delete Environment?</AlertDialogTitle>
-                                                                <AlertDialogDescription>This will permanently delete the "{env}" environment and all associated deployment data from your tasks. This action cannot be undone.</AlertDialogDescription>
-                                                            </AlertDialogHeader>
-                                                            <AlertDialogFooter>
-                                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                <AlertDialogAction onClick={() => handleDeleteEnvironment(env)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                                            </AlertDialogFooter>
-                                                        </AlertDialogContent>
-                                                    </AlertDialog>
-                                                )}
+                    </CardContent>
+                    <CardFooter>
+                        <Button onClick={handleSaveFeatures} className="w-full">Save Features</Button>
+                    </CardFooter>
+                </Card>
+                 <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Server className="h-5 w-5" />Environment Management</CardTitle>
+                        <CardDescription>Add or rename deployment environments. `dev` and `production` are protected.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        <div className="space-y-2">
+                            {config.environments.map(env => {
+                                const isProtected = ['dev', 'production'].includes(env.toLowerCase());
+                                return (
+                                    <div key={env}>
+                                        {editingEnv === env ? (
+                                            <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">
+                                                <Input value={editingEnvText} onChange={e => setEditingEnvText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleRenameEnvironment(env); }} className="h-8" />
+                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRenameEnvironment(env)}><Check className="h-4 w-4" /></Button>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingEnv(null)}><X className="h-4 w-4" /></Button>
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                    <div className="flex items-center gap-2 pt-3 border-t">
-                        <Input 
-                            placeholder="New environment name..." 
-                            value={newEnvName} 
-                            onChange={e => setNewEnvName(e.target.value)} 
-                            onKeyDown={e => { if (e.key === 'Enter') handleAddEnvironment(); }}
-                            className="h-9"
-                        />
-                        <Button onClick={handleAddEnvironment} disabled={!newEnvName.trim()} size="sm">Add</Button>
-                    </div>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader><CardTitle className="flex items-center justify-between"><span className="flex items-center gap-2"><Code2 className="h-5 w-5" />Developer Management</span><Badge variant="outline">{developers.length}</Badge></CardTitle><CardDescription>Manage their names, contact info, and assignments.</CardDescription></CardHeader>
-                <CardContent><Button onClick={() => openPeopleManager('developer')} className="w-full">Manage Developers</Button></CardContent>
-            </Card>
-            <Card>
-                <CardHeader><CardTitle className="flex items-center justify-between"><span className="flex items-center gap-2"><ClipboardCheck className="h-5 w-5" />Tester Management</span><Badge variant="outline">{testers.length}</Badge></CardTitle><CardDescription>Manage their names, contact info, and assignments.</CardDescription></CardHeader>
-                <CardContent><Button onClick={() => openPeopleManager('tester')} className="w-full">Manage Testers</Button></CardContent>
-            </Card>
+                                        ) : (
+                                            <div className="flex items-center justify-between p-2 border rounded-md bg-card group">
+                                                <span className="font-medium">{env}</span>
+                                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingEnv(env); setEditingEnvText(env); }}><Edit className="h-4 w-4" /></Button>
+                                                    {!isProtected && (
+                                                        <AlertDialog>
+                                                            <AlertDialogTrigger asChild>
+                                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                                            </AlertDialogTrigger>
+                                                            <AlertDialogContent>
+                                                                <AlertDialogHeader>
+                                                                    <AlertDialogTitle>Delete Environment?</AlertDialogTitle>
+                                                                    <AlertDialogDescription>This will permanently delete the "{env}" environment and all associated deployment data from your tasks. This action cannot be undone.</AlertDialogDescription>
+                                                                </AlertDialogHeader>
+                                                                <AlertDialogFooter>
+                                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                    <AlertDialogAction onClick={() => handleDeleteEnvironment(env)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                                                </AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div className="flex items-center gap-2 pt-3 border-t">
+                            <Input 
+                                placeholder="New environment name..." 
+                                value={newEnvName} 
+                                onChange={e => setNewEnvName(e.target.value)} 
+                                onKeyDown={e => { if (e.key === 'Enter') handleAddEnvironment(); }}
+                                className="h-9"
+                            />
+                            <Button onClick={handleAddEnvironment} disabled={!newEnvName.trim()} size="sm">Add</Button>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader><CardTitle className="flex items-center justify-between"><span className="flex items-center gap-2"><Code2 className="h-5 w-5" />Developer Management</span><Badge variant="outline">{developers.length}</Badge></CardTitle><CardDescription>Manage their names, contact info, and assignments.</CardDescription></CardHeader>
+                    <CardContent><Button onClick={() => openPeopleManager('developer')} className="w-full">Manage Developers</Button></CardContent>
+                </Card>
+                <Card>
+                    <CardHeader><CardTitle className="flex items-center justify-between"><span className="flex items-center gap-2"><ClipboardCheck className="h-5 w-5" />Tester Management</span><Badge variant="outline">{testers.length}</Badge></CardTitle><CardDescription>Manage their names, contact info, and assignments.</CardDescription></CardHeader>
+                    <CardContent><Button onClick={() => openPeopleManager('tester')} className="w-full">Manage Testers</Button></CardContent>
+                </Card>
+            </div>
         </div>
       </div>
 
@@ -709,4 +711,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
