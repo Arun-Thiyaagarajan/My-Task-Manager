@@ -82,6 +82,28 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
     }
   }, [isOpen, task, form, pinnedTaskIds]);
 
+  const handlePinToggleClick = () => {
+    const isCurrentlyPinned = pinnedTaskIds.includes(task.id);
+    const newPinStatus = !isCurrentlyPinned;
+
+    if (!form.getValues('reminder')) {
+        toast({ variant: 'warning', title: 'Cannot pin empty reminder' });
+        return;
+    }
+    
+    // Optimistically update the UI
+    form.setValue('isPinned', newPinStatus, { shouldDirty: true });
+    
+    // Update the state in the parent component
+    onPinToggle(task.id);
+
+    toast({
+        title: newPinStatus ? 'Reminder Pinned' : 'Reminder Unpinned',
+        description: `This reminder will ${newPinStatus ? 'now' : 'no longer'} appear on the main page.`,
+        duration: 3000,
+    });
+  };
+
   const onSubmit = (data: ReminderFormData) => {
     setIsPending(true);
     try {
@@ -93,19 +115,12 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
         reminderExpiresAt: newExpiresAt,
       });
       
-      const canBePinned = !!newReminder;
-      const shouldBePinned = canBePinned && data.isPinned;
-      const isCurrentlyPinned = pinnedTaskIds.includes(task.id);
-
-      if (shouldBePinned !== isCurrentlyPinned) {
-        onPinToggle(task.id);
-      }
+      const wasPinned = pinnedTaskIds.includes(task.id);
       
-      if (!shouldBePinned && isCurrentlyPinned) {
-        toast({
-          title: 'Reminder Unpinned',
-          description: `The reminder for "${task.title}" will no longer appear on the main page.`,
-        });
+      // If the reminder text is cleared, it should be unpinned.
+      if (!newReminder && wasPinned) {
+          onPinToggle(task.id);
+          toast({ title: 'Reminder Unpinned', description: 'The reminder was removed and unpinned.' });
       } else {
         toast({ 
           variant: 'success', 
@@ -150,39 +165,33 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
   const autoDisappearEnabled = form.watch('autoDisappear');
   const timeFormat = uiConfig?.timeFormat || '12h';
   const timeFormatString = timeFormat === '24h' ? 'PPP HH:mm' : 'PPP p';
-  const isPinned = form.watch('isPinned');
+  const isPinned = pinnedTaskIds.includes(task.id);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <div className="flex items-center gap-2">
-            <DialogTitle>Reminder Note</DialogTitle>
-            <FormField
-              control={form.control}
-              name="isPinned"
-              render={({ field }) => (
-                <FormItem>
-                  <Tooltip>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+                <DialogTitle>Reminder Note</DialogTitle>
+                <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button
+                    <Button
                         type="button"
                         variant="ghost"
                         size="icon"
-                        onClick={() => field.onChange(!field.value)}
+                        onClick={handlePinToggleClick}
                         disabled={!form.watch('reminder')}
                         className="h-8 w-8"
-                      >
+                    >
                         {isPinned ? <Pin className="h-4 w-4 fill-amber-500 text-amber-500" /> : <PinOff className="h-4 w-4 text-muted-foreground" />}
-                      </Button>
+                    </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>{field.value ? "Unpin from main page" : "Pin to main page"}</p>
+                    <p>{isPinned ? "Unpin from main page" : "Pin to main page"}</p>
                     </TooltipContent>
-                  </Tooltip>
-                </FormItem>
-              )}
-            />
+                </Tooltip>
+            </div>
           </div>
           <DialogDescription>
             Set or edit a reminder. Pinned notes appear on the main page.
