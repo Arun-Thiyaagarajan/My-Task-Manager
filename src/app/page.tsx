@@ -94,6 +94,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Dialog, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { generateTaskPdf, generateTasksText } from '@/lib/share-utils';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -960,27 +961,26 @@ export default function Home() {
           Tasks
         </h1>
         <div className="flex items-center gap-2 flex-wrap justify-end">
-            <Popover open={showTutorialPrompt} onOpenChange={setShowTutorialPrompt}>
-              <PopoverTrigger asChild>
-                <div id="tutorial-popover-anchor" className="relative">
-                  {showTutorialPrompt && <div className="absolute inset-0 rounded-md animate-ping-slow bg-primary/50 -z-10" />}
-                </div>
-              </PopoverTrigger>
-              <PopoverContent side="bottom" align="end" className="w-80">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <h4 className="font-semibold leading-none flex items-center gap-2"><GraduationCap className="h-5 w-5 text-primary" /> Welcome!</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Want a quick tour to see how everything works?
-                    </p>
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button variant="ghost" size="sm" onClick={handleDismissTutorialPrompt}>Maybe later</Button>
-                    <Button size="sm" onClick={handleStartTutorial}>Start Tutorial</Button>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
+            <Dialog open={showTutorialPrompt} onOpenChange={setShowTutorialPrompt}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader className="items-center text-center">
+                        <div className="p-3 bg-primary/10 rounded-full w-fit mb-2">
+                           <GraduationCap className="h-6 w-6 text-primary" />
+                        </div>
+                        <DialogTitle className="text-xl">Welcome!</DialogTitle>
+                        <DialogDescription>
+                            Want a quick tour to see how everything works?
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="flex-row justify-center sm:justify-center gap-2 pt-4">
+                        <Button variant="ghost" onClick={handleDismissTutorialPrompt}>Maybe later</Button>
+                        <Button onClick={handleStartTutorial}>Start Tutorial</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            <div id="tutorial-popover-anchor" className="relative">
+              {showTutorialPrompt && !localStorage.getItem(TUTORIAL_PROMPTED_KEY) && <div className="absolute inset-0 rounded-md animate-ping-slow bg-primary/50 -z-10" />}
+            </div>
             
             {uiConfig.remindersEnabled && remindersCount > 0 && (
               <Button variant="outline" className="h-10 border-amber-500/50 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-200 dark:border-amber-800/50 dark:hover:bg-amber-900/40" onClick={() => setIsReminderStackOpen(true)}>
