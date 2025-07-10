@@ -106,7 +106,10 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
 
   const unchangeableRequiredKeys = ['title', 'description', 'status', 'repositories', 'developers', 'deploymentStatus'];
   const isRequiredToggleDisabled = field !== null && !field.isCustom && unchangeableRequiredKeys.includes(field.key);
-  const isActiveToggleDisabled = isRequiredValue || (field !== null && field.isRequired);
+  
+  const protectedDevDateFields = ['devStartDate', 'devEndDate'];
+  const isProtectedDevDate = field !== null && protectedDevDateFields.includes(field.key);
+  const isActiveToggleDisabled = isRequiredValue || (field !== null && field.isRequired) || isProtectedDevDate;
 
   const handleRepoChange = (index: number, fieldName: 'name' | 'baseUrl', value: string) => {
     setLocalRepoConfigs(prev => {
