@@ -714,9 +714,9 @@ const handleCopyDescription = () => {
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start gap-4">
                       <div className="flex-1 flex items-center gap-2">
-                        <DialogTitle className="text-3xl font-bold">
+                        <CardTitle className="text-3xl font-bold">
                           {task.title}
-                        </DialogTitle>
+                        </CardTitle>
                         {uiConfig.remindersEnabled && !isBinned && (
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -1110,5 +1110,3 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
       </div>
     );
 }
-
-
