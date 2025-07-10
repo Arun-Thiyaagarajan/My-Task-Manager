@@ -16,7 +16,7 @@ export function useTutorial() {
         { 
             element: '#main-header', 
             popover: { 
-                title: `Welcome to the Main Page!`,
+                title: `Welcome!`,
                 description: 'This is your central hub for managing tasks. This tour will guide you through the features on this page.' 
             } 
         },
@@ -25,6 +25,14 @@ export function useTutorial() {
             popover: {
                 title: 'Create a Task',
                 description: 'Click here to start a new task. The form allows you to add all necessary details.'
+            },
+            onNextClick: ({
+                next
+            }) => {
+                prompt(() => {
+                    router.push('/tasks/new');
+                    next();
+                });
             }
         },
         {
@@ -49,6 +57,31 @@ export function useTutorial() {
             }
         },
     ];
+    
+    const newTaskPageSteps: DriveStep[] = [
+        {
+            element: '#task-form-main-card',
+            popover: {
+                title: 'Task Details',
+                description: 'Fill in core details like title, description, status, and assignees.'
+            },
+            onPrevClick: ({
+                previous
+            }) => {
+                prompt(() => {
+                    router.push('/');
+                    previous();
+                });
+            }
+        },
+        {
+            element: '#task-form-submit',
+            popover: {
+                title: 'Save Your Task',
+                description: 'Once you\'re done, click here to create the task and return to the main list.'
+            }
+        }
+    ];
 
     const taskDetailPageSteps: DriveStep[] = [
         {
@@ -59,7 +92,7 @@ export function useTutorial() {
             },
         },
         {
-            element: '[aria-label="Set Reminder"]',
+            element: 'button[aria-label="Set Reminder"]',
             popover: {
                 title: 'Set a Reminder',
                 description: 'Click here to add a reminder note to this task. You can also pin it to the main page for visibility.'
@@ -76,7 +109,7 @@ export function useTutorial() {
             }
         },
         {
-             element: 'button:contains("Add Field")',
+             element: 'button:not([disabled]):not([aria-label]):not([size="icon"]):not([type="submit"]):not([role="combobox"])',
              popover: {
                 title: 'Add Custom Fields',
                 description: 'Click here to create your own custom fields to tailor the application to your specific needs (e.g., text, date, select, etc.).'
@@ -135,10 +168,7 @@ export function useTutorial() {
         if (pathname === '/') {
             steps = homePageSteps;
         } else if (pathname.startsWith('/tasks/new')) {
-             steps = [{
-                element: '#task-form-main-card',
-                popover: { title: 'Task Details', description: 'Fill in core details like title, description, status, and assignees.' }
-            }];
+             steps = newTaskPageSteps;
         } else if (pathname.match(/\/tasks\/[a-zA-Z0-9-]+/)) {
             steps = taskDetailPageSteps;
         } else if (pathname === '/settings') {
@@ -171,19 +201,13 @@ export function useTutorial() {
               ...step,
               popover: {
                   ...step.popover,
-                  title: `Welcome to ${config.appName || 'My Task Manager'}!`
+                  title: `${config.appName || 'TaskFlow'} Tutorial`
               }
           })),
           onCloseClick: () => {
                 prompt(() => {
                     driverObj.destroy();
                 });
-            },
-           onNextClick: (element, step, { next, steps }) => {
-                if (step.popover?.title?.includes("Create a Task")) {
-                    prompt(() => router.push('/tasks/new'));
-                }
-                next();
             },
         });
 
