@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -46,15 +46,25 @@ import {
   addDeveloper,
   addTester
 } from '@/lib/data';
-import type { Person } from '@/lib/types';
+import type { Person, PersonFieldType } from '@/lib/types';
 import { Loader2, PlusCircle, Trash2, Edit, Users, ClipboardCheck } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './ui/form';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select';
+import { Textarea } from './ui/textarea';
 
+
+const personFieldSchema = z.object({
+  id: z.string(),
+  label: z.string().min(1, 'Label is required'),
+  value: z.string().min(1, 'Value is required'),
+  type: z.enum(['text', 'textarea', 'url', 'number', 'date']),
+});
 
 const personSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters.'),
   email: z.string().email('Invalid email address.').optional().or(z.literal('')),
   phone: z.string().optional(),
+  additionalFields: z.array(personFieldSchema).optional(),
 });
 type PersonFormData = z.infer<typeof personSchema>;
 
@@ -73,7 +83,13 @@ function EditPersonForm({ personToEdit, onSave, onCancel, isPending }: EditPerso
             name: personToEdit?.name || '',
             email: personToEdit?.email || '',
             phone: personToEdit?.phone || '',
+            additionalFields: personToEdit?.additionalFields || [],
         },
+    });
+
+    const { fields, append, remove } = useFieldArray({
+        control: form.control,
+        name: 'additionalFields',
     });
     
     useEffect(() => {
@@ -81,8 +97,33 @@ function EditPersonForm({ personToEdit, onSave, onCancel, isPending }: EditPerso
             name: personToEdit?.name || '',
             email: personToEdit?.email || '',
             phone: personToEdit?.phone || '',
+            additionalFields: personToEdit?.additionalFields || [],
         })
     }, [personToEdit, form]);
+    
+    const personFieldTypes: { value: PersonFieldType, label: string }[] = [
+        { value: 'text', label: 'Text' },
+        { value: 'textarea', label: 'Text Area' },
+        { value: 'url', label: 'URL' },
+        { value: 'number', label: 'Number' },
+        { value: 'date', label: 'Date' },
+    ];
+    
+    const renderValueInput = (index: number) => {
+        const fieldType = form.watch(`additionalFields.${index}.type`);
+        switch (fieldType) {
+            case 'textarea':
+                return <Textarea placeholder="Value" {...form.register(`additionalFields.${index}.value`)} />;
+            case 'date':
+                return <Input type="date" placeholder="Value" {...form.register(`additionalFields.${index}.value`)} />;
+            case 'number':
+                return <Input type="number" placeholder="Value" {...form.register(`additionalFields.${index}.value`)} />;
+            case 'url':
+                return <Input type="url" placeholder="https://example.com" {...form.register(`additionalFields.${index}.value`)} />;
+            default:
+                return <Input placeholder="Value" {...form.register(`additionalFields.${index}.value`)} />;
+        }
+    }
 
     return (
         <Form {...form}>
@@ -108,7 +149,45 @@ function EditPersonForm({ personToEdit, onSave, onCancel, isPending }: EditPerso
                         <FormMessage />
                     </FormItem>
                 )} />
-                <div className="flex justify-end gap-2 pt-4">
+
+                <div className="space-y-4 pt-4 border-t">
+                    <h4 className="font-medium">Additional Information</h4>
+                    {fields.map((field, index) => (
+                        <div key={field.id} className="p-3 border rounded-md bg-muted/50 space-y-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <FormField control={form.control} name={`additionalFields.${index}.label`} render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="text-xs">Label</FormLabel>
+                                        <FormControl><Input {...field} placeholder="e.g., GitHub" /></FormControl>
+                                    </FormItem>
+                                )}/>
+                                 <FormField control={form.control} name={`additionalFields.${index}.type`} render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="text-xs">Type</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                            <SelectContent>
+                                                {personFieldTypes.map(type => <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </FormItem>
+                                )}/>
+                            </div>
+                            <FormItem>
+                                <FormLabel className="text-xs">Value</FormLabel>
+                                <FormControl>{renderValueInput(index)}</FormControl>
+                            </FormItem>
+                            <Button type="button" variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => remove(index)}>
+                                <Trash2 className="h-4 w-4 mr-1" /> Remove Field
+                            </Button>
+                        </div>
+                    ))}
+                    <Button type="button" variant="outline" size="sm" onClick={() => append({ id: `field_${Date.now()}`, label: '', value: '', type: 'text' })}>
+                        <PlusCircle className="h-4 w-4 mr-2" /> Add Field
+                    </Button>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-4 border-t">
                     <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>Cancel</Button>
                     <Button type="submit" disabled={isPending}>
                         {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -228,7 +307,7 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl">
+      <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Icon className="h-5 w-5" />
@@ -240,7 +319,7 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
         </DialogHeader>
 
         {personToEdit || isAdding ? (
-            <div className="py-4">
+            <div className="py-4 flex-1 overflow-y-auto pr-2">
                 <h3 className="text-lg font-medium mb-4">{personToEdit ? `Edit ${personToEdit.name}` : `Add New ${title}`}</h3>
                 <EditPersonForm 
                     personToEdit={personToEdit}

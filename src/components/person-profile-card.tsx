@@ -9,11 +9,13 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Mail, Phone, Briefcase, UserCheck } from 'lucide-react';
-import type { Person } from '@/lib/types';
+import { Mail, Phone, Briefcase, UserCheck, Link as LinkIcon, ExternalLink } from 'lucide-react';
+import type { Person, PersonField } from '@/lib/types';
 import { getInitials, getAvatarColor } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import type { CSSProperties } from 'react';
+import { Separator } from './ui/separator';
+import { format } from 'date-fns';
 
 interface PersonProfileCardProps {
   person: Person | null;
@@ -21,6 +23,19 @@ interface PersonProfileCardProps {
   isDeveloper: boolean;
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
+}
+
+const renderFieldValue = (field: PersonField) => {
+    switch(field.type) {
+        case 'url':
+            return <a href={field.value} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all flex items-center gap-1"><ExternalLink className="h-3 w-3" /> {field.value}</a>;
+        case 'date':
+            return <span>{format(new Date(field.value), 'PPP')}</span>;
+        case 'textarea':
+             return <p className="whitespace-pre-wrap">{field.value}</p>
+        default:
+            return <span>{field.value}</span>
+    }
 }
 
 export function PersonProfileCard({ person, typeLabel, isDeveloper, isOpen, onOpenChange }: PersonProfileCardProps) {
@@ -36,6 +51,9 @@ export function PersonProfileCard({ person, typeLabel, isDeveloper, isOpen, onOp
     color: `#${nameColor}`,
     borderColor: `#${nameColor}40`,
   };
+
+  const hasContactInfo = person.email || person.phone;
+  const hasAdditionalFields = person.additionalFields && person.additionalFields.length > 0;
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -64,23 +82,41 @@ export function PersonProfileCard({ person, typeLabel, isDeveloper, isOpen, onOp
             </div>
         </DialogHeader>
         <div className="py-4 space-y-4">
-            {person.email && (
-                <div className="flex items-start gap-4">
-                    <Mail className="h-5 w-5 text-muted-foreground mt-1 shrink-0" />
-                    <a href={`mailto:${person.email}`} className="text-sm text-foreground hover:underline break-all">
-                        {person.email}
-                    </a>
+            {hasContactInfo && (
+              <div className="space-y-3">
+                {person.email && (
+                    <div className="flex items-start gap-4">
+                        <Mail className="h-5 w-5 text-muted-foreground mt-1 shrink-0" />
+                        <a href={`mailto:${person.email}`} className="text-sm text-foreground hover:underline break-all">
+                            {person.email}
+                        </a>
+                    </div>
+                )}
+                 {person.phone && (
+                    <div className="flex items-start gap-4">
+                        <Phone className="h-5 w-5 text-muted-foreground mt-1 shrink-0" />
+                        <a href={`tel:${person.phone}`} className="text-sm text-foreground hover:underline break-all">
+                            {person.phone}
+                        </a>
+                    </div>
+                )}
+              </div>
+            )}
+            
+            {hasContactInfo && hasAdditionalFields && <Separator />}
+
+            {hasAdditionalFields && (
+                <div className="space-y-4">
+                    {person.additionalFields?.map(field => (
+                        <div key={field.id} className="text-sm">
+                            <p className="font-semibold text-muted-foreground mb-1">{field.label}</p>
+                            <div className="text-foreground break-words">{renderFieldValue(field)}</div>
+                        </div>
+                    ))}
                 </div>
             )}
-             {person.phone && (
-                <div className="flex items-start gap-4">
-                    <Phone className="h-5 w-5 text-muted-foreground mt-1 shrink-0" />
-                    <a href={`tel:${person.phone}`} className="text-sm text-foreground hover:underline break-all">
-                        {person.phone}
-                    </a>
-                </div>
-            )}
-            {!person.email && !person.phone && (
+
+            {!hasContactInfo && !hasAdditionalFields && (
               <p className="text-sm text-muted-foreground text-center pt-2">No contact information available.</p>
             )}
         </div>

@@ -5,12 +5,21 @@ export type TaskStatus = string;
 export type Repository = string;
 export type Environment = (typeof ENVIRONMENTS)[number];
 export type FieldType = 'text' | 'textarea' | 'number' | 'url' | 'date' | 'select' | 'multiselect' | 'checkbox' | 'tags';
+export type PersonFieldType = 'text' | 'textarea' | 'url' | 'number' | 'date';
+
+export interface PersonField {
+  id: string;
+  label: string;
+  value: string;
+  type: PersonFieldType;
+}
 
 export interface Person {
   id: string;
   name: string;
   email?: string;
   phone?: string;
+  additionalFields?: PersonField[];
 }
 export type Developer = Person;
 export type Tester = Person;

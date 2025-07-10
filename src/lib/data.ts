@@ -85,6 +85,8 @@ export const getAppData = (): MyTaskManagerData => {
             if (!company.trash) company.trash = [];
             if (!company.logs) company.logs = [];
             if (!company.generalReminders) company.generalReminders = [];
+            company.developers.forEach(p => { if (!p.additionalFields) p.additionalFields = []; });
+            company.testers.forEach(p => { if (!p.additionalFields) p.additionalFields = []; });
         });
         return data;
     } catch (e) {
@@ -1091,7 +1093,8 @@ function _addPerson(type: PersonType, personData: Partial<Omit<Person, 'id'>>): 
         id: `${type}-${crypto.randomUUID()}`,
         name: trimmedName,
         email: personData.email || '',
-        phone: personData.phone || ''
+        phone: personData.phone || '',
+        additionalFields: personData.additionalFields || [],
     };
 
     if (type === 'developer') {
