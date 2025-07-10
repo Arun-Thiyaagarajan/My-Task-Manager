@@ -27,7 +27,10 @@ export function useTutorial() {
                     title: 'Create a Task',
                     description: 'This is where you can start a new task. The form allows you to add all necessary details.'
                 },
-                onNextClick: () => {
+                onNextClick: ({
+                    preventNext
+                }) => {
+                    preventNext();
                     prompt(() => {
                         router.push('/tasks/new');
                         setTimeout(() => driverObj.moveNext(), 500);
@@ -39,6 +42,15 @@ export function useTutorial() {
                 popover: {
                     title: 'Task Details',
                     description: 'Fill in the core details like title, description, and status here. You can also assign developers, testers, and repositories.'
+                },
+                 onPrevClick: ({
+                    preventPrev
+                }) => {
+                    preventPrev();
+                    prompt(() => {
+                        router.push('/');
+                        setTimeout(() => driverObj.movePrevious(), 500);
+                    });
                 }
             },
             {
@@ -47,7 +59,10 @@ export function useTutorial() {
                     title: 'Save Your Task',
                     description: 'Once you\'re done, click here to create the task and return to the main task board.'
                 },
-                onNextClick: () => {
+                onNextClick: ({
+                    preventNext
+                }) => {
+                    preventNext();
                     prompt(() => {
                         router.push('/');
                         setTimeout(() => driverObj.moveNext(), 500);
@@ -59,6 +74,15 @@ export function useTutorial() {
                 popover: {
                     title: 'Filtering and Searching',
                     description: 'Easily find any task by using the search bar or filtering by status, repository, or deployment.'
+                },
+                 onPrevClick: ({
+                    preventPrev
+                }) => {
+                    preventPrev();
+                    prompt(() => {
+                        router.push('/tasks/new');
+                        setTimeout(() => driverObj.movePrevious(), 500);
+                    });
                 }
             },
             {
@@ -74,7 +98,10 @@ export function useTutorial() {
                     title: 'Application Settings',
                     description: 'Let\'s explore the settings page where you can customize the application.'
                 },
-                onNextClick: () => {
+                onNextClick: ({
+                    preventNext
+                }) => {
+                    preventNext();
                     prompt(() => {
                         router.push('/settings');
                         setTimeout(() => driverObj.moveNext(), 500);
@@ -86,6 +113,15 @@ export function useTutorial() {
                 popover: {
                     title: 'Field Configuration',
                     description: 'Here you can add, edit, reorder, and manage all the fields that appear on your tasks.'
+                },
+                 onPrevClick: ({
+                    preventPrev
+                }) => {
+                    preventPrev();
+                    prompt(() => {
+                        router.push('/');
+                        setTimeout(() => driverObj.movePrevious(), 500);
+                    });
                 }
             },
             {
@@ -108,10 +144,22 @@ export function useTutorial() {
                     title: 'Dashboard',
                     description: 'Get a high-level overview of your team\'s progress with visual charts.'
                 },
-                 onNextClick: () => {
+                 onNextClick: ({
+                    preventNext
+                }) => {
+                    preventNext();
                     prompt(() => {
                         router.push('/dashboard');
                         setTimeout(() => driverObj.moveNext(), 500);
+                    });
+                },
+                onPrevClick: ({
+                    preventPrev
+                }) => {
+                    preventPrev();
+                    prompt(() => {
+                        router.push('/settings');
+                        setTimeout(() => driverObj.movePrevious(), 500);
                     });
                 }
             },
@@ -121,10 +169,22 @@ export function useTutorial() {
                     title: 'Activity Logs',
                     description: 'View a complete, filterable audit trail of every change made to tasks and settings.'
                 },
-                 onNextClick: () => {
+                 onNextClick: ({
+                    preventNext
+                }) => {
+                    preventNext();
                     prompt(() => {
                         router.push('/logs');
                         setTimeout(() => driverObj.moveNext(), 500);
+                    });
+                },
+                onPrevClick: ({
+                    preventPrev
+                }) => {
+                    preventPrev();
+                    prompt(() => {
+                        router.push('/dashboard');
+                        setTimeout(() => driverObj.movePrevious(), 500);
                     });
                 }
             },
@@ -134,10 +194,22 @@ export function useTutorial() {
                     title: 'The Bin',
                     description: 'Deleted tasks are held here for 30 days, allowing you to restore them anytime.'
                 },
-                 onNextClick: () => {
+                 onNextClick: ({
+                    preventNext
+                }) => {
+                    preventNext();
                     prompt(() => {
                         router.push('/bin');
                         setTimeout(() => driverObj.moveNext(), 500);
+                    });
+                },
+                onPrevClick: ({
+                    preventPrev
+                }) => {
+                    preventPrev();
+                    prompt(() => {
+                        router.push('/logs');
+                        setTimeout(() => driverObj.movePrevious(), 500);
                     });
                 }
             },
@@ -145,13 +217,31 @@ export function useTutorial() {
                 element: '#main-header',
                 popover: {
                     title: 'Tour Complete!',
-                    description: 'You\'ve learned the basics. You can restart this tour anytime from the header. Happy tasking!',
-                     onNextClick: () => {
-                        prompt(() => {
-                            router.push('/');
-                            driverObj.destroy();
-                        });
-                    }
+                    description: 'You\'ve learned the basics. You can restart this tour anytime from the header. Happy tasking!'
+                },
+                onPrevClick: ({
+                    preventPrev
+                }) => {
+                    preventPrev();
+                    prompt(() => {
+                        router.push('/bin');
+                        setTimeout(() => driverObj.movePrevious(), 500);
+                    });
+                },
+                onNextClick: ({
+                    preventNext
+                }) => {
+                    preventNext();
+                    prompt(() => {
+                        router.push('/');
+                        driverObj.destroy();
+                    });
+                },
+                onCloseClick: () => {
+                   prompt(() => {
+                        router.push('/');
+                        driverObj.destroy();
+                    });
                 }
             }
           ]
