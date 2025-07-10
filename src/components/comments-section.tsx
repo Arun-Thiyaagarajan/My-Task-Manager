@@ -23,6 +23,13 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, hideHeader
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingText, setEditingText] = useState('');
   
+  const getCommentObject = (comment: Comment | string): Comment => {
+      if (typeof comment === 'string') {
+          return { text: comment, timestamp: new Date().toISOString() };
+      }
+      return comment;
+  };
+  
   const getCommentText = (comment: Comment | string) => typeof comment === 'string' ? comment : comment.text;
   const getCommentTimestamp = (comment: Comment | string) => (typeof comment !== 'string' && comment.timestamp) ? new Date(comment.timestamp) : null;
 

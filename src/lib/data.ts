@@ -1238,7 +1238,6 @@ export function updateComment(taskId: string, index: number, newCommentText: str
    
    const newComments = [...task.comments];
    newComments[index] = {
-     ...newComments[index],
      text: newCommentText,
      timestamp: new Date().toISOString(),
    };
@@ -1255,13 +1254,16 @@ export function updateComment(taskId: string, index: number, newCommentText: str
 export function deleteComment(taskId: string, index: number): Task | undefined {
    const task = getTaskById(taskId);
    if (!task || !task.comments || index < 0 || index >= task.comments.length) return undefined;
+   
    const deletedComment = task.comments[index];
    const newComments = task.comments.filter((_, i) => i !== index);
 
    const data = getAppData();
    const companyData = data.companyData[data.activeCompanyId];
    if (!companyData) return undefined;
-   _addLog(companyData, { message: `Deleted a comment from task "${task.title}": "${deletedComment.text.substring(0, 50)}..."`, taskId });
+   
+   const commentText = typeof deletedComment === 'string' ? deletedComment : deletedComment.text;
+   _addLog(companyData, { message: `Deleted a comment from task "${task.title}": "${commentText.substring(0, 50)}..."`, taskId });
    setAppData(data);
 
    return updateTask(taskId, { comments: newComments });
