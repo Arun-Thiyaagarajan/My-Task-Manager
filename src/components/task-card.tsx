@@ -77,7 +77,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
 
   useEffect(() => {
     const summarize = async () => {
-      if (task.description && !task.summary && !isSummarizing) {
+      if (task.description && task.description.length > 200 && !task.summary && !isSummarizing) {
         setIsSummarizing(true);
         try {
           const result = await summarizeText({ textToSummarize: task.description });
@@ -176,7 +176,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
     : null;
     
   const developersById = new Map(developers.map(d => [d.id, d]));
-  const testersById = new Map(testers.map(t => [t.id, t]));
+  const testersById = new Map(testers.map(t => [t.id, t.name]));
 
   const assignedDevelopers = (task.developers || []).map(id => developersById.get(id)).filter((d): d is Person => !!d);
   const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter((t): t is Person => !!t);
@@ -307,7 +307,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
             </CardHeader>
             <CardContent className="flex-grow flex flex-col p-4 pt-2">
               <div className="relative mb-3 text-sm text-muted-foreground min-h-[40px]">
-                {isSummarizing || (task.description && !task.summary) ? (
+                {isSummarizing || (task.description && task.description.length > 200 && !task.summary) ? (
                   <div className="space-y-1.5">
                     <Skeleton className="h-4 w-5/6" />
                     <Skeleton className="h-4 w-4/6" />
@@ -415,7 +415,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                           {hiddenDevelopersCount > 0 && (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Avatar className="h-7 w-7 border-2 border-background">
+                                <Avatar className="h-7 w-7 border-2 border-background relative z-[2]">
                                   <AvatarFallback className="bg-muted text-xs font-medium text-muted-foreground">+{hiddenDevelopersCount}</AvatarFallback>
                                 </Avatar>
                               </TooltipTrigger>
@@ -467,7 +467,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                           {hiddenTestersCount > 0 && (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Avatar className="h-7 w-7 border-2 border-background">
+                                <Avatar className="h-7 w-7 border-2 border-background relative z-[2]">
                                   <AvatarFallback className="bg-muted text-xs font-medium text-muted-foreground">+{hiddenTestersCount}</AvatarFallback>
                                 </Avatar>
                               </TooltipTrigger>

@@ -946,7 +946,7 @@ export default function Home() {
   const handleStartTutorial = () => {
     setShowTutorialPrompt(false);
     localStorage.setItem(TUTORIAL_PROMPTED_KEY, 'true');
-    startTutorial(uiConfig.appName || 'My Task Manager');
+    startTutorial();
   };
 
   const handleDismissTutorialPrompt = () => {
@@ -969,7 +969,7 @@ export default function Home() {
                         </div>
                         <DialogTitle className="text-xl">Welcome!</DialogTitle>
                         <DialogDescription>
-                            Want a quick tour to see how everything works?
+                            Want a quick tour of this page to see how everything works?
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="flex-row justify-center sm:justify-center gap-2 pt-4">

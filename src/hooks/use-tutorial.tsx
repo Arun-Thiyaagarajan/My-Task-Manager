@@ -17,7 +17,7 @@ export function useTutorial() {
             element: '#main-header', 
             popover: { 
                 title: `Welcome to the Main Page!`,
-                description: 'This is your central hub for managing tasks. Let\'s quickly look at the key features here.' 
+                description: 'This is your central hub for managing tasks. This tour will guide you through the features on this page.' 
             } 
         },
         {
@@ -41,21 +41,28 @@ export function useTutorial() {
                 description: 'You can switch between a visual Grid view and a detailed Table view to suit your workflow.'
             }
         },
+        {
+            element: '.relative.mb-3.text-sm.text-muted-foreground',
+            popover: {
+                title: 'AI-Powered Summaries',
+                description: 'For longer descriptions, the system automatically generates a concise one-sentence summary to help you quickly grasp the task\'s objective.'
+            }
+        },
     ];
 
-    const newTaskPageSteps: DriveStep[] = [
+    const taskDetailPageSteps: DriveStep[] = [
         {
-            element: '#task-form-main-card',
+            element: '.group\\/card',
             popover: {
                 title: 'Task Details',
-                description: 'Fill in the core details like title, description, and status here. You can also assign developers, testers, and repositories.'
+                description: 'This is the main view for a single task, showing its title, description, and current status.'
             },
         },
         {
-            element: '#task-form-submit',
+            element: '[aria-label="Set Reminder"]',
             popover: {
-                title: 'Save Your Task',
-                description: 'Once you\'re done, click here to create the task and return to the main task board.'
+                title: 'Set a Reminder',
+                description: 'Click here to add a reminder note to this task. You can also pin it to the main page for visibility.'
             }
         },
     ];
@@ -65,8 +72,15 @@ export function useTutorial() {
             element: '#settings-field-config-card',
             popover: {
                 title: 'Field Configuration',
-                description: 'Here you can add, edit, reorder, and manage all the fields that appear on your tasks.'
+                description: 'Here you can edit, reorder, and manage all the fields that appear on your tasks.'
             }
+        },
+        {
+             element: 'button:contains("Add Field")',
+             popover: {
+                title: 'Add Custom Fields',
+                description: 'Click here to create your own custom fields to tailor the application to your specific needs (e.g., text, date, select, etc.).'
+             }
         },
         {
             element: '#settings-people-management',
@@ -120,8 +134,13 @@ export function useTutorial() {
         
         if (pathname === '/') {
             steps = homePageSteps;
-        } else if (pathname.startsWith('/tasks/new') || pathname.match(/\/tasks\/[a-zA-Z0-9-]+/)) {
-            steps = newTaskPageSteps;
+        } else if (pathname.startsWith('/tasks/new')) {
+             steps = [{
+                element: '#task-form-main-card',
+                popover: { title: 'Task Details', description: 'Fill in core details like title, description, status, and assignees.' }
+            }];
+        } else if (pathname.match(/\/tasks\/[a-zA-Z0-9-]+/)) {
+            steps = taskDetailPageSteps;
         } else if (pathname === '/settings') {
             steps = settingsPageSteps;
         } else if (pathname === '/dashboard') {
@@ -148,12 +167,24 @@ export function useTutorial() {
 
         const driverObj = driver({
           showProgress: true,
-          steps: steps,
+          steps: steps.map(step => ({
+              ...step,
+              popover: {
+                  ...step.popover,
+                  title: `Welcome to ${config.appName || 'My Task Manager'}!`
+              }
+          })),
           onCloseClick: () => {
                 prompt(() => {
                     driverObj.destroy();
                 });
-            }
+            },
+           onNextClick: (element, step, { next, steps }) => {
+                if (step.popover?.title?.includes("Create a Task")) {
+                    prompt(() => router.push('/tasks/new'));
+                }
+                next();
+            },
         });
 
         driverObj.drive();
