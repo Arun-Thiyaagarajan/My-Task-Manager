@@ -32,6 +32,7 @@ const getInitialData = (): MyTaskManagerData => {
                     appName: 'My Task Manager',
                     appIcon: null,
                     remindersEnabled: true,
+                    tutorialEnabled: true,
                     timeFormat: '12h',
                 },
                 logs: [],
@@ -51,6 +52,7 @@ export const getAppData = (): MyTaskManagerData => {
             appName: 'My Task Manager',
             appIcon: null,
             remindersEnabled: true,
+            tutorialEnabled: true,
             timeFormat: '12h',
         };
         return {
@@ -231,6 +233,7 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
         appName: 'My Task Manager',
         appIcon: null,
         remindersEnabled: true,
+        tutorialEnabled: true,
         timeFormat: '12h',
     };
 
@@ -248,6 +251,7 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
     resultConfig.appName = savedConfig.appName || defaultConfig.appName;
     resultConfig.appIcon = savedConfig.appIcon === undefined ? defaultConfig.appIcon : savedConfig.appIcon;
     resultConfig.remindersEnabled = savedConfig.remindersEnabled ?? defaultConfig.remindersEnabled;
+    resultConfig.tutorialEnabled = savedConfig.tutorialEnabled ?? defaultConfig.tutorialEnabled;
     resultConfig.timeFormat = savedConfig.timeFormat || defaultConfig.timeFormat;
     
     if (Array.isArray(savedConfig.fields)) {
@@ -314,6 +318,10 @@ const generateUiConfigUpdateLogs = (oldConfig: UiConfig, newConfig: UiConfig): s
     
     if (oldConfig.remindersEnabled !== newConfig.remindersEnabled) {
         createDetail(`${newConfig.remindersEnabled ? 'Enabled' : 'Disabled'} the Task Reminders feature.`);
+    }
+
+    if (oldConfig.tutorialEnabled !== newConfig.tutorialEnabled) {
+        createDetail(`${newConfig.tutorialEnabled ? 'Enabled' : 'Disabled'} the Tutorial feature.`);
     }
 
     if (oldConfig.timeFormat !== newConfig.timeFormat) {

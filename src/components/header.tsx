@@ -24,7 +24,7 @@ import {
   getUiConfig,
   getGeneralReminders,
 } from '@/lib/data';
-import type { Company } from '@/lib/types';
+import type { Company, UiConfig } from '@/lib/types';
 import { Building, PlusCircle, Trash2, Edit, LayoutDashboard, Cog, Menu, FileClock, Home, Bell, GraduationCap } from 'lucide-react';
 import { CompaniesManager } from './companies-manager';
 import { useToast } from '@/hooks/use-toast';
@@ -73,9 +73,7 @@ export function Header() {
   const activeCompanyId = useActiveCompany();
   const [isManagerOpen, setIsManagerOpen] = useState(false);
   const [companyToEdit, setCompanyToEdit] = useState<Company | null>(null);
-  const [appName, setAppName] = useState('My Task Manager');
-  const [appIcon, setAppIcon] = useState<string | null>(null);
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
   const [isRemindersOpen, setIsRemindersOpen] = useState(false);
   const [generalRemindersCount, setGeneralRemindersCount] = useState(0);
   const { startTutorial } = useTutorial();
@@ -83,8 +81,7 @@ export function Header() {
   const refreshAllData = () => {
     const config = getUiConfig();
     setCompanies(getCompanies());
-    setAppName(config.appName || 'My Task Manager');
-    setAppIcon(config.appIcon || null);
+    setUiConfig(config);
     setGeneralRemindersCount(getGeneralReminders().length);
   };
 
@@ -100,13 +97,7 @@ export function Header() {
 
   }, []);
   
-  const isDataURI = (str: string | null): str is string => !!str && str.startsWith('data:image');
-
-  const handleIconClick = () => {
-    if (isDataURI(appIcon)) {
-        setIsPreviewOpen(true);
-    }
-  };
+  const isDataURI = (str: string | null | undefined): str is string => !!str && str.startsWith('data:image');
 
   const handleCompanyChange = (id: string) => {
     setActiveCompanyId(id);
@@ -140,20 +131,26 @@ export function Header() {
         <div className="container flex h-14 max-w-screen-2xl items-center justify-between">
           <div className="flex items-center gap-4 md:gap-6">
             <div className="flex items-center space-x-2">
-              <button onClick={handleIconClick} className="flex-shrink-0 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                {appIcon ? (
-                  isDataURI(appIcon) ? (
-                      <img src={appIcon} alt="App Icon" className="h-6 w-6 object-contain rounded-md" />
-                  ) : (
-                      <span className="text-2xl h-6 w-6 flex items-center justify-center">{appIcon}</span>
-                  )
+                {uiConfig?.appIcon && isDataURI(uiConfig.appIcon) ? (
+                    <ImagePreviewDialog
+                        isOpen={false}
+                        onOpenChange={() => {}}
+                        imageUrl={uiConfig.appIcon}
+                        imageName={`${uiConfig.appName || 'App'} Icon`}
+                    >
+                        <button className="flex-shrink-0 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                             <img src={uiConfig.appIcon} alt="App Icon" className="h-6 w-6 object-contain rounded-md" />
+                             <span className="sr-only">Show app icon preview</span>
+                        </button>
+                    </ImagePreviewDialog>
+                ) : uiConfig?.appIcon ? (
+                     <span className="text-2xl h-6 w-6 flex items-center justify-center">{uiConfig.appIcon}</span>
                 ) : (
-                  <Icons.logo className="h-6 w-6 text-primary" />
+                    <Icons.logo className="h-6 w-6 text-primary" />
                 )}
-                <span className="sr-only">Show app icon preview</span>
-              </button>
+
               <HeaderLink href="/" className="hidden sm:inline-block">
-                <span className="font-bold">{appName}</span>
+                <span className="font-bold">{uiConfig?.appName || 'Task Manager'}</span>
               </HeaderLink>
             </div>
 
@@ -243,19 +240,21 @@ export function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            <div id="tutorial-trigger-wrapper">
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => startTutorial()}>
-                            <GraduationCap className="h-5 w-5" />
-                            <span className="sr-only">Show Tutorial</span>
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>Show Tutorial</p>
-                    </TooltipContent>
-                </Tooltip>
-            </div>
+            {uiConfig?.tutorialEnabled && (
+                <div id="tutorial-trigger-wrapper">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={() => startTutorial()}>
+                                <GraduationCap className="h-5 w-5" />
+                                <span className="sr-only">Show Tutorial</span>
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Show Tutorial</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </div>
+            )}
             <Button variant="ghost" size="icon" onClick={() => setIsRemindersOpen(true)} className="relative">
                 <Bell className="h-5 w-5" />
                 {generalRemindersCount > 0 && (
@@ -314,12 +313,6 @@ export function Header() {
             window.dispatchEvent(new Event('company-changed'));
         }}
         companyToEdit={companyToEdit}
-      />
-      <ImagePreviewDialog
-        isOpen={isPreviewOpen}
-        onOpenChange={setIsPreviewOpen}
-        imageUrl={isDataURI(appIcon) ? appIcon : null}
-        imageName={`${appName} Icon`}
       />
       <GeneralRemindersDialog
         isOpen={isRemindersOpen}

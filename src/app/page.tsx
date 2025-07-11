@@ -152,6 +152,8 @@ export default function Home() {
   const { startTutorial } = useTutorial();
   const [showTutorialPrompt, setShowTutorialPrompt] = useState(false);
 
+  const previousMainViewRef = useRef<MainView>('all');
+
   const handlePreviousMonth = () => setSelectedMonth(subMonths(selectedMonth, 1));
   const handleNextMonth = () => setSelectedMonth(addMonths(selectedMonth, 1));
 
@@ -170,7 +172,8 @@ export default function Home() {
 
   useEffect(() => {
     const tutorialPrompted = localStorage.getItem(TUTORIAL_PROMPTED_KEY);
-    if (!tutorialPrompted) {
+    const config = getUiConfig();
+    if (!tutorialPrompted && config.tutorialEnabled) {
       // Use a timeout to ensure the UI is ready before showing the prompt
       setTimeout(() => setShowTutorialPrompt(true), 1000);
     }
@@ -179,7 +182,10 @@ export default function Home() {
     if (savedViewMode) setViewMode(savedViewMode);
     
     const savedMainView = localStorage.getItem('taskflow_main_view') as MainView;
-    if (savedMainView) setMainView(savedMainView);
+    if (savedMainView) {
+        setMainView(savedMainView);
+        previousMainViewRef.current = savedMainView;
+    }
 
     const savedMonth = localStorage.getItem('taskflow_selected_month');
     if (savedMonth) setSelectedMonth(new Date(savedMonth));
@@ -235,12 +241,17 @@ export default function Home() {
     setIsSelectMode(prev => !prev);
     setSelectedTaskIds([]); // Clear selection when toggling mode
   };
-
-  useEffect(() => {
-    if (favoritesOnly) {
-      setMainView('all');
+  
+  const handleFavoritesToggle = () => {
+    const willBeOn = !favoritesOnly;
+    if (willBeOn) {
+        previousMainViewRef.current = mainView;
+        setMainView('all');
+    } else {
+        setMainView(previousMainViewRef.current);
     }
-  }, [favoritesOnly]);
+    setFavoritesOnly(willBeOn);
+  };
 
   useEffect(() => {
     localStorage.setItem('taskflow_main_view', mainView);
@@ -980,7 +991,7 @@ export default function Home() {
                 </DialogContent>
             </Dialog>
             <div id="tutorial-popover-anchor" className="relative">
-              {showTutorialPrompt && !localStorage.getItem(TUTORIAL_PROMPTED_KEY) && <div className="absolute inset-0 rounded-md animate-ping-slow bg-primary/50 -z-10" />}
+              {showTutorialPrompt && !localStorage.getItem(TUTORIAL_PROMPTED_KEY) && uiConfig.tutorialEnabled && <div className="absolute inset-0 rounded-md animate-ping-slow bg-primary/50 -z-10" />}
             </div>
             
             {uiConfig.remindersEnabled && remindersCount > 0 && (
@@ -1341,7 +1352,7 @@ export default function Home() {
                       <Button
                           variant={favoritesOnly ? 'secondary' : 'outline'}
                           size="icon"
-                          onClick={() => setFavoritesOnly(prev => !prev)}
+                          onClick={handleFavoritesToggle}
                           className="h-10 w-10"
                       >
                           <Heart className={cn("h-4 w-4", favoritesOnly && "fill-red-500 text-red-500")} />

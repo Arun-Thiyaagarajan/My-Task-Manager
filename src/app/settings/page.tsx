@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -9,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck, Server, Globe, Image as ImageIcon, BellRing, Settings2 } from 'lucide-react';
+import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck, Server, Globe, Image as ImageIcon, BellRing, Settings2, GraduationCap } from 'lucide-react';
 import { EditFieldDialog } from '@/components/edit-field-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -53,6 +54,7 @@ export default function SettingsPage() {
   const [appName, setAppName] = useState('');
   const [appIcon, setAppIcon] = useState<string | null>(null);
   const [remindersEnabled, setRemindersEnabled] = useState(false);
+  const [tutorialEnabled, setTutorialEnabled] = useState(false);
   const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>('12h');
   const iconInputRef = useRef<HTMLInputElement>(null);
   
@@ -65,6 +67,7 @@ export default function SettingsPage() {
     setAppName(loadedConfig.appName || 'My Task Manager');
     setAppIcon(loadedConfig.appIcon || null);
     setRemindersEnabled(loadedConfig.remindersEnabled || false);
+    setTutorialEnabled(loadedConfig.tutorialEnabled ?? true);
     setTimeFormat(loadedConfig.timeFormat || '12h');
   }
 
@@ -386,8 +389,9 @@ export default function SettingsPage() {
 
   const handleSaveFeatures = () => {
     if (!config) return;
-    const newConfig = { ...config, remindersEnabled };
+    const newConfig = { ...config, remindersEnabled, tutorialEnabled };
     updateUiConfig(newConfig);
+    setConfig(newConfig);
     toast({
         variant: 'success',
         title: 'Features Updated',
@@ -612,7 +616,7 @@ export default function SettingsPage() {
                         <CardTitle className="flex items-center gap-2"><Settings2 className="h-5 w-5" />Feature Management</CardTitle>
                         <CardDescription>Enable or disable optional features.</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="space-y-2">
                         <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
                             <div className="space-y-0.5">
                                 <Label htmlFor="reminders-switch" className="flex items-center gap-2"><BellRing className="h-4 w-4" /> Task Reminders</Label>
@@ -624,6 +628,19 @@ export default function SettingsPage() {
                                 id="reminders-switch"
                                 checked={remindersEnabled}
                                 onCheckedChange={setRemindersEnabled}
+                            />
+                        </div>
+                        <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                            <div className="space-y-0.5">
+                                <Label htmlFor="tutorial-switch" className="flex items-center gap-2"><GraduationCap className="h-4 w-4" /> Show Tutorial</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Enable or disable the guided tour feature.
+                                </p>
+                            </div>
+                            <Switch
+                                id="tutorial-switch"
+                                checked={tutorialEnabled}
+                                onCheckedChange={setTutorialEnabled}
                             />
                         </div>
                     </CardContent>

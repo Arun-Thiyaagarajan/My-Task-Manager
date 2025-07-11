@@ -1,4 +1,5 @@
 
+
 import type { TASK_STATUSES, ENVIRONMENTS } from './constants';
 
 export type TaskStatus = string;
@@ -127,6 +128,7 @@ export interface UiConfig {
   appName?: string;
   appIcon?: string | null;
   remindersEnabled?: boolean;
+  tutorialEnabled?: boolean;
   timeFormat?: '12h' | '24h';
 }
 

@@ -5,6 +5,7 @@ import { driver, DriveStep } from "driver.js";
 import "driver.js/dist/driver.css";
 import { useRouter, usePathname } from "next/navigation";
 import { useUnsavedChanges } from "./use-unsaved-changes";
+import { getUiConfig } from "@/lib/data";
 
 export function useTutorial() {
     const router = useRouter();
@@ -169,6 +170,8 @@ export function useTutorial() {
     ];
 
     const startTutorial = () => {
+        const config = getUiConfig();
+        if(!config.tutorialEnabled) return;
         startTutorialForPage(pathname);
     };
 
