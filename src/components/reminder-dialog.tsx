@@ -71,20 +71,18 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
   useEffect(() => {
     if (isOpen) {
       setUiConfig(getUiConfig());
-      const isCurrentlyPinned = pinnedTaskIds.includes(task.id);
-      setIsPinned(isCurrentlyPinned);
       
       const hasReminder = !!task.reminder;
+      const isCurrentlyPinned = pinnedTaskIds.includes(task.id);
+
+      // Set default pin state: on for new reminders, or reflect current state for existing ones.
+      setIsPinned(!hasReminder ? true : isCurrentlyPinned);
+      
       form.reset({
         reminder: task.reminder || '',
         autoDisappear: !!task.reminderExpiresAt,
         expiresAt: task.reminderExpiresAt ? new Date(task.reminderExpiresAt) : null,
       });
-
-      if (!hasReminder && !isCurrentlyPinned) {
-          setIsPinned(true);
-      }
-
     }
   }, [isOpen, task, form, pinnedTaskIds]);
 
@@ -114,13 +112,9 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
         reminderExpiresAt: newExpiresAt,
       });
       
-      if (newReminder && isPinned) {
-          if(!pinnedTaskIds.includes(task.id)){
-             onPinToggle(task.id);
-          }
-      } else if (!newReminder && isPinned) {
-          onPinToggle(task.id);
-          setIsPinned(false);
+      // Auto-pin a new reminder if the user left the toggle on.
+      if (newReminder && isPinned && !pinnedTaskIds.includes(task.id)) {
+        onPinToggle(task.id);
       }
       
       toast({ 
@@ -172,7 +166,7 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <DialogHeader>
-               <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between">
                 <DialogTitle>Reminder Note</DialogTitle>
                 <Tooltip>
                     <TooltipTrigger asChild>
