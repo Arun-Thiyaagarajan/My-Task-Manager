@@ -71,12 +71,20 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
   useEffect(() => {
     if (isOpen) {
       setUiConfig(getUiConfig());
-      setIsPinned(pinnedTaskIds.includes(task.id));
+      const isCurrentlyPinned = pinnedTaskIds.includes(task.id);
+      setIsPinned(isCurrentlyPinned);
+      
+      const hasReminder = !!task.reminder;
       form.reset({
         reminder: task.reminder || '',
         autoDisappear: !!task.reminderExpiresAt,
         expiresAt: task.reminderExpiresAt ? new Date(task.reminderExpiresAt) : null,
       });
+
+      if (!hasReminder && !isCurrentlyPinned) {
+          setIsPinned(true);
+      }
+
     }
   }, [isOpen, task, form, pinnedTaskIds]);
 
@@ -106,8 +114,11 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
         reminderExpiresAt: newExpiresAt,
       });
       
-      // If user clears the reminder text, also unpin it.
-      if (!newReminder && isPinned) {
+      if (newReminder && isPinned) {
+          if(!pinnedTaskIds.includes(task.id)){
+             onPinToggle(task.id);
+          }
+      } else if (!newReminder && isPinned) {
           onPinToggle(task.id);
           setIsPinned(false);
       }
@@ -250,7 +261,7 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
                                       </Button>
                                       </FormControl>
                                   </PopoverTrigger>
-                                  <PopoverContent className="w-auto p-0 flex">
+                                  <PopoverContent className="w-auto p-0 flex flex-col sm:flex-row">
                                       <Calendar
                                           mode="single"
                                           selected={field.value ?? undefined}
@@ -263,7 +274,7 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
                                           }}
                                           initialFocus
                                       />
-                                      <div className="p-2 border-l flex flex-col justify-center gap-2">
+                                      <div className="p-2 border-t sm:border-l sm:border-t-0 flex flex-row sm:flex-col justify-around sm:justify-center gap-2">
                                           <Select
                                               value={
                                                   timeFormat === '12h'
