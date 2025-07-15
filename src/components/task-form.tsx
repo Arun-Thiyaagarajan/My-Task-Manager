@@ -682,26 +682,27 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
         </div>
 
         <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur-sm">
-            <div className="container mx-auto flex h-20 items-center justify-center px-4 sm:px-6 lg:px-8">
-                <div className="flex w-full items-center justify-center relative">
-                    <div className="flex items-center gap-4">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={handleCancel}
-                            disabled={isPending}
-                        >
-                            Cancel
-                        </Button>
-                        <Button type="submit" disabled={isPending} id="task-form-submit">
-                            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            {submitButtonText}
-                        </Button>
-                    </div>
-                    <p className="absolute right-0 text-xs text-muted-foreground hidden sm:block">
-                        or press <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">{commandKey}</kbd> + <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">S</kbd> to save
-                    </p>
+            <div className="container mx-auto flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
+                 <p className="text-xs text-muted-foreground hidden sm:block">
+                    Press <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">Esc</kbd> to cancel
+                </p>
+                <div className="flex items-center gap-4">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleCancel}
+                        disabled={isPending}
+                    >
+                        Cancel
+                    </Button>
+                    <Button type="submit" disabled={isPending} id="task-form-submit">
+                        {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {submitButtonText}
+                    </Button>
                 </div>
+                <p className="text-xs text-muted-foreground hidden sm:block">
+                    or press <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">{commandKey}</kbd> + <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">S</kbd> to save
+                </p>
             </div>
         </div>
       </form>
