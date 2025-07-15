@@ -29,8 +29,7 @@ function CustomCaption(props: CaptionProps) {
   };
 
   return (
-    <div className="flex items-center justify-between px-2 py-1.5">
-      <div className="flex items-center gap-1">
+    <div className="flex items-center justify-center gap-4 px-2 py-1.5">
         <button 
             onClick={() => previousMonth && goToMonth(previousMonth)}
             disabled={!previousMonth}
@@ -38,7 +37,6 @@ function CustomCaption(props: CaptionProps) {
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-      </div>
       <div className="flex justify-center gap-2">
         <Select
           value={String(props.displayMonth.getMonth())}
@@ -71,7 +69,6 @@ function CustomCaption(props: CaptionProps) {
           </SelectContent>
         </Select>
       </div>
-      <div className="flex items-center gap-1">
         <button 
             onClick={() => nextMonth && goToMonth(nextMonth)}
             disabled={!nextMonth}
@@ -79,7 +76,6 @@ function CustomCaption(props: CaptionProps) {
           >
             <ChevronRight className="h-4 w-4" />
           </button>
-      </div>
     </div>
   )
 }
