@@ -4,7 +4,7 @@
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
-import { taskSchema } from '@/lib/validators';
+import { createTaskSchema } from '@/lib/validators';
 import type { Task, FieldConfig, FieldType, UiConfig, Attachment, Person } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useTransition, useEffect, useState, useRef } from 'react';
+import { useTransition, useEffect, useState, useRef, useMemo } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -28,8 +28,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { useToast } from '@/hooks/use-toast';
 
-
-type TaskFormData = z.infer<typeof taskSchema>;
+type TaskFormData = z.infer<ReturnType<typeof createTaskSchema>>;
 
 interface TaskFormProps {
   task?: Partial<Task>;
@@ -104,6 +103,10 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
     setUiConfig(getUiConfig());
   }, []);
 
+  const dynamicTaskSchema = useMemo(() => {
+    return uiConfig ? createTaskSchema(uiConfig) : createTaskSchema(getUiConfig());
+  }, [uiConfig]);
+
   useEffect(() => {
     setDevelopersList(propDevelopersList);
   }, [propDevelopersList]);
@@ -113,7 +116,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
   }, [propTestersList]);
 
   const form = useForm<TaskFormData>({
-    resolver: zodResolver(taskSchema),
+    resolver: zodResolver(dynamicTaskSchema),
     defaultValues: getInitialTaskData(task),
   });
 
@@ -372,7 +375,6 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
             key={key}
             control={form.control}
             name={fieldName as any}
-            rules={{ required: isRequired }}
             render={({ field }) => (
                 <FormItem>
                     <FormLabel>{label} {isRequired && '*'}</FormLabel>
