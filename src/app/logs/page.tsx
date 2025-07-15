@@ -130,18 +130,18 @@ export default function LogsPage() {
                     <CardTitle>All Logs</CardTitle>
                     <CardDescription>{filteredLogs.length} of {logs.length} log entries found. The last 2000 entries are kept.</CardDescription>
                      <div className="pt-4">
-                        <div className="relative">
+                        <div className="relative w-full max-w-sm">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
                                 ref={searchInputRef}
                                 placeholder="Search logs..." 
                                 value={searchQuery} 
                                 onChange={(e) => setSearchQuery(e.target.value)} 
-                                className="pl-10 pr-20 w-full max-w-sm"
+                                className="w-full pl-10 pr-20"
                             />
                             <div className="absolute inset-y-0 right-0 flex py-1.5 pr-1.5">
-                                <kbd className="inline-flex items-center rounded border bg-muted px-2 font-sans text-xs text-muted-foreground">
-                                    {commandKey} + K
+                                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                                    <span className="text-xs">{commandKey}</span>K
                                 </kbd>
                             </div>
                         </div>

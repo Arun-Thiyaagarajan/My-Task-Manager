@@ -1090,11 +1090,11 @@ export default function Home() {
                       placeholder="Search tasks..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10 pr-20 w-full"
+                      className="w-full pl-10 pr-20"
                     />
                     <div className="absolute inset-y-0 right-0 flex py-1.5 pr-1.5">
-                        <kbd className="inline-flex items-center rounded border bg-muted px-2 font-sans text-xs text-muted-foreground">
-                            {commandKey} + K
+                        <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                            <span className="text-xs">{commandKey}</span>K
                         </kbd>
                     </div>
                 </div>
