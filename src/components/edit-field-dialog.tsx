@@ -104,7 +104,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
     field?.key === 'testers';
   const showCustomOptionsUI = showOptions && !isRepoField && !fieldHasManagedOptions;
 
-  const unchangeableRequiredKeys = ['title', 'description', 'status', 'repositories', 'developers', 'deploymentStatus'];
+  const unchangeableRequiredKeys = ['title', 'description', 'status', 'repositories', 'developers'];
   const isRequiredToggleDisabled = field !== null && !field.isCustom && unchangeableRequiredKeys.includes(field.key);
   
   const protectedDevDateFields = ['devStartDate', 'devEndDate'];
