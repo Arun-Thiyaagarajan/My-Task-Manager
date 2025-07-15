@@ -95,7 +95,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
     };
 
     summarize();
-  }, [task.id, task.description, task.summary, isSummarizing, onTaskUpdate]);
+  }, [task.id, task.description, task.summary, onTaskUpdate, isSummarizing]);
 
   const handleStatusChange = (newStatus: TaskStatus) => {
     const updatedTask = updateTask(task.id, { status: newStatus });
