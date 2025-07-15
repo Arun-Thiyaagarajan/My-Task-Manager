@@ -18,8 +18,9 @@ function Calendar({
   showOutsideDays = true,
   ...props
 }: CalendarProps) {
-  const currentYear = new Date().getFullYear();
-  
+  const fromYear = 2000;
+  const toYear = 2100;
+
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
@@ -62,9 +63,9 @@ function Calendar({
       components={{
         IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" {...props} />,
         IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" {...props} />,
-        Caption: ({ displayMonth, fromYear, toYear }) => {
+        Caption: ({ displayMonth }) => {
           const months = Array.from({ length: 12 }, (_, i) => new Date(new Date().getFullYear(), i, 1));
-          const years = Array.from({ length: (toYear || 0) - (fromYear || 0) + 1 }, (_, i) => (fromYear || 0) + i);
+          const years = Array.from({ length: toYear - fromYear + 1 }, (_, i) => fromYear + i);
 
           return (
             <div className="flex gap-2">
@@ -111,8 +112,8 @@ function Calendar({
         },
       }}
       captionLayout="dropdown-buttons"
-      fromYear={1980}
-      toYear={currentYear + 5}
+      fromYear={fromYear}
+      toYear={toYear}
       {...props}
     />
   )
@@ -120,4 +121,5 @@ function Calendar({
 Calendar.displayName = "Calendar"
 
 export { Calendar }
+
 
