@@ -49,19 +49,47 @@ export function MultiSelect({
   const [query, setQuery] = React.useState('');
   
   const handleUnselect = React.useCallback(
-    (value: string) => {
+    (e: React.MouseEvent | React.KeyboardEvent, value: string) => {
+      e.preventDefault();
+      e.stopPropagation();
       onChange(selected.filter((s) => s !== value));
     },
     [onChange, selected]
   );
   
-  // Options that are not already selected.
+  const handleKeyDown = React.useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      const input = inputRef.current;
+      if (input) {
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          if (input.value === '') {
+            handleUnselect(e, selected[selected.length - 1]);
+          }
+        }
+        if (e.key === 'Escape') {
+          input.blur();
+        }
+      }
+    },
+    [handleUnselect, selected]
+  );
+  
+  // Create a map for quick lookups of labels from values.
+  const selectedMap = new Map(
+    selected.map(value => {
+      const option = options.find(o => o.value === value);
+      return [value, option ? option.label : value];
+    })
+  );
+
+  const visibleItems = selected.slice(0, MAX_DISPLAYED_ITEMS);
+  const hiddenItemsCount = selected.length - MAX_DISPLAYED_ITEMS;
+
   const filteredOptions = options.filter(
     (option) => !selected.includes(option.value)
   );
 
   const lowerCaseQuery = query.trim().toLowerCase();
-  // Determine if the "creatable" option should be shown.
   const showCreatable = 
       creatable && 
       lowerCaseQuery.length > 0 && 
@@ -81,32 +109,6 @@ export function MultiSelect({
     }
     setQuery('');
   }, [showCreatable, query, onCreate, onChange, selected]);
-  
-  const handleKeyDown = React.useCallback(
-    (e: React.KeyboardEvent<HTMLDivElement>) => {
-      const input = inputRef.current;
-      if (input) {
-        if (e.key === 'Delete' || e.key === 'Backspace') {
-          if (input.value === '') {
-            e.preventDefault();
-            handleUnselect(selected[selected.length - 1]);
-          }
-        }
-        if (e.key === 'Enter' && showCreatable) {
-          e.preventDefault();
-          handleSelectCreatable();
-        }
-        if (e.key === 'Escape') {
-          input.blur();
-        }
-      }
-    },
-    [handleUnselect, selected, showCreatable, handleSelectCreatable]
-  );
-
-  const visibleItems = selected.slice(0, MAX_DISPLAYED_ITEMS);
-  const hiddenItemsCount = selected.length - MAX_DISPLAYED_ITEMS;
-
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -119,27 +121,19 @@ export function MultiSelect({
         >
           <div className="flex flex-wrap gap-1 items-center flex-grow">
             {selected.length === 0 && <span className="text-muted-foreground">{placeholder}</span>}
-            {visibleItems.map((value) => {
-               const option = options.find(o => o.value === value);
-               return (
-                <Badge key={value} variant="secondary" className="whitespace-nowrap">
-                  {option ? option.label : value}
-                  <button
-                    className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleUnselect(value)
-                    }}
-                  >
-                    <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                  </button>
-                </Badge>
-              );
-            })}
+            {visibleItems.map((value) => (
+              <Badge key={value} variant="secondary" className="whitespace-nowrap">
+                {selectedMap.get(value)}
+                <button
+                  className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleUnselect(e, value); }}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={(e) => handleUnselect(e, value)}
+                >
+                  <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                </button>
+              </Badge>
+            ))}
             {hiddenItemsCount > 0 && (
                 <Badge variant="secondary">
                     +{hiddenItemsCount} more
@@ -168,13 +162,10 @@ export function MultiSelect({
                     <CommandItem
                         key={option.value}
                         value={option.label}
-                        onMouseDown={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        }}
+                        onMouseDown={(e) => e.preventDefault()}
                         onSelect={() => {
-                        onChange([...selected, option.value]);
-                        setQuery('');
+                          onChange([...selected, option.value]);
+                          setQuery('');
                         }}
                         className="cursor-pointer"
                     >
@@ -187,10 +178,7 @@ export function MultiSelect({
                     <CommandItem
                         key={query}
                         value={query}
-                        onMouseDown={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                        }}
+                        onMouseDown={(e) => e.preventDefault()}
                         onSelect={handleSelectCreatable}
                         className="cursor-pointer text-primary"
                     >
@@ -204,11 +192,22 @@ export function MultiSelect({
                         <div className="space-y-1 p-2">
                             <p className="text-xs font-medium text-muted-foreground px-2">Selected</p>
                             {selected.map(value => {
-                                const option = options.find(o => o.value === value);
                                 return (
                                 <div key={value} className="flex items-center justify-between rounded-md hover:bg-accent">
-                                    <span className="text-sm truncate px-2 py-1.5">{option ? option.label : value}</span>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleUnselect(value)}>
+                                    <span className="text-sm truncate px-2 py-1.5">{selectedMap.get(value)}</span>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className="h-7 w-7" 
+                                      onClick={(e) => {
+                                        handleUnselect(e, value);
+                                        // This is the key change: if there are still more items than can be displayed,
+                                        // keep the popover open so the user can continue to manage them.
+                                        if (selected.length - 1 > MAX_DISPLAYED_ITEMS) {
+                                          setIsOpen(true);
+                                        }
+                                      }}
+                                    >
                                         <X className="h-3 w-3" />
                                     </Button>
                                 </div>
