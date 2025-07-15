@@ -32,6 +32,8 @@ interface MultiSelectProps {
   creatable?: boolean;
 }
 
+const MAX_DISPLAYED_ITEMS = 2;
+
 export function MultiSelect({
   options,
   selected,
@@ -42,14 +44,10 @@ export function MultiSelect({
   creatable = false,
 }: MultiSelectProps) {
   const inputRef = React.useRef<HTMLInputElement>(null);
-  const containerRef = React.useRef<HTMLDivElement>(null);
   
   const [isOpen, setIsOpen] = React.useState(false);
   const [query, setQuery] = React.useState('');
   
-  const [visibleItems, setVisibleItems] = React.useState<string[]>([]);
-  const [hiddenItemsCount, setHiddenItemsCount] = React.useState(0);
-
   const handleUnselect = React.useCallback(
     (value: string) => {
       onChange(selected.filter((s) => s !== value));
@@ -106,122 +104,63 @@ export function MultiSelect({
     [handleUnselect, selected, showCreatable, handleSelectCreatable]
   );
 
-  React.useLayoutEffect(() => {
-    const calculateVisibleItems = () => {
-        if (!containerRef.current || selected.length === 0) {
-            setVisibleItems(selected);
-            setHiddenItemsCount(0);
-            return;
-        }
+  const visibleItems = selected.slice(0, MAX_DISPLAYED_ITEMS);
+  const hiddenItemsCount = selected.length - MAX_DISPLAYED_ITEMS;
 
-        const containerWidth = containerRef.current.offsetWidth;
-        const tempContainer = document.createElement('div');
-        tempContainer.className = "flex flex-wrap gap-1 invisible absolute";
-        document.body.appendChild(tempContainer);
-        
-        const placeholderWidth = inputRef.current?.placeholder ? (inputRef.current.placeholder.length * 8) : 100; // Approximate placeholder width
-        const availableWidth = containerWidth - placeholderWidth - 40; // Subtract padding and buffer
-
-        let currentWidth = 0;
-        const newVisibleItems: string[] = [];
-
-        for (const value of selected) {
-            const option = options.find(o => o.value === value);
-            if (option) {
-                const badge = document.createElement('span');
-                badge.className = "inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold whitespace-nowrap";
-                badge.textContent = option.label;
-                tempContainer.appendChild(badge);
-                // Add width of badge + gap
-                currentWidth += badge.offsetWidth + 4;
-                
-                if (currentWidth < availableWidth) {
-                    newVisibleItems.push(value);
-                } else {
-                    break;
-                }
-            }
-        }
-
-        document.body.removeChild(tempContainer);
-        setVisibleItems(newVisibleItems);
-        setHiddenItemsCount(selected.length - newVisibleItems.length);
-    };
-
-    calculateVisibleItems();
-
-    const resizeObserver = new ResizeObserver(calculateVisibleItems);
-    if (containerRef.current) {
-        resizeObserver.observe(containerRef.current);
-    }
-    return () => resizeObserver.disconnect();
-  }, [selected, options, query]);
 
   return (
-    <Command onKeyDown={handleKeyDown} className={cn('overflow-visible bg-transparent', className)}>
-      <div 
-        ref={containerRef}
-        className="group rounded-md border border-input px-3 py-1 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 h-10 flex items-center"
-      >
-        <div className="flex flex-wrap gap-1 items-center flex-grow">
-          {visibleItems.map((value) => {
-             const option = options.find(o => o.value === value);
-             return (
-              <Badge key={value} variant="secondary" className="whitespace-nowrap">
-                {option ? option.label : value}
-                <button
-                  className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
-                  onClick={() => handleUnselect(value)}
-                >
-                  <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                </button>
-              </Badge>
-            );
-          })}
-          {hiddenItemsCount > 0 && (
-            <Popover>
-                <PopoverTrigger asChild>
-                    <Badge variant="secondary" className="cursor-pointer hover:bg-muted">
-                        +{hiddenItemsCount} more
-                    </Badge>
-                </PopoverTrigger>
-                <PopoverContent className="w-[250px] p-2">
-                    <div className="space-y-1">
-                        <p className="text-sm font-medium mb-2">Selected items:</p>
-                        {selected.map((value) => {
-                            const option = options.find(o => o.value === value);
-                            return (
-                                <div key={value} className="flex items-center justify-between text-sm">
-                                    <span className="truncate">{option ? option.label : value}</span>
-                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleUnselect(value)}>
-                                        <X className="h-3 w-3" />
-                                    </Button>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </PopoverContent>
-            </Popover>
-          )}
-          <CommandPrimitive.Input
-            ref={inputRef}
-            value={query}
-            onValueChange={setQuery}
-            onBlur={() => setIsOpen(false)}
-            onFocus={() => setIsOpen(true)}
-            placeholder={selected.length > 0 ? '' : placeholder}
-            className="ml-2 flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
-            style={{ minWidth: '100px' }}
-          />
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <div 
+          className={cn("group flex items-center rounded-md border border-input h-full w-full px-3 py-1 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2", className)}
+          role="button"
+          aria-expanded={isOpen}
+          onClick={() => setIsOpen(true)}
+        >
+          <div className="flex flex-wrap gap-1 items-center flex-grow">
+            {selected.length === 0 && <span className="text-muted-foreground">{placeholder}</span>}
+            {visibleItems.map((value) => {
+               const option = options.find(o => o.value === value);
+               return (
+                <Badge key={value} variant="secondary" className="whitespace-nowrap">
+                  {option ? option.label : value}
+                  <button
+                    className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleUnselect(value)
+                    }}
+                  >
+                    <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                  </button>
+                </Badge>
+              );
+            })}
+            {hiddenItemsCount > 0 && (
+                <Badge variant="secondary">
+                    +{hiddenItemsCount} more
+                </Badge>
+            )}
+          </div>
         </div>
-      </div>
-      <div className="relative mt-2">
-        {isOpen ? (
-          <div className="absolute top-0 z-10 w-full rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in">
+      </PopoverTrigger>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+          <Command onKeyDown={handleKeyDown} className={cn('overflow-visible bg-transparent', className)}>
+            <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
+                <CommandPrimitive.Input
+                    ref={inputRef}
+                    value={query}
+                    onValueChange={setQuery}
+                    onBlur={() => setIsOpen(false)}
+                    onFocus={() => setIsOpen(true)}
+                    placeholder={placeholder}
+                    className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                />
+            </div>
             <CommandList>
                 <CommandEmpty>No results found.</CommandEmpty>
                 <CommandGroup>
@@ -230,12 +169,12 @@ export function MultiSelect({
                         key={option.value}
                         value={option.label}
                         onMouseDown={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
+                        e.preventDefault();
+                        e.stopPropagation();
                         }}
                         onSelect={() => {
-                          onChange([...selected, option.value]);
-                          setQuery('');
+                        onChange([...selected, option.value]);
+                        setQuery('');
                         }}
                         className="cursor-pointer"
                     >
@@ -244,7 +183,7 @@ export function MultiSelect({
                     ))}
                 </CommandGroup>
                 {showCreatable && (
-                  <CommandGroup>
+                <CommandGroup>
                     <CommandItem
                         key={query}
                         value={query}
@@ -258,12 +197,29 @@ export function MultiSelect({
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Create "{query.trim()}"
                     </CommandItem>
-                  </CommandGroup>
+                </CommandGroup>
+                )}
+                {selected.length > 0 && (
+                    <CommandGroup>
+                        <div className="space-y-1 p-2">
+                            <p className="text-xs font-medium text-muted-foreground px-2">Selected</p>
+                            {selected.map(value => {
+                                const option = options.find(o => o.value === value);
+                                return (
+                                <div key={value} className="flex items-center justify-between rounded-md hover:bg-accent">
+                                    <span className="text-sm truncate px-2 py-1.5">{option ? option.label : value}</span>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleUnselect(value)}>
+                                        <X className="h-3 w-3" />
+                                    </Button>
+                                </div>
+                                );
+                            })}
+                        </div>
+                    </CommandGroup>
                 )}
             </CommandList>
-          </div>
-        ) : null}
-      </div>
-    </Command>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }

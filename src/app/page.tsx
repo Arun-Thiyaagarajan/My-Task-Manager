@@ -92,7 +92,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -103,6 +102,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
+  TooltipProvider
 } from '@/components/ui/tooltip';
 import { ToastAction } from '@/components/ui/toast';
 import { ReminderStack } from '@/components/reminder-stack';
@@ -1035,6 +1035,7 @@ export default function Home() {
                 <DropdownMenuContent>
                 <DropdownMenuItem onSelect={() => handleExport('current_view')} className="flex justify-between items-center pr-1">
                   <span>Export Current View</span>
+                  <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
@@ -1048,6 +1049,7 @@ export default function Home() {
                       </p>
                     </TooltipContent>
                   </Tooltip>
+                  </TooltipProvider>
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => handleExport('all_tasks')}>
                     Export All Tasks
@@ -1083,22 +1085,24 @@ export default function Home() {
           <Card id="task-filters">
             <CardContent className="p-4">
                 <div className="flex flex-wrap items-center gap-4">
-                    <div className="relative flex items-center grow min-w-[240px] lg:max-w-sm h-10">
-                        <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            ref={searchInputRef}
-                            placeholder="Search tasks..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-20 h-full"
-                        />
-                        <div className="absolute right-0 flex items-center h-full pr-1.5">
-                            <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                                <span className="text-xs">{commandKey}</span>K
-                            </kbd>
-                        </div>
+                    <div className="grow min-w-[240px] h-10">
+                      <div className="relative flex items-center w-full h-full">
+                          <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
+                          <Input
+                              ref={searchInputRef}
+                              placeholder="Search tasks..."
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
+                              className="w-full pl-10 pr-20 h-full"
+                          />
+                          <div className="absolute right-0 flex items-center h-full pr-1.5">
+                              <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                                  <span className="text-xs">{commandKey}</span>K
+                              </kbd>
+                          </div>
+                      </div>
                     </div>
-                    <div className="grow min-w-[180px]">
+                    <div className="grow min-w-[180px] h-10">
                       <MultiSelect
                         selected={statusFilter}
                         onChange={setStatusFilter}
@@ -1106,7 +1110,7 @@ export default function Home() {
                         placeholder={`Filter by ${fieldLabels.get('status') || 'Status'}...`}
                       />
                     </div>
-                    <div className="grow min-w-[180px]">
+                    <div className="grow min-w-[180px] h-10">
                         <MultiSelect
                             selected={repoFilter}
                             onChange={setRepoFilter}
@@ -1114,7 +1118,7 @@ export default function Home() {
                             placeholder={`Filter by ${fieldLabels.get('repositories') || 'Repository'}...`}
                         />
                     </div>
-                    <div className="grow min-w-[180px]">
+                    <div className="grow min-w-[180px] h-10">
                          <MultiSelect
                             selected={deploymentFilter}
                             onChange={setDeploymentFilter}
@@ -1123,7 +1127,7 @@ export default function Home() {
                         />
                     </div>
                     {mainView === 'all' && (
-                        <div className="grow min-w-[180px]">
+                        <div className="grow min-w-[180px] h-10">
                           <Popover
                               open={isDatePopoverOpen}
                               onOpenChange={setIsDatePopoverOpen}
@@ -1133,7 +1137,7 @@ export default function Home() {
                                   id="date"
                                   variant={'outline'}
                                   className={cn(
-                                    'w-full justify-start text-left font-normal h-10',
+                                    'w-full justify-start text-left font-normal h-full',
                                     !dateFilter && 'text-muted-foreground'
                                   )}
                                 >
@@ -1357,7 +1361,7 @@ export default function Home() {
                       </Button>
                     </div>
                   </div>
-
+                  <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -1373,6 +1377,8 @@ export default function Home() {
                       <p>{favoritesOnly ? 'Show all tasks' : 'Show favorites only'}</p>
                     </TooltipContent>
                   </Tooltip>
+                  </TooltipProvider>
+                   <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -1396,6 +1402,7 @@ export default function Home() {
                       <p>{isSelectMode ? 'Cancel bulk selection' : 'Select multiple tasks'}</p>
                     </TooltipContent>
                   </Tooltip>
+                  </TooltipProvider>
               </div>
             </div>
 
