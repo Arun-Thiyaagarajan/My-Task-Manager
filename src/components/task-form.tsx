@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2, AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTransition, useEffect, useState, useRef, useMemo } from 'react';
@@ -295,9 +295,9 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
         switch (fieldType) {
             case 'text':
                 return (
-                    <div>
+                    <div className="space-y-1">
                         <Input type="text" placeholder={label} {...field} value={field.value ?? ''} />
-                        {baseUrl && <FormDescription className="mt-1">The value will be appended to: {baseUrl}</FormDescription>}
+                        {baseUrl && <p className="text-[0.8rem] text-muted-foreground">The value will be appended to: {baseUrl}</p>}
                     </div>
                 );
             case 'number':
@@ -347,6 +347,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                                         }
                                     }
                                 }}
+                                defaultMonth={field.value}
                                 initialFocus
                                 disabled={getDisabledDates()}
                             />
@@ -413,9 +414,11 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
             render={({ field }) => (
                 <FormItem className="space-y-1">
                     <FormLabel error={hasError}>{label} {isRequired && '*'}</FormLabel>
-                    <FormControl>
-                        {renderInput(type, field)}
-                    </FormControl>
+                    <div className="space-y-2">
+                        <FormControl>
+                            {renderInput(type, field)}
+                        </FormControl>
+                    </div>
                 </FormItem>
             )}
         />
@@ -583,10 +586,9 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                                                     </FormControl>
                                                 </PopoverTrigger>
                                                 <PopoverContent className="w-auto p-0" align="start">
-                                                    <Calendar mode="single" selected={field.value instanceof Date && !isNaN(field.value.getTime()) ? field.value : undefined} onSelect={field.onChange} initialFocus />
+                                                    <Calendar mode="single" selected={field.value instanceof Date && !isNaN(field.value.getTime()) ? field.value : undefined} onSelect={field.onChange} defaultMonth={field.value} initialFocus />
                                                 </PopoverContent>
                                             </Popover>
-                                            <FormMessage />
                                         </FormItem>
                                     )}
                                 />

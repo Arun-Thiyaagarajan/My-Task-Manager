@@ -1,11 +1,14 @@
+
 "use client"
 
 import * as React from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { DayPicker } from "react-day-picker"
+import { DayPicker, CaptionProps } from "react-day-picker"
+import { format } from "date-fns"
 
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select"
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>
 
@@ -15,6 +18,8 @@ function Calendar({
   showOutsideDays = true,
   ...props
 }: CalendarProps) {
+  const currentYear = new Date().getFullYear();
+  
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
@@ -23,7 +28,8 @@ function Calendar({
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
         month: "space-y-4",
         caption: "flex justify-center pt-1 relative items-center",
-        caption_label: "text-sm font-medium",
+        caption_label: "text-sm font-medium hidden",
+        caption_dropdowns: "flex gap-2",
         nav: "space-x-1 flex items-center",
         nav_button: cn(
           buttonVariants({ variant: "outline" }),
@@ -54,13 +60,59 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        IconLeft: ({ className, ...props }) => (
-          <ChevronLeft className={cn("h-4 w-4", className)} {...props} />
-        ),
-        IconRight: ({ className, ...props }) => (
-          <ChevronRight className={cn("h-4 w-4", className)} {...props} />
-        ),
+        IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" {...props} />,
+        IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" {...props} />,
+        Caption: ({ displayMonth, fromYear, toYear }) => {
+          const months = Array.from({ length: 12 }, (_, i) => new Date(new Date().getFullYear(), i, 1));
+          const years = Array.from({ length: (toYear || 0) - (fromYear || 0) + 1 }, (_, i) => (fromYear || 0) + i);
+
+          return (
+            <div className="flex gap-2">
+               <Select
+                  onValueChange={(value) => {
+                    const newDate = new Date(displayMonth);
+                    newDate.setMonth(parseInt(value, 10));
+                    props.onMonthChange?.(newDate);
+                  }}
+                  value={String(displayMonth.getMonth())}
+                >
+                  <SelectTrigger className="w-[120px] focus:ring-0">
+                    <SelectValue>{format(displayMonth, 'MMMM')}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {months.map((month, index) => (
+                      <SelectItem key={index} value={String(index)}>
+                        {format(month, 'MMMM')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  onValueChange={(value) => {
+                    const newDate = new Date(displayMonth);
+                    newDate.setFullYear(parseInt(value, 10));
+                    props.onMonthChange?.(newDate);
+                  }}
+                  value={String(displayMonth.getFullYear())}
+                >
+                  <SelectTrigger className="w-[80px] focus:ring-0">
+                    <SelectValue>{displayMonth.getFullYear()}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {years.map((year) => (
+                      <SelectItem key={year} value={String(year)}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+            </div>
+          )
+        },
       }}
+      captionLayout="dropdown-buttons"
+      fromYear={1980}
+      toYear={currentYear + 5}
       {...props}
     />
   )
@@ -68,3 +120,4 @@ function Calendar({
 Calendar.displayName = "Calendar"
 
 export { Calendar }
+
