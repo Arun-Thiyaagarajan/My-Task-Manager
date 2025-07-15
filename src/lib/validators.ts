@@ -77,7 +77,13 @@ export const createTaskSchema = (uiConfig: UiConfig) => {
         let fieldSchema = shape[fieldName];
 
         if (fieldSchema) {
-          if (field.type === 'multiselect' || field.type === 'tags') {
+          if (field.key === 'deploymentStatus') {
+              fieldSchema = fieldSchema.refine((val: Record<string, boolean | undefined> | undefined) => {
+                  return val !== undefined && Object.values(val).some(v => v === true);
+              }, {
+                  message: `${field.label} is required.`,
+              });
+          } else if (field.type === 'multiselect' || field.type === 'tags') {
               // For arrays, check if they are not empty
               fieldSchema = fieldSchema.refine((val: string[] | undefined) => val !== undefined && val.length > 0, {
                   message: `${field.label} is required.`,
