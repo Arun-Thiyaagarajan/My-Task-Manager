@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2, AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useTransition, useEffect, useState, useRef, useMemo } from 'react';
+import { useTransition, useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -265,11 +265,19 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
     });
   };
   
+   const handleCancel = useCallback(() => {
+    prompt(() => router.back());
+  }, [prompt, router]);
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
         if ((event.ctrlKey || event.metaKey) && event.key === 's') {
             event.preventDefault();
             form.handleSubmit(handleFormSubmit, onInvalid)();
+        }
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            handleCancel();
         }
     };
 
@@ -278,7 +286,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
     return () => {
         document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [form, handleFormSubmit, onInvalid]);
+  }, [form, handleFormSubmit, onInvalid, handleCancel]);
 
   const getFieldOptions = (field: FieldConfig): {value: string, label: string}[] => {
     let options: {value: string, label: string}[] = [];
@@ -675,16 +683,14 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
 
         <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur-sm">
             <div className="container mx-auto flex h-20 items-center justify-center px-4 sm:px-6 lg:px-8">
-                <div className="flex flex-col items-center gap-2">
+                <div className="flex w-full items-center justify-center relative">
                     <div className="flex items-center gap-4">
                         <Button
                             type="button"
                             variant="outline"
-                            onClick={() => {
-                                prompt(() => router.back());
-                            }}
+                            onClick={handleCancel}
                             disabled={isPending}
-                            >
+                        >
                             Cancel
                         </Button>
                         <Button type="submit" disabled={isPending} id="task-form-submit">
@@ -692,7 +698,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                             {submitButtonText}
                         </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="absolute right-0 text-xs text-muted-foreground hidden sm:block">
                         or press <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">{commandKey}</kbd> + <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">S</kbd> to save
                     </p>
                 </div>
