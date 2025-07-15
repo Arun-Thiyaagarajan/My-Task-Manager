@@ -447,6 +447,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
   }
 
   const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
+  const deploymentFieldConfig = uiConfig.fields.find(f => f.key === 'deploymentStatus');
 
   const groupedFields = uiConfig.fields
     .filter(f => f.isActive && f.key !== 'comments') // Filter out comments here
@@ -561,9 +562,14 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                 )}
 
                 {/* Deployment Card */}
-                {uiConfig.fields.find(f => f.key === 'deploymentStatus' && f.isActive) && (
+                {deploymentFieldConfig && deploymentFieldConfig.isActive && (
                     <Card>
-                        <CardHeader><CardTitle>{fieldLabels.get('deploymentStatus') || 'Deployment'}</CardTitle></CardHeader>
+                        <CardHeader>
+                            <CardTitle>
+                                {fieldLabels.get('deploymentStatus') || 'Deployment'}
+                                {deploymentFieldConfig.isRequired && <span className="text-destructive ml-1">*</span>}
+                            </CardTitle>
+                        </CardHeader>
                         <CardContent className="space-y-4">
                             {allConfiguredEnvs.map(env => (
                                 <div key={env} className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4 p-3 border rounded-md">
