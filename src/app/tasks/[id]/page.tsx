@@ -728,7 +728,7 @@ const handleCopyDescription = () => {
                           </Tooltip>
                         )}
                       </div>
-                      <div className="flex-shrink-0 flex items-center">
+                      <div className="flex-shrink-0 flex items-center gap-2">
                         {!isBinned && <FavoriteToggleButton taskId={task.id} isFavorite={!!task.isFavorite} onUpdate={loadData} />}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
