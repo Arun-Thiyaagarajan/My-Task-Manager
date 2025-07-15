@@ -84,7 +84,7 @@ export const createTaskSchema = (uiConfig: UiConfig) => {
               });
           } else if (field.type === 'text' || field.type === 'textarea') {
               // For strings, check if they are not empty
-               fieldSchema = fieldSchema.refine((val: string | undefined) => val !== undefined && val.trim().length > 0, {
+               fieldSchema = fieldSchema.refine((val: string | undefined) => typeof val === 'string' && val.trim().length > 0, {
                   message: `${field.label} is required.`,
               });
           } else {
