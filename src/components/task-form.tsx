@@ -236,9 +236,9 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
             variant: 'destructive',
             title: 'Missing Required Fields',
             description: () => (
-                <div>
+                <div className="flex flex-col gap-1">
                     <p>Please fill out the following fields:</p>
-                    <ul className="list-disc list-inside mt-2">
+                    <ul className="list-disc list-inside mt-1">
                         {errorMessages.map((msg, i) => <li key={i}>{msg}</li>)}
                     </ul>
                 </div>
@@ -278,7 +278,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
     if (field.sortDirection === 'asc') {
         options.sort((a, b) => a.label.localeCompare(b.label));
     } else if (field.sortDirection === 'desc') {
-        options.sort((a, b) => b.label.localeCompare(a.label));
+        options.sort((a, b) => b.label.localeCompare(b.label));
     }
     // No sorting for 'manual' or undefined
 
@@ -411,7 +411,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
             control={form.control}
             name={fieldName as any}
             render={({ field }) => (
-                <FormItem>
+                <FormItem className="space-y-1">
                     <FormLabel error={hasError}>{label} {isRequired && '*'}</FormLabel>
                     <FormControl>
                         {renderInput(type, field)}
