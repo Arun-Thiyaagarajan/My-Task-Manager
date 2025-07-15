@@ -684,7 +684,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
 
         <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur-sm">
             <div className="container mx-auto flex h-20 items-center justify-center px-4 sm:px-6 lg:px-8">
-                <div className="relative flex w-full max-w-sm items-center justify-center gap-4">
+                 <div className="flex items-center justify-center gap-2">
                     <Button
                         type="button"
                         variant="outline"
@@ -700,7 +700,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                     <TooltipProvider>
                       <Tooltip>
                           <TooltipTrigger asChild>
-                              <Button type="button" variant="ghost" size="icon" className="absolute right-0 text-muted-foreground">
+                              <Button type="button" variant="ghost" size="icon" className="text-muted-foreground">
                                   <HelpCircle className="h-5 w-5" />
                               </Button>
                           </TooltipTrigger>
