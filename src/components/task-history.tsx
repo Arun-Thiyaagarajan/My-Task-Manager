@@ -5,10 +5,24 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import type { Log } from "@/lib/types";
 import { History } from "lucide-react";
 import { formatDistanceToNow } from 'date-fns';
+import React from "react";
 
 interface TaskHistoryProps {
     logs: Log[];
 }
+
+const parseLogMessage = (message: string) => {
+    const parts = message.split(/(\*\*.*?\*\*|\*.*?\*)/g);
+    return parts.map((part, index) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+            return <strong key={index} className="font-semibold text-foreground/90">{part.slice(2, -2)}</strong>;
+        }
+        if (part.startsWith('*') && part.endsWith('*')) {
+            return <em key={index} className="italic text-foreground/80">{part.slice(1, -1)}</em>;
+        }
+        return <span key={index}>{part}</span>;
+    });
+};
 
 export function TaskHistory({ logs }: TaskHistoryProps) {
     if (logs.length === 0) {
@@ -32,7 +46,7 @@ export function TaskHistory({ logs }: TaskHistoryProps) {
                                     <History className="h-4 w-4 text-muted-foreground" />
                                 </div>
                                 <div className="flex-1">
-                                    <p className="text-sm font-medium text-foreground">{log.message}</p>
+                                    <p className="text-sm font-medium text-foreground whitespace-pre-wrap">{parseLogMessage(log.message)}</p>
                                     <p className="text-xs text-muted-foreground">
                                         {formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}
                                     </p>
