@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTransition, useEffect, useState, useRef, useMemo } from 'react';
@@ -120,7 +120,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
     defaultValues: getInitialTaskData(task),
   });
 
-  const { formState: { isDirty } } = form;
+  const { formState: { isDirty, errors } } = form;
   
   useEffect(() => {
     setIsDirty(isDirty);
@@ -213,6 +213,30 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
         return undefined;
     }
   };
+  
+  const onInvalid = (errors: any) => {
+      const fieldLabels = new Map(uiConfig?.fields.map(f => [f.key, f.label]));
+      const errorFields = Object.keys(errors);
+
+      const getLabel = (fieldName: string) => {
+          if (fieldName === 'customFields' && errors.customFields) {
+              const customErrorKey = Object.keys(errors.customFields)[0];
+              const customFieldConfig = uiConfig?.fields.find(f => f.key === customErrorKey);
+              return customFieldConfig?.label || customErrorKey;
+          }
+          return fieldLabels.get(fieldName) || fieldName;
+      };
+
+      const errorMessages = errorFields.map(getLabel);
+      
+      if (errorMessages.length > 0) {
+        toast({
+            variant: 'destructive',
+            title: 'Missing Required Fields',
+            description: `Please fill out the following fields: ${errorMessages.join(', ')}`,
+        });
+      }
+  };
 
   const handleFormSubmit = (data: TaskFormData) => {
     startTransition(() => {
@@ -255,6 +279,8 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
   const renderField = (fieldConfig: FieldConfig) => {
     const { key, type, label, isCustom, isRequired, baseUrl } = fieldConfig;
     const fieldName = isCustom ? `customFields.${key}` : key;
+    
+    const hasError = !!(isCustom ? errors.customFields?.[key] : errors[key as keyof typeof errors]);
 
     const renderInput = (fieldType: FieldType, field: any) => {
         switch (fieldType) {
@@ -377,11 +403,10 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
             name={fieldName as any}
             render={({ field }) => (
                 <FormItem>
-                    <FormLabel>{label} {isRequired && '*'}</FormLabel>
+                    <FormLabel error={hasError}>{label} {isRequired && '*'}</FormLabel>
                     <FormControl>
                         {renderInput(type, field)}
                     </FormControl>
-                    <FormMessage />
                 </FormItem>
             )}
         />
@@ -414,7 +439,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(handleFormSubmit, onInvalid)} className="space-y-6">
         
         {groupOrder.map(groupName => {
              // These groups will be handled manually with custom UI

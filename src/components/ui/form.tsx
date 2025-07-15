@@ -14,7 +14,7 @@ import {
 } from "react-hook-form"
 
 import { cn } from "@/lib/utils"
-import { Label } from "@/components/ui/label"
+import { Label as LabelComponent } from "@/components/ui/label"
 
 const Form = FormProvider
 
@@ -89,14 +89,14 @@ FormItem.displayName = "FormItem"
 
 const FormLabel = React.forwardRef<
   React.ElementRef<typeof LabelPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root>
->(({ className, ...props }, ref) => {
-  const { error, formItemId } = useFormField()
+  React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root> & { error?: boolean }
+>(({ className, error, ...props }, ref) => {
+  const { error: formError, formItemId } = useFormField()
 
   return (
-    <Label
+    <LabelComponent
       ref={ref}
-      className={cn(error && "text-destructive", className)}
+      className={cn((error || formError) && "text-destructive", className)}
       htmlFor={formItemId}
       {...props}
     />
