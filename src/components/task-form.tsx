@@ -684,7 +684,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
 
         <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur-sm">
             <div className="container mx-auto flex h-20 items-center justify-center px-4 sm:px-6 lg:px-8">
-                <div className="flex w-full max-w-sm items-center justify-center gap-4">
+                <div className="relative flex w-full max-w-sm items-center justify-center gap-4">
                     <Button
                         type="button"
                         variant="outline"
@@ -700,20 +700,20 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                     <TooltipProvider>
                       <Tooltip>
                           <TooltipTrigger asChild>
-                              <Button type="button" variant="ghost" size="icon" className="text-muted-foreground">
+                              <Button type="button" variant="ghost" size="icon" className="absolute right-0 text-muted-foreground">
                                   <HelpCircle className="h-5 w-5" />
                               </Button>
                           </TooltipTrigger>
                           <TooltipContent side="top">
-                              <div className="text-sm space-y-1 p-1">
-                                  <div className="grid grid-cols-[auto_1fr] items-center gap-x-2">
-                                    <span className="text-right">Save:</span>
-                                    <span><kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">{commandKey}</kbd> + <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">S</kbd></span>
-                                  </div>
-                                  <div className="grid grid-cols-[auto_1fr] items-center gap-x-2">
-                                    <span className="text-right">Cancel:</span>
-                                    <span><kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">Esc</kbd></span>
-                                  </div>
+                              <div className="text-sm p-1">
+                                <div className="grid grid-cols-[auto_1fr] items-center gap-x-2">
+                                  <div className="text-right">Save:</div>
+                                  <div><kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">{commandKey}</kbd> + <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">S</kbd></div>
+                                </div>
+                                <div className="grid grid-cols-[auto_1fr] items-center gap-x-2 mt-1">
+                                  <div className="text-right">Cancel:</div>
+                                  <div><kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">Esc</kbd></div>
+                                </div>
                               </div>
                           </TooltipContent>
                       </Tooltip>
