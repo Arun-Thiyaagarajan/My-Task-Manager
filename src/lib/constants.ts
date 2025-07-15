@@ -33,7 +33,7 @@ export const INITIAL_UI_CONFIG: FieldConfig[] = [
   { id: 'field_azureWorkItemId', key: 'azureWorkItemId', label: 'Azure Work Item ID', type: 'text', group: 'Assignment & Tracking', isActive: true, isRequired: false, isCustom: false, order: 6, baseUrl: 'https://dev.azure.com/ideaelan/Infinity/_workitems/edit/' },
   { id: 'field_prLinks', key: 'prLinks', label: 'Pull Request Links', type: 'text', group: 'Pull Requests', isActive: true, isRequired: false, isCustom: false, order: 7 },
   { id: 'field_attachments', key: 'attachments', label: 'Attachments', type: 'text', group: 'Attachments', isActive: true, isRequired: false, isCustom: false, order: 8 },
-  { id: 'field_deploymentStatus', key: 'deploymentStatus', label: 'Deployment Status', type: 'text', group: 'Deployment', isActive: true, isRequired: true, isCustom: false, order: 9 },
+  { id: 'field_deploymentStatus', key: 'deploymentStatus', label: 'Deployment Status', type: 'text', group: 'Deployment', isActive: true, isRequired: false, isCustom: false, order: 9 },
   { id: 'field_devStartDate', key: 'devStartDate', label: 'Dev Start Date', type: 'date', group: 'Dates', isActive: true, isRequired: false, isCustom: false, order: 10 },
   { id: 'field_devEndDate', key: 'devEndDate', label: 'Dev End Date', type: 'date', group: 'Dates', isActive: true, isRequired: false, isCustom: false, order: 11 },
   { id: 'field_qaStartDate', key: 'qaStartDate', label: 'QA Start Date', type: 'date', group: 'Dates', isActive: true, isRequired: false, isCustom: false, order: 12 },
