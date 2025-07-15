@@ -57,7 +57,23 @@ export default function SettingsPage() {
   const [tutorialEnabled, setTutorialEnabled] = useState(false);
   const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>('12h');
   const iconInputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [commandKey, setCommandKey] = useState('Ctrl');
   
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+        setCommandKey(navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? '⌘' : 'Ctrl');
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+            e.preventDefault();
+            searchInputRef.current?.focus();
+        }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const refreshData = () => {
     const loadedConfig = getUiConfig();
@@ -526,7 +542,18 @@ export default function SettingsPage() {
                 <CardContent>
                     <div className="relative mb-6">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input placeholder="Search fields by label or group..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 w-full max-w-sm"/>
+                        <Input 
+                          ref={searchInputRef}
+                          placeholder="Search fields by label or group..." 
+                          value={searchQuery} 
+                          onChange={(e) => setSearchQuery(e.target.value)} 
+                          className="pl-10 pr-20 w-full max-w-sm"
+                        />
+                         <div className="absolute inset-y-0 right-0 flex py-1.5 pr-1.5">
+                            <kbd className="inline-flex items-center rounded border bg-muted px-2 font-sans text-xs text-muted-foreground">
+                                {commandKey} + K
+                            </kbd>
+                        </div>
                     </div>
                     <div className="space-y-8">
                         <div><h2 className="text-xl font-semibold tracking-tight mb-4 pb-2 border-b">Active Fields</h2>{renderFieldList(filteredAndGroupedFields.active, true)}</div>

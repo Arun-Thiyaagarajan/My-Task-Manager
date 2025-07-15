@@ -148,6 +148,8 @@ export default function Home() {
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [pinnedTaskIds, setPinnedTaskIds] = useState<string[]>([]);
   const [isReminderStackOpen, setIsReminderStackOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [commandKey, setCommandKey] = useState('Ctrl');
   
   const { startTutorial } = useTutorial();
   const [showTutorialPrompt, setShowTutorialPrompt] = useState(false);
@@ -169,6 +171,21 @@ export default function Home() {
         setSelectedTaskIds([]);
     }
   };
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+        setCommandKey(navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? '⌘' : 'Ctrl');
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+            e.preventDefault();
+            searchInputRef.current?.focus();
+        }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     const tutorialPrompted = localStorage.getItem(TUTORIAL_PROMPTED_KEY);
@@ -1069,11 +1086,17 @@ export default function Home() {
                 <div className="relative lg:col-span-2">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                    placeholder="Search tasks..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 w-full"
+                      ref={searchInputRef}
+                      placeholder="Search tasks..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10 pr-20 w-full"
                     />
+                    <div className="absolute inset-y-0 right-0 flex py-1.5 pr-1.5">
+                        <kbd className="inline-flex items-center rounded border bg-muted px-2 font-sans text-xs text-muted-foreground">
+                            {commandKey} + K
+                        </kbd>
+                    </div>
                 </div>
                 <div className="flex-1 min-w-[180px]">
                   <MultiSelect

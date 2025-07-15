@@ -23,6 +23,23 @@ export default function LogsPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [openMonths, setOpenMonths] = useState<string[]>([]);
     const isInitialLoad = useRef(true);
+    const searchInputRef = useRef<HTMLInputElement>(null);
+    const [commandKey, setCommandKey] = useState('Ctrl');
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            setCommandKey(navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? '⌘' : 'Ctrl');
+        }
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                searchInputRef.current?.focus();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     useEffect(() => {
         const refreshData = () => {
@@ -116,11 +133,17 @@ export default function LogsPage() {
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
+                                ref={searchInputRef}
                                 placeholder="Search logs..." 
                                 value={searchQuery} 
                                 onChange={(e) => setSearchQuery(e.target.value)} 
-                                className="pl-10 w-full max-w-sm"
+                                className="pl-10 pr-20 w-full max-w-sm"
                             />
+                            <div className="absolute inset-y-0 right-0 flex py-1.5 pr-1.5">
+                                <kbd className="inline-flex items-center rounded border bg-muted px-2 font-sans text-xs text-muted-foreground">
+                                    {commandKey} + K
+                                </kbd>
+                            </div>
                         </div>
                     </div>
                 </CardHeader>
