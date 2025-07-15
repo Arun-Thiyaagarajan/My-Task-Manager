@@ -1083,8 +1083,8 @@ export default function Home() {
           <Card id="task-filters">
             <CardContent className="p-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="relative lg:col-span-2">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <div className="relative flex items-center lg:col-span-2">
+                    <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       ref={searchInputRef}
                       placeholder="Search tasks..."
@@ -1092,7 +1092,7 @@ export default function Home() {
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="w-full pl-10 pr-20"
                     />
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-1.5">
+                    <div className="absolute right-0 flex items-center h-full pr-1.5">
                         <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
                             <span className="text-xs">{commandKey}</span>K
                         </kbd>

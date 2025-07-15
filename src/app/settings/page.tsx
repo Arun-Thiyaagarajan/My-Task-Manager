@@ -540,8 +540,8 @@ export default function SettingsPage() {
                     <CardDescription>Drag active fields to reorder them. Edit, activate, or deactivate fields as needed. Required fields cannot be deactivated. Custom fields are the only fields that can be deleted.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="relative w-full max-w-sm mb-6">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <div className="relative flex items-center w-full max-w-sm mb-6">
+                        <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
                         <Input 
                           ref={searchInputRef}
                           placeholder="Search fields by label or group..." 
@@ -549,7 +549,7 @@ export default function SettingsPage() {
                           onChange={(e) => setSearchQuery(e.target.value)} 
                           className="w-full pl-10 pr-20"
                         />
-                         <div className="absolute inset-y-0 right-0 flex items-center pr-1.5">
+                         <div className="absolute right-0 flex items-center h-full pr-1.5">
                             <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
                                 <span className="text-xs">{commandKey}</span>K
                             </kbd>
