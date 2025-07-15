@@ -257,6 +257,21 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
         onSubmit(data);
     });
   };
+  
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+        if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+            event.preventDefault();
+            form.handleSubmit(handleFormSubmit, onInvalid)();
+        }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+        document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [form, handleFormSubmit, onInvalid]);
 
   const getFieldOptions = (field: FieldConfig): {value: string, label: string}[] => {
     let options: {value: string, label: string}[] = [];
@@ -646,7 +661,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
         </div>
 
         <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur-sm">
-            <div className="container mx-auto flex h-20 items-center justify-end gap-4 px-4 sm:px-6 lg:px-8">
+            <div className="container mx-auto flex h-20 items-center justify-center gap-4 px-4 sm:px-6 lg:px-8">
                 <Button
                     type="button"
                     variant="outline"
@@ -657,7 +672,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                     >
                     Cancel
                 </Button>
-                <Button type="submit" disabled={isPending}>
+                <Button type="submit" disabled={isPending} id="task-form-submit">
                     {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {submitButtonText}
                 </Button>
