@@ -1083,14 +1083,14 @@ export default function Home() {
           <Card id="task-filters">
             <CardContent className="p-4">
                 <div className="flex flex-wrap items-center gap-4">
-                    <div className="relative flex items-center grow min-w-[240px] lg:max-w-sm">
+                    <div className="relative flex items-center grow min-w-[240px] lg:max-w-sm h-10">
                         <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
                         <Input
                             ref={searchInputRef}
                             placeholder="Search tasks..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-20 h-10"
+                            className="w-full pl-10 pr-20 h-full"
                         />
                         <div className="absolute right-0 flex items-center h-full pr-1.5">
                             <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
@@ -1104,7 +1104,6 @@ export default function Home() {
                         onChange={setStatusFilter}
                         options={statusOptions}
                         placeholder={`Filter by ${fieldLabels.get('status') || 'Status'}...`}
-                        className="h-10"
                       />
                     </div>
                     <div className="grow min-w-[180px]">
@@ -1113,7 +1112,6 @@ export default function Home() {
                             onChange={setRepoFilter}
                             options={repoOptions}
                             placeholder={`Filter by ${fieldLabels.get('repositories') || 'Repository'}...`}
-                            className="h-10"
                         />
                     </div>
                     <div className="grow min-w-[180px]">
@@ -1122,7 +1120,6 @@ export default function Home() {
                             onChange={setDeploymentFilter}
                             options={deploymentOptions}
                             placeholder={`Filter by ${fieldLabels.get('deploymentStatus') || 'Deployment'}...`}
-                            className="h-10"
                         />
                     </div>
                     {mainView === 'all' && (
@@ -1524,7 +1521,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
-
-    
