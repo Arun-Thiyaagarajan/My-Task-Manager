@@ -226,6 +226,9 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
               const customFieldConfig = uiConfig?.fields.find(f => f.key === customErrorKey);
               return customFieldConfig?.label || customErrorKey;
           }
+           if (fieldName === 'deploymentStatus') {
+            return fieldLabels.get(fieldName) || 'Deployment Status';
+          }
           return fieldLabels.get(fieldName) || fieldName;
       };
 
@@ -450,210 +453,215 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleFormSubmit, onInvalid)} className="space-y-6">
-        
-        {groupOrder.map(groupName => {
-             // These groups will be handled manually with custom UI
-            if (['Attachments', 'Deployment', 'Pull Requests'].includes(groupName)) {
-                return null;
-            }
+      <form onSubmit={form.handleSubmit(handleFormSubmit, onInvalid)}>
+        <div className="pb-24">
+            <div className="space-y-6">
+                {groupOrder.map(groupName => {
+                    // These groups will be handled manually with custom UI
+                    if (['Attachments', 'Deployment', 'Pull Requests'].includes(groupName)) {
+                        return null;
+                    }
 
-            const fieldsInGroup = groupedFields[groupName];
-            if (!fieldsInGroup || fieldsInGroup.length === 0) {
-                return null;
-            }
-            
-            const gridColsClass = fieldsInGroup.length > 1 ? 'md:grid-cols-2' : 'md:grid-cols-1';
+                    const fieldsInGroup = groupedFields[groupName];
+                    if (!fieldsInGroup || fieldsInGroup.length === 0) {
+                        return null;
+                    }
+                    
+                    const gridColsClass = fieldsInGroup.length > 1 ? 'md:grid-cols-2' : 'md:grid-cols-1';
 
-            return (
-                <Card key={groupName} id={groupName === 'Core Details' ? 'task-form-main-card' : undefined}>
-                    <CardHeader>
-                        <CardTitle>{groupName}</CardTitle>
-                    </CardHeader>
-                    <CardContent className={cn("grid grid-cols-1 gap-6", gridColsClass)}>
-                        {groupedFields[groupName].map(field => renderField(field))}
-                    </CardContent>
-                </Card>
-            )
-        })}
+                    return (
+                        <Card key={groupName} id={groupName === 'Core Details' ? 'task-form-main-card' : undefined}>
+                            <CardHeader>
+                                <CardTitle>{groupName}</CardTitle>
+                            </CardHeader>
+                            <CardContent className={cn("grid grid-cols-1 gap-6", gridColsClass)}>
+                                {groupedFields[groupName].map(field => renderField(field))}
+                            </CardContent>
+                        </Card>
+                    )
+                })}
 
-        {/* Attachments Card */}
-        {uiConfig.fields.find(f => f.key === 'attachments' && f.isActive) && (
-            <Card>
-                <CardHeader><CardTitle>{fieldLabels.get('attachments') || 'Attachments'}</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-3">
-                        {attachments.map((item, index) => (
-                            <div key={item.id} className="flex items-center gap-4 p-3 border rounded-md bg-muted/50">
-                                {item.type === 'image' ? (
-                                    <img src={item.url} alt={item.name} className="h-20 w-20 rounded-md object-cover flex-shrink-0" />
-                                ) : (
-                                    <div className="h-20 w-20 flex-shrink-0 flex items-center justify-center bg-secondary rounded-md">
-                                        <Link2 className="h-8 w-8 text-muted-foreground" />
+                {/* Attachments Card */}
+                {uiConfig.fields.find(f => f.key === 'attachments' && f.isActive) && (
+                    <Card>
+                        <CardHeader><CardTitle>{fieldLabels.get('attachments') || 'Attachments'}</CardTitle></CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="space-y-3">
+                                {attachments.map((item, index) => (
+                                    <div key={item.id} className="flex items-center gap-4 p-3 border rounded-md bg-muted/50">
+                                        {item.type === 'image' ? (
+                                            <img src={item.url} alt={item.name} className="h-20 w-20 rounded-md object-cover flex-shrink-0" />
+                                        ) : (
+                                            <div className="h-20 w-20 flex-shrink-0 flex items-center justify-center bg-secondary rounded-md">
+                                                <Link2 className="h-8 w-8 text-muted-foreground" />
+                                            </div>
+                                        )}
+                                        <div className="flex-1 space-y-2">
+                                            <FormField
+                                                control={form.control}
+                                                name={`attachments.${index}.name`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel className="text-xs font-normal">Name</FormLabel>
+                                                        <FormControl><Input {...field} placeholder="Attachment name" /></FormControl>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            {item.type === 'link' && (
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`attachments.${index}.url`}
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel className="text-xs font-normal">URL</FormLabel>
+                                                            <FormControl><Input {...field} placeholder="https://example.com/file" /></FormControl>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            )}
+                                        </div>
+                                        <Button type="button" variant="destructive" size="icon" onClick={() => removeAttachment(index)} className="shrink-0"><Trash2 className="h-4 w-4" /></Button>
                                     </div>
-                                )}
-                                <div className="flex-1 space-y-2">
+                                ))}
+                            </div>
+                            
+                            <div className="flex gap-2 pt-2 border-t">
+                                <Button type="button" variant="outline" size="sm" onClick={() => appendAttachment({ name: '', url: '', type: 'link' })}>
+                                    <Link2 className="h-4 w-4 mr-2" /> Add Link
+                                </Button>
+                                <Button type="button" variant="outline" size="sm" onClick={() => imageInputRef.current?.click()}>
+                                    <Image className="h-4 w-4 mr-2" /> Add Image
+                                </Button>
+                            </div>
+
+                            <input
+                                type="file"
+                                ref={imageInputRef}
+                                onChange={handleImageUpload}
+                                className="hidden"
+                                accept="image/*"
+                            />
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Deployment Card */}
+                {uiConfig.fields.find(f => f.key === 'deploymentStatus' && f.isActive) && (
+                    <Card>
+                        <CardHeader><CardTitle>{fieldLabels.get('deploymentStatus') || 'Deployment'}</CardTitle></CardHeader>
+                        <CardContent className="space-y-4">
+                            {allConfiguredEnvs.map(env => (
+                                <div key={env} className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4 p-3 border rounded-md">
                                     <FormField
                                         control={form.control}
-                                        name={`attachments.${index}.name`}
+                                        name={`deploymentStatus.${env}`}
                                         render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className="text-xs font-normal">Name</FormLabel>
-                                                <FormControl><Input {...field} placeholder="Attachment name" /></FormControl>
+                                            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                                                <FormControl>
+                                                    <Checkbox
+                                                        checked={field.value ?? false}
+                                                        onCheckedChange={field.onChange}
+                                                        id={`deploy-check-${env}`}
+                                                    />
+                                                </FormControl>
+                                                <FormLabel
+                                                    htmlFor={`deploy-check-${env}`}
+                                                    className="font-normal capitalize cursor-pointer"
+                                                >
+                                                    Deployed to {env}
+                                                </FormLabel>
                                             </FormItem>
                                         )}
                                     />
-                                    {item.type === 'link' && (
+                                    {form.watch(`deploymentStatus.${env}`) && env !== 'dev' && (
                                         <FormField
                                             control={form.control}
-                                            name={`attachments.${index}.url`}
+                                            name={`deploymentDates.${env}`}
                                             render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel className="text-xs font-normal">URL</FormLabel>
-                                                    <FormControl><Input {...field} placeholder="https://example.com/file" /></FormControl>
+                                                <FormItem className="w-full sm:w-auto sm:min-w-[250px]">
+                                                    <Popover>
+                                                        <PopoverTrigger asChild>
+                                                            <FormControl>
+                                                                <Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                                    {field.value && field.value instanceof Date && !isNaN(field.value.getTime()) ? format(field.value, "PPP") : <span>Deployment Date</span>}
+                                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                                </Button>
+                                                            </FormControl>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-auto p-0" align="start">
+                                                            <Calendar mode="single" selected={field.value instanceof Date && !isNaN(field.value.getTime()) ? field.value : undefined} onSelect={field.onChange} defaultMonth={field.value ?? new Date()} initialFocus />
+                                                        </PopoverContent>
+                                                    </Popover>
                                                 </FormItem>
                                             )}
                                         />
                                     )}
                                 </div>
-                                <Button type="button" variant="destructive" size="icon" onClick={() => removeAttachment(index)} className="shrink-0"><Trash2 className="h-4 w-4" /></Button>
-                            </div>
-                        ))}
-                    </div>
-                    
-                    <div className="flex gap-2 pt-2 border-t">
-                        <Button type="button" variant="outline" size="sm" onClick={() => appendAttachment({ name: '', url: '', type: 'link' })}>
-                            <Link2 className="h-4 w-4 mr-2" /> Add Link
-                        </Button>
-                        <Button type="button" variant="outline" size="sm" onClick={() => imageInputRef.current?.click()}>
-                            <Image className="h-4 w-4 mr-2" /> Add Image
-                        </Button>
-                    </div>
-
-                    <input
-                        type="file"
-                        ref={imageInputRef}
-                        onChange={handleImageUpload}
-                        className="hidden"
-                        accept="image/*"
-                    />
-                </CardContent>
-            </Card>
-        )}
-
-        {/* Deployment Card */}
-        {uiConfig.fields.find(f => f.key === 'deploymentStatus' && f.isActive) && (
-            <Card>
-                <CardHeader><CardTitle>{fieldLabels.get('deploymentStatus') || 'Deployment'}</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                    {allConfiguredEnvs.map(env => (
-                        <div key={env} className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4 p-3 border rounded-md">
-                            <FormField
-                                control={form.control}
-                                name={`deploymentStatus.${env}`}
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                                        <FormControl>
-                                            <Checkbox
-                                                checked={field.value ?? false}
-                                                onCheckedChange={field.onChange}
-                                                id={`deploy-check-${env}`}
-                                            />
-                                        </FormControl>
-                                        <FormLabel
-                                            htmlFor={`deploy-check-${env}`}
-                                            className="font-normal capitalize cursor-pointer"
-                                        >
-                                            Deployed to {env}
-                                        </FormLabel>
-                                    </FormItem>
-                                )}
-                            />
-                            {form.watch(`deploymentStatus.${env}`) && env !== 'dev' && (
-                                <FormField
-                                    control={form.control}
-                                    name={`deploymentDates.${env}`}
-                                    render={({ field }) => (
-                                        <FormItem className="w-full sm:w-auto sm:min-w-[250px]">
-                                             <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <FormControl>
-                                                        <Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                            {field.value && field.value instanceof Date && !isNaN(field.value.getTime()) ? format(field.value, "PPP") : <span>Deployment Date</span>}
-                                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                        </Button>
-                                                    </FormControl>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-auto p-0" align="start">
-                                                    <Calendar mode="single" selected={field.value instanceof Date && !isNaN(field.value.getTime()) ? field.value : undefined} onSelect={field.onChange} defaultMonth={field.value ?? new Date()} initialFocus />
-                                                </PopoverContent>
-                                            </Popover>
-                                        </FormItem>
-                                    )}
-                                />
-                            )}
-                        </div>
-                    ))}
-                </CardContent>
-            </Card>
-        )}
-
-        {/* Pull Requests Card */}
-        {uiConfig.fields.find(f => f.key === 'prLinks' && f.isActive) && (
-            <Card>
-                <CardHeader><CardTitle>{fieldLabels.get('prLinks') || 'Pull Requests'}</CardTitle></CardHeader>
-                <CardContent>
-                    {watchedRepositories && watchedRepositories.length > 0 ? (
-                         <Tabs defaultValue={watchedRepositories[0]} className="w-full">
-                            <ScrollArea className="w-full whitespace-nowrap">
-                                <TabsList>
-                                    {watchedRepositories.map(repo => <TabsTrigger key={repo} value={repo}>{repo}</TabsTrigger>)}
-                                </TabsList>
-                                <ScrollBar orientation="horizontal" />
-                            </ScrollArea>
-
-                            {watchedRepositories.map(repo => (
-                                <TabsContent key={repo} value={repo}>
-                                    <div className="space-y-4 pt-4">
-                                    {allConfiguredEnvs.map(env => (
-                                        <FormField
-                                            key={`${repo}-${env}`}
-                                            control={form.control}
-                                            name={`prLinks.${env}.${repo}`}
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel className="capitalize">PR IDs for {env}</FormLabel>
-                                                    <FormControl>
-                                                        <Input {...field} value={field.value ?? ''} placeholder="e.g. 12345, 67890" />
-                                                    </FormControl>
-                                                </FormItem>
-                                            )}
-                                        />
-                                    ))}
-                                    </div>
-                                </TabsContent>
                             ))}
-                         </Tabs>
-                    ) : ( <p className="text-sm text-muted-foreground text-center py-4">Assign a repository to add PR links.</p> )}
-                </CardContent>
-            </Card>
-        )}
+                        </CardContent>
+                    </Card>
+                )}
 
-        <div id="task-form-submit" className="flex justify-end gap-4 pt-4 border-t">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                prompt(() => router.back());
-              }}
-              disabled={isPending}
-            >
-                Cancel
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {submitButtonText}
-            </Button>
+                {/* Pull Requests Card */}
+                {uiConfig.fields.find(f => f.key === 'prLinks' && f.isActive) && (
+                    <Card>
+                        <CardHeader><CardTitle>{fieldLabels.get('prLinks') || 'Pull Requests'}</CardTitle></CardHeader>
+                        <CardContent>
+                            {watchedRepositories && watchedRepositories.length > 0 ? (
+                                <Tabs defaultValue={watchedRepositories[0]} className="w-full">
+                                    <ScrollArea className="w-full whitespace-nowrap">
+                                        <TabsList>
+                                            {watchedRepositories.map(repo => <TabsTrigger key={repo} value={repo}>{repo}</TabsTrigger>)}
+                                        </TabsList>
+                                        <ScrollBar orientation="horizontal" />
+                                    </ScrollArea>
+
+                                    {watchedRepositories.map(repo => (
+                                        <TabsContent key={repo} value={repo}>
+                                            <div className="space-y-4 pt-4">
+                                            {allConfiguredEnvs.map(env => (
+                                                <FormField
+                                                    key={`${repo}-${env}`}
+                                                    control={form.control}
+                                                    name={`prLinks.${env}.${repo}`}
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel className="capitalize">PR IDs for {env}</FormLabel>
+                                                            <FormControl>
+                                                                <Input {...field} value={field.value ?? ''} placeholder="e.g. 12345, 67890" />
+                                                            </FormControl>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            ))}
+                                            </div>
+                                        </TabsContent>
+                                    ))}
+                                </Tabs>
+                            ) : ( <p className="text-sm text-muted-foreground text-center py-4">Assign a repository to add PR links.</p> )}
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
+        </div>
+
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur-sm">
+            <div className="container mx-auto flex h-20 items-center justify-end gap-4 px-4 sm:px-6 lg:px-8">
+                <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                        prompt(() => router.back());
+                    }}
+                    disabled={isPending}
+                    >
+                    Cancel
+                </Button>
+                <Button type="submit" disabled={isPending}>
+                    {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {submitButtonText}
+                </Button>
+            </div>
         </div>
       </form>
     </Form>
