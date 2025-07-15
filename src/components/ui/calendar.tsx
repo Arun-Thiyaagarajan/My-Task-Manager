@@ -20,6 +20,7 @@ function Calendar({
 }: CalendarProps) {
   const fromYear = 2000;
   const toYear = 2100;
+  const { onMonthChange } = props;
 
   return (
     <DayPicker
@@ -63,19 +64,28 @@ function Calendar({
       components={{
         IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" {...props} />,
         IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" {...props} />,
-        Caption: ({ displayMonth }) => {
+        Caption: ({ displayMonth, ...rest }) => {
+          const { onMonthChange } = props;
           const months = Array.from({ length: 12 }, (_, i) => new Date(new Date().getFullYear(), i, 1));
           const years = Array.from({ length: toYear - fromYear + 1 }, (_, i) => fromYear + i);
+          
+          const handleMonthChange = (value: string) => {
+             const newDate = new Date(displayMonth);
+             newDate.setMonth(parseInt(value, 10));
+             onMonthChange?.(newDate);
+          };
+          
+          const handleYearChange = (value: string) => {
+             const newDate = new Date(displayMonth);
+             newDate.setFullYear(parseInt(value, 10));
+             onMonthChange?.(newDate);
+          };
 
           return (
-            <div className="flex gap-2">
+            <div className="flex justify-center gap-2">
                <Select
-                  onValueChange={(value) => {
-                    const newDate = new Date(displayMonth);
-                    newDate.setMonth(parseInt(value, 10));
-                    props.onMonthChange?.(newDate);
-                  }}
                   value={String(displayMonth.getMonth())}
+                  onValueChange={handleMonthChange}
                 >
                   <SelectTrigger className="w-[120px] focus:ring-0">
                     <SelectValue>{format(displayMonth, 'MMMM')}</SelectValue>
@@ -89,12 +99,8 @@ function Calendar({
                   </SelectContent>
                 </Select>
                 <Select
-                  onValueChange={(value) => {
-                    const newDate = new Date(displayMonth);
-                    newDate.setFullYear(parseInt(value, 10));
-                    props.onMonthChange?.(newDate);
-                  }}
                   value={String(displayMonth.getFullYear())}
+                  onValueChange={handleYearChange}
                 >
                   <SelectTrigger className="w-[80px] focus:ring-0">
                     <SelectValue>{displayMonth.getFullYear()}</SelectValue>
@@ -121,5 +127,3 @@ function Calendar({
 Calendar.displayName = "Calendar"
 
 export { Calendar }
-
-

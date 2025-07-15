@@ -234,6 +234,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
       if (errorMessages.length > 0) {
         toast({
             variant: 'destructive',
+            duration: 5000,
             title: 'Missing Required Fields',
             description: () => (
                 <div className="flex flex-col gap-1">
@@ -295,9 +296,9 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
         switch (fieldType) {
             case 'text':
                 return (
-                    <div className="space-y-1">
+                    <div>
                         <Input type="text" placeholder={label} {...field} value={field.value ?? ''} />
-                        {baseUrl && <p className="text-[0.8rem] text-muted-foreground">The value will be appended to: {baseUrl}</p>}
+                        {baseUrl && <p className="text-[0.8rem] text-muted-foreground mt-1">The value will be appended to: {baseUrl}</p>}
                     </div>
                 );
             case 'number':
@@ -347,7 +348,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                                         }
                                     }
                                 }}
-                                defaultMonth={field.value}
+                                defaultMonth={field.value ?? new Date()}
                                 initialFocus
                                 disabled={getDisabledDates()}
                             />
@@ -412,13 +413,11 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
             control={form.control}
             name={fieldName as any}
             render={({ field }) => (
-                <FormItem className="space-y-1">
+                <FormItem>
                     <FormLabel error={hasError}>{label} {isRequired && '*'}</FormLabel>
-                    <div className="space-y-2">
-                        <FormControl>
-                            {renderInput(type, field)}
-                        </FormControl>
-                    </div>
+                    <FormControl>
+                        {renderInput(type, field)}
+                    </FormControl>
                 </FormItem>
             )}
         />
@@ -432,7 +431,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
   const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
 
   const groupedFields = uiConfig.fields
-    .filter(f => f.isActive && f.key !== 'comments') // <-- Filter out comments here
+    .filter(f => f.isActive && f.key !== 'comments') // Filter out comments here
     .sort((a,b) => a.order - b.order)
     .reduce((acc, field) => {
         const group = field.group || 'Other';
@@ -498,7 +497,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                                         control={form.control}
                                         name={`attachments.${index}.name`}
                                         render={({ field }) => (
-                                            <FormItem className="space-y-1">
+                                            <FormItem>
                                                 <FormLabel className="text-xs font-normal">Name</FormLabel>
                                                 <FormControl><Input {...field} placeholder="Attachment name" /></FormControl>
                                             </FormItem>
@@ -509,7 +508,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                                             control={form.control}
                                             name={`attachments.${index}.url`}
                                             render={({ field }) => (
-                                                <FormItem className="space-y-1">
+                                                <FormItem>
                                                     <FormLabel className="text-xs font-normal">URL</FormLabel>
                                                     <FormControl><Input {...field} placeholder="https://example.com/file" /></FormControl>
                                                 </FormItem>
@@ -586,7 +585,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                                                     </FormControl>
                                                 </PopoverTrigger>
                                                 <PopoverContent className="w-auto p-0" align="start">
-                                                    <Calendar mode="single" selected={field.value instanceof Date && !isNaN(field.value.getTime()) ? field.value : undefined} onSelect={field.onChange} defaultMonth={field.value} initialFocus />
+                                                    <Calendar mode="single" selected={field.value instanceof Date && !isNaN(field.value.getTime()) ? field.value : undefined} onSelect={field.onChange} defaultMonth={field.value ?? new Date()} initialFocus />
                                                 </PopoverContent>
                                             </Popover>
                                         </FormItem>
