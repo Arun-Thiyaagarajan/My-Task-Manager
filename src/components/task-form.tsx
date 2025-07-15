@@ -706,12 +706,14 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                           </TooltipTrigger>
                           <TooltipContent side="top">
                               <div className="text-sm space-y-1 p-1">
-                                  <p>
-                                    Save: <kbd className="pointer-events-none ml-2 inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">{commandKey}</kbd> + <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">S</kbd>
-                                  </p>
-                                  <p>
-                                    Cancel: <kbd className="pointer-events-none ml-2 inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">Esc</kbd>
-                                  </p>
+                                  <div className="grid grid-cols-[auto_1fr] items-center gap-x-2">
+                                    <span className="text-right">Save:</span>
+                                    <span><kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">{commandKey}</kbd> + <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">S</kbd></span>
+                                  </div>
+                                  <div className="grid grid-cols-[auto_1fr] items-center gap-x-2">
+                                    <span className="text-right">Cancel:</span>
+                                    <span><kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">Esc</kbd></span>
+                                  </div>
                               </div>
                           </TooltipContent>
                       </Tooltip>
