@@ -10,8 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2 } from 'lucide-react';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2, AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTransition, useEffect, useState, useRef, useMemo } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -27,6 +27,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
 
 type TaskFormData = z.infer<ReturnType<typeof createTaskSchema>>;
 
@@ -233,7 +235,14 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
         toast({
             variant: 'destructive',
             title: 'Missing Required Fields',
-            description: `Please fill out the following fields: ${errorMessages.join(', ')}`,
+            description: () => (
+                <div>
+                    <p>Please fill out the following fields:</p>
+                    <ul className="list-disc list-inside mt-2">
+                        {errorMessages.map((msg, i) => <li key={i}>{msg}</li>)}
+                    </ul>
+                </div>
+            )
         });
       }
   };
@@ -486,10 +495,9 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                                         control={form.control}
                                         name={`attachments.${index}.name`}
                                         render={({ field }) => (
-                                            <FormItem>
+                                            <FormItem className="space-y-1">
                                                 <FormLabel className="text-xs font-normal">Name</FormLabel>
                                                 <FormControl><Input {...field} placeholder="Attachment name" /></FormControl>
-                                                <FormMessage />
                                             </FormItem>
                                         )}
                                     />
@@ -498,10 +506,9 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                                             control={form.control}
                                             name={`attachments.${index}.url`}
                                             render={({ field }) => (
-                                                <FormItem>
+                                                <FormItem className="space-y-1">
                                                     <FormLabel className="text-xs font-normal">URL</FormLabel>
                                                     <FormControl><Input {...field} placeholder="https://example.com/file" /></FormControl>
-                                                    <FormMessage />
                                                 </FormItem>
                                             )}
                                         />
@@ -511,8 +518,6 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                             </div>
                         ))}
                     </div>
-
-                    {form.formState.errors.attachments && <FormMessage>{form.formState.errors.attachments.message}</FormMessage>}
                     
                     <div className="flex gap-2 pt-2 border-t">
                         <Button type="button" variant="outline" size="sm" onClick={() => appendAttachment({ name: '', url: '', type: 'link' })}>
@@ -620,7 +625,6 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                                                     <FormControl>
                                                         <Input {...field} value={field.value ?? ''} placeholder="e.g. 12345, 67890" />
                                                     </FormControl>
-                                                    <FormMessage />
                                                 </FormItem>
                                             )}
                                         />
