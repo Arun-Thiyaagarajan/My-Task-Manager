@@ -31,7 +31,7 @@ function CustomCaption(props: CaptionProps) {
   return (
     <div className="flex items-center justify-between px-2 py-1.5">
        <button 
-          onClick={() => previousMonth && previousMonth()} 
+          onClick={() => previousMonth && goToMonth(previousMonth)}
           disabled={!previousMonth}
           className={cn(buttonVariants({ variant: "outline" }), "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100")}
         >
@@ -70,7 +70,7 @@ function CustomCaption(props: CaptionProps) {
         </Select>
       </div>
        <button 
-          onClick={() => nextMonth && nextMonth()} 
+          onClick={() => nextMonth && goToMonth(nextMonth)}
           disabled={!nextMonth}
           className={cn(buttonVariants({ variant: "outline" }), "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100")}
         >
