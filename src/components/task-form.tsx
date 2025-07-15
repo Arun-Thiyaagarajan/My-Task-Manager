@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2, AlertCircle } from 'lucide-react';
+import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2, AlertCircle, HelpCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTransition, useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -28,6 +28,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 type TaskFormData = z.infer<ReturnType<typeof createTaskSchema>>;
@@ -682,11 +683,8 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
         </div>
 
         <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur-sm">
-            <div className="container mx-auto flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
-                 <p className="text-xs text-muted-foreground hidden sm:block">
-                    Press <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">Esc</kbd> to cancel
-                </p>
-                <div className="flex items-center gap-4">
+            <div className="container mx-auto flex h-20 items-center justify-center px-4 sm:px-6 lg:px-8">
+                <div className="flex w-full max-w-sm items-center justify-center gap-4">
                     <Button
                         type="button"
                         variant="outline"
@@ -699,10 +697,26 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                         {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {submitButtonText}
                     </Button>
+                    <TooltipProvider>
+                      <Tooltip>
+                          <TooltipTrigger asChild>
+                              <Button type="button" variant="ghost" size="icon" className="text-muted-foreground">
+                                  <HelpCircle className="h-5 w-5" />
+                              </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                              <div className="text-sm space-y-1 p-1">
+                                  <p>
+                                    Save: <kbd className="pointer-events-none ml-2 inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">{commandKey}</kbd> + <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">S</kbd>
+                                  </p>
+                                  <p>
+                                    Cancel: <kbd className="pointer-events-none ml-2 inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">Esc</kbd>
+                                  </p>
+                              </div>
+                          </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                 </div>
-                <p className="text-xs text-muted-foreground hidden sm:block">
-                    or press <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">{commandKey}</kbd> + <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">S</kbd> to save
-                </p>
             </div>
         </div>
       </form>
