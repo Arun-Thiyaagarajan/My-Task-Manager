@@ -393,7 +393,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
   const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
 
   const groupedFields = uiConfig.fields
-    .filter(f => f.isActive)
+    .filter(f => f.isActive && f.key !== 'comments') // <-- Filter out comments here
     .sort((a,b) => a.order - b.order)
     .reduce((acc, field) => {
         const group = field.group || 'Other';
