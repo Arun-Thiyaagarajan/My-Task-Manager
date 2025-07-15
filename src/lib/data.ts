@@ -766,7 +766,7 @@ const generateTaskUpdateLogs = (
         if (key in newTaskData && JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
             const formatValue = (v: any) => {
                 if (v === null || v === undefined || (Array.isArray(v) && v.length === 0) || v === '') return 'empty';
-                return formatter ? formatter(v) : JSON.stringify(v);
+                return formatter ? formatter(v) : String(v);
             };
             changes.push(`- Changed **${label}** from *"${formatValue(oldValue)}"* to *"${formatValue(newValue)}"*.`);
         }
@@ -794,7 +794,7 @@ const generateTaskUpdateLogs = (
 
     checkChange('title', 'Title');
     checkChange('status', 'Status');
-    checkChange('description', 'Description', v => `"${v.substring(0, 30)}..."`);
+    checkChange('description', 'Description', v => `${v.substring(0, 30)}...`);
     checkListChange('developers', 'Developers', developersById);
     checkListChange('testers', 'Testers', testersById);
     checkListChange('repositories', 'Repositories', new Map());
