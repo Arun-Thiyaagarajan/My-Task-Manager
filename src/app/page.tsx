@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -109,6 +108,7 @@ import { ToastAction } from '@/components/ui/toast';
 import { ReminderStack } from '@/components/reminder-stack';
 import { Badge } from '@/components/ui/badge';
 import { useTutorial } from '@/hooks/use-tutorial';
+import { MultiSelect, type SelectOption } from '@/components/ui/multi-select';
 
 
 type ViewMode = 'grid' | 'table';
@@ -124,9 +124,9 @@ export default function Home() {
   const [developers, setDevelopers] = useState<Person[]>([]);
   const [testers, setTesters] = useState<Person[]>([]);
   const [generalReminders, setGeneralReminders] = useState<GeneralReminder[]>([]);
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [repoFilter, setRepoFilter] = useState('all');
-  const [deploymentFilter, setDeploymentFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [repoFilter, setRepoFilter] = useState<string[]>([]);
+  const [deploymentFilter, setDeploymentFilter] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState<DateRange | undefined>(
     undefined
@@ -294,9 +294,9 @@ export default function Home() {
       return false;
     }
 
-    const statusMatch = statusFilter === 'all' || task.status === statusFilter;
+    const statusMatch = statusFilter.length === 0 || statusFilter.includes(task.status);
     
-    const repoMatch = repoFilter === 'all' || task.repositories?.includes(repoFilter);
+    const repoMatch = repoFilter.length === 0 || (task.repositories?.some(repo => repoFilter.includes(repo)) ?? false);
 
     const developersById = new Map(developers.map(d => [d.id, d.name]));
     const testersById = new Map(testers.map(t => [t.id, t.name]));
@@ -334,8 +334,8 @@ export default function Home() {
     })();
     
     const deploymentMatch =
-      deploymentFilter === 'all' ||
-      (task.deploymentStatus?.[deploymentFilter as string] ?? false);
+      deploymentFilter.length === 0 ||
+      deploymentFilter.some(env => task.deploymentStatus?.[env] ?? false);
 
     return statusMatch && repoMatch && searchMatch && dateMatch && deploymentMatch;
   });
@@ -943,6 +943,13 @@ export default function Home() {
   }
   
   const TASK_STATUSES = uiConfig.taskStatuses;
+  const statusOptions: SelectOption[] = TASK_STATUSES.map(s => ({ value: s, label: s }));
+  const repoOptions: SelectOption[] = REPOSITORIES.map(r => ({ value: r, label: r }));
+  const deploymentOptions: SelectOption[] = [
+      { value: 'dev', label: 'Deployed to Dev' },
+      { value: 'stage', label: 'Deployed to Stage' },
+      { value: 'production', label: 'Deployed to Production' },
+  ];
 
   const handleNewTaskClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
@@ -1058,8 +1065,8 @@ export default function Home() {
       <div className="space-y-6">
           <Card id="task-filters">
             <CardContent className="p-4">
-              <div className="flex flex-wrap items-center gap-4">
-                <div className="relative flex-1 min-w-[240px] sm:flex-grow-[2]">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="relative lg:col-span-2">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                     placeholder="Search tasks..."
@@ -1069,50 +1076,31 @@ export default function Home() {
                     />
                 </div>
                 <div className="flex-1 min-w-[180px]">
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={`Filter by ${fieldLabels.get('status') || 'Status'}`} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Statuses</SelectItem>
-                        {TASK_STATUSES.map((status) => (
-                          <SelectItem key={status} value={status}>
-                            {status}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <MultiSelect
+                    selected={statusFilter}
+                    onChange={setStatusFilter}
+                    options={statusOptions}
+                    placeholder={`Filter by ${fieldLabels.get('status') || 'Status'}...`}
+                  />
                 </div>
                 <div className="flex-1 min-w-[180px]">
-                    <Select value={repoFilter} onValueChange={setRepoFilter}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={`Filter by ${fieldLabels.get('repositories') || 'Repository'}`} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Repositories</SelectItem>
-                        {REPOSITORIES.map((repo) => (
-                          <SelectItem key={repo} value={repo}>
-                            {repo}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <MultiSelect
+                        selected={repoFilter}
+                        onChange={setRepoFilter}
+                        options={repoOptions}
+                        placeholder={`Filter by ${fieldLabels.get('repositories') || 'Repository'}...`}
+                    />
                 </div>
                 <div className="flex-1 min-w-[180px]">
-                    <Select value={deploymentFilter} onValueChange={setDeploymentFilter}>
-                        <SelectTrigger>
-                        <SelectValue placeholder={`Filter by ${fieldLabels.get('deploymentStatus') || 'Deployment'}`} />
-                        </SelectTrigger>
-                        <SelectContent>
-                        <SelectItem value="all">Any Deployment</SelectItem>
-                        <SelectItem value="dev">Deployed to Dev</SelectItem>
-                        <SelectItem value="stage">Deployed to Stage</SelectItem>
-                        <SelectItem value="production">Deployed to Production</SelectItem>
-                        </SelectContent>
-                    </Select>
+                     <MultiSelect
+                        selected={deploymentFilter}
+                        onChange={setDeploymentFilter}
+                        options={deploymentOptions}
+                        placeholder={`Filter by ${fieldLabels.get('deploymentStatus') || 'Deployment'}...`}
+                    />
                 </div>
                 {mainView === 'all' && (
-                    <div className="w-[240px]">
+                    <div className="w-full min-w-[180px]">
                       <Popover
                           open={isDatePopoverOpen}
                           onOpenChange={setIsDatePopoverOpen}
