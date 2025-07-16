@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -51,8 +51,7 @@ import { Loader2, PlusCircle, Trash2, Edit, Users, ClipboardCheck } from 'lucide
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './ui/form';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select';
 import { Textarea } from './ui/textarea';
-import { ScrollArea, ScrollBar } from './ui/scroll-area';
-import { cn } from '@/lib/utils';
+import { ScrollArea } from './ui/scroll-area';
 
 
 const personFieldSchema = z.object({
@@ -229,16 +228,6 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
     }
   }, [isOpen, type]);
 
-  const additionalColumns = useMemo(() => {
-    const columns = new Set<string>();
-    people.forEach(person => {
-        person.additionalFields?.forEach(field => {
-            columns.add(field.label);
-        });
-    });
-    return Array.from(columns).sort();
-  }, [people]);
-
   const handleOpenEdit = (person: Person) => {
     setPersonToEdit(person);
     setIsAdding(false);
@@ -331,80 +320,68 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
         </DialogHeader>
 
         {personToEdit || isAdding ? (
-            <div className="py-4 flex-1 overflow-y-auto pr-2">
-                <h3 className="text-lg font-medium mb-4">{personToEdit ? `Edit ${personToEdit.name}` : `Add New ${title}`}</h3>
-                <EditPersonForm 
-                    personToEdit={personToEdit}
-                    onSave={handleSave}
-                    onCancel={handleCancelEdit}
-                    isPending={isPending}
-                />
-            </div>
+            <ScrollArea className="flex-1 -mx-6">
+                <div className="px-6 py-4">
+                    <h3 className="text-lg font-medium mb-4">{personToEdit ? `Edit ${personToEdit.name}` : `Add New ${title}`}</h3>
+                    <EditPersonForm 
+                        personToEdit={personToEdit}
+                        onSave={handleSave}
+                        onCancel={handleCancelEdit}
+                        isPending={isPending}
+                    />
+                </div>
+            </ScrollArea>
         ) : (
             <>
-                <div className="py-4 flex-grow min-h-0">
+                <div className="py-4 flex-1 min-h-0">
                   <ScrollArea className="h-full">
                       <Table>
                           <TableHeader>
                           <TableRow>
-                              <TableHead className="min-w-[150px] sticky left-0 bg-background z-10">Name</TableHead>
-                              <TableHead className="min-w-[200px]">Email</TableHead>
-                              <TableHead className="min-w-[120px]">Phone</TableHead>
-                              {additionalColumns.map(col => (
-                                  <TableHead key={col} className="w-[120px] min-w-[120px]">{col}</TableHead>
-                              ))}
-                              <TableHead className="text-right min-w-[100px] sticky right-0 bg-background z-10">Actions</TableHead>
+                              <TableHead>Name</TableHead>
+                              <TableHead>Email</TableHead>
+                              <TableHead>Phone</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
                           </TableRow>
                           </TableHeader>
                           <TableBody>
-                          {people.map((person) => {
-                              const additionalFieldsMap = new Map(person.additionalFields?.map(f => [f.label, f.value]));
-                              return (
-                                  <TableRow key={person.id}>
-                                      <TableCell className="font-medium sticky left-0 bg-background">{person.name}</TableCell>
-                                      <TableCell>{person.email || '-'}</TableCell>
-                                      <TableCell>{person.phone || '-'}</TableCell>
-                                      {additionalColumns.map(col => (
-                                          <TableCell key={col} className="w-[120px] min-w-[120px]">
-                                              <div className="truncate" title={additionalFieldsMap.get(col) || ''}>
-                                                  {additionalFieldsMap.get(col) || '-'}
-                                              </div>
-                                          </TableCell>
-                                      ))}
-                                      <TableCell className="text-right sticky right-0 bg-background">
-                                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEdit(person)}>
-                                              <Edit className="h-4 w-4" />
+                          {people.map((person) => (
+                              <TableRow key={person.id}>
+                                  <TableCell className="font-medium">{person.name}</TableCell>
+                                  <TableCell>{person.email || '-'}</TableCell>
+                                  <TableCell>{person.phone || '-'}</TableCell>
+                                  <TableCell className="text-right">
+                                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEdit(person)}>
+                                          <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                                              <Trash2 className="h-4 w-4" />
                                           </Button>
-                                          <AlertDialog>
-                                              <AlertDialogTrigger asChild>
-                                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                                                  <Trash2 className="h-4 w-4" />
-                                              </Button>
-                                              </AlertDialogTrigger>
-                                              <AlertDialogContent>
-                                              <AlertDialogHeader>
-                                                  <AlertDialogTitle>Delete {person.name}?</AlertDialogTitle>
-                                                  <AlertDialogDescription>
-                                                  This will permanently remove {person.name} from the system and unassign them from all tasks. This action cannot be undone.
-                                                  </AlertDialogDescription>
-                                              </AlertDialogHeader>
-                                              <AlertDialogFooter>
-                                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                  <AlertDialogAction onClick={() => handleDelete(person.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                              </AlertDialogFooter>
-                                              </AlertDialogContent>
-                                          </AlertDialog>
-                                      </TableCell>
-                                  </TableRow>
-                              )
-                          })}
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                              <AlertDialogTitle>Delete {person.name}?</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                              This will permanently remove {person.name} from the system and unassign them from all tasks. This action cannot be undone.
+                                              </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                              <AlertDialogAction onClick={() => handleDelete(person.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                          </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                      </AlertDialog>
+                                  </TableCell>
+                              </TableRow>
+                          ))}
                           </TableBody>
                       </Table>
                       {people.length === 0 && <p className="text-center text-muted-foreground py-8">No {title}s found.</p>}
-                      <ScrollBar orientation="horizontal" />
                   </ScrollArea>
                 </div>
-                <DialogFooter className="flex-shrink-0">
+                <DialogFooter className="flex-shrink-0 mt-4">
                     <Button onClick={handleOpenAdd}>
                         <PlusCircle className="mr-2 h-4 w-4" /> Add New {title}
                     </Button>
