@@ -112,31 +112,29 @@ export function MultiSelect({
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <div 
-          className={cn("group flex items-center rounded-md border border-input h-full w-full px-3 py-1 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2", className)}
+          className={cn("group flex items-center rounded-md border border-input h-10 w-full px-3 py-1 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2", className)}
           role="button"
           aria-expanded={isOpen}
           onClick={() => setIsOpen(true)}
         >
           <div className="flex flex-wrap gap-1 items-center flex-grow">
             {selected.length === 0 && <span className="text-muted-foreground">{placeholder}</span>}
-            {selected.length === 1 && (
-              <Badge variant="secondary" className="whitespace-nowrap">
-                {selectedMap.get(selected[0])}
-                <button
-                  className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleUnselect(e, selected[0]); }}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={(e) => handleUnselect(e, selected[0])}
-                >
-                  <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                </button>
-              </Badge>
-            )}
-            {selected.length > 1 && (
-                <Badge variant="secondary">
-                    {selected.length} selected
-                </Badge>
-            )}
+            {selected.length > 0 && selected.map(value => {
+                const label = selectedMap.get(value);
+                return (
+                    <Badge key={value} variant="secondary" className="whitespace-nowrap">
+                        {label}
+                        <button
+                          className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleUnselect(e, value); }}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={(e) => handleUnselect(e, value)}
+                        >
+                          <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                        </button>
+                    </Badge>
+                );
+            })}
           </div>
         </div>
       </PopoverTrigger>
