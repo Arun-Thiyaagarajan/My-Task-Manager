@@ -1,4 +1,5 @@
 
+
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
 import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder } from './types';
 import cloneDeep from 'lodash/cloneDeep';
@@ -760,79 +761,110 @@ const generateTaskUpdateLogs = (
     const testersById = new Map(testers.map(p => [p.id, p.name]));
     const timeFormatString = uiConfig.timeFormat === '24h' ? 'PPP HH:mm' : 'PPP p';
 
-    const checkChange = (key: keyof Task, label: string, formatter?: (val: any) => string) => {
-        const oldValue = oldTask[key];
-        const newValue = newTaskData[key];
-        if (key in newTaskData && JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
-            const formatValue = (v: any) => {
-                if (v === null || v === undefined || (Array.isArray(v) && v.length === 0) || v === '') return '*empty*';
-                return `*"${formatter ? formatter(v) : String(v)}"*`;
-            };
-            changes.push(`- Changed **${label}** from ${formatValue(oldValue)} to ${formatValue(newValue)}.`);
-        }
+    const formatValue = (value: any, formatter?: (v: any) => string) => {
+        if (value === null || value === undefined || (Array.isArray(value) && value.length === 0) || value === '') return '*empty*';
+        const formattedValue = formatter ? formatter(value) : String(value);
+        return `"${formattedValue}"`;
     };
-    
-    const checkListChange = (key: 'developers' | 'testers', label: string, nameMap: Map<string, string>) => {
-        if (!newTaskData[key]) return;
-        const oldSet = new Set(oldTask[key] || []);
-        const newSet = new Set(newTaskData[key] || []);
-        
-        const added = [...newSet].filter(id => !oldSet.has(id)).map(id => nameMap.get(id) || id);
-        const removed = [...oldSet].filter(id => !newSet.has(id)).map(id => nameMap.get(id) || id);
 
-        if (added.length > 0) changes.push(`- Assigned ${label}: **${added.join(', ')}**.`);
-        if (removed.length > 0) changes.push(`- Unassigned ${label}: **${removed.join(', ')}**.`);
-    };
-    
-    const checkDateChange = (key: keyof Task, label: string) => {
-        const oldDate = oldTask[key] ? new Date(oldTask[key] as string).toISOString() : null;
-        const newDate = newTaskData[key] ? new Date(newTaskData[key] as string).toISOString() : null;
-        if(oldDate !== newDate) {
-            changes.push(`- Changed **${label}** to *${newDate ? format(new Date(newDate), 'PPP') : 'empty'}*.`);
+    // Generic field check
+    for (const key in newTaskData) {
+        if (!Object.prototype.hasOwnProperty.call(newTaskData, key)) continue;
+
+        const typedKey = key as keyof Task;
+        const oldValue = oldTask[typedKey];
+        const newValue = newTaskData[typedKey];
+
+        if (JSON.stringify(oldValue) === JSON.stringify(newValue)) continue;
+
+        let logEntry: string | null = null;
+        const fieldConfig = uiConfig.fields.find(f => f.key === typedKey);
+        const label = fieldConfig?.label || typedKey;
+
+        switch (typedKey) {
+            case 'title':
+            case 'status':
+                logEntry = `- Changed **${label}** from ${formatValue(oldValue)} to ${formatValue(newValue)}.`;
+                break;
+            case 'description':
+                 logEntry = `- Changed **${label}** from ${formatValue(oldValue, v => `${v.substring(0, 30)}...`)} to ${formatValue(newValue, v => `${v.substring(0, 30)}...`)}.`;
+                 break;
+            case 'developers':
+            case 'testers': {
+                const nameMap = typedKey === 'developers' ? developersById : testersById;
+                const oldSet = new Set(oldValue as string[] || []);
+                const newSet = new Set(newValue as string[] || []);
+                const added = [...newSet].filter(id => !oldSet.has(id)).map(id => nameMap.get(id) || id);
+                const removed = [...oldSet].filter(id => !newSet.has(id)).map(id => nameMap.get(id) || id);
+
+                if (added.length > 0) changes.push(`- Assigned ${label}: **${added.join(', ')}**.`);
+                if (removed.length > 0) changes.push(`- Unassigned ${label}: **${removed.join(', ')}**.`);
+                break;
+            }
+            case 'repositories': {
+                const oldRepos = oldValue as string[] || [];
+                const newRepos = newValue as string[] || [];
+                if(JSON.stringify(oldRepos.sort()) !== JSON.stringify(newRepos.sort())) {
+                    logEntry = `- Changed **${label}** to *${newRepos.join(', ') || 'empty'}*.`;
+                }
+                break;
+            }
+            case 'devStartDate':
+            case 'devEndDate':
+            case 'qaStartDate':
+            case 'qaEndDate': {
+                const oldDate = oldValue ? new Date(oldValue as string).toISOString() : null;
+                const newDate = newValue ? new Date(newValue as string).toISOString() : null;
+                if(oldDate !== newDate) {
+                    logEntry = `- Changed **${label}** to *${newDate ? format(new Date(newDate), 'PPP') : 'empty'}*.`;
+                }
+                break;
+            }
+            case 'reminder':
+                if (oldValue && !newValue) {
+                    logEntry = '- Removed the reminder from the task.';
+                } else if (!oldValue && newValue) {
+                    logEntry = `- Set a new reminder: *"${(newValue as string).substring(0, 50)}..."*`;
+                } else {
+                    logEntry = `- Updated the reminder text to: *"${(newValue as string).substring(0, 50)}..."*`;
+                }
+                break;
+            case 'reminderExpiresAt':
+                 if (newValue && newValue !== oldValue) {
+                    logEntry = `- Set reminder expiration to *${format(new Date(newValue as string), timeFormatString)}*.`;
+                 } else if (!newValue && oldValue) {
+                    logEntry = '- Removed the reminder expiration date.';
+                 }
+                break;
+            case 'deploymentStatus':
+            case 'deploymentDates': {
+                // This is complex and handled separately below to avoid double logging
+                break;
+            }
+        }
+        
+        if (logEntry) {
+            changes.push(logEntry);
         }
     }
     
-    const checkReminderChange = () => {
-        if ('reminder' in newTaskData && newTaskData.reminder !== oldTask.reminder) {
-            if (oldTask.reminder && !newTaskData.reminder) {
-                changes.push('- Removed the reminder from the task.');
-            } else if (!oldTask.reminder && newTaskData.reminder) {
-                changes.push(`- Set a new reminder: *"${newTaskData.reminder.substring(0, 50)}..."*`);
-            } else {
-                changes.push(`- Updated the reminder text to: *"${(newTaskData.reminder || '').substring(0, 50)}..."*`);
-            }
-        }
-        if ('reminderExpiresAt' in newTaskData && newTaskData.reminderExpiresAt !== oldTask.reminderExpiresAt) {
-            if (newTaskData.reminderExpiresAt) {
-                changes.push(`- Set reminder expiration to *${format(new Date(newTaskData.reminderExpiresAt), timeFormatString)}*.`);
-            } else {
-                changes.push('- Removed the reminder expiration date.');
-            }
-        }
-    };
-
-
-    checkChange('title', 'Title');
-    checkChange('status', 'Status');
-    checkChange('description', 'Description', v => `${v.substring(0, 30)}...`);
-    checkListChange('developers', 'Developers', developersById);
-    checkListChange('testers', 'Testers', testersById);
-    checkListChange('repositories', 'Repositories', new Map());
-    checkDateChange('devStartDate', fieldLabels.get('devStartDate') || 'Dev Start Date');
-    checkDateChange('devEndDate', fieldLabels.get('devEndDate') || 'Dev End Date');
-    checkDateChange('qaStartDate', fieldLabels.get('qaStartDate') || 'QA Start Date');
-    checkDateChange('qaEndDate', fieldLabels.get('qaEndDate') || 'QA End Date');
-    checkReminderChange();
-
     // Detailed deployment check
     const allEnvs = uiConfig.environments || [];
     allEnvs.forEach(env => {
-        const oldDeployed = (oldTask.deploymentStatus?.[env] ?? false) && (env === 'dev' || !!oldTask.deploymentDates?.[env]);
-        const newDeployed = (newTaskData.deploymentStatus?.[env] ?? false) && (env === 'dev' || !!newTaskData.deploymentDates?.[env]);
+        const oldStatus = oldTask.deploymentStatus?.[env] ?? false;
+        const newStatus = 'deploymentStatus' in newTaskData ? (newTaskData.deploymentStatus?.[env] ?? false) : oldStatus;
+        
+        const oldDate = oldTask.deploymentDates?.[env] ?? null;
+        const newDate = 'deploymentDates' in newTaskData ? (newTaskData.deploymentDates?.[env] ?? null) : oldDate;
+
+        const oldDeployed = oldStatus && (env === 'dev' || !!oldDate);
+        const newDeployed = newStatus && (env === 'dev' || !!newDate);
+        
         if (oldDeployed !== newDeployed) {
             changes.push(`- Changed **${env.charAt(0).toUpperCase() + env.slice(1)}** deployment to *${newDeployed ? 'Deployed' : 'Pending'}*.`);
         }
     });
+
 
     if (changes.length === 0) return null;
     return `Updated task "${taskTitle}":\n${changes.join('\n')}`;
