@@ -52,6 +52,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select';
 import { Textarea } from './ui/textarea';
 import { ScrollArea, ScrollBar } from './ui/scroll-area';
+import { cn } from '@/lib/utils';
 
 
 const personFieldSchema = z.object({
@@ -345,13 +346,13 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
                     <Table>
                         <TableHeader>
                         <TableRow>
-                            <TableHead className="min-w-[150px]">Name</TableHead>
+                            <TableHead className={cn("min-w-[150px]", "sticky left-0 bg-background")}>Name</TableHead>
                             <TableHead className="min-w-[200px]">Email</TableHead>
                             <TableHead className="min-w-[120px]">Phone</TableHead>
                             {additionalColumns.map(col => (
                                 <TableHead key={col} className="min-w-[150px]">{col}</TableHead>
                             ))}
-                            <TableHead className="text-right min-w-[100px]">Actions</TableHead>
+                            <TableHead className={cn("text-right min-w-[100px]", "sticky right-0 bg-background")}>Actions</TableHead>
                         </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -359,13 +360,13 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
                             const additionalFieldsMap = new Map(person.additionalFields?.map(f => [f.label, f.value]));
                             return (
                                 <TableRow key={person.id}>
-                                    <TableCell className="font-medium">{person.name}</TableCell>
+                                    <TableCell className={cn("font-medium", "sticky left-0 bg-background")}>{person.name}</TableCell>
                                     <TableCell>{person.email || '-'}</TableCell>
                                     <TableCell>{person.phone || '-'}</TableCell>
                                     {additionalColumns.map(col => (
                                         <TableCell key={col}>{additionalFieldsMap.get(col) || '-'}</TableCell>
                                     ))}
-                                    <TableCell className="text-right sticky right-0 bg-background">
+                                    <TableCell className={cn("text-right", "sticky right-0 bg-background")}>
                                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEdit(person)}>
                                             <Edit className="h-4 w-4" />
                                         </Button>
