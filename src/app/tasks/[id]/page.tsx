@@ -456,7 +456,7 @@ export default function TaskPage() {
   };
   
   const handleExportJson = () => {
-    if (!task) return;
+    if (!task || !uiConfig) return;
 
     const sanitizeFilename = (name: string): string => name.replace(/[<>:"/\\|?*]+/g, '_').substring(0, 100);
     const jsonFilename = `${sanitizeFilename(task.title)}.json`;
@@ -478,11 +478,11 @@ export default function TaskPage() {
     };
 
     const exportData = {
-        appName: uiConfig?.appName,
-        appIcon: uiConfig?.appIcon,
-        repositoryConfigs: uiConfig?.repositoryConfigs,
-        developers: developersToExport.map(p => ({ name: p.name, email: p.email, phone: p.phone })),
-        testers: testersToExport.map(p => ({ name: p.name, email: p.email, phone: p.phone })),
+        appName: uiConfig.appName,
+        appIcon: uiConfig.appIcon,
+        repositoryConfigs: uiConfig.repositoryConfigs,
+        developers: developersToExport.map(p => ({ name: p.name, email: p.email, phone: p.phone, additionalFields: p.additionalFields })),
+        testers: testersToExport.map(p => ({ name: p.name, email: p.email, phone: p.phone, additionalFields: p.additionalFields })),
         tasks: [taskWithNames],
         logs: logsToExport,
     };

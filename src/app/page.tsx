@@ -471,7 +471,7 @@ export default function Home() {
     const activeTasksWithNames = activeTasksToExport.map(mapPersonIdsToNames);
     const binnedTasksWithNames = binnedTasksToExport.map(mapPersonIdsToNames);
 
-    const cleanPerson = (p: Person) => ({ name: p.name, email: p.email || '', phone: p.phone || '' });
+    const cleanPerson = (p: Person) => ({ name: p.name, email: p.email || '', phone: p.phone || '', additionalFields: p.additionalFields || [] });
 
     const exportData: any = {
         appName: currentUiConfig.appName,
@@ -516,7 +516,7 @@ export default function Home() {
               { name: "Backend-API", baseUrl: "https://github.com/org/backend-api/pull/" }
           ],
           developers: [
-              { name: "Grace Hopper", email: "grace@example.com", phone: "111-222-3333" }
+              { name: "Grace Hopper", email: "grace@example.com", phone: "111-222-3333", additionalFields: [{ id: "field_1", label: "GitHub", value: "gracehopper", type: "url" }] }
           ],
           testers: [
               { name: "Ada Lovelace", email: "ada@example.com", phone: "444-555-6666" }
@@ -659,7 +659,7 @@ export default function Home() {
             const existingDevsByName = new Map(companyData.developers.map(d => [d.name.toLowerCase(), d]));
             importedDevelopers.forEach(dev => {
                 if (!dev.name) return;
-                const personData = { name: dev.name.trim(), email: dev.email || '', phone: dev.phone || '' };
+                const personData = { name: dev.name.trim(), email: dev.email || '', phone: dev.phone || '', additionalFields: dev.additionalFields || [] };
                 const existingDev = existingDevsByName.get(personData.name.toLowerCase());
                 if (!existingDev) {
                     const newDev = { id: `developer-${crypto.randomUUID()}`, ...personData };
@@ -675,7 +675,7 @@ export default function Home() {
             const existingTestersByName = new Map(companyData.testers.map(t => [t.name.toLowerCase(), t.id]));
             importedTesters.forEach(tester => {
                 if (!tester.name) return;
-                const personData = { name: tester.name.trim(), email: tester.email || '', phone: tester.phone || '' };
+                const personData = { name: tester.name.trim(), email: tester.email || '', phone: tester.phone || '', additionalFields: tester.additionalFields || [] };
                 const existingTester = existingTestersByName.get(personData.name.toLowerCase());
                 if (!existingTester) {
                     const newTester = { id: `tester-${crypto.randomUUID()}`, ...personData };
