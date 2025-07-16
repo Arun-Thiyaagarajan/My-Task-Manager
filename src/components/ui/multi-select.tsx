@@ -32,7 +32,7 @@ interface MultiSelectProps {
   creatable?: boolean;
 }
 
-const MAX_DISPLAYED_ITEMS = 2;
+const MAX_DISPLAYED_ITEMS = 1;
 
 export function MultiSelect({
   options,
@@ -52,7 +52,11 @@ export function MultiSelect({
     (e: React.MouseEvent | React.KeyboardEvent, value: string) => {
       e.preventDefault();
       e.stopPropagation();
-      onChange(selected.filter((s) => s !== value));
+      const newSelected = selected.filter((s) => s !== value);
+      onChange(newSelected);
+      if (newSelected.length <= MAX_DISPLAYED_ITEMS) {
+        setIsOpen(false);
+      }
     },
     [onChange, selected]
   );
@@ -74,16 +78,12 @@ export function MultiSelect({
     [handleUnselect, selected]
   );
   
-  // Create a map for quick lookups of labels from values.
   const selectedMap = new Map(
     selected.map(value => {
       const option = options.find(o => o.value === value);
       return [value, option ? option.label : value];
     })
   );
-
-  const visibleItems = selected.slice(0, MAX_DISPLAYED_ITEMS);
-  const hiddenItemsCount = selected.length - MAX_DISPLAYED_ITEMS;
 
   const filteredOptions = options.filter(
     (option) => !selected.includes(option.value)
@@ -121,22 +121,22 @@ export function MultiSelect({
         >
           <div className="flex flex-wrap gap-1 items-center flex-grow">
             {selected.length === 0 && <span className="text-muted-foreground">{placeholder}</span>}
-            {visibleItems.map((value) => (
-              <Badge key={value} variant="secondary" className="whitespace-nowrap">
-                {selectedMap.get(value)}
+            {selected.length === 1 && (
+              <Badge variant="secondary" className="whitespace-nowrap">
+                {selectedMap.get(selected[0])}
                 <button
                   className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleUnselect(e, value); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleUnselect(e, selected[0]); }}
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={(e) => handleUnselect(e, value)}
+                  onClick={(e) => handleUnselect(e, selected[0])}
                 >
                   <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
                 </button>
               </Badge>
-            ))}
-            {hiddenItemsCount > 0 && (
+            )}
+            {selected.length > 1 && (
                 <Badge variant="secondary">
-                    +{hiddenItemsCount} more
+                    {selected.length} selected
                 </Badge>
             )}
           </div>
@@ -199,14 +199,7 @@ export function MultiSelect({
                                       variant="ghost" 
                                       size="icon" 
                                       className="h-7 w-7" 
-                                      onClick={(e) => {
-                                        handleUnselect(e, value);
-                                        // This is the key change: if there are still more items than can be displayed,
-                                        // keep the popover open so the user can continue to manage them.
-                                        if (selected.length - 1 > MAX_DISPLAYED_ITEMS) {
-                                          setIsOpen(true);
-                                        }
-                                      }}
+                                      onClick={(e) => handleUnselect(e, value)}
                                     >
                                         <X className="h-3 w-3" />
                                     </Button>
