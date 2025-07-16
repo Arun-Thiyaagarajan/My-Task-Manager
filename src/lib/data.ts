@@ -836,6 +836,9 @@ const generateTaskUpdateLogs = (
                     logEntry = '- Removed the reminder expiration date.';
                  }
                 break;
+            case 'prLinks':
+                logEntry = `- Updated **Pull Request links**.`;
+                break;
             case 'deploymentStatus':
             case 'deploymentDates': {
                 // This is complex and handled separately below to avoid double logging
