@@ -32,8 +32,6 @@ interface MultiSelectProps {
   creatable?: boolean;
 }
 
-const MAX_DISPLAYED_ITEMS = 1;
-
 export function MultiSelect({
   options,
   selected,
@@ -54,7 +52,7 @@ export function MultiSelect({
       e.stopPropagation();
       const newSelected = selected.filter((s) => s !== value);
       onChange(newSelected);
-      if (newSelected.length <= MAX_DISPLAYED_ITEMS) {
+      if (newSelected.length <= 1) {
         setIsOpen(false);
       }
     },
@@ -190,7 +188,22 @@ export function MultiSelect({
                 {selected.length > 0 && (
                     <CommandGroup>
                         <div className="space-y-1 p-2">
-                            <p className="text-xs font-medium text-muted-foreground px-2">Selected</p>
+                            <div className="flex items-center justify-between px-2">
+                                <p className="text-xs font-medium text-muted-foreground">Selected</p>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="p-0 h-auto text-xs text-muted-foreground hover:text-foreground"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        onChange([]);
+                                        setIsOpen(false);
+                                    }}
+                                >
+                                    Clear all
+                                </Button>
+                            </div>
                             {selected.map(value => {
                                 return (
                                 <div key={value} className="flex items-center justify-between rounded-md hover:bg-accent">
