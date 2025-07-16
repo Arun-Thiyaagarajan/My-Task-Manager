@@ -350,7 +350,7 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
                             <TableHead className="min-w-[200px]">Email</TableHead>
                             <TableHead className="min-w-[120px]">Phone</TableHead>
                             {additionalColumns.map(col => (
-                                <TableHead key={col} className="min-w-[150px]">{col}</TableHead>
+                                <TableHead key={col} className="w-[150px] min-w-[150px]">{col}</TableHead>
                             ))}
                             <TableHead className={cn("text-right min-w-[100px]", "sticky right-0 bg-background")}>Actions</TableHead>
                         </TableRow>
@@ -364,7 +364,11 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
                                     <TableCell>{person.email || '-'}</TableCell>
                                     <TableCell>{person.phone || '-'}</TableCell>
                                     {additionalColumns.map(col => (
-                                        <TableCell key={col}>{additionalFieldsMap.get(col) || '-'}</TableCell>
+                                        <TableCell key={col} className="w-[150px] min-w-[150px]">
+                                            <div className="truncate" title={additionalFieldsMap.get(col) || ''}>
+                                                {additionalFieldsMap.get(col) || '-'}
+                                            </div>
+                                        </TableCell>
                                     ))}
                                     <TableCell className={cn("text-right", "sticky right-0 bg-background")}>
                                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEdit(person)}>
