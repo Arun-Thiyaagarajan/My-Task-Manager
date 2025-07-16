@@ -47,7 +47,7 @@ import {
   addTester
 } from '@/lib/data';
 import type { Person, PersonFieldType } from '@/lib/types';
-import { Loader2, PlusCircle, Trash2, Edit, Users, ClipboardCheck } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, Edit, Users, ClipboardCheck, Check } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './ui/form';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select';
 import { Textarea } from './ui/textarea';
@@ -308,7 +308,7 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+      <DialogContent className="max-w-2xl h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Icon className="h-5 w-5" />
@@ -381,7 +381,7 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
                       {people.length === 0 && <p className="text-center text-muted-foreground py-8">No {title}s found.</p>}
                   </ScrollArea>
                 </div>
-                <DialogFooter className="flex-shrink-0 mt-4">
+                <DialogFooter className="flex-shrink-0 mt-4 border-t-0 pt-0">
                     <Button onClick={handleOpenAdd}>
                         <PlusCircle className="mr-2 h-4 w-4" /> Add New {title}
                     </Button>
