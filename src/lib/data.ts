@@ -765,10 +765,10 @@ const generateTaskUpdateLogs = (
         const newValue = newTaskData[key];
         if (key in newTaskData && JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
             const formatValue = (v: any) => {
-                if (v === null || v === undefined || (Array.isArray(v) && v.length === 0) || v === '') return 'empty';
-                return formatter ? formatter(v) : String(v);
+                if (v === null || v === undefined || (Array.isArray(v) && v.length === 0) || v === '') return '*empty*';
+                return `*"${formatter ? formatter(v) : String(v)}"*`;
             };
-            changes.push(`- Changed **${label}** from *"${formatValue(oldValue)}"* to *"${formatValue(newValue)}"*.`);
+            changes.push(`- Changed **${label}** from ${formatValue(oldValue)} to ${formatValue(newValue)}.`);
         }
     };
     
@@ -791,6 +791,26 @@ const generateTaskUpdateLogs = (
             changes.push(`- Changed **${label}** to *${newDate ? format(new Date(newDate), 'PPP') : 'empty'}*.`);
         }
     }
+    
+    const checkReminderChange = () => {
+        if ('reminder' in newTaskData && newTaskData.reminder !== oldTask.reminder) {
+            if (oldTask.reminder && !newTaskData.reminder) {
+                changes.push('- Removed the reminder from the task.');
+            } else if (!oldTask.reminder && newTaskData.reminder) {
+                changes.push(`- Set a new reminder: *"${newTaskData.reminder.substring(0, 50)}..."*`);
+            } else {
+                changes.push(`- Updated the reminder text to: *"${(newTaskData.reminder || '').substring(0, 50)}..."*`);
+            }
+        }
+        if ('reminderExpiresAt' in newTaskData && newTaskData.reminderExpiresAt !== oldTask.reminderExpiresAt) {
+            if (newTaskData.reminderExpiresAt) {
+                changes.push(`- Set reminder expiration to *${format(new Date(newTaskData.reminderExpiresAt), timeFormatString)}*.`);
+            } else {
+                changes.push('- Removed the reminder expiration date.');
+            }
+        }
+    };
+
 
     checkChange('title', 'Title');
     checkChange('status', 'Status');
@@ -802,6 +822,7 @@ const generateTaskUpdateLogs = (
     checkDateChange('devEndDate', fieldLabels.get('devEndDate') || 'Dev End Date');
     checkDateChange('qaStartDate', fieldLabels.get('qaStartDate') || 'QA Start Date');
     checkDateChange('qaEndDate', fieldLabels.get('qaEndDate') || 'QA End Date');
+    checkReminderChange();
 
     // Detailed deployment check
     const allEnvs = uiConfig.environments || [];
