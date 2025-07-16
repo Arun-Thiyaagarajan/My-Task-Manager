@@ -767,21 +767,22 @@ const generateTaskUpdateLogs = (
         return `"${formattedValue}"`;
     };
 
-    // Generic field check
-    for (const key in newTaskData) {
-        if (!Object.prototype.hasOwnProperty.call(newTaskData, key)) continue;
+    // This handles most simple fields and relationships.
+    // Complex objects like deploymentStatus and prLinks are handled separately.
+    const fieldsToLog = uiConfig.fields.filter(f => f.isActive && !['deploymentStatus', 'deploymentDates', 'prLinks'].includes(f.key));
+    fieldsToLog.forEach(field => {
+        const key = field.key as keyof Task;
+        if (!(key in newTaskData)) return;
 
-        const typedKey = key as keyof Task;
-        const oldValue = oldTask[typedKey];
-        const newValue = newTaskData[typedKey];
+        const oldValue = oldTask[key];
+        const newValue = newTaskData[key];
 
-        if (JSON.stringify(oldValue) === JSON.stringify(newValue)) continue;
-
+        if (JSON.stringify(oldValue) === JSON.stringify(newValue)) return;
+        
         let logEntry: string | null = null;
-        const fieldConfig = uiConfig.fields.find(f => f.key === typedKey);
-        const label = fieldConfig?.label || typedKey;
-
-        switch (typedKey) {
+        const label = field.label;
+        
+        switch (key) {
             case 'title':
             case 'status':
                 logEntry = `- Changed **${label}** from ${formatValue(oldValue)} to ${formatValue(newValue)}.`;
@@ -791,7 +792,7 @@ const generateTaskUpdateLogs = (
                  break;
             case 'developers':
             case 'testers': {
-                const nameMap = typedKey === 'developers' ? developersById : testersById;
+                const nameMap = key === 'developers' ? developersById : testersById;
                 const oldSet = new Set(oldValue as string[] || []);
                 const newSet = new Set(newValue as string[] || []);
                 const added = [...newSet].filter(id => !oldSet.has(id)).map(id => nameMap.get(id) || id);
@@ -836,20 +837,10 @@ const generateTaskUpdateLogs = (
                     logEntry = '- Removed the reminder expiration date.';
                  }
                 break;
-            case 'prLinks':
-                logEntry = `- Updated **Pull Request links**.`;
-                break;
-            case 'deploymentStatus':
-            case 'deploymentDates': {
-                // This is complex and handled separately below to avoid double logging
-                break;
-            }
         }
-        
-        if (logEntry) {
-            changes.push(logEntry);
-        }
-    }
+
+        if (logEntry) changes.push(logEntry);
+    });
     
     // Detailed deployment check
     const allEnvs = uiConfig.environments || [];
@@ -867,6 +858,35 @@ const generateTaskUpdateLogs = (
             changes.push(`- Changed **${env.charAt(0).toUpperCase() + env.slice(1)}** deployment to *${newDeployed ? 'Deployed' : 'Pending'}*.`);
         }
     });
+
+    // Detailed PR links check
+    if ('prLinks' in newTaskData) {
+        const prChanges: string[] = [];
+        const oldLinks = oldTask.prLinks || {};
+        const newLinks = newTaskData.prLinks || {};
+        const allPrEnvs = [...new Set([...Object.keys(oldLinks), ...Object.keys(newLinks)])];
+
+        allPrEnvs.forEach(env => {
+            const oldRepoLinks = oldLinks[env] || {};
+            const newRepoLinks = newLinks[env] || {};
+            const allRepos = [...new Set([...Object.keys(oldRepoLinks), ...Object.keys(newRepoLinks)])];
+
+            allRepos.forEach(repo => {
+                const oldIds = new Set((oldRepoLinks[repo] || '').split(',').map(s => s.trim()).filter(Boolean));
+                const newIds = new Set((newRepoLinks[repo] || '').split(',').map(s => s.trim()).filter(Boolean));
+
+                const added = [...newIds].filter(id => !oldIds.has(id));
+                const removed = [...oldIds].filter(id => !newIds.has(id));
+
+                added.forEach(id => prChanges.push(`- Added PR **#${id}** to *${repo} (${env})*.`));
+                removed.forEach(id => prChanges.push(`- Removed PR **#${id}** from *${repo} (${env})*.`));
+            });
+        });
+
+        if (prChanges.length > 0) {
+            changes.push(`Updated **Pull Request links**:\n${prChanges.join('\n')}`);
+        }
+    }
 
 
     if (changes.length === 0) return null;
@@ -1393,3 +1413,4 @@ export function deleteGeneralReminder(id: string): boolean {
     }
     return false;
 }
+
