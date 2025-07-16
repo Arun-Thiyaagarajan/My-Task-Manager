@@ -319,7 +319,7 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Icon className="h-5 w-5" />
@@ -342,7 +342,7 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
             </div>
         ) : (
             <>
-                <div className="flex-1 min-h-0 py-4">
+                <div className="py-4 flex-grow min-h-0">
                   <ScrollArea className="h-full">
                       <Table>
                           <TableHeader>
@@ -404,7 +404,7 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
                       <ScrollBar orientation="horizontal" />
                   </ScrollArea>
                 </div>
-                <DialogFooter>
+                <DialogFooter className="flex-shrink-0">
                     <Button onClick={handleOpenAdd}>
                         <PlusCircle className="mr-2 h-4 w-4" /> Add New {title}
                     </Button>
