@@ -166,7 +166,7 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <DialogHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
                 <DialogTitle>Reminder Note</DialogTitle>
                 <Tooltip>
                     <TooltipTrigger asChild>
