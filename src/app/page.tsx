@@ -217,6 +217,11 @@ export default function Home() {
       setPinnedTaskIds(JSON.parse(savedPinnedTasks));
     }
 
+    const savedSortDescriptor = localStorage.getItem('taskflow_sort_descriptor');
+    if (savedSortDescriptor) {
+      setSortDescriptor(savedSortDescriptor);
+    }
+
   }, []);
 
   const handlePinToggle = (taskIdToToggle: string) => {
@@ -294,12 +299,6 @@ export default function Home() {
         }
     }
     
-    // This now also re-reads sort descriptor from storage on mount/company change
-    const savedSortDescriptor = localStorage.getItem('taskflow_sort_descriptor');
-    if (savedSortDescriptor) {
-      setSortDescriptor(savedSortDescriptor);
-    }
-
     refreshData();
     setIsLoading(false);
     
