@@ -77,6 +77,7 @@ export function Header() {
   const [isRemindersOpen, setIsRemindersOpen] = useState(false);
   const [generalRemindersCount, setGeneralRemindersCount] = useState(0);
   const { startTutorial } = useTutorial();
+  const [isImagePreviewOpen, setIsImagePreviewOpen] = useState(false);
 
   const refreshAllData = () => {
     const config = getUiConfig();
@@ -132,17 +133,10 @@ export function Header() {
           <div className="flex items-center gap-4 md:gap-6">
             <div className="flex items-center space-x-2">
                 {uiConfig?.appIcon && isDataURI(uiConfig.appIcon) ? (
-                    <ImagePreviewDialog
-                        isOpen={false}
-                        onOpenChange={() => {}}
-                        imageUrl={uiConfig.appIcon}
-                        imageName={`${uiConfig.appName || 'App'} Icon`}
-                    >
-                        <button className="flex-shrink-0 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                             <img src={uiConfig.appIcon} alt="App Icon" className="h-6 w-6 object-contain rounded-md" />
-                             <span className="sr-only">Show app icon preview</span>
-                        </button>
-                    </ImagePreviewDialog>
+                    <button onClick={() => setIsImagePreviewOpen(true)} className="flex-shrink-0 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                        <img src={uiConfig.appIcon} alt="App Icon" className="h-6 w-6 object-contain rounded-md" />
+                        <span className="sr-only">Show app icon preview</span>
+                    </button>
                 ) : uiConfig?.appIcon ? (
                      <span className="text-2xl h-6 w-6 flex items-center justify-center">{uiConfig.appIcon}</span>
                 ) : (
@@ -318,6 +312,14 @@ export function Header() {
         isOpen={isRemindersOpen}
         onOpenChange={setIsRemindersOpen}
       />
+      {uiConfig?.appIcon && isDataURI(uiConfig.appIcon) && (
+        <ImagePreviewDialog
+            isOpen={isImagePreviewOpen}
+            onOpenChange={setIsImagePreviewOpen}
+            imageUrl={uiConfig.appIcon}
+            imageName={`${uiConfig.appName || 'App'} Icon`}
+        />
+      )}
     </>
   );
 }
