@@ -216,11 +216,6 @@ export default function Home() {
     if (savedPinnedTasks) {
       setPinnedTaskIds(JSON.parse(savedPinnedTasks));
     }
-    
-    const savedSortDescriptor = localStorage.getItem('taskflow_sort_descriptor');
-    if (savedSortDescriptor) {
-      setSortDescriptor(savedSortDescriptor);
-    }
 
   }, []);
 
@@ -297,6 +292,12 @@ export default function Home() {
             setPinnedTaskIds(newPinned);
             localStorage.setItem(PINNED_TASKS_STORAGE_KEY, JSON.stringify(newPinned));
         }
+    }
+    
+    // This now also re-reads sort descriptor from storage on mount/company change
+    const savedSortDescriptor = localStorage.getItem('taskflow_sort_descriptor');
+    if (savedSortDescriptor) {
+      setSortDescriptor(savedSortDescriptor);
     }
 
     refreshData();
