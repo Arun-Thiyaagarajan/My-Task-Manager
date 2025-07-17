@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import jsPDF from 'jspdf';
@@ -147,7 +148,8 @@ const _drawTaskOnPage = async (
 
         if (appIcon && isDataURI(appIcon)) {
             try {
-                doc.addImage(appIcon, 'PNG', iconX, PADDING - 2, iconSize, iconSize);
+                const imageProps = doc.getImageProperties(appIcon);
+                doc.addImage(appIcon, imageProps.fileType, iconX, PADDING - 2, iconSize, iconSize);
                 textX += iconSize + 3;
             } catch (e) {
                 console.error("Failed to add app icon to PDF:", e);
@@ -592,8 +594,13 @@ export const generateTasksText = (
         }
         
         if (task.comments && task.comments.length > 0) {
+            const commentsText = task.comments.map(c => {
+                const text = typeof c === 'string' ? c : c.text;
+                const timestamp = typeof c === 'object' && c.timestamp ? `(${format(new Date(c.timestamp), 'PPP')})` : '';
+                return `- ${text} ${timestamp}`;
+            }).join('\n');
             taskText += '--- Comments ---\n';
-            taskText += task.comments.map(c => `- ${c}`).join('\n') + '\n\n';
+            taskText += commentsText + '\n\n';
         }
 
         return taskText;
