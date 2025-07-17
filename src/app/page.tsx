@@ -216,6 +216,11 @@ export default function Home() {
     if (savedPinnedTasks) {
       setPinnedTaskIds(JSON.parse(savedPinnedTasks));
     }
+    
+    const savedSortDescriptor = localStorage.getItem('taskflow_sort_descriptor');
+    if (savedSortDescriptor) {
+      setSortDescriptor(savedSortDescriptor);
+    }
 
   }, []);
 
@@ -274,7 +279,8 @@ export default function Home() {
     localStorage.setItem('taskflow_main_view', mainView);
     localStorage.setItem('taskflow_selected_month', selectedMonth.toISOString());
     localStorage.setItem('taskflow_open_groups', JSON.stringify(openGroups));
-  }, [mainView, selectedMonth, openGroups]);
+    localStorage.setItem('taskflow_sort_descriptor', sortDescriptor);
+  }, [mainView, selectedMonth, openGroups, sortDescriptor]);
 
   useEffect(() => {
     if (!activeCompanyId) {
