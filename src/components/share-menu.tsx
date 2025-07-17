@@ -65,8 +65,8 @@ export function ShareMenu({ task, uiConfig, developers, testers, children }: Sha
         appName: uiConfig.appName,
         appIcon: uiConfig.appIcon,
         repositoryConfigs: uiConfig.repositoryConfigs,
-        developers: developersToExport.map(p => ({ name: p.name, email: p.email, phone: p.phone })),
-        testers: testersToExport.map(p => ({ name: p.name, email: p.email, phone: p.phone })),
+        developers: developersToExport.map(p => ({ name: p.name, email: p.email, phone: p.phone, additionalFields: p.additionalFields })),
+        testers: testersToExport.map(p => ({ name: p.name, email: p.email, phone: p.phone, additionalFields: p.additionalFields })),
         tasks: [taskWithNames],
         logs: logsToExport,
     };

@@ -274,13 +274,17 @@ export default function Home() {
     }
     setFavoritesOnly(willBeOn);
   };
+  
+  const handleSortChange = (value: string) => {
+      setSortDescriptor(value);
+      localStorage.setItem('taskflow_sort_descriptor', value);
+  };
 
   useEffect(() => {
     localStorage.setItem('taskflow_main_view', mainView);
     localStorage.setItem('taskflow_selected_month', selectedMonth.toISOString());
     localStorage.setItem('taskflow_open_groups', JSON.stringify(openGroups));
-    localStorage.setItem('taskflow_sort_descriptor', sortDescriptor);
-  }, [mainView, selectedMonth, openGroups, sortDescriptor]);
+  }, [mainView, selectedMonth, openGroups]);
 
   useEffect(() => {
     if (!activeCompanyId) {
@@ -1318,7 +1322,7 @@ export default function Home() {
                 </div>
 
                 <div id="view-mode-toggle" className="flex items-center gap-x-2 gap-y-2 flex-wrap justify-start sm:justify-end">
-                  <Select value={sortDescriptor} onValueChange={setSortDescriptor}>
+                  <Select value={sortDescriptor} onValueChange={handleSortChange}>
                       <SelectTrigger className="w-auto sm:w-[180px] h-10">
                           <SelectValue placeholder="Sort by" />
                       </SelectTrigger>
