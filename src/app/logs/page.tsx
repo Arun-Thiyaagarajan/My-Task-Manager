@@ -16,6 +16,19 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Badge } from '@/components/ui/badge';
 import { fuzzySearch, formatTimestamp } from '@/lib/utils';
 
+const parseLogMessage = (message: string) => {
+    const parts = message.split(/(\*\*.*?\*\*|\*.*?\*)/g);
+    return parts.map((part, index) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+            return <strong key={index} className="font-semibold text-foreground/90">{part.slice(2, -2)}</strong>;
+        }
+        if (part.startsWith('*') && part.endsWith('*')) {
+            return <em key={index} className="italic text-foreground/80">{part.slice(1, -1)}</em>;
+        }
+        return <span key={index}>{part}</span>;
+    });
+};
+
 export default function LogsPage() {
     const [logs, setLogs] = useState<Log[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -177,7 +190,7 @@ export default function LogsPage() {
                                                                 {formatTimestamp(log.timestamp, uiConfig.timeFormat)}
                                                             </TableCell>
                                                             <TableCell className="font-medium">
-                                                                <p className="whitespace-pre-wrap">{log.message}</p>
+                                                                <p className="whitespace-pre-wrap">{parseLogMessage(log.message)}</p>
                                                             </TableCell>
                                                             <TableCell className="text-right">
                                                                 {log.taskId ? (
