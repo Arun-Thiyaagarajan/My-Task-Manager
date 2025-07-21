@@ -16,7 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { DeleteTaskButton } from '@/components/delete-task-button';
 import { PrLinksGroup } from '@/components/pr-links-group';
 import { Badge } from '@/components/ui/badge';
-import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
+import { getInitials, getAvatarColor, cn, getRepoBadgeStyle, formatTimestamp } from '@/lib/utils';
 import { format } from 'date-fns';
 import type { Task, FieldConfig, UiConfig, TaskStatus, Person, Attachment, Log, Comment } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
@@ -584,7 +584,6 @@ const handleCopyDescription = () => {
   const attachmentsField = uiConfig.fields.find(f => f.key === 'attachments' && f.isActive);
   const commentsField = uiConfig.fields.find(f => f.key === 'comments' && f.isActive);
   const historyField = !isBinned && taskLogs.length > 0;
-  const timeFormatString = uiConfig.timeFormat === '24h' ? 'PPP HH:mm' : 'PPP p';
   
   const isValidDate = (d: any): d is string => d && !isNaN(new Date(d).getTime());
 
@@ -673,7 +672,7 @@ const handleCopyDescription = () => {
                     {task.reminder}
                     {isValidDate(task.reminderExpiresAt) && (
                       <span className="block text-xs italic mt-1 text-amber-600 dark:text-amber-400">
-                        (Expires {format(new Date(task.reminderExpiresAt), timeFormatString)})
+                        (Expires {formatTimestamp(task.reminderExpiresAt, uiConfig.timeFormat)})
                       </span>
                     )}
                   </AlertDescription>
@@ -759,7 +758,7 @@ const handleCopyDescription = () => {
                   </CardHeader>
                   <CardContent className="pt-2 flex-grow">
                     <CardDescription className="mb-4">
-                        Last updated on {isValidDate(task.updatedAt) ? format(new Date(task.updatedAt), 'PPP') : 'N/A'}
+                        Last updated {formatTimestamp(task.updatedAt, uiConfig.timeFormat)}
                     </CardDescription>
                     <div className="relative">
                        {task.description && !isBinned && (
@@ -906,7 +905,7 @@ const handleCopyDescription = () => {
             )}
              {historyField && (
                 <div className="lg:col-span-2">
-                    <TaskHistory logs={taskLogs} />
+                    <TaskHistory logs={taskLogs} uiConfig={uiConfig} />
                 </div>
             )}
           </div>

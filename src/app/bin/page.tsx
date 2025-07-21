@@ -12,7 +12,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { TaskStatusBadge } from '@/components/task-status-badge';
 import { Trash2, History, ArrowLeft, Recycle } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -27,6 +26,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useActiveCompany } from '@/hooks/use-active-company';
+import { formatTimestamp } from '@/lib/utils';
 
 
 export default function BinPage() {
@@ -220,7 +220,7 @@ export default function BinPage() {
                                 <TableCell><TaskStatusBadge status={task.status} /></TableCell>
                                 <TableCell className="text-muted-foreground text-xs truncate max-w-xs">{assignees.join(', ') || 'N/A'}</TableCell>
                                 <TableCell className="text-right text-muted-foreground text-xs whitespace-nowrap">
-                                    {task.deletedAt ? `${formatDistanceToNow(new Date(task.deletedAt))} ago` : 'Recently'}
+                                    {task.deletedAt ? formatTimestamp(task.deletedAt, uiConfig.timeFormat) : 'Recently'}
                                 </TableCell>
                             </TableRow>
                         )

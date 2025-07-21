@@ -9,12 +9,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { FileClock, Link as LinkIcon, Activity, Trash2, LayoutGrid, Search } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Input } from '@/components/ui/input';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
-import { fuzzySearch } from '@/lib/utils';
+import { fuzzySearch, formatTimestamp } from '@/lib/utils';
 
 export default function LogsPage() {
     const [logs, setLogs] = useState<Log[]>([]);
@@ -174,7 +174,7 @@ export default function LogsPage() {
                                                     {monthLogs.map(log => (
                                                         <TableRow key={log.id}>
                                                             <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
-                                                                {formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}
+                                                                {formatTimestamp(log.timestamp, uiConfig.timeFormat)}
                                                             </TableCell>
                                                             <TableCell className="font-medium">
                                                                 <p className="whitespace-pre-wrap">{log.message}</p>

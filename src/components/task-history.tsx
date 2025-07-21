@@ -2,13 +2,14 @@
 'use client';
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import type { Log } from "@/lib/types";
+import type { Log, UiConfig } from "@/lib/types";
 import { History } from "lucide-react";
-import { formatDistanceToNow } from 'date-fns';
+import { formatTimestamp } from "@/lib/utils";
 import React from "react";
 
 interface TaskHistoryProps {
     logs: Log[];
+    uiConfig: UiConfig | null;
 }
 
 const parseLogMessage = (message: string) => {
@@ -24,8 +25,8 @@ const parseLogMessage = (message: string) => {
     });
 };
 
-export function TaskHistory({ logs }: TaskHistoryProps) {
-    if (logs.length === 0) {
+export function TaskHistory({ logs, uiConfig }: TaskHistoryProps) {
+    if (logs.length === 0 || !uiConfig) {
         return null;
     }
 
@@ -48,7 +49,7 @@ export function TaskHistory({ logs }: TaskHistoryProps) {
                                 <div className="flex-1">
                                     <p className="text-sm font-medium text-foreground whitespace-pre-wrap">{parseLogMessage(log.message)}</p>
                                     <p className="text-xs text-muted-foreground">
-                                        {formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}
+                                        {formatTimestamp(log.timestamp, uiConfig.timeFormat)}
                                     </p>
                                 </div>
                             </div>

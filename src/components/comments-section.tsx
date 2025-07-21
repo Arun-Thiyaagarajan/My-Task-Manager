@@ -4,11 +4,10 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { addComment, updateComment, deleteComment } from '@/lib/data';
+import { addComment, updateComment, deleteComment, getUiConfig } from '@/lib/data';
 import { Pencil, Trash2, X, Check, StickyNote } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatTimestamp } from '@/lib/utils';
 import type { Comment } from '@/lib/types';
-import { formatDistanceToNow } from 'date-fns';
 
 interface CommentsSectionProps {
   taskId: string;
@@ -22,6 +21,7 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, hideHeader
   const [newComment, setNewComment] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingText, setEditingText] = useState('');
+  const uiConfig = getUiConfig();
   
   const getCommentObject = (comment: Comment | string): Comment => {
       if (typeof comment === 'string') {
@@ -120,7 +120,7 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, hideHeader
                       </div>
                       {timestamp && (
                         <p className="text-xs text-muted-foreground self-end">
-                          {formatDistanceToNow(timestamp, { addSuffix: true })}
+                          {formatTimestamp(timestamp, uiConfig.timeFormat)}
                         </p>
                       )}
                   </div>
