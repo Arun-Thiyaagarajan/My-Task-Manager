@@ -821,6 +821,23 @@ const generateTaskUpdateLogs = (
                 }
                 break;
             }
+            case 'attachments': {
+                const oldAttachments = new Map((oldValue as Attachment[] || []).map(a => [a.url, a.name]));
+                const newAttachments = new Map((newValue as Attachment[] || []).map(a => [a.url, a.name]));
+                
+                newAttachments.forEach((name, url) => {
+                    if (!oldAttachments.has(url)) {
+                        changes.push(`- Added attachment: *"${name}"*.`);
+                    }
+                });
+
+                oldAttachments.forEach((name, url) => {
+                    if (!newAttachments.has(url)) {
+                        changes.push(`- Removed attachment: *"${name}"*.`);
+                    }
+                });
+                break;
+            }
             case 'reminder':
                 if (oldValue && !newValue) {
                     logEntry = '- Removed the reminder from the task.';
@@ -1413,4 +1430,3 @@ export function deleteGeneralReminder(id: string): boolean {
     }
     return false;
 }
-
