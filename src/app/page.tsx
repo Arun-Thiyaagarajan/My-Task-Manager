@@ -117,6 +117,15 @@ type MainView = 'all' | 'monthly';
 const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
 const TUTORIAL_PROMPTED_KEY = 'taskflow_tutorial_prompted';
 
+const FILTER_STORAGE_KEYS = {
+    search: 'taskflow_filter_searchQuery',
+    status: 'taskflow_filter_status',
+    repo: 'taskflow_filter_repo',
+    deployment: 'taskflow_filter_deployment',
+    date: 'taskflow_filter_date',
+};
+
+
 export default function Home() {
   const activeCompanyId = useActiveCompany();
   const router = useRouter();
@@ -171,6 +180,42 @@ export default function Home() {
         setSelectedTaskIds([]);
     }
   };
+  
+   // Load filters from localStorage on initial mount
+  useEffect(() => {
+    const savedSearch = localStorage.getItem(FILTER_STORAGE_KEYS.search);
+    if (savedSearch) setSearchQuery(savedSearch);
+
+    const savedStatus = localStorage.getItem(FILTER_STORAGE_KEYS.status);
+    if (savedStatus) setStatusFilter(JSON.parse(savedStatus));
+
+    const savedRepo = localStorage.getItem(FILTER_STORAGE_KEYS.repo);
+    if (savedRepo) setRepoFilter(JSON.parse(savedRepo));
+
+    const savedDeployment = localStorage.getItem(FILTER_STORAGE_KEYS.deployment);
+    if (savedDeployment) setDeploymentFilter(JSON.parse(savedDeployment));
+    
+    const savedDate = localStorage.getItem(FILTER_STORAGE_KEYS.date);
+    if (savedDate) {
+        try {
+            const parsedDate: { from?: string; to?: string } = JSON.parse(savedDate);
+            setDateFilter({
+                from: parsedDate.from ? new Date(parsedDate.from) : undefined,
+                to: parsedDate.to ? new Date(parsedDate.to) : undefined,
+            });
+        } catch (e) {
+            localStorage.removeItem(FILTER_STORAGE_KEYS.date);
+        }
+    }
+  }, []);
+
+  // Save filters to localStorage whenever they change
+  useEffect(() => { localStorage.setItem(FILTER_STORAGE_KEYS.search, searchQuery); }, [searchQuery]);
+  useEffect(() => { localStorage.setItem(FILTER_STORAGE_KEYS.status, JSON.stringify(statusFilter)); }, [statusFilter]);
+  useEffect(() => { localStorage.setItem(FILTER_STORAGE_KEYS.repo, JSON.stringify(repoFilter)); }, [repoFilter]);
+  useEffect(() => { localStorage.setItem(FILTER_STORAGE_KEYS.deployment, JSON.stringify(deploymentFilter)); }, [deploymentFilter]);
+  useEffect(() => { localStorage.setItem(FILTER_STORAGE_KEYS.date, JSON.stringify(dateFilter)); }, [dateFilter]);
+
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -216,10 +261,10 @@ export default function Home() {
     if (savedPinnedTasks) {
       setPinnedTaskIds(JSON.parse(savedPinnedTasks));
     }
-
+    
     const savedSortDescriptor = localStorage.getItem('taskflow_sort_descriptor');
     if (savedSortDescriptor) {
-      setSortDescriptor(savedSortDescriptor);
+        setSortDescriptor(savedSortDescriptor);
     }
 
   }, []);
@@ -309,6 +354,12 @@ export default function Home() {
     window.addEventListener('storage', refreshData);
     window.addEventListener('config-changed', refreshData);
     window.addEventListener('company-changed', refreshData);
+    
+    const savedSortDescriptor = localStorage.getItem('taskflow_sort_descriptor');
+    if (savedSortDescriptor) {
+      setSortDescriptor(savedSortDescriptor);
+    }
+
     return () => {
       window.removeEventListener('storage', refreshData);
       window.removeEventListener('config-changed', refreshData);
