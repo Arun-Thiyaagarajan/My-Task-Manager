@@ -183,27 +183,34 @@ export default function Home() {
   
    // Load filters from localStorage on initial mount
   useEffect(() => {
-    const savedSearch = localStorage.getItem(FILTER_STORAGE_KEYS.search);
-    if (savedSearch) setSearchQuery(savedSearch);
+    if (typeof window !== 'undefined') {
+        const savedSearch = localStorage.getItem(FILTER_STORAGE_KEYS.search);
+        if (savedSearch) setSearchQuery(savedSearch);
 
-    const savedStatus = localStorage.getItem(FILTER_STORAGE_KEYS.status);
-    if (savedStatus) setStatusFilter(JSON.parse(savedStatus));
-
-    const savedRepo = localStorage.getItem(FILTER_STORAGE_KEYS.repo);
-    if (savedRepo) setRepoFilter(JSON.parse(savedRepo));
-
-    const savedDeployment = localStorage.getItem(FILTER_STORAGE_KEYS.deployment);
-    if (savedDeployment) setDeploymentFilter(JSON.parse(savedDeployment));
-    
-    const savedDate = localStorage.getItem(FILTER_STORAGE_KEYS.date);
-    if (savedDate) {
         try {
-            const parsedDate: { from?: string; to?: string } = JSON.parse(savedDate);
-            setDateFilter({
-                from: parsedDate.from ? new Date(parsedDate.from) : undefined,
-                to: parsedDate.to ? new Date(parsedDate.to) : undefined,
-            });
+            const savedStatus = localStorage.getItem(FILTER_STORAGE_KEYS.status);
+            if (savedStatus) setStatusFilter(JSON.parse(savedStatus));
+
+            const savedRepo = localStorage.getItem(FILTER_STORAGE_KEYS.repo);
+            if (savedRepo) setRepoFilter(JSON.parse(savedRepo));
+
+            const savedDeployment = localStorage.getItem(FILTER_STORAGE_KEYS.deployment);
+            if (savedDeployment) setDeploymentFilter(JSON.parse(savedDeployment));
+            
+            const savedDate = localStorage.getItem(FILTER_STORAGE_KEYS.date);
+            if (savedDate) {
+                const parsedDate: { from?: string; to?: string } = JSON.parse(savedDate);
+                setDateFilter({
+                    from: parsedDate.from ? new Date(parsedDate.from) : undefined,
+                    to: parsedDate.to ? new Date(parsedDate.to) : undefined,
+                });
+            }
         } catch (e) {
+            console.error("Failed to parse filters from localStorage", e);
+            // Clear potentially corrupted filter keys
+            localStorage.removeItem(FILTER_STORAGE_KEYS.status);
+            localStorage.removeItem(FILTER_STORAGE_KEYS.repo);
+            localStorage.removeItem(FILTER_STORAGE_KEYS.deployment);
             localStorage.removeItem(FILTER_STORAGE_KEYS.date);
         }
     }
