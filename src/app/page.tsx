@@ -50,7 +50,7 @@ import {
   MoreVertical,
   GraduationCap,
 } from 'lucide-react';
-import { cn, fuzzySearch } from '@/lib/utils';
+import { cn, fuzzySearch, formatTimestamp } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig, Log, GeneralReminder } from '@/lib/types';
 import {
   Popover,
@@ -198,7 +198,7 @@ export default function Home() {
             if (savedDeployment) setDeploymentFilter(JSON.parse(savedDeployment));
             
             const savedDate = localStorage.getItem(FILTER_STORAGE_KEYS.date);
-            if (savedDate) {
+            if (savedDate && savedDate !== 'undefined') {
                 const parsedDate: { from?: string; to?: string } = JSON.parse(savedDate);
                 setDateFilter({
                     from: parsedDate.from ? new Date(parsedDate.from) : undefined,
