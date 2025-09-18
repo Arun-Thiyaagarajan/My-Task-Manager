@@ -1070,6 +1070,24 @@ export default function Home() {
         description: `${selectedTasks.length} task(s) have been exported to a PDF.`,
     });
   };
+  
+    const handleDeploymentFilterChange = (newValues: string[]) => {
+        const lastAdded = newValues[newValues.length - 1];
+        let valuesToSet = newValues;
+
+        if (lastAdded) {
+            const isNegative = lastAdded.startsWith('not_');
+            const baseEnv = isNegative ? lastAdded.substring(4) : lastAdded;
+            const conflictingValue = isNegative ? baseEnv : `not_${baseEnv}`;
+
+            if (newValues.includes(conflictingValue)) {
+                // If the new value's conflict is already present, remove the conflict
+                valuesToSet = newValues.filter(v => v !== conflictingValue);
+            }
+        }
+        
+        setDeploymentFilter(valuesToSet);
+    };
 
 
   if (isLoading || !uiConfig) {
@@ -1251,7 +1269,7 @@ export default function Home() {
                     <div className="grow min-w-[180px] h-10">
                          <MultiSelect
                             selected={deploymentFilter}
-                            onChange={setDeploymentFilter}
+                            onChange={handleDeploymentFilterChange}
                             options={deploymentOptions}
                             placeholder={`Filter by ${fieldLabels.get('deploymentStatus') || 'Deployment'}...`}
                         />
