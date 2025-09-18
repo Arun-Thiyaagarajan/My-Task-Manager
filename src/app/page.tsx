@@ -127,6 +127,7 @@ const FILTER_STORAGE_KEYS = {
     repo: 'taskflow_filter_repo',
     deployment: 'taskflow_filter_deployment',
     date: 'taskflow_filter_date',
+    favorites: 'taskflow_filter_favoritesOnly',
 };
 
 // Helper function to safely get item from localStorage
@@ -182,7 +183,7 @@ export default function Home() {
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [openGroups, setOpenGroups] = useState<string[]>(['priority', 'completed', 'other', 'hold']);
-  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [favoritesOnly, setFavoritesOnly] = useState<boolean>(() => getInitialStateFromStorage(FILTER_STORAGE_KEYS.favorites, false));
   const [pinnedTaskIds, setPinnedTaskIds] = useState<string[]>([]);
   const [isReminderStackOpen, setIsReminderStackOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -215,6 +216,7 @@ export default function Home() {
   useEffect(() => { localStorage.setItem(FILTER_STORAGE_KEYS.repo, JSON.stringify(repoFilter)); }, [repoFilter]);
   useEffect(() => { localStorage.setItem(FILTER_STORAGE_KEYS.deployment, JSON.stringify(deploymentFilter)); }, [deploymentFilter]);
   useEffect(() => { localStorage.setItem(FILTER_STORAGE_KEYS.date, JSON.stringify(dateFilter)); }, [dateFilter]);
+  useEffect(() => { localStorage.setItem(FILTER_STORAGE_KEYS.favorites, JSON.stringify(favoritesOnly)); }, [favoritesOnly]);
 
 
   useEffect(() => {
