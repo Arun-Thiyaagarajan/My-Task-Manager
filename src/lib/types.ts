@@ -133,6 +133,7 @@ export interface UiConfig {
   tutorialEnabled?: boolean;
   timeFormat?: '12h' | '24h';
   autoBackupFrequency?: BackupFrequency;
+  autoBackupTime?: number;
 }
 
 export interface CompanyData {

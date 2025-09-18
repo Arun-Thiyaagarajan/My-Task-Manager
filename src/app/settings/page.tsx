@@ -30,6 +30,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { format } from 'date-fns';
 
 
 export default function SettingsPage() {
@@ -57,6 +58,7 @@ export default function SettingsPage() {
   const [remindersEnabled, setRemindersEnabled] = useState(false);
   const [tutorialEnabled, setTutorialEnabled] = useState(false);
   const [autoBackupFrequency, setAutoBackupFrequency] = useState<BackupFrequency>('off');
+  const [autoBackupTime, setAutoBackupTime] = useState(6); // Default to 6 AM
   const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>('12h');
   const iconInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -87,6 +89,7 @@ export default function SettingsPage() {
     setRemindersEnabled(loadedConfig.remindersEnabled || false);
     setTutorialEnabled(loadedConfig.tutorialEnabled ?? true);
     setAutoBackupFrequency(loadedConfig.autoBackupFrequency || 'off');
+    setAutoBackupTime(loadedConfig.autoBackupTime ?? 6);
     setTimeFormat(loadedConfig.timeFormat || '12h');
   }
 
@@ -408,7 +411,7 @@ export default function SettingsPage() {
 
   const handleSaveFeatures = () => {
     if (!config) return;
-    const newConfig = { ...config, remindersEnabled, tutorialEnabled, autoBackupFrequency };
+    const newConfig = { ...config, remindersEnabled, tutorialEnabled, autoBackupFrequency, autoBackupTime };
     updateUiConfig(newConfig);
     setConfig(newConfig);
     toast({
@@ -530,6 +533,11 @@ export default function SettingsPage() {
       { value: 'yearly', label: 'Yearly', description: 'An annual backup of all your data.' },
       { value: 'off', label: 'Off', description: 'Automatic backups are disabled.' },
   ];
+  
+  const backupTimeOptions = Array.from({ length: 24 }, (_, i) => ({
+      value: i,
+      label: format(new Date(2000, 0, 1, i), 'h a'),
+  }));
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-8">
@@ -686,16 +694,30 @@ export default function SettingsPage() {
                                 <Label className="flex items-center gap-2"><Download className="h-4 w-4" /> Automatic Backup</Label>
                                 <p className="text-xs text-muted-foreground">Set the frequency for automatic data exports.</p>
                             </div>
-                            <Select value={autoBackupFrequency} onValueChange={(v: BackupFrequency) => setAutoBackupFrequency(v)}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select frequency" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {backupOptions.map(opt => (
-                                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <Select value={autoBackupFrequency} onValueChange={(v: BackupFrequency) => setAutoBackupFrequency(v)}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select frequency" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {backupOptions.map(opt => (
+                                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {autoBackupFrequency !== 'off' && (
+                                    <Select value={String(autoBackupTime)} onValueChange={(v) => setAutoBackupTime(Number(v))}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select time" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {backupTimeOptions.map(opt => (
+                                                <SelectItem key={opt.value} value={String(opt.value)}>{opt.label}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                )}
+                            </div>
                         </div>
                     </CardContent>
                     <CardFooter>

@@ -36,6 +36,7 @@ const getInitialData = (): MyTaskManagerData => {
                     tutorialEnabled: true,
                     timeFormat: '12h',
                     autoBackupFrequency: 'weekly',
+                    autoBackupTime: 6,
                 },
                 logs: [],
                 generalReminders: [],
@@ -57,6 +58,7 @@ export const getAppData = (): MyTaskManagerData => {
             tutorialEnabled: true,
             timeFormat: '12h',
             autoBackupFrequency: 'weekly',
+            autoBackupTime: 6,
         };
         return {
             companies: [{ id: 'company-placeholder', name: 'Default Company' }],
@@ -239,6 +241,7 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
         tutorialEnabled: true,
         timeFormat: '12h',
         autoBackupFrequency: 'weekly',
+        autoBackupTime: 6,
     };
 
     if (!savedConfig || typeof savedConfig !== 'object') {
@@ -263,6 +266,7 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
     } else {
         resultConfig.autoBackupFrequency = savedConfig.autoBackupFrequency || defaultConfig.autoBackupFrequency;
     }
+    resultConfig.autoBackupTime = savedConfig.autoBackupTime ?? defaultConfig.autoBackupTime;
     
     if (Array.isArray(savedConfig.fields)) {
         const finalFields: FieldConfig[] = [];
@@ -337,6 +341,13 @@ const generateUiConfigUpdateLogs = (oldConfig: UiConfig, newConfig: UiConfig): s
     if (oldConfig.autoBackupFrequency !== newConfig.autoBackupFrequency) {
         const frequency = newConfig.autoBackupFrequency === 'off' ? 'Off' : (newConfig.autoBackupFrequency?.charAt(0).toUpperCase() + newConfig.autoBackupFrequency?.slice(1));
         createDetail(`Set automatic backup frequency to **${frequency}**.`);
+    }
+
+    if (oldConfig.autoBackupTime !== newConfig.autoBackupTime) {
+        const formatTime = (hour: number) => format(new Date(2000, 0, 1, hour), 'h a');
+        const oldTime = oldConfig.autoBackupTime ? formatTime(oldConfig.autoBackupTime) : '6 AM';
+        const newTime = newConfig.autoBackupTime ? formatTime(newConfig.autoBackupTime) : '6 AM';
+        createDetail(`Set automatic backup time to **${newTime}**.`);
     }
 
     if (oldConfig.timeFormat !== newConfig.timeFormat) {
