@@ -558,9 +558,16 @@ export default function Home() {
       return taskDate >= from && taskDate <= to;
     })();
     
-    const deploymentMatch =
-      deploymentFilter.length === 0 ||
-      deploymentFilter.some(env => task.deploymentStatus?.[env] ?? false);
+    const deploymentMatch = deploymentFilter.length === 0 || deploymentFilter.every(filter => {
+      const isNegative = filter.startsWith('not_');
+      const env = isNegative ? filter.substring(4) : filter;
+      
+      const isSelected = task.deploymentStatus?.[env] ?? false;
+      const hasDate = task.deploymentDates && task.deploymentDates[env];
+      const isDeployed = isSelected && (env === 'dev' || !!hasDate);
+
+      return isNegative ? !isDeployed : isDeployed;
+    });
 
     return statusMatch && repoMatch && searchMatch && dateMatch && deploymentMatch;
   });
@@ -1084,8 +1091,11 @@ export default function Home() {
   const repoOptions: SelectOption[] = REPOSITORIES.map(r => ({ value: r, label: r }));
   const deploymentOptions: SelectOption[] = [
       { value: 'dev', label: 'Deployed to Dev' },
+      { value: 'not_dev', label: 'Not Deployed to Dev' },
       { value: 'stage', label: 'Deployed to Stage' },
+      { value: 'not_stage', label: 'Not Deployed to Stage' },
       { value: 'production', label: 'Deployed to Production' },
+      { value: 'not_production', label: 'Not Deployed to Production' },
   ];
 
   const handleNewTaskClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
