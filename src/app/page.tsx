@@ -184,41 +184,6 @@ export default function Home() {
     }
   };
   
-   // Load filters from localStorage on initial mount
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-        const savedSearch = localStorage.getItem(FILTER_STORAGE_KEYS.search);
-        if (savedSearch) setSearchQuery(savedSearch);
-
-        try {
-            const savedStatus = localStorage.getItem(FILTER_STORAGE_KEYS.status);
-            if (savedStatus) setStatusFilter(JSON.parse(savedStatus));
-
-            const savedRepo = localStorage.getItem(FILTER_STORAGE_KEYS.repo);
-            if (savedRepo) setRepoFilter(JSON.parse(savedRepo));
-
-            const savedDeployment = localStorage.getItem(FILTER_STORAGE_KEYS.deployment);
-            if (savedDeployment) setDeploymentFilter(JSON.parse(savedDeployment));
-            
-            const savedDate = localStorage.getItem(FILTER_STORAGE_KEYS.date);
-            if (savedDate && savedDate !== 'undefined') {
-                const parsedDate: { from?: string; to?: string } = JSON.parse(savedDate);
-                setDateFilter({
-                    from: parsedDate.from ? new Date(parsedDate.from) : undefined,
-                    to: parsedDate.to ? new Date(parsedDate.to) : undefined,
-                });
-            }
-        } catch (e) {
-            console.error("Failed to parse filters from localStorage", e);
-            // Clear potentially corrupted filter keys
-            localStorage.removeItem(FILTER_STORAGE_KEYS.status);
-            localStorage.removeItem(FILTER_STORAGE_KEYS.repo);
-            localStorage.removeItem(FILTER_STORAGE_KEYS.deployment);
-            localStorage.removeItem(FILTER_STORAGE_KEYS.date);
-        }
-    }
-  }, []);
-
   // Save filters to localStorage whenever they change
   useEffect(() => { localStorage.setItem(FILTER_STORAGE_KEYS.search, searchQuery); }, [searchQuery]);
   useEffect(() => { localStorage.setItem(FILTER_STORAGE_KEYS.status, JSON.stringify(statusFilter)); }, [statusFilter]);
@@ -344,6 +309,39 @@ export default function Home() {
   useEffect(() => {
     if (!activeCompanyId) {
       return;
+    }
+
+    // Load filters from localStorage whenever company changes or on initial load
+    if (typeof window !== 'undefined') {
+        const savedSearch = localStorage.getItem(FILTER_STORAGE_KEYS.search);
+        if (savedSearch) setSearchQuery(savedSearch);
+
+        try {
+            const savedStatus = localStorage.getItem(FILTER_STORAGE_KEYS.status);
+            if (savedStatus) setStatusFilter(JSON.parse(savedStatus));
+
+            const savedRepo = localStorage.getItem(FILTER_STORAGE_KEYS.repo);
+            if (savedRepo) setRepoFilter(JSON.parse(savedRepo));
+
+            const savedDeployment = localStorage.getItem(FILTER_STORAGE_KEYS.deployment);
+            if (savedDeployment) setDeploymentFilter(JSON.parse(savedDeployment));
+
+            const savedDate = localStorage.getItem(FILTER_STORAGE_KEYS.date);
+            if (savedDate && savedDate !== 'undefined') {
+                const parsedDate: { from?: string; to?: string } = JSON.parse(savedDate);
+                setDateFilter({
+                    from: parsedDate.from ? new Date(parsedDate.from) : undefined,
+                    to: parsedDate.to ? new Date(parsedDate.to) : undefined,
+                });
+            }
+        } catch (e) {
+            console.error("Failed to parse filters from localStorage", e);
+            // Clear potentially corrupted filter keys
+            localStorage.removeItem(FILTER_STORAGE_KEYS.status);
+            localStorage.removeItem(FILTER_STORAGE_KEYS.repo);
+            localStorage.removeItem(FILTER_STORAGE_KEYS.deployment);
+            localStorage.removeItem(FILTER_STORAGE_KEYS.date);
+        }
     }
 
     const { updatedTaskIds, unpinnedTaskIds } = clearExpiredReminders();
