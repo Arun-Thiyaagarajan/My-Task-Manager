@@ -130,6 +130,7 @@ export interface UiConfig {
   remindersEnabled?: boolean;
   tutorialEnabled?: boolean;
   timeFormat?: '12h' | '24h';
+  autoBackupEnabled?: boolean;
 }
 
 export interface CompanyData {

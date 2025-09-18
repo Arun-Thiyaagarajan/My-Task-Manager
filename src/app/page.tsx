@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -116,6 +117,7 @@ type MainView = 'all' | 'monthly';
 
 const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
 const TUTORIAL_PROMPTED_KEY = 'taskflow_tutorial_prompted';
+const LAST_BACKUP_KEY = 'taskflow_last_auto_backup';
 
 const FILTER_STORAGE_KEYS = {
     search: 'taskflow_filter_searchQuery',
@@ -374,6 +376,119 @@ export default function Home() {
     };
   }, [activeCompanyId]);
 
+   const handleExport = (exportType: 'current_view' | 'all_tasks') => {
+    const allDevelopers = getDevelopers();
+    const allTesters = getTesters();
+    const currentUiConfig = getUiConfig();
+    const customFieldDefinitions = currentUiConfig.fields.filter(f => f.isCustom);
+
+    const appNamePrefix = currentUiConfig.appName?.replace(/\s+/g, '_') || 'MyTaskManager';
+    const dateSuffix = format(new Date(), "do MMM yyyy");
+    const fileName = `${appNamePrefix} ${dateSuffix}.json`;
+
+    let activeTasksToExport: Task[] = [];
+    let binnedTasksToExport: Task[] = [];
+    let logsToExport: Log[] = [];
+
+    if (exportType === 'all_tasks') {
+        activeTasksToExport = getTasks();
+        binnedTasksToExport = getBinnedTasks();
+        logsToExport = getLogs();
+    } else { // 'current_view'
+        activeTasksToExport = isSelectMode && selectedTaskIds.length > 0
+            ? getTasks().filter(t => selectedTaskIds.includes(t.id))
+            : sortedTasks;
+        
+        const taskIdsInView = new Set(activeTasksToExport.map(t => t.id));
+        const allLogs = getLogs();
+        logsToExport = allLogs.filter(log => log.taskId && taskIdsInView.has(log.taskId));
+    }
+
+    const allTasksForPeopleMapping = [...activeTasksToExport, ...binnedTasksToExport];
+    
+    const devIdsInExport = new Set<string>();
+    const testerIdsInExport = new Set<string>();
+    allTasksForPeopleMapping.forEach(task => {
+        (task.developers || []).forEach(id => devIdsInExport.add(id));
+        (task.testers || []).forEach(id => testerIdsInExport.add(id));
+    });
+
+    const developersToExport = allDevelopers.filter(d => devIdsInExport.has(d.id));
+    const testersToExport = allTesters.filter(t => testerIdsInExport.has(t.id));
+
+    const devIdToName = new Map(allDevelopers.map(d => [d.id, d.name]));
+    const testerIdToName = new Map(allTesters.map(t => [t.id, t.name]));
+    
+    const mapPersonIdsToNames = (task: Task) => {
+        const { developers, testers, ...restOfTask } = task;
+        return {
+            ...restOfTask,
+            isFavorite: task.isFavorite || false,
+            developers: (developers || []).map(id => devIdToName.get(id)).filter((name): name is string => !!name),
+            testers: (testers || []).map(id => testerIdToName.get(id)).filter((name): name is string => !!name),
+        };
+    };
+
+    const activeTasksWithNames = activeTasksToExport.map(mapPersonIdsToNames);
+    const binnedTasksWithNames = binnedTasksToExport.map(mapPersonIdsToNames);
+
+    const cleanPerson = (p: Person) => ({ name: p.name, email: p.email || '', phone: p.phone || '', additionalFields: p.additionalFields || [] });
+
+    const exportData: any = {
+        appName: currentUiConfig.appName,
+        appIcon: currentUiConfig.appIcon,
+        repositoryConfigs: currentUiConfig.repositoryConfigs,
+        customFieldDefinitions: customFieldDefinitions,
+        developers: developersToExport.map(cleanPerson),
+        testers: testersToExport.map(cleanPerson),
+        tasks: activeTasksWithNames,
+        logs: logsToExport,
+    };
+    
+    if (binnedTasksWithNames.length > 0) {
+        exportData.trash = binnedTasksWithNames;
+    }
+
+    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
+      JSON.stringify(exportData, null, 2)
+    )}`;
+    const link = document.createElement("a");
+    link.href = jsonString;
+    link.download = fileName;
+    link.click();
+    
+    toast({
+        variant: 'success',
+        title: 'Export Successful',
+        description: `${activeTasksToExport.length} active tasks exported.`,
+    });
+    
+    if (exportType === 'all_tasks') {
+        localStorage.setItem(LAST_BACKUP_KEY, new Date().toISOString());
+    }
+  };
+
+  useEffect(() => {
+    const config = getUiConfig();
+    if (config.autoBackupEnabled) {
+      const lastBackup = localStorage.getItem(LAST_BACKUP_KEY);
+      const now = new Date();
+      const oneWeek = 7 * 24 * 60 * 60 * 1000;
+      
+      if (!lastBackup || (now.getTime() - new Date(lastBackup).getTime()) > oneWeek) {
+        // Use a small timeout to ensure the UI is responsive before triggering the download
+        setTimeout(() => {
+            handleExport('all_tasks');
+            toast({
+                title: 'Automatic Backup',
+                description: 'A weekly backup of all your tasks has been downloaded.',
+                duration: 10000,
+            });
+        }, 1000);
+      }
+    }
+  }, [activeCompanyId]); // Reruns when company changes
+
   const filteredTasks = tasks.filter((task: Task) => {
     if (favoritesOnly && !task.isFavorite) {
       return false;
@@ -481,94 +596,6 @@ export default function Home() {
 
   const handleToggleSelectAll = (checked: boolean | 'indeterminate') => {
     setSelectedTaskIds(checked === true ? sortedTasks.map(t => t.id) : []);
-  };
-
-  const handleExport = (exportType: 'current_view' | 'all_tasks') => {
-    const allDevelopers = getDevelopers();
-    const allTesters = getTesters();
-    const currentUiConfig = getUiConfig();
-    const customFieldDefinitions = currentUiConfig.fields.filter(f => f.isCustom);
-
-    const appNamePrefix = currentUiConfig.appName?.replace(/\s+/g, '_') || 'MyTaskManager';
-    const fileNameSuffix = exportType === 'all_tasks' ? 'All_Tasks' : 'Export';
-    const fileName = `${appNamePrefix}_${fileNameSuffix}.json`;
-
-    let activeTasksToExport: Task[] = [];
-    let binnedTasksToExport: Task[] = [];
-    let logsToExport: Log[] = [];
-
-    if (exportType === 'all_tasks') {
-        activeTasksToExport = getTasks();
-        binnedTasksToExport = getBinnedTasks();
-        logsToExport = getLogs();
-    } else { // 'current_view'
-        activeTasksToExport = isSelectMode && selectedTaskIds.length > 0
-            ? getTasks().filter(t => selectedTaskIds.includes(t.id))
-            : sortedTasks;
-        
-        const taskIdsInView = new Set(activeTasksToExport.map(t => t.id));
-        const allLogs = getLogs();
-        logsToExport = allLogs.filter(log => log.taskId && taskIdsInView.has(log.taskId));
-    }
-
-    const allTasksForPeopleMapping = [...activeTasksToExport, ...binnedTasksToExport];
-    
-    const devIdsInExport = new Set<string>();
-    const testerIdsInExport = new Set<string>();
-    allTasksForPeopleMapping.forEach(task => {
-        (task.developers || []).forEach(id => devIdsInExport.add(id));
-        (task.testers || []).forEach(id => testerIdsInExport.add(id));
-    });
-
-    const developersToExport = allDevelopers.filter(d => devIdsInExport.has(d.id));
-    const testersToExport = allTesters.filter(t => testerIdsInExport.has(t.id));
-
-    const devIdToName = new Map(allDevelopers.map(d => [d.id, d.name]));
-    const testerIdToName = new Map(allTesters.map(t => [t.id, t.name]));
-    
-    const mapPersonIdsToNames = (task: Task) => {
-        const { developers, testers, ...restOfTask } = task;
-        return {
-            ...restOfTask,
-            isFavorite: task.isFavorite || false,
-            developers: (developers || []).map(id => devIdToName.get(id)).filter((name): name is string => !!name),
-            testers: (testers || []).map(id => testerIdToName.get(id)).filter((name): name is string => !!name),
-        };
-    };
-
-    const activeTasksWithNames = activeTasksToExport.map(mapPersonIdsToNames);
-    const binnedTasksWithNames = binnedTasksToExport.map(mapPersonIdsToNames);
-
-    const cleanPerson = (p: Person) => ({ name: p.name, email: p.email || '', phone: p.phone || '', additionalFields: p.additionalFields || [] });
-
-    const exportData: any = {
-        appName: currentUiConfig.appName,
-        appIcon: currentUiConfig.appIcon,
-        repositoryConfigs: currentUiConfig.repositoryConfigs,
-        customFieldDefinitions: customFieldDefinitions,
-        developers: developersToExport.map(cleanPerson),
-        testers: testersToExport.map(cleanPerson),
-        tasks: activeTasksWithNames,
-        logs: logsToExport,
-    };
-    
-    if (binnedTasksWithNames.length > 0) {
-        exportData.trash = binnedTasksWithNames;
-    }
-
-    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
-      JSON.stringify(exportData, null, 2)
-    )}`;
-    const link = document.createElement("a");
-    link.href = jsonString;
-    link.download = fileName;
-    link.click();
-    
-    toast({
-        variant: 'success',
-        title: 'Export Successful',
-        description: `${activeTasksToExport.length} active tasks exported.`,
-    });
   };
 
   const handleDownloadTemplate = () => {

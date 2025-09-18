@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck, Server, Globe, Image as ImageIcon, BellRing, Settings2, GraduationCap } from 'lucide-react';
+import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck, Server, Globe, Image as ImageIcon, BellRing, Settings2, GraduationCap, Download } from 'lucide-react';
 import { EditFieldDialog } from '@/components/edit-field-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -55,6 +55,7 @@ export default function SettingsPage() {
   const [appIcon, setAppIcon] = useState<string | null>(null);
   const [remindersEnabled, setRemindersEnabled] = useState(false);
   const [tutorialEnabled, setTutorialEnabled] = useState(false);
+  const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
   const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>('12h');
   const iconInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -84,6 +85,7 @@ export default function SettingsPage() {
     setAppIcon(loadedConfig.appIcon || null);
     setRemindersEnabled(loadedConfig.remindersEnabled || false);
     setTutorialEnabled(loadedConfig.tutorialEnabled ?? true);
+    setAutoBackupEnabled(loadedConfig.autoBackupEnabled ?? true);
     setTimeFormat(loadedConfig.timeFormat || '12h');
   }
 
@@ -405,7 +407,7 @@ export default function SettingsPage() {
 
   const handleSaveFeatures = () => {
     if (!config) return;
-    const newConfig = { ...config, remindersEnabled, tutorialEnabled };
+    const newConfig = { ...config, remindersEnabled, tutorialEnabled, autoBackupEnabled };
     updateUiConfig(newConfig);
     setConfig(newConfig);
     toast({
@@ -668,6 +670,19 @@ export default function SettingsPage() {
                                 id="tutorial-switch"
                                 checked={tutorialEnabled}
                                 onCheckedChange={setTutorialEnabled}
+                            />
+                        </div>
+                        <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                            <div className="space-y-0.5">
+                                <Label htmlFor="autobackup-switch" className="flex items-center gap-2"><Download className="h-4 w-4" /> Automatic Backups</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Automatically export all tasks weekly.
+                                </p>
+                            </div>
+                            <Switch
+                                id="autobackup-switch"
+                                checked={autoBackupEnabled}
+                                onCheckedChange={setAutoBackupEnabled}
                             />
                         </div>
                     </CardContent>
