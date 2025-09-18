@@ -29,6 +29,7 @@ import { PeopleManagerDialog } from '@/components/people-manager-dialog';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 export default function SettingsPage() {
@@ -681,22 +682,20 @@ export default function SettingsPage() {
                             />
                         </div>
                          <div className="space-y-3 rounded-lg border p-3 shadow-sm">
-                            <Label className="flex items-center gap-2"><Download className="h-4 w-4" /> Automatic Backup Frequency</Label>
-                            <RadioGroup value={autoBackupFrequency} onValueChange={(v: BackupFrequency) => setAutoBackupFrequency(v)} className="gap-3 pt-2">
-                                {backupOptions.map(opt => (
-                                    <div key={opt.value} className="flex items-start gap-3">
-                                        <RadioGroupItem value={opt.value} id={`backup-${opt.value}`} className="mt-1"/>
-                                        <div className="grid gap-1.5 leading-none">
-                                            <Label htmlFor={`backup-${opt.value}`} className="font-medium cursor-pointer">
-                                                {opt.label}
-                                            </Label>
-                                            <p className="text-xs text-muted-foreground">
-                                                {opt.description}
-                                            </p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </RadioGroup>
+                            <div className="space-y-1.5">
+                                <Label className="flex items-center gap-2"><Download className="h-4 w-4" /> Automatic Backup</Label>
+                                <p className="text-xs text-muted-foreground">Set the frequency for automatic data exports.</p>
+                            </div>
+                            <Select value={autoBackupFrequency} onValueChange={(v: BackupFrequency) => setAutoBackupFrequency(v)}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select frequency" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {backupOptions.map(opt => (
+                                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                     </CardContent>
                     <CardFooter>
