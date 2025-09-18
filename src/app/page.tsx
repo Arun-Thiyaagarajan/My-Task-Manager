@@ -128,6 +128,23 @@ const FILTER_STORAGE_KEYS = {
     date: 'taskflow_filter_date',
 };
 
+// Helper function to safely get item from localStorage
+const getInitialStateFromStorage = <T>(key: string, defaultValue: T): T => {
+    if (typeof window === 'undefined') {
+        return defaultValue;
+    }
+    const savedValue = localStorage.getItem(key);
+    if (savedValue && savedValue !== 'undefined') {
+        try {
+            return JSON.parse(savedValue);
+        } catch (e) {
+            console.error(`Failed to parse ${key} from localStorage`, e);
+            return defaultValue;
+        }
+    }
+    return defaultValue;
+};
+
 
 export default function Home() {
   const activeCompanyId = useActiveCompany();
@@ -136,13 +153,20 @@ export default function Home() {
   const [developers, setDevelopers] = useState<Person[]>([]);
   const [testers, setTesters] = useState<Person[]>([]);
   const [generalReminders, setGeneralReminders] = useState<GeneralReminder[]>([]);
-  const [statusFilter, setStatusFilter] = useState<string[]>([]);
-  const [repoFilter, setRepoFilter] = useState<string[]>([]);
-  const [deploymentFilter, setDeploymentFilter] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [dateFilter, setDateFilter] = useState<DateRange | undefined>(
-    undefined
-  );
+  const [statusFilter, setStatusFilter] = useState<string[]>(() => getInitialStateFromStorage(FILTER_STORAGE_KEYS.status, []));
+  const [repoFilter, setRepoFilter] = useState<string[]>(() => getInitialStateFromStorage(FILTER_STORAGE_KEYS.repo, []));
+  const [deploymentFilter, setDeploymentFilter] = useState<string[]>(() => getInitialStateFromStorage(FILTER_STORAGE_KEYS.deployment, []));
+  const [searchQuery, setSearchQuery] = useState(() => getInitialStateFromStorage(FILTER_STORAGE_KEYS.search, ''));
+  const [dateFilter, setDateFilter] = useState<DateRange | undefined>(() => {
+    const savedDate = getInitialStateFromStorage<{from?: string; to?: string} | undefined>(FILTER_STORAGE_KEYS.date, undefined);
+    if (savedDate?.from) {
+        return {
+            from: new Date(savedDate.from),
+            to: savedDate.to ? new Date(savedDate.to) : undefined,
+        };
+    }
+    return undefined;
+  });
   const [sortDescriptor, setSortDescriptor] = useState('status-asc');
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -185,7 +209,7 @@ export default function Home() {
   };
   
   // Save filters to localStorage whenever they change
-  useEffect(() => { localStorage.setItem(FILTER_STORAGE_KEYS.search, searchQuery); }, [searchQuery]);
+  useEffect(() => { localStorage.setItem(FILTER_STORAGE_KEYS.search, JSON.stringify(searchQuery)); }, [searchQuery]);
   useEffect(() => { localStorage.setItem(FILTER_STORAGE_KEYS.status, JSON.stringify(statusFilter)); }, [statusFilter]);
   useEffect(() => { localStorage.setItem(FILTER_STORAGE_KEYS.repo, JSON.stringify(repoFilter)); }, [repoFilter]);
   useEffect(() => { localStorage.setItem(FILTER_STORAGE_KEYS.deployment, JSON.stringify(deploymentFilter)); }, [deploymentFilter]);
@@ -309,39 +333,6 @@ export default function Home() {
   useEffect(() => {
     if (!activeCompanyId) {
       return;
-    }
-
-    // Load filters from localStorage whenever company changes or on initial load
-    if (typeof window !== 'undefined') {
-        const savedSearch = localStorage.getItem(FILTER_STORAGE_KEYS.search);
-        if (savedSearch) setSearchQuery(savedSearch);
-
-        try {
-            const savedStatus = localStorage.getItem(FILTER_STORAGE_KEYS.status);
-            if (savedStatus) setStatusFilter(JSON.parse(savedStatus));
-
-            const savedRepo = localStorage.getItem(FILTER_STORAGE_KEYS.repo);
-            if (savedRepo) setRepoFilter(JSON.parse(savedRepo));
-
-            const savedDeployment = localStorage.getItem(FILTER_STORAGE_KEYS.deployment);
-            if (savedDeployment) setDeploymentFilter(JSON.parse(savedDeployment));
-
-            const savedDate = localStorage.getItem(FILTER_STORAGE_KEYS.date);
-            if (savedDate && savedDate !== 'undefined') {
-                const parsedDate: { from?: string; to?: string } = JSON.parse(savedDate);
-                setDateFilter({
-                    from: parsedDate.from ? new Date(parsedDate.from) : undefined,
-                    to: parsedDate.to ? new Date(parsedDate.to) : undefined,
-                });
-            }
-        } catch (e) {
-            console.error("Failed to parse filters from localStorage", e);
-            // Clear potentially corrupted filter keys
-            localStorage.removeItem(FILTER_STORAGE_KEYS.status);
-            localStorage.removeItem(FILTER_STORAGE_KEYS.repo);
-            localStorage.removeItem(FILTER_STORAGE_KEYS.deployment);
-            localStorage.removeItem(FILTER_STORAGE_KEYS.date);
-        }
     }
 
     const { updatedTaskIds, unpinnedTaskIds } = clearExpiredReminders();
@@ -1674,3 +1665,4 @@ export default function Home() {
     </div>
   );
 }
+
