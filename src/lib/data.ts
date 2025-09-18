@@ -1,7 +1,7 @@
 
 
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder } from './types';
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency } from './types';
 import cloneDeep from 'lodash/cloneDeep';
 import { format } from 'date-fns';
 
@@ -35,7 +35,7 @@ const getInitialData = (): MyTaskManagerData => {
                     remindersEnabled: true,
                     tutorialEnabled: true,
                     timeFormat: '12h',
-                    autoBackupEnabled: true,
+                    autoBackupFrequency: 'weekly',
                 },
                 logs: [],
                 generalReminders: [],
@@ -56,7 +56,7 @@ export const getAppData = (): MyTaskManagerData => {
             remindersEnabled: true,
             tutorialEnabled: true,
             timeFormat: '12h',
-            autoBackupEnabled: true,
+            autoBackupFrequency: 'weekly',
         };
         return {
             companies: [{ id: 'company-placeholder', name: 'Default Company' }],
@@ -238,7 +238,7 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
         remindersEnabled: true,
         tutorialEnabled: true,
         timeFormat: '12h',
-        autoBackupEnabled: true,
+        autoBackupFrequency: 'weekly',
     };
 
     if (!savedConfig || typeof savedConfig !== 'object') {
@@ -257,7 +257,12 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
     resultConfig.remindersEnabled = savedConfig.remindersEnabled ?? defaultConfig.remindersEnabled;
     resultConfig.tutorialEnabled = savedConfig.tutorialEnabled ?? defaultConfig.tutorialEnabled;
     resultConfig.timeFormat = savedConfig.timeFormat || defaultConfig.timeFormat;
-    resultConfig.autoBackupEnabled = savedConfig.autoBackupEnabled ?? defaultConfig.autoBackupEnabled;
+    
+    if (typeof (savedConfig as any).autoBackupEnabled === 'boolean') {
+        resultConfig.autoBackupFrequency = (savedConfig as any).autoBackupEnabled ? 'weekly' : 'off';
+    } else {
+        resultConfig.autoBackupFrequency = savedConfig.autoBackupFrequency || defaultConfig.autoBackupFrequency;
+    }
     
     if (Array.isArray(savedConfig.fields)) {
         const finalFields: FieldConfig[] = [];
@@ -329,8 +334,9 @@ const generateUiConfigUpdateLogs = (oldConfig: UiConfig, newConfig: UiConfig): s
         createDetail(`${newConfig.tutorialEnabled ? 'Enabled' : 'Disabled'} the Tutorial feature.`);
     }
 
-    if (oldConfig.autoBackupEnabled !== newConfig.autoBackupEnabled) {
-        createDetail(`${newConfig.autoBackupEnabled ? 'Enabled' : 'Disabled'} automatic weekly backups.`);
+    if (oldConfig.autoBackupFrequency !== newConfig.autoBackupFrequency) {
+        const frequency = newConfig.autoBackupFrequency === 'off' ? 'Off' : (newConfig.autoBackupFrequency?.charAt(0).toUpperCase() + newConfig.autoBackupFrequency?.slice(1));
+        createDetail(`Set automatic backup frequency to **${frequency}**.`);
     }
 
     if (oldConfig.timeFormat !== newConfig.timeFormat) {
@@ -1130,7 +1136,7 @@ function _addPerson(type: PersonType, personData: Partial<Omit<Person, 'id'>>): 
         throw new Error(`${type.charAt(0).toUpperCase() + type.slice(1)} with this name already exists.`);
     }
 
-    if (/^[a-z]+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmedName)) {
+    if (/^[a-z]+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmedName)) {
         throw new Error("Invalid name format. Cannot be the same as an ID.");
     }
     

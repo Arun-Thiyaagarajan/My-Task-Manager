@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { getUiConfig, updateUiConfig, addEnvironment, updateEnvironmentName, deleteEnvironment, getDevelopers, getTesters } from '@/lib/data';
-import type { UiConfig, FieldConfig, RepositoryConfig, Person } from '@/lib/types';
+import type { UiConfig, FieldConfig, RepositoryConfig, Person, BackupFrequency } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -55,7 +55,7 @@ export default function SettingsPage() {
   const [appIcon, setAppIcon] = useState<string | null>(null);
   const [remindersEnabled, setRemindersEnabled] = useState(false);
   const [tutorialEnabled, setTutorialEnabled] = useState(false);
-  const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
+  const [autoBackupFrequency, setAutoBackupFrequency] = useState<BackupFrequency>('off');
   const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>('12h');
   const iconInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -85,7 +85,7 @@ export default function SettingsPage() {
     setAppIcon(loadedConfig.appIcon || null);
     setRemindersEnabled(loadedConfig.remindersEnabled || false);
     setTutorialEnabled(loadedConfig.tutorialEnabled ?? true);
-    setAutoBackupEnabled(loadedConfig.autoBackupEnabled ?? true);
+    setAutoBackupFrequency(loadedConfig.autoBackupFrequency || 'off');
     setTimeFormat(loadedConfig.timeFormat || '12h');
   }
 
@@ -407,7 +407,7 @@ export default function SettingsPage() {
 
   const handleSaveFeatures = () => {
     if (!config) return;
-    const newConfig = { ...config, remindersEnabled, tutorialEnabled, autoBackupEnabled };
+    const newConfig = { ...config, remindersEnabled, tutorialEnabled, autoBackupFrequency };
     updateUiConfig(newConfig);
     setConfig(newConfig);
     toast({
@@ -521,6 +521,14 @@ export default function SettingsPage() {
         {Object.keys(groupedFields).length === 0 && <p className="text-muted-foreground text-center py-4">No fields match your search in this section.</p>}
     </div>
   );
+  
+  const backupOptions: { value: BackupFrequency; label: string, description: string }[] = [
+      { value: 'daily', label: 'Daily', description: 'Exports all data every 24 hours.' },
+      { value: 'weekly', label: 'Weekly', description: 'A new backup is created every 7 days.' },
+      { value: 'monthly', label: 'Monthly', description: 'Backs up your data on the same day each month.' },
+      { value: 'yearly', label: 'Yearly', description: 'An annual backup of all your data.' },
+      { value: 'off', label: 'Off', description: 'Automatic backups are disabled.' },
+  ];
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-8">
@@ -645,7 +653,7 @@ export default function SettingsPage() {
                         <CardTitle className="flex items-center gap-2"><Settings2 className="h-5 w-5" />Feature Management</CardTitle>
                         <CardDescription>Enable or disable optional features.</CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-2">
+                    <CardContent className="space-y-4">
                         <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
                             <div className="space-y-0.5">
                                 <Label htmlFor="reminders-switch" className="flex items-center gap-2"><BellRing className="h-4 w-4" /> Task Reminders</Label>
@@ -672,18 +680,23 @@ export default function SettingsPage() {
                                 onCheckedChange={setTutorialEnabled}
                             />
                         </div>
-                        <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
-                            <div className="space-y-0.5">
-                                <Label htmlFor="autobackup-switch" className="flex items-center gap-2"><Download className="h-4 w-4" /> Automatic Backups</Label>
-                                <p className="text-xs text-muted-foreground">
-                                    Automatically export all tasks weekly.
-                                </p>
-                            </div>
-                            <Switch
-                                id="autobackup-switch"
-                                checked={autoBackupEnabled}
-                                onCheckedChange={setAutoBackupEnabled}
-                            />
+                         <div className="space-y-3 rounded-lg border p-3 shadow-sm">
+                            <Label className="flex items-center gap-2"><Download className="h-4 w-4" /> Automatic Backup Frequency</Label>
+                            <RadioGroup value={autoBackupFrequency} onValueChange={(v: BackupFrequency) => setAutoBackupFrequency(v)} className="gap-3 pt-2">
+                                {backupOptions.map(opt => (
+                                    <div key={opt.value} className="flex items-start gap-3">
+                                        <RadioGroupItem value={opt.value} id={`backup-${opt.value}`} className="mt-1"/>
+                                        <div className="grid gap-1.5 leading-none">
+                                            <Label htmlFor={`backup-${opt.value}`} className="font-medium cursor-pointer">
+                                                {opt.label}
+                                            </Label>
+                                            <p className="text-xs text-muted-foreground">
+                                                {opt.description}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </RadioGroup>
                         </div>
                     </CardContent>
                     <CardFooter>

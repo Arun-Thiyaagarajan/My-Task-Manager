@@ -120,6 +120,8 @@ export interface FieldConfig {
   sortDirection?: 'asc' | 'desc' | 'manual';
 }
 
+export type BackupFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'off';
+
 export interface UiConfig {
   fields: FieldConfig[];
   environments: string[];
@@ -130,7 +132,7 @@ export interface UiConfig {
   remindersEnabled?: boolean;
   tutorialEnabled?: boolean;
   timeFormat?: '12h' | '24h';
-  autoBackupEnabled?: boolean;
+  autoBackupFrequency?: BackupFrequency;
 }
 
 export interface CompanyData {

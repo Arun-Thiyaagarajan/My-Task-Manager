@@ -52,7 +52,7 @@ import {
   GraduationCap,
 } from 'lucide-react';
 import { cn, fuzzySearch, formatTimestamp } from '@/lib/utils';
-import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig, Log, GeneralReminder } from '@/lib/types';
+import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig, Log, GeneralReminder, BackupFrequency } from '@/lib/types';
 import {
   Popover,
   PopoverContent,
@@ -74,6 +74,7 @@ import {
   setMonth,
   getYear,
   getMonth,
+  sub,
 } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { useActiveCompany } from '@/hooks/use-active-company';
@@ -470,24 +471,45 @@ export default function Home() {
 
   useEffect(() => {
     const config = getUiConfig();
-    if (config.autoBackupEnabled) {
-      const lastBackup = localStorage.getItem(LAST_BACKUP_KEY);
-      const now = new Date();
-      const oneWeek = 7 * 24 * 60 * 60 * 1000;
-      
-      if (!lastBackup || (now.getTime() - new Date(lastBackup).getTime()) > oneWeek) {
-        // Use a small timeout to ensure the UI is responsive before triggering the download
+    const backupFrequency = config.autoBackupFrequency || 'off';
+    if (backupFrequency === 'off') return;
+
+    const lastBackup = localStorage.getItem(LAST_BACKUP_KEY);
+    if (!lastBackup) {
+        // If no backup has ever been made, trigger one immediately.
+        setTimeout(() => {
+            handleExport('all_tasks');
+            toast({
+                title: 'First Automatic Backup',
+                description: 'A backup of all your tasks has been downloaded.',
+                duration: 10000,
+            });
+        }, 1000);
+        return;
+    }
+
+    const now = new Date();
+    const lastBackupDate = new Date(lastBackup);
+    let nextBackupDate = new Date(lastBackupDate);
+
+    switch(backupFrequency) {
+        case 'daily': nextBackupDate.setDate(lastBackupDate.getDate() + 1); break;
+        case 'weekly': nextBackupDate.setDate(lastBackupDate.getDate() + 7); break;
+        case 'monthly': nextBackupDate.setMonth(lastBackupDate.getMonth() + 1); break;
+        case 'yearly': nextBackupDate.setFullYear(lastBackupDate.getFullYear() + 1); break;
+    }
+
+    if (now >= nextBackupDate) {
         setTimeout(() => {
             handleExport('all_tasks');
             toast({
                 title: 'Automatic Backup',
-                description: 'A weekly backup of all your tasks has been downloaded.',
+                description: `A ${backupFrequency} backup of all your tasks has been downloaded.`,
                 duration: 10000,
             });
         }, 1000);
-      }
     }
-  }, [activeCompanyId]); // Reruns when company changes
+}, [activeCompanyId]); // Reruns when company changes or on first load with company ID
 
   const filteredTasks = tasks.filter((task: Task) => {
     if (favoritesOnly && !task.isFavorite) {
