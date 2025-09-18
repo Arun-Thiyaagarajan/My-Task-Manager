@@ -842,68 +842,18 @@ const handleCopyDescription = () => {
               </Card>
             )}
 
-            {attachmentsField && (
+            {commentsField && (
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle className="flex items-center gap-2"><Paperclip className="h-5 w-5" />{fieldLabels.get('attachments') || 'Attachments'}</CardTitle>
-                  {!isBinned && (<Button variant="ghost" size="sm" onClick={() => setIsEditingAttachments(!isEditingAttachments)}>{isEditingAttachments ? 'Done' : <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>}</Button>)}
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-xl"><MessageSquare className="h-5 w-5" />{fieldLabels.get('comments') || 'Comments'}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {(!task.attachments || task.attachments.length === 0) && !isEditingAttachments ? (
-                    <div className="text-center py-10 text-muted-foreground border-2 border-dashed rounded-lg flex flex-col items-center justify-center">
-                      <Paperclip className="h-8 w-8 mb-2 text-muted-foreground/70" />
-                      <p className="text-base font-semibold">No attachments yet.</p>
-                      <p className="mt-1 text-sm">Click 'Edit' to add links or upload images.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                        {task.attachments?.map((att, index) => {
-                          const shouldRenderAsImage = att.type === 'image' || isImageUrl(att.url);
-                          let hostname: string | null = null;
-                          let faviconUrl: string | null = null;
-                          if (!shouldRenderAsImage) { try { hostname = new URL(att.url).hostname; faviconUrl = `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${hostname}&size=32`; } catch (e) { hostname = 'Invalid Link'; } }
-                          return (
-                            <div key={index} className="space-y-1.5 relative group/attachment">
-                              {isEditingAttachments && !isBinned && ( <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 z-10 rounded-full" onClick={() => handleDeleteAttachment(index)}><X className="h-4 w-4" /></Button> )}
-                              {shouldRenderAsImage ? (<>
-                                <div className="p-px bg-border rounded-lg group aspect-square w-full">
-                                  <button onClick={() => setPreviewImage({ url: att.url, name: att.name })} className="block relative group/img aspect-square w-full rounded-md overflow-hidden">
-                                    <img src={att.url} alt={att.name} className="object-cover w-full h-full transition-all group-hover/img:brightness-75" />
-                                    {!isEditingAttachments && <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center"><ZoomIn className="h-8 w-8 text-white" /></div>}
-                                  </button>
-                                </div>
-                                <p className="text-xs text-muted-foreground truncate" title={att.name}>{att.name}</p>
-                              </>) : (
-                                <a href={att.url} target="_blank" rel="noopener noreferrer" className="block p-px bg-border rounded-lg group aspect-square w-full">
-                                  <div className="bg-card flex flex-col items-start justify-between gap-2 h-full rounded-md p-3 hover:bg-muted/50 transition-colors">
-                                    <div className="flex items-center gap-2">{faviconUrl && <img src={faviconUrl} alt={`${hostname} favicon`} className="h-5 w-5 object-contain rounded" />}</div>
-                                    <div className="w-full space-y-1">
-                                      <p className="text-sm font-medium text-foreground line-clamp-2 leading-tight">{att.name}</p>
-                                      <p className="text-xs text-muted-foreground truncate">{hostname}</p>
-                                    </div>
-                                  </div>
-                                </a>
-                              )}
-                            </div>
-                          )})}
-                      </div>
-                      {isEditingAttachments && !isBinned && (
-                        <div className="flex gap-2 pt-4 border-t">
-                          <Popover open={isAddLinkPopoverOpen} onOpenChange={setIsAddLinkPopoverOpen}>
-                            <PopoverTrigger asChild><Button variant="outline" size="sm"><Link2 className="h-4 w-4 mr-2" /> Add Link</Button></PopoverTrigger>
-                            <PopoverContent className="w-80"><div className="grid gap-4"><div className="space-y-2"><h4 className="font-medium leading-none">Add Link</h4><p className="text-sm text-muted-foreground">Add an external link as an attachment.</p></div><div className="grid gap-2"><div className="grid grid-cols-3 items-center gap-4"><Label htmlFor="link-name">Name</Label><Input id="link-name" value={newLink.name} onChange={(e) => setNewLink(p => ({...p, name: e.target.value}))} className="col-span-2 h-8" /></div><div className="grid grid-cols-3 items-center gap-4"><Label htmlFor="link-url">URL</Label><Input id="link-url" value={newLink.url} onChange={(e) => setNewLink(p => ({...p, url: e.target.value}))} className="col-span-2 h-8" /></div></div><Button size="sm" onClick={handleSaveLink}>Save Link</Button></div></PopoverContent>
-                          </Popover>
-                          <Button type="button" variant="outline" size="sm" onClick={() => imageInputRef.current?.click()}><Image className="h-4 w-4 mr-2" /> Add Image</Button>
-                          <input type="file" ref={imageInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" />
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  <CommentsSection taskId={task.id} comments={task.comments || []} onCommentsUpdate={handleCommentsUpdate} readOnly={isBinned} hideHeader />
                 </CardContent>
               </Card>
             )}
-             {historyField && (
+            
+            {historyField && (
                 <div className="lg:col-span-2">
                     <TaskHistory logs={taskLogs} uiConfig={uiConfig} />
                 </div>
@@ -948,13 +898,58 @@ const handleCopyDescription = () => {
                   </div>
                 </CardContent>
             </Card>
-            {commentsField && (
+
+            {attachmentsField && (
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-xl"><MessageSquare className="h-5 w-5" />{fieldLabels.get('comments') || 'Comments'}</CardTitle>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="flex items-center gap-2"><Paperclip className="h-5 w-5" />{fieldLabels.get('attachments') || 'Attachments'}</CardTitle>
+                  {!isBinned && (<Button variant="ghost" size="sm" onClick={() => setIsEditingAttachments(!isEditingAttachments)}>{isEditingAttachments ? 'Done' : <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>}</Button>)}
                 </CardHeader>
                 <CardContent>
-                  <CommentsSection taskId={task.id} comments={task.comments || []} onCommentsUpdate={handleCommentsUpdate} readOnly={isBinned} hideHeader />
+                  {(!task.attachments || task.attachments.length === 0) && !isEditingAttachments ? (
+                    <div className="text-center py-10 text-muted-foreground border-2 border-dashed rounded-lg flex flex-col items-center justify-center">
+                      <Paperclip className="h-8 w-8 mb-2 text-muted-foreground/70" />
+                      <p className="text-base font-semibold">No attachments yet.</p>
+                      <p className="mt-1 text-sm">Click 'Edit' to add links or upload images.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                        {task.attachments?.map((att, index) => {
+                          const isImage = att.type === 'image' || isImageUrl(att.url);
+                          return (
+                            <div key={index} className="flex items-center justify-between group/attachment p-2 -m-2 rounded-md hover:bg-muted/50">
+                              <button
+                                onClick={() => {
+                                    if (isImage) {
+                                      setPreviewImage({ url: att.url, name: att.name })
+                                    } else {
+                                      window.open(att.url, '_blank', 'noopener,noreferrer');
+                                    }
+                                }}
+                                className="flex items-center gap-2 min-w-0 text-left"
+                              >
+                                {isImage ? <Image className="h-4 w-4 text-muted-foreground shrink-0" /> : <Link2 className="h-4 w-4 text-muted-foreground shrink-0" />}
+                                <span className="text-sm text-foreground truncate hover:text-primary hover:underline">{att.name}</span>
+                              </button>
+                               {isEditingAttachments && !isBinned && (
+                                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 opacity-0 group-hover/attachment:opacity-100" onClick={() => handleDeleteAttachment(index)}>
+                                  <X className="h-4 w-4 text-destructive" />
+                                </Button> 
+                               )}
+                            </div>
+                          )})}
+                      {isEditingAttachments && !isBinned && (
+                        <div className="flex gap-2 pt-4 border-t mt-4">
+                          <Popover open={isAddLinkPopoverOpen} onOpenChange={setIsAddLinkPopoverOpen}>
+                            <PopoverTrigger asChild><Button variant="outline" size="sm"><Link2 className="h-4 w-4 mr-2" /> Add Link</Button></PopoverTrigger>
+                            <PopoverContent className="w-80"><div className="grid gap-4"><div className="space-y-2"><h4 className="font-medium leading-none">Add Link</h4><p className="text-sm text-muted-foreground">Add an external link as an attachment.</p></div><div className="grid gap-2"><div className="grid grid-cols-3 items-center gap-4"><Label htmlFor="link-name">Name</Label><Input id="link-name" value={newLink.name} onChange={(e) => setNewLink(p => ({...p, name: e.target.value}))} className="col-span-2 h-8" /></div><div className="grid grid-cols-3 items-center gap-4"><Label htmlFor="link-url">URL</Label><Input id="link-url" value={newLink.url} onChange={(e) => setNewLink(p => ({...p, url: e.target.value}))} className="col-span-2 h-8" /></div></div><Button size="sm" onClick={handleSaveLink}>Save Link</Button></div></PopoverContent>
+                          </Popover>
+                          <Button type="button" variant="outline" size="sm" onClick={() => imageInputRef.current?.click()}><Image className="h-4 w-4 mr-2" /> Add Image</Button>
+                          <input type="file" ref={imageInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" />
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -1109,3 +1104,4 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
       </div>
     );
 }
+
