@@ -95,7 +95,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -1673,27 +1672,27 @@ export default function Home() {
             )}
             
             <Dialog open={isTagsDialogOpen} onOpenChange={setIsTagsDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Add Tags to {selectedTaskIds.length} Tasks</DialogTitle>
-                        <DialogDescription>
-                            The selected tags will be added to all chosen tasks. Existing tags will not be removed.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="py-4">
-                       <MultiSelect
-                            selected={tagsToApply}
-                            onChange={setTagsToApply}
-                            options={tagsOptions}
-                            placeholder="Select tags to add..."
-                            creatable
-                       />
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsTagsDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleBulkApplyTags}>Apply Tags</Button>
-                    </DialogFooter>
-                </DialogContent>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add Tags to {selectedTaskIds.length} Tasks</DialogTitle>
+                  <DialogDescription>
+                    The selected tags will be added to all chosen tasks. Existing tags will not be removed.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  <MultiSelect
+                      selected={tagsToApply}
+                      onChange={setTagsToApply}
+                      options={tagsOptions}
+                      placeholder="Select or create tags to add..."
+                      creatable
+                  />
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsTagsDialogOpen(false)}>Cancel</Button>
+                  <Button onClick={handleBulkApplyTags}>Apply Tags</Button>
+                </DialogFooter>
+              </DialogContent>
             </Dialog>
 
           {sortedTasks.length > 0 ? (
