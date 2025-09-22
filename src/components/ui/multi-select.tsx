@@ -161,7 +161,8 @@ export function MultiSelect({
                     className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
                 />
             </div>
-            <CommandList className="max-h-60 overflow-y-auto">
+            <CommandList>
+              <div className="max-h-60 overflow-y-auto">
                 <CommandEmpty>No results found.</CommandEmpty>
                 <CommandGroup>
                     {filteredOptions.map((option) => (
@@ -230,6 +231,7 @@ export function MultiSelect({
                         </div>
                     </CommandGroup>
                 )}
+              </div>
             </CommandList>
         </Command>
       </PopoverContent>
