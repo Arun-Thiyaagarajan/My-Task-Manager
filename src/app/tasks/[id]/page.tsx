@@ -9,7 +9,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles, Share2, History, MessageSquare, BellRing, MoreVertical, Trash2, FileJson, Copy, Download, Tag } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles, Share2, History, MessageSquare, BellRing, MoreVertical, Trash2, FileJson, Copy, Tag } from 'lucide-react';
 import { getStatusConfig, TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -47,7 +47,7 @@ import { TaskHistory } from '@/components/task-history';
 import { ReminderDialog } from '@/components/reminder-dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { generateTaskPdf, generateTasksText } from '@/lib/share-utils';
-import { MultiSelect } from '../ui/multi-select';
+import { MultiSelect } from '@/components/ui/multi-select';
 
 
 const isImageUrl = (url: string): boolean => {
@@ -963,16 +963,14 @@ const handleCopyDescription = () => {
 
             {attachmentsField && (
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle className="flex items-center gap-2"><Paperclip className="h-5 w-5" />{fieldLabels.get('attachments') || 'Attachments'}</CardTitle>
-                  {!isBinned && (<Button variant="ghost" size="sm" onClick={() => setIsEditingAttachments(!isEditingAttachments)}>{isEditingAttachments ? 'Done' : <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>}</Button>)}
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-xl"><Paperclip className="h-5 w-5" />{fieldLabels.get('attachments') || 'Attachments'}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {(!task.attachments || task.attachments.length === 0) && !isEditingAttachments ? (
+                  {(!task.attachments || task.attachments.length === 0) ? (
                     <div className="text-center py-10 text-muted-foreground border-2 border-dashed rounded-lg flex flex-col items-center justify-center">
                       <Paperclip className="h-8 w-8 mb-2 text-muted-foreground/70" />
                       <p className="text-base font-semibold">No attachments yet.</p>
-                      <p className="mt-1 text-sm">Click 'Edit' to add links or upload images.</p>
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -993,23 +991,8 @@ const handleCopyDescription = () => {
                                 {isImage ? <Image className="h-4 w-4 text-muted-foreground shrink-0" /> : <Link2 className="h-4 w-4 text-muted-foreground shrink-0" />}
                                 <span className="text-sm text-foreground truncate hover:text-primary hover:underline">{att.name}</span>
                               </button>
-                               {isEditingAttachments && !isBinned && (
-                                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 opacity-0 group-hover/attachment:opacity-100" onClick={() => handleDeleteAttachment(index)}>
-                                  <X className="h-4 w-4 text-destructive" />
-                                </Button> 
-                               )}
                             </div>
                           )})}
-                      {isEditingAttachments && !isBinned && (
-                        <div className="flex gap-2 pt-4 border-t mt-4">
-                          <Popover open={isAddLinkPopoverOpen} onOpenChange={setIsAddLinkPopoverOpen}>
-                            <PopoverTrigger asChild><Button variant="outline" size="sm"><Link2 className="h-4 w-4 mr-2" /> Add Link</Button></PopoverTrigger>
-                            <PopoverContent className="w-80"><div className="grid gap-4"><div className="space-y-2"><h4 className="font-medium leading-none">Add Link</h4><p className="text-sm text-muted-foreground">Add an external link as an attachment.</p></div><div className="grid gap-2"><div className="grid grid-cols-3 items-center gap-4"><Label htmlFor="link-name">Name</Label><Input id="link-name" value={newLink.name} onChange={(e) => setNewLink(p => ({...p, name: e.target.value}))} className="col-span-2 h-8" /></div><div className="grid grid-cols-3 items-center gap-4"><Label htmlFor="link-url">URL</Label><Input id="link-url" value={newLink.url} onChange={(e) => setNewLink(p => ({...p, url: e.target.value}))} className="col-span-2 h-8" /></div></div><Button size="sm" onClick={handleSaveLink}>Save Link</Button></div></PopoverContent>
-                          </Popover>
-                          <Button type="button" variant="outline" size="sm" onClick={() => imageInputRef.current?.click()}><Image className="h-4 w-4 mr-2" /> Add Image</Button>
-                          <input type="file" ref={imageInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" />
-                        </div>
-                      )}
                     </div>
                   )}
                 </CardContent>
@@ -1171,3 +1154,6 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
 
     
 
+
+
+    
