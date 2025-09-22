@@ -16,7 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { DeleteTaskButton } from '@/components/delete-task-button';
 import { PrLinksGroup } from '@/components/pr-links-group';
 import { Badge } from '@/components/ui/badge';
-import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
+import { getInitials, getAvatarColor, cn, getRepoBadgeStyle, formatTimestamp } from '@/lib/utils';
 import { format } from 'date-fns';
 import type { Task, FieldConfig, UiConfig, TaskStatus, Person, Attachment, Log, Comment } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
@@ -826,7 +826,7 @@ const handleCopyDescription = () => {
                   </Card>
                 )}
             </div>
-
+            
             {customFields.length > 0 && (
               <Card>
                 <CardHeader>
@@ -843,7 +843,7 @@ const handleCopyDescription = () => {
               </Card>
             )}
 
-            {commentsField && (
+            {commentsField && !isBinned && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-xl"><MessageSquare className="h-5 w-5" />{fieldLabels.get('comments') || 'Comments'}</CardTitle>
@@ -852,12 +852,6 @@ const handleCopyDescription = () => {
                   <CommentsSection taskId={task.id} comments={task.comments || []} onCommentsUpdate={handleCommentsUpdate} readOnly={isBinned} />
                 </CardContent>
               </Card>
-            )}
-            
-            {historyField && (
-                <div className="lg:col-span-2">
-                    <TaskHistory logs={taskLogs} uiConfig={uiConfig} />
-                </div>
             )}
           </div>
 
@@ -964,6 +958,12 @@ const handleCopyDescription = () => {
                   )}
                 </CardContent>
               </Card>
+            )}
+
+            {historyField && (
+                <div className="lg:col-span-2">
+                    <TaskHistory logs={taskLogs} uiConfig={uiConfig} />
+                </div>
             )}
           </div>
         </div>
