@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester, updateUiConfig, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders } from '@/lib/data';
+import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester, updateUiConfig, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addTagsToMultipleTasks } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -50,6 +50,7 @@ import {
   BellRing,
   MoreVertical,
   GraduationCap,
+  Tag,
 } from 'lucide-react';
 import { cn, fuzzySearch, formatTimestamp } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig, Log, GeneralReminder, BackupFrequency } from '@/lib/types';
@@ -94,6 +95,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -192,6 +194,9 @@ export default function Home() {
   
   const { startTutorial } = useTutorial();
   const [showTutorialPrompt, setShowTutorialPrompt] = useState(false);
+
+  const [isTagsDialogOpen, setIsTagsDialogOpen] = useState(false);
+  const [tagsToApply, setTagsToApply] = useState<string[]>([]);
 
   const previousMainViewRef = useRef<MainView>('all');
 
@@ -1046,6 +1051,18 @@ export default function Home() {
     setIsSelectMode(false);
   };
 
+  const handleBulkApplyTags = () => {
+    addTagsToMultipleTasks(selectedTaskIds, tagsToApply);
+    toast({
+        variant: 'success',
+        title: 'Tags Applied',
+        description: `Tags have been added to ${selectedTaskIds.length} tasks.`,
+    });
+    refreshData();
+    setIsTagsDialogOpen(false);
+    setTagsToApply([]);
+  };
+
   const handleBulkCopyText = () => {
     if (!uiConfig) return;
     const selectedTasks = tasks.filter(t => selectedTaskIds.includes(t.id));
@@ -1114,7 +1131,7 @@ export default function Home() {
         combinedTags.push(dynamicTag);
     }
   });
-  const tagsOptions: SelectOption[] = combinedTags;
+  const tagsOptions: SelectOption[] = combinedTags.sort((a, b) => a.label.localeCompare(b.label));
 
   const deploymentOptions: SelectOption[] = [
       { value: 'dev', label: 'Deployed to Dev' },
@@ -1605,6 +1622,13 @@ export default function Home() {
                       <Button
                         variant="outline"
                         size="sm"
+                        onClick={() => setIsTagsDialogOpen(true)}
+                      >
+                        <Tag className="mr-2 h-4 w-4" /> Add Tags
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={handleBulkCopyText}
                       >
                         <Copy className="mr-2 h-4 w-4" /> Copy as Text
@@ -1647,6 +1671,30 @@ export default function Home() {
                 </Card>
               </div>
             )}
+            
+            <Dialog open={isTagsDialogOpen} onOpenChange={setIsTagsDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Add Tags to {selectedTaskIds.length} Tasks</DialogTitle>
+                        <DialogDescription>
+                            The selected tags will be added to all chosen tasks. Existing tags will not be removed.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                       <MultiSelect
+                            selected={tagsToApply}
+                            onChange={setTagsToApply}
+                            options={tagsOptions}
+                            placeholder="Select tags to add..."
+                            creatable
+                       />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsTagsDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleBulkApplyTags}>Apply Tags</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
           {sortedTasks.length > 0 ? (
             viewMode === 'grid' ? (

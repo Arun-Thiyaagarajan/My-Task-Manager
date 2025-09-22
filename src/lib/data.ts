@@ -756,6 +756,7 @@ export function addTask(taskData: Partial<Task>, isBinned: boolean = false): Tas
     qaEndDate: taskData.qaEndDate || null,
 
     customFields: taskData.customFields || {},
+    tags: taskData.tags || [],
   };
   
   if (isBinned) {
@@ -769,6 +770,26 @@ export function addTask(taskData: Partial<Task>, isBinned: boolean = false): Tas
 
   setAppData(data);
   return newTask;
+}
+
+export function addTagsToMultipleTasks(taskIds: string[], tagsToAdd: string[]): boolean {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    if (!companyData || tagsToAdd.length === 0) return false;
+
+    const tasksToUpdate = companyData.tasks.filter(task => taskIds.includes(task.id));
+    if (tasksToUpdate.length === 0) return false;
+
+    tasksToUpdate.forEach(task => {
+        const existingTags = new Set(task.tags || []);
+        tagsToAdd.forEach(tag => existingTags.add(tag));
+        task.tags = Array.from(existingTags).sort();
+        task.updatedAt = new Date().toISOString();
+    });
+    
+    _addLog(companyData, { message: `Added tags [${tagsToAdd.join(', ')}] to ${tasksToUpdate.length} task(s).` });
+    setAppData(data);
+    return true;
 }
 
 const generateTaskUpdateLogs = (
