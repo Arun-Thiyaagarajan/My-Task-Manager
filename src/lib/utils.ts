@@ -2,7 +2,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import type { CSSProperties } from "react"
-import { format, isToday, isYesterday, startOfToday, startOfYesterday } from "date-fns"
+import { format, isToday, isYesterday } from "date-fns"
 
 
 export function cn(...inputs: ClassValue[]) {
@@ -171,9 +171,9 @@ export function fuzzySearch(query: string, text: string): boolean {
 
 /**
  * Formats a timestamp into a human-readable string.
- * - If the date is today, it shows the time (e.g., "1:23 PM" or "13:23").
- * - If the date was yesterday, it shows "Yesterday".
- * - Otherwise, it shows the date and time (e.g., "Mar 6 13:23").
+ * - If the date is today, it shows "Today" and the time (e.g., "Today 1:23 PM").
+ * - If the date was yesterday, it shows "Yesterday" and the time (e.g., "Yesterday 3:08 PM").
+ * - Otherwise, it shows the full date and time (e.g., "Mar 6, 2024 1:23 PM").
  * @param date The date to format.
  * @param timeFormat The desired time format ('12h' or '24h').
  * @returns A formatted date string.
@@ -182,11 +182,13 @@ export function formatTimestamp(date: string | Date, timeFormat: '12h' | '24h' =
     const d = new Date(date);
     if (isNaN(d.getTime())) return 'Invalid date';
 
+    const timeString = format(d, timeFormat === '24h' ? 'HH:mm' : 'p');
+
     if (isToday(d)) {
-        return format(d, timeFormat === '24h' ? 'HH:mm' : 'p');
+        return `Today ${timeString}`;
     }
     if (isYesterday(d)) {
-        return 'Yesterday';
+        return `Yesterday ${timeString}`;
     }
-    return format(d, timeFormat === '24h' ? 'MMM d HH:mm' : 'MMM d p');
+    return format(d, timeFormat === '24h' ? 'MMM d, yyyy HH:mm' : 'MMM d, yyyy p');
 }
