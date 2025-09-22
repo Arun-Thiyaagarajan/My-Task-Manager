@@ -1066,25 +1066,34 @@ function TaskDetailSection({ title, people, peopleMap, setPersonInView, isDevelo
         <div className="flex flex-wrap gap-4">
             {assignedPeople.length > 0 ? (
                 assignedPeople.map((person) => (
-                  <button 
-                    key={`${isDeveloper ? 'dev' : 'test'}-${person.id}`}
-                    className="flex items-center gap-2 p-1 -m-1 rounded-md hover:bg-muted/50 transition-colors"
-                    onClick={() => setPersonInView({ person, isDeveloper })}
-                  >
-                      <Avatar className="h-7 w-7">
-                      <AvatarFallback
-                          className="font-semibold text-white text-[10px]"
-                          style={{
-                          backgroundColor: `#${getAvatarColor(person.name)}`,
-                          }}
+                  <Tooltip key={`${isDeveloper ? 'dev' : 'test'}-${person.id}`}>
+                    <TooltipTrigger asChild>
+                      <button 
+                        className="flex items-center gap-2 p-1 -m-1 rounded-md hover:bg-muted/50 transition-colors disabled:cursor-not-allowed disabled:opacity-70"
+                        onClick={() => setPersonInView({ person, isDeveloper })}
+                        disabled={!canOpenPopup(person)}
                       >
-                          {getInitials(person.name)}
-                      </AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm font-medium text-foreground">
-                      {person.name}
-                      </span>
-                  </button>
+                          <Avatar className="h-7 w-7">
+                          <AvatarFallback
+                              className="font-semibold text-white text-[10px]"
+                              style={{
+                              backgroundColor: `#${getAvatarColor(person.name)}`,
+                              }}
+                          >
+                              {getInitials(person.name)}
+                          </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm font-medium text-foreground">
+                          {person.name}
+                          </span>
+                      </button>
+                    </TooltipTrigger>
+                    {!canOpenPopup(person) && (
+                        <TooltipContent>
+                            <p>No contact details available.</p>
+                        </TooltipContent>
+                    )}
+                  </Tooltip>
                 ))
             ) : (
             <p className="text-sm text-muted-foreground">
@@ -1161,4 +1170,5 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
     
 
     
+
 
