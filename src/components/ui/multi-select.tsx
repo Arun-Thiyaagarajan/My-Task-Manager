@@ -75,15 +75,25 @@ export function MultiSelect({
     },
     [handleUnselect, selected]
   );
-  
-  const selectedMap = new Map(
-    selected.map(value => {
-      const option = options.find(o => o.value === value);
-      return [value, option ? option.label : value];
-    })
-  );
 
-  const filteredOptions = options.filter(
+  const allOptions = [...options];
+  
+  const selectedMap = new Map<string, string>();
+  selected.forEach(value => {
+    const option = allOptions.find(o => o.value === value);
+    selectedMap.set(value, option ? option.label : value);
+  });
+
+  // Also add any selected values that are not in the predefined options (for creatable)
+  selected.forEach(value => {
+      if (!options.some(o => o.value === value)) {
+          if (!allOptions.some(o => o.value === value)) {
+              allOptions.push({ value, label: value });
+          }
+      }
+  });
+
+  const filteredOptions = allOptions.filter(
     (option) => !selected.includes(option.value)
   );
 
@@ -91,7 +101,7 @@ export function MultiSelect({
   const showCreatable = 
       creatable && 
       lowerCaseQuery.length > 0 && 
-      !options.some(opt => opt.label.toLowerCase() === lowerCaseQuery);
+      !allOptions.some(opt => opt.label.toLowerCase() === lowerCaseQuery);
 
   const handleSelectCreatable = React.useCallback(() => {
     if (!showCreatable) return;
@@ -112,7 +122,7 @@ export function MultiSelect({
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <div 
-          className={cn("group flex items-center rounded-md border border-input h-10 w-full px-3 py-1 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2", className)}
+          className={cn("group flex items-center rounded-md border border-input h-auto min-h-10 w-full px-3 py-1 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2", className)}
           role="button"
           aria-expanded={isOpen}
           onClick={() => setIsOpen(true)}

@@ -18,7 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X } from 'lucide-react';
 import type { FieldConfig, FieldOption, FieldType, RepositoryConfig } from '@/lib/types';
 import { FIELD_TYPES } from '@/lib/constants';
 import * as React from 'react';
@@ -74,7 +74,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
     },
   });
 
-  const { fields: options, append, remove } = useFieldArray({
+  const { fields: options, append, remove, move } = useFieldArray({
     control: form.control,
     name: 'options',
   });
@@ -96,6 +96,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
   const [groupSearch, setGroupSearch] = React.useState('');
   
   const [localRepoConfigs, setLocalRepoConfigs] = React.useState<RepositoryConfig[]>([]);
+  const [newTag, setNewTag] = React.useState('');
 
   const isRepoField = field?.key === 'repositories';
   const fieldHasManagedOptions =
@@ -126,6 +127,14 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
   const handleDeleteRepo = (id: string) => {
     setLocalRepoConfigs(prev => prev.filter(r => r.id !== id));
   };
+  
+  const handleAddTag = () => {
+    const trimmedTag = newTag.trim();
+    if (trimmedTag && !options.some(opt => opt.value.toLowerCase() === trimmedTag.toLowerCase())) {
+        append({ id: `option_${Date.now()}`, label: trimmedTag, value: trimmedTag });
+        setNewTag('');
+    }
+  };
 
 
   const onSubmit = (data: FieldFormData) => {
@@ -147,6 +156,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
     if (!open) {
         form.reset();
         setGroupSearch('');
+        setNewTag('');
     }
     onOpenChange(open);
   }
@@ -398,7 +408,28 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                         />
                     )}
                     
-                    {showCustomOptionsUI && (
+                    {showCustomOptionsUI && field?.type === 'tags' && (
+                         <div className="space-y-3 pt-4 border-t">
+                            <Label>Predefined Tags</Label>
+                            <div className="flex gap-2">
+                                <Input value={newTag} onChange={e => setNewTag(e.target.value)} placeholder="New tag name" onKeyDown={e => {if (e.key === 'Enter') { e.preventDefault(); handleAddTag();}}} />
+                                <Button type="button" onClick={handleAddTag} disabled={!newTag.trim()}><PlusCircle className="h-4 w-4 mr-2" /> Add Tag</Button>
+                            </div>
+                            <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+                                {options.map((tag, index) => (
+                                    <div key={tag.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50 group">
+                                        <span className="font-medium text-sm">{tag.label}</span>
+                                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7 opacity-50 group-hover:opacity-100" onClick={() => remove(index)}>
+                                            <X className="h-4 w-4 text-destructive" />
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                            {options.length === 0 && <p className="text-xs text-muted-foreground text-center py-2">No predefined tags yet.</p>}
+                        </div>
+                    )}
+                    
+                    {showCustomOptionsUI && field?.type !== 'tags' && (
                         <div className="space-y-3 pt-4 border-t">
                             <h4 className="font-medium">Options</h4>
                             {options.map((option, index) => (
