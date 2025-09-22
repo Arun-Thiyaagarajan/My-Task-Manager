@@ -953,17 +953,6 @@ const handleCopyDescription = () => {
                 </CardContent>
               </Card>
             )}
-            
-            {commentsField && (
-               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-xl"><MessageSquare className="h-5 w-5" />{fieldLabels.get('comments') || 'Comments'}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CommentsSection taskId={task.id} comments={task.comments || []} onCommentsUpdate={handleCommentsUpdate} readOnly={isBinned} hideHeader />
-                </CardContent>
-              </Card>
-            )}
           </div>
         </div>
         
@@ -1117,3 +1106,5 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
 }
 
 
+
+    
