@@ -16,7 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { DeleteTaskButton } from '@/components/delete-task-button';
 import { PrLinksGroup } from '@/components/pr-links-group';
 import { Badge } from '@/components/ui/badge';
-import { getInitials, getAvatarColor, cn, getRepoBadgeStyle, formatTimestamp } from '@/lib/utils';
+import { cn, getInitials, getAvatarColor, getRepoBadgeStyle, formatTimestamp } from '@/lib/utils';
 import { format } from 'date-fns';
 import type { Task, FieldConfig, UiConfig, TaskStatus, Person, Attachment, Log, Comment } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
@@ -1170,5 +1170,6 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
     
 
     
+
 
 
