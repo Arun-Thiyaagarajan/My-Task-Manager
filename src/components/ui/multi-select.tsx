@@ -163,7 +163,7 @@ export function MultiSelect({
             </div>
             <CommandList>
                 <CommandEmpty>No results found.</CommandEmpty>
-                <CommandGroup className="max-h-48 overflow-auto">
+                <CommandGroup className="max-h-60 overflow-y-auto">
                     {filteredOptions.map((option) => (
                     <CommandItem
                         key={option.value}
