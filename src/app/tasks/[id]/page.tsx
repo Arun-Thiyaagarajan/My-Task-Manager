@@ -67,6 +67,7 @@ export default function TaskPage() {
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
   const [developers, setDevelopers] = useState<Person[]>([]);
   const [testers, setTesters] = useState<Person[]>([]);
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const [justUpdatedEnv, setJustUpdatedEnv] = useState<string | null>(null);
@@ -96,6 +97,7 @@ export default function TaskPage() {
     if (taskId) {
       const allDevs = getDevelopers();
       const allTesters = getTesters();
+      const allTasksData = getTasks();
       const foundTask = getTaskById(taskId);
       const config = getUiConfig();
       
@@ -103,6 +105,7 @@ export default function TaskPage() {
       setUiConfig(config);
       setDevelopers(allDevs);
       setTesters(allTesters);
+      setAllTasks(allTasksData);
 
       if (foundTask) {
         document.title = `${foundTask.title} | ${config.appName || 'My Task Manager'}`;
@@ -187,7 +190,7 @@ export default function TaskPage() {
     // This logic runs only on the client, after the task has been loaded.
     // This avoids hydration errors from Math.random().
     const allDevs = getDevelopers();
-    const allTasks = getTasks().filter(t => t.id !== task.id);
+    const tasksForRelated = getTasks().filter(t => t.id !== task.id);
     const strategies: (() => { title: string, tasks: Task[] } | null)[] = [];
 
     if (task.developers && task.developers.length > 0) {
@@ -195,7 +198,7 @@ export default function TaskPage() {
         const primaryDev = allDevs.find(d => d.id === primaryDevId);
         if (primaryDev) {
             strategies.push(() => {
-              const related = allTasks.filter(t => t.developers?.includes(primaryDevId));
+              const related = tasksForRelated.filter(t => t.developers?.includes(primaryDevId));
               return related.length > 0 ? {
                 title: `More from ${primaryDev.name}`,
                 tasks: related
@@ -207,7 +210,7 @@ export default function TaskPage() {
     if (task.repositories && task.repositories.length > 0) {
         const primaryRepo = task.repositories[0];
         strategies.push(() => {
-          const related = allTasks.filter(t => t.repositories?.includes(primaryRepo));
+          const related = tasksForRelated.filter(t => t.repositories?.includes(primaryRepo));
           return related.length > 0 ? {
             title: `More in ${primaryRepo}`,
             tasks: related
@@ -220,7 +223,7 @@ export default function TaskPage() {
         const taskMonth = taskDate.getMonth();
         const taskYear = taskDate.getFullYear();
         strategies.push(() => {
-          const related = allTasks.filter(t => {
+          const related = tasksForRelated.filter(t => {
               if (!t.devStartDate) return false;
               const otherDate = new Date(t.devStartDate);
               return otherDate.getMonth() === taskMonth && otherDate.getFullYear() === taskYear;
@@ -603,14 +606,15 @@ const handleCopyDescription = () => {
   
   const developersById = new Map(developers.map(d => [d.id, d]));
   const testersById = new Map(testers.map(t => [t.id, t]));
-  const assignedDevelopers = (task.developers || []).map(id => developersById.get(id)).filter(Boolean) as Person[];
-  const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter(Boolean) as Person[];
+  const assignedDevelopers = (task.developers || []).map(id => developersById.get(id)).filter((d): d is Person => !!d);
+  const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter((t): t is Person => !!t);
 
   const azureFieldConfig = uiConfig.fields.find(f => f.key === 'azureWorkItemId');
   
   const tagsField = uiConfig.fields.find(f => f.key === 'tags');
   const allPredefinedTags = tagsField?.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
-  const allDynamicTags = [...new Set(task.tags || [])].map(t => ({value: t, label: t}));
+  const allDynamicTags = [...new Set(allTasks.flatMap(t => t.tags || []))].map(t => ({value: t, label: t}));
+  
   const combinedTagsOptions = [...allPredefinedTags];
   allDynamicTags.forEach(dynamicTag => {
     if (!combinedTagsOptions.some(t => t.value === dynamicTag.value)) {
@@ -908,7 +912,7 @@ const handleCopyDescription = () => {
                 <CardContent className="space-y-4">
                   <TaskDetailSection title={fieldLabels.get('developers') || 'Developers'} people={assignedDevelopers} setPersonInView={setPersonInView} isDeveloper={true} />
                   <Separator />
-                  <TaskDetailSection title={fieldLabels.get('testers') || 'QA'} people={assignedTesters} setPersonInView={setPersonInView} isDeveloper={false} />
+                  <TaskDetailSection title={fieldLabels.get('testers') || 'Testers'} people={assignedTesters} setPersonInView={setPersonInView} isDeveloper={false} />
                   <Separator />
                   <div>
                     <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('repositories') || 'Repositories'}</h4>
@@ -1185,3 +1189,6 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
 
 
 
+
+
+    
