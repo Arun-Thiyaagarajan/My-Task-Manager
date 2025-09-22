@@ -9,14 +9,14 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles, Share2, History, MessageSquare, BellRing, MoreVertical, Trash2, FileJson, Copy, Download } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles, Share2, History, MessageSquare, BellRing, MoreVertical, Trash2, FileJson, Copy, Download, Tag } from 'lucide-react';
 import { getStatusConfig, TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { DeleteTaskButton } from '@/components/delete-task-button';
 import { PrLinksGroup } from '@/components/pr-links-group';
 import { Badge } from '@/components/ui/badge';
-import { getInitials, getAvatarColor, cn, getRepoBadgeStyle, formatTimestamp } from '@/lib/utils';
+import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
 import { format } from 'date-fns';
 import type { Task, FieldConfig, UiConfig, TaskStatus, Person, Attachment, Log, Comment } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
@@ -579,6 +579,7 @@ const handleCopyDescription = () => {
   const testersById = new Map(testers.map(t => [t.id, t]));
 
   const azureFieldConfig = uiConfig.fields.find(f => f.key === 'azureWorkItemId');
+  const tagsField = uiConfig.fields.find(f => f.key === 'tags');
   const prField = uiConfig.fields.find(f => f.key === 'prLinks' && f.isActive);
   const deploymentField = uiConfig.fields.find(f => f.key === 'deploymentStatus' && f.isActive);
   const attachmentsField = uiConfig.fields.find(f => f.key === 'attachments' && f.isActive);
@@ -848,7 +849,7 @@ const handleCopyDescription = () => {
                   <CardTitle className="flex items-center gap-2 text-xl"><MessageSquare className="h-5 w-5" />{fieldLabels.get('comments') || 'Comments'}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <CommentsSection taskId={task.id} comments={task.comments || []} onCommentsUpdate={handleCommentsUpdate} readOnly={isBinned} hideHeader />
+                  <CommentsSection taskId={task.id} comments={task.comments || []} onCommentsUpdate={handleCommentsUpdate} readOnly={isBinned} />
                 </CardContent>
               </Card>
             )}
@@ -889,6 +890,17 @@ const handleCopyDescription = () => {
                           <span>Work Item #{task.azureWorkItemId}</span>
                         </a>
                       ) : (<span className="text-sm text-foreground">{task.azureWorkItemId}</span>)}
+                    </div>
+                  </>)}
+                  {tagsField && tagsField.isActive && task.tags && task.tags.length > 0 && (<>
+                    <Separator />
+                    <div>
+                        <h4 className="text-sm font-semibold text-muted-foreground mb-2">{tagsField.label || 'Tags'}</h4>
+                        <div className="flex flex-wrap gap-1">
+                            {task.tags.map(tag => (
+                                <Badge key={tag} variant="secondary">{tag}</Badge>
+                            ))}
+                        </div>
                     </div>
                   </>)}
                   <Separator />

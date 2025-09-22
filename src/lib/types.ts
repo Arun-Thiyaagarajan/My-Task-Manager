@@ -1,5 +1,4 @@
 
-
 import type { TASK_STATUSES, ENVIRONMENTS } from './constants';
 
 export type TaskStatus = string;
@@ -77,6 +76,7 @@ export interface Task {
   
   repositories?: Repository[];
   azureWorkItemId?: string;
+  tags?: string[];
   prLinks?: {
     [key: string]: { [repo: string]: string } | undefined;
   };

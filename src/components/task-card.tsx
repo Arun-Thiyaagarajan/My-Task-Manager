@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getStatusConfig, TaskStatusBadge } from './task-status-badge';
-import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck, Share2, BellRing, MoreVertical, Trash2 } from 'lucide-react';
+import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck, Share2, BellRing, MoreVertical, Trash2, Tag } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
@@ -199,6 +199,8 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   const statusConfig = getStatusConfig(task.status);
   const { Icon, cardClassName, iconColorClassName } = statusConfig;
 
+  const tagsField = uiConfig?.fields.find(f => f.key === 'tags' && f.isActive);
+
   return (
     <>
       <div
@@ -359,6 +361,16 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                       {azureFieldConfig.label}: {task.azureWorkItemId}
                     </span>
                   </a>
+                )}
+                {tagsField && task.tags && task.tags.length > 0 && (
+                  <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <Tag className="h-4 w-4 shrink-0 mt-0.5" />
+                    <div className="flex flex-wrap gap-1">
+                      {task.tags.map((tag) => (
+                        <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
               

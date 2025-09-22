@@ -56,6 +56,7 @@ const getInitialTaskData = (task?: Partial<Task>) => {
             repositories: [],
             developers: [],
             testers: [],
+            tags: [],
             prLinks: {},
             deploymentStatus: {},
             attachments: [],
@@ -86,6 +87,7 @@ const getInitialTaskData = (task?: Partial<Task>) => {
         deploymentStatus: task.deploymentStatus || {},
         developers: task.developers || [],
         testers: task.testers || [],
+        tags: task.tags || [],
         azureWorkItemId: task.azureWorkItemId || '',
         summary: task.summary || null,
     }
@@ -304,6 +306,8 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
         } else if(field.key === 'testers') {
             options = (testersList || []).map(t => ({ value: t.id, label: t.name }));
         } else {
+            // For general tags, options can be dynamic. We'll rely on the creatable MultiSelect.
+            // If some predefined tags exist in field.options, we can map them here.
             options = field.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
         }
     } else {
@@ -416,6 +420,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
             case 'tags':
                 const isDeveloperField = key === 'developers';
                 const isTesterField = key === 'testers';
+                const isGeneralTagField = key === 'tags';
                 return (
                      <MultiSelect
                         selected={field.value ?? []}
@@ -425,6 +430,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                         creatable
                         {...(isDeveloperField && { onCreate: handleCreateDeveloper })}
                         {...(isTesterField && { onCreate: handleCreateTester })}
+                        {...(isGeneralTagField && { onCreate: (value) => value })}
                     />
                 );
             case 'checkbox':
