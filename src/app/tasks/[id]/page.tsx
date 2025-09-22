@@ -260,7 +260,7 @@ export default function TaskPage() {
     setPinnedTaskIds(newPinnedIds);
     localStorage.setItem(PINNED_TASKS_STORAGE_KEY, JSON.stringify(newPinnedIds));
 
-    if (task.reminder) {
+    if (task?.reminder) {
         toast({
             title: newPinnedIds.includes(taskIdToToggle) ? 'Reminder Pinned' : 'Reminder Unpinned',
             description: `This reminder will ${newPinnedIds.includes(taskIdToToggle) ? 'now' : 'no longer'} appear on the main page.`,
@@ -602,7 +602,7 @@ const handleCopyDescription = () => {
   const customFields = uiConfig.fields.filter(f => f.isCustom && f.isActive && task.customFields && typeof task.customFields[f.key] !== 'undefined' && task.customFields[f.key] !== null && task.customFields[f.key] !== '');
   
   const developersById = new Map(developers.map(d => [d.id, d]));
-  const testersById = new Map(testers.map(t => [t.id, t.name]));
+  const testersById = new Map(testers.map(t => [t.id, t]));
 
   const azureFieldConfig = uiConfig.fields.find(f => f.key === 'azureWorkItemId');
   const tagsField = uiConfig.fields.find(f => f.key === 'tags');
@@ -1097,7 +1097,7 @@ function TaskDetailSection({ title, people, peopleMap, setPersonInView, isDevelo
                 ))
             ) : (
             <p className="text-sm text-muted-foreground">
-                No {isDeveloper ? 'Developers' : 'Testers'} assigned.
+                No {title} assigned.
             </p>
             )}
         </div>
@@ -1170,6 +1170,7 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
     
 
     
+
 
 
 
