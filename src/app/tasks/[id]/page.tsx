@@ -603,7 +603,8 @@ const handleCopyDescription = () => {
   
   const developersById = new Map(developers.map(d => [d.id, d]));
   const testersById = new Map(testers.map(t => [t.id, t]));
-  const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter(Boolean);
+  const assignedDevelopers = (task.developers || []).map(id => developersById.get(id)).filter(Boolean) as Person[];
+  const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter(Boolean) as Person[];
 
   const azureFieldConfig = uiConfig.fields.find(f => f.key === 'azureWorkItemId');
   const tagsField = uiConfig.fields.find(f => f.key === 'tags');
@@ -897,9 +898,9 @@ const handleCopyDescription = () => {
                   <CardTitle className="flex items-center gap-2 text-xl"><ListChecks className="h-5 w-5" />Task Details</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <TaskDetailSection title={fieldLabels.get('developers') || 'Developers'} people={task.developers} peopleMap={developersById} setPersonInView={setPersonInView} isDeveloper={true} />
+                  <TaskDetailSection title={fieldLabels.get('developers') || 'Developers'} people={assignedDevelopers} setPersonInView={setPersonInView} isDeveloper={true} />
                   <Separator />
-                  <TaskDetailSection title={fieldLabels.get('testers') || 'QA'} people={assignedTesters.map(p => p.id)} peopleMap={testersById} setPersonInView={setPersonInView} isDeveloper={false} />
+                  <TaskDetailSection title={fieldLabels.get('testers') || 'QA'} people={assignedTesters} setPersonInView={setPersonInView} isDeveloper={false} />
                   <Separator />
                   <div>
                     <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('repositories') || 'Repositories'}</h4>
@@ -1048,16 +1049,12 @@ const handleCopyDescription = () => {
 }
 
 
-function TaskDetailSection({ title, people, peopleMap, setPersonInView, isDeveloper }: {
+function TaskDetailSection({ title, people, setPersonInView, isDeveloper }: {
   title: string;
-  people?: string[];
-  peopleMap: Map<string, Person>;
+  people: Person[];
   setPersonInView: (person: { person: Person, isDeveloper: boolean }) => void;
   isDeveloper: boolean;
 }) {
-  const uniquePeopleIds = [...new Set(people || [])];
-  const assignedPeople = uniquePeopleIds.map(id => peopleMap.get(id)).filter((p): p is Person => !!p);
-  
   const canOpenPopup = (person: Person): boolean => {
     return !!(person.email || person.phone || (person.additionalFields && person.additionalFields.length > 0));
   };
@@ -1066,8 +1063,8 @@ function TaskDetailSection({ title, people, peopleMap, setPersonInView, isDevelo
     <div>
         <h4 className="text-sm font-semibold text-muted-foreground mb-2">{title}</h4>
         <div className="flex flex-wrap gap-4">
-            {assignedPeople.length > 0 ? (
-                assignedPeople.map((person) => (
+            {people.length > 0 ? (
+                people.map((person) => (
                   <Tooltip key={`${isDeveloper ? 'dev' : 'test'}-${person.id}`}>
                     <TooltipTrigger asChild>
                       <button 
@@ -1172,6 +1169,7 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
     
 
     
+
 
 
 
