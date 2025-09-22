@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -300,16 +301,12 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
       options = (uiConfig?.taskStatuses || []).map(s => ({ value: s, label: s}));
       // Status field should not be sorted alphabetically
       return options;
-    } else if(field.type === 'tags') {
-        if(field.key === 'developers') {
-            options = (developersList || []).map(d => ({ value: d.id, label: d.name }));
-        } else if(field.key === 'testers') {
-            options = (testersList || []).map(t => ({ value: t.id, label: t.name }));
-        } else {
-            // For general tags, options can be dynamic. We'll rely on the creatable MultiSelect.
-            // If some predefined tags exist in field.options, we can map them here.
-            options = field.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
-        }
+    } else if(field.key === 'developers') {
+        options = (developersList || []).map(d => ({ value: d.id, label: d.name }));
+    } else if(field.key === 'testers') {
+        options = (testersList || []).map(t => ({ value: t.id, label: t.name }));
+    } else if (field.type === 'tags') {
+        options = field.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
     } else {
         options = field.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
     }

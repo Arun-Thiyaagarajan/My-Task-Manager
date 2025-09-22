@@ -94,7 +94,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -1107,8 +1106,15 @@ export default function Home() {
   const repoOptions: SelectOption[] = REPOSITORIES.map(r => ({ value: r, label: r }));
   
   const tagsField = uiConfig.fields.find(f => f.key === 'tags');
-  const allTags = [...new Set(tasks.flatMap(t => t.tags || []))];
-  const tagsOptions: SelectOption[] = allTags.map(t => ({ value: t, label: t }));
+  const allPredefinedTags = tagsField?.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
+  const allDynamicTags = [...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({value: t, label: t}));
+  const combinedTags = [...allPredefinedTags];
+  allDynamicTags.forEach(dynamicTag => {
+    if (!combinedTags.some(t => t.value === dynamicTag.value)) {
+        combinedTags.push(dynamicTag);
+    }
+  });
+  const tagsOptions: SelectOption[] = combinedTags;
 
   const deploymentOptions: SelectOption[] = [
       { value: 'dev', label: 'Deployed to Dev' },

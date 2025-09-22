@@ -870,7 +870,7 @@ const handleCopyDescription = () => {
             )}
 
             {commentsField && !isBinned && (
-              <Card>
+               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-xl"><MessageSquare className="h-5 w-5" />{fieldLabels.get('comments') || 'Comments'}</CardTitle>
                 </CardHeader>
@@ -934,10 +934,10 @@ const handleCopyDescription = () => {
                                 <MultiSelect
                                     selected={task.tags || []}
                                     onChange={handleTagsUpdate}
-                                    options={[]} // No predefined options, relies on creatable
+                                    options={tagsField.options || []}
                                     placeholder="Add or create tags..."
                                     creatable
-                                    onCreate={(value) => value} // Simply return the new string value
+                                    onCreate={(value) => value}
                                 />
                             ) : (
                                 <div className="flex flex-wrap gap-1">
@@ -962,41 +962,43 @@ const handleCopyDescription = () => {
             </Card>
 
             {attachmentsField && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-xl"><Paperclip className="h-5 w-5" />{fieldLabels.get('attachments') || 'Attachments'}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {(!task.attachments || task.attachments.length === 0) ? (
-                    <div className="text-center py-10 text-muted-foreground border-2 border-dashed rounded-lg flex flex-col items-center justify-center">
-                      <Paperclip className="h-8 w-8 mb-2 text-muted-foreground/70" />
-                      <p className="text-base font-semibold">No attachments yet.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                        {task.attachments?.map((att, index) => {
-                          const isImage = att.type === 'image' || isImageUrl(att.url);
-                          return (
-                            <div key={index} className="flex items-center justify-between group/attachment p-2 -m-2 rounded-md hover:bg-muted/50">
-                              <button
-                                onClick={() => {
-                                    if (isImage) {
-                                      setPreviewImage({ url: att.url, name: att.name })
-                                    } else {
-                                      window.open(att.url, '_blank', 'noopener,noreferrer');
-                                    }
-                                }}
-                                className="flex items-center gap-2 min-w-0 text-left"
-                              >
-                                {isImage ? <Image className="h-4 w-4 text-muted-foreground shrink-0" /> : <Link2 className="h-4 w-4 text-muted-foreground shrink-0" />}
-                                <span className="text-sm text-foreground truncate hover:text-primary hover:underline">{att.name}</span>
-                              </button>
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-xl">
+                            <Paperclip className="h-5 w-5" />{fieldLabels.get('attachments') || 'Attachments'}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                         {(!task.attachments || task.attachments.length === 0) ? (
+                            <div className="text-center py-6 text-muted-foreground border-2 border-dashed rounded-lg">
+                                <p className="text-sm font-medium">No attachments yet.</p>
                             </div>
-                          )})}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                         ) : (
+                             <div className="space-y-2">
+                                {task.attachments.map((att, index) => {
+                                    const isImage = att.type === 'image' || isImageUrl(att.url);
+                                    return (
+                                        <div key={index} className="flex items-center justify-between group/attachment p-2 -m-2 rounded-md hover:bg-muted/50">
+                                            <button
+                                                onClick={() => {
+                                                    if (isImage) {
+                                                        setPreviewImage({ url: att.url, name: att.name });
+                                                    } else {
+                                                        window.open(att.url, '_blank', 'noopener,noreferrer');
+                                                    }
+                                                }}
+                                                className="flex items-center gap-2 min-w-0 text-left"
+                                            >
+                                                {isImage ? <Image className="h-4 w-4 text-muted-foreground shrink-0" /> : <Link2 className="h-4 w-4 text-muted-foreground shrink-0" />}
+                                                <span className="text-sm text-foreground truncate hover:text-primary hover:underline">{att.name}</span>
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                             </div>
+                         )}
+                    </CardContent>
+                </Card>
             )}
           </div>
         </div>
