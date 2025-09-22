@@ -211,15 +211,15 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
         }}
         className={cn(
           "h-full rounded-lg transition-all",
-          isSelectMode && "cursor-pointer",
-          isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+          isSelectMode && "cursor-pointer"
         )}
       >
         <Card
           className={cn(
             "flex flex-col h-full transition-all duration-300 relative overflow-hidden group/card rounded-lg",
             cardClassName,
-            !isSelectMode && "hover:shadow-xl hover:-translate-y-1"
+            !isSelectMode && "hover:shadow-xl hover:-translate-y-1",
+            isSelected && "selected-card"
           )}
         >
           {isSelectable && isSelectMode && (
