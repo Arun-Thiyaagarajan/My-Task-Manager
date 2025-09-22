@@ -47,7 +47,7 @@ import { TaskHistory } from '@/components/task-history';
 import { ReminderDialog } from '@/components/reminder-dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { generateTaskPdf, generateTasksText } from '@/lib/share-utils';
-import { MultiSelect } from '@/components/ui/multi-select';
+import { MultiSelect, type SelectOption } from '@/components/ui/multi-select';
 
 
 const isImageUrl = (url: string): boolean => {
@@ -603,9 +603,12 @@ const handleCopyDescription = () => {
   
   const developersById = new Map(developers.map(d => [d.id, d]));
   const testersById = new Map(testers.map(t => [t.id, t]));
+  const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter(Boolean);
 
   const azureFieldConfig = uiConfig.fields.find(f => f.key === 'azureWorkItemId');
   const tagsField = uiConfig.fields.find(f => f.key === 'tags');
+  const allPredefinedTags = tagsField?.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
+
   const prField = uiConfig.fields.find(f => f.key === 'prLinks' && f.isActive);
   const deploymentField = uiConfig.fields.find(f => f.key === 'deploymentStatus' && f.isActive);
   const attachmentsField = uiConfig.fields.find(f => f.key === 'attachments' && f.isActive);
@@ -896,7 +899,7 @@ const handleCopyDescription = () => {
                 <CardContent className="space-y-4">
                   <TaskDetailSection title={fieldLabels.get('developers') || 'Developers'} people={task.developers} peopleMap={developersById} setPersonInView={setPersonInView} isDeveloper={true} />
                   <Separator />
-                  <TaskDetailSection title={fieldLabels.get('testers') || 'QA'} people={task.testers} peopleMap={testersById} setPersonInView={setPersonInView} isDeveloper={false} />
+                  <TaskDetailSection title={fieldLabels.get('testers') || 'QA'} people={assignedTesters.map(p => p.id)} peopleMap={testersById} setPersonInView={setPersonInView} isDeveloper={false} />
                   <Separator />
                   <div>
                     <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('repositories') || 'Repositories'}</h4>
@@ -934,10 +937,9 @@ const handleCopyDescription = () => {
                                 <MultiSelect
                                     selected={task.tags || []}
                                     onChange={handleTagsUpdate}
-                                    options={tagsField.options || []}
+                                    options={allPredefinedTags}
                                     placeholder="Add or create tags..."
                                     creatable
-                                    onCreate={(value) => value}
                                 />
                             ) : (
                                 <div className="flex flex-wrap gap-1">
@@ -1170,6 +1172,7 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
     
 
     
+
 
 
 
