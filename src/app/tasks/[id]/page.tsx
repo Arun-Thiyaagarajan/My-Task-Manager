@@ -607,8 +607,16 @@ const handleCopyDescription = () => {
   const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter(Boolean) as Person[];
 
   const azureFieldConfig = uiConfig.fields.find(f => f.key === 'azureWorkItemId');
+  
   const tagsField = uiConfig.fields.find(f => f.key === 'tags');
   const allPredefinedTags = tagsField?.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
+  const allDynamicTags = [...new Set(task.tags || [])].map(t => ({value: t, label: t}));
+  const combinedTagsOptions = [...allPredefinedTags];
+  allDynamicTags.forEach(dynamicTag => {
+    if (!combinedTagsOptions.some(t => t.value === dynamicTag.value)) {
+        combinedTagsOptions.push(dynamicTag);
+    }
+  });
 
   const prField = uiConfig.fields.find(f => f.key === 'prLinks' && f.isActive);
   const deploymentField = uiConfig.fields.find(f => f.key === 'deploymentStatus' && f.isActive);
@@ -938,7 +946,7 @@ const handleCopyDescription = () => {
                                 <MultiSelect
                                     selected={task.tags || []}
                                     onChange={handleTagsUpdate}
-                                    options={allPredefinedTags}
+                                    options={combinedTagsOptions}
                                     placeholder="Add or create tags..."
                                     creatable
                                 />
@@ -1169,6 +1177,7 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
     
 
     
+
 
 
 
