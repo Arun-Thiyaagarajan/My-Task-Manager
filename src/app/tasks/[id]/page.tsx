@@ -47,6 +47,7 @@ import { TaskHistory } from '@/components/task-history';
 import { ReminderDialog } from '@/components/reminder-dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { generateTaskPdf, generateTasksText } from '@/lib/share-utils';
+import { MultiSelect } from '../ui/multi-select';
 
 
 const isImageUrl = (url: string): boolean => {
@@ -82,6 +83,7 @@ export default function TaskPage() {
   const [isReminderOpen, setIsReminderOpen] = useState(false);
   const [pinnedTaskIds, setPinnedTaskIds] = useState<string[]>([]);
   const [isCopying, setIsCopying] = useState(false);
+  const [isEditingTags, setIsEditingTags] = useState(false);
   
   const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
   const taskId = params.id as string;
@@ -269,8 +271,11 @@ export default function TaskPage() {
 
   const handleCommentsUpdate = (newComments: Comment[]) => {
     if (task) {
-      setTask({ ...task, comments: newComments });
-      setTaskLogs(getLogsForTask(task.id));
+      const updatedTask = updateTask(task.id, { comments: newComments });
+      if(updatedTask) {
+        setTask(updatedTask);
+        setTaskLogs(getLogsForTask(task.id));
+      }
     }
   };
 
@@ -359,6 +364,27 @@ export default function TaskPage() {
             description: 'Failed to update pull request links.',
         });
     }
+  };
+  
+  const handleTagsUpdate = (newTags: string[]) => {
+      if (!task) return;
+
+      const updatedTask = updateTask(task.id, { tags: newTags });
+      if(updatedTask) {
+          setTask(updatedTask);
+          setTaskLogs(getLogsForTask(task.id));
+          toast({
+              variant: 'success',
+              title: 'Tags Updated',
+              description: `The tags for this task have been saved.`,
+          });
+      } else {
+          toast({
+              variant: 'destructive',
+              title: 'Error',
+              description: 'Failed to update tags.',
+          });
+      }
   };
 
   const updateAttachments = (newAttachments: Attachment[]) => {
@@ -853,6 +879,12 @@ const handleCopyDescription = () => {
                 </CardContent>
               </Card>
             )}
+            
+            {historyField && (
+                <div className="lg:col-span-2">
+                    <TaskHistory logs={taskLogs} uiConfig={uiConfig} />
+                </div>
+            )}
           </div>
 
           {/* Right Column */}
@@ -886,17 +918,41 @@ const handleCopyDescription = () => {
                       ) : (<span className="text-sm text-foreground">{task.azureWorkItemId}</span>)}
                     </div>
                   </>)}
-                  {tagsField && tagsField.isActive && task.tags && task.tags.length > 0 && (<>
-                    <Separator />
-                    <div>
-                        <h4 className="text-sm font-semibold text-muted-foreground mb-2">{tagsField.label || 'Tags'}</h4>
-                        <div className="flex flex-wrap gap-1">
-                            {task.tags.map(tag => (
-                                <Badge key={tag} variant="secondary">{tag}</Badge>
-                            ))}
+                  {tagsField && tagsField.isActive && (
+                    <>
+                        <Separator />
+                        <div>
+                            <div className="flex items-center justify-between mb-2">
+                                <h4 className="text-sm font-semibold text-muted-foreground">{tagsField.label || 'Tags'}</h4>
+                                {!isBinned && (
+                                    <Button variant="ghost" size="sm" onClick={() => setIsEditingTags(prev => !prev)}>
+                                        {isEditingTags ? 'Done' : <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>}
+                                    </Button>
+                                )}
+                            </div>
+                            {isEditingTags ? (
+                                <MultiSelect
+                                    selected={task.tags || []}
+                                    onChange={handleTagsUpdate}
+                                    options={[]} // No predefined options, relies on creatable
+                                    placeholder="Add or create tags..."
+                                    creatable
+                                    onCreate={(value) => value} // Simply return the new string value
+                                />
+                            ) : (
+                                <div className="flex flex-wrap gap-1">
+                                    {(task.tags && task.tags.length > 0) ? (
+                                        task.tags.map(tag => (
+                                            <Badge key={tag} variant="secondary">{tag}</Badge>
+                                        ))
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground">No tags assigned.</p>
+                                    )}
+                                </div>
+                            )}
                         </div>
-                    </div>
-                  </>)}
+                    </>
+                  )}
                   <Separator />
                   <div>
                     <h4 className="text-sm font-semibold text-muted-foreground mb-2">Important Dates</h4>
@@ -958,12 +1014,6 @@ const handleCopyDescription = () => {
                   )}
                 </CardContent>
               </Card>
-            )}
-
-            {historyField && (
-                <div className="lg:col-span-2">
-                    <TaskHistory logs={taskLogs} uiConfig={uiConfig} />
-                </div>
             )}
           </div>
         </div>
@@ -1120,3 +1170,4 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
 
 
     
+
