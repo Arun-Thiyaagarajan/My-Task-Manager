@@ -19,10 +19,10 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X } from 'lucide-react';
-import type { FieldConfig, FieldOption, FieldType, RepositoryConfig } from '@/lib/types';
+import type { FieldConfig, FieldOption, FieldType, RepositoryConfig, Task } from '@/lib/types';
 import { FIELD_TYPES } from '@/lib/constants';
 import * as React from 'react';
-import { getUiConfig } from '@/lib/data';
+import { getUiConfig, getTasks, updateTask } from '@/lib/data';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -74,7 +74,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
     },
   });
 
-  const { fields: options, append, remove, move } = useFieldArray({
+  const { fields: options, append, remove, move, replace } = useFieldArray({
     control: form.control,
     name: 'options',
   });
@@ -97,8 +97,12 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
   
   const [localRepoConfigs, setLocalRepoConfigs] = React.useState<RepositoryConfig[]>([]);
   const [newTag, setNewTag] = React.useState('');
+  
+  const [allTags, setAllTags] = React.useState<FieldOption[]>([]);
 
   const isRepoField = field?.key === 'repositories';
+  const isTagsField = field?.key === 'tags';
+  
   const fieldHasManagedOptions =
     field?.key === 'status' ||
     field?.key === 'developers' ||
@@ -130,10 +134,25 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
   
   const handleAddTag = () => {
     const trimmedTag = newTag.trim();
-    if (trimmedTag && !options.some(opt => opt.value.toLowerCase() === trimmedTag.toLowerCase())) {
-        append({ id: `option_${Date.now()}`, label: trimmedTag, value: trimmedTag });
+    if (trimmedTag && !allTags.some(opt => opt.value.toLowerCase() === trimmedTag.toLowerCase())) {
+        const newOption = { id: `option_${Date.now()}`, label: trimmedTag, value: trimmedTag };
+        append(newOption);
+        setAllTags(prev => [...prev, newOption].sort((a,b) => a.label.localeCompare(b.label)));
         setNewTag('');
     }
+  };
+  
+  const handleDeleteTag = (tagToDelete: FieldOption) => {
+    remove(options.findIndex(opt => opt.id === tagToDelete.id));
+    setAllTags(prev => prev.filter(t => t.id !== tagToDelete.id));
+
+    // Also remove this tag from all tasks
+    const allTasks = getTasks();
+    allTasks.forEach(task => {
+        if (task.tags?.includes(tagToDelete.value)) {
+            updateTask(task.id, { tags: task.tags.filter(t => t !== tagToDelete.value) });
+        }
+    });
   };
 
 
@@ -179,11 +198,29 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
         });
         setGroupSearch(field?.group || '');
 
-        if(field?.key === 'repositories') {
+        if(isRepoField) {
           setLocalRepoConfigs(repositoryConfigs || []);
         }
+
+        if (isTagsField) {
+            const allTasks = getTasks();
+            const dynamicTags = [...new Set(allTasks.flatMap(t => t.tags || []))];
+            const predefinedOptions = field?.options || [];
+            
+            const combinedTags = [...predefinedOptions];
+            dynamicTags.forEach(dynamicTag => {
+                if (!combinedTags.some(t => t.value === dynamicTag)) {
+                    combinedTags.push({ id: `option_dynamic_${dynamicTag}`, value: dynamicTag, label: dynamicTag });
+                }
+            });
+
+            combinedTags.sort((a,b) => a.label.localeCompare(b.label));
+            setAllTags(combinedTags);
+            // Replace the form state with the full list of tags (predefined only)
+            replace(predefinedOptions);
+        }
     }
-  }, [field, form, isOpen, repositoryConfigs]);
+  }, [field, form, isOpen, repositoryConfigs, isRepoField, isTagsField, replace]);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogChange}>
@@ -408,28 +445,51 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                         />
                     )}
                     
-                    {showCustomOptionsUI && field?.type === 'tags' && (
+                    {isTagsField && (
                          <div className="space-y-3 pt-4 border-t">
-                            <Label>Predefined Tags</Label>
+                            <h4 className="font-medium">Tag Management</h4>
+                            <FormDescription>Predefined tags are saved with this field's configuration. Other tags are dynamically found from existing tasks. Deleting a tag here will remove it from all tasks.</FormDescription>
                             <div className="flex gap-2">
-                                <Input value={newTag} onChange={e => setNewTag(e.target.value)} placeholder="New tag name" onKeyDown={e => {if (e.key === 'Enter') { e.preventDefault(); handleAddTag();}}} />
+                                <Input value={newTag} onChange={e => setNewTag(e.target.value)} placeholder="New predefined tag name" onKeyDown={e => {if (e.key === 'Enter') { e.preventDefault(); handleAddTag();}}} />
                                 <Button type="button" onClick={handleAddTag} disabled={!newTag.trim()}><PlusCircle className="h-4 w-4 mr-2" /> Add Tag</Button>
                             </div>
                             <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
-                                {options.map((tag, index) => (
-                                    <div key={tag.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50 group">
-                                        <span className="font-medium text-sm">{tag.label}</span>
-                                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7 opacity-50 group-hover:opacity-100" onClick={() => remove(index)}>
-                                            <X className="h-4 w-4 text-destructive" />
-                                        </Button>
-                                    </div>
-                                ))}
+                                {allTags.map((tag) => {
+                                    const isPredefined = options.some(opt => opt.id === tag.id);
+                                    return (
+                                        <div key={tag.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50 group">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-medium text-sm">{tag.label}</span>
+                                                {!isPredefined && <Badge variant="outline">Dynamic</Badge>}
+                                            </div>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 opacity-50 group-hover:opacity-100">
+                                                        <X className="h-4 w-4 text-destructive" />
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Delete Tag "{tag.label}"?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                          This will permanently remove this tag from all tasks and, if it's a predefined tag, from the configuration. This action cannot be undone.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDeleteTag(tag)} className="bg-destructive hover:bg-destructive/90">Delete Tag</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </div>
+                                    )
+                                })}
                             </div>
-                            {options.length === 0 && <p className="text-xs text-muted-foreground text-center py-2">No predefined tags yet.</p>}
+                            {allTags.length === 0 && <p className="text-xs text-muted-foreground text-center py-2">No tags found.</p>}
                         </div>
                     )}
                     
-                    {showCustomOptionsUI && field?.type !== 'tags' && (
+                    {showCustomOptionsUI && !isTagsField && (
                         <div className="space-y-3 pt-4 border-t">
                             <h4 className="font-medium">Options</h4>
                             {options.map((option, index) => (
