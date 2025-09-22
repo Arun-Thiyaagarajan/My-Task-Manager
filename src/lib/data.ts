@@ -3,7 +3,7 @@
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
 import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency } from './types';
 import cloneDeep from 'lodash/cloneDeep';
-import { format } from 'date-fns';
+import { format, isToday, isYesterday } from 'date-fns';
 
 const DATA_KEY = 'my_task_manager_data';
 
@@ -794,7 +794,7 @@ const generateTaskUpdateLogs = (
 
     // This handles most simple fields and relationships.
     // Complex objects like deploymentStatus and prLinks are handled separately.
-    const fieldsToLog = uiConfig.fields.filter(f => f.isActive && !['deploymentStatus', 'deploymentDates', 'prLinks'].includes(f.key));
+    const fieldsToLog = uiConfig.fields.filter(f => f.isActive && !['deploymentStatus', 'deploymentDates', 'prLinks', 'customFields'].includes(f.key));
     fieldsToLog.forEach(field => {
         const key = field.key as keyof Task;
         if (!(key in newTaskData)) return;
@@ -883,6 +883,20 @@ const generateTaskUpdateLogs = (
 
         if (logEntry) changes.push(logEntry);
     });
+
+    if (newTaskData.customFields) {
+        const oldCustomFields = oldTask.customFields || {};
+        const newCustomFields = newTaskData.customFields;
+        uiConfig.fields.forEach(field => {
+            if (field.isCustom && field.key in newCustomFields) {
+                const oldValue = oldCustomFields[field.key];
+                const newValue = newCustomFields[field.key];
+                if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
+                    changes.push(`- Changed **${field.label}** from ${formatValue(oldValue)} to ${formatValue(newValue)}.`);
+                }
+            }
+        });
+    }
     
     // Detailed deployment check
     const allEnvs = uiConfig.environments || [];
