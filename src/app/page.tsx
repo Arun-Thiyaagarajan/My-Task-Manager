@@ -128,6 +128,7 @@ const FILTER_STORAGE_KEYS = {
     deployment: 'taskflow_filter_deployment',
     date: 'taskflow_filter_date',
     favorites: 'taskflow_filter_favoritesOnly',
+    tags: 'taskflow_filter_tags',
 };
 
 // Helper function to safely get item from localStorage
@@ -159,6 +160,7 @@ export default function Home() {
   const [repoFilter, setRepoFilter] = useState<string[]>(() => getInitialStateFromStorage(FILTER_STORAGE_KEYS.repo, []));
   const [deploymentFilter, setDeploymentFilter] = useState<string[]>(() => getInitialStateFromStorage(FILTER_STORAGE_KEYS.deployment, []));
   const [searchQuery, setSearchQuery] = useState(() => getInitialStateFromStorage(FILTER_STORAGE_KEYS.search, ''));
+  const [tagsFilter, setTagsFilter] = useState<string[]>(() => getInitialStateFromStorage(FILTER_STORAGE_KEYS.tags, []));
   const [dateFilter, setDateFilter] = useState<DateRange | undefined>(() => {
     const savedDate = getInitialStateFromStorage<{from?: string; to?: string} | undefined>(FILTER_STORAGE_KEYS.date, undefined);
     if (savedDate?.from) {
@@ -217,6 +219,7 @@ export default function Home() {
   useEffect(() => { localStorage.setItem(FILTER_STORAGE_KEYS.deployment, JSON.stringify(deploymentFilter)); }, [deploymentFilter]);
   useEffect(() => { localStorage.setItem(FILTER_STORAGE_KEYS.date, JSON.stringify(dateFilter)); }, [dateFilter]);
   useEffect(() => { localStorage.setItem(FILTER_STORAGE_KEYS.favorites, JSON.stringify(favoritesOnly)); }, [favoritesOnly]);
+  useEffect(() => { localStorage.setItem(FILTER_STORAGE_KEYS.tags, JSON.stringify(tagsFilter)); }, [tagsFilter]);
 
 
   useEffect(() => {
@@ -515,6 +518,8 @@ export default function Home() {
     
     const repoMatch = repoFilter.length === 0 || (task.repositories?.some(repo => repoFilter.includes(repo)) ?? false);
 
+    const tagsMatch = tagsFilter.length === 0 || (task.tags?.some(tag => tagsFilter.includes(tag)) ?? false);
+
     const developersById = new Map(developers.map(d => [d.id, d.name]));
     const testersById = new Map(testers.map(t => [t.id, t.name]));
 
@@ -561,7 +566,7 @@ export default function Home() {
       return isNegative ? !isDeployed : isDeployed;
     });
 
-    return statusMatch && repoMatch && searchMatch && dateMatch && deploymentMatch;
+    return statusMatch && repoMatch && searchMatch && dateMatch && deploymentMatch && tagsMatch;
   });
 
   const getDeploymentScore = (task: Task) => {
@@ -1099,6 +1104,11 @@ export default function Home() {
   const TASK_STATUSES = uiConfig.taskStatuses;
   const statusOptions: SelectOption[] = TASK_STATUSES.map(s => ({ value: s, label: s }));
   const repoOptions: SelectOption[] = REPOSITORIES.map(r => ({ value: r, label: r }));
+  
+  const tagsField = uiConfig.fields.find(f => f.key === 'tags');
+  const allTags = [...new Set(tasks.flatMap(t => t.tags || []))];
+  const tagsOptions: SelectOption[] = allTags.map(t => ({ value: t, label: t }));
+
   const deploymentOptions: SelectOption[] = [
       { value: 'dev', label: 'Deployed to Dev' },
       { value: 'not_dev', label: 'Not Deployed to Dev' },
@@ -1258,6 +1268,16 @@ export default function Home() {
                             placeholder={`Filter by ${fieldLabels.get('repositories') || 'Repository'}...`}
                         />
                     </div>
+                     {tagsField && tagsField.isActive && (
+                        <div className="grow min-w-[180px] h-10">
+                            <MultiSelect
+                                selected={tagsFilter}
+                                onChange={setTagsFilter}
+                                options={tagsOptions}
+                                placeholder={`Filter by ${fieldLabels.get('tags') || 'Tags'}...`}
+                            />
+                        </div>
+                    )}
                     <div className="grow min-w-[180px] h-10">
                          <MultiSelect
                             selected={deploymentFilter}
@@ -1668,4 +1688,3 @@ export default function Home() {
     </div>
   );
 }
-
