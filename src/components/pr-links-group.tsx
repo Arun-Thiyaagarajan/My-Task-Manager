@@ -141,11 +141,11 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repository
                                     key={`${repo}-${env}-${id}`}
                                     variant="outline"
                                     className={cn(
-                                    "font-normal py-1 pl-2.5 group/badge relative hover:bg-muted/50 overflow-hidden",
-                                    isEditing ? 'pr-2' : 'pr-8'
+                                    "font-normal py-1 px-2.5 group/badge relative hover:bg-muted/50 transition-all duration-300",
+                                    !isEditing && "pr-2.5 hover:pr-8"
                                     )}
                                 >
-                                    <div className="flex items-center">
+                                    <div className="flex items-center gap-1.5">
                                       <a
                                           href={url}
                                           target="_blank"
@@ -160,14 +160,13 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repository
                                               }
                                           }}
                                       >
-                                          <GitPullRequest className="h-3 w-3 mr-1.5 text-muted-foreground" />
+                                          <GitPullRequest className="h-3 w-3 text-muted-foreground" />
                                           <span>PR #{id}</span>
                                       </a>
-                                    </div>
-                                    {!isEditing && canBeLinked && (
-                                        <div className="absolute top-0 right-0 h-full w-7 flex items-center justify-center bg-muted/50 opacity-0 group-hover/badge:opacity-100 transition-all duration-300 transform translate-x-full group-hover/badge:translate-x-0">
+                                       {!isEditing && canBeLinked && (
+                                        <div className="absolute top-1/2 -translate-y-1/2 right-1.5 flex items-center justify-center opacity-0 group-hover/badge:opacity-100 transition-opacity duration-200">
                                             <button
-                                                onClick={() => handleCopy(url)}
+                                                onClick={(e) => { e.stopPropagation(); handleCopy(url);}}
                                                 className="h-full w-full flex items-center justify-center text-muted-foreground hover:text-foreground"
                                             >
                                                 {copiedUrl === url ? (
@@ -178,15 +177,16 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repository
                                                 <span className="sr-only">Copy link</span>
                                             </button>
                                         </div>
-                                    )}
-                                    {isEditing && (
-                                    <button 
-                                        onClick={() => handleRemovePr(repo, env, id)} 
-                                        className="ml-2 rounded-full p-0.5 opacity-50 group-hover/badge:opacity-100 hover:!opacity-100 hover:bg-destructive/20 transition-opacity"
-                                    >
-                                        <X className="h-3 w-3 text-destructive" />
-                                    </button>
-                                    )}
+                                      )}
+                                      {isEditing && (
+                                      <button 
+                                          onClick={() => handleRemovePr(repo, env, id)} 
+                                          className="ml-1 rounded-full p-0.5 opacity-50 group-hover/badge:opacity-100 hover:!opacity-100 hover:bg-destructive/20 transition-opacity"
+                                      >
+                                          <X className="h-3 w-3 text-destructive" />
+                                      </button>
+                                      )}
+                                    </div>
                                 </Badge>
                                 );
                             })}
