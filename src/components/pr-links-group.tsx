@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { GitPullRequest, Plus, X, Pencil } from 'lucide-react';
+import { GitPullRequest, Plus, X, Pencil, Copy, Check } from 'lucide-react';
 import type { Task, Repository, RepositoryConfig } from '@/lib/types';
 import { Badge } from './ui/badge';
 import { ScrollArea, ScrollBar } from './ui/scroll-area';
@@ -11,6 +11,7 @@ import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
 import cloneDeep from 'lodash/cloneDeep';
+import { useToast } from '@/hooks/use-toast';
 
 interface PrLinksGroupProps {
   prLinks: Task['prLinks'];
@@ -23,6 +24,8 @@ interface PrLinksGroupProps {
 
 export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repositoryConfigs, onUpdate, isEditing }: PrLinksGroupProps) {
   const [newPrIds, setNewPrIds] = useState<Record<string, Record<string, string>>>({});
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+  const { toast } = useToast();
   
   const repoConfigMap = new Map((repositoryConfigs || []).map(rc => [rc.name, rc]));
   const displayRepos = repositories || [];
@@ -64,6 +67,16 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repository
             updated[repo][env] = '';
         }
         return updated;
+    });
+  };
+
+  const handleCopy = (url: string) => {
+    navigator.clipboard.writeText(url).then(() => {
+        setCopiedUrl(url);
+        toast({ variant: 'success', title: 'Copied to clipboard!', duration: 2000 });
+        setTimeout(() => setCopiedUrl(null), 2000);
+    }).catch(() => {
+        toast({ variant: 'destructive', title: 'Failed to copy' });
     });
   };
 
@@ -121,38 +134,55 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repository
                             {prIds.map((id) => {
                                 const baseUrl = repoConfig ? repoConfig.baseUrl : '';
                                 const canBeLinked = baseUrl && id;
-                                const url = canBeLinked ? `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}${id}` : undefined;
+                                const url = canBeLinked ? `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}${id}` : '#';
 
                                 return (
                                 <Badge
                                     key={`${repo}-${env}-${id}`}
                                     variant="outline"
                                     className={cn(
-                                    "font-normal py-1 px-2.5 group/badge relative hover:bg-muted/50",
-                                    isEditing && "pr-6"
+                                    "font-normal py-1 pl-2.5 pr-2 group/badge relative hover:bg-muted/50 overflow-hidden",
+                                    !isEditing && "pr-8"
                                     )}
                                 >
-                                    <a
-                                        href={url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className={cn(
-                                            "flex items-center",
-                                            !canBeLinked && "cursor-default"
-                                        )}
-                                        onClick={(e) => {
-                                            if (isEditing || !canBeLinked) {
-                                                e.preventDefault();
-                                            }
-                                        }}
-                                    >
-                                        <GitPullRequest className="h-3 w-3 mr-1.5 text-muted-foreground" />
-                                        <span>PR #{id}</span>
-                                    </a>
+                                    <div className="flex items-center">
+                                      <a
+                                          href={url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className={cn(
+                                              "flex items-center",
+                                              !canBeLinked && "cursor-default"
+                                          )}
+                                          onClick={(e) => {
+                                              if (isEditing || !canBeLinked) {
+                                                  e.preventDefault();
+                                              }
+                                          }}
+                                      >
+                                          <GitPullRequest className="h-3 w-3 mr-1.5 text-muted-foreground" />
+                                          <span>PR #{id}</span>
+                                      </a>
+                                    </div>
+                                    {!isEditing && canBeLinked && (
+                                        <div className="absolute top-0 right-0 h-full w-7 flex items-center justify-center bg-muted/50 opacity-0 group-hover/badge:opacity-100 transition-all duration-300 transform translate-x-8 group-hover/badge:translate-x-0">
+                                            <button
+                                                onClick={() => handleCopy(url)}
+                                                className="h-full w-full flex items-center justify-center text-muted-foreground hover:text-foreground"
+                                            >
+                                                {copiedUrl === url ? (
+                                                    <Check className="h-3.5 w-3.5 text-green-500" />
+                                                ) : (
+                                                    <Copy className="h-3.5 w-3.5" />
+                                                )}
+                                                <span className="sr-only">Copy link</span>
+                                            </button>
+                                        </div>
+                                    )}
                                     {isEditing && (
                                     <button 
                                         onClick={() => handleRemovePr(repo, env, id)} 
-                                        className="absolute top-1/2 -translate-y-1/2 right-0.5 rounded-full p-0.5 opacity-50 group-hover/badge:opacity-100 hover:!opacity-100 hover:bg-destructive/20 transition-opacity"
+                                        className="ml-2 rounded-full p-0.5 opacity-50 group-hover/badge:opacity-100 hover:!opacity-100 hover:bg-destructive/20 transition-opacity"
                                     >
                                         <X className="h-3 w-3 text-destructive" />
                                     </button>
