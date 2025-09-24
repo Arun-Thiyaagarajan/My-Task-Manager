@@ -76,6 +76,7 @@ import {
   getYear,
   getMonth,
   sub,
+  set,
 } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { useActiveCompany } from '@/hooks/use-active-company';
@@ -474,6 +475,8 @@ export default function Home() {
     if (backupFrequency === 'off') return;
 
     const lastBackup = localStorage.getItem(LAST_BACKUP_KEY);
+    const backupHour = config.autoBackupTime ?? 6;
+
     if (!lastBackup) {
         // If no backup has ever been made, trigger one immediately.
         setTimeout(() => {
@@ -489,16 +492,14 @@ export default function Home() {
 
     const now = new Date();
     const lastBackupDate = new Date(lastBackup);
-    let nextBackupDate = new Date(lastBackupDate);
     
-    const backupHour = config.autoBackupTime ?? 6; // Default to 6 AM
-    nextBackupDate.setHours(backupHour, 0, 0, 0);
+    let nextBackupDate = set(lastBackupDate, { hours: backupHour, minutes: 0, seconds: 0, milliseconds: 0 });
 
     switch(backupFrequency) {
-        case 'daily': nextBackupDate.setDate(lastBackupDate.getDate() + 1); break;
-        case 'weekly': nextBackupDate.setDate(lastBackupDate.getDate() + 7); break;
-        case 'monthly': nextBackupDate.setMonth(lastBackupDate.getMonth() + 1); break;
-        case 'yearly': nextBackupDate.setFullYear(lastBackupDate.getFullYear() + 1); break;
+        case 'daily': nextBackupDate = addMonths(nextBackupDate, 0); nextBackupDate.setDate(nextBackupDate.getDate() + 1); break;
+        case 'weekly': nextBackupDate = addMonths(nextBackupDate, 0); nextBackupDate.setDate(nextBackupDate.getDate() + 7); break;
+        case 'monthly': nextBackupDate = addMonths(nextBackupDate, 1); break;
+        case 'yearly': nextBackupDate = addYears(nextBackupDate, 1); break;
     }
 
     if (now >= nextBackupDate) {
