@@ -75,6 +75,7 @@ export default function TaskPage() {
   const [isEditingPrLinks, setIsEditingPrLinks] = useState(false);
   const [previewImage, setPreviewImage] = useState<{url: string; name: string} | null>(null);
   const [isEditingAttachments, setIsEditingAttachments] = useState(false);
+  const [localAttachments, setLocalAttachments] = useState<Attachment[]>([]);
   const [isAddLinkPopoverOpen, setIsAddLinkPopoverOpen] = useState(false);
   const [newLink, setNewLink] = useState({ name: '', url: '' });
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -102,6 +103,7 @@ export default function TaskPage() {
       const config = getUiConfig();
       
       setTask(foundTask || null);
+      setLocalAttachments(foundTask?.attachments || []);
       setUiConfig(config);
       setDevelopers(allDevs);
       setTesters(allTesters);
@@ -390,49 +392,40 @@ export default function TaskPage() {
       }
   };
 
-  const updateAttachments = (newAttachments: Attachment[]) => {
-      if (!task) return;
-      const updatedTask = updateTask(task.id, { attachments: newAttachments });
-      if (updatedTask) {
-          setTask(updatedTask);
-          setTaskLogs(getLogsForTask(task.id));
-      }
-      return updatedTask;
-  };
+    const handleSaveAttachments = () => {
+        if (!task) return;
+        const updatedTask = updateTask(task.id, { attachments: localAttachments });
+        if (updatedTask) {
+            setTask(updatedTask);
+            setLocalAttachments(updatedTask.attachments || []);
+            setTaskLogs(getLogsForTask(task.id));
+            toast({ variant: 'success', title: 'Attachments Updated' });
+        }
+        setIsEditingAttachments(false);
+    };
 
   const handleDeleteAttachment = (index: number) => {
-      const newAttachments = [...(task?.attachments || [])];
+      const newAttachments = [...localAttachments];
       newAttachments.splice(index, 1);
-      if(updateAttachments(newAttachments)) {
-        toast({ variant: 'success', title: 'Attachment removed.' });
-      }
+      setLocalAttachments(newAttachments);
   };
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+  const handleImageUpload = (file: File) => {
     if (file.size > 2 * 1024 * 1024) { // 2MB limit
         toast({ variant: 'destructive', title: 'Image too large', description: 'Please upload an image smaller than 2MB.' });
         return;
     }
-
     const reader = new FileReader();
     reader.onload = (e) => {
         const dataUri = e.target?.result as string;
         const newAttachment: Attachment = { name: file.name, url: dataUri, type: 'image' };
-        if(updateAttachments([...(task?.attachments || []), newAttachment])) {
-          toast({ variant: 'success', title: 'Image added.' });
-        }
+        setLocalAttachments(prev => [...prev, newAttachment]);
+        toast({ variant: 'success', title: 'Image ready to be saved.'});
     };
     reader.readAsDataURL(file);
-
-    if (event.target) {
-        event.target.value = '';
-    }
   };
-  
-  const handleSaveLink = () => {
+
+  const handleAddLink = () => {
       const validationResult = attachmentSchema.safeParse({ ...newLink, type: 'link' });
       if(!validationResult.success) {
           const errors = validationResult.error.flatten().fieldErrors;
@@ -440,12 +433,36 @@ export default function TaskPage() {
           return;
       }
       const newAttachment: Attachment = { ...validationResult.data, type: 'link' };
-      if(updateAttachments([...(task?.attachments || []), newAttachment])) {
-        toast({ variant: 'success', title: 'Link added.' });
-        setNewLink({ name: '', url: '' });
-        setIsAddLinkPopoverOpen(false);
-      }
+      setLocalAttachments(prev => [...prev, newAttachment]);
+      setNewLink({ name: '', url: '' });
+      setIsAddLinkPopoverOpen(false);
+      toast({ variant: 'success', title: 'Link ready to be saved.'});
   }
+
+  // Effect for handling pasted images
+  useEffect(() => {
+    const handlePaste = (event: ClipboardEvent) => {
+      if (!isEditingAttachments) return;
+      const items = event.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          if (file) {
+            event.preventDefault();
+            handleImageUpload(file);
+            break;
+          }
+        }
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => {
+      window.removeEventListener('paste', handlePaste);
+    };
+  }, [isEditingAttachments]);
   
   const handleRestore = () => {
     if (task && task.deletedAt) {
@@ -978,13 +995,87 @@ const handleCopyDescription = () => {
 
             {attachmentsField && (
                 <Card>
-                    <CardHeader>
+                    <CardHeader className="flex flex-row items-center justify-between">
                         <CardTitle className="flex items-center gap-2 text-xl">
                             <Paperclip className="h-5 w-5" />{fieldLabels.get('attachments') || 'Attachments'}
                         </CardTitle>
+                        {!isBinned && (
+                            <Button variant="ghost" size="sm" onClick={() => {
+                                if (isEditingAttachments) {
+                                    handleSaveAttachments();
+                                } else {
+                                    setIsEditingAttachments(true);
+                                    setLocalAttachments(task.attachments || []);
+                                }
+                            }}>
+                                {isEditingAttachments ? 'Save' : <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>}
+                            </Button>
+                        )}
                     </CardHeader>
                     <CardContent className="space-y-2">
-                         {(!task.attachments || task.attachments.length === 0) ? (
+                         {isEditingAttachments ? (
+                            <div className="space-y-3">
+                                <div className="space-y-2">
+                                {localAttachments.map((att, index) => (
+                                    <div key={index} className="flex items-start gap-2 group/attachment p-2 -m-2 rounded-md bg-muted/50">
+                                        <div className="flex-1 space-y-1">
+                                          <Input 
+                                            value={att.name} 
+                                            onChange={(e) => {
+                                                const newAtts = [...localAttachments];
+                                                newAtts[index].name = e.target.value;
+                                                setLocalAttachments(newAtts);
+                                            }}
+                                            placeholder="Attachment name"
+                                            className="h-8"
+                                          />
+                                          {att.type === 'link' && (
+                                            <Input 
+                                                value={att.url} 
+                                                onChange={(e) => {
+                                                    const newAtts = [...localAttachments];
+                                                    newAtts[index].url = e.target.value;
+                                                    setLocalAttachments(newAtts);
+                                                }}
+                                                placeholder="https://example.com"
+                                                className="h-8"
+                                            />
+                                          )}
+                                        </div>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive shrink-0" onClick={() => handleDeleteAttachment(index)}>
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ))}
+                                </div>
+
+                                <div className="border-2 border-dashed rounded-lg p-4 text-center text-sm text-muted-foreground">
+                                    <p>Drop files, or paste an image</p>
+                                    <div className="flex items-center justify-center gap-2 mt-2">
+                                        <Popover open={isAddLinkPopoverOpen} onOpenChange={setIsAddLinkPopoverOpen}>
+                                            <PopoverTrigger asChild>
+                                                <Button type="button" variant="outline" size="sm"><Link2 className="h-4 w-4 mr-2" /> Add Link</Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-80">
+                                                <div className="grid gap-4">
+                                                    <div className="space-y-2">
+                                                        <h4 className="font-medium leading-none">Add Link</h4>
+                                                        <p className="text-sm text-muted-foreground">Enter a name and a valid URL.</p>
+                                                    </div>
+                                                    <div className="grid gap-2">
+                                                        <Input placeholder="Link Name" value={newLink.name} onChange={(e) => setNewLink(p => ({...p, name: e.target.value}))} />
+                                                        <Input placeholder="https://..." value={newLink.url} onChange={(e) => setNewLink(p => ({...p, url: e.target.value}))} />
+                                                    </div>
+                                                    <Button onClick={handleAddLink}>Add</Button>
+                                                </div>
+                                            </PopoverContent>
+                                        </Popover>
+                                        <Button type="button" variant="outline" size="sm" onClick={() => imageInputRef.current?.click()}><Image className="h-4 w-4 mr-2" /> Add Image</Button>
+                                    </div>
+                                    <input type="file" ref={imageInputRef} onChange={(e) => e.target.files && handleImageUpload(e.target.files[0])} className="hidden" accept="image/*" />
+                                </div>
+                            </div>
+                         ) : (!task.attachments || task.attachments.length === 0) ? (
                             <div className="text-center py-6 text-muted-foreground border-2 border-dashed rounded-lg">
                                 <p className="text-sm font-medium">No attachments yet.</p>
                             </div>
@@ -1108,7 +1199,7 @@ function TaskDetailSection({ title, people, setPersonInView, isDeveloper }: {
                 ))
             ) : (
             <p className="text-sm text-muted-foreground">
-                No {title} assigned.
+                No {title.toLowerCase()} assigned.
             </p>
             )}
         </div>
@@ -1190,5 +1281,7 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
 
 
 
+
+    
 
     
