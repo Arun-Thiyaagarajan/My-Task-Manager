@@ -141,8 +141,8 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repository
                                     key={`${repo}-${env}-${id}`}
                                     variant="outline"
                                     className={cn(
-                                    "font-normal py-1 pl-2.5 pr-2 group/badge relative hover:bg-muted/50 overflow-hidden",
-                                    !isEditing && "pr-8"
+                                    "font-normal py-1 pl-2.5 group/badge relative hover:bg-muted/50 overflow-hidden",
+                                    isEditing ? 'pr-2' : 'pr-8'
                                     )}
                                 >
                                     <div className="flex items-center">
@@ -165,7 +165,7 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repository
                                       </a>
                                     </div>
                                     {!isEditing && canBeLinked && (
-                                        <div className="absolute top-0 right-0 h-full w-7 flex items-center justify-center bg-muted/50 opacity-0 group-hover/badge:opacity-100 transition-all duration-300 transform translate-x-8 group-hover/badge:translate-x-0">
+                                        <div className="absolute top-0 right-0 h-full w-7 flex items-center justify-center bg-muted/50 opacity-0 group-hover/badge:opacity-100 transition-all duration-300 transform translate-x-full group-hover/badge:translate-x-0">
                                             <button
                                                 onClick={() => handleCopy(url)}
                                                 className="h-full w-full flex items-center justify-center text-muted-foreground hover:text-foreground"
