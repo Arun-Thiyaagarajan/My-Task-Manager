@@ -145,13 +145,13 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repository
                                     !isEditing && "pr-2.5 hover:pr-8"
                                     )}
                                 >
-                                    <div className="flex items-center gap-1.5">
+                                    <div className="flex items-center">
                                       <a
                                           href={url}
                                           target="_blank"
                                           rel="noopener noreferrer"
                                           className={cn(
-                                              "flex items-center",
+                                              "flex items-center gap-1.5",
                                               !canBeLinked && "cursor-default"
                                           )}
                                           onClick={(e) => {
