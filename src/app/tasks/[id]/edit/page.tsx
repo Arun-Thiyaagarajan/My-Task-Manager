@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getTaskById, getDevelopers, updateTask, getTesters, getUiConfig } from '@/lib/data';
+import { getTaskById, getDevelopers, updateTask, getTesters, getUiConfig, getTasks } from '@/lib/data';
 import { useParams, useRouter } from 'next/navigation';
 import { TaskForm } from '@/components/task-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +20,7 @@ export default function EditTaskPage() {
   
   const taskId = params.id as string;
   const [task, setTask] = useState<Task | null>(null);
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [developersList, setDevelopersList] = useState<Person[]>([]);
   const [testersList, setTestersList] = useState<Person[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -27,11 +28,13 @@ export default function EditTaskPage() {
   useEffect(() => {
     if (taskId) {
       const foundTask = getTaskById(taskId);
+      const allTasksData = getTasks();
       const devs = getDevelopers();
       const testers = getTesters();
       const config = getUiConfig();
 
       setTask(foundTask || null);
+      setAllTasks(allTasksData);
       setDevelopersList(devs);
       setTestersList(testers);
       setIsLoading(false);
@@ -126,6 +129,7 @@ export default function EditTaskPage() {
         <CardContent>
           <TaskForm
             task={task}
+            allTasks={allTasks}
             onSubmit={handleUpdateTask}
             submitButtonText="Save Changes"
             developersList={developersList}

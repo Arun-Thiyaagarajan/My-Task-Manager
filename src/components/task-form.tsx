@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -36,6 +35,7 @@ type TaskFormData = z.infer<ReturnType<typeof createTaskSchema>>;
 
 interface TaskFormProps {
   task?: Partial<Task>;
+  allTasks?: Task[];
   onSubmit: (data: TaskFormData) => void;
   submitButtonText: string;
   developersList: Person[];
@@ -94,7 +94,7 @@ const getInitialTaskData = (task?: Partial<Task>) => {
     }
 }
 
-export function TaskForm({ task, onSubmit, submitButtonText, developersList: propDevelopersList, testersList: propTestersList }: TaskFormProps) {
+export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developersList: propDevelopersList, testersList: propTestersList }: TaskFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
@@ -158,10 +158,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
     name: 'attachments',
   });
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+  const handleImageUpload = (file: File) => {
     if (file.size > 2 * 1024 * 1024) { // 2MB limit
         toast({
             variant: 'destructive',
@@ -181,12 +178,30 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
         });
     };
     reader.readAsDataURL(file);
-
-    // Reset file input
-    if (event.target) {
-        event.target.value = '';
-    }
   };
+  
+  useEffect(() => {
+    const handlePaste = (event: ClipboardEvent) => {
+      const items = event.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          if (file) {
+            event.preventDefault();
+            handleImageUpload(file);
+            break;
+          }
+        }
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => {
+      window.removeEventListener('paste', handlePaste);
+    };
+  }, [handleImageUpload]);
 
   const watchedRepositories = form.watch('repositories', []);
   const allConfiguredEnvs = uiConfig?.environments || [];
@@ -306,7 +321,15 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
     } else if(field.key === 'testers') {
         options = (testersList || []).map(t => ({ value: t.id, label: t.name }));
     } else if (field.type === 'tags') {
-        options = field.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
+        const predefined = field.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
+        const dynamic = [...new Set((allTasks || []).flatMap(t => t.tags || []))].map(t => ({value: t, label: t}));
+        const combined = [...predefined];
+        dynamic.forEach(d => {
+            if (!combined.some(p => p.value === d.value)) {
+                combined.push(d);
+            }
+        });
+        options = combined;
     } else {
         options = field.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
     }
@@ -558,6 +581,11 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                                         <Button type="button" variant="destructive" size="icon" onClick={() => removeAttachment(index)} className="shrink-0"><Trash2 className="h-4 w-4" /></Button>
                                     </div>
                                 ))}
+                                {(attachments.length || 0) === 0 && (
+                                     <div className="border-2 border-dashed rounded-lg p-4 text-center text-sm text-muted-foreground">
+                                        <p>Drop files, or paste an image</p>
+                                     </div>
+                                )}
                             </div>
                             
                             <div className="flex gap-2 pt-2 border-t">
@@ -572,7 +600,7 @@ export function TaskForm({ task, onSubmit, submitButtonText, developersList: pro
                             <input
                                 type="file"
                                 ref={imageInputRef}
-                                onChange={handleImageUpload}
+                                onChange={(e) => e.target.files && handleImageUpload(e.target.files[0])}
                                 className="hidden"
                                 accept="image/*"
                             />
