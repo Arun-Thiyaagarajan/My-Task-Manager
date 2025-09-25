@@ -394,6 +394,12 @@ export default function TaskPage() {
 
     const handleSaveAttachments = () => {
         if (!task) return;
+
+        if (JSON.stringify(task.attachments || []) === JSON.stringify(localAttachments)) {
+            setIsEditingAttachments(false);
+            return;
+        }
+
         const updatedTask = updateTask(task.id, { attachments: localAttachments });
         if (updatedTask) {
             setTask(updatedTask);
@@ -1312,3 +1318,4 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
     
 
     
+
