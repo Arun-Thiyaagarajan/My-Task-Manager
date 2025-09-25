@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -29,6 +30,7 @@ import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { getLinkAlias } from '@/ai/flows/get-link-alias-flow';
 
 
 type TaskFormData = z.infer<ReturnType<typeof createTaskSchema>>;
@@ -185,14 +187,41 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
       const items = event.clipboardData?.items;
       if (!items) return;
 
+      let foundContent = false;
       for (let i = 0; i < items.length; i++) {
+        // Handle images
         if (items[i].type.indexOf('image') !== -1) {
           const file = items[i].getAsFile();
           if (file) {
             event.preventDefault();
             handleImageUpload(file);
+            foundContent = true;
             break;
           }
+        }
+        // Handle text (for URLs)
+        if (items[i].type === 'text/plain') {
+          items[i].getAsString(async (pastedText) => {
+            try {
+              const url = new URL(pastedText);
+              if (url.protocol === 'http:' || url.protocol === 'https:') {
+                event.preventDefault();
+
+                const aliasResult = await getLinkAlias({ url: pastedText });
+                const newAttachment: Attachment = {
+                  name: aliasResult.alias || pastedText,
+                  url: pastedText,
+                  type: 'link',
+                };
+                appendAttachment(newAttachment);
+                toast({ variant: 'success', title: 'Pasted link added.' });
+              }
+            } catch (_) {
+              // Not a valid URL, do nothing
+            }
+          });
+          foundContent = true; // Assume we might find a URL, to prevent default paste
+          break;
         }
       }
     };
@@ -201,7 +230,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
     return () => {
       window.removeEventListener('paste', handlePaste);
     };
-  }, [handleImageUpload]);
+  }, [appendAttachment, toast]);
 
   const watchedRepositories = form.watch('repositories', []);
   const allConfiguredEnvs = uiConfig?.environments || [];
@@ -337,7 +366,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
     if (field.sortDirection === 'asc') {
         options.sort((a, b) => a.label.localeCompare(b.label));
     } else if (field.sortDirection === 'desc') {
-        options.sort((a, b) => b.label.localeCompare(b.label));
+        options.sort((a, b) => b.label.localeCompare(a.label));
     }
     // No sorting for 'manual' or undefined
 
@@ -583,7 +612,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                                 ))}
                                 {(attachments.length || 0) === 0 && (
                                      <div className="border-2 border-dashed rounded-lg p-4 text-center text-sm text-muted-foreground">
-                                        <p>Drop files, or paste an image</p>
+                                        <p>Drop files, or paste an image/link</p>
                                      </div>
                                 )}
                             </div>

@@ -439,21 +439,48 @@ export default function TaskPage() {
       toast({ variant: 'success', title: 'Link ready to be saved.'});
   }
 
-  // Effect for handling pasted images
+  // Effect for handling pasted content
   useEffect(() => {
     const handlePaste = (event: ClipboardEvent) => {
       if (!isEditingAttachments) return;
       const items = event.clipboardData?.items;
       if (!items) return;
 
+      let foundContent = false;
       for (let i = 0; i < items.length; i++) {
+        // Handle images
         if (items[i].type.indexOf('image') !== -1) {
           const file = items[i].getAsFile();
           if (file) {
             event.preventDefault();
             handleImageUpload(file);
+            foundContent = true;
             break;
           }
+        }
+        // Handle text (for URLs)
+        if (items[i].type === 'text/plain') {
+            items[i].getAsString(async (pastedText) => {
+                try {
+                    const url = new URL(pastedText);
+                    if (url.protocol === 'http:' || url.protocol === 'https:') {
+                        event.preventDefault();
+                        
+                        const aliasResult = await getLinkAlias({ url: pastedText });
+                        const newAttachment: Attachment = {
+                            name: aliasResult.alias || pastedText,
+                            url: pastedText,
+                            type: 'link',
+                        };
+                        setLocalAttachments(prev => [...prev, newAttachment]);
+                        toast({ variant: 'success', title: 'Pasted link ready to be saved.' });
+                    }
+                } catch (_) {
+                    // Not a valid URL, do nothing
+                }
+            });
+            foundContent = true; // Assume we might find a URL, to prevent default paste
+            break;
         }
       }
     };
@@ -1050,7 +1077,7 @@ const handleCopyDescription = () => {
                                 </div>
 
                                 <div className="border-2 border-dashed rounded-lg p-4 text-center text-sm text-muted-foreground">
-                                    <p>Drop files, or paste an image</p>
+                                    <p>Drop files, or paste an image/link</p>
                                     <div className="flex items-center justify-center gap-2 mt-2">
                                         <Popover open={isAddLinkPopoverOpen} onOpenChange={setIsAddLinkPopoverOpen}>
                                             <PopoverTrigger asChild>
