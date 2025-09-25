@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { TaskForm } from '@/components/task-form';
-import { addTask, getDevelopers, getTesters, getUiConfig } from '@/lib/data';
+import { addTask, getDevelopers, getTesters, getUiConfig, getTasks } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -16,6 +16,7 @@ export default function NewTaskPage() {
   const { toast } = useToast();
   const [developersList, setDevelopersList] = useState<Person[]>([]);
   const [testersList, setTestersList] = useState<Person[]>([]);
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [initialData, setInitialData] = useState<Partial<Task> | undefined>(undefined);
   
@@ -24,6 +25,7 @@ export default function NewTaskPage() {
     document.title = `New Task | ${config.appName || 'My Task Manager'}`;
     setDevelopersList(getDevelopers());
     setTestersList(getTesters());
+    setAllTasks(getTasks());
     
     // This logic stays to handle failed imports from the old implementation
     const failedImportRowString = sessionStorage.getItem('failed_import_row');
@@ -110,6 +112,7 @@ export default function NewTaskPage() {
         <CardContent>
           <TaskForm
             task={initialData}
+            allTasks={allTasks}
             onSubmit={handleCreateTask}
             submitButtonText="Create Task"
             developersList={developersList}
