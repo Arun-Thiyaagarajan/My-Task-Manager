@@ -1,9 +1,7 @@
-
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask, clearExpiredReminders, addTagsToMultipleTasks } from '@/lib/data';
+import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask, clearExpiredReminders, addTagsToMultipleTasks, addDeveloper, addTester } from '@/lib/data';
 import { getLinkAlias } from '@/ai/flows/get-link-alias-flow';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -85,7 +83,10 @@ export default function TaskPage() {
   const [isReminderOpen, setIsReminderOpen] = useState(false);
   const [pinnedTaskIds, setPinnedTaskIds] = useState<string[]>([]);
   const [isCopying, setIsCopying] = useState(false);
-  const [isEditingTags, setIsEditingTags] = useState(false);
+  const [editingSection, setEditingSection] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState<any>('');
+
+  const titleInputRef = useRef<HTMLInputElement>(null);
   
   const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
   const taskId = params.id as string;
@@ -252,6 +253,47 @@ export default function TaskPage() {
     }
   }, [task]);
   
+  useEffect(() => {
+    if (editingSection === 'title' && titleInputRef.current) {
+        titleInputRef.current.focus();
+        titleInputRef.current.select();
+    }
+  }, [editingSection]);
+  
+  const handleStartEditing = (section: string, initialValue: any) => {
+    if (isBinned) return;
+    setEditingSection(section);
+    setEditingValue(initialValue);
+  };
+  
+  const handleCancelEditing = () => {
+    setEditingSection(null);
+    setEditingValue('');
+  };
+  
+  const handleSaveEditing = (key: string, isCustom: boolean) => {
+    if (!task) return;
+
+    let updateData: Partial<Task> = {};
+    if (isCustom) {
+        updateData.customFields = { ...task.customFields, [key]: editingValue };
+    } else {
+        (updateData as any)[key] = editingValue;
+    }
+    
+    const updatedTask = updateTask(task.id, updateData);
+    if (updatedTask) {
+        setTask(updatedTask);
+        setTaskLogs(getLogsForTask(task.id));
+        toast({
+            variant: 'success',
+            title: 'Field Updated',
+            description: 'Your changes have been saved.',
+        });
+    }
+    handleCancelEditing();
+  };
+
   const handleTogglePin = (taskIdToToggle: string) => {
     const isCurrentlyPinned = pinnedTaskIds.includes(taskIdToToggle);
     let newPinnedIds: string[];
@@ -369,27 +411,6 @@ export default function TaskPage() {
             description: 'Failed to update pull request links.',
         });
     }
-  };
-  
-  const handleTagsUpdate = (newTags: string[]) => {
-      if (!task) return;
-
-      const updatedTask = updateTask(task.id, { tags: newTags });
-      if(updatedTask) {
-          setTask(updatedTask);
-          setTaskLogs(getLogsForTask(task.id));
-          toast({
-              variant: 'success',
-              title: 'Tags Updated',
-              description: `The tags for this task have been saved.`,
-          });
-      } else {
-          toast({
-              variant: 'destructive',
-              title: 'Error',
-              description: 'Failed to update tags.',
-          });
-      }
   };
 
     const handleSaveAttachments = () => {
@@ -624,6 +645,28 @@ const handleCopyDescription = () => {
               return <span className="break-words">{String(value)}</span>;
       }
   }
+  
+  const handleCreateDeveloper = (name: string): string | undefined => {
+    try {
+        const newDev = addDeveloper({ name });
+        setDevelopers(prev => [...prev, newDev]);
+        return newDev.id;
+    } catch (e: any) {
+        toast({ variant: 'destructive', title: 'Failed to add developer' });
+        return undefined;
+    }
+  };
+
+  const handleCreateTester = (name: string): string | undefined => {
+    try {
+        const newTester = addTester({ name });
+        setTesters(prev => [...prev, newTester]);
+        return newTester.id;
+    } catch (e: any) {
+        toast({ variant: 'destructive', title: 'Failed to add tester' });
+        return undefined;
+    }
+  };
 
   if (isLoading || !uiConfig) {
     return <LoadingSpinner text="Loading task details..." />;
@@ -655,22 +698,19 @@ const handleCopyDescription = () => {
   const customFields = uiConfig.fields.filter(f => f.isCustom && f.isActive && task.customFields && typeof task.customFields[f.key] !== 'undefined' && task.customFields[f.key] !== null && task.customFields[f.key] !== '');
   
   const developersById = new Map(developers.map(d => [d.id, d]));
-  const testersById = new Map(testers.map(t => [t.id, t]));
+  const testersById = new Map(testers.map(t => [t.id, t.name]));
   const assignedDevelopers = (task.developers || []).map(id => developersById.get(id)).filter((d): d is Person => !!d);
   const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter((t): t is Person => !!t);
 
   const azureFieldConfig = uiConfig.fields.find(f => f.key === 'azureWorkItemId');
   
   const tagsField = uiConfig.fields.find(f => f.key === 'tags');
-  const allPredefinedTags = tagsField?.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
-  const allDynamicTags = [...new Set(allTasks.flatMap(t => t.tags || []))].map(t => ({value: t, label: t}));
+  const repoField = uiConfig.fields.find(f => f.key === 'repositories');
   
-  const combinedTagsOptions = [...allPredefinedTags];
-  allDynamicTags.forEach(dynamicTag => {
-    if (!combinedTagsOptions.some(t => t.value === dynamicTag.value)) {
-        combinedTagsOptions.push(dynamicTag);
-    }
-  });
+  const tagsOptions = [...new Set([...(tagsField?.options?.map(opt => opt.value) || []), ...(allTasks.flatMap(t => t.tags || []))])].map(t => ({value: t, label: t}));
+  const repoOptions = (repoField?.options || uiConfig.repositoryConfigs).map(opt => ({ value: opt.value, label: opt.label }));
+  const developerOptions = developers.map(d => ({value: d.id, label: d.name}));
+  const testerOptions = testers.map(t => ({value: t.id, label: t.name}));
 
   const prField = uiConfig.fields.find(f => f.key === 'prLinks' && f.isActive);
   const deploymentField = uiConfig.fields.find(f => f.key === 'deploymentStatus' && f.isActive);
@@ -805,10 +845,21 @@ const handleCopyDescription = () => {
                 <div className="relative z-10 flex flex-col h-full">
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start gap-4">
-                      <div className="flex-1 flex items-center gap-2">
-                        <CardTitle className="text-3xl font-bold">
-                          {task.title}
-                        </CardTitle>
+                      <div className="flex-1 flex items-center gap-2" onClick={() => !isBinned && handleStartEditing('title', task.title)}>
+                        {editingSection === 'title' ? (
+                            <Input 
+                                ref={titleInputRef}
+                                value={editingValue} 
+                                onChange={e => setEditingValue(e.target.value)} 
+                                onBlur={() => handleSaveEditing('title', false)}
+                                onKeyDown={e => e.key === 'Enter' && handleSaveEditing('title', false)}
+                                className="text-3xl font-bold h-auto p-0 border-0 focus-visible:ring-0"
+                            />
+                        ) : (
+                            <CardTitle className="text-3xl font-bold">
+                                {task.title}
+                            </CardTitle>
+                        )}
                         {uiConfig.remindersEnabled && !isBinned && (
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -927,8 +978,27 @@ const handleCopyDescription = () => {
                 <CardContent className="space-y-4">
                   {customFields.map(field => (
                     <div key={field.key} className="break-words">
-                      <h4 className="text-sm font-semibold text-muted-foreground mb-1">{field.label}</h4>
-                      <div className="text-sm text-foreground min-w-0">{renderCustomFieldValue(field, task.customFields?.[field.key])}</div>
+                      <div className="flex justify-between items-start">
+                        <h4 className="text-sm font-semibold text-muted-foreground mb-1">{field.label}</h4>
+                        {!isBinned && (
+                          <Button variant="ghost" size="icon" className="h-6 w-6 -mr-2 -mt-1" onClick={() => handleStartEditing(`customFields.${field.key}`, task.customFields?.[field.key])}>
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                      <div className="text-sm text-foreground min-w-0">
+                        {editingSection === `customFields.${field.key}` ? (
+                            <Input
+                                value={editingValue}
+                                onChange={e => setEditingValue(e.target.value)}
+                                onBlur={() => handleSaveEditing(field.key, true)}
+                                onKeyDown={e => e.key === 'Enter' && handleSaveEditing(field.key, true)}
+                                autoFocus
+                            />
+                        ) : (
+                            renderCustomFieldValue(field, task.customFields?.[field.key])
+                        )}
+                      </div>
                     </div>
                   ))}
                 </CardContent>
@@ -936,14 +1006,7 @@ const handleCopyDescription = () => {
             )}
 
             {commentsField && !isBinned && (
-               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-xl"><MessageSquare className="h-5 w-5" />{fieldLabels.get('comments') || 'Comments'}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CommentsSection taskId={task.id} comments={task.comments || []} onCommentsUpdate={handleCommentsUpdate} readOnly={isBinned} />
-                </CardContent>
-              </Card>
+               <CommentsSection taskId={task.id} comments={task.comments || []} onCommentsUpdate={handleCommentsUpdate} readOnly={isBinned} />
             )}
             
             {historyField && (
@@ -957,53 +1020,93 @@ const handleCopyDescription = () => {
           <div className="space-y-6">
             <Card className="h-fit">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-xl"><ListChecks className="h-5 w-5" />Task Details</CardTitle>
+                  <CardTitle className="flex items-center justify-between text-xl">
+                    <span className="flex items-center gap-2"><ListChecks className="h-5 w-5" />Task Details</span>
+                    {!isBinned && editingSection !== 'details' && (
+                        <Button variant="ghost" size="sm" onClick={() => handleStartEditing('details', {})}>
+                            <Pencil className="h-3 w-3 mr-1.5" /> Edit
+                        </Button>
+                    )}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <TaskDetailSection title={fieldLabels.get('developers') || 'Developers'} people={assignedDevelopers} setPersonInView={setPersonInView} isDeveloper={true} />
-                  <Separator />
-                  <TaskDetailSection title={fieldLabels.get('testers') || 'Testers'} people={assignedTesters} setPersonInView={setPersonInView} isDeveloper={false} />
-                  <Separator />
-                  <div>
-                    <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('repositories') || 'Repositories'}</h4>
-                    <div className="flex flex-wrap gap-1">
-                      {(task.repositories && task.repositories.length > 0) ? (task.repositories || []).map(repo => (
-                        <Badge key={repo} variant="repo" style={getRepoBadgeStyle(repo)}>{repo}</Badge>
-                      )) : (<p className="text-sm text-muted-foreground">No repositories assigned.</p>)}
-                    </div>
-                  </div>
-                  {azureFieldConfig && azureFieldConfig.isActive && task.azureWorkItemId && (<>
-                    <Separator />
-                    <div>
-                      <h4 className="text-sm font-semibold text-muted-foreground mb-2">{azureFieldConfig.label || 'Azure DevOps'}</h4>
-                      {azureFieldConfig.baseUrl ? (
-                        <a href={`${azureFieldConfig.baseUrl}${task.azureWorkItemId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline text-sm">
-                          <ExternalLink className="h-4 w-4" />
-                          <span>Work Item #{task.azureWorkItemId}</span>
-                        </a>
-                      ) : (<span className="text-sm text-foreground">{task.azureWorkItemId}</span>)}
-                    </div>
-                  </>)}
+                  {editingSection === 'details' ? (
+                     <div className="space-y-4">
+                         <div>
+                            <Label>{fieldLabels.get('developers') || 'Developers'}</Label>
+                            <MultiSelect selected={task.developers || []} onChange={val => handleSaveEditing('developers', false, val)} options={developerOptions} creatable onCreate={handleCreateDeveloper}/>
+                        </div>
+                        <div>
+                            <Label>{fieldLabels.get('testers') || 'Testers'}</Label>
+                            <MultiSelect selected={task.testers || []} onChange={val => handleSaveEditing('testers', false, val)} options={testerOptions} creatable onCreate={handleCreateTester}/>
+                        </div>
+                        <div>
+                            <Label>{fieldLabels.get('repositories') || 'Repositories'}</Label>
+                            <MultiSelect selected={task.repositories || []} onChange={val => handleSaveEditing('repositories', false, val)} options={repoOptions} />
+                        </div>
+                        {azureFieldConfig?.isActive && (
+                            <div>
+                                <Label>{azureFieldConfig.label || 'Azure DevOps'}</Label>
+                                <Input defaultValue={task.azureWorkItemId} onBlur={(e) => handleSaveEditing('azureWorkItemId', false, e.target.value)} placeholder="Enter ID..."/>
+                            </div>
+                        )}
+                        <Button onClick={() => setEditingSection(null)} className="w-full">Done</Button>
+                     </div>
+                  ) : (
+                    <>
+                      <TaskDetailSection title={fieldLabels.get('developers') || 'Developers'} people={assignedDevelopers} setPersonInView={setPersonInView} isDeveloper={true} />
+                      <Separator />
+                      <TaskDetailSection title={fieldLabels.get('testers') || 'Testers'} people={assignedTesters} setPersonInView={setPersonInView} isDeveloper={false} />
+                      <Separator />
+                      <div>
+                        <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('repositories') || 'Repositories'}</h4>
+                        <div className="flex flex-wrap gap-1">
+                          {(task.repositories && task.repositories.length > 0) ? (task.repositories || []).map(repo => (
+                            <Badge key={repo} variant="repo" style={getRepoBadgeStyle(repo)}>{repo}</Badge>
+                          )) : (<p className="text-sm text-muted-foreground">No repositories assigned.</p>)}
+                        </div>
+                      </div>
+                      {azureFieldConfig && azureFieldConfig.isActive && task.azureWorkItemId && (<>
+                        <Separator />
+                        <div>
+                          <h4 className="text-sm font-semibold text-muted-foreground mb-2">{azureFieldConfig.label || 'Azure DevOps'}</h4>
+                          {azureFieldConfig.baseUrl ? (
+                            <a href={`${azureFieldConfig.baseUrl}${task.azureWorkItemId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline text-sm">
+                              <ExternalLink className="h-4 w-4" />
+                              <span>Work Item #{task.azureWorkItemId}</span>
+                            </a>
+                          ) : (<span className="text-sm text-foreground">{task.azureWorkItemId}</span>)}
+                        </div>
+                      </>)}
+                    </>
+                  )}
+                  
                   {tagsField && tagsField.isActive && (
                     <>
                         <Separator />
                         <div>
                             <div className="flex items-center justify-between mb-2">
                                 <h4 className="text-sm font-semibold text-muted-foreground">{tagsField.label || 'Tags'}</h4>
-                                {!isBinned && (
-                                    <Button variant="ghost" size="sm" onClick={() => setIsEditingTags(prev => !prev)}>
-                                        {isEditingTags ? 'Done' : <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>}
+                                {!isBinned && editingSection !== 'tags' && (
+                                    <Button variant="ghost" size="sm" onClick={() => handleStartEditing('tags', task.tags || [])}>
+                                        <Pencil className="h-3 w-3 mr-1.5" /> Edit
                                     </Button>
                                 )}
                             </div>
-                            {isEditingTags ? (
-                                <MultiSelect
-                                    selected={task.tags || []}
-                                    onChange={handleTagsUpdate}
-                                    options={combinedTagsOptions}
-                                    placeholder="Add or create tags..."
-                                    creatable
-                                />
+                            {editingSection === 'tags' ? (
+                                <>
+                                  <MultiSelect
+                                      selected={editingValue}
+                                      onChange={setEditingValue}
+                                      options={tagsOptions}
+                                      placeholder="Add or create tags..."
+                                      creatable
+                                  />
+                                  <div className="flex justify-end gap-2 mt-2">
+                                    <Button variant="ghost" size="sm" onClick={handleCancelEditing}>Cancel</Button>
+                                    <Button size="sm" onClick={() => handleSaveEditing('tags', false)}>Save</Button>
+                                  </div>
+                                </>
                             ) : (
                                 <div className="flex flex-wrap gap-1">
                                     {(task.tags && task.tags.length > 0) ? (
@@ -1295,27 +1398,3 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
       </div>
     );
 }
-
-
-
-    
-
-
-
-    
-
-    
-
-
-
-
-
-
-
-
-
-
-    
-
-    
-
