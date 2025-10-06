@@ -98,6 +98,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -1278,8 +1279,8 @@ export default function Home() {
       <div className="space-y-6">
           <Card id="task-filters">
             <CardContent className="p-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-                    <div className="xl:col-span-1">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+                    <div className="md:col-span-2 xl:col-span-1">
                       <div className="flex h-full w-full items-center rounded-md border border-input focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
                           <DropdownMenu>
                               <DropdownMenuTrigger asChild>
