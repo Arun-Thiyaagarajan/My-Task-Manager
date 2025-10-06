@@ -1303,7 +1303,7 @@ export default function Home() {
             <CardContent className="p-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-4">
                     <div className="xl:col-span-1 2xl:col-span-2">
-                      <div className="flex h-full w-full items-center rounded-md border border-input focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+                      <div className="flex h-full w-full items-center rounded-md border border-input transition-colors focus-within:border-primary">
                           <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" className="h-full rounded-r-none border-r">
