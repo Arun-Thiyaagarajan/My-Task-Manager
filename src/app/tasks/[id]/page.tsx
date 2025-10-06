@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -271,14 +272,16 @@ export default function TaskPage() {
     setEditingValue('');
   };
   
-  const handleSaveEditing = (key: string, isCustom: boolean) => {
+  const handleSaveEditing = (key: string, isCustom: boolean, value?: any) => {
     if (!task) return;
 
+    const finalValue = value !== undefined ? value : editingValue;
     let updateData: Partial<Task> = {};
+
     if (isCustom) {
-        updateData.customFields = { ...task.customFields, [key]: editingValue };
+        updateData.customFields = { ...task.customFields, [key]: finalValue };
     } else {
-        (updateData as any)[key] = editingValue;
+        (updateData as any)[key] = finalValue;
     }
     
     const updatedTask = updateTask(task.id, updateData);
@@ -415,7 +418,7 @@ export default function TaskPage() {
 
     const handleSaveAttachments = () => {
         if (!task) return;
-
+        
         if (JSON.stringify(task.attachments || []) === JSON.stringify(localAttachments)) {
             setIsEditingAttachments(false);
             return;
@@ -708,7 +711,7 @@ const handleCopyDescription = () => {
   const repoField = uiConfig.fields.find(f => f.key === 'repositories');
   
   const tagsOptions = [...new Set([...(tagsField?.options?.map(opt => opt.value) || []), ...(allTasks.flatMap(t => t.tags || []))])].map(t => ({value: t, label: t}));
-  const repoOptions = (repoField?.options || uiConfig.repositoryConfigs).map(opt => ({ value: opt.value, label: opt.label }));
+  const repoOptions = (repoField?.options || uiConfig.repositoryConfigs).map(opt => ({ value: opt.value ?? opt.label, label: opt.label }));
   const developerOptions = developers.map(d => ({value: d.id, label: d.name}));
   const testerOptions = testers.map(t => ({value: t.id, label: t.name}));
 
