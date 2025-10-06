@@ -24,6 +24,8 @@ import {
   DropdownMenuSub,
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
 } from '@/components/ui/dropdown-menu';
 import { INITIAL_REPOSITORY_CONFIGS } from '@/lib/constants';
 import {
@@ -51,6 +53,7 @@ import {
   MoreVertical,
   GraduationCap,
   Tag,
+  CalendarDays,
 } from 'lucide-react';
 import { cn, fuzzySearch, formatTimestamp } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig, Log, GeneralReminder, BackupFrequency } from '@/lib/types';
@@ -68,6 +71,7 @@ import {
   startOfMonth,
   endOfMonth,
   startOfYear,
+  endOfYear,
   subMonths,
   addMonths,
   subYears,
@@ -75,7 +79,6 @@ import {
   setMonth,
   getYear,
   getMonth,
-  sub,
   set,
 } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
@@ -86,7 +89,6 @@ import { taskSchema } from '@/lib/validators';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Card, CardContent } from '@/components/ui/card';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -96,7 +98,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -117,7 +118,7 @@ import { MultiSelect, type SelectOption } from '@/components/ui/multi-select';
 
 
 type ViewMode = 'grid' | 'table';
-type MainView = 'all' | 'monthly';
+type DateView = 'all' | 'monthly' | 'yearly';
 
 const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
 const TUTORIAL_PROMPTED_KEY = 'taskflow_tutorial_prompted';
@@ -181,9 +182,11 @@ export default function Home() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { prompt } = useUnsavedChanges();
-  const [mainView, setMainView] = useState<MainView>('all');
-  const [selectedMonth, setSelectedMonth] = useState(new Date());
-  const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
+  
+  const [dateView, setDateView] = useState<DateView>(() => getInitialStateFromStorage('taskflow_date_view', 'all'));
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [openGroups, setOpenGroups] = useState<string[]>(['priority', 'completed', 'other', 'hold']);
@@ -199,10 +202,22 @@ export default function Home() {
   const [isTagsDialogOpen, setIsTagsDialogOpen] = useState(false);
   const [tagsToApply, setTagsToApply] = useState<string[]>([]);
 
-  const previousMainViewRef = useRef<MainView>('all');
+  const previousDateViewRef = useRef<DateView>('all');
 
-  const handlePreviousMonth = () => setSelectedMonth(subMonths(selectedMonth, 1));
-  const handleNextMonth = () => setSelectedMonth(addMonths(selectedMonth, 1));
+  const handlePreviousDate = () => {
+      if (dateView === 'monthly') {
+          setSelectedDate(subMonths(selectedDate, 1));
+      } else if (dateView === 'yearly') {
+          setSelectedDate(subYears(selectedDate, 1));
+      }
+  };
+  const handleNextDate = () => {
+      if (dateView === 'monthly') {
+          setSelectedDate(addMonths(selectedDate, 1));
+      } else if (dateView === 'yearly') {
+          setSelectedDate(addYears(selectedDate, 1));
+      }
+  };
 
   const refreshData = () => {
     if (activeCompanyId) {
@@ -252,15 +267,9 @@ export default function Home() {
     
     const savedViewMode = localStorage.getItem('taskflow_view_mode') as ViewMode;
     if (savedViewMode) setViewMode(savedViewMode);
-    
-    const savedMainView = localStorage.getItem('taskflow_main_view') as MainView;
-    if (savedMainView) {
-        setMainView(savedMainView);
-        previousMainViewRef.current = savedMainView;
-    }
 
-    const savedMonth = localStorage.getItem('taskflow_selected_month');
-    if (savedMonth) setSelectedMonth(new Date(savedMonth));
+    const savedSelectedDate = localStorage.getItem('taskflow_selected_date');
+    if (savedSelectedDate) setSelectedDate(new Date(savedSelectedDate));
 
     const savedOpenGroups = localStorage.getItem('taskflow_open_groups');
     if (savedOpenGroups) {
@@ -322,10 +331,10 @@ export default function Home() {
   const handleFavoritesToggle = () => {
     const willBeOn = !favoritesOnly;
     if (willBeOn) {
-        previousMainViewRef.current = mainView;
-        setMainView('all');
+        previousDateViewRef.current = dateView;
+        setDateView('all');
     } else {
-        setMainView(previousMainViewRef.current);
+        setDateView(previousDateViewRef.current);
     }
     setFavoritesOnly(willBeOn);
   };
@@ -336,10 +345,10 @@ export default function Home() {
   };
 
   useEffect(() => {
-    localStorage.setItem('taskflow_main_view', mainView);
-    localStorage.setItem('taskflow_selected_month', selectedMonth.toISOString());
+    localStorage.setItem('taskflow_date_view', dateView);
+    localStorage.setItem('taskflow_selected_date', selectedDate.toISOString());
     localStorage.setItem('taskflow_open_groups', JSON.stringify(openGroups));
-  }, [mainView, selectedMonth, openGroups]);
+  }, [dateView, selectedDate, openGroups]);
 
   useEffect(() => {
     if (!activeCompanyId) {
@@ -491,13 +500,14 @@ export default function Home() {
     }
 
     const now = new Date();
-    const lastBackupDate = new Date(lastBackup);
-    
-    let nextBackupDate = set(lastBackupDate, { hours: backupHour, minutes: 0, seconds: 0, milliseconds: 0 });
+    let lastBackupDate = new Date(lastBackup);
+    lastBackupDate = set(lastBackupDate, { hours: backupHour, minutes: 0, seconds: 0, milliseconds: 0 });
+
+    let nextBackupDate = new Date(lastBackupDate);
 
     switch(backupFrequency) {
-        case 'daily': nextBackupDate = addMonths(nextBackupDate, 0); nextBackupDate.setDate(nextBackupDate.getDate() + 1); break;
-        case 'weekly': nextBackupDate = addMonths(nextBackupDate, 0); nextBackupDate.setDate(nextBackupDate.getDate() + 7); break;
+        case 'daily': nextBackupDate.setDate(nextBackupDate.getDate() + 1); break;
+        case 'weekly': nextBackupDate.setDate(nextBackupDate.getDate() + 7); break;
         case 'monthly': nextBackupDate = addMonths(nextBackupDate, 1); break;
         case 'yearly': nextBackupDate = addYears(nextBackupDate, 1); break;
     }
@@ -539,25 +549,30 @@ export default function Home() {
       task.repositories?.some((repo) => fuzzySearch(searchQuery, repo));
 
     const dateMatch = (() => {
-      if (mainView === 'monthly') {
-        if (!task.devStartDate) return false;
-        const taskDate = new Date(task.devStartDate);
-        const start = startOfMonth(selectedMonth);
-        const end = endOfMonth(selectedMonth);
-        return taskDate >= start && taskDate <= end;
+      if (dateView === 'all') {
+          // Date range picker logic for 'all' view
+          if (!dateFilter?.from) return true;
+          if (!task.devStartDate) return false;
+          const taskDate = new Date(task.devStartDate);
+          const from = startOfDay(dateFilter.from);
+          const to = dateFilter.to ? endOfDay(dateFilter.to) : endOfDay(dateFilter.from);
+          return taskDate >= from && taskDate <= to;
       }
-      // 'all' view
-      if (!dateFilter?.from) return true;
-      if (!task.devStartDate) return false;
-
-      const taskDate = new Date(task.devStartDate);
-
-      const from = startOfDay(dateFilter.from);
-      const to = dateFilter.to
-        ? endOfDay(dateFilter.to)
-        : endOfDay(dateFilter.from);
-
-      return taskDate >= from && taskDate <= to;
+      if (dateView === 'monthly') {
+          if (!task.devStartDate) return false;
+          const taskDate = new Date(task.devStartDate);
+          const start = startOfMonth(selectedDate);
+          const end = endOfMonth(selectedDate);
+          return taskDate >= start && taskDate <= end;
+      }
+      if (dateView === 'yearly') {
+          if (!task.devStartDate) return false;
+          const taskDate = new Date(task.devStartDate);
+          const start = startOfYear(selectedDate);
+          const end = endOfYear(selectedDate);
+          return taskDate >= start && taskDate <= end;
+      }
+      return true;
     })();
     
     const deploymentMatch = deploymentFilter.length === 0 || deploymentFilter.every(filter => {
@@ -1148,9 +1163,13 @@ export default function Home() {
     prompt(() => router.push('/tasks/new'));
   };
 
-  const resultsDescription = mainView === 'all'
-    ? 'Based on your current filters.'
-    : `Tasks with a start date in ${format(selectedMonth, 'MMMM yyyy')}.`;
+  const resultsDescription = (() => {
+    switch (dateView) {
+      case 'all': return 'Based on your current filters.';
+      case 'monthly': return `Tasks with a start date in ${format(selectedDate, 'MMMM yyyy')}.`;
+      case 'yearly': return `Tasks with a start date in ${format(selectedDate, 'yyyy')}.`;
+    }
+  })();
 
   const remindersCount = pinnedReminders.length + generalReminders.length;
   
@@ -1261,21 +1280,41 @@ export default function Home() {
             <CardContent className="p-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                     <div className="xl:col-span-1">
-                        <div className="relative flex items-center w-full h-full">
-                            <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                ref={searchInputRef}
-                                placeholder="Search tasks..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-20 h-full"
-                            />
-                            <div className="absolute right-0 flex items-center h-full pr-1.5">
-                                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                                    <span className="text-xs">{commandKey}</span>K
-                                </kbd>
-                            </div>
-                        </div>
+                      <div className="flex h-full w-full items-center rounded-md border border-input focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+                          <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" className="h-full rounded-r-none border-r">
+                                      <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground"/>
+                                      {dateView === 'all' && 'All Time'}
+                                      {dateView === 'monthly' && 'Monthly'}
+                                      {dateView === 'yearly' && 'Yearly'}
+                                      <ChevronDown className="h-4 w-4 ml-2 opacity-50"/>
+                                  </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent>
+                                  <DropdownMenuRadioGroup value={dateView} onValueChange={(v) => {setDateView(v as DateView); if(v === 'all') setDateFilter(undefined);}}>
+                                      <DropdownMenuRadioItem value="all">All Time</DropdownMenuRadioItem>
+                                      <DropdownMenuRadioItem value="monthly">Monthly</DropdownMenuRadioItem>
+                                      <DropdownMenuRadioItem value="yearly">Yearly</DropdownMenuRadioItem>
+                                  </DropdownMenuRadioGroup>
+                              </DropdownMenuContent>
+                          </DropdownMenu>
+                          <div className="relative flex items-center w-full h-full">
+                              <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
+                              <Input
+                                  ref={searchInputRef}
+                                  placeholder="Search tasks..."
+                                  value={searchQuery}
+                                  onChange={(e) => setSearchQuery(e.target.value)}
+                                  className="w-full pl-10 pr-20 h-full border-0 rounded-l-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                              />
+                              <div className="absolute right-0 flex items-center h-full pr-1.5">
+                                  <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                                      <span className="text-xs">{commandKey}</span>K
+                                  </kbd>
+                              </div>
+                          </div>
+                      </div>
                     </div>
                     <MultiSelect
                         selected={statusFilter}
@@ -1303,7 +1342,7 @@ export default function Home() {
                         options={deploymentOptions}
                         placeholder={`Filter by ${fieldLabels.get('deploymentStatus') || 'Deployment'}...`}
                     />
-                    {mainView === 'all' && (
+                    {dateView === 'all' && (
                         <Popover
                             open={isDatePopoverOpen}
                             onOpenChange={setIsDatePopoverOpen}
@@ -1411,67 +1450,73 @@ export default function Home() {
           
            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-6 my-6">
                 <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-                    {mainView === 'monthly' && (
+                    {(dateView === 'monthly' || dateView === 'yearly') && !favoritesOnly && (
                         <div className="flex items-center gap-2 sm:gap-4">
-                            <Button variant="outline" size="icon" onClick={handlePreviousMonth} aria-label="Previous month">
+                            <Button variant="outline" size="icon" onClick={handlePreviousDate} aria-label="Previous period">
                                 <ChevronLeft className="h-4 w-4" />
                             </Button>
 
-                            <Popover open={isMonthPickerOpen} onOpenChange={setIsMonthPickerOpen}>
+                            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                                 <PopoverTrigger asChild>
                                     <Button
                                         variant="ghost"
                                         className="text-lg font-semibold text-foreground text-center sm:w-48 whitespace-nowrap flex items-center gap-1 hover:bg-muted"
                                     >
-                                        {format(selectedMonth, 'MMMM yyyy')}
+                                        {dateView === 'monthly' ? format(selectedDate, 'MMMM yyyy') : format(selectedDate, 'yyyy')}
                                         <ChevronDown className="h-4 w-4 opacity-50" />
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0" align="center">
-                                    <div className="p-2">
-                                        <div className="flex justify-between items-center pb-2">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-7 w-7"
-                                                onClick={() => setSelectedMonth(subYears(selectedMonth, 1))}
-                                            >
-                                                <ChevronLeft className="h-4 w-4" />
-                                            </Button>
-                                            <span className="font-semibold text-sm">{getYear(selectedMonth)}</span>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-7 w-7"
-                                                onClick={() => setSelectedMonth(addYears(selectedMonth, 1))}
-                                            >
-                                                <ChevronRight className="h-4 w-4" />
-                                            </Button>
+                                    {dateView === 'monthly' ? (
+                                        <Calendar
+                                            mode="single"
+                                            selected={selectedDate}
+                                            onSelect={(day) => { if(day) setSelectedDate(day); setIsDatePickerOpen(false); }}
+                                            initialFocus
+                                        />
+                                    ) : (
+                                        <div className="p-2">
+                                            <div className="flex justify-between items-center pb-2">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7"
+                                                    onClick={() => setSelectedDate(subYears(selectedDate, 1))}
+                                                >
+                                                    <ChevronLeft className="h-4 w-4" />
+                                                </Button>
+                                                <span className="font-semibold text-sm">{getYear(selectedDate)}</span>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7"
+                                                    onClick={() => setSelectedDate(addYears(selectedDate, 1))}
+                                                >
+                                                    <ChevronRight className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                            <div className="grid grid-cols-4 gap-1">
+                                                {Array.from({ length: 12 }).map((_, i) => {
+                                                    const monthDate = setMonth(new Date(getYear(selectedDate), 0, 1), i);
+                                                    return (
+                                                        <Button
+                                                            key={i}
+                                                            variant={'ghost'}
+                                                            size="sm"
+                                                            className="w-full justify-center"
+                                                            disabled
+                                                        >
+                                                            {format(monthDate, 'MMM')}
+                                                        </Button>
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
-                                        <div className="grid grid-cols-4 gap-1">
-                                            {Array.from({ length: 12 }).map((_, i) => {
-                                                const monthDate = setMonth(new Date(getYear(selectedMonth), 0, 1), i);
-                                                return (
-                                                    <Button
-                                                        key={i}
-                                                        variant={getMonth(selectedMonth) === i ? 'default' : 'ghost'}
-                                                        size="sm"
-                                                        className="w-full justify-center"
-                                                        onClick={() => {
-                                                            setSelectedMonth(monthDate);
-                                                            setIsMonthPickerOpen(false);
-                                                        }}
-                                                    >
-                                                        {format(monthDate, 'MMM')}
-                                                    </Button>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
+                                    )}
                                 </PopoverContent>
                             </Popover>
                             
-                            <Button variant="outline" size="icon" onClick={handleNextMonth} aria-label="Next month">
+                            <Button variant="outline" size="icon" onClick={handleNextDate} aria-label="Next period">
                                 <ChevronRight className="h-4 w-4" />
                             </Button>
                         </div>
@@ -1502,13 +1547,6 @@ export default function Home() {
                   </Select>
 
                   <div className="flex items-center gap-2">
-                    <Tabs value={mainView} onValueChange={(v) => setMainView(v as MainView)}>
-                        <TabsList>
-                            <TabsTrigger value="all">All Tasks</TabsTrigger>
-                            <TabsTrigger value="monthly" disabled={favoritesOnly}>Monthly</TabsTrigger>
-                        </TabsList>
-                    </Tabs>
-
                     <div className="flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
                       <Button
                         variant="ghost"
