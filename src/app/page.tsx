@@ -367,7 +367,7 @@ export default function Home() {
   };
 
   useEffect(() => {
-    localStorage.setItem('taskflow_date_view', dateView);
+    localStorage.setItem('taskflow_date_view', JSON.stringify(dateView));
     localStorage.setItem('taskflow_selected_date', selectedDate.toISOString());
     localStorage.setItem('taskflow_open_groups', JSON.stringify(openGroups));
   }, [dateView, selectedDate, openGroups]);
@@ -1302,11 +1302,11 @@ export default function Home() {
             <CardContent className="p-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-4">
                     <div className="2xl:col-span-2">
-                      <div className="flex h-full w-full items-center">
+                      <div className="flex items-center">
                           <div className="relative focus-within:z-10">
                               <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                      <Button variant="outline" className="h-full rounded-r-none border-r focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary">
+                                      <Button variant="outline" className="h-10 rounded-r-none border-r focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-primary">
                                           <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground"/>
                                           {dateView === 'all' && 'All Time'}
                                           {dateView === 'monthly' && 'Monthly'}
@@ -1323,14 +1323,14 @@ export default function Home() {
                                   </DropdownMenuContent>
                               </DropdownMenu>
                           </div>
-                          <div className="relative flex items-center w-full h-full">
+                          <div className="relative flex items-center w-full">
                               <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
                               <Input
                                   ref={searchInputRef}
                                   placeholder="Search tasks..."
                                   value={searchQuery}
                                   onChange={(e) => setSearchQuery(e.target.value)}
-                                  className="w-full pl-10 pr-20 h-full border-input rounded-l-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary"
+                                  className="w-full pl-10 pr-20 h-10 rounded-l-none border-input focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-primary"
                               />
                               <div className="absolute right-0 flex items-center h-full pr-1.5">
                                   <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
@@ -1376,7 +1376,7 @@ export default function Home() {
                                 id="date"
                                 variant={'outline'}
                                 className={cn(
-                                'w-full justify-start text-left font-normal h-full',
+                                'w-full justify-start text-left font-normal h-10',
                                 !dateFilter && 'text-muted-foreground'
                                 )}
                             >
