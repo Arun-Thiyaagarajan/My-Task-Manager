@@ -152,6 +152,28 @@ const getInitialStateFromStorage = <T>(key: string, defaultValue: T): T => {
     return defaultValue;
 };
 
+const getInitialDateView = (): DateView => {
+    if (typeof window === 'undefined') {
+        return 'all';
+    }
+    const savedValue = localStorage.getItem('taskflow_date_view');
+    if (savedValue === 'all' || savedValue === 'monthly' || savedValue === 'yearly') {
+        return savedValue;
+    }
+    // Handle legacy non-JSON value
+    if (savedValue && savedValue.startsWith('"') && savedValue.endsWith('"')) {
+        try {
+            const parsed = JSON.parse(savedValue);
+            if (parsed === 'all' || parsed === 'monthly' || parsed === 'yearly') {
+                return parsed;
+            }
+        } catch {
+            // ignore parsing error
+        }
+    }
+    return 'all';
+}
+
 
 export default function Home() {
   const activeCompanyId = useActiveCompany();
@@ -184,7 +206,7 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { prompt } = useUnsavedChanges();
   
-  const [dateView, setDateView] = useState<DateView>(() => getInitialStateFromStorage('taskflow_date_view', 'all'));
+  const [dateView, setDateView] = useState<DateView>(getInitialDateView);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
@@ -346,7 +368,7 @@ export default function Home() {
   };
 
   useEffect(() => {
-    localStorage.setItem('taskflow_date_view', JSON.stringify(dateView));
+    localStorage.setItem('taskflow_date_view', dateView);
     localStorage.setItem('taskflow_selected_date', selectedDate.toISOString());
     localStorage.setItem('taskflow_open_groups', JSON.stringify(openGroups));
   }, [dateView, selectedDate, openGroups]);
@@ -1279,8 +1301,8 @@ export default function Home() {
       <div className="space-y-6">
           <Card id="task-filters">
             <CardContent className="p-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
-                    <div className="xl:col-span-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-4">
+                    <div className="xl:col-span-1 2xl:col-span-2">
                       <div className="flex h-full w-full items-center rounded-md border border-input focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
                           <DropdownMenu>
                               <DropdownMenuTrigger asChild>
