@@ -1302,11 +1302,11 @@ export default function Home() {
             <CardContent className="p-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-4">
                     <div className="2xl:col-span-2">
-                      <div className="flex h-full w-full items-center rounded-md border border-input focus-within:z-10 focus-within:border-primary transition-colors">
-                          <div className="relative">
+                      <div className="flex h-full w-full items-center">
+                          <div className="relative focus-within:z-10">
                               <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" className="h-full rounded-r-none border-r">
+                                      <Button variant="outline" className="h-full rounded-r-none border-r focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary">
                                           <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground"/>
                                           {dateView === 'all' && 'All Time'}
                                           {dateView === 'monthly' && 'Monthly'}
@@ -1330,7 +1330,7 @@ export default function Home() {
                                   placeholder="Search tasks..."
                                   value={searchQuery}
                                   onChange={(e) => setSearchQuery(e.target.value)}
-                                  className="w-full pl-10 pr-20 h-full border-0 rounded-l-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                  className="w-full pl-10 pr-20 h-full border-input rounded-l-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary"
                               />
                               <div className="absolute right-0 flex items-center h-full pr-1.5">
                                   <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
