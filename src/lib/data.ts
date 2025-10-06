@@ -849,8 +849,8 @@ const generateTaskUpdateLogs = (
                 break;
             }
             case 'repositories': {
-                const oldRepos = oldValue as string[] || [];
-                const newRepos = newValue as string[] || [];
+                const oldRepos = Array.isArray(oldValue) ? oldValue : [];
+                const newRepos = Array.isArray(newValue) ? newValue : [];
                 if(JSON.stringify(oldRepos.sort()) !== JSON.stringify(newRepos.sort())) {
                     logEntry = `- Changed **${label}** to *${newRepos.join(', ') || 'empty'}*.`;
                 }
