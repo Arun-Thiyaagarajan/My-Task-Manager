@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester, updateUiConfig, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addTagsToMultipleTasks } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
@@ -157,18 +157,18 @@ const getInitialDateView = (): DateView => {
         return 'all';
     }
     const savedValue = localStorage.getItem('taskflow_date_view');
-    if (savedValue === 'all' || savedValue === 'monthly' || savedValue === 'yearly') {
-        return savedValue;
-    }
-    // Handle legacy non-JSON value
-    if (savedValue && savedValue.startsWith('"') && savedValue.endsWith('"')) {
+    // Handle old format (plain string) and new format (JSON string)
+    if (savedValue) {
         try {
             const parsed = JSON.parse(savedValue);
-            if (parsed === 'all' || parsed === 'monthly' || parsed === 'yearly') {
+            if (['all', 'monthly', 'yearly'].includes(parsed)) {
                 return parsed;
             }
         } catch {
-            // ignore parsing error
+            // It's likely a plain string from the old version
+            if (['all', 'monthly', 'yearly'].includes(savedValue)) {
+                return savedValue as DateView;
+            }
         }
     }
     return 'all';
@@ -1303,25 +1303,27 @@ export default function Home() {
             <CardContent className="p-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-4">
                     <div className="xl:col-span-1 2xl:col-span-2">
-                      <div className="flex h-full w-full items-center rounded-md border border-input transition-colors focus-within:border-primary">
-                          <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" className="h-full rounded-r-none border-r">
-                                      <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground"/>
-                                      {dateView === 'all' && 'All Time'}
-                                      {dateView === 'monthly' && 'Monthly'}
-                                      {dateView === 'yearly' && 'Yearly'}
-                                      <ChevronDown className="h-4 w-4 ml-2 opacity-50"/>
-                                  </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent>
-                                  <DropdownMenuRadioGroup value={dateView} onValueChange={(v) => {setDateView(v as DateView); if(v === 'all') setDateFilter(undefined);}}>
-                                      <DropdownMenuRadioItem value="all">All Time</DropdownMenuRadioItem>
-                                      <DropdownMenuRadioItem value="monthly">Monthly</DropdownMenuRadioItem>
-                                      <DropdownMenuRadioItem value="yearly">Yearly</DropdownMenuRadioItem>
-                                  </DropdownMenuRadioGroup>
-                              </DropdownMenuContent>
-                          </DropdownMenu>
+                      <div className="flex h-full w-full items-center rounded-md border focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-colors">
+                          <div className="relative focus-within:z-10">
+                              <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" className="h-full rounded-r-none border-r">
+                                          <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground"/>
+                                          {dateView === 'all' && 'All Time'}
+                                          {dateView === 'monthly' && 'Monthly'}
+                                          {dateView === 'yearly' && 'Yearly'}
+                                          <ChevronDown className="h-4 w-4 ml-2 opacity-50"/>
+                                      </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent>
+                                      <DropdownMenuRadioGroup value={dateView} onValueChange={(v) => {setDateView(v as DateView); if(v === 'all') setDateFilter(undefined);}}>
+                                          <DropdownMenuRadioItem value="all">All Time</DropdownMenuRadioItem>
+                                          <DropdownMenuRadioItem value="monthly">Monthly</DropdownMenuRadioItem>
+                                          <DropdownMenuRadioItem value="yearly">Yearly</DropdownMenuRadioItem>
+                                      </DropdownMenuRadioGroup>
+                                  </DropdownMenuContent>
+                              </DropdownMenu>
+                          </div>
                           <div className="relative flex items-center w-full h-full">
                               <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
                               <Input
