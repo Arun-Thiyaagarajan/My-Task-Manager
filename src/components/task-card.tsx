@@ -323,7 +323,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                 <div className="flex items-start gap-2 text-sm text-muted-foreground">
                   <GitMerge className="h-4 w-4 shrink-0 mt-0.5" />
                   <div className="flex flex-wrap gap-1">
-                    {(task.repositories || []).map((repo) => (
+                    {(Array.isArray(task.repositories) ? task.repositories : []).map((repo) => (
                       <Badge 
                         variant="repo" 
                         key={repo} 

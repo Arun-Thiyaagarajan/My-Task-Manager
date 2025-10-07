@@ -820,8 +820,13 @@ const generateTaskUpdateLogs = (
         const key = field.key as keyof Task;
         if (!(key in newTaskData)) return;
 
-        const oldValue = oldTask[key];
-        const newValue = newTaskData[key];
+        let oldValue = oldTask[key];
+        let newValue = newTaskData[key];
+
+        if (key === 'repositories') {
+            oldValue = Array.isArray(oldValue) ? oldValue : (oldValue ? [oldValue] : []);
+            newValue = Array.isArray(newValue) ? newValue : (newValue ? [newValue] : []);
+        }
 
         if (JSON.stringify(oldValue) === JSON.stringify(newValue)) return;
         
@@ -1494,3 +1499,4 @@ export function deleteGeneralReminder(id: string): boolean {
     }
     return false;
 }
+
