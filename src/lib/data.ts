@@ -976,9 +976,8 @@ export function updateTask(id: string, taskData: Partial<Omit<Task, 'id' | 'crea
   const companyData = data.companyData[activeCompanyId];
   if (!companyData) return undefined;
   
-  // Definitive fix for the repositories array issue.
   if (taskData.repositories && !Array.isArray(taskData.repositories)) {
-      taskData.repositories = [taskData.repositories];
+    taskData.repositories = [taskData.repositories];
   }
 
   let oldTask: Task | undefined;

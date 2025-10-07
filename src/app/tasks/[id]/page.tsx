@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -211,7 +212,7 @@ export default function TaskPage() {
         }
     }
 
-    if (task.repositories && task.repositories.length > 0) {
+    if (task.repositories && Array.isArray(task.repositories) && task.repositories.length > 0) {
         const primaryRepo = task.repositories[0];
         strategies.push(() => {
           const related = tasksForRelated.filter(t => t.repositories?.includes(primaryRepo));
@@ -966,7 +967,7 @@ const handleCopyDescription = () => {
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
                       <CardTitle className="flex items-center gap-2 text-xl"><GitMerge className="h-5 w-5" />{fieldLabels.get('prLinks') || 'Pull Requests'}</CardTitle>
-                      {!isBinned && task.repositories && task.repositories.length > 0 && allConfiguredEnvs.length > 0 && (
+                      {!isBinned && Array.isArray(task.repositories) && task.repositories.length > 0 && allConfiguredEnvs.length > 0 && (
                         <Button variant="ghost" size="sm" onClick={() => setIsEditingPrLinks(!isEditingPrLinks)}>
                           {isEditingPrLinks ? 'Done' : (<><Pencil className="h-3 w-3 mr-1.5" /> Edit</>)}
                         </Button>
@@ -1051,7 +1052,7 @@ const handleCopyDescription = () => {
                         </div>
                         <div>
                             <Label>{fieldLabels.get('repositories') || 'Repositories'}</Label>
-                            <MultiSelect selected={task.repositories || []} onChange={val => handleSaveEditing('repositories', false, val)} options={repoOptions} />
+                            <MultiSelect selected={Array.isArray(task.repositories) ? task.repositories : (task.repositories ? [task.repositories] : [])} onChange={val => handleSaveEditing('repositories', false, val)} options={repoOptions} />
                         </div>
                         {azureFieldConfig?.isActive && (
                             <div>
@@ -1070,7 +1071,7 @@ const handleCopyDescription = () => {
                       <div>
                         <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('repositories') || 'Repositories'}</h4>
                         <div className="flex flex-wrap gap-1">
-                          {(task.repositories && task.repositories.length > 0) ? (task.repositories || []).map(repo => (
+                          {(Array.isArray(task.repositories) && task.repositories.length > 0) ? (task.repositories || []).map(repo => (
                             <Badge key={repo} variant="repo" style={getRepoBadgeStyle(repo)}>{repo}</Badge>
                           )) : (<p className="text-sm text-muted-foreground">No repositories assigned.</p>)}
                         </div>
