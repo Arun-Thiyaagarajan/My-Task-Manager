@@ -993,7 +993,7 @@ export function updateTask(id: string, taskData: Partial<Omit<Task, 'id' | 'crea
 
   if (!oldTask || taskIndex === -1) return undefined;
 
-  // Ensure repositories is always an array
+  // ROBUSTNESS FIX: Ensure repositories is always handled as an array.
   if (taskData.repositories && !Array.isArray(taskData.repositories)) {
       taskData.repositories = [taskData.repositories];
   }
