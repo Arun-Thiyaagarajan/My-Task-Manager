@@ -275,7 +275,13 @@ export default function TaskPage() {
   const handleSaveEditing = (key: string, isCustom: boolean, value?: any) => {
     if (!task) return;
 
-    const finalValue = value !== undefined ? value : editingValue;
+    let finalValue = value !== undefined ? value : editingValue;
+    
+    // Ensure repositories is always an array
+    if (key === 'repositories' && !Array.isArray(finalValue)) {
+        finalValue = finalValue ? [finalValue] : [];
+    }
+
     let updateData: Partial<Task> = {};
 
     if (isCustom) {
