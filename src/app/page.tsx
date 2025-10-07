@@ -1306,7 +1306,7 @@ export default function Home() {
                           <div className="relative focus-within:z-10">
                               <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                      <Button variant="outline" className="h-10 rounded-r-none border-r focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-primary">
+                                      <Button variant="outline" className="h-10 rounded-r-none border-r-0 focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-primary">
                                           <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground"/>
                                           {dateView === 'all' && 'All Time'}
                                           {dateView === 'monthly' && 'Monthly'}
