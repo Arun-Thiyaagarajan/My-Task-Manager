@@ -1300,7 +1300,7 @@ export default function Home() {
       <div className="space-y-6">
           <Card id="task-filters">
             <CardContent className="p-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:col-span-1 lg:grid-cols-5 gap-4">
                     <div className="relative flex items-center w-full col-span-1 sm:col-span-2 md:col-span-2 lg:col-span-1">
                         <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
                         <Input
@@ -1442,15 +1442,21 @@ export default function Home() {
                   </Select>
 
                    <div className="flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
-                       <Button
+                        <Button
                           variant={dateView === 'all' ? 'default' : 'ghost'}
                           onClick={() => setDateView('all')}
-                          className="h-8 shadow-sm"
+                          className={cn(
+                            "h-8 shadow-sm",
+                            dateView === 'all' && 'bg-card text-foreground hover:bg-card'
+                          )}
                         >All Tasks</Button>
-                       <Button
+                        <Button
                           variant={dateView === 'monthly' ? 'default' : 'ghost'}
                           onClick={() => setDateView('monthly')}
-                          className="h-8 shadow-sm"
+                          className={cn(
+                            "h-8 shadow-sm",
+                            dateView === 'monthly' && 'bg-card text-foreground hover:bg-card'
+                          )}
                         >Monthly</Button>
                    </div>
 
