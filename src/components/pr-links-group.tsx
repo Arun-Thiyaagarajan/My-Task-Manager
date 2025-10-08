@@ -28,7 +28,8 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repository
   const { toast } = useToast();
   
   const repoConfigMap = new Map((repositoryConfigs || []).map(rc => [rc.name, rc]));
-  const displayRepos = repositories || [];
+  
+  const displayRepos = Array.isArray(repositories) ? repositories : (repositories ? [repositories] : []);
 
   const handleRemovePr = (repo: string, env: string, prIdToRemove: string) => {
     if (!onUpdate) return;
