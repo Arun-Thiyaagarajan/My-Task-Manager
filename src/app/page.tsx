@@ -1298,47 +1298,113 @@ export default function Home() {
       </div>
       
       <div className="space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-center gap-2">
+                  <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                          <Button variant="outline" className="h-10">
+                              <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground"/>
+                              {dateView === 'all' && 'All Time'}
+                              {dateView === 'monthly' && 'Monthly'}
+                              {dateView === 'yearly' && 'Yearly'}
+                              <ChevronDown className="h-4 w-4 ml-2 opacity-50"/>
+                          </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                          <DropdownMenuRadioGroup value={dateView} onValueChange={(v) => {setDateView(v as DateView); if(v === 'all') setDateFilter(undefined);}}>
+                              <DropdownMenuRadioItem value="all">All Time</DropdownMenuRadioItem>
+                              <DropdownMenuRadioItem value="monthly">Monthly</DropdownMenuRadioItem>
+                              <DropdownMenuRadioItem value="yearly">Yearly</DropdownMenuRadioItem>
+                          </DropdownMenuRadioGroup>
+                      </DropdownMenuContent>
+                  </DropdownMenu>
+                  {(dateView === 'monthly' || dateView === 'yearly') && !favoritesOnly && (
+                      <div className="flex items-center gap-1">
+                          <Button variant="outline" size="icon" onClick={handlePreviousDate} aria-label="Previous period" className="h-10 w-10">
+                              <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                              <PopoverTrigger asChild>
+                                  <Button
+                                      variant="outline"
+                                      className="text-base font-semibold text-foreground text-center w-36 md:w-44 whitespace-nowrap flex items-center gap-1 h-10"
+                                  >
+                                      {dateView === 'monthly' ? format(selectedDate, 'MMMM yyyy') : format(selectedDate, 'yyyy')}
+                                  </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                  {dateView === 'monthly' ? (
+                                      <Calendar
+                                          mode="single"
+                                          selected={selectedDate}
+                                          onSelect={(day) => { if(day) setSelectedDate(day); setIsDatePickerOpen(false); }}
+                                          initialFocus
+                                      />
+                                  ) : (
+                                      <div className="p-2">
+                                            <div className="flex justify-between items-center pb-2">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7"
+                                                    onClick={() => setSelectedDate(subYears(selectedDate, 1))}
+                                                >
+                                                    <ChevronLeft className="h-4 w-4" />
+                                                </Button>
+                                                <span className="font-semibold text-sm">{getYear(selectedDate)}</span>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7"
+                                                    onClick={() => setSelectedDate(addYears(selectedDate, 1))}
+                                                >
+                                                    <ChevronRight className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                            <div className="grid grid-cols-4 gap-1">
+                                                {Array.from({ length: 12 }).map((_, i) => {
+                                                    const monthDate = setMonth(new Date(getYear(selectedDate), 0, 1), i);
+                                                    return (
+                                                        <Button
+                                                            key={i}
+                                                            variant={'ghost'}
+                                                            size="sm"
+                                                            className="w-full justify-center"
+                                                            disabled
+                                                        >
+                                                            {format(monthDate, 'MMM')}
+                                                        </Button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                  )}
+                              </PopoverContent>
+                          </Popover>
+                          <Button variant="outline" size="icon" onClick={handleNextDate} aria-label="Next period" className="h-10 w-10">
+                              <ChevronRight className="h-4 w-4" />
+                          </Button>
+                      </div>
+                  )}
+              </div>
+          </div>
           <Card id="task-filters">
             <CardContent className="p-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-4">
-                    <div className="2xl:col-span-2">
-                      <div className="flex items-center">
-                          <div className="relative focus-within:z-10">
-                              <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                      <Button variant="outline" className="h-10 rounded-r-none border-r-0 focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-primary">
-                                          <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground"/>
-                                          {dateView === 'all' && 'All Time'}
-                                          {dateView === 'monthly' && 'Monthly'}
-                                          {dateView === 'yearly' && 'Yearly'}
-                                          <ChevronDown className="h-4 w-4 ml-2 opacity-50"/>
-                                      </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent>
-                                      <DropdownMenuRadioGroup value={dateView} onValueChange={(v) => {setDateView(v as DateView); if(v === 'all') setDateFilter(undefined);}}>
-                                          <DropdownMenuRadioItem value="all">All Time</DropdownMenuRadioItem>
-                                          <DropdownMenuRadioItem value="monthly">Monthly</DropdownMenuRadioItem>
-                                          <DropdownMenuRadioItem value="yearly">Yearly</DropdownMenuRadioItem>
-                                      </DropdownMenuRadioGroup>
-                                  </DropdownMenuContent>
-                              </DropdownMenu>
-                          </div>
-                          <div className="relative flex items-center w-full">
-                              <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
-                              <Input
-                                  ref={searchInputRef}
-                                  placeholder="Search tasks..."
-                                  value={searchQuery}
-                                  onChange={(e) => setSearchQuery(e.target.value)}
-                                  className="w-full pl-10 pr-20 h-10 rounded-l-none border-input focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-primary"
-                              />
-                              <div className="absolute right-0 flex items-center h-full pr-1.5">
-                                  <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                                      <span className="text-xs">{commandKey}</span>K
-                                  </kbd>
-                              </div>
-                          </div>
-                      </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    <div className="relative flex items-center w-full col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-2 xl:col-span-2">
+                        <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            ref={searchInputRef}
+                            placeholder="Search tasks by title, description, ID, etc..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-10 pr-20 h-10"
+                        />
+                        <div className="absolute right-0 flex items-center h-full pr-1.5">
+                            <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                                <span className="text-xs">{commandKey}</span>K
+                            </kbd>
+                        </div>
                     </div>
                     <MultiSelect
                         selected={statusFilter}
@@ -1473,86 +1539,13 @@ export default function Home() {
           </Card>
           
            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-6 my-6">
-                <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-                    {(dateView === 'monthly' || dateView === 'yearly') && !favoritesOnly && (
-                        <div className="flex items-center gap-2 sm:gap-4">
-                            <Button variant="outline" size="icon" onClick={handlePreviousDate} aria-label="Previous period">
-                                <ChevronLeft className="h-4 w-4" />
-                            </Button>
-
-                            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-                                <PopoverTrigger asChild>
-                                    <Button
-                                        variant="ghost"
-                                        className="text-lg font-semibold text-foreground text-center sm:w-48 whitespace-nowrap flex items-center gap-1 hover:bg-muted"
-                                    >
-                                        {dateView === 'monthly' ? format(selectedDate, 'MMMM yyyy') : format(selectedDate, 'yyyy')}
-                                        <ChevronDown className="h-4 w-4 opacity-50" />
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="center">
-                                    {dateView === 'monthly' ? (
-                                        <Calendar
-                                            mode="single"
-                                            selected={selectedDate}
-                                            onSelect={(day) => { if(day) setSelectedDate(day); setIsDatePickerOpen(false); }}
-                                            initialFocus
-                                        />
-                                    ) : (
-                                        <div className="p-2">
-                                            <div className="flex justify-between items-center pb-2">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-7 w-7"
-                                                    onClick={() => setSelectedDate(subYears(selectedDate, 1))}
-                                                >
-                                                    <ChevronLeft className="h-4 w-4" />
-                                                </Button>
-                                                <span className="font-semibold text-sm">{getYear(selectedDate)}</span>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-7 w-7"
-                                                    onClick={() => setSelectedDate(addYears(selectedDate, 1))}
-                                                >
-                                                    <ChevronRight className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                            <div className="grid grid-cols-4 gap-1">
-                                                {Array.from({ length: 12 }).map((_, i) => {
-                                                    const monthDate = setMonth(new Date(getYear(selectedDate), 0, 1), i);
-                                                    return (
-                                                        <Button
-                                                            key={i}
-                                                            variant={'ghost'}
-                                                            size="sm"
-                                                            className="w-full justify-center"
-                                                            disabled
-                                                        >
-                                                            {format(monthDate, 'MMM')}
-                                                        </Button>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    )}
-                                </PopoverContent>
-                            </Popover>
-                            
-                            <Button variant="outline" size="icon" onClick={handleNextDate} aria-label="Next period">
-                                <ChevronRight className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    )}
-                    <div>
-                        <h2 className="text-base font-semibold text-foreground">
-                            {sortedTasks.length} {sortedTasks.length === 1 ? 'Result' : 'Results'}
-                        </h2>
-                        <p className="text-xs text-muted-foreground">
-                            {resultsDescription}
-                        </p>
-                    </div>
+                <div>
+                    <h2 className="text-base font-semibold text-foreground">
+                        {sortedTasks.length} {sortedTasks.length === 1 ? 'Result' : 'Results'}
+                    </h2>
+                    <p className="text-xs text-muted-foreground">
+                        {resultsDescription}
+                    </p>
                 </div>
 
                 <div id="view-mode-toggle" className="flex items-center gap-x-2 gap-y-2 flex-wrap justify-start sm:justify-end">
