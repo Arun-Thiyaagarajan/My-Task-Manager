@@ -1300,12 +1300,12 @@ export default function Home() {
       <div className="space-y-6">
           <Card id="task-filters">
             <CardContent className="p-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                    <div className="relative flex items-center w-full col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-2 xl:col-span-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div className="relative flex items-center w-full col-span-1 sm:col-span-2 md:col-span-2 lg:col-span-1">
                         <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
                         <Input
                             ref={searchInputRef}
-                            placeholder="Search tasks by title, description, ID, etc..."
+                            placeholder="Search tasks..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full pl-10 pr-20 h-10"
@@ -1342,143 +1342,13 @@ export default function Home() {
                         options={deploymentOptions}
                         placeholder={`Filter by ${fieldLabels.get('deploymentStatus') || 'Deployment'}...`}
                     />
-                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                          <Button variant="outline" className="w-full justify-start text-left font-normal h-10">
-                              <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground"/>
-                              {dateView === 'all' && 'All Time'}
-                              {dateView === 'monthly' && 'Monthly'}
-                              {dateView === 'yearly' && 'Yearly'}
-                              <ChevronDown className="h-4 w-4 ml-auto opacity-50"/>
-                          </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                          <DropdownMenuRadioGroup value={dateView} onValueChange={(v) => {setDateView(v as DateView); if(v === 'all') setDateFilter(undefined);}}>
-                              <DropdownMenuRadioItem value="all">All Time</DropdownMenuRadioItem>
-                              <DropdownMenuRadioItem value="monthly">Monthly</DropdownMenuRadioItem>
-                              <DropdownMenuRadioItem value="yearly">Yearly</DropdownMenuRadioItem>
-                          </DropdownMenuRadioGroup>
-                      </DropdownMenuContent>
-                  </DropdownMenu>
-
-                    {dateView === 'all' && (
-                        <Popover
-                            open={isDatePopoverOpen}
-                            onOpenChange={setIsDatePopoverOpen}
-                        >
-                            <PopoverTrigger asChild>
-                            <Button
-                                id="date"
-                                variant={'outline'}
-                                className={cn(
-                                'w-full justify-start text-left font-normal h-10',
-                                !dateFilter && 'text-muted-foreground'
-                                )}
-                            >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {dateFilter?.from ? (
-                                dateFilter.to ? (
-                                    <>
-                                    {format(dateFilter.from, 'LLL dd, y')} -{' '}
-                                    {format(dateFilter.to, 'LLL dd, y')}
-                                    </>
-                                ) : (
-                                    format(dateFilter.from, 'LLL dd, y')
-                                )
-                                ) : (
-                                <span>Filter by Dev Start Date</span>
-                                )}
-                            </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0 flex" align="start">
-                            <div className="flex flex-col space-y-1 p-2 border-r">
-                                <Button
-                                variant="ghost"
-                                className="justify-start px-2 font-normal text-sm"
-                                onClick={() => {
-                                    setDateFilter(undefined);
-                                    setIsDatePopoverOpen(false);
-                                }}
-                                >
-                                Any time
-                                </Button>
-                                <Button
-                                variant="ghost"
-                                className="justify-start px-2 font-normal text-sm"
-                                onClick={() => {
-                                    setDateFilter({ from: new Date(), to: new Date() });
-                                    setIsDatePopoverOpen(false);
-                                }}
-                                >
-                                Today
-                                </Button>
-                                <Button
-                                variant="ghost"
-                                className="justify-start px-2 font-normal text-sm"
-                                onClick={() => {
-                                    setDateFilter({
-                                    from: subDays(new Date(), 6),
-                                    to: new Date(),
-                                    });
-                                    setIsDatePopoverOpen(false);
-                                }}
-                                >
-                                Last 7 days
-                                </Button>
-                                <Button
-                                variant="ghost"
-                                className="justify-start px-2 font-normal text-sm"
-                                onClick={() => {
-                                    setDateFilter({
-                                    from: startOfMonth(new Date()),
-                                    to: endOfMonth(new Date()),
-                                    });
-                                    setIsDatePopoverOpen(false);
-                                }}
-                                >
-                                This month
-                                </Button>
-                                <Button
-                                variant="ghost"
-                                className="justify-start px-2 font-normal text-sm"
-                                onClick={() => {
-                                    setDateFilter({
-                                    from: startOfYear(new Date()),
-                                    to: endOfYear(new Date()),
-                                    });
-                                    setIsDatePopoverOpen(false);
-                                }}
-                                >
-                                This year
-                                </Button>
-                            </div>
-                            <Calendar
-                                initialFocus
-                                mode="range"
-                                defaultMonth={dateFilter?.from}
-                                selected={dateFilter}
-                                onSelect={setDateFilter}
-                                numberOfMonths={1}
-                            />
-                            </PopoverContent>
-                        </Popover>
-                    )}
                 </div>
             </CardContent>
           </Card>
           
-           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-6 my-6">
-                <div>
-                    <h2 className="text-base font-semibold text-foreground">
-                        {sortedTasks.length} {sortedTasks.length === 1 ? 'Result' : 'Results'}
-                    </h2>
-                    <p className="text-xs text-muted-foreground">
-                        {resultsDescription}
-                    </p>
-                </div>
-
-                <div id="view-mode-toggle" className="flex items-center gap-x-2 gap-y-2 flex-wrap justify-start sm:justify-end">
-                  {(dateView === 'monthly' || dateView === 'yearly') && !favoritesOnly && (
+           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-6">
+                <div className="flex items-center gap-4">
+                    {(dateView === 'monthly' || dateView === 'yearly') && !favoritesOnly && (
                       <div className="flex items-center gap-1">
                           <Button variant="outline" size="icon" onClick={handlePreviousDate} aria-label="Previous period" className="h-10 w-10">
                               <ChevronLeft className="h-4 w-4" />
@@ -1546,6 +1416,17 @@ export default function Home() {
                           </Button>
                       </div>
                   )}
+                    <div>
+                      <h2 className="text-base font-semibold text-foreground">
+                          {sortedTasks.length} {sortedTasks.length === 1 ? 'Result' : 'Results'}
+                      </h2>
+                      <p className="text-xs text-muted-foreground">
+                          {resultsDescription}
+                      </p>
+                    </div>
+                </div>
+
+                <div id="view-mode-toggle" className="flex items-center gap-x-2 gap-y-2 flex-wrap justify-start sm:justify-end">
                   <Select value={sortDescriptor} onValueChange={handleSortChange}>
                       <SelectTrigger className="w-auto sm:w-[180px] h-10">
                           <SelectValue placeholder="Sort by" />
@@ -1559,6 +1440,19 @@ export default function Home() {
                           <SelectItem value="deployment-asc">Deployment (Asc)</SelectItem>
                       </SelectContent>
                   </Select>
+
+                   <div className="flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
+                       <Button
+                          variant={dateView === 'all' ? 'default' : 'ghost'}
+                          onClick={() => setDateView('all')}
+                          className="h-8 shadow-sm"
+                        >All Tasks</Button>
+                       <Button
+                          variant={dateView === 'monthly' ? 'default' : 'ghost'}
+                          onClick={() => setDateView('monthly')}
+                          className="h-8 shadow-sm"
+                        >Monthly</Button>
+                   </div>
 
                   <div className="flex items-center gap-2">
                     <div className="flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
