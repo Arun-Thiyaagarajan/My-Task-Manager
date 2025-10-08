@@ -29,7 +29,25 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repository
   
   const repoConfigMap = new Map((repositoryConfigs || []).map(rc => [rc.name, rc]));
   
-  const displayRepos = Array.isArray(repositories) ? repositories : (repositories ? [repositories] : []);
+  const displayRepos = Array.isArray(repositories) ? repositories : [];
+
+  if (!displayRepos || displayRepos.length === 0) {
+    return (
+      <p className="text-muted-foreground text-sm py-4 text-center">
+        No repositories are assigned to this task.
+      </p>
+    );
+  }
+
+  const allEnvs = configuredEnvs || [];
+  
+  if (allEnvs.length === 0) {
+     return (
+      <p className="text-muted-foreground text-sm py-4 text-center">
+        No environments configured.
+      </p>
+    );
+  }
 
   const handleRemovePr = (repo: string, env: string, prIdToRemove: string) => {
     if (!onUpdate) return;
@@ -80,24 +98,6 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repository
         toast({ variant: 'destructive', title: 'Failed to copy' });
     });
   };
-
-  if (!displayRepos || displayRepos.length === 0) {
-    return (
-      <p className="text-muted-foreground text-sm py-4 text-center">
-        No repositories are assigned to this task.
-      </p>
-    );
-  }
-
-  const allEnvs = configuredEnvs || [];
-  
-  if (allEnvs.length === 0) {
-     return (
-      <p className="text-muted-foreground text-sm py-4 text-center">
-        No environments configured.
-      </p>
-    );
-  }
 
   return (
     <div className="w-full">
