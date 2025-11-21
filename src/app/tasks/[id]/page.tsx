@@ -216,7 +216,10 @@ export default function TaskPage() {
     if (task.repositories && Array.isArray(task.repositories) && task.repositories.length > 0) {
         const primaryRepo = task.repositories[0];
         strategies.push(() => {
-          const related = tasksForRelated.filter(t => t.repositories?.includes(primaryRepo));
+          const related = tasksForRelated.filter(t => {
+              const repos = Array.isArray(t.repositories) ? t.repositories : [t.repositories].filter(Boolean);
+              return repos.includes(primaryRepo);
+          });
           return related.length > 0 ? {
             title: `More in ${primaryRepo}`,
             tasks: related
