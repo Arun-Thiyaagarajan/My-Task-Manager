@@ -344,7 +344,8 @@ const _drawTaskOnPage = async (
     drawTitle(task.title, task.status);
     
     if (task.description) {
-        const lines = doc.splitTextToSize(task.description, MAX_CONTENT_WIDTH);
+        const cleanDescription = task.description.replace(/(\*\*|_(.*?)_|\`|\~)/g, '');
+        const lines = doc.splitTextToSize(cleanDescription, MAX_CONTENT_WIDTH);
         const descHeight = lines.length * LINE_HEIGHT_NORMAL;
         drawSectionHeader(fieldLabels.get('description') || 'Description', descHeight);
         doc.setFont('helvetica', 'normal');
@@ -505,6 +506,10 @@ export const generateTasksText = (
     const testersById = new Map(allTesters.map(t => [t.id, t.name]));
     const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
 
+    const stripMarkup = (text: string) => {
+        return text.replace(/(\*\*|_(.*?)_|\`|\~)/g, '');
+    };
+
     const renderCustomFieldValueForText = (fieldConfig: FieldConfig, value: any): string => {
         if (value === null || value === undefined || value === '') return 'N/A';
         switch (fieldConfig.type) {
@@ -531,7 +536,7 @@ export const generateTasksText = (
     const taskStrings = tasks.map(task => {
         let taskText = `Title: ${task.title}\n`;
         taskText += `Status: ${task.status}\n\n`;
-        taskText += `Description:\n${task.description}\n\n`;
+        taskText += `Description:\n${stripMarkup(task.description)}\n\n`;
         
         const details: string[] = [];
 
@@ -597,7 +602,7 @@ export const generateTasksText = (
             const commentsText = task.comments.map(c => {
                 const text = typeof c === 'string' ? c : c.text;
                 const timestamp = typeof c === 'object' && c.timestamp ? `(${format(new Date(c.timestamp), 'PPP')})` : '';
-                return `- ${text} ${timestamp}`;
+                return `- ${stripMarkup(text)} ${timestamp}`;
             }).join('\n');
             taskText += '--- Comments ---\n';
             taskText += commentsText + '\n\n';

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import {
@@ -16,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import type { CSSProperties } from 'react';
 import { Separator } from './ui/separator';
 import { format } from 'date-fns';
+import { RichTextViewer } from './ui/rich-text-viewer';
 
 interface PersonProfileCardProps {
   person: Person | null;
@@ -32,7 +34,7 @@ const renderFieldValue = (field: PersonField) => {
         case 'date':
             return <span>{format(new Date(field.value), 'PPP')}</span>;
         case 'textarea':
-             return <p className="whitespace-pre-wrap">{field.value}</p>
+             return <RichTextViewer text={field.value} />;
         default:
             return <span>{field.value}</span>
     }

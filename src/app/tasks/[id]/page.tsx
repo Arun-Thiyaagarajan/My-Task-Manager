@@ -48,6 +48,7 @@ import { ReminderDialog } from '@/components/reminder-dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { generateTaskPdf, generateTasksText } from '@/lib/share-utils';
 import { MultiSelect, type SelectOption } from '@/components/ui/multi-select';
+import { RichTextViewer } from '@/components/ui/rich-text-viewer';
 
 
 const isImageUrl = (url: string): boolean => {
@@ -634,8 +635,10 @@ const handleCopyDescription = () => {
                   const url = `${fieldConfig.baseUrl}${value}`;
                   return <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-2 break-all"><ExternalLink className="h-4 w-4 shrink-0"/> {alias || value}</a>
               }
-              return <span className="break-words">{String(value)}</span>;
+              return <RichTextViewer text={String(value)} />;
           }
+          case 'textarea':
+              return <RichTextViewer text={String(value)} />;
           case 'date':
               return value ? format(new Date(value), 'PPP') : 'Not set';
           case 'checkbox':
@@ -650,9 +653,9 @@ const handleCopyDescription = () => {
                   <div className="flex flex-wrap gap-1">
                       {value.map((v: any) => <Badge key={v} variant="secondary">{v}</Badge>)}
                   </div>
-              ) : <span className="break-words">{String(value)}</span>;
+              ) : <RichTextViewer text={String(value)} />;
           default:
-              return <span className="break-words">{String(value)}</span>;
+              return <RichTextViewer text={String(value)} />;
       }
   }
   
@@ -811,8 +814,8 @@ const handleCopyDescription = () => {
                 <BellRing className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
                 <div className="flex-1">
                   <AlertTitle className="text-amber-800 dark:text-amber-200">Reminder Note</AlertTitle>
-                  <AlertDescription className="text-amber-700 dark:text-amber-300 whitespace-pre-wrap">
-                    {task.reminder}
+                  <AlertDescription className="text-amber-700 dark:text-amber-300">
+                    <RichTextViewer text={task.reminder} />
                     {isValidDate(task.reminderExpiresAt) && (
                       <span className="block text-xs italic mt-1 text-amber-600 dark:text-amber-400">
                         (Expires {formatTimestamp(task.reminderExpiresAt, uiConfig.timeFormat)})
@@ -930,7 +933,7 @@ const handleCopyDescription = () => {
                                 <TooltipContent>Copy description</TooltipContent>
                             </Tooltip>
                         )}
-                        <p className="text-foreground/80 whitespace-pre-wrap">{task.description}</p>
+                        <RichTextViewer text={task.description} />
                     </div>
                   </CardContent>
                 </div>

@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +10,7 @@ import { Pencil, Trash2, X, Check, MessageSquare } from 'lucide-react';
 import { cn, formatTimestamp } from '@/lib/utils';
 import type { Comment } from '@/lib/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
+import { RichTextViewer } from './ui/rich-text-viewer';
 
 interface CommentsSectionProps {
   taskId: string;
@@ -127,7 +129,9 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
                                         ) : (
                                         <div className="flex flex-col justify-between items-start gap-2">
                                             <div className="flex justify-between items-start w-full gap-2">
-                                                <p className="text-foreground/80 whitespace-pre-wrap flex-1 pt-1">{text}</p>
+                                                <div className="text-foreground/80 flex-1 pt-1">
+                                                  <RichTextViewer text={text} />
+                                                </div>
                                                 {!readOnly && (
                                                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(index)}>
