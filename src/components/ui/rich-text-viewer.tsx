@@ -1,6 +1,7 @@
 
 
 'use client';
+import * as React from 'react';
 import { memo, useMemo } from 'react';
 import { Copy, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
