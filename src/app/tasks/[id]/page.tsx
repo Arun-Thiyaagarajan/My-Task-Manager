@@ -28,6 +28,7 @@ import { PersonProfileCard } from '@/components/person-profile-card';
 import { ImagePreviewDialog } from '@/components/image-preview-dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { attachmentSchema } from '@/lib/validators';
 import { RelatedTasksSection } from '@/components/related-tasks-section';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -90,6 +91,7 @@ export default function TaskPage() {
   const [editingValue, setEditingValue] = useState<any>('');
 
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const descriptionTextareaRef = useRef<HTMLTextAreaElement>(null);
   
   const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
   const taskId = params.id as string;
@@ -264,6 +266,9 @@ export default function TaskPage() {
         titleInputRef.current.focus();
         titleInputRef.current.select();
     }
+    if (editingSection === 'description' && descriptionTextareaRef.current) {
+        descriptionTextareaRef.current.focus();
+    }
   }, [editingSection]);
   
   const handleStartEditing = (section: string, initialValue: any) => {
@@ -286,16 +291,19 @@ export default function TaskPage() {
     if (key === 'repositories' && !Array.isArray(finalValue)) {
         finalValue = finalValue ? [finalValue] : [];
     }
-
-    let updateData: Partial<Task> = {};
+    
+    let updatePayload: Partial<Task> = {};
+    if (key === 'description' && finalValue !== task.description) {
+        updatePayload.summary = null;
+    }
 
     if (isCustom) {
-        updateData.customFields = { ...task.customFields, [key]: finalValue };
+        updatePayload.customFields = { ...task.customFields, [key]: finalValue };
     } else {
-        (updateData as any)[key] = finalValue;
+        (updatePayload as any)[key] = finalValue;
     }
     
-    const updatedTask = updateTask(task.id, updateData);
+    const updatedTask = updateTask(task.id, updatePayload);
     if (updatedTask) {
         setTask(updatedTask);
         setTaskLogs(getLogsForTask(task.id));
@@ -916,18 +924,18 @@ const handleCopyDescription = () => {
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="pt-2 flex-grow">
+                  <CardContent className="pt-2 flex-grow group/description" onClick={() => !isBinned && handleStartEditing('description', task.description)}>
                     <CardDescription className="mb-4">
                         Last updated {formatTimestamp(task.updatedAt, uiConfig.timeFormat)}
                     </CardDescription>
                     <div className="relative">
-                       {task.description && !isBinned && (
+                       {task.description && !isBinned && editingSection !== 'description' && (
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="absolute top-0 right-0 h-7 w-7 text-muted-foreground opacity-0 group-hover/card:opacity-100 transition-opacity"
+                                        className="absolute top-0 right-0 h-7 w-7 text-muted-foreground opacity-0 group-hover/description:opacity-100 transition-opacity"
                                         onClick={handleCopyDescription}
                                     >
                                         {isCopying ? <Check className="h-4 w-4 text-green-500 animate-in fade-in" /> : <Copy className="h-4 w-4" />}
@@ -936,7 +944,22 @@ const handleCopyDescription = () => {
                                 <TooltipContent>Copy description</TooltipContent>
                             </Tooltip>
                         )}
-                        <RichTextViewer text={task.description} />
+                        {editingSection === 'description' ? (
+                          <div className="space-y-2">
+                            <Textarea
+                                ref={descriptionTextareaRef}
+                                value={editingValue}
+                                onChange={e => setEditingValue(e.target.value)}
+                                className="min-h-[120px]"
+                            />
+                            <div className="flex justify-end gap-2">
+                                <Button variant="ghost" size="sm" onClick={handleCancelEditing}>Cancel</Button>
+                                <Button size="sm" onClick={() => handleSaveEditing('description', false)}>Save</Button>
+                            </div>
+                           </div>
+                        ) : (
+                          <RichTextViewer text={task.description} />
+                        )}
                     </div>
                   </CardContent>
                 </div>
@@ -1414,3 +1437,5 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
       </div>
     );
 }
+
+    
