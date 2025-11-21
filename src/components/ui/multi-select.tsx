@@ -46,17 +46,20 @@ export function MultiSelect({
   const [isOpen, setIsOpen] = React.useState(false);
   const [query, setQuery] = React.useState('');
   
+  // Ensure 'selected' is always an array to prevent crashes.
+  const safeSelected = Array.isArray(selected) ? selected : [];
+
   const handleUnselect = React.useCallback(
     (e: React.MouseEvent | React.KeyboardEvent, value: string) => {
       e.preventDefault();
       e.stopPropagation();
-      const newSelected = selected.filter((s) => s !== value);
+      const newSelected = safeSelected.filter((s) => s !== value);
       onChange(newSelected);
       if (newSelected.length <= 1) {
         setIsOpen(false);
       }
     },
-    [onChange, selected]
+    [onChange, safeSelected]
   );
   
   const handleKeyDown = React.useCallback(
@@ -65,7 +68,7 @@ export function MultiSelect({
       if (input) {
         if (e.key === 'Delete' || e.key === 'Backspace') {
           if (input.value === '') {
-            handleUnselect(e, selected[selected.length - 1]);
+            handleUnselect(e, safeSelected[safeSelected.length - 1]);
           }
         }
         if (e.key === 'Escape') {
@@ -73,19 +76,19 @@ export function MultiSelect({
         }
       }
     },
-    [handleUnselect, selected]
+    [handleUnselect, safeSelected]
   );
 
   const allOptions = [...options];
   
   const selectedMap = new Map<string, string>();
-  selected.forEach(value => {
+  safeSelected.forEach(value => {
     const option = allOptions.find(o => o.value === value);
     selectedMap.set(value, option ? option.label : value);
   });
 
   // Also add any selected values that are not in the predefined options (for creatable)
-  selected.forEach(value => {
+  safeSelected.forEach(value => {
       if (!options.some(o => o.value === value)) {
           if (!allOptions.some(o => o.value === value)) {
               allOptions.push({ value, label: value });
@@ -94,7 +97,7 @@ export function MultiSelect({
   });
 
   const filteredOptions = allOptions.filter(
-    (option) => !selected.includes(option.value)
+    (option) => !safeSelected.includes(option.value)
   );
 
   const lowerCaseQuery = query.trim().toLowerCase();
@@ -110,13 +113,13 @@ export function MultiSelect({
     if (onCreate) {
       const newId = onCreate(newValue);
       if (newId) {
-        onChange([...selected, newId]);
+        onChange([...safeSelected, newId]);
       }
     } else {
-      onChange([...selected, newValue]);
+      onChange([...safeSelected, newValue]);
     }
     setQuery('');
-  }, [showCreatable, query, onCreate, onChange, selected]);
+  }, [showCreatable, query, onCreate, onChange, safeSelected]);
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -128,8 +131,8 @@ export function MultiSelect({
           onClick={() => setIsOpen(true)}
         >
           <div className="flex flex-wrap gap-1 items-center flex-grow">
-            {selected.length === 0 && <span className="text-muted-foreground">{placeholder}</span>}
-            {selected.length > 0 && selected.map(value => {
+            {safeSelected.length === 0 && <span className="text-muted-foreground">{placeholder}</span>}
+            {safeSelected.length > 0 && safeSelected.map(value => {
                 const label = selectedMap.get(value);
                 return (
                     <Badge key={value} variant="secondary" className="whitespace-nowrap">
@@ -171,7 +174,7 @@ export function MultiSelect({
                         value={option.label}
                         onMouseDown={(e) => e.preventDefault()}
                         onSelect={() => {
-                          onChange([...selected, option.value]);
+                          onChange([...safeSelected, option.value]);
                           setQuery('');
                         }}
                         className="cursor-pointer"
@@ -194,7 +197,7 @@ export function MultiSelect({
                     </CommandItem>
                 </CommandGroup>
                 )}
-                {selected.length > 0 && (
+                {safeSelected.length > 0 && (
                     <CommandGroup>
                         <div className="space-y-1 p-2">
                             <div className="flex items-center justify-between px-2">
@@ -213,7 +216,7 @@ export function MultiSelect({
                                     Clear all
                                 </Button>
                             </div>
-                            {selected.map(value => {
+                            {safeSelected.map(value => {
                                 return (
                                 <div key={value} className="flex items-center justify-between rounded-md hover:bg-accent">
                                     <span className="text-sm truncate px-2 py-1.5">{selectedMap.get(value)}</span>
