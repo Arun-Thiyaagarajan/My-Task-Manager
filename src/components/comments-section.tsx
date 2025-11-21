@@ -167,7 +167,9 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
                                     value={newComment}
                                     onChange={(e) => setNewComment(e.target.value)}
                                     />
-                                    <Button onClick={handleAddComment} className="self-end" disabled={!newComment.trim()}>Add Comment</Button>
+                                    <div className="flex justify-end">
+                                      <Button onClick={handleAddComment} className="self-end" disabled={!newComment.trim()}>Add Comment</Button>
+                                    </div>
                                 </div>
                               </div>
                             )}

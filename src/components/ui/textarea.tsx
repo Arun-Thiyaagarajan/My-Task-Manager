@@ -1,38 +1,31 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
+import { TextareaToolbar, applyFormat } from './textarea-toolbar';
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, React.ComponentProps<'textarea'>>(
   ({ className, onKeyDown, ...props }, ref) => {
+    const internalRef = React.useRef<HTMLTextAreaElement>(null);
+    React.useImperativeHandle(ref, () => internalRef.current as HTMLTextAreaElement);
+
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.ctrlKey || e.metaKey) {
         const key = e.key.toLowerCase();
         if (['b', 'i', 's', 'e'].includes(key)) {
           e.preventDefault();
           const target = e.currentTarget;
-          const { selectionStart, selectionEnd, value } = target;
-
-          let chars = '';
+          
+          let formatType: 'bold' | 'italic' | 'strike' | 'code' | null = null;
           switch (key) {
-            case 'b': chars = '**'; break;
-            case 'i': chars = '_'; break;
-            case 's': chars = '~'; break;
-            case 'e': chars = '`'; break;
+            case 'b': formatType = 'bold'; break;
+            case 'i': formatType = 'italic'; break;
+            case 's': formatType = 'strike'; break;
+            case 'e': formatType = 'code'; break;
           }
 
-          const selectedText = value.substring(selectionStart, selectionEnd);
-          const newText = `${value.substring(0, selectionStart)}${chars}${selectedText}${chars}${value.substring(selectionEnd)}`;
-
-          // This is a bit of a trick to trigger the React state update if it's a controlled component
-          const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
-          nativeInputValueSetter?.call(target, newText);
-
-          const event = new Event('input', { bubbles: true });
-          target.dispatchEvent(event);
-
-          // Restore cursor position
-          target.selectionStart = selectionStart + chars.length;
-          target.selectionEnd = selectionEnd + chars.length;
+          if (formatType) {
+            applyFormat(formatType, target);
+          }
         }
       }
 
@@ -40,17 +33,26 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, React.ComponentProps<'tex
         onKeyDown(e);
       }
     };
+    
+    const handleToolbarClick = (formatType: 'bold' | 'italic' | 'strike' | 'code') => {
+        if (internalRef.current) {
+            applyFormat(formatType, internalRef.current);
+        }
+    };
 
     return (
-      <textarea
-        className={cn(
-          'flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
-          className
-        )}
-        ref={ref}
-        onKeyDown={handleKeyDown}
-        {...props}
-      />
+      <div className="relative">
+        <textarea
+            className={cn(
+            'flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
+            className
+            )}
+            ref={internalRef}
+            onKeyDown={handleKeyDown}
+            {...props}
+        />
+        <TextareaToolbar onFormatClick={handleToolbarClick} />
+      </div>
     );
   }
 );
