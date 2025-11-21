@@ -28,7 +28,6 @@ import { PersonProfileCard } from '@/components/person-profile-card';
 import { ImagePreviewDialog } from '@/components/image-preview-dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { LiveEditor } from '@/components/ui/live-editor';
 import { attachmentSchema } from '@/lib/validators';
 import { RelatedTasksSection } from '@/components/related-tasks-section';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -50,6 +49,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { generateTaskPdf, generateTasksText } from '@/lib/share-utils';
 import { MultiSelect, type SelectOption } from '@/components/ui/multi-select';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
+import { Textarea } from '@/components/ui/textarea';
 
 
 const isImageUrl = (url: string): boolean => {
@@ -91,7 +91,7 @@ export default function TaskPage() {
   const [editingValue, setEditingValue] = useState<any>('');
 
   const titleInputRef = useRef<HTMLInputElement>(null);
-  const descriptionEditorRef = useRef<HTMLDivElement>(null);
+  const descriptionEditorRef = useRef<HTMLTextAreaElement>(null);
   
   const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
   const taskId = params.id as string;
@@ -219,7 +219,7 @@ export default function TaskPage() {
         const primaryRepo = task.repositories[0];
         strategies.push(() => {
           const related = tasksForRelated.filter(t => {
-              const repos = Array.isArray(t.repositories) ? t.repositories : [t.repositories].filter(Boolean);
+              const repos = Array.isArray(t.repositories) ? t.repositories : [];
               return repos.includes(primaryRepo);
           });
           return related.length > 0 ? {
@@ -946,11 +946,12 @@ const handleCopyDescription = () => {
                         )}
                         {editingSection === 'description' ? (
                           <div className="space-y-2">
-                            <LiveEditor
+                             <Textarea
                                 ref={descriptionEditorRef}
                                 value={editingValue}
-                                onChange={setEditingValue}
-                            />
+                                onChange={(e) => setEditingValue(e.target.value)}
+                                className="min-h-[150px]"
+                             />
                             <div className="flex justify-end gap-2">
                                 <Button variant="ghost" size="sm" onClick={handleCancelEditing}>Cancel</Button>
                                 <Button size="sm" onClick={() => handleSaveEditing('description', false)}>Save</Button>

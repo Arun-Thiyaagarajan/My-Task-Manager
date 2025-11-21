@@ -29,7 +29,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { getLinkAlias } from '@/ai/flows/get-link-alias-flow';
 
 

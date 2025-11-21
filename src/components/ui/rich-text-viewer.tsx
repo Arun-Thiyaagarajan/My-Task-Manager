@@ -24,17 +24,19 @@ const CodeBlock = ({ content }: { content: string }) => {
     };
 
     return (
-        <pre className="bg-muted text-muted-foreground rounded-md p-3 my-2 relative font-mono text-sm">
+        <div className="bg-muted text-muted-foreground rounded-md my-2 relative font-mono text-sm group/code">
+            <pre className="p-3 pl-4 pr-10 overflow-x-auto">
+                <code>{content}</code>
+            </pre>
             <Button
                 variant="ghost"
                 size="icon"
-                className="absolute top-1 right-1 h-7 w-7 text-muted-foreground"
+                className="absolute top-1.5 right-1.5 h-7 w-7 text-muted-foreground opacity-0 group-hover/code:opacity-100 transition-opacity"
                 onClick={handleCopy}
             >
                 {isCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
             </Button>
-            <code>{content}</code>
-        </pre>
+        </div>
     );
 };
 
@@ -64,7 +66,7 @@ export const RichTextViewer = memo(({ text }: RichTextViewerProps) => {
       } else if (strike) {
         result.push(<s key={lastIndex}>{strike}</s>);
       } else if (code) {
-        result.push(<CodeBlock key={lastIndex} content={code} />);
+        result.push(<code key={lastIndex} className="bg-muted text-muted-foreground rounded-sm px-1.5 py-0.5 font-mono text-sm">{code}</code>);
       } else if (link) {
         result.push(<a href={link} key={lastIndex} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{link}</a>);
       }
@@ -77,7 +79,45 @@ export const RichTextViewer = memo(({ text }: RichTextViewerProps) => {
       result.push(text.substring(lastIndex));
     }
     
-    return result;
+    // Process multiline code blocks
+    const finalResult: (string | JSX.Element)[] = [];
+    let inCodeBlock = false;
+    let codeBlockContent = '';
+
+    result.forEach((part, index) => {
+      if (typeof part === 'string' && part.includes('```')) {
+        const sections = part.split(/```/g);
+        sections.forEach((section, i) => {
+          if (inCodeBlock) {
+            codeBlockContent += section;
+            finalResult.push(<CodeBlock key={`${index}-code-${i}`} content={codeBlockContent} />);
+            inCodeBlock = false;
+            codeBlockContent = '';
+          } else {
+            if (section) finalResult.push(section);
+            // Don't start a new code block if it's the last section
+            if (i < sections.length - 1) {
+              inCodeBlock = true;
+            }
+          }
+        });
+      } else if (inCodeBlock) {
+        // This part is complex because a JSX element (like <strong>) can be inside a code block.
+        // For simplicity, we'll treat JSX parts as string representations inside a code block.
+        // A more robust parser would handle this differently.
+        if(React.isValidElement(part)) {
+            // A simple way to get the text content of a simple element
+            const textContent = (part.props.children as any)?.toString() || '';
+             codeBlockContent += textContent;
+        } else {
+             codeBlockContent += part;
+        }
+      } else {
+        finalResult.push(part);
+      }
+    });
+
+    return finalResult;
   }, [text]);
 
   return (
