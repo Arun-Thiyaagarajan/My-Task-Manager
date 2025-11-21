@@ -1,3 +1,4 @@
+
 'use client';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -130,15 +131,17 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
                         {comments.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No comments yet. {readOnly ? '' : 'Add one below!'}</p>}
                     </div>
                     {!readOnly && (
-                        <div className="flex flex-col gap-2 pt-4 border-t">
-                            <label htmlFor="new-comment" className="text-sm font-medium">Add a comment</label>
-                            <Textarea
-                            id="new-comment"
-                            placeholder="Type your comment here..."
-                            value={newComment}
-                            onChange={(e) => setNewComment(e.target.value)}
-                            />
-                            <Button onClick={handleAddComment} className="self-end" disabled={!newComment.trim()}>Add Comment</Button>
+                        <div className="p-4 rounded-lg border bg-card">
+                            <div className="flex flex-col gap-2">
+                                <label htmlFor="new-comment" className="text-sm font-medium">Add a comment</label>
+                                <Textarea
+                                id="new-comment"
+                                placeholder="Type your comment here..."
+                                value={newComment}
+                                onChange={(e) => setNewComment(e.target.value)}
+                                />
+                                <Button onClick={handleAddComment} className="self-end" disabled={!newComment.trim()}>Add Comment</Button>
+                            </div>
                         </div>
                     )}
                 </div>
