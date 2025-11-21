@@ -28,7 +28,7 @@ import { PersonProfileCard } from '@/components/person-profile-card';
 import { ImagePreviewDialog } from '@/components/image-preview-dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { LiveEditor } from '@/components/ui/live-editor';
 import { attachmentSchema } from '@/lib/validators';
 import { RelatedTasksSection } from '@/components/related-tasks-section';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -91,7 +91,7 @@ export default function TaskPage() {
   const [editingValue, setEditingValue] = useState<any>('');
 
   const titleInputRef = useRef<HTMLInputElement>(null);
-  const descriptionTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const descriptionEditorRef = useRef<HTMLDivElement>(null);
   
   const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
   const taskId = params.id as string;
@@ -266,8 +266,8 @@ export default function TaskPage() {
         titleInputRef.current.focus();
         titleInputRef.current.select();
     }
-    if (editingSection === 'description' && descriptionTextareaRef.current) {
-        descriptionTextareaRef.current.focus();
+    if (editingSection === 'description' && descriptionEditorRef.current) {
+        descriptionEditorRef.current.focus();
     }
   }, [editingSection]);
   
@@ -608,7 +608,7 @@ export default function TaskPage() {
         tasks: [taskWithNames],
         logs: logsToExport,
     };
-
+    
     const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(exportData, null, 2))}`;
     const link = document.createElement("a");
     link.href = jsonString;
@@ -946,11 +946,10 @@ const handleCopyDescription = () => {
                         )}
                         {editingSection === 'description' ? (
                           <div className="space-y-2">
-                            <Textarea
-                                ref={descriptionTextareaRef}
+                            <LiveEditor
+                                ref={descriptionEditorRef}
                                 value={editingValue}
-                                onChange={e => setEditingValue(e.target.value)}
-                                className="min-h-[120px]"
+                                onChange={setEditingValue}
                             />
                             <div className="flex justify-end gap-2">
                                 <Button variant="ghost" size="sm" onClick={handleCancelEditing}>Cancel</Button>

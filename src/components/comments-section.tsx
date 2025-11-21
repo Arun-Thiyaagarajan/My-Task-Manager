@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { LiveEditor } from '@/components/ui/live-editor';
 import { addComment, updateComment, deleteComment, getUiConfig } from '@/lib/data';
 import { Pencil, Trash2, X, Check, MessageSquare } from 'lucide-react';
 import { cn, formatTimestamp } from '@/lib/utils';
@@ -116,10 +116,9 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
                                     <div key={index} className="p-3 rounded-md border bg-muted/50 group">
                                         {editingIndex === index ? (
                                         <div className="space-y-2">
-                                            <Textarea
-                                            value={editingText}
-                                            onChange={(e) => setEditingText(e.target.value)}
-                                            className="bg-background"
+                                            <LiveEditor
+                                                value={editingText}
+                                                onChange={setEditingText}
                                             />
                                             <div className="flex gap-2 justify-end">
                                             <Button size="sm" variant="ghost" onClick={handleCancelEdit}><X className="h-4 w-4 mr-1" />Cancel</Button>
@@ -161,11 +160,10 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
                               <div className="border rounded-lg bg-card mt-4 p-4">
                                 <div className="flex flex-col gap-2">
                                     <label htmlFor="new-comment" className="text-sm font-medium">Add a comment</label>
-                                    <Textarea
-                                    id="new-comment"
-                                    placeholder="Type your comment here..."
-                                    value={newComment}
-                                    onChange={(e) => setNewComment(e.target.value)}
+                                    <LiveEditor
+                                        value={newComment}
+                                        onChange={setNewComment}
+                                        placeholder="Type your comment here..."
                                     />
                                     <div className="flex justify-end">
                                       <Button onClick={handleAddComment} className="self-end" disabled={!newComment.trim()}>Add Comment</Button>
