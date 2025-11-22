@@ -279,136 +279,7 @@ export default function Home() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  useEffect(() => {
-    const tutorialPrompted = localStorage.getItem(TUTORIAL_PROMPTED_KEY);
-    const config = getUiConfig();
-    if (!tutorialPrompted && config.tutorialEnabled) {
-      // Use a timeout to ensure the UI is ready before showing the prompt
-      setTimeout(() => setShowTutorialPrompt(true), 1000);
-    }
-    
-    const savedViewMode = localStorage.getItem('taskflow_view_mode') as ViewMode;
-    if (savedViewMode) setViewMode(savedViewMode);
-
-    const savedSelectedDate = localStorage.getItem('taskflow_selected_date');
-    if (savedSelectedDate) setSelectedDate(new Date(savedSelectedDate));
-
-    const savedOpenGroups = localStorage.getItem('taskflow_open_groups');
-    if (savedOpenGroups) {
-      setOpenGroups(JSON.parse(savedOpenGroups));
-    }
-    
-    const savedPinnedTasks = localStorage.getItem(PINNED_TASKS_STORAGE_KEY);
-    if (savedPinnedTasks) {
-      setPinnedTaskIds(JSON.parse(savedPinnedTasks));
-    }
-    
-    const savedSortDescriptor = localStorage.getItem('taskflow_sort_descriptor');
-    if (savedSortDescriptor) {
-        setSortDescriptor(savedSortDescriptor);
-    }
-
-  }, []);
-
-  const handlePinToggle = (taskIdToToggle: string) => {
-    setPinnedTaskIds(currentIds => {
-      const newPinnedIds = currentIds.includes(taskIdToToggle)
-        ? currentIds.filter(id => id !== taskIdToToggle)
-        : [...currentIds, taskIdToToggle];
-      localStorage.setItem(PINNED_TASKS_STORAGE_KEY, JSON.stringify(newPinnedIds));
-      return newPinnedIds;
-    });
-  };
-
-  const handleUnpinFromStack = (taskId: string) => {
-    handlePinToggle(taskId);
-    toast({
-        title: 'Reminder Unpinned',
-        description: 'The reminder will no longer appear on the main page.',
-    });
-  };
-  
-  const handleDismissGeneralReminder = (reminderId: string) => {
-    if (deleteGeneralReminder(reminderId)) {
-      setGeneralReminders(prev => prev.filter(r => r.id !== reminderId));
-      toast({
-        title: 'Reminder Dismissed',
-        description: 'The general reminder has been removed.',
-      });
-    }
-  };
-
-  const handleViewModeChange = (mode: ViewMode) => {
-    if (mode === 'grid' || mode === 'table') {
-      localStorage.setItem('taskflow_view_mode', mode);
-      setViewMode(mode);
-    }
-  };
-  
-  const handleToggleSelectMode = () => {
-    setIsSelectMode(prev => !prev);
-    setSelectedTaskIds([]); // Clear selection when toggling mode
-  };
-  
-  const handleFavoritesToggle = () => {
-    const willBeOn = !favoritesOnly;
-    if (willBeOn) {
-        previousDateViewRef.current = dateView;
-        setDateView('all');
-    } else {
-        setDateView(previousDateViewRef.current);
-    }
-    setFavoritesOnly(willBeOn);
-  };
-  
-  const handleSortChange = (value: string) => {
-      setSortDescriptor(value);
-      localStorage.setItem('taskflow_sort_descriptor', value);
-  };
-
-  useEffect(() => {
-    localStorage.setItem('taskflow_date_view', JSON.stringify(dateView));
-    localStorage.setItem('taskflow_selected_date', selectedDate.toISOString());
-    localStorage.setItem('taskflow_open_groups', JSON.stringify(openGroups));
-  }, [dateView, selectedDate, openGroups]);
-
-  useEffect(() => {
-    if (!activeCompanyId) {
-      return;
-    }
-
-    const { updatedTaskIds, unpinnedTaskIds } = clearExpiredReminders();
-    if (updatedTaskIds.length > 0) {
-        toast({ title: `${updatedTaskIds.length} reminder(s) expired and were cleared.` });
-        if (unpinnedTaskIds.length > 0) {
-            // Update local state first to avoid stale data
-            const currentPinned = JSON.parse(localStorage.getItem(PINNED_TASKS_STORAGE_KEY) || '[]');
-            const newPinned = currentPinned.filter((id: string) => !unpinnedTaskIds.includes(id));
-            setPinnedTaskIds(newPinned);
-            localStorage.setItem(PINNED_TASKS_STORAGE_KEY, JSON.stringify(newPinned));
-        }
-    }
-    
-    refreshData();
-    setIsLoading(false);
-    
-    window.addEventListener('storage', refreshData);
-    window.addEventListener('config-changed', refreshData);
-    window.addEventListener('company-changed', refreshData);
-    
-    const savedSortDescriptor = localStorage.getItem('taskflow_sort_descriptor');
-    if (savedSortDescriptor) {
-      setSortDescriptor(savedSortDescriptor);
-    }
-
-    return () => {
-      window.removeEventListener('storage', refreshData);
-      window.removeEventListener('config-changed', refreshData);
-      window.removeEventListener('company-changed', refreshData);
-    };
-  }, [activeCompanyId]);
-
-   const handleExport = (exportType: 'current_view' | 'all_tasks') => {
+  const handleExport = useCallback((exportType: 'current_view' | 'all_tasks') => {
     const allDevelopers = getDevelopers();
     const allTesters = getTesters();
     const currentUiConfig = getUiConfig();
@@ -498,53 +369,173 @@ export default function Home() {
     if (exportType === 'all_tasks') {
         localStorage.setItem(LAST_BACKUP_KEY, new Date().toISOString());
     }
+  }, [isSelectMode, selectedTaskIds, sortedTasks, toast]);
+
+  useEffect(() => {
+    if (!activeCompanyId) return;
+
+    const config = getUiConfig();
+    if (!config.tutorialEnabled) {
+      localStorage.removeItem(TUTORIAL_PROMPTED_KEY);
+    } else {
+      const tutorialPrompted = localStorage.getItem(TUTORIAL_PROMPTED_KEY);
+      if (!tutorialPrompted) {
+        setTimeout(() => setShowTutorialPrompt(true), 1000);
+      }
+    }
+    
+    const savedViewMode = localStorage.getItem('taskflow_view_mode') as ViewMode;
+    if (savedViewMode) setViewMode(savedViewMode);
+
+    const savedSelectedDate = localStorage.getItem('taskflow_selected_date');
+    if (savedSelectedDate) setSelectedDate(new Date(savedSelectedDate));
+
+    const savedOpenGroups = localStorage.getItem('taskflow_open_groups');
+    if (savedOpenGroups) {
+      setOpenGroups(JSON.parse(savedOpenGroups));
+    }
+    
+    const savedPinnedTasks = localStorage.getItem(PINNED_TASKS_STORAGE_KEY);
+    if (savedPinnedTasks) {
+      setPinnedTaskIds(JSON.parse(savedPinnedTasks));
+    }
+    
+    const savedSortDescriptor = localStorage.getItem('taskflow_sort_descriptor');
+    if (savedSortDescriptor) {
+        setSortDescriptor(savedSortDescriptor);
+    }
+    
+    // Automatic backup logic
+    const backupFrequency = config.autoBackupFrequency || 'off';
+    if (backupFrequency !== 'off') {
+        const lastBackup = localStorage.getItem(LAST_BACKUP_KEY);
+        const backupHour = config.autoBackupTime ?? 6;
+
+        if (!lastBackup) {
+            setTimeout(() => {
+                handleExport('all_tasks');
+                toast({
+                    title: 'First Automatic Backup',
+                    description: 'A backup of all your tasks has been downloaded.',
+                    duration: 10000,
+                });
+            }, 2000);
+        } else {
+            const now = new Date();
+            let lastBackupDate = new Date(lastBackup);
+            lastBackupDate = set(lastBackupDate, { hours: backupHour, minutes: 0, seconds: 0, milliseconds: 0 });
+
+            let nextBackupDate = new Date(lastBackupDate);
+            switch(backupFrequency) {
+                case 'daily': nextBackupDate.setDate(nextBackupDate.getDate() + 1); break;
+                case 'weekly': nextBackupDate.setDate(nextBackupDate.getDate() + 7); break;
+                case 'monthly': nextBackupDate = addMonths(nextBackupDate, 1); break;
+                case 'yearly': nextBackupDate = addYears(nextBackupDate, 1); break;
+            }
+            if (now >= nextBackupDate) {
+                setTimeout(() => {
+                    handleExport('all_tasks');
+                    toast({
+                        title: 'Automatic Backup',
+                        description: `A ${backupFrequency} backup of all your tasks has been downloaded.`,
+                        duration: 10000,
+                    });
+                }, 2000);
+            }
+        }
+    }
+    
+    // Reminder clearing logic
+    const { updatedTaskIds, unpinnedTaskIds } = clearExpiredReminders();
+    if (updatedTaskIds.length > 0) {
+        toast({ title: `${updatedTaskIds.length} reminder(s) expired and were cleared.` });
+        if (unpinnedTaskIds.length > 0) {
+            const currentPinned = JSON.parse(localStorage.getItem(PINNED_TASKS_STORAGE_KEY) || '[]');
+            const newPinned = currentPinned.filter((id: string) => !unpinnedTaskIds.includes(id));
+            setPinnedTaskIds(newPinned);
+            localStorage.setItem(PINNED_TASKS_STORAGE_KEY, JSON.stringify(newPinned));
+        }
+    }
+
+    refreshData();
+    setIsLoading(false);
+    
+    const storageHandler = () => {
+        refreshData();
+    };
+
+    window.addEventListener('storage', storageHandler);
+    window.addEventListener('config-changed', storageHandler);
+    window.addEventListener('company-changed', storageHandler);
+    
+    return () => {
+      window.removeEventListener('storage', storageHandler);
+      window.removeEventListener('config-changed', storageHandler);
+      window.removeEventListener('company-changed', storageHandler);
+    };
+  }, [activeCompanyId, handleExport, toast]);
+
+  const handlePinToggle = (taskIdToToggle: string) => {
+    setPinnedTaskIds(currentIds => {
+      const newPinnedIds = currentIds.includes(taskIdToToggle)
+        ? currentIds.filter(id => id !== taskIdToToggle)
+        : [...currentIds, taskIdToToggle];
+      localStorage.setItem(PINNED_TASKS_STORAGE_KEY, JSON.stringify(newPinnedIds));
+      return newPinnedIds;
+    });
+  };
+
+  const handleUnpinFromStack = (taskId: string) => {
+    handlePinToggle(taskId);
+    toast({
+        title: 'Reminder Unpinned',
+        description: 'The reminder will no longer appear on the main page.',
+    });
+  };
+  
+  const handleDismissGeneralReminder = (reminderId: string) => {
+    if (deleteGeneralReminder(reminderId)) {
+      setGeneralReminders(prev => prev.filter(r => r.id !== reminderId));
+      toast({
+        title: 'Reminder Dismissed',
+        description: 'The general reminder has been removed.',
+      });
+    }
+  };
+
+  const handleViewModeChange = (mode: ViewMode) => {
+    if (mode === 'grid' || mode === 'table') {
+      localStorage.setItem('taskflow_view_mode', mode);
+      setViewMode(mode);
+    }
+  };
+  
+  const handleToggleSelectMode = () => {
+    setIsSelectMode(prev => !prev);
+    setSelectedTaskIds([]); // Clear selection when toggling mode
+  };
+  
+  const handleFavoritesToggle = () => {
+    const willBeOn = !favoritesOnly;
+    if (willBeOn) {
+        previousDateViewRef.current = dateView;
+        setDateView('all');
+    } else {
+        setDateView(previousDateViewRef.current);
+    }
+    setFavoritesOnly(willBeOn);
+  };
+  
+  const handleSortChange = (value: string) => {
+      setSortDescriptor(value);
+      localStorage.setItem('taskflow_sort_descriptor', value);
   };
 
   useEffect(() => {
-    const config = getUiConfig();
-    const backupFrequency = config.autoBackupFrequency || 'off';
-    if (backupFrequency === 'off') return;
-
-    const lastBackup = localStorage.getItem(LAST_BACKUP_KEY);
-    const backupHour = config.autoBackupTime ?? 6;
-
-    if (!lastBackup) {
-        // If no backup has ever been made, trigger one immediately.
-        setTimeout(() => {
-            handleExport('all_tasks');
-            toast({
-                title: 'First Automatic Backup',
-                description: 'A backup of all your tasks has been downloaded.',
-                duration: 10000,
-            });
-        }, 1000);
-        return;
-    }
-
-    const now = new Date();
-    let lastBackupDate = new Date(lastBackup);
-    lastBackupDate = set(lastBackupDate, { hours: backupHour, minutes: 0, seconds: 0, milliseconds: 0 });
-
-    let nextBackupDate = new Date(lastBackupDate);
-
-    switch(backupFrequency) {
-        case 'daily': nextBackupDate.setDate(nextBackupDate.getDate() + 1); break;
-        case 'weekly': nextBackupDate.setDate(nextBackupDate.getDate() + 7); break;
-        case 'monthly': nextBackupDate = addMonths(nextBackupDate, 1); break;
-        case 'yearly': nextBackupDate = addYears(nextBackupDate, 1); break;
-    }
-
-    if (now >= nextBackupDate) {
-        setTimeout(() => {
-            handleExport('all_tasks');
-            toast({
-                title: 'Automatic Backup',
-                description: `A ${backupFrequency} backup of all your tasks has been downloaded.`,
-                duration: 10000,
-            });
-        }, 1000);
-    }
-}, [activeCompanyId]); // Reruns when company changes or on first load with company ID
+    localStorage.setItem('taskflow_date_view', JSON.stringify(dateView));
+    localStorage.setItem('taskflow_selected_date', selectedDate.toISOString());
+    localStorage.setItem('taskflow_open_groups', JSON.stringify(openGroups));
+  }, [dateView, selectedDate, openGroups]);
 
   const filteredTasks = tasks.filter((task: Task) => {
     if (favoritesOnly && !task.isFavorite) {
