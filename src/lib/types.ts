@@ -48,7 +48,6 @@ export interface Log {
   timestamp: string;
   message: string;
   taskId?: string;
-  noteId?: string;
   details?: Record<string, any>;
 }
 
@@ -107,31 +106,6 @@ export interface FieldOption {
   value: string;
 }
 
-export interface Note {
-  id: string;
-  title: string;
-  content: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface FieldConfig {
-  id: string;
-  key: string;
-  label: string;
-  type: FieldType;
-  group: string;
-  isActive: boolean;
-  isRequired: boolean;
-  isCustom: boolean;
-  order: number;
-  options?: FieldOption[];
-  baseUrl?: string;
-  sortDirection?: 'asc' | 'desc' | 'manual';
-}
-
-export type BackupFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'off';
-
 export interface UiConfig {
   fields: FieldConfig[];
   environments: string[];
@@ -146,6 +120,8 @@ export interface UiConfig {
   autoBackupTime?: number;
 }
 
+export type BackupFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'off';
+
 export interface CompanyData {
     tasks: Task[];
     trash: Task[];
@@ -154,7 +130,6 @@ export interface CompanyData {
     uiConfig: UiConfig;
     logs: Log[];
     generalReminders: GeneralReminder[];
-    notes: Note[];
 }
 
 export interface MyTaskManagerData {

@@ -201,13 +201,6 @@ export default function LogsPage() {
                                                                             View Task
                                                                         </Link>
                                                                     </Button>
-                                                                ) : log.noteId ? (
-                                                                    <Button asChild variant="outline" size="sm">
-                                                                        <Link href="/notes">
-                                                                            <StickyNote className="mr-2 h-3 w-3" />
-                                                                            View Note
-                                                                        </Link>
-                                                                    </Button>
                                                                 ) : log.message.includes('to the bin') ? (
                                                                     <Button asChild variant="outline" size="sm">
                                                                         <Link href="/bin">

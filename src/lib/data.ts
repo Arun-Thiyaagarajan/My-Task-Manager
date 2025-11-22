@@ -1,7 +1,7 @@
 
 
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note } from './types';
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency } from './types';
 import cloneDeep from 'lodash/cloneDeep';
 import { format, isToday, isYesterday } from 'date-fns';
 
@@ -40,7 +40,6 @@ const getInitialData = (): MyTaskManagerData => {
                 },
                 logs: [],
                 generalReminders: [],
-                notes: [],
             },
         },
     };
@@ -73,7 +72,6 @@ export const getAppData = (): MyTaskManagerData => {
                     uiConfig: defaultConfig,
                     logs: [],
                     generalReminders: [],
-                    notes: [],
                 },
             },
         };
@@ -94,7 +92,7 @@ export const getAppData = (): MyTaskManagerData => {
             if (!company.trash) company.trash = [];
             if (!company.logs) company.logs = [];
             if (!company.generalReminders) company.generalReminders = [];
-            if (!company.notes) company.notes = [];
+            if ((company as any).notes) delete (company as any).notes;
             company.developers.forEach(p => { if (!p.additionalFields) p.additionalFields = []; });
             company.testers.forEach(p => { if (!p.additionalFields) p.additionalFields = []; });
         });
@@ -654,7 +652,7 @@ export function updateEnvironmentName(oldName: string, newName: string): boolean
     };
     
     tasks.forEach(renameEnvInTask);
-    trash.forEach(renameEnvInTask);
+    (trash || []).forEach(renameEnvInTask);
 
     _addLog(companyData, { message: `Renamed environment from "${oldName}" to "${trimmedNewName}".` });
 
@@ -700,7 +698,7 @@ export function deleteEnvironment(name: string): boolean {
     };
 
     tasks.forEach(deleteEnvFromTask);
-    trash.forEach(deleteEnvFromTask);
+    (trash || []).forEach(deleteEnvFromTask);
 
     _addLog(companyData, { message: `Deleted environment: "${name}".` });
 
@@ -745,6 +743,7 @@ export function addTask(taskData: Partial<Task>, isBinned: boolean = false): Tas
     
     repositories: taskData.repositories || [],
     azureWorkItemId: taskData.azureWorkItemId || '',
+    tags: taskData.tags || [],
     prLinks: taskData.prLinks || {},
     deploymentStatus: taskData.deploymentStatus || {},
     deploymentDates: taskData.deploymentDates || {},
@@ -759,7 +758,6 @@ export function addTask(taskData: Partial<Task>, isBinned: boolean = false): Tas
     qaEndDate: taskData.qaEndDate || null,
 
     customFields: taskData.customFields || {},
-    tags: taskData.tags || [],
   };
   
   if (isBinned) {
@@ -996,9 +994,10 @@ export function updateTask(id: string, taskData: Partial<Omit<Task, 'id' | 'crea
   if (taskIndex !== -1) {
     oldTask = cloneDeep(companyData.tasks[taskIndex]);
   } else {
-    taskIndex = companyData.trash.findIndex(task => task.id === id);
+    const trash = companyData.trash || [];
+    taskIndex = trash.findIndex(task => task.id === id);
     if (taskIndex !== -1) {
-      oldTask = cloneDeep(companyData.trash[taskIndex]);
+      oldTask = cloneDeep(trash[taskIndex]);
       isBinned = true;
     }
   }
@@ -1015,7 +1014,7 @@ export function updateTask(id: string, taskData: Partial<Omit<Task, 'id' | 'crea
   const updatedTask = { ...oldTask, ...taskData, updatedAt: new Date().toISOString() };
   
   if (isBinned) {
-    companyData.trash[taskIndex] = updatedTask;
+    (companyData.trash || [])[taskIndex] = updatedTask;
   } else {
     companyData.tasks[taskIndex] = updatedTask;
   }
@@ -1039,7 +1038,7 @@ export function getBinnedTasks(): Task[] {
         companyData.trash = recentTrash;
         setAppData(data);
     }
-    return recentTrash.sort((a,b) => new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime());
+    return (companyData.trash || []).sort((a,b) => new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime());
 }
 
 export function moveTaskToBin(id: string): boolean {
@@ -1052,6 +1051,7 @@ export function moveTaskToBin(id: string): boolean {
   
   const [taskToBin] = companyData.tasks.splice(taskIndex, 1);
   taskToBin.deletedAt = new Date().toISOString();
+  companyData.trash = companyData.trash || [];
   companyData.trash.unshift(taskToBin);
   
   _addLog(companyData, { message: `Moved task "${taskToBin.title}" to the bin.`, taskId: id });
@@ -1077,6 +1077,7 @@ export function moveMultipleTasksToBin(ids: string[]): boolean {
     _addLog(companyData, { message: `Moved ${tasksToBin.length} task(s) to the bin.` });
 
     companyData.tasks = companyData.tasks.filter(task => !ids.includes(task.id));
+    companyData.trash = companyData.trash || [];
     companyData.trash.unshift(...tasksToBin);
     
     setAppData(data);
@@ -1086,7 +1087,7 @@ export function moveMultipleTasksToBin(ids: string[]): boolean {
 export function restoreTask(id: string): boolean {
     const data = getAppData();
     const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData) return false;
+    if (!companyData || !companyData.trash) return false;
 
     const taskIndex = companyData.trash.findIndex(task => task.id === id);
     if (taskIndex === -1) return false;
@@ -1103,7 +1104,7 @@ export function restoreTask(id: string): boolean {
 export function restoreMultipleTasks(ids: string[]): boolean {
     const data = getAppData();
     const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData) return false;
+    if (!companyData || !companyData.trash) return false;
 
     const tasksToRestore = companyData.trash.filter(task => ids.includes(task.id));
     if (tasksToRestore.length === 0) return false;
@@ -1125,7 +1126,7 @@ export function restoreMultipleTasks(ids: string[]): boolean {
 export function permanentlyDeleteTask(id: string): boolean {
     const data = getAppData();
     const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData) return false;
+    if (!companyData || !companyData.trash) return false;
     
     const taskToDelete = companyData.trash.find(task => task.id === id);
     if (!taskToDelete) return false;
@@ -1141,7 +1142,7 @@ export function permanentlyDeleteTask(id: string): boolean {
 export function permanentlyDeleteMultipleTasks(ids: string[]): boolean {
     const data = getAppData();
     const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData) return false;
+    if (!companyData || !companyData.trash) return false;
     
     const tasksToDelete = companyData.trash.filter(task => ids.includes(task.id));
     if (tasksToDelete.length === 0) return false;
@@ -1157,7 +1158,7 @@ export function permanentlyDeleteMultipleTasks(ids: string[]): boolean {
 export function emptyBin(): boolean {
     const data = getAppData();
     const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData || companyData.trash.length === 0) return false;
+    if (!companyData || !companyData.trash || companyData.trash.length === 0) return false;
     
     const logMessage = `Emptied all ${companyData.trash.length} tasks from the bin.`;
     companyData.trash = [];
@@ -1438,7 +1439,7 @@ export function clearExpiredReminders(): { updatedTaskIds: string[], unpinnedTas
     };
 
     companyData.tasks.forEach(processTask);
-    companyData.trash.forEach(processTask); // Also clear from binned tasks
+    (companyData.trash || []).forEach(processTask); // Also clear from binned tasks
 
     if (updatedTaskIds.length > 0) {
         setAppData(data);
@@ -1501,72 +1502,4 @@ export function deleteGeneralReminder(id: string): boolean {
         return true;
     }
     return false;
-}
-
-// Note Functions
-export function getNotes(): Note[] {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    return (companyData?.notes || []).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-}
-
-export function getNoteById(id: string): Note | undefined {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    return (companyData?.notes || []).find(note => note.id === id);
-}
-
-export function addNote(noteData: Partial<Omit<Note, 'id' | 'createdAt' | 'updatedAt'>>): Note {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData) throw new Error("Cannot add note, no active company data found.");
-
-    const now = new Date().toISOString();
-    const newNote: Note = {
-        id: `note-${crypto.randomUUID()}`,
-        title: noteData.title || '',
-        content: noteData.content || '',
-        createdAt: now,
-        updatedAt: now,
-    };
-
-    companyData.notes = [newNote, ...(companyData.notes || [])];
-    _addLog(companyData, { message: `Created a new note: "${newNote.title || 'Untitled Note'}"`, noteId: newNote.id });
-    setAppData(data);
-    return newNote;
-}
-
-export function updateNote(id: string, noteData: Partial<Omit<Note, 'id' | 'createdAt' | 'updatedAt'>>): Note | undefined {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData) return undefined;
-
-    const noteIndex = (companyData.notes || []).findIndex(note => note.id === id);
-    if (noteIndex === -1) return undefined;
-
-    const oldNote = companyData.notes[noteIndex];
-    const updatedNote: Note = {
-        ...oldNote,
-        ...noteData,
-        updatedAt: new Date().toISOString(),
-    };
-    companyData.notes[noteIndex] = updatedNote;
-    
-    _addLog(companyData, { message: `Updated note: "${updatedNote.title || 'Untitled Note'}"`, noteId: id });
-    setAppData(data);
-    return updatedNote;
-}
-
-export function deleteNote(id: string): boolean {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData || !companyData.notes) return false;
-
-    const noteToDelete = companyData.notes.find(note => note.id === id);
-    if (!noteToDelete) return false;
-
-    companyData.notes = companyData.notes.filter(note => note.id !== id);
-    _addLog(companyData, { message: `Deleted note: "${noteToDelete.title || 'Untitled Note'}"`, noteId: id });
-    setAppData(data);
-    return true;
 }
