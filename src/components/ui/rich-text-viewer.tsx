@@ -90,7 +90,17 @@ const CodeBlock = ({ content }: { content: string }) => {
     );
 };
 
-const regex = /(\*\*(.*?)\*\*|_(.*?)_|~(.*?)~|`(.*?)`|https?:\/\/[^\s<]+|\[(.*?)\]\((.*?)\))/g;
+const CheckboxIcon = ({ checked }: { checked: boolean }) => (
+    <div className={cn("w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 mr-2", 
+      checked ? 'bg-primary border-primary' : 'border-muted-foreground'
+    )}>
+      {checked && <Check className="w-3 h-3 text-primary-foreground" />}
+    </div>
+);
+
+
+const regex = /(\*\*(.*?)\*\*|_(.*?)_|~(.*?)~|`(.*?)`|https?:\/\/[^\s<]+|\[(.*?)\]\((.*?)\)|(^\s*\[([xX ])\]\s+.*))/gm;
+
 
 export const RichTextViewer = memo(({ text }: RichTextViewerProps) => {
   const parts = useMemo(() => {
@@ -98,7 +108,6 @@ export const RichTextViewer = memo(({ text }: RichTextViewerProps) => {
 
     const finalResult: (string | JSX.Element)[] = [];
     
-    // First, split by code blocks ```...```
     const codeBlockSections = text.split(/(```[\s\S]*?```)/g);
     
     codeBlockSections.forEach((section, index) => {
@@ -106,43 +115,63 @@ export const RichTextViewer = memo(({ text }: RichTextViewerProps) => {
         const codeContent = section.slice(3, -3).trim();
         finalResult.push(<CodeBlock key={`code-${index}`} content={codeContent} />);
       } else {
-        // For non-code-block sections, process other markdown
-        let lastIndex = 0;
-        let match;
-        const inlineResult: (string | JSX.Element)[] = [];
-        
-        while ((match = regex.exec(section)) !== null) {
-          const [fullMatch, , bold, italic, strike, code, bareLinkOrLinkText, linkUrl] = match;
-          const startIndex = match.index;
+        const lines = section.split('\n');
+        lines.forEach((line, lineIndex) => {
+            let lastIndex = 0;
+            let match;
+            const inlineResult: (string | JSX.Element)[] = [];
 
-          if (startIndex > lastIndex) {
-            inlineResult.push(section.substring(lastIndex, startIndex));
-          }
+            // Reset regex for each line
+            regex.lastIndex = 0;
+            
+            while ((match = regex.exec(line)) !== null) {
+                const [fullMatch, , bold, italic, strike, code, bareLinkOrLinkText, linkUrl, checkboxLine, checkboxState] = match;
+                const startIndex = match.index;
 
-          if (bold) {
-            inlineResult.push(<strong key={lastIndex}>{bold}</strong>);
-          } else if (italic) {
-            inlineResult.push(<em key={lastIndex}>{italic}</em>);
-          } else if (strike) {
-            inlineResult.push(<s key={lastIndex}>{strike}</s>);
-          } else if (code) {
-            inlineResult.push(<code key={lastIndex} className="bg-[#282a36] text-[#f1fa8c] rounded-sm px-1.5 py-0.5 font-mono text-sm">{code}</code>);
-          } else if (linkUrl !== undefined) { // This is a markdown link like [text](url)
-            inlineResult.push(<a href={linkUrl} key={lastIndex} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{bareLinkOrLinkText}</a>);
-          } else if (fullMatch.startsWith('http')) { // This is a bare link
-            inlineResult.push(<a href={fullMatch} key={lastIndex} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{fullMatch}</a>);
-          }
-          
-          lastIndex = startIndex + fullMatch.length;
-        }
+                if (startIndex > lastIndex) {
+                    inlineResult.push(line.substring(lastIndex, startIndex));
+                }
 
-        if (lastIndex < section.length) {
-          inlineResult.push(section.substring(lastIndex));
-        }
+                if (checkboxLine) {
+                    const isChecked = checkboxState.toLowerCase() === 'x';
+                    const label = checkboxLine.replace(/^\s*\[[xX ]\]\s*/, '');
+                    inlineResult.push(
+                        <div key={lastIndex} className={cn("flex items-start", isChecked && "text-muted-foreground line-through")}>
+                            <CheckboxIcon checked={isChecked} />
+                            <span>{label}</span>
+                        </div>
+                    );
+                } else if (bold) {
+                    inlineResult.push(<strong key={lastIndex}>{bold}</strong>);
+                } else if (italic) {
+                    inlineResult.push(<em key={lastIndex}>{italic}</em>);
+                } else if (strike) {
+                    inlineResult.push(<s key={lastIndex}>{strike}</s>);
+                } else if (code) {
+                    inlineResult.push(<code key={lastIndex} className="bg-[#282a36] text-[#f1fa8c] rounded-sm px-1.5 py-0.5 font-mono text-sm">{code}</code>);
+                } else if (linkUrl !== undefined) {
+                    inlineResult.push(<a href={linkUrl} key={lastIndex} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{bareLinkOrLinkText}</a>);
+                } else if (fullMatch.startsWith('http')) {
+                    inlineResult.push(<a href={fullMatch} key={lastIndex} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{fullMatch}</a>);
+                }
+                
+                lastIndex = startIndex + fullMatch.length;
+            }
 
-        if(inlineResult.length > 0) {
-            finalResult.push(<React.Fragment key={`text-${index}`}>{inlineResult}</React.Fragment>);
-        }
+            if (lastIndex < line.length) {
+                inlineResult.push(line.substring(lastIndex));
+            }
+            
+            if (inlineResult.length > 0) {
+                finalResult.push(
+                  <div key={`line-${index}-${lineIndex}`} className={lines.length > 1 && line.trim() === '' ? 'h-4' : ''}>
+                      {inlineResult}
+                  </div>
+                );
+            } else if (lines.length > 1) { // Render empty lines
+                finalResult.push(<div key={`line-${index}-${lineIndex}`} className="h-4" />);
+            }
+        });
       }
     });
 
