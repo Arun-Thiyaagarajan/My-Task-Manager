@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { StickyNote, Plus, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
@@ -16,6 +16,7 @@ import { addNote, updateNote } from '@/lib/data';
 export function FloatingNotes() {
     const { prompt } = useUnsavedChanges();
     const router = useRouter();
+    const pathname = usePathname();
     const [isOpen, setIsOpen] = useState(false);
 
     const [isNoteEditorOpen, setIsNoteEditorOpen] = useState(false);
@@ -63,7 +64,12 @@ export function FloatingNotes() {
         }
         // Dispatch an event that the notes page can listen to, to refresh its data
         window.dispatchEvent(new Event('notes-updated'));
+        setIsNoteEditorOpen(false);
     };
+
+    if (pathname === '/notes') {
+        return null;
+    }
 
     return (
         <>
