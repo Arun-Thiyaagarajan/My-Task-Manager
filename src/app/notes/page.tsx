@@ -1,6 +1,8 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import * as React from 'react';
 import { getNotes, addNote, updateNote, deleteNote, getUiConfig } from '@/lib/data';
 import type { Note, UiConfig } from '@/lib/types';
 import { Button } from '@/components/ui/button';
