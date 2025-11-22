@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -29,9 +30,14 @@ export default function NotesPage() {
   
   const { toast } = useToast();
 
-  const { register, handleSubmit, reset, setFocus, formState: { errors, isSubmitting } } = useForm<NoteFormData>({
-    resolver: zodResolver(noteSchema)
+  const { register, handleSubmit, reset, setFocus, watch, formState: { isSubmitting } } = useForm<NoteFormData>({
+    resolver: zodResolver(noteSchema),
+    defaultValues: { title: '', content: '' },
   });
+  
+  const newNoteContent = watch('content');
+  const newNoteTitle = watch('title');
+  const showSaveButton = (newNoteContent && newNoteContent.trim() !== '') || (newNoteTitle && newNoteTitle.trim() !== '');
   
   const newNoteTextareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -45,11 +51,20 @@ export default function NotesPage() {
   }, []);
   
   const onSubmit = async (data: NoteFormData) => {
+    const { title, content } = data;
+
+    // Only proceed if there's actually some content to save
+    if (!title?.trim() && !content?.trim()) {
+        setIsCreating(false);
+        reset({ title: '', content: '' });
+        return;
+    }
+
     try {
-      let finalTitle = data.title;
-      if (!finalTitle && data.content) {
+      let finalTitle = title;
+      if (!finalTitle && content && content.trim()) {
         try {
-          const result = await getNoteTitle({ content: data.content });
+          const result = await getNoteTitle({ content: content });
           finalTitle = result.title;
           toast({ variant: 'success', title: "AI Generated a Title!", description: "A title was automatically created for your note." });
         } catch (e) {
@@ -57,7 +72,7 @@ export default function NotesPage() {
           toast({ variant: 'warning', title: "AI Title Generation Failed", description: "Could not generate a title. The note was saved without one." });
         }
       }
-      addNote({ title: finalTitle, content: data.content });
+      addNote({ title: finalTitle, content: content });
       toast({ variant: 'success', title: "Note created successfully" });
       reset({ title: '', content: '' });
       setIsCreating(false);
@@ -88,6 +103,11 @@ export default function NotesPage() {
     } catch(e: any) {
         toast({ variant: 'destructive', title: "Error deleting note", description: e.message });
     }
+  };
+  
+  const handleClearNewNote = () => {
+    reset({ title: '', content: '' });
+    setIsCreating(false);
   };
 
   if (isLoading) {
@@ -137,17 +157,15 @@ export default function NotesPage() {
                </div>
             </CardContent>
             {isCreating && (
-                <CardFooter className="p-4 pt-0 flex justify-between">
-                    <div>
-                      {errors.content && <p className="text-sm text-destructive">{errors.content.message}</p>}
-                       {errors.title && <p className="text-sm text-destructive">{errors.title.message}</p>}
-                    </div>
+                <CardFooter className="p-4 pt-0 flex justify-end">
                     <div className="flex gap-2">
-                        <Button type="button" variant="ghost" onClick={() => { setIsCreating(false); reset(); }}>Close</Button>
-                        <Button type="submit" disabled={isSubmitting}>
-                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Save Note
-                        </Button>
+                        <Button type="button" variant="ghost" onClick={handleClearNewNote}>Close</Button>
+                        {showSaveButton && (
+                            <Button type="submit" disabled={isSubmitting}>
+                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Save Note
+                            </Button>
+                        )}
                     </div>
                 </CardFooter>
             )}
@@ -205,10 +223,12 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
     // If title was cleared and content exists, regenerate title
     if (!finalTitle && data.content && data.content.trim() !== '') {
         try {
+          const { toast } = useToast();
           const result = await getNoteTitle({ content: data.content });
           finalTitle = result.title;
           toast({ variant: 'success', title: "AI Generated a Title!", description: "A title was automatically created for your note." });
         } catch (e) {
+          const { toast } = useToast();
           console.error("AI title generation failed, saving without title.", e);
           toast({ variant: 'warning', title: "AI Title Generation Failed", description: "Could not generate a title. The note was saved without one." });
         }
@@ -286,3 +306,5 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
     </Card>
   );
 }
+
+    
