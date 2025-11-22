@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Edit, Trash2, StickyNote, LayoutGrid } from 'lucide-react';
+import { Edit, Trash2, StickyNote, LayoutGrid, PlusCircle } from 'lucide-react';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
 import { cn, formatTimestamp } from '@/lib/utils';
 import {
@@ -112,12 +112,12 @@ function NoteCard({ note, uiConfig, onEdit, onDelete }: { note: Note, uiConfig: 
                     {formatTimestamp(note.updatedAt, uiConfig.timeFormat)}
                 </p>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(note)}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); onEdit(note); }}>
                         <Edit className="h-4 w-4" />
                     </Button>
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={(e) => e.stopPropagation()}>
                                 <Trash2 className="h-4 w-4" />
                             </Button>
                         </AlertDialogTrigger>
@@ -127,8 +127,8 @@ function NoteCard({ note, uiConfig, onEdit, onDelete }: { note: Note, uiConfig: 
                                 <AlertDialogDescription>This will move the note to the bin. You can restore it from there later.</AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => onDelete(note.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={(e) => { e.stopPropagation(); onDelete(note.id); }} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
@@ -240,10 +240,15 @@ export default function NotesPage() {
         <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <StickyNote className="h-7 w-7"/> Notes
         </h1>
-        <Button variant="outline" size="sm" onClick={handleResetLayout}>
-            <LayoutGrid className="mr-2 h-4 w-4"/>
-            Reset Layout
-        </Button>
+         <div className="flex items-center gap-2">
+            <Button onClick={handleOpenNewNoteDialog} size="sm">
+                <PlusCircle className="mr-2 h-4 w-4" /> New Note
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleResetLayout}>
+                <LayoutGrid className="mr-2 h-4 w-4"/>
+                Reset Layout
+            </Button>
+        </div>
       </div>
       
        <div className="mb-8">
@@ -300,3 +305,5 @@ export default function NotesPage() {
     </div>
   );
 }
+
+    
