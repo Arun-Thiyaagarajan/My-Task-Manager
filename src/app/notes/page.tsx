@@ -7,7 +7,7 @@ import type { Note, UiConfig, NoteLayout } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { StickyNote, LayoutGrid, PlusCircle, CheckSquare, X, Trash2 } from 'lucide-react';
+import { StickyNote, LayoutGrid, Plus, CheckSquare, X, Trash2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,6 +17,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
