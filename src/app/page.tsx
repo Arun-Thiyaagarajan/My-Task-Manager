@@ -561,41 +561,55 @@ export default function Home() {
     const lastBackupStr = localStorage.getItem(LAST_BACKUP_KEY);
     const now = new Date();
     
+    let nextBackupDate: Date;
+    
     if (!lastBackupStr) {
-        // First time backup for a new user
+        // This is the first time the user is using the app with this feature.
+        // Schedule the first backup for the *next* designated time.
+        nextBackupDate = new Date(now);
+    } else {
+        nextBackupDate = new Date(lastBackupStr);
+    }
+
+    const backupHour = uiConfig.autoBackupTime ?? 6;
+    let scheduleBackup = false;
+
+    if (!lastBackupStr) {
+        // First backup logic: set it for the next upcoming backup time.
+        let firstBackupDate = new Date(now);
+        firstBackupDate.setHours(backupHour, 0, 0, 0);
+        if (now >= firstBackupDate) {
+            // If the time has passed for today, schedule for tomorrow.
+            firstBackupDate.setDate(firstBackupDate.getDate() + 1);
+        }
+        nextBackupDate = firstBackupDate;
+        // Don't trigger a backup immediately, just set the date for the next check.
+        // The backup will happen on the next app load *after* this scheduled time.
+    } else {
+        let proposedNextDate = new Date(lastBackupStr);
+        switch (backupFrequency) {
+            case 'daily': proposedNextDate.setDate(proposedNextDate.getDate() + 1); break;
+            case 'weekly': proposedNextDate.setDate(proposedNextDate.getDate() + 7); break;
+            case 'monthly': proposedNextDate = addMonths(proposedNextDate, 1); break;
+            case 'yearly': proposedNextDate = addYears(proposedNextDate, 1); break;
+        }
+        proposedNextDate.setHours(backupHour, 0, 0, 0);
+        nextBackupDate = proposedNextDate;
+        
+        if (now >= nextBackupDate) {
+            scheduleBackup = true;
+        }
+    }
+    
+    if (scheduleBackup) {
         setTimeout(() => {
             handleExport('all_tasks');
             toast({
-                title: 'First Automatic Backup',
-                description: 'A backup of all your tasks has been downloaded.',
+                title: 'Automatic Backup',
+                description: `A ${backupFrequency} backup of all your tasks has been downloaded.`,
                 duration: 10000,
             });
-        }, 2000);
-    } else {
-        const lastBackupDate = new Date(lastBackupStr);
-        const backupHour = uiConfig.autoBackupTime ?? 6;
-        let nextBackupDate = new Date(lastBackupDate);
-        
-        switch (backupFrequency) {
-            case 'daily': nextBackupDate.setDate(nextBackupDate.getDate() + 1); break;
-            case 'weekly': nextBackupDate.setDate(nextBackupDate.getDate() + 7); break;
-            case 'monthly': nextBackupDate = addMonths(nextBackupDate, 1); break;
-            case 'yearly': nextBackupDate = addYears(nextBackupDate, 1); break;
-        }
-
-        // Set the time for the next backup
-        nextBackupDate = set(nextBackupDate, { hours: backupHour, minutes: 0, seconds: 0, milliseconds: 0 });
-        
-        if (now >= nextBackupDate) {
-            setTimeout(() => {
-                handleExport('all_tasks');
-                toast({
-                    title: 'Automatic Backup',
-                    description: `A ${backupFrequency} backup of all your tasks has been downloaded.`,
-                    duration: 10000,
-                });
-            }, 2000);
-        }
+        }, 2000); // Small delay to allow the UI to settle
     }
   }, [isLoading, uiConfig, handleExport, toast]);
 
@@ -980,6 +994,7 @@ export default function Home() {
                           azureWorkItemId: validatedData.azureWorkItemId || '',
                           deploymentStatus: validatedData.deploymentStatus || {},
                           deploymentDates: validatedData.deploymentDates ? Object.entries(validatedData.deploymentDates).reduce((acc, [key, value]) => ({ ...acc, [key]: value ? new Date(value as any).toISOString() : null }), {}) : {},
+                          relevantEnvironments: validatedData.relevantEnvironments || ['dev', 'stage', 'production'],
                           prLinks: validatedData.prLinks || {},
                           devStartDate: validatedData.devStartDate ? new Date(validatedData.devStartDate).toISOString() : null,
                           devEndDate: validatedData.devEndDate ? new Date(validatedData.devEndDate).toISOString() : null,
@@ -1686,4 +1701,3 @@ export default function Home() {
     </div>
   );
 }
-

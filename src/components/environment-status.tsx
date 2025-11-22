@@ -1,3 +1,5 @@
+
+
 'use client';
 
 import { Badge } from '@/components/ui/badge';
@@ -26,12 +28,17 @@ export function EnvironmentStatus({
   justUpdatedEnv,
   onAnimationEnd,
 }: EnvironmentStatusProps) {
+  
+  const MAX_VISIBLE_ENVS = 3;
+  const visibleEnvs = configuredEnvs.slice(0, MAX_VISIBLE_ENVS);
+  const hiddenEnvsCount = configuredEnvs.length - MAX_VISIBLE_ENVS;
+
   return (
     <div
       className="flex flex-wrap items-center gap-1.5"
       onAnimationEnd={onAnimationEnd}
     >
-      {configuredEnvs.map(env => {
+      {visibleEnvs.map(env => {
         const envInfo = getEnvInfo(env);
         const isSelected = deploymentStatus?.[env] ?? false;
         const hasDate = deploymentDates && deploymentDates[env];
@@ -74,6 +81,24 @@ export function EnvironmentStatus({
           </Tooltip>
         );
       })}
+       {hiddenEnvsCount > 0 && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge
+              variant="outline"
+              className={cn(
+                'font-medium',
+                size === 'sm' && 'px-1.5 py-0 text-[10px] h-4'
+              )}
+            >
+              +{hiddenEnvsCount}
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Plus {hiddenEnvsCount} more environment(s)</p>
+          </TooltipContent>
+        </Tooltip>
+      )}
     </div>
   );
 }
