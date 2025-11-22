@@ -187,12 +187,12 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
               const isChecked = checkboxMatch[1] === 'x';
               const text = checkboxMatch[2];
               return (
-                  <div key={index} className="flex items-center gap-2">
-                      <div className="flex items-center justify-center h-4 w-4 rounded border border-primary bg-primary/20">
+                  <div key={index} className="flex items-start gap-2">
+                      <div className="flex items-center justify-center h-4 w-4 rounded border border-primary bg-primary/20 mt-0.5 shrink-0">
                           {isChecked && <Check className="h-3 w-3 text-primary-foreground" />}
                       </div>
                       <span className={isChecked ? 'line-through text-muted-foreground' : ''}>
-                          {text}
+                          <RichTextViewer text={text} />
                       </span>
                   </div>
               );
