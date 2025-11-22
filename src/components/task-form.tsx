@@ -1,9 +1,8 @@
 
-
 'use client';
 
 import { useForm, useFieldArray } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { zodResolver } from '@zod-resolvers/zod';
 import type { z } from 'zod';
 import { createTaskSchema } from '@/lib/validators';
 import type { Task, FieldConfig, FieldType, UiConfig, Attachment, Person } from '@/lib/types';
@@ -110,7 +109,8 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-        setCommandKey(navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? 'Cmd' : 'Ctrl');
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        setCommandKey(isMac ? '⌘' : 'Ctrl');
     }
   }, []);
 
@@ -794,4 +794,3 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
     </Form>
   );
 }
-
