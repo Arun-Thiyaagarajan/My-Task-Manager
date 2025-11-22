@@ -9,40 +9,13 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { Inter } from 'next/font/google';
 import { UnsavedChangesProvider } from '@/hooks/use-unsaved-changes';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { Button } from '@/components/ui/button';
-import { StickyNote } from 'lucide-react';
-import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
-import { useRouter, usePathname } from 'next/navigation';
+import { FloatingNotes } from '@/components/floating-notes';
 
 
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
 });
-
-function FloatingNotesButton() {
-  const { prompt } = useUnsavedChanges();
-  const router = useRouter();
-  const pathname = usePathname();
-
-  if (pathname === '/notes') {
-    return null;
-  }
-
-  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-    // Add a query param to signal the notes page to focus the input
-    prompt(() => router.push('/notes?focus=true'));
-  };
-
-  return (
-    <Button asChild className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-40" size="icon">
-      <a href="/notes?focus=true" onClick={handleClick} aria-label="Open Notes">
-        <StickyNote className="h-6 w-6" />
-      </a>
-    </Button>
-  )
-}
 
 export default function RootLayout({
   children,
@@ -69,7 +42,7 @@ export default function RootLayout({
               <div className="relative flex min-h-screen flex-col">
                 <Header />
                 <main className="flex-1">{children}</main>
-                <FloatingNotesButton />
+                <FloatingNotes />
               </div>
               <Toaster />
             </TooltipProvider>
@@ -79,5 +52,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-    
