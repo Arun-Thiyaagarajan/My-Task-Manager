@@ -279,6 +279,121 @@ export default function Home() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const filteredTasks = tasks.filter((task: Task) => {
+    if (favoritesOnly && !task.isFavorite) {
+      return false;
+    }
+
+    const statusMatch = statusFilter.length === 0 || statusFilter.includes(task.status);
+    
+    const repoMatch = repoFilter.length === 0 || (Array.isArray(task.repositories) && task.repositories?.some(repo => repoFilter.includes(repo)) || false);
+
+    const tagsMatch = tagsFilter.length === 0 || (task.tags?.some(tag => tagsFilter.includes(tag)) ?? false);
+
+    const developersById = new Map(developers.map(d => [d.id, d.name]));
+    const testersById = new Map(testers.map(t => [t.id, t.name]));
+
+    const searchMatch =
+      searchQuery.trim() === '' ||
+      fuzzySearch(searchQuery, task.title) ||
+      fuzzySearch(searchQuery, task.description) ||
+      fuzzySearch(searchQuery, task.id) ||
+      (task.azureWorkItemId && fuzzySearch(searchQuery, task.azureWorkItemId)) ||
+      task.developers?.some((devId) => fuzzySearch(searchQuery, developersById.get(devId) || '')) ||
+      task.testers?.some((testerId) => fuzzySearch(searchQuery, testersById.get(testerId) || '')) ||
+      (Array.isArray(task.repositories) && task.repositories?.some((repo) => fuzzySearch(searchQuery, repo)));
+
+    const dateMatch = (() => {
+      if (dateView === 'all') {
+          // Date range picker logic for 'all' view
+          if (!dateFilter?.from) return true;
+          if (!task.devStartDate) return false;
+          const taskDate = new Date(task.devStartDate);
+          const from = startOfDay(dateFilter.from);
+          const to = dateFilter.to ? endOfDay(dateFilter.to) : endOfDay(dateFilter.from);
+          return taskDate >= from && taskDate <= to;
+      }
+      if (dateView === 'monthly') {
+          if (!task.devStartDate) return false;
+          const taskDate = new Date(task.devStartDate);
+          const start = startOfMonth(selectedDate);
+          const end = endOfMonth(selectedDate);
+          return taskDate >= start && taskDate <= end;
+      }
+      if (dateView === 'yearly') {
+          if (!task.devStartDate) return false;
+          const taskDate = new Date(task.devStartDate);
+          const start = startOfYear(selectedDate);
+          const end = endOfYear(selectedDate);
+          return taskDate >= start && taskDate <= end;
+      }
+      return true;
+    })();
+    
+    const deploymentMatch = deploymentFilter.length === 0 || deploymentFilter.every(filter => {
+      const isNegative = filter.startsWith('not_');
+      const env = isNegative ? filter.substring(4) : filter;
+      
+      const isSelected = task.deploymentStatus?.[env] ?? false;
+      const hasDate = task.deploymentDates && task.deploymentDates[env];
+      const isDeployed = isSelected && (env === 'dev' || !!hasDate);
+
+      return isNegative ? !isDeployed : isDeployed;
+    });
+
+    return statusMatch && repoMatch && searchMatch && dateMatch && deploymentMatch && tagsMatch;
+  });
+
+  const getDeploymentScore = (task: Task) => {
+    // The order of importance for sorting
+    const deploymentOrder = ['production', 'stage', 'dev'];
+    for (let i = 0; i < deploymentOrder.length; i++) {
+      const env = deploymentOrder[i];
+      if (task.deploymentStatus?.[env]) {
+        // Higher score for more important environments
+        return deploymentOrder.length - i;
+      }
+    }
+    return 0; // No deployment
+  };
+
+  const sortedTasks = [...filteredTasks].sort((a, b) => {
+    const [sortBy, sortDirection] = sortDescriptor.split('-');
+    const taskStatuses = uiConfig?.taskStatuses || [];
+
+    if (sortBy === 'title') {
+      if (sortDirection === 'asc') {
+        return a.title.localeCompare(b.title);
+      } else {
+        return b.title.localeCompare(a.title);
+      }
+    }
+
+    if (sortBy === 'status') {
+      const aIndex = taskStatuses.indexOf(a.status);
+      const bIndex = taskStatuses.indexOf(b.status);
+      if (sortDirection === 'asc') {
+        return aIndex - bIndex;
+      } else {
+        return bIndex - aIndex;
+      }
+    }
+
+    if (sortBy === 'deployment') {
+      const scoreA = getDeploymentScore(a);
+      const scoreB = getDeploymentScore(b);
+      const aIndex = taskStatuses.indexOf(a.status); // Fallback for equal scores
+
+      if (sortDirection === 'asc') {
+        return scoreA - scoreB;
+      } else {
+        return scoreB - aIndex;
+      }
+    }
+
+    return 0;
+  });
+
   const handleExport = useCallback((exportType: 'current_view' | 'all_tasks') => {
     const allDevelopers = getDevelopers();
     const allTesters = getTesters();
@@ -536,121 +651,6 @@ export default function Home() {
     localStorage.setItem('taskflow_selected_date', selectedDate.toISOString());
     localStorage.setItem('taskflow_open_groups', JSON.stringify(openGroups));
   }, [dateView, selectedDate, openGroups]);
-
-  const filteredTasks = tasks.filter((task: Task) => {
-    if (favoritesOnly && !task.isFavorite) {
-      return false;
-    }
-
-    const statusMatch = statusFilter.length === 0 || statusFilter.includes(task.status);
-    
-    const repoMatch = repoFilter.length === 0 || (Array.isArray(task.repositories) && task.repositories?.some(repo => repoFilter.includes(repo)) || false);
-
-    const tagsMatch = tagsFilter.length === 0 || (task.tags?.some(tag => tagsFilter.includes(tag)) ?? false);
-
-    const developersById = new Map(developers.map(d => [d.id, d.name]));
-    const testersById = new Map(testers.map(t => [t.id, t.name]));
-
-    const searchMatch =
-      searchQuery.trim() === '' ||
-      fuzzySearch(searchQuery, task.title) ||
-      fuzzySearch(searchQuery, task.description) ||
-      fuzzySearch(searchQuery, task.id) ||
-      (task.azureWorkItemId && fuzzySearch(searchQuery, task.azureWorkItemId)) ||
-      task.developers?.some((devId) => fuzzySearch(searchQuery, developersById.get(devId) || '')) ||
-      task.testers?.some((testerId) => fuzzySearch(searchQuery, testersById.get(testerId) || '')) ||
-      (Array.isArray(task.repositories) && task.repositories?.some((repo) => fuzzySearch(searchQuery, repo)));
-
-    const dateMatch = (() => {
-      if (dateView === 'all') {
-          // Date range picker logic for 'all' view
-          if (!dateFilter?.from) return true;
-          if (!task.devStartDate) return false;
-          const taskDate = new Date(task.devStartDate);
-          const from = startOfDay(dateFilter.from);
-          const to = dateFilter.to ? endOfDay(dateFilter.to) : endOfDay(dateFilter.from);
-          return taskDate >= from && taskDate <= to;
-      }
-      if (dateView === 'monthly') {
-          if (!task.devStartDate) return false;
-          const taskDate = new Date(task.devStartDate);
-          const start = startOfMonth(selectedDate);
-          const end = endOfMonth(selectedDate);
-          return taskDate >= start && taskDate <= end;
-      }
-      if (dateView === 'yearly') {
-          if (!task.devStartDate) return false;
-          const taskDate = new Date(task.devStartDate);
-          const start = startOfYear(selectedDate);
-          const end = endOfYear(selectedDate);
-          return taskDate >= start && taskDate <= end;
-      }
-      return true;
-    })();
-    
-    const deploymentMatch = deploymentFilter.length === 0 || deploymentFilter.every(filter => {
-      const isNegative = filter.startsWith('not_');
-      const env = isNegative ? filter.substring(4) : filter;
-      
-      const isSelected = task.deploymentStatus?.[env] ?? false;
-      const hasDate = task.deploymentDates && task.deploymentDates[env];
-      const isDeployed = isSelected && (env === 'dev' || !!hasDate);
-
-      return isNegative ? !isDeployed : isDeployed;
-    });
-
-    return statusMatch && repoMatch && searchMatch && dateMatch && deploymentMatch && tagsMatch;
-  });
-
-  const getDeploymentScore = (task: Task) => {
-    // The order of importance for sorting
-    const deploymentOrder = ['production', 'stage', 'dev'];
-    for (let i = 0; i < deploymentOrder.length; i++) {
-      const env = deploymentOrder[i];
-      if (task.deploymentStatus?.[env]) {
-        // Higher score for more important environments
-        return deploymentOrder.length - i;
-      }
-    }
-    return 0; // No deployment
-  };
-
-  const sortedTasks = [...filteredTasks].sort((a, b) => {
-    const [sortBy, sortDirection] = sortDescriptor.split('-');
-    const taskStatuses = uiConfig?.taskStatuses || [];
-
-    if (sortBy === 'title') {
-      if (sortDirection === 'asc') {
-        return a.title.localeCompare(b.title);
-      } else {
-        return b.title.localeCompare(a.title);
-      }
-    }
-
-    if (sortBy === 'status') {
-      const aIndex = taskStatuses.indexOf(a.status);
-      const bIndex = taskStatuses.indexOf(b.status);
-      if (sortDirection === 'asc') {
-        return aIndex - bIndex;
-      } else {
-        return bIndex - aIndex;
-      }
-    }
-
-    if (sortBy === 'deployment') {
-      const scoreA = getDeploymentScore(a);
-      const scoreB = getDeploymentScore(b);
-      const aIndex = taskStatuses.indexOf(a.status); // Fallback for equal scores
-
-      if (sortDirection === 'asc') {
-        return scoreA - scoreB;
-      } else {
-        return scoreB - aIndex;
-      }
-    }
-
-    return 0;
-  });
 
   const pinnedReminders = tasks
     .filter(t => pinnedTaskIds.includes(t.id) && t.reminder)
