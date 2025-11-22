@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -9,7 +8,7 @@ import { createTaskSchema } from '@/lib/validators';
 import type { Task, FieldConfig, FieldType, UiConfig, Attachment, Person } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2, AlertCircle, HelpCircle } from 'lucide-react';
@@ -31,6 +30,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { getLinkAlias } from '@/ai/flows/get-link-alias-flow';
+import { Textarea } from './ui/textarea';
 
 
 type TaskFormData = z.infer<ReturnType<typeof createTaskSchema>>;
@@ -392,7 +392,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
             case 'url':
                 return <Input type={fieldType === 'text' ? 'text' : fieldType} placeholder={label} {...field} value={field.value ?? ''} />;
             case 'textarea':
-                return <Textarea placeholder={`Details for ${label}...`} {...field} value={field.value ?? ''} />;
+                return <RichTextEditor {...field} value={field.value ?? ''} />;
             case 'date':
                 const getDisabledDates = () => {
                     if (fieldName === 'devEndDate' && devStartDate) {

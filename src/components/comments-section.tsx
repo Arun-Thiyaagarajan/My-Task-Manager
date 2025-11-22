@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +9,7 @@ import { cn, formatTimestamp } from '@/lib/utils';
 import type { Comment } from '@/lib/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { RichTextViewer } from './ui/rich-text-viewer';
-import { Textarea } from './ui/textarea';
+import { RichTextEditor } from './ui/rich-text-editor';
 
 interface CommentsSectionProps {
   taskId: string;
@@ -116,10 +115,9 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
                                     <div key={index} className="p-3 rounded-md border bg-muted/50 group">
                                         {editingIndex === index ? (
                                         <div className="space-y-2">
-                                            <Textarea
+                                            <RichTextEditor
                                                 value={editingText}
-                                                onChange={(e) => setEditingText(e.target.value)}
-                                                className="min-h-[100px]"
+                                                onChange={setEditingText}
                                             />
                                             <div className="flex gap-2 justify-end">
                                             <Button size="sm" variant="ghost" onClick={handleCancelEdit}><X className="h-4 w-4 mr-1" />Cancel</Button>
@@ -161,11 +159,10 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
                               <div className="border rounded-lg bg-card mt-4 p-4">
                                 <div className="flex flex-col gap-2">
                                     <label htmlFor="new-comment" className="text-sm font-medium">Add a comment</label>
-                                    <Textarea
+                                    <RichTextEditor
                                         value={newComment}
-                                        onChange={(e) => setNewComment(e.target.value)}
+                                        onChange={setNewComment}
                                         placeholder="Type your comment here..."
-                                        className="min-h-[100px]"
                                     />
                                     <div className="flex justify-end">
                                       <Button onClick={handleAddComment} className="self-end" disabled={!newComment.trim()}>Add Comment</Button>
