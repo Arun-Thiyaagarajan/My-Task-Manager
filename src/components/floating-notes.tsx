@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { StickyNote, Plus, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -21,15 +21,26 @@ export function FloatingNotes() {
     const [isNoteEditorOpen, setIsNoteEditorOpen] = useState(false);
     const [noteToEdit, setNoteToEdit] = useState<Partial<Note> | null>(null);
     const { toast } = useToast();
+    
+    const handleOpenNewNoteDialog = useCallback(() => {
+        setNoteToEdit(null);
+        setIsNoteEditorOpen(true);
+    }, []);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === '/') {
+                e.preventDefault();
+                handleOpenNewNoteDialog();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [handleOpenNewNoteDialog]);
 
     const handleViewNotesClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
         e.preventDefault();
         prompt(() => router.push('/notes'));
-    };
-    
-    const handleNewNoteClick = () => {
-        setNoteToEdit(null);
-        setIsNoteEditorOpen(true);
     };
     
     const handleSaveNote = (id: string | undefined, title: string, content: string) => {
@@ -68,7 +79,7 @@ export function FloatingNotes() {
                                 <Button
                                     size="icon"
                                     className="rounded-full h-12 w-12 shadow-md"
-                                    onClick={handleNewNoteClick}
+                                    onClick={handleOpenNewNoteDialog}
                                 >
                                     <Plus className="h-5 w-5" />
                                 </Button>
@@ -95,11 +106,10 @@ export function FloatingNotes() {
                     {/* Main FAB */}
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button
-                                size="icon"
-                                className="h-14 w-14 rounded-full shadow-lg"
-                            >
-                                <StickyNote className="h-6 w-6" />
+                             <Button asChild size="icon" className="h-14 w-14 rounded-full shadow-lg">
+                                <a href="/notes" onClick={handleViewNotesClick}>
+                                    <StickyNote className="h-6 w-6" />
+                                </a>
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent side="left">
