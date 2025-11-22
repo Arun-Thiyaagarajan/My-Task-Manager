@@ -57,7 +57,7 @@ export function NoteCard({ note, uiConfig, onEdit, onDelete, isSelected }: NoteC
         onDoubleClick={handleDoubleClick}
     >
       {note.title && (
-          <CardHeader className="p-4 pb-2">
+          <CardHeader className="p-4 pb-2 border-b">
             <CardTitle className="text-base font-semibold leading-snug line-clamp-2">{note.title}</CardTitle>
           </CardHeader>
       )}
