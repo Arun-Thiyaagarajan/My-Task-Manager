@@ -189,17 +189,11 @@ export default function NotesPage() {
   }, [refreshData]);
   
   useEffect(() => {
-    // The user has indicated they do not want the editor to open on load.
-    // However, we can leave this here but commented out in case the request changes.
-    // It was previously: if (searchParams.get('focus') === 'true')
-    if (searchParams.get('focus') === 'true' && !isLoading) {
-        // To re-enable auto-focus, uncomment the line below
-        // handleOpenNewNoteDialog();
-        
+    if (searchParams.get('focus') === 'true') {
         // Clean the URL without reloading the page
         window.history.replaceState({}, '', '/notes');
     }
-  }, [searchParams, isLoading, handleOpenNewNoteDialog]);
+  }, [searchParams]);
 
   const handleEditNote = (note: Note) => {
     setNoteToEdit(note);
