@@ -1,11 +1,11 @@
-
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { getNotes, addNote, updateNote, deleteNote } from '@/lib/data';
+import { getNoteTitle } from '@/ai/flows/get-note-title-flow';
 import type { Note } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -44,9 +44,20 @@ export default function NotesPage() {
     setIsLoading(false);
   }, []);
   
-  const onSubmit = (data: NoteFormData) => {
+  const onSubmit = async (data: NoteFormData) => {
     try {
-      addNote({ title: data.title, content: data.content });
+      let finalTitle = data.title;
+      if (!finalTitle && data.content) {
+        try {
+          const result = await getNoteTitle({ content: data.content });
+          finalTitle = result.title;
+          toast({ variant: 'success', title: "AI Generated a Title!", description: "A title was automatically created for your note." });
+        } catch (e) {
+          console.error("AI title generation failed, saving without title.", e);
+          toast({ variant: 'warning', title: "AI Title Generation Failed", description: "Could not generate a title. The note was saved without one." });
+        }
+      }
+      addNote({ title: finalTitle, content: data.content });
       toast({ variant: 'success', title: "Note created successfully" });
       reset({ title: '', content: '' });
       setIsCreating(false);
@@ -105,7 +116,7 @@ export default function NotesPage() {
               {isCreating && (
                  <Input
                     {...register('title')}
-                    placeholder="Title"
+                    placeholder="Title (or let AI generate one)"
                     className="text-lg font-semibold border-0 focus-visible:ring-0 shadow-none px-2"
                 />
               )}
@@ -189,8 +200,20 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
     reset({ title: note.title, content: note.content });
   }, [note, reset]);
 
-  const handleUpdateSubmit = (data: NoteFormData) => {
-    onUpdate(note.id, data);
+  const handleUpdateSubmit = async (data: NoteFormData) => {
+    let finalTitle = data.title;
+    // If title was cleared and content exists, regenerate title
+    if (!finalTitle && data.content && data.content.trim() !== '') {
+        try {
+          const result = await getNoteTitle({ content: data.content });
+          finalTitle = result.title;
+          toast({ variant: 'success', title: "AI Generated a Title!", description: "A title was automatically created for your note." });
+        } catch (e) {
+          console.error("AI title generation failed, saving without title.", e);
+          toast({ variant: 'warning', title: "AI Title Generation Failed", description: "Could not generate a title. The note was saved without one." });
+        }
+    }
+    onUpdate(note.id, { title: finalTitle, content: data.content });
   };
   
   const handleContentChange = (newContent: string) => {
@@ -202,7 +225,7 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
       <CardContent className="p-4 flex-grow cursor-pointer" onClick={!isEditing ? onEditStart : undefined}>
         {isEditing ? (
           <form onSubmit={handleSubmit(handleUpdateSubmit)} className="space-y-2">
-            <Input {...register('title')} placeholder="Title" className="text-md font-semibold border-0 focus-visible:ring-0 shadow-none px-1 h-auto"/>
+            <Input {...register('title')} placeholder="Title (or let AI generate one)" className="text-md font-semibold border-0 focus-visible:ring-0 shadow-none px-1 h-auto"/>
             {errors.title && <p className="text-sm text-destructive px-1">{errors.title.message}</p>}
             <div className="relative">
               <Textarea 
