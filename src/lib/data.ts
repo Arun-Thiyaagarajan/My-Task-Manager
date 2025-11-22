@@ -1,3 +1,4 @@
+
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
 import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout } from './types';
 import cloneDeep from 'lodash/cloneDeep';
@@ -1531,6 +1532,7 @@ export function getNotes(): Note[] {
 
 export function addNote(noteData: Partial<Omit<Note, 'id' | 'createdAt' | 'updatedAt' | 'layout'>>): Note {
     const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
     const companyData = data.companyData[activeCompanyId];
     const notes = companyData.notes || [];
 
