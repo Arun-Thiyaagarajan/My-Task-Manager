@@ -1,13 +1,13 @@
 
 'use client';
 
-import { Bold, Italic, Strikethrough, Code, Code2, Link as LinkIcon, ListTodo } from 'lucide-react';
+import { Bold, Italic, Strikethrough, Code, Code2 } from 'lucide-react';
 import { Button } from './button';
 import { Tooltip, TooltipContent, TooltipTrigger } from './tooltip';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 
-type FormatType = 'bold' | 'italic' | 'strike' | 'code' | 'code-block' | 'todo';
+type FormatType = 'bold' | 'italic' | 'strike' | 'code' | 'code-block';
 
 interface TextareaToolbarProps {
   onFormatClick: (formatType: FormatType) => void;
@@ -17,39 +17,20 @@ export function applyFormat(formatType: FormatType, target: HTMLTextAreaElement)
     const { selectionStart, selectionEnd, value } = target;
     let chars = '';
     let block = false;
-    let isLink = false;
-    let isTodo = false;
+
     switch (formatType) {
         case 'bold': chars = '**'; break;
         case 'italic': chars = '_'; break;
         case 'strike': chars = '~'; break;
         case 'code': chars = '`'; break;
         case 'code-block': chars = '```'; block = true; break;
-        case 'todo': chars = '[ ] '; isTodo = true; break;
     }
 
     const selectedText = value.substring(selectionStart, selectionEnd);
     let newText;
     let newSelectionStart, newSelectionEnd;
 
-    if (isLink) {
-        const urlRegex = /^(https?:\/\/[^\s]+)$/;
-        if (urlRegex.test(selectedText)) {
-            newText = `${value.substring(0, selectionStart)}[link text](${selectedText})${value.substring(selectionEnd)}`;
-            newSelectionStart = selectionStart + 1;
-            newSelectionEnd = newSelectionStart + 9;
-        } else {
-            newText = `${value.substring(0, selectionStart)}[${selectedText}](${selectedText.trim() || 'url'})${value.substring(selectionEnd)}`;
-            newSelectionStart = newText.lastIndexOf('(') + 1;
-            newSelectionEnd = newText.lastIndexOf(')');
-        }
-    } else if (isTodo) {
-        const lineStart = value.lastIndexOf('\n', selectionStart - 1) + 1;
-        const lineText = value.substring(lineStart, selectionEnd);
-        newText = `${value.substring(0, lineStart)}${chars}${lineText}${value.substring(selectionEnd)}`;
-        newSelectionStart = selectionStart + chars.length;
-        newSelectionEnd = selectionEnd + chars.length;
-    } else if (block) {
+    if (block) {
         const isAlreadyBlock = selectedText.startsWith(chars) && selectedText.endsWith(chars);
         if (isAlreadyBlock) {
             newText = value.substring(0, selectionStart) + selectedText.slice(chars.length, -chars.length) + value.substring(selectionEnd);
@@ -63,9 +44,26 @@ export function applyFormat(formatType: FormatType, target: HTMLTextAreaElement)
             newSelectionEnd = newSelectionStart + selectedText.length;
         }
     } else {
-        newText = `${value.substring(0, selectionStart)}${chars}${selectedText}${chars}${value.substring(selectionEnd)}`;
-        newSelectionStart = selectionStart + chars.length;
-        newSelectionEnd = newSelectionEnd = selectionStart + selectedText.length + chars.length;
+        const isAlreadyFormatted = selectedText.startsWith(chars) && selectedText.endsWith(chars);
+        const surroundingChars = value.substring(selectionStart - chars.length, selectionEnd + chars.length);
+        const isWrapped = surroundingChars.startsWith(chars) && surroundingChars.endsWith(chars);
+
+        if (isAlreadyFormatted) {
+            // Unformat by removing the characters from inside the selection
+            newText = value.substring(0, selectionStart) + selectedText.slice(chars.length, -chars.length) + value.substring(selectionEnd);
+            newSelectionStart = selectionStart;
+            newSelectionEnd = selectionEnd - (2 * chars.length);
+        } else if (isWrapped) {
+            // Unformat by removing the characters from around the selection
+            newText = value.substring(0, selectionStart - chars.length) + selectedText + value.substring(selectionEnd + chars.length);
+            newSelectionStart = selectionStart - chars.length;
+            newSelectionEnd = selectionEnd - chars.length;
+        } else {
+            // Format by adding characters
+            newText = `${value.substring(0, selectionStart)}${chars}${selectedText || 'text'}${chars}${value.substring(selectionEnd)}`;
+            newSelectionStart = selectionStart + chars.length;
+            newSelectionEnd = selectionEnd + (selectedText.length || 4) + chars.length;
+        }
     }
 
     const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
@@ -78,6 +76,7 @@ export function applyFormat(formatType: FormatType, target: HTMLTextAreaElement)
     target.selectionEnd = newSelectionEnd;
     target.focus();
 }
+
 
 export function TextareaToolbar({ onFormatClick }: TextareaToolbarProps) {
     const [commandKey, setCommandKey] = useState('Ctrl');
@@ -132,3 +131,5 @@ export function TextareaToolbar({ onFormatClick }: TextareaToolbarProps) {
         </div>
     );
 }
+
+    

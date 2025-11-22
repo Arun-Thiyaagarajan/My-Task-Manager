@@ -18,26 +18,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
 import { TextareaToolbar, applyFormat } from '@/components/ui/textarea-toolbar';
 import { noteSchema } from '@/lib/validators';
+import { getNoteTitle } from '@/ai/flows/get-note-title-flow';
+import { cn } from '@/lib/utils';
 
-const DRAFT_NOTE_STORAGE_KEY = 'taskflow_draft_note';
+
 type NoteFormData = z.infer<typeof noteSchema>;
-
-// Helper to get item from localStorage safely
-const getInitialDraft = (): NoteFormData => {
-    if (typeof window === 'undefined') {
-        return { title: '', content: '' };
-    }
-    const savedValue = localStorage.getItem(DRAFT_NOTE_STORAGE_KEY);
-    if (savedValue) {
-        try {
-            return JSON.parse(savedValue);
-        } catch (e) {
-            return { title: '', content: '' };
-        }
-    }
-    return { title: '', content: '' };
-};
-
 
 export default function NotesPage() {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -47,9 +32,9 @@ export default function NotesPage() {
   
   const { toast } = useToast();
 
-  const { register, handleSubmit, reset, watch, setValue, formState: { isSubmitting } } = useForm<NoteFormData>({
+  const { register, handleSubmit, reset, watch, setValue, formState: { isSubmitting, isDirty } } = useForm<NoteFormData>({
     resolver: zodResolver(noteSchema),
-    defaultValues: getInitialDraft(),
+    defaultValues: { title: '', content: '' },
   });
   
   const newNoteContent = watch('content');
@@ -58,26 +43,10 @@ export default function NotesPage() {
   
   const newNoteTextareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Load draft from localStorage on initial mount
   useEffect(() => {
-    const draft = getInitialDraft();
-    setValue('title', draft.title);
-    setValue('content', draft.content);
-    if(draft.title || draft.content) {
-      setIsCreating(true);
-    }
      const config = getUiConfig();
      document.title = `Notes | ${config.appName || 'My Task Manager'}`;
-  }, [setValue]);
-
-  // Save draft to localStorage whenever it changes
-  useEffect(() => {
-    const subscription = watch((value) => {
-      localStorage.setItem(DRAFT_NOTE_STORAGE_KEY, JSON.stringify(value));
-    });
-    return () => subscription.unsubscribe();
-  }, [watch]);
-
+  }, []);
 
   const refreshNotes = () => {
     setNotes(getNotes());
@@ -92,7 +61,6 @@ export default function NotesPage() {
     addNote({ title: data.title, content: data.content });
     toast({ variant: 'success', title: "Note created successfully" });
     reset({ title: '', content: '' });
-    localStorage.removeItem(DRAFT_NOTE_STORAGE_KEY);
     setIsCreating(false);
     refreshNotes();
   };
@@ -122,7 +90,6 @@ export default function NotesPage() {
   
   const handleClearNewNote = () => {
     reset({ title: '', content: '' });
-    localStorage.removeItem(DRAFT_NOTE_STORAGE_KEY);
     setIsCreating(false);
   };
 
@@ -161,7 +128,7 @@ export default function NotesPage() {
                       {...register('content')}
                       ref={newNoteTextareaRef}
                       placeholder="Take a note..."
-                      className="border-0 focus-visible:ring-0 shadow-none px-2 min-h-[60px] pb-12"
+                      className={cn("border-0 focus-visible:ring-0 shadow-none px-2 min-h-[60px]", isCreating && 'pb-12')}
                       onFocus={() => setIsCreating(true)}
                       enableHotkeys
                   />
@@ -247,6 +214,7 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
           <form onSubmit={handleSubmit(handleUpdateSubmit)} className="space-y-2">
             <Input {...register('title')} placeholder="Title" className="text-md font-semibold border-0 focus-visible:ring-0 shadow-none px-1 h-auto"/>
             {errors.title && <p className="text-sm text-destructive px-1">{errors.title.message}</p>}
+            <div className="pt-1"></div>
             <div className="relative">
               <Textarea 
                 {...register('content')} 

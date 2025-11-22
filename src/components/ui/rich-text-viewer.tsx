@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 
 interface RichTextViewerProps {
   text: string;
-  onTextChange?: (newText: string) => void;
 }
 
 const CodeBlock = ({ content }: { content: string }) => {
@@ -93,7 +92,7 @@ const CodeBlock = ({ content }: { content: string }) => {
 
 const regex = /(\*\*(.*?)\*\*|_(.*?)_|~(.*?)~|`(.*?)`|https?:\/\/[^\s<]+|\[(.*?)\]\((.*?)\))/gm;
 
-export const RichTextViewer = memo(({ text, onTextChange }: RichTextViewerProps) => {
+export const RichTextViewer = memo(({ text }: RichTextViewerProps) => {
   const parts = useMemo(() => {
     if (!text) return [];
 
@@ -169,3 +168,5 @@ export const RichTextViewer = memo(({ text, onTextChange }: RichTextViewerProps)
 });
 
 RichTextViewer.displayName = 'RichTextViewer';
+
+    

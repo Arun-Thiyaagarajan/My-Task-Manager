@@ -41,7 +41,6 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                 case 'e': applyFormat('code', e.currentTarget); handled = true; break;
                 case 'x': if (e.shiftKey) { applyFormat('strike', e.currentTarget); handled = true; } break;
                 case 'c': if (e.shiftKey) { applyFormat('code-block', e.currentTarget); handled = true; } break;
-                case 'l': if (e.shiftKey) { applyFormat('todo', e.currentTarget); handled = true; } break;
             }
             if(handled) {
                 e.preventDefault();
@@ -90,3 +89,5 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
 Textarea.displayName = "Textarea"
 
 export { Textarea }
+
+    
