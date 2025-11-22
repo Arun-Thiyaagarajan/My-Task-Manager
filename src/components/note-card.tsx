@@ -1,104 +1,43 @@
 
-
 'use client';
 
 import type { Note, UiConfig } from '@/lib/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
-import { Button } from '@/components/ui/button';
-import { Edit, Trash2 } from 'lucide-react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { formatTimestamp } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 
 interface NoteCardProps {
   note: Note;
   uiConfig: UiConfig;
-  onEdit: (note: Note) => void;
-  onDelete: (noteId: string) => void;
+  onClick: () => void;
   isSelected?: boolean;
 }
 
-export function NoteCard({ note, uiConfig, onEdit, onDelete, isSelected }: NoteCardProps) {
-  const handleEditClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onEdit(note);
-  };
-  
-  const handleDoubleClick = () => {
-    onEdit(note);
-  };
-
-  const handleDeleteClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-  };
-  
-  const handleDeleteConfirm = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onDelete(note.id);
-  }
-
+export function NoteCard({ note, uiConfig, onClick, isSelected }: NoteCardProps) {
   return (
     <Card 
         className={cn(
-            "flex flex-col h-full group w-full overflow-hidden transition-all duration-300", 
+            "flex flex-col h-full group w-full overflow-hidden transition-all duration-300 cursor-pointer", 
             isSelected && "shadow-lg shadow-primary/20 border-primary/50"
-        )} 
-        onDoubleClick={handleDoubleClick}
+        )}
+        onClick={onClick}
     >
       {note.title && (
           <CardHeader className="p-4 pb-2 border-b">
             <CardTitle className="text-base font-semibold leading-snug line-clamp-2">{note.title}</CardTitle>
           </CardHeader>
       )}
-      <CardContent className={cn("flex-grow overflow-y-auto cursor-pointer", note.title ? 'p-4 pt-2' : 'p-4')}>
+      <div className={cn("note-card-content flex-grow overflow-y-auto", note.title ? 'p-4 pt-2' : 'p-4')}>
         <RichTextViewer text={note.content} />
-      </CardContent>
-      <CardFooter className={cn("note-card-footer", "p-2 border-t flex justify-between items-center bg-background/50")}>
+      </div>
+      <CardFooter className={cn("note-card-footer", "p-2 border-t flex justify-end items-center bg-background/50")}>
         <p className="text-xs text-muted-foreground">
           {formatTimestamp(note.updatedAt, uiConfig.timeFormat)}
         </p>
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleEditClick}>
-            <Edit className="h-4 w-4" />
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={handleDeleteClick}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent onClick={e => e.stopPropagation()}>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete this note?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will move the note to the bin. You can restore it from
-                  there later.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleDeleteConfirm}
-                  className="bg-destructive hover:bg-destructive/90"
-                >
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
       </CardFooter>
     </Card>
   );
 }
+
+    

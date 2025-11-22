@@ -17,7 +17,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
@@ -29,6 +28,7 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { NoteEditorDialog } from '@/components/note-editor-dialog';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import { NoteViewerDialog } from '@/components/note-viewer-dialog';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -43,6 +43,9 @@ export default function NotesPage() {
   
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedNoteIds, setSelectedNoteIds] = useState<string[]>([]);
+
+  const [noteToView, setNoteToView] = useState<Note | null>(null);
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
   
   const handleOpenNewNoteDialog = useCallback(() => {
     setNoteToEdit(null);
@@ -83,9 +86,28 @@ export default function NotesPage() {
     };
   }, [refreshData]);
 
-  const handleEditNote = (note: Note) => {
-    setNoteToEdit(note);
+  const handleCardClick = (note: Note) => {
+    setNoteToView(note);
+    setIsViewerOpen(true);
+  };
+
+  const handleEditFromViewer = () => {
+    setIsViewerOpen(false);
+    setNoteToEdit(noteToView);
     setIsEditorOpen(true);
+  };
+
+  const handleDeleteFromViewer = () => {
+    setIsViewerOpen(false);
+    if(noteToView) {
+      deleteNote(noteToView.id);
+      toast({
+        variant: 'success',
+        title: 'Note Deleted',
+        description: 'The note has been moved to the bin.',
+      });
+      refreshData();
+    }
   };
 
   const handleSaveNote = (id: string | undefined, title: string, content: string) => {
@@ -102,16 +124,6 @@ export default function NotesPage() {
     }
     refreshData();
     setIsEditorOpen(false);
-  };
-
-  const handleDeleteNote = (noteId: string) => {
-    deleteNote(noteId);
-    toast({
-      variant: 'success',
-      title: 'Note Deleted',
-      description: 'The note has been moved to the bin.',
-    });
-    refreshData();
   };
   
   const handleResetLayout = () => {
@@ -151,6 +163,7 @@ export default function NotesPage() {
 
   const layouts = {
       lg: notes.map(note => note.layout),
+      md: notes.map(note => ({ ...note.layout, x: (note.layout.x / 2) % 2, w: 1 })),
       sm: notes.map(note => ({ ...note.layout, x: (note.layout.x / 2) % 2, w: 1 })),
       xs: notes.map(note => ({ ...note.layout, x: 0, w: 1 })),
       xxs: notes.map(note => ({ ...note.layout, x: 0, w: 1 })),
@@ -274,7 +287,7 @@ export default function NotesPage() {
               cols={{lg: 12, md: 10, sm: 2, xs: 1, xxs: 1}}
               rowHeight={30}
               onLayoutChange={onLayoutChange}
-              draggableCancel=".note-card-footer"
+              draggableCancel=".note-card-footer, .note-card-content"
           >
               {notes.map(note => (
                   <div key={note.id} data-grid={note.layout} className="relative group/card-wrapper">
@@ -294,9 +307,8 @@ export default function NotesPage() {
                       )}
                       <NoteCard 
                           note={note} 
-                          uiConfig={uiConfig} 
-                          onEdit={handleEditNote} 
-                          onDelete={handleDeleteNote}
+                          uiConfig={uiConfig}
+                          onClick={() => handleCardClick(note)}
                           isSelected={selectedNoteIds.includes(note.id)}
                       />
                   </div>
@@ -305,6 +317,14 @@ export default function NotesPage() {
         )}
       </div>
       
+      <NoteViewerDialog
+        note={noteToView}
+        isOpen={isViewerOpen}
+        onOpenChange={setIsViewerOpen}
+        onEdit={handleEditFromViewer}
+        onDelete={handleDeleteFromViewer}
+      />
+
       <NoteEditorDialog 
         note={noteToEdit} 
         isOpen={isEditorOpen}
@@ -319,3 +339,5 @@ export default function NotesPage() {
     </div>
   );
 }
+
+    
