@@ -9,7 +9,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles, Share2, History, MessageSquare, BellRing, MoreVertical, Trash2, FileJson, Copy, Tag, Download, Pilcrow, Code } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles, Share2, History, MessageSquare, BellRing, MoreVertical, Trash2, FileJson, Copy, Tag, Download, Pilcrow, Code, CalendarIcon } from 'lucide-react';
 import { getStatusConfig, TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -50,6 +50,7 @@ import { MultiSelect, type SelectOption } from '@/components/ui/multi-select';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
 import { Textarea } from '@/components/ui/textarea';
 import { TextareaToolbar, applyFormat } from '@/components/ui/textarea-toolbar';
+import { Calendar } from '@/components/ui/calendar';
 
 
 const isImageUrl = (url: string): boolean => {
@@ -286,26 +287,27 @@ export default function TaskPage() {
     if (!task) return;
 
     let finalValue = value !== undefined ? value : editingValue;
-    const trimmedValue = typeof finalValue === 'string' ? finalValue.trim() : finalValue;
 
     if (key === 'title') {
-        if (!trimmedValue) {
+        if (!finalValue || finalValue.trim() === '') {
             toast({ variant: 'destructive', title: 'Validation Error', description: 'Title cannot be empty.' });
             return;
         }
-        if (trimmedValue === task.title) {
+        if (finalValue.trim() === task.title) {
             handleCancelEditing();
-            return; // No change, no save.
+            return;
         }
     }
     
-    if (key === 'description' && (!trimmedValue || trimmedValue.trim() === '')) {
-      toast({
-        variant: 'destructive',
-        title: 'Validation Error',
-        description: 'Description cannot be empty.',
-      });
-      return;
+    if (key === 'description') {
+        if (!finalValue || finalValue.trim() === '') {
+          toast({
+            variant: 'destructive',
+            title: 'Validation Error',
+            description: 'Description cannot be empty.',
+          });
+          return;
+        }
     }
     
     // Ensure repositories is always an array
@@ -758,7 +760,30 @@ const handleCopyDescription = () => {
   const commentsField = uiConfig.fields.find(f => f.key === 'comments' && f.isActive);
   const historyField = !isBinned && taskLogs.length > 0;
   
-  const isValidDate = (d: any): d is string => d && !isNaN(new Date(d).getTime());
+  const handleDateUpdate = (key: keyof Task, date: Date | null) => {
+    if (!task) return;
+
+    let updatePayload: Partial<Task> = {
+        [key]: date ? date.toISOString() : null
+    };
+
+    // If a start date is cleared, also clear the end date
+    if (date === null) {
+      if (key === 'devStartDate') updatePayload['devEndDate'] = null;
+      if (key === 'qaStartDate') updatePayload['qaEndDate'] = null;
+    }
+    
+    const updatedTask = updateTask(task.id, updatePayload);
+    if (updatedTask) {
+        setTask(updatedTask);
+        setTaskLogs(getLogsForTask(task.id));
+        toast({
+            variant: 'success',
+            title: 'Date Updated',
+            description: `The date for "${fieldLabels.get(key) || key}" has been updated.`
+        });
+    }
+  };
 
   return (
     <>
@@ -843,7 +868,7 @@ const handleCopyDescription = () => {
                   <AlertTitle className="text-amber-800 dark:text-amber-200">Reminder Note</AlertTitle>
                   <AlertDescription className="text-amber-700 dark:text-amber-300">
                     <RichTextViewer text={task.reminder} />
-                    {isValidDate(task.reminderExpiresAt) && (
+                    {task.reminderExpiresAt && (
                       <span className="block text-xs italic mt-1 text-amber-600 dark:text-amber-400">
                         (Expires {formatTimestamp(task.reminderExpiresAt, uiConfig.timeFormat)})
                       </span>
@@ -1204,7 +1229,7 @@ const handleCopyDescription = () => {
                   <Separator />
                   <div>
                     <h4 className="text-sm font-semibold text-muted-foreground mb-2">Important Dates</h4>
-                    <TimelineSection task={task} fieldLabels={fieldLabels} />
+                    <TimelineSection task={task} fieldLabels={fieldLabels} onDateUpdate={handleDateUpdate} isBinned={isBinned}/>
                   </div>
                 </CardContent>
             </Card>
@@ -1423,62 +1448,113 @@ function TaskDetailSection({ title, people, setPersonInView, isDeveloper }: {
   )
 }
 
-function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<string, string>}) {
-    const isValidDate = (d: any): d is string | Date => d && !isNaN(new Date(d).getTime());
+function TimelineSection({
+  task,
+  fieldLabels,
+  onDateUpdate,
+  isBinned,
+}: {
+  task: Task;
+  fieldLabels: Map<string, string>;
+  onDateUpdate: (key: keyof Task, date: Date | null) => void;
+  isBinned: boolean;
+}) {
+  const isValidDate = (d: any): d is string | Date => d && !isNaN(new Date(d).getTime());
 
-    const hasDevDates = isValidDate(task.devStartDate) || isValidDate(task.devEndDate);
-    const hasQaDates = isValidDate(task.qaStartDate) || isValidDate(task.qaEndDate);
-    const hasAnyDeploymentDate = Object.values(task.deploymentDates || {}).some(date => isValidDate(date));
+  const DateField = ({ fieldKey, label }: { fieldKey: keyof Task, label: string }) => {
+    const dateValue = task[fieldKey] ? new Date(task[fieldKey] as string) : null;
+    const [isOpen, setIsOpen] = useState(false);
 
-    if (!hasDevDates && !hasQaDates && !hasAnyDeploymentDate) {
-      return <p className="text-muted-foreground text-center text-xs py-2">No dates have been set.</p>
-    }
-    
+    const getDisabledDates = () => {
+        if (fieldKey === 'devEndDate' && task.devStartDate) {
+            return { before: new Date(task.devStartDate) };
+        }
+        if (fieldKey === 'qaEndDate' && task.qaStartDate) {
+            return { before: new Date(task.qaStartDate) };
+        }
+        return undefined;
+    };
+
     return (
-      <div className="space-y-2 text-sm">
-          {isValidDate(task.devStartDate) && (
-              <div className="flex justify-between">
-                  <span className="text-muted-foreground">{fieldLabels.get('devStartDate') || 'Dev Start Date'}</span>
-                  <span>{format(new Date(task.devStartDate), 'PPP')}</span>
-              </div>
-          )}
-          {isValidDate(task.devEndDate) && (
-              <div className="flex justify-between">
-                  <span className="text-muted-foreground">{fieldLabels.get('devEndDate') || 'Dev End Date'}</span>
-                  <span>{format(new Date(task.devEndDate), 'PPP')}</span>
-              </div>
-          )}
-
-          {hasDevDates && hasQaDates && <Separator className="my-2"/>}
-          
-          {isValidDate(task.qaStartDate) && (
-              <div className="flex justify-between">
-                  <span className="text-muted-foreground">{fieldLabels.get('qaStartDate') || 'QA Start Date'}</span>
-                  <span>{format(new Date(task.qaStartDate), 'PPP')}</span>
-              </div>
-          )}
-          {isValidDate(task.qaEndDate) && (
-              <div className="flex justify-between">
-                  <span className="text-muted-foreground">{fieldLabels.get('qaEndDate') || 'QA End Date'}</span>
-                  <span>{format(new Date(task.qaEndDate), 'PPP')}</span>
-              </div>
-          )}
-          
-          {(hasQaDates || hasDevDates) && hasAnyDeploymentDate && <Separator className="my-2"/>}
-
-          {task.deploymentDates && Object.entries(task.deploymentDates).map(([env, date]) => {
-              if (!isValidDate(date)) return null;
-              return (
-                  <div key={env} className="flex justify-between">
-                      <span className="text-muted-foreground capitalize">{env} Deployed</span>
-                      <span>{format(new Date(date), 'PPP')}</span>
-                  </div>
-              )
-          })}
+      <div className="flex justify-between items-center group">
+        <span className="text-muted-foreground">{label}</span>
+        <Popover open={isOpen} onOpenChange={isBinned ? undefined : setIsOpen}>
+          <PopoverTrigger asChild disabled={isBinned}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={cn("h-7 px-2", !dateValue && "text-muted-foreground hover:text-foreground")}
+            >
+              {dateValue ? format(dateValue, 'PPP') : 'Set Date'}
+              <Pencil className="ml-2 h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="end">
+            <Calendar
+              mode="single"
+              selected={dateValue || undefined}
+              onSelect={(date) => {
+                onDateUpdate(fieldKey, date || null);
+                setIsOpen(false);
+              }}
+              defaultMonth={dateValue || undefined}
+              initialFocus
+              disabled={getDisabledDates()}
+            />
+            <div className="p-2 border-t text-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full"
+                onClick={() => {
+                  onDateUpdate(fieldKey, null);
+                  setIsOpen(false);
+                }}
+              >
+                Clear Date
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
     );
+  };
+  
+  const hasDevDates = isValidDate(task.devStartDate) || isValidDate(task.devEndDate);
+  const hasQaDates = isValidDate(task.qaStartDate) || isValidDate(task.qaEndDate);
+  const hasAnyDeploymentDate = Object.values(task.deploymentDates || {}).some(date => isValidDate(date));
+
+  const devStartConfig = uiConfig?.fields.find(f => f.key === 'devStartDate' && f.isActive);
+  const devEndConfig = uiConfig?.fields.find(f => f.key === 'devEndDate' && f.isActive);
+  const qaStartConfig = uiConfig?.fields.find(f => f.key === 'qaStartDate' && f.isActive);
+  const qaEndConfig = uiConfig?.fields.find(f => f.key === 'qaEndDate' && f.isActive);
+
+  if (!devStartConfig && !devEndConfig && !qaStartConfig && !qaEndConfig && !hasAnyDeploymentDate) {
+    return <p className="text-muted-foreground text-center text-xs py-2">No date fields are active.</p>
+  }
+  
+  return (
+    <div className="space-y-2 text-sm">
+      {devStartConfig && <DateField fieldKey="devStartDate" label={devStartConfig.label} />}
+      {devEndConfig && <DateField fieldKey="devEndDate" label={devEndConfig.label} />}
+      {(devStartConfig || devEndConfig) && (qaStartConfig || qaEndConfig) && <Separator className="my-2" />}
+      {qaStartConfig && <DateField fieldKey="qaStartDate" label={qaStartConfig.label} />}
+      {qaEndConfig && <DateField fieldKey="qaEndDate" label={qaEndConfig.label} />}
+
+      {((devStartConfig || devEndConfig) || (qaStartConfig || qaEndConfig)) && hasAnyDeploymentDate && <Separator className="my-2"/>}
+
+      {task.deploymentDates && Object.entries(task.deploymentDates).map(([env, date]) => {
+          if (!isValidDate(date)) return null;
+          return (
+              <div key={env} className="flex justify-between items-center">
+                  <span className="text-muted-foreground capitalize">{env} Deployed</span>
+                  <span className="pr-2">{format(new Date(date), 'PPP')}</span>
+              </div>
+          )
+      })}
+    </div>
+  );
 }
-
     
 
 
@@ -1488,3 +1564,6 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
     
 
 
+
+
+    
