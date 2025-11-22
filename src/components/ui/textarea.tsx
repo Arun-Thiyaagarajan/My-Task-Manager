@@ -12,6 +12,26 @@ export interface TextareaProps
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ className, enableHotkeys = false, ...props }, ref) => {
     
+    const localRef = React.useRef<HTMLTextAreaElement>(null);
+    const combinedRef = (el: HTMLTextAreaElement) => {
+        localRef.current = el;
+        if (typeof ref === 'function') {
+            ref(el);
+        } else if (ref) {
+            ref.current = el;
+        }
+    };
+    
+    // Auto-resize logic
+    React.useEffect(() => {
+        const textarea = localRef.current;
+        if (textarea) {
+            textarea.style.height = 'auto'; // Reset height to recalculate
+            textarea.style.height = `${textarea.scrollHeight}px`;
+        }
+    }, [props.value]);
+
+
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (enableHotkeys && (e.ctrlKey || e.metaKey)) {
             let handled = false;
@@ -34,10 +54,10 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     return (
       <textarea
         className={cn(
-          "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 overflow-hidden resize-none",
           className
         )}
-        ref={ref}
+        ref={combinedRef}
         onKeyDown={handleKeyDown}
         {...props}
       />
