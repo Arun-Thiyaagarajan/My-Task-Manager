@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -16,6 +16,7 @@ import { StickyNote, Plus, Trash2, Loader2, Edit, X, Check } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
+import { TextareaToolbar, applyFormat } from '@/components/ui/textarea-toolbar';
 
 const noteSchema = z.object({
   title: z.string().optional(),
@@ -35,6 +36,8 @@ export default function NotesPage() {
   const { register, handleSubmit, reset, setFocus, formState: { errors, isSubmitting } } = useForm<NoteFormData>({
     resolver: zodResolver(noteSchema)
   });
+  
+  const newNoteTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const refreshNotes = () => {
     setNotes(getNotes());
@@ -50,6 +53,7 @@ export default function NotesPage() {
       addNote({ title: data.title, content: data.content });
       toast({ variant: 'success', title: "Note created successfully" });
       reset({ title: '', content: '' });
+      setIsCreating(false);
       refreshNotes();
     } catch(e: any) {
         toast({ variant: 'destructive', title: "Error creating note", description: e.message });
@@ -107,12 +111,21 @@ export default function NotesPage() {
                     className="text-lg font-semibold border-0 focus-visible:ring-0 shadow-none px-2"
                 />
               )}
-               <Textarea
-                    {...register('content')}
-                    placeholder="Take a note..."
-                    className="border-0 focus-visible:ring-0 shadow-none px-2 min-h-[60px]"
-                    onFocus={() => setIsCreating(true)}
-                />
+               <div className="relative">
+                 <Textarea
+                      {...register('content')}
+                      ref={newNoteTextareaRef}
+                      placeholder="Take a note..."
+                      className="border-0 focus-visible:ring-0 shadow-none px-2 min-h-[60px] pb-12"
+                      onFocus={() => setIsCreating(true)}
+                      enableHotkeys
+                  />
+                  {isCreating && (
+                      <TextareaToolbar 
+                          onFormatClick={(type) => newNoteTextareaRef.current && applyFormat(type, newNoteTextareaRef.current)}
+                      />
+                  )}
+               </div>
             </CardContent>
             {isCreating && (
                 <CardFooter className="p-4 pt-0 flex justify-between">
@@ -170,6 +183,8 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
     resolver: zodResolver(noteSchema),
     defaultValues: { title: note.title, content: note.content },
   });
+  
+  const editNoteTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     reset({ title: note.title, content: note.content });
@@ -179,40 +194,28 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
     onUpdate(note.id, data);
   };
 
-  const renderContent = (content: string) => {
-      const lines = content.split('\n');
-      return lines.map((line, index) => {
-          const checkboxMatch = line.match(/^\[( |x)\]\s(.*)/);
-          if (checkboxMatch) {
-              const isChecked = checkboxMatch[1] === 'x';
-              const text = checkboxMatch[2];
-              return (
-                  <div key={index} className="flex items-start gap-2">
-                      <div className="flex items-center justify-center h-4 w-4 rounded border border-primary bg-primary/20 mt-0.5 shrink-0">
-                          {isChecked && <Check className="h-3 w-3 text-primary-foreground" />}
-                      </div>
-                      <span className={isChecked ? 'line-through text-muted-foreground' : ''}>
-                          <RichTextViewer text={text} />
-                      </span>
-                  </div>
-              );
-          }
-          return <RichTextViewer key={index} text={line || ' '} />;
-      });
-  };
-
   return (
     <Card className="break-inside-avoid-column flex flex-col hover:shadow-lg transition-shadow duration-200">
       <CardContent className="p-4 flex-grow cursor-pointer" onClick={!isEditing ? onEditStart : undefined}>
         {isEditing ? (
           <form onSubmit={handleSubmit(handleUpdateSubmit)} className="space-y-2">
             <Input {...register('title')} placeholder="Title" className="text-md font-semibold border-0 focus-visible:ring-0 shadow-none px-1 h-auto"/>
-            <Textarea {...register('content')} placeholder="Take a note..." className="border-0 focus-visible:ring-0 shadow-none px-1 min-h-[100px]"/>
+            <div className="relative">
+              <Textarea 
+                {...register('content')} 
+                ref={editNoteTextareaRef}
+                placeholder="Take a note..." 
+                className="border-0 focus-visible:ring-0 shadow-none px-1 min-h-[100px] pb-12"
+                enableHotkeys
+                autoFocus
+              />
+              <TextareaToolbar onFormatClick={(type) => editNoteTextareaRef.current && applyFormat(type, editNoteTextareaRef.current)} />
+            </div>
           </form>
         ) : (
           <div className="space-y-2">
             {note.title && <h3 className="font-semibold">{note.title}</h3>}
-            <div className="text-sm text-foreground space-y-1">{renderContent(note.content)}</div>
+            <div className="text-sm text-foreground space-y-1"><RichTextViewer text={note.content} /></div>
           </div>
         )}
       </CardContent>

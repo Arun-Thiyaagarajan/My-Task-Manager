@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { FileClock, Link as LinkIcon, Activity, Trash2, LayoutGrid, Search } from 'lucide-react';
+import { FileClock, Link as LinkIcon, Activity, Trash2, LayoutGrid, Search, StickyNote } from 'lucide-react';
 import { format } from 'date-fns';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Input } from '@/components/ui/input';
@@ -181,7 +181,7 @@ export default function LogsPage() {
                                                     <TableRow>
                                                         <TableHead className="w-[150px]">Time</TableHead>
                                                         <TableHead className="min-w-[300px]">Action</TableHead>
-                                                        <TableHead className="w-[150px] text-right">Related Task</TableHead>
+                                                        <TableHead className="w-[150px] text-right">Related Item</TableHead>
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
@@ -199,6 +199,13 @@ export default function LogsPage() {
                                                                         <Link href={`/tasks/${log.taskId}`}>
                                                                             <LinkIcon className="mr-2 h-3 w-3" />
                                                                             View Task
+                                                                        </Link>
+                                                                    </Button>
+                                                                ) : log.noteId ? (
+                                                                    <Button asChild variant="outline" size="sm">
+                                                                        <Link href="/notes">
+                                                                            <StickyNote className="mr-2 h-3 w-3" />
+                                                                            View Note
                                                                         </Link>
                                                                     </Button>
                                                                 ) : log.message.includes('to the bin') ? (

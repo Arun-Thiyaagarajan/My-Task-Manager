@@ -51,6 +51,28 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         }
     }
     
+    React.useEffect(() => {
+      const textarea = localRef.current;
+      const handleInput = () => {
+        if (textarea) {
+          textarea.style.height = 'auto';
+          textarea.style.height = `${textarea.scrollHeight}px`;
+        }
+      };
+
+      if (textarea) {
+        textarea.addEventListener('input', handleInput);
+        // Initial adjustment
+        handleInput();
+      }
+
+      return () => {
+        if (textarea) {
+          textarea.removeEventListener('input', handleInput);
+        }
+      };
+    }, []);
+    
     return (
       <textarea
         className={cn(
