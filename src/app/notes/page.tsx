@@ -17,7 +17,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
@@ -164,10 +163,10 @@ export default function NotesPage() {
 
   const layouts = {
       lg: notes.map(note => note.layout),
-      md: notes.map((note, i) => ({ ...note.layout, x: i % 2, w: 1 })),
-      sm: notes.map((note, i) => ({ ...note.layout, x: i % 2, w: 1 })),
-      xs: notes.map(note => ({ ...note.layout, x: 0, w: 1 })),
-      xxs: notes.map(note => ({ ...note.layout, x: 0, w: 1 })),
+      md: notes.map((note, i) => ({ ...note.layout, x: (i % 2) * 6, w: 6, h: 6 })),
+      sm: notes.map((note, i) => ({ ...note.layout, x: (i % 2) * 6, w: 6, h: 6 })),
+      xs: notes.map(note => ({ ...note.layout, x: 0, w: 1, h: 6 })),
+      xxs: notes.map(note => ({ ...note.layout, x: 0, w: 1, h: 6 })),
   };
 
   return (
@@ -285,10 +284,10 @@ export default function NotesPage() {
               className="layout"
               layouts={layouts}
               breakpoints={{lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0}}
-              cols={{lg: 12, md: 2, sm: 2, xs: 1, xxs: 1}}
+              cols={{lg: 12, md: 12, sm: 12, xs: 1, xxs: 1}}
               rowHeight={30}
               onLayoutChange={onLayoutChange}
-              draggableCancel=".note-card-footer, .note-card-content"
+              draggableCancel=".note-card-footer, .note-card-content, .note-card-header"
           >
               {notes.map(note => (
                   <div key={note.id} data-grid={note.layout} className="relative group/card-wrapper">
@@ -340,5 +339,3 @@ export default function NotesPage() {
     </div>
   );
 }
-
-    

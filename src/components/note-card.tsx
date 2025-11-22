@@ -24,11 +24,11 @@ export function NoteCard({ note, uiConfig, onClick, isSelected }: NoteCardProps)
         onClick={onClick}
     >
       {note.title && (
-          <CardHeader className="p-4 pb-2 border-b">
+          <CardHeader className="note-card-header p-4 pb-2 border-b cursor-text">
             <CardTitle className="text-base font-semibold leading-snug line-clamp-2">{note.title}</CardTitle>
           </CardHeader>
       )}
-      <div className={cn("note-card-content flex-grow overflow-y-auto", note.title ? 'p-4 pt-2' : 'p-4')}>
+      <div className={cn("note-card-content flex-grow overflow-y-auto cursor-text", note.title ? 'p-4 pt-2' : 'p-4')}>
         <RichTextViewer text={note.content} />
       </div>
       <CardFooter className={cn("note-card-footer", "p-2 border-t flex justify-end items-center bg-background/50")}>
@@ -39,5 +39,3 @@ export function NoteCard({ note, uiConfig, onClick, isSelected }: NoteCardProps)
     </Card>
   );
 }
-
-    
