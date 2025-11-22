@@ -584,7 +584,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                                 <CardTitle>{groupName}</CardTitle>
                             </CardHeader>
                             <CardContent className={cn("grid grid-cols-1 gap-6", gridColsClass)}>
-                                {groupedFields[groupName].map(field => renderField(field))}
+                                {groupedFields[groupName].map(field => <div key={field.id}>{renderField(field)}</div>)}
                             </CardContent>
                         </Card>
                     )
