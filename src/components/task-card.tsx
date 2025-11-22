@@ -199,7 +199,17 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   const statusConfig = getStatusConfig(task.status);
   const { Icon, cardClassName, iconColorClassName } = statusConfig;
 
-  const relevantEnvs = task.relevantEnvironments?.length ? task.relevantEnvironments : uiConfig?.environments || [];
+  const defaultEnvs = ['dev', 'stage', 'production'];
+  const relevantEnvs = task.relevantEnvironments?.length ? task.relevantEnvironments : (uiConfig?.environments || []);
+  
+  const deployedCustomEnvs = relevantEnvs.filter(env => {
+      if (defaultEnvs.includes(env.toLowerCase())) return false;
+      const isSelected = task.deploymentStatus?.[env] ?? false;
+      const hasDate = task.deploymentDates && task.deploymentDates[env];
+      return isSelected && !!hasDate;
+  });
+
+  const cardEnvs = [...new Set([...defaultEnvs, ...deployedCustomEnvs])].filter(env => relevantEnvs.includes(env));
 
 
   return (
@@ -372,7 +382,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                 <EnvironmentStatus
                   deploymentStatus={task.deploymentStatus}
                   deploymentDates={task.deploymentDates}
-                  configuredEnvs={relevantEnvs}
+                  configuredEnvs={cardEnvs}
                   size="sm"
                   interactive={true}
                   onToggle={handleToggleDeployment}

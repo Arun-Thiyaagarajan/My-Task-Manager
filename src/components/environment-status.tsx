@@ -29,7 +29,7 @@ export function EnvironmentStatus({
   onAnimationEnd,
 }: EnvironmentStatusProps) {
   
-  const MAX_VISIBLE_ENVS = 3;
+  const MAX_VISIBLE_ENVS = 4;
   const visibleEnvs = configuredEnvs.slice(0, MAX_VISIBLE_ENVS);
   const hiddenEnvsCount = configuredEnvs.length - MAX_VISIBLE_ENVS;
 
@@ -66,7 +66,7 @@ export function EnvironmentStatus({
                   size === 'sm' && 'px-1.5 py-0 text-[10px] h-4',
                   interactive && 'cursor-pointer',
                   interactive && isDeployed && 'hover:brightness-110 hover:scale-105',
-                  interactive && !isDeployed && 'hover:bg-muted/50',
+                  interactive && !isDeployed && 'hover:brightness-110',
                   justUpdatedEnv === env && 'animate-status-in'
                 )}
               >
