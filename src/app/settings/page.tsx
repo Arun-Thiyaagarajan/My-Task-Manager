@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -726,6 +725,7 @@ export default function SettingsPage() {
                     <CardContent className="space-y-3">
                         <div className="space-y-2">
                             {config.environments.map(env => {
+                                if (!env || !env.name) return null;
                                 const isProtected = ['dev', 'production'].includes(env.name.toLowerCase());
                                 return (
                                     <div key={env.name}>
@@ -803,3 +803,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    
