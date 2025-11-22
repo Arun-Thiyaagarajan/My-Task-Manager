@@ -1,5 +1,3 @@
-
-
 import type { TASK_STATUSES, ENVIRONMENTS } from './constants';
 
 export type TaskStatus = string;
@@ -60,6 +58,14 @@ export interface GeneralReminder {
   id: string;
   text: string;
   createdAt: string;
+}
+
+export interface Note {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Task {
@@ -127,6 +133,7 @@ export interface CompanyData {
     trash: Task[];
     developers: Person[];
     testers: Person[];
+    notes: Note[];
     uiConfig: UiConfig;
     logs: Log[];
     generalReminders: GeneralReminder[];

@@ -1,4 +1,3 @@
-
 import { z } from 'zod';
 import { TASK_STATUSES } from './constants';
 import type { UiConfig } from './types';
@@ -28,6 +27,13 @@ export const attachmentSchema = z.object({
 export const commentSchema = z.object({
   text: z.string(),
   timestamp: z.string().datetime(),
+});
+
+export const noteSchema = z.object({
+  title: z.string().optional(),
+  content: z.string().optional(),
+}).refine(data => !!data.title || !!data.content, {
+  message: "Note must have a title or content.",
 });
 
 

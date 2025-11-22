@@ -1,7 +1,5 @@
-
-
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency } from './types';
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note } from './types';
 import cloneDeep from 'lodash/cloneDeep';
 import { format, isToday, isYesterday } from 'date-fns';
 
@@ -25,6 +23,7 @@ const getInitialData = (): MyTaskManagerData => {
                 trash: [],
                 developers: [],
                 testers: [],
+                notes: [],
                 uiConfig: { 
                     fields: initialFields,
                     environments: [...ENVIRONMENTS],
@@ -69,6 +68,7 @@ export const getAppData = (): MyTaskManagerData => {
                     trash: [],
                     developers: [],
                     testers: [],
+                    notes: [],
                     uiConfig: defaultConfig,
                     logs: [],
                     generalReminders: [],
@@ -92,6 +92,7 @@ export const getAppData = (): MyTaskManagerData => {
             if (!company.trash) company.trash = [];
             if (!company.logs) company.logs = [];
             if (!company.generalReminders) company.generalReminders = [];
+            if (!company.notes) company.notes = [];
             if ((company as any).notes) delete (company as any).notes;
             company.developers.forEach(p => { if (!p.additionalFields) p.additionalFields = []; });
             company.testers.forEach(p => { if (!p.additionalFields) p.additionalFields = []; });
@@ -959,7 +960,7 @@ const generateTaskUpdateLogs = (
                 const newIds = new Set((newRepoLinks[repo] || '').split(',').map(s => s.trim()).filter(Boolean));
 
                 const added = [...newIds].filter(id => !oldIds.has(id));
-                const removed = [...oldIds].filter(id => !newIds.has(id));
+                const removed = [...oldIds].filter(id => !oldIds.has(id));
 
                 added.forEach(id => prChanges.push(`- Added PR **#${id}** to *${repo} (${env})*.`));
                 removed.forEach(id => prChanges.push(`- Removed PR **#${id}** from *${repo} (${env})*.`));
@@ -1502,4 +1503,81 @@ export function deleteGeneralReminder(id: string): boolean {
         return true;
     }
     return false;
+}
+
+// Note Functions
+export function getNotes(): Note[] {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    if (!companyData) return [];
+    return (companyData.notes || []).sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+}
+
+export function addNote(noteData: Partial<Omit<Note, 'id' | 'createdAt' | 'updatedAt'>>): Note {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+
+    const now = new Date().toISOString();
+    const newNote: Note = {
+        id: `note-${crypto.randomUUID()}`,
+        title: noteData.title || '',
+        content: noteData.content || '',
+        createdAt: now,
+        updatedAt: now,
+    };
+
+    companyData.notes = [newNote, ...(companyData.notes || [])];
+    const logTitle = newNote.title || `note created at ${format(new Date(now), 'p')}`;
+    _addLog(companyData, { message: `Created new note: **"${logTitle}"**.` });
+
+    setAppData(data);
+    return newNote;
+}
+
+export function updateNote(id: string, noteData: Partial<Omit<Note, 'id' | 'createdAt' | 'updatedAt'>>): Note | undefined {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    if (!companyData || !companyData.notes) return undefined;
+
+    const noteIndex = companyData.notes.findIndex(n => n.id === id);
+    if (noteIndex === -1) return undefined;
+
+    const oldNote = companyData.notes[noteIndex];
+    const updatedNote = { ...oldNote, ...noteData, updatedAt: new Date().toISOString() };
+    companyData.notes[noteIndex] = updatedNote;
+
+    const logTitle = updatedNote.title || `note created at ${format(new Date(updatedNote.createdAt), 'p')}`;
+    _addLog(companyData, { message: `Updated note: **"${logTitle}"**.` });
+
+    setAppData(data);
+    return updatedNote;
+}
+
+export function deleteNote(id: string): boolean {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    if (!companyData || !companyData.notes) return false;
+    
+    const noteIndex = companyData.notes.findIndex(n => n.id === id);
+    if (noteIndex === -1) return false;
+
+    const [deletedNote] = companyData.notes.splice(noteIndex, 1);
+    
+    const logTitle = deletedNote.title || `note created at ${format(new Date(deletedNote.createdAt), 'p')}`;
+    _addLog(companyData, { message: `Deleted note: **"${logTitle}"**.` });
+    
+    // Also move to the main bin for potential restoration
+    const asTask: Task = {
+        id: deletedNote.id,
+        title: `Note: ${deletedNote.title || 'Untitled'}`,
+        description: deletedNote.content,
+        status: 'Archived',
+        createdAt: deletedNote.createdAt,
+        updatedAt: deletedNote.updatedAt,
+        deletedAt: new Date().toISOString(),
+    }
+    companyData.trash = [asTask, ...(companyData.trash || [])];
+
+    setAppData(data);
+    return true;
 }
