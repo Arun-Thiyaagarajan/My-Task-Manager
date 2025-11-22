@@ -32,7 +32,7 @@ export const commentSchema = z.object({
 export const noteSchema = z.object({
   title: z.string().optional(),
   content: z.string().optional(),
-}).refine(data => !!data.title || !!data.content, {
+}).refine(data => !!data.title?.trim() || !!data.content?.trim(), {
   message: "Note must have a title or content.",
 });
 

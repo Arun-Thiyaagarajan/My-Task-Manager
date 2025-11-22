@@ -37,6 +37,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -49,13 +50,15 @@ function NoteEditorDialog({
   note: Partial<Note> | null;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (id: string | undefined, content: string) => void;
+  onSave: (id: string | undefined, title: string, content: string) => void;
 }) {
+  const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const descriptionEditorRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (isOpen) {
+      setTitle(note?.title || '');
       setContent(note?.content || '');
       setTimeout(() => {
         descriptionEditorRef.current?.focus();
@@ -64,7 +67,7 @@ function NoteEditorDialog({
   }, [isOpen, note]);
 
   const handleSave = () => {
-    onSave(note?.id, content);
+    onSave(note?.id, title, content);
     onOpenChange(false);
   };
 
@@ -77,7 +80,13 @@ function NoteEditorDialog({
           <DialogTitle>{note?.id ? 'Edit Note' : 'New Note'}</DialogTitle>
         </DialogHeader>
         <div className="flex-grow min-h-0 overflow-y-auto -mx-6 px-6">
-          <div className="py-4 space-y-2">
+          <div className="py-4 space-y-4">
+            <Input
+              placeholder="Title (optional)"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="text-lg font-semibold"
+            />
             <Textarea
               ref={descriptionEditorRef}
               value={content}
@@ -159,16 +168,16 @@ export default function NotesPage() {
     setIsEditorOpen(true);
   };
 
-  const handleSaveNote = (id: string | undefined, content: string) => {
-    if (!content.trim()) {
+  const handleSaveNote = (id: string | undefined, title: string, content: string) => {
+    if (!content.trim() && !title.trim()) {
         toast({ variant: 'destructive', title: 'Cannot save empty note.' });
         return;
     }
     if (id) {
-        updateNote(id, { content });
+        updateNote(id, { title, content });
         toast({ variant: 'success', title: 'Note Updated' });
     } else {
-        addNote({ content });
+        addNote({ title, content });
         toast({ variant: 'success', title: 'Note Saved' });
     }
     refreshData();

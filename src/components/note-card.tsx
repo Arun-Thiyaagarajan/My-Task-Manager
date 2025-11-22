@@ -3,7 +3,7 @@
 'use client';
 
 import type { Note, UiConfig } from '@/lib/types';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
 import { Button } from '@/components/ui/button';
 import { Edit, Trash2 } from 'lucide-react';
@@ -56,7 +56,12 @@ export function NoteCard({ note, uiConfig, onEdit, onDelete, isSelected }: NoteC
         )} 
         onDoubleClick={handleDoubleClick}
     >
-      <CardContent className="p-4 flex-grow overflow-y-auto cursor-pointer">
+      {note.title && (
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-base font-semibold leading-snug line-clamp-2">{note.title}</CardTitle>
+          </CardHeader>
+      )}
+      <CardContent className={cn("flex-grow overflow-y-auto cursor-pointer", note.title ? 'p-4 pt-2' : 'p-4')}>
         <RichTextViewer text={note.content} />
       </CardContent>
       <CardFooter className={cn("note-card-footer", "p-2 border-t flex justify-between items-center bg-background/50")}>
