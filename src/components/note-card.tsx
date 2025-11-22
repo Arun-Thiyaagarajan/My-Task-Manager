@@ -24,12 +24,8 @@ export function NoteCard({ note, uiConfig, onClick, isSelected }: NoteCardProps)
         )}
     >
       {note.title && (
-          <CardHeader 
-            className="note-card-header p-4 pb-2 border-b drag-handle flex-row items-center justify-between cursor-grab active:cursor-grabbing"
-            onMouseDown={(e) => e.stopPropagation()}
-          >
+          <CardHeader className="p-4 pb-2 border-b">
             <CardTitle className="text-base font-semibold leading-snug line-clamp-2">{note.title}</CardTitle>
-            <GripVertical className="h-5 w-5 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors" />
           </CardHeader>
       )}
       <CardContent 
@@ -38,10 +34,12 @@ export function NoteCard({ note, uiConfig, onClick, isSelected }: NoteCardProps)
       >
         <RichTextViewer text={note.content} />
       </CardContent>
-      <CardFooter className={cn(
-        "note-card-footer", 
-        "p-2 border-t flex justify-between items-center bg-background/50 drag-handle cursor-grab active:cursor-grabbing"
-      )} onMouseDown={(e) => e.stopPropagation()}>
+      <CardFooter
+        className={cn(
+          "note-card-footer", 
+          "p-2 border-t flex justify-between items-center bg-background/50 drag-handle cursor-grab active:cursor-grabbing"
+        )}
+      >
         <p className="text-xs text-muted-foreground">
           {formatTimestamp(note.updatedAt, uiConfig.timeFormat)}
         </p>
