@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Edit, Trash2, StickyNote, Send, Check } from 'lucide-react';
+import { Edit, Trash2, StickyNote } from 'lucide-react';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
 import { cn, formatTimestamp } from '@/lib/utils';
 import {
@@ -189,10 +189,17 @@ export default function NotesPage() {
   }, [refreshData]);
   
   useEffect(() => {
-    if (searchParams.get('focus') === 'true') {
-        handleOpenNewNoteDialog();
+    // The user has indicated they do not want the editor to open on load.
+    // However, we can leave this here but commented out in case the request changes.
+    // It was previously: if (searchParams.get('focus') === 'true')
+    if (searchParams.get('focus') === 'true' && !isLoading) {
+        // To re-enable auto-focus, uncomment the line below
+        // handleOpenNewNoteDialog();
+        
+        // Clean the URL without reloading the page
+        window.history.replaceState({}, '', '/notes');
     }
-  }, [searchParams, handleOpenNewNoteDialog]);
+  }, [searchParams, isLoading, handleOpenNewNoteDialog]);
 
   const handleEditNote = (note: Note) => {
     setNoteToEdit(note);
