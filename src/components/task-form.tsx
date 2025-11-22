@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -8,7 +9,6 @@ import { createTaskSchema } from '@/lib/validators';
 import type { Task, FieldConfig, FieldType, UiConfig, Attachment, Person } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2, AlertCircle, HelpCircle } from 'lucide-react';
@@ -31,6 +31,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { getLinkAlias } from '@/ai/flows/get-link-alias-flow';
 import { Textarea } from './ui/textarea';
+import { TextareaToolbar, applyFormat } from './ui/textarea-toolbar';
 
 
 type TaskFormData = z.infer<ReturnType<typeof createTaskSchema>>;
@@ -104,6 +105,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
   const [testersList, setTestersList] = useState<Person[]>(propTestersList);
   const { toast } = useToast();
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const [commandKey, setCommandKey] = useState('Ctrl');
 
   useEffect(() => {
@@ -391,8 +393,15 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
             case 'number':
             case 'url':
                 return <Input type={fieldType === 'text' ? 'text' : fieldType} placeholder={label} {...field} value={field.value ?? ''} />;
-            case 'textarea':
-                return <RichTextEditor {...field} value={field.value ?? ''} />;
+            case 'textarea': {
+                 const ref = key === 'description' ? descriptionRef : undefined;
+                 return (
+                    <div className="relative">
+                        <Textarea {...field} value={field.value ?? ''} ref={ref} className="pb-12"/>
+                        <TextareaToolbar onFormatClick={(type) => ref?.current && applyFormat(type, ref.current)} />
+                    </div>
+                 )
+            }
             case 'date':
                 const getDisabledDates = () => {
                     if (fieldName === 'devEndDate' && devStartDate) {
@@ -785,3 +794,4 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
     </Form>
   );
 }
+

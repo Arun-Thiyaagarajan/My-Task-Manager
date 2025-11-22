@@ -49,7 +49,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { generateTaskPdf, generateTasksText } from '@/lib/share-utils';
 import { MultiSelect, type SelectOption } from '@/components/ui/multi-select';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
-import { RichTextEditor } from '@/components/ui/rich-text-editor';
+import { Textarea } from '@/components/ui/textarea';
+import { TextareaToolbar, applyFormat } from '@/components/ui/textarea-toolbar';
 
 
 const isImageUrl = (url: string): boolean => {
@@ -91,7 +92,7 @@ export default function TaskPage() {
   const [editingValue, setEditingValue] = useState<any>('');
 
   const titleInputRef = useRef<HTMLInputElement>(null);
-  const descriptionEditorRef = useRef<HTMLDivElement>(null);
+  const descriptionEditorRef = useRef<HTMLTextAreaElement>(null);
   
   const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
   const taskId = params.id as string;
@@ -400,11 +401,6 @@ export default function TaskPage() {
     if(updatedTaskResult) {
         setTask(updatedTaskResult);
         setJustUpdatedEnv(env);
-        toast({
-            variant: 'success',
-            title: 'Deployment Status Updated',
-            description: `Status for ${env.charAt(0).toUpperCase() + env.slice(1)} set to ${newIsDeployed ? 'Deployed' : 'Pending'}.`,
-        });
     } else {
         toast({
             variant: 'destructive',
@@ -933,11 +929,11 @@ const handleCopyDescription = () => {
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="pt-2 flex-grow group/description cursor-pointer" onClick={() => !isBinned && editingSection !== 'description' && handleStartEditing('description', task.description)}>
+                  <CardContent className="pt-2 flex-grow group/description" onClick={() => !isBinned && editingSection !== 'description' && handleStartEditing('description', task.description)}>
                     <CardDescription className="mb-4">
                         Last updated {formatTimestamp(task.updatedAt, uiConfig.timeFormat)}
                     </CardDescription>
-                    <div className="relative">
+                     <div className={cn("relative", !isBinned && "cursor-pointer")}>
                        {task.description && !isBinned && editingSection !== 'description' && (
                             <Tooltip>
                                 <TooltipTrigger asChild>
@@ -955,12 +951,16 @@ const handleCopyDescription = () => {
                         )}
                         {editingSection === 'description' ? (
                           <div className="space-y-2">
-                             <RichTextEditor
-                                ref={descriptionEditorRef}
-                                value={editingValue}
-                                onChange={setEditingValue}
-                                placeholder="Enter a description..."
-                             />
+                             <div className="relative">
+                               <Textarea
+                                  ref={descriptionEditorRef}
+                                  value={editingValue}
+                                  onChange={e => setEditingValue(e.target.value)}
+                                  className="min-h-[150px] pb-12"
+                                  placeholder="Enter a description..."
+                               />
+                               <TextareaToolbar onFormatClick={(type) => descriptionEditorRef.current && applyFormat(type, descriptionEditorRef.current)} />
+                             </div>
                             <div className="flex justify-end gap-2">
                                 <Button variant="ghost" size="sm" onClick={handleCancelEditing}>Cancel</Button>
                                 <Button size="sm" onClick={() => handleSaveEditing('description', false)}>Save</Button>
@@ -1459,3 +1459,4 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
 }
 
     
+

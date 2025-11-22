@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { addComment, updateComment, deleteComment, getUiConfig } from '@/lib/data';
@@ -8,7 +8,8 @@ import { cn, formatTimestamp } from '@/lib/utils';
 import type { Comment } from '@/lib/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { RichTextViewer } from './ui/rich-text-viewer';
-import { RichTextEditor } from './ui/rich-text-editor';
+import { Textarea } from './ui/textarea';
+import { TextareaToolbar, applyFormat } from './ui/textarea-toolbar';
 
 interface CommentsSectionProps {
   taskId: string;
@@ -23,6 +24,8 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
   const [editingText, setEditingText] = useState('');
   const [openAccordion, setOpenAccordion] = useState('');
   const uiConfig = getUiConfig();
+  const newCommentRef = useRef<HTMLTextAreaElement>(null);
+  const editCommentRef = useRef<HTMLTextAreaElement>(null);
   
   const storageKey = `taskflow_comments_accordion_${taskId}`;
 
@@ -118,13 +121,18 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
                                     <div key={index} className="p-3 rounded-md border bg-muted/50 group">
                                         {editingIndex === index ? (
                                         <div className="space-y-2">
-                                            <RichTextEditor
-                                                value={editingText}
-                                                onChange={setEditingText}
-                                            />
+                                             <div className="relative">
+                                                <Textarea
+                                                    ref={editCommentRef}
+                                                    value={editingText}
+                                                    onChange={(e) => setEditingText(e.target.value)}
+                                                    className="min-h-[100px] pb-12"
+                                                />
+                                                <TextareaToolbar onFormatClick={(type) => editCommentRef.current && applyFormat(type, editCommentRef.current)} />
+                                            </div>
                                             <div className="flex gap-2 justify-end">
-                                            <Button size="sm" variant="ghost" onClick={handleCancelEdit}><X className="h-4 w-4 mr-1" />Cancel</Button>
-                                            <Button size="sm" onClick={() => handleSaveEdit(index)}><Check className="h-4 w-4 mr-1" />Save</Button>
+                                                <Button size="sm" variant="ghost" onClick={handleCancelEdit}><X className="h-4 w-4 mr-1" />Cancel</Button>
+                                                <Button size="sm" onClick={() => handleSaveEdit(index)}><Check className="h-4 w-4 mr-1" />Save</Button>
                                             </div>
                                         </div>
                                         ) : (
@@ -162,11 +170,17 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
                               <div className="border rounded-lg bg-card mt-4 p-4">
                                 <div className="flex flex-col gap-2">
                                     <label htmlFor="new-comment" className="text-sm font-medium">Add a comment</label>
-                                    <RichTextEditor
-                                        value={newComment}
-                                        onChange={setNewComment}
-                                        placeholder="Type your comment here..."
-                                    />
+                                     <div className="relative">
+                                        <Textarea
+                                            ref={newCommentRef}
+                                            id="new-comment"
+                                            value={newComment}
+                                            onChange={(e) => setNewComment(e.target.value)}
+                                            placeholder="Type your comment here..."
+                                            className="min-h-[100px] pb-12"
+                                        />
+                                        <TextareaToolbar onFormatClick={(type) => newCommentRef.current && applyFormat(type, newCommentRef.current)} />
+                                    </div>
                                     <div className="flex justify-end gap-2">
                                       {newComment && <Button variant="ghost" size="sm" onClick={handleCancelNewComment}>Cancel</Button>}
                                       <Button onClick={handleAddComment} size="sm" disabled={!newComment.trim()}>Add Comment</Button>
