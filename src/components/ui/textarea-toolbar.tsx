@@ -6,7 +6,7 @@ import { Button } from './button';
 import { Tooltip, TooltipContent, TooltipTrigger } from './tooltip';
 import { useEffect, useState } from 'react';
 
-type FormatType = 'bold' | 'italic' | 'strike' | 'code' | 'code-block' | 'link';
+type FormatType = 'bold' | 'italic' | 'strike' | 'code' | 'code-block';
 
 interface TextareaToolbarProps {
   onFormatClick: (formatType: FormatType) => void;
@@ -23,7 +23,6 @@ export function applyFormat(formatType: FormatType, target: HTMLTextAreaElement)
         case 'strike': chars = '~'; break;
         case 'code': chars = '`'; break;
         case 'code-block': chars = '```'; block = true; break;
-        case 'link': isLink = true; break;
     }
 
     const selectedText = value.substring(selectionStart, selectionEnd);
@@ -85,7 +84,6 @@ export function TextareaToolbar({ onFormatClick }: TextareaToolbarProps) {
         { type: 'bold', icon: <Bold className="h-4 w-4" />, tooltip: 'Bold', shortcut: 'B' },
         { type: 'italic', icon: <Italic className="h-4 w-4" />, tooltip: 'Italic', shortcut: 'I' },
         { type: 'strike', icon: <Strikethrough className="h-4 w-4" />, tooltip: 'Strikethrough', shortcut: 'Shift+X' },
-        { type: 'link', icon: <LinkIcon className="h-4 w-4" />, tooltip: 'Link', shortcut: 'K' },
         { type: 'code', icon: <Code className="h-4 w-4" />, tooltip: 'Inline Code', shortcut: 'E' },
         { type: 'code-block', icon: <Code2 className="h-4 w-4" />, tooltip: 'Code Block', shortcut: 'Shift+C' },
     ];
