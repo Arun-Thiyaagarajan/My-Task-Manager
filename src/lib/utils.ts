@@ -98,13 +98,13 @@ export function getRepoBadgeStyle(name: string): CSSProperties {
 }
 
 const ENV_COLORS = [
-  { deployed: 'border-transparent bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300', pending: 'border-dashed border-purple-400 text-purple-600 dark:border-purple-600 dark:text-purple-400 bg-purple-100/50 dark:bg-purple-900/20' },
-  { deployed: 'border-transparent bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-300', pending: 'border-dashed border-pink-400 text-pink-600 dark:border-pink-600 dark:text-pink-400 bg-pink-100/50 dark:bg-pink-900/20' },
-  { deployed: 'border-transparent bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300', pending: 'border-dashed border-teal-400 text-teal-600 dark:border-teal-600 dark:text-teal-400 bg-teal-100/50 dark:bg-teal-900/20' },
-  { deployed: 'border-transparent bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300', pending: 'border-dashed border-indigo-400 text-indigo-600 dark:border-indigo-600 dark:text-indigo-400 bg-indigo-100/50 dark:bg-indigo-900/20' },
-  { deployed: 'border-transparent bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-300', pending: 'border-dashed border-cyan-400 text-cyan-600 dark:border-cyan-600 dark:text-cyan-400 bg-cyan-100/50 dark:bg-cyan-900/20' },
-  { deployed: 'border-transparent bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300', pending: 'border-dashed border-rose-400 text-rose-600 dark:border-rose-600 dark:text-rose-400 bg-rose-100/50 dark:bg-rose-900/20' },
-  { deployed: 'border-transparent bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300', pending: 'border-dashed border-sky-400 text-sky-600 dark:border-sky-600 dark:text-sky-400 bg-sky-100/50 dark:bg-sky-900/20' },
+  { deployed: 'border-transparent bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300', pending: 'border-purple-300 text-purple-600 dark:border-purple-700 dark:text-purple-400 bg-purple-100/50 dark:bg-purple-900/20' },
+  { deployed: 'border-transparent bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-300', pending: 'border-pink-300 text-pink-600 dark:border-pink-700 dark:text-pink-400 bg-pink-100/50 dark:bg-pink-900/20' },
+  { deployed: 'border-transparent bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300', pending: 'border-teal-300 text-teal-600 dark:border-teal-700 dark:text-teal-400 bg-teal-100/50 dark:bg-teal-900/20' },
+  { deployed: 'border-transparent bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300', pending: 'border-indigo-300 text-indigo-600 dark:border-indigo-700 dark:text-indigo-400 bg-indigo-100/50 dark:bg-indigo-900/20' },
+  { deployed: 'border-transparent bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-300', pending: 'border-cyan-300 text-cyan-600 dark:border-cyan-700 dark:text-cyan-400 bg-cyan-100/50 dark:bg-cyan-900/20' },
+  { deployed: 'border-transparent bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300', pending: 'border-rose-300 text-rose-600 dark:border-rose-700 dark:text-rose-400 bg-rose-100/50 dark:bg-rose-900/20' },
+  { deployed: 'border-transparent bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300', pending: 'border-sky-300 text-sky-600 dark:border-sky-700 dark:text-sky-400 bg-sky-100/50 dark:bg-sky-900/20' },
 ];
 
 export const getEnvInfo = (env: string) => {
@@ -113,19 +113,19 @@ export const getEnvInfo = (env: string) => {
     case 'develop':
       return {
         deployedColor: 'border-transparent bg-blue-600 text-blue-50 dark:bg-blue-700 dark:text-blue-100',
-        pendingColor: 'border-dashed border-blue-400 text-blue-600 dark:border-blue-600 dark:text-blue-400 bg-blue-100/50 dark:bg-blue-900/20',
+        pendingColor: 'bg-blue-100/50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-300 dark:border-blue-800',
         label: 'Development',
       };
     case 'stage':
       return {
         deployedColor: 'border-transparent bg-amber-500 text-white dark:bg-amber-600 dark:text-amber-50',
-        pendingColor: 'border-dashed border-amber-400 text-amber-600 dark:border-amber-600 dark:text-amber-400 bg-amber-100/50 dark:bg-amber-900/20',
+        pendingColor: 'bg-amber-100/50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-800',
         label: 'Staging',
       };
     case 'production':
       return {
         deployedColor: 'border-transparent bg-green-600 text-green-50 dark:bg-green-700 dark:text-green-100',
-        pendingColor: 'border-dashed border-green-400 text-green-600 dark:border-green-600 dark:text-green-400 bg-green-100/50 dark:bg-green-900/20',
+        pendingColor: 'bg-green-100/50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-300 dark:border-green-800',
         label: 'Production',
       };
     default:
