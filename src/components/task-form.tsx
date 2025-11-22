@@ -29,8 +29,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { getLinkAlias } from '@/ai/flows/get-link-alias-flow';
-import { Textarea } from './textarea';
-import { TextareaToolbar, applyFormat } from './textarea-toolbar';
+import { Textarea } from '@/components/ui/textarea';
+import { TextareaToolbar, applyFormat } from '@/components/ui/textarea-toolbar';
 
 
 type TaskFormData = z.infer<ReturnType<typeof createTaskSchema>>;
