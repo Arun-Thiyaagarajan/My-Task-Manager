@@ -81,10 +81,10 @@ const CodeBlock = ({ content }: { content: string }) => {
             <Button
                 variant="ghost"
                 size="icon"
-                className="absolute top-1.5 right-1.5 h-7 w-7 text-zinc-400 bg-white/10 hover:text-zinc-100 hover:bg-white/20 opacity-0 group-hover/code:opacity-100 transition-opacity"
+                className="absolute top-1.5 right-1.5 h-7 w-7 bg-white/20 text-zinc-900 hover:bg-white/30 hover:text-zinc-900 opacity-0 group-hover/code:opacity-100 transition-opacity"
                 onClick={handleCopy}
             >
-                {isCopied ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
+                {isCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
             </Button>
         </div>
     );
