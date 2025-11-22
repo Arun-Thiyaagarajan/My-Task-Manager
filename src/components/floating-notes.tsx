@@ -36,6 +36,8 @@ export function FloatingNotes() {
         }
 
         const handleKeyDown = (e: KeyboardEvent) => {
+            if (pathname === '/notes') return; // Don't handle shortcut on notes page itself
+            
             if ((e.metaKey || e.ctrlKey) && e.key === '/') {
                 e.preventDefault();
                 handleOpenNewNoteDialog();
@@ -43,7 +45,7 @@ export function FloatingNotes() {
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [handleOpenNewNoteDialog]);
+    }, [handleOpenNewNoteDialog, pathname]);
 
     const handleViewNotesClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
         e.preventDefault();
@@ -151,3 +153,5 @@ export function FloatingNotes() {
         </>
     );
 }
+
+    

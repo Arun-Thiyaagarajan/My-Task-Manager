@@ -17,7 +17,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
@@ -53,16 +52,7 @@ export default function NotesPage() {
     if (typeof window !== 'undefined') {
         setCommandKey(navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? '⌘' : 'Ctrl');
     }
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-        if ((e.metaKey || e.ctrlKey) && e.key === '/') {
-            e.preventDefault();
-            handleOpenNewNoteDialog();
-        }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleOpenNewNoteDialog]);
+  }, []);
 
   const refreshData = useCallback(() => {
     setNotes(getNotes());
@@ -317,3 +307,5 @@ export default function NotesPage() {
     </div>
   );
 }
+
+    
