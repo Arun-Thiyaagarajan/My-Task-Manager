@@ -170,28 +170,15 @@ export default function NotesPage() {
       <div className="max-w-2xl mx-auto mb-12">
         <Card className="shadow-lg">
           <form onSubmit={handleSubmit(onSubmit)}>
-            {isCreating && (
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
+             <CardContent className="p-2 pt-2">
+               <div className="relative">
+                 {isCreating && (
                     <Input
                         {...register('title')}
                         placeholder="Title (or let AI generate one)"
-                        className="text-lg font-semibold border-0 focus-visible:ring-0 shadow-none px-2 flex-grow"
+                        className="text-lg font-semibold border-0 focus-visible:ring-0 shadow-none px-2 h-auto"
                     />
-                     <div className="flex gap-2">
-                        {showSaveButton && (
-                            <Button type="submit" disabled={isSubmitting}>
-                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Save
-                            </Button>
-                        )}
-                         <Button type="button" size="icon" variant="ghost" onClick={handleClearNewNote} className="h-9 w-9">
-                            <X className="h-5 w-5" />
-                        </Button>
-                    </div>
-                </CardHeader>
-              )}
-            <CardContent className="p-4 pt-0">
-               <div className="relative">
+                 )}
                  <Textarea
                       {...register('content')}
                       ref={newNoteTextareaRef}
@@ -207,6 +194,19 @@ export default function NotesPage() {
                   )}
                </div>
             </CardContent>
+            {isCreating && (
+                <CardFooter className="p-2 flex justify-end gap-2">
+                    {showSaveButton && (
+                        <Button type="submit" disabled={isSubmitting}>
+                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Save
+                        </Button>
+                    )}
+                    <Button type="button" variant="ghost" onClick={handleClearNewNote}>
+                        Close
+                    </Button>
+                </CardFooter>
+            )}
           </form>
         </Card>
       </div>
@@ -275,10 +275,6 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
     onUpdate(note.id, { title: finalTitle, content: data.content });
   };
   
-  const handleContentChange = (newContent: string) => {
-    onUpdate(note.id, { content: newContent });
-  };
-
   return (
     <Card className="break-inside-avoid-column flex flex-col hover:shadow-lg transition-shadow duration-200">
       <CardContent className="p-4 flex-grow cursor-pointer" onClick={!isEditing ? onEditStart : undefined}>
@@ -303,7 +299,7 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
           <div className="space-y-2">
             {note.title && <h3 className="font-semibold">{note.title}</h3>}
             <div className="text-sm text-foreground space-y-1">
-              <RichTextViewer text={note.content} onTextChange={handleContentChange} />
+              <RichTextViewer text={note.content || ''} />
             </div>
           </div>
         )}
@@ -345,3 +341,4 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
     </Card>
   );
 }
+
