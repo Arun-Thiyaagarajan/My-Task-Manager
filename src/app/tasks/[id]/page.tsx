@@ -739,8 +739,8 @@ const handleCopyDescription = () => {
   
   const customFields = uiConfig.fields.filter(f => f.isCustom && f.isActive && task.customFields && typeof task.customFields[f.key] !== 'undefined' && task.customFields[f.key] !== null && task.customFields[f.key] !== '');
   
-  const developersById = new Map(developers.map(d => [d.id, d]));
-  const testersById = new Map(testers.map(t => [t.id, t]));
+  const developersById = new Map(developers.map(d => [d.id, d.name]));
+  const testersById = new Map(testers.map(t => [t.id, t.name]));
   const assignedDevelopers = (task.developers || []).map(id => developersById.get(id)).filter((d): d is Person => !!d);
   const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter((t): t is Person => !!t);
 
@@ -1229,7 +1229,7 @@ const handleCopyDescription = () => {
                   <Separator />
                   <div>
                     <h4 className="text-sm font-semibold text-muted-foreground mb-2">Important Dates</h4>
-                    <TimelineSection task={task} fieldLabels={fieldLabels} onDateUpdate={handleDateUpdate} isBinned={isBinned}/>
+                    <TimelineSection task={task} uiConfig={uiConfig} fieldLabels={fieldLabels} onDateUpdate={handleDateUpdate} isBinned={isBinned}/>
                   </div>
                 </CardContent>
             </Card>
@@ -1450,11 +1450,13 @@ function TaskDetailSection({ title, people, setPersonInView, isDeveloper }: {
 
 function TimelineSection({
   task,
+  uiConfig,
   fieldLabels,
   onDateUpdate,
   isBinned,
 }: {
   task: Task;
+  uiConfig: UiConfig;
   fieldLabels: Map<string, string>;
   onDateUpdate: (key: keyof Task, date: Date | null) => void;
   isBinned: boolean;
@@ -1520,8 +1522,6 @@ function TimelineSection({
     );
   };
   
-  const hasDevDates = isValidDate(task.devStartDate) || isValidDate(task.devEndDate);
-  const hasQaDates = isValidDate(task.qaStartDate) || isValidDate(task.qaEndDate);
   const hasAnyDeploymentDate = Object.values(task.deploymentDates || {}).some(date => isValidDate(date));
 
   const devStartConfig = uiConfig?.fields.find(f => f.key === 'devStartDate' && f.isActive);
