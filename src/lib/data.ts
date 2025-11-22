@@ -1,7 +1,7 @@
 
 
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout } from './types';
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment } from './types';
 import cloneDeep from 'lodash/cloneDeep';
 import { format, isToday, isYesterday } from 'date-fns';
 
@@ -12,6 +12,9 @@ const getInitialData = (): MyTaskManagerData => {
     const initialFields = INITIAL_UI_CONFIG.map(f => {
         if (f.key === 'status') {
             return { ...f, options: TASK_STATUSES.map(s => ({id: s, value: s, label: s})) };
+        }
+        if (f.key === 'relevantEnvironments') {
+            return { ...f, options: ENVIRONMENTS.map(e => ({id: e.name, value: e.name, label: e.name})) };
         }
         return f;
     });
@@ -300,6 +303,10 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
     const repoField = resultConfig.fields.find(f => f.key === 'repositories');
     if (repoField) {
         repoField.options = resultConfig.repositoryConfigs.map(r => ({ id: r.id, value: r.name, label: r.name }));
+    }
+    const relevantEnvsField = resultConfig.fields.find(f => f.key === 'relevantEnvironments');
+    if (relevantEnvsField) {
+        relevantEnvsField.options = resultConfig.environments.map(e => ({ id: e.name, value: e.name, label: e.name }));
     }
     
     resultConfig.fields
@@ -595,73 +602,89 @@ export function addEnvironment(name: string): boolean {
     const companyData = data.companyData[activeCompanyId];
     if (!companyData) return false;
 
-    const trimmedName = name.trim().toLowerCase();
+    const trimmedName = name.trim();
     if (trimmedName === '') return false;
 
-    const currentEnvs = companyData.uiConfig.environments.map(e => e.toLowerCase());
-    if (currentEnvs.includes(trimmedName)) {
+    const currentEnvs = companyData.uiConfig.environments.map(e => e.name.toLowerCase());
+    if (currentEnvs.includes(trimmedName.toLowerCase())) {
         return false;
     }
     
-    const realName = name.trim();
-    companyData.uiConfig.environments.push(realName);
+    const newEnv: Environment = {
+        name: trimmedName,
+        color: `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}` // Random color
+    };
     
-    _addLog(companyData, { message: `Added new environment: "${realName}".` });
+    companyData.uiConfig.environments.push(newEnv);
+    
+    _addLog(companyData, { message: `Added new environment: "${newEnv.name}".` });
 
     setAppData(data);
     window.dispatchEvent(new Event('config-changed'));
     return true;
 }
 
-export function updateEnvironmentName(oldName: string, newName: string): boolean {
+export function updateEnvironment(oldName: string, updatedEnv: Environment): boolean {
     const data = getAppData();
     const activeCompanyId = data.activeCompanyId;
     const companyData = data.companyData[activeCompanyId];
 
-    if (!companyData || !companyData.uiConfig.environments?.includes(oldName)) {
+    if (!companyData || !companyData.uiConfig.environments?.find(e => e.name === oldName)) {
         return false;
     }
 
-    const trimmedNewName = newName.trim();
-    if (trimmedNewName === '' || companyData.uiConfig.environments.some(env => env.toLowerCase() === trimmedNewName.toLowerCase() && env.toLowerCase() !== oldName.toLowerCase())) {
+    const trimmedNewName = updatedEnv.name.trim();
+    if (trimmedNewName === '') return false;
+
+    const envIndex = companyData.uiConfig.environments.findIndex(e => e.name === oldName);
+    const existingEnv = companyData.uiConfig.environments[envIndex];
+    
+    // Check if new name conflicts with another existing environment
+    if (trimmedNewName.toLowerCase() !== oldName.toLowerCase() && companyData.uiConfig.environments.some(env => env.name.toLowerCase() === trimmedNewName.toLowerCase())) {
         return false;
     }
-    
-    const { uiConfig, tasks, trash } = companyData;
-    const envIndex = uiConfig.environments.indexOf(oldName);
-    uiConfig.environments[envIndex] = trimmedNewName;
-    
-    const renameEnvInTask = (task: Task) => {
-        let changed = false;
-        if (task.deploymentStatus && oldName in task.deploymentStatus) {
-            task.deploymentStatus[trimmedNewName] = task.deploymentStatus[oldName];
-            delete task.deploymentStatus[oldName];
-            changed = true;
-        }
-        if (task.deploymentDates && oldName in task.deploymentDates) {
-            task.deploymentDates[trimmedNewName] = task.deploymentDates[oldName];
-            delete task.deploymentDates[oldName];
-            changed = true;
-        }
-        if (task.prLinks && oldName in task.prLinks) {
-            task.prLinks[trimmedNewName] = task.prLinks[oldName];
-            delete task.prLinks[oldName];
-            changed = true;
-        }
-        if(changed) {
-          task.updatedAt = new Date().toISOString();
-        }
-    };
-    
-    tasks.forEach(renameEnvInTask);
-    (trash || []).forEach(renameEnvInTask);
 
-    _addLog(companyData, { message: `Renamed environment from "${oldName}" to "${trimmedNewName}".` });
+    companyData.uiConfig.environments[envIndex] = { ...existingEnv, ...updatedEnv, name: trimmedNewName };
+    
+    const { tasks, trash } = companyData;
+    
+    if(oldName !== trimmedNewName) {
+        const renameEnvInTask = (task: Task) => {
+            let changed = false;
+            if (task.deploymentStatus && oldName in task.deploymentStatus) {
+                task.deploymentStatus[trimmedNewName] = task.deploymentStatus[oldName];
+                delete task.deploymentStatus[oldName];
+                changed = true;
+            }
+            if (task.deploymentDates && oldName in task.deploymentDates) {
+                task.deploymentDates[trimmedNewName] = task.deploymentDates[oldName];
+                delete task.deploymentDates[oldName];
+                changed = true;
+            }
+            if (task.prLinks && oldName in task.prLinks) {
+                task.prLinks[trimmedNewName] = task.prLinks[oldName];
+                delete task.prLinks[oldName];
+                changed = true;
+            }
+            if (task.relevantEnvironments?.includes(oldName)) {
+                task.relevantEnvironments = task.relevantEnvironments.map(e => e === oldName ? trimmedNewName : e);
+                changed = true;
+            }
+            if(changed) {
+              task.updatedAt = new Date().toISOString();
+            }
+        };
+        tasks.forEach(renameEnvInTask);
+        (trash || []).forEach(renameEnvInTask);
+    }
+
+    _addLog(companyData, { message: `Updated environment "${oldName}".` });
 
     setAppData(data);
     window.dispatchEvent(new Event('config-changed'));
     return true;
 }
+
 
 export function deleteEnvironment(name: string): boolean {
     const protectedEnvs = ['dev', 'production'];
@@ -673,12 +696,12 @@ export function deleteEnvironment(name: string): boolean {
     const activeCompanyId = data.activeCompanyId;
     const companyData = data.companyData[activeCompanyId];
 
-    if (!companyData || !companyData.uiConfig.environments?.includes(name)) {
+    if (!companyData || !companyData.uiConfig.environments?.find(e => e.name === name)) {
         return false;
     }
     
     const { uiConfig, tasks, trash } = companyData;
-    uiConfig.environments = uiConfig.environments.filter(env => env !== name);
+    uiConfig.environments = uiConfig.environments.filter(env => env.name !== name);
 
     const deleteEnvFromTask = (task: Task) => {
         let changed = false;
@@ -692,6 +715,10 @@ export function deleteEnvironment(name: string): boolean {
         }
         if (task.prLinks && name in task.prLinks) {
             delete task.prLinks[name];
+            changed = true;
+        }
+        if (task.relevantEnvironments?.includes(name)) {
+            task.relevantEnvironments = task.relevantEnvironments.filter(e => e !== name);
             changed = true;
         }
         if(changed) {
@@ -749,6 +776,7 @@ export function addTask(taskData: Partial<Task>, isBinned: boolean = false): Tas
     prLinks: taskData.prLinks || {},
     deploymentStatus: taskData.deploymentStatus || {},
     deploymentDates: taskData.deploymentDates || {},
+    relevantEnvironments: taskData.relevantEnvironments || ['dev', 'stage', 'production'],
     developers: taskData.developers || [],
     testers: taskData.testers || [],
     comments: taskData.comments || [],
@@ -930,17 +958,17 @@ const generateTaskUpdateLogs = (
     // Detailed deployment check
     const allEnvs = uiConfig.environments || [];
     allEnvs.forEach(env => {
-        const oldStatus = oldTask.deploymentStatus?.[env] ?? false;
-        const newStatus = 'deploymentStatus' in newTaskData ? (newTaskData.deploymentStatus?.[env] ?? false) : oldStatus;
+        const oldStatus = oldTask.deploymentStatus?.[env.name] ?? false;
+        const newStatus = 'deploymentStatus' in newTaskData ? (newTaskData.deploymentStatus?.[env.name] ?? false) : oldStatus;
         
-        const oldDate = oldTask.deploymentDates?.[env] ?? null;
-        const newDate = 'deploymentDates' in newTaskData ? (newTaskData.deploymentDates?.[env] ?? null) : oldDate;
+        const oldDate = oldTask.deploymentDates?.[env.name] ?? null;
+        const newDate = 'deploymentDates' in newTaskData ? (newTaskData.deploymentDates?.[env.name] ?? null) : oldDate;
 
-        const oldDeployed = oldStatus && (env === 'dev' || !!oldDate);
-        const newDeployed = newStatus && (env === 'dev' || !!newDate);
+        const oldDeployed = oldStatus && (env.name === 'dev' || !!oldDate);
+        const newDeployed = newStatus && (env.name === 'dev' || !!newDate);
         
         if (oldDeployed !== newDeployed) {
-            changes.push(`- Changed **${env.charAt(0).toUpperCase() + env.slice(1)}** deployment to *${newDeployed ? 'Deployed' : 'Pending'}*.`);
+            changes.push(`- Changed **${env.name.charAt(0).toUpperCase() + env.name.slice(1)}** deployment to *${newDeployed ? 'Deployed' : 'Pending'}*.`);
         }
     });
 

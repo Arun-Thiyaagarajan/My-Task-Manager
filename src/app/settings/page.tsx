@@ -3,8 +3,8 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { getUiConfig, updateUiConfig, addEnvironment, updateEnvironmentName, deleteEnvironment, getDevelopers, getTesters } from '@/lib/data';
-import type { UiConfig, FieldConfig, RepositoryConfig, Person, BackupFrequency } from '@/lib/types';
+import { getUiConfig, updateUiConfig, addEnvironment, updateEnvironment, deleteEnvironment, getDevelopers, getTesters } from '@/lib/data';
+import type { UiConfig, FieldConfig, RepositoryConfig, Person, BackupFrequency, Environment } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -50,8 +50,7 @@ export default function SettingsPage() {
   const [peopleManagerType, setPeopleManagerType] = useState<'developer' | 'tester'>('developer');
 
   const [newEnvName, setNewEnvName] = useState('');
-  const [editingEnv, setEditingEnv] = useState<string | null>(null);
-  const [editingEnvText, setEditingEnvText] = useState('');
+  const [editingEnv, setEditingEnv] = useState<Environment | null>(null);
 
   const [appName, setAppName] = useState('');
   const [appIcon, setAppIcon] = useState<string | null>(null);
@@ -295,16 +294,11 @@ export default function SettingsPage() {
     }
   };
 
-  const handleRenameEnvironment = (oldName: string) => {
-    const trimmedNewName = editingEnvText.trim();
-    if (trimmedNewName === '' || oldName === trimmedNewName) {
-        setEditingEnv(null);
-        return;
-    }
-    if (updateEnvironmentName(oldName, trimmedNewName)) {
-        toast({ variant: 'success', title: 'Environment Renamed', description: `"${oldName}" renamed to "${trimmedNewName}".` });
+  const handleUpdateEnvironment = (env: Environment) => {
+    if (updateEnvironment(env.name, env)) {
         setEditingEnv(null);
         refreshData();
+        toast({ variant: 'success', title: 'Environment Updated', description: `"${env.name}" has been updated.` });
     } else {
         toast({ variant: 'destructive', title: 'Error', description: 'This name might already exist or is invalid.' });
     }
@@ -732,20 +726,24 @@ export default function SettingsPage() {
                     <CardContent className="space-y-3">
                         <div className="space-y-2">
                             {config.environments.map(env => {
-                                const isProtected = ['dev', 'production'].includes(env.toLowerCase());
+                                const isProtected = ['dev', 'production'].includes(env.name.toLowerCase());
                                 return (
-                                    <div key={env}>
-                                        {editingEnv === env ? (
+                                    <div key={env.name}>
+                                        {editingEnv?.name === env.name ? (
                                             <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">
-                                                <Input value={editingEnvText} onChange={e => setEditingEnvText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleRenameEnvironment(env); }} className="h-8" />
-                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRenameEnvironment(env)}><Check className="h-4 w-4" /></Button>
+                                                <Input type="color" value={editingEnv.color} onChange={e => setEditingEnv({ ...editingEnv, color: e.target.value })} className="h-8 w-10 p-1" />
+                                                <Input value={editingEnv.name} onChange={e => setEditingEnv({ ...editingEnv, name: e.target.value })} onKeyDown={e => { if (e.key === 'Enter') handleUpdateEnvironment(editingEnv); }} className="h-8" />
+                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleUpdateEnvironment(editingEnv)}><Check className="h-4 w-4" /></Button>
                                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingEnv(null)}><X className="h-4 w-4" /></Button>
                                             </div>
                                         ) : (
                                             <div className="flex items-center justify-between p-2 border rounded-md bg-card group">
-                                                <span className="font-medium">{env}</span>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-4 h-4 rounded-full" style={{ backgroundColor: env.color }}></div>
+                                                    <span className="font-medium">{env.name}</span>
+                                                </div>
                                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingEnv(env); setEditingEnvText(env); }}><Edit className="h-4 w-4" /></Button>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingEnv(env); }}><Edit className="h-4 w-4" /></Button>
                                                     {!isProtected && (
                                                         <AlertDialog>
                                                             <AlertDialogTrigger asChild>
@@ -754,11 +752,11 @@ export default function SettingsPage() {
                                                             <AlertDialogContent>
                                                                 <AlertDialogHeader>
                                                                     <AlertDialogTitle>Delete Environment?</AlertDialogTitle>
-                                                                    <AlertDialogDescription>This will permanently delete the "{env}" environment and all associated deployment data from your tasks. This action cannot be undone.</AlertDialogDescription>
+                                                                    <AlertDialogDescription>This will permanently delete the "{env.name}" environment and all associated deployment data from your tasks. This action cannot be undone.</AlertDialogDescription>
                                                                 </AlertDialogHeader>
                                                                 <AlertDialogFooter>
                                                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                    <AlertDialogAction onClick={() => handleDeleteEnvironment(env)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                                                    <AlertDialogAction onClick={() => handleDeleteEnvironment(env.name)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
                                                                 </AlertDialogFooter>
                                                             </AlertDialogContent>
                                                         </AlertDialog>

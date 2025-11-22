@@ -59,13 +59,13 @@ export function EnvironmentStatus({
               <Badge
                 onClick={handleClick}
                 style={{
-                    backgroundColor: isDeployed ? env.color : 'transparent',
+                    backgroundColor: isDeployed ? env.color : `${env.color}20`,
                     color: isDeployed ? '#fff' : env.color,
                     borderColor: env.color,
-                    borderStyle: isDeployed ? 'solid' : 'dashed',
                 }}
                 className={cn(
                   'capitalize font-medium transition-all border',
+                  !isDeployed && 'border-dashed',
                   size === 'sm' && 'px-1.5 py-0 text-[10px] h-4',
                   interactive && 'cursor-pointer',
                   interactive && isDeployed && 'hover:brightness-110 hover:scale-105',

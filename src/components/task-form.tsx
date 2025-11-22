@@ -6,7 +6,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
 import { createTaskSchema } from '@/lib/validators';
-import type { Task, FieldConfig, FieldType, UiConfig, Attachment, Person } from '@/lib/types';
+import type { Task, FieldConfig, FieldType, UiConfig, Attachment, Person, Environment } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -351,7 +351,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
       // Status field should not be sorted alphabetically
       return options;
     } else if (field.key === 'relevantEnvironments') {
-        options = (uiConfig?.environments || []).map(e => ({ value: e, label: e }));
+        options = (uiConfig?.environments || []).map(e => ({ value: e.name, label: e.name }));
     } else if(field.key === 'developers') {
         options = (developersList || []).map(d => ({ value: d.id, label: d.name }));
     } else if(field.key === 'testers') {
@@ -672,32 +672,32 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                             {relevantEnvsFieldConfig && relevantEnvsFieldConfig.isActive && renderField(relevantEnvsFieldConfig)}
 
                             {allConfiguredEnvs.map(env => (
-                                <div key={env} className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4 p-3 border rounded-md">
+                                <div key={env.name} className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4 p-3 border rounded-md">
                                     <FormField
                                         control={form.control}
-                                        name={`deploymentStatus.${env}`}
+                                        name={`deploymentStatus.${env.name}`}
                                         render={({ field }) => (
                                             <FormItem className="flex flex-row items-center space-x-3 space-y-0">
                                                 <FormControl>
                                                     <Checkbox
                                                         checked={field.value ?? false}
                                                         onCheckedChange={field.onChange}
-                                                        id={`deploy-check-${env}`}
+                                                        id={`deploy-check-${env.name}`}
                                                     />
                                                 </FormControl>
                                                 <FormLabel
-                                                    htmlFor={`deploy-check-${env}`}
+                                                    htmlFor={`deploy-check-${env.name}`}
                                                     className="font-normal capitalize cursor-pointer"
                                                 >
-                                                    Deployed to {env}
+                                                    Deployed to {env.name}
                                                 </FormLabel>
                                             </FormItem>
                                         )}
                                     />
-                                    {form.watch(`deploymentStatus.${env}`) && env !== 'dev' && (
+                                    {form.watch(`deploymentStatus.${env.name}`) && env.name !== 'dev' && (
                                         <FormField
                                             control={form.control}
-                                            name={`deploymentDates.${env}`}
+                                            name={`deploymentDates.${env.name}`}
                                             render={({ field }) => (
                                                 <FormItem className="w-full sm:w-auto sm:min-w-[250px]">
                                                     <Popover>
@@ -742,12 +742,12 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                                             <div className="space-y-4 pt-4">
                                             {allConfiguredEnvs.map(env => (
                                                 <FormField
-                                                    key={`${repo}-${env}`}
+                                                    key={`${repo}-${env.name}`}
                                                     control={form.control}
-                                                    name={`prLinks.${env}.${repo}`}
+                                                    name={`prLinks.${env.name}.${repo}`}
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel className="capitalize">PR IDs for {env}</FormLabel>
+                                                            <FormLabel className="capitalize">PR IDs for {env.name}</FormLabel>
                                                             <FormControl>
                                                                 <Input {...field} value={field.value ?? ''} placeholder="e.g. 12345, 67890" />
                                                             </FormControl>

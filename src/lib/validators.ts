@@ -94,7 +94,7 @@ export const createTaskSchema = (uiConfig: UiConfig) => {
               }, {
                   message: `${field.label} is required.`,
               });
-          } else if (field.type === 'multiselect' || field.type === 'tags') {
+          } else if (field.type === 'multiselect' || field.type === 'tags' || field.key === 'developers' || field.key === 'testers' || field.key === 'repositories') {
               // For arrays, check if they are not empty
               fieldSchema = fieldSchema.refine((val: string[] | undefined) => val !== undefined && val.length > 0, {
                   message: `${field.label} is required.`,
