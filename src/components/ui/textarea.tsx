@@ -21,16 +21,6 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
             ref.current = el;
         }
     };
-    
-    // Auto-resize logic
-    React.useEffect(() => {
-        const textarea = localRef.current;
-        if (textarea) {
-            textarea.style.height = 'auto'; // Reset height to recalculate
-            textarea.style.height = `${textarea.scrollHeight}px`;
-        }
-    }, [props.value]);
-
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (enableHotkeys && (e.ctrlKey || e.metaKey)) {
@@ -61,9 +51,9 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       };
 
       if (textarea) {
+        // Initial adjustment in a timeout to ensure DOM is ready
+        setTimeout(handleInput, 0);
         textarea.addEventListener('input', handleInput);
-        // Initial adjustment
-        handleInput();
       }
 
       return () => {
@@ -71,7 +61,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           textarea.removeEventListener('input', handleInput);
         }
       };
-    }, []);
+    }, [props.value]); // Rerun when value changes externally
     
     return (
       <textarea
@@ -89,5 +79,3 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
 Textarea.displayName = "Textarea"
 
 export { Textarea }
-
-    

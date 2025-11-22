@@ -41,7 +41,6 @@ export default function NotesPage() {
   const showSaveButton = (newNoteContent && newNoteContent.trim() !== '') || (newNoteTitle && newNoteTitle.trim() !== '');
   
   const newNoteTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
      const config = getUiConfig();
@@ -55,22 +54,7 @@ export default function NotesPage() {
   useEffect(() => {
     refreshNotes();
     setIsLoading(false);
-
-    function handleClickOutside(event: MouseEvent) {
-        if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-            if (showSaveButton) {
-                handleSubmit(onSubmit)();
-            } else {
-                setIsCreating(false);
-            }
-        }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showSaveButton]);
+  }, []);
   
   const onSubmit = async (data: NoteFormData) => {
     addNote({ title: data.title, content: data.content });
@@ -125,7 +109,7 @@ export default function NotesPage() {
         </div>
       </div>
       
-      <div ref={containerRef} className="max-w-2xl mx-auto mb-12">
+      <div className="max-w-2xl mx-auto mb-12">
         <Card className="shadow-lg">
           <form onSubmit={handleSubmit(onSubmit)}>
              <CardContent className="p-4 pt-6">
