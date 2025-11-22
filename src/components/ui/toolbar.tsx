@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './popover';
 import { Input } from './input';
 import { useState } from 'react';
 
-type FormatType = 'bold' | 'italic' | 'strikeThrough' | 'insertUnorderedList' | 'insertOrderedList' | 'formatBlock';
+type FormatType = 'bold' | 'italic' | 'strikeThrough' | 'insertUnorderedList' | 'insertOrderedList' | 'formatBlock' | 'createLink' | 'indent' | 'outdent' | 'justifyCenter' | 'justifyFull' | 'justifyLeft' | 'justifyRight';
 
 interface ToolbarProps {
   editorRef: React.RefObject<HTMLDivElement>;
@@ -48,25 +48,26 @@ export function Toolbar({ editorRef, activeFormats }: ToolbarProps) {
     }
   };
 
-  const tools: { command: FormatType; icon: React.ReactNode; tooltip: string; value?: string }[] = [
+  const tools: { command: FormatType; icon: React.ReactNode; tooltip: string; value?: string; activeKey?: string }[] = [
     { command: 'bold', icon: <Bold className="h-4 w-4" />, tooltip: 'Bold' },
     { command: 'italic', icon: <Italic className="h-4 w-4" />, tooltip: 'Italic' },
     { command: 'strikeThrough', icon: <Strikethrough className="h-4 w-4" />, tooltip: 'Strikethrough' },
-    { command: 'formatBlock', icon: <Code className="h-4 w-4" />, tooltip: 'Code Block', value: 'pre' },
+    { command: 'formatBlock', icon: <Code className="h-4 w-4" />, tooltip: 'Code Block', value: 'pre', activeKey: 'formatBlockpre' },
     { command: 'insertUnorderedList', icon: <List className="h-4 w-4" />, tooltip: 'Bulleted List' },
     { command: 'insertOrderedList', icon: <ListOrdered className="h-4 w-4" />, tooltip: 'Numbered List' },
+    { command: 'formatBlock', icon: <Quote className="h-4 w-4" />, tooltip: 'Blockquote', value: 'blockquote', activeKey: 'formatBlockblockquote' },
   ];
 
   return (
     <div className="absolute bottom-2 left-2 flex items-center gap-1">
-      {tools.map(({ command, icon, tooltip, value }) => (
+      {tools.map(({ command, icon, tooltip, value, activeKey }) => (
         <Tooltip key={command + (value || '')}>
           <TooltipTrigger asChild>
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className={cn("h-7 w-7 text-muted-foreground", activeFormats[command] && "bg-muted text-foreground")}
+              className={cn("h-7 w-7 text-muted-foreground", activeFormats[activeKey || command] && "bg-muted text-foreground")}
               onMouseDown={(e) => {
                 e.preventDefault();
                 handleFormat(command, value);

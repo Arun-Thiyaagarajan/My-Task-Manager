@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -71,6 +70,10 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
   const handleCancelEdit = () => {
     setEditingIndex(null);
     setEditingText('');
+  };
+  
+  const handleCancelNewComment = () => {
+    setNewComment('');
   };
 
   const handleSaveEdit = (index: number) => {
@@ -164,8 +167,9 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
                                         onChange={setNewComment}
                                         placeholder="Type your comment here..."
                                     />
-                                    <div className="flex justify-end">
-                                      <Button onClick={handleAddComment} className="self-end" disabled={!newComment.trim()}>Add Comment</Button>
+                                    <div className="flex justify-end gap-2">
+                                      {newComment && <Button variant="ghost" size="sm" onClick={handleCancelNewComment}>Cancel</Button>}
+                                      <Button onClick={handleAddComment} size="sm" disabled={!newComment.trim()}>Add Comment</Button>
                                     </div>
                                 </div>
                               </div>
