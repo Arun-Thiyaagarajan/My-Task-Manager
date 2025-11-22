@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -50,6 +51,7 @@ export default function SettingsPage() {
 
   const [newEnvName, setNewEnvName] = useState('');
   const [editingEnv, setEditingEnv] = useState<Environment | null>(null);
+  const [originalEnvName, setOriginalEnvName] = useState<string | null>(null);
 
   const [appName, setAppName] = useState('');
   const [appIcon, setAppIcon] = useState<string | null>(null);
@@ -293,15 +295,19 @@ export default function SettingsPage() {
     }
   };
 
-  const handleUpdateEnvironment = (env: Environment) => {
-    if (updateEnvironment(env.name, env)) {
+  const handleUpdateEnvironment = () => {
+    if (!editingEnv || !originalEnvName) return;
+
+    if (updateEnvironment(originalEnvName, editingEnv)) {
         setEditingEnv(null);
+        setOriginalEnvName(null);
         refreshData();
-        toast({ variant: 'success', title: 'Environment Updated', description: `"${env.name}" has been updated.` });
+        toast({ variant: 'success', title: 'Environment Updated', description: `"${editingEnv.name}" has been updated.` });
     } else {
         toast({ variant: 'destructive', title: 'Error', description: 'This name might already exist or is invalid.' });
     }
   };
+
 
   const handleDeleteEnvironment = (envName: string) => {
     if (deleteEnvironment(envName)) {
@@ -724,7 +730,7 @@ export default function SettingsPage() {
                     </CardHeader>
                     <CardContent className="space-y-3">
                         <div className="space-y-2">
-                            {config.environments.map(env => {
+                           {config.environments.map(env => {
                                 if (!env || !env.name) return null;
                                 const isProtected = ['dev', 'production'].includes(env.name.toLowerCase());
                                 return (
@@ -732,8 +738,8 @@ export default function SettingsPage() {
                                         {editingEnv?.name === env.name ? (
                                             <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">
                                                 <Input type="color" value={editingEnv.color} onChange={e => setEditingEnv({ ...editingEnv, color: e.target.value })} className="h-8 w-10 p-1" />
-                                                <Input value={editingEnv.name} onChange={e => setEditingEnv({ ...editingEnv, name: e.target.value })} onKeyDown={e => { if (e.key === 'Enter') {e.preventDefault(); handleUpdateEnvironment(editingEnv);} }} className="h-8" />
-                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleUpdateEnvironment(editingEnv)}><Check className="h-4 w-4" /></Button>
+                                                <Input value={editingEnv.name} onChange={e => setEditingEnv({ ...editingEnv, name: e.target.value })} onKeyDown={e => { if (e.key === 'Enter') {e.preventDefault(); handleUpdateEnvironment();} }} className="h-8" />
+                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleUpdateEnvironment}><Check className="h-4 w-4" /></Button>
                                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingEnv(null)}><X className="h-4 w-4" /></Button>
                                             </div>
                                         ) : (
@@ -743,7 +749,7 @@ export default function SettingsPage() {
                                                     <span className="font-medium">{env.name}</span>
                                                 </div>
                                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingEnv(env); }}><Edit className="h-4 w-4" /></Button>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setOriginalEnvName(env.name); setEditingEnv(env); }}><Edit className="h-4 w-4" /></Button>
                                                     {!isProtected && (
                                                         <AlertDialog>
                                                             <AlertDialogTrigger asChild>
@@ -803,5 +809,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-    
