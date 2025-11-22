@@ -129,6 +129,7 @@ export default function NotesPage() {
                 <CardFooter className="p-4 pt-0 flex justify-between">
                     <div>
                       {errors.content && <p className="text-sm text-destructive">{errors.content.message}</p>}
+                       {errors.title && <p className="text-sm text-destructive">{errors.title.message}</p>}
                     </div>
                     <div className="flex gap-2">
                         <Button type="button" variant="ghost" onClick={() => { setIsCreating(false); reset(); }}>Close</Button>
@@ -177,7 +178,7 @@ interface NoteCardProps {
 }
 
 function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDelete }: NoteCardProps) {
-  const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<NoteFormData>({
+  const { register, handleSubmit, reset, formState: { isSubmitting, errors } } = useForm<NoteFormData>({
     resolver: zodResolver(noteSchema),
     defaultValues: { title: note.title, content: note.content },
   });
@@ -202,6 +203,7 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
         {isEditing ? (
           <form onSubmit={handleSubmit(handleUpdateSubmit)} className="space-y-2">
             <Input {...register('title')} placeholder="Title" className="text-md font-semibold border-0 focus-visible:ring-0 shadow-none px-1 h-auto"/>
+            {errors.title && <p className="text-sm text-destructive px-1">{errors.title.message}</p>}
             <div className="relative">
               <Textarea 
                 {...register('content')} 
@@ -213,12 +215,13 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
               />
               <TextareaToolbar onFormatClick={(type) => editNoteTextareaRef.current && applyFormat(type, editNoteTextareaRef.current)} />
             </div>
+            {errors.content && <p className="text-sm text-destructive px-1">{errors.content.message}</p>}
           </form>
         ) : (
           <div className="space-y-2">
             {note.title && <h3 className="font-semibold">{note.title}</h3>}
             <div className="text-sm text-foreground space-y-1">
-              <RichTextViewer text={note.content} onTextChange={handleContentChange} />
+              <RichTextViewer text={note.content} onTextChange={(newContent) => handleContentChange(newContent)} />
             </div>
           </div>
         )}
