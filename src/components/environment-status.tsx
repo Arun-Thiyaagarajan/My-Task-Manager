@@ -3,14 +3,14 @@
 'use client';
 
 import { Badge } from '@/components/ui/badge';
-import type { Task } from '@/lib/types';
-import { cn, getEnvInfo } from '@/lib/utils';
+import type { Task, Environment } from '@/lib/types';
+import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface EnvironmentStatusProps {
   deploymentStatus: Task['deploymentStatus'];
   deploymentDates?: Task['deploymentDates'];
-  configuredEnvs: string[];
+  configuredEnvs: Environment[];
   size?: 'sm' | 'default';
   interactive?: boolean;
   onToggle?: (env: string) => void;
@@ -39,10 +39,9 @@ export function EnvironmentStatus({
       onAnimationEnd={onAnimationEnd}
     >
       {visibleEnvs.map(env => {
-        const envInfo = getEnvInfo(env);
-        const isSelected = deploymentStatus?.[env] ?? false;
-        const hasDate = deploymentDates && deploymentDates[env];
-        const isDeployed = isSelected && (env === 'dev' || !!hasDate);
+        const isSelected = deploymentStatus?.[env.name] ?? false;
+        const hasDate = deploymentDates && deploymentDates[env.name];
+        const isDeployed = isSelected && (env.name === 'dev' || !!hasDate);
 
         const tooltipText = isDeployed ? 'Deployed' : 'Pending';
 
@@ -50,32 +49,36 @@ export function EnvironmentStatus({
           if (interactive && onToggle) {
             e.stopPropagation();
             e.preventDefault();
-            onToggle(env);
+            onToggle(env.name);
           }
         };
 
         return (
-          <Tooltip key={env}>
+          <Tooltip key={env.name}>
             <TooltipTrigger asChild>
               <Badge
                 onClick={handleClick}
-                variant="outline"
+                style={{
+                    backgroundColor: isDeployed ? env.color : 'transparent',
+                    color: isDeployed ? '#fff' : env.color,
+                    borderColor: env.color,
+                    borderStyle: isDeployed ? 'solid' : 'dashed',
+                }}
                 className={cn(
-                  'capitalize font-medium transition-all',
-                  isDeployed ? envInfo.deployedColor : envInfo.pendingColor,
+                  'capitalize font-medium transition-all border',
                   size === 'sm' && 'px-1.5 py-0 text-[10px] h-4',
                   interactive && 'cursor-pointer',
                   interactive && isDeployed && 'hover:brightness-110 hover:scale-105',
-                  interactive && !isDeployed && 'hover:brightness-110',
-                  justUpdatedEnv === env && 'animate-status-in'
+                  interactive && !isDeployed && 'hover:bg-gray-500/10',
+                  justUpdatedEnv === env.name && 'animate-status-in'
                 )}
               >
-                {env}
+                {env.name}
               </Badge>
             </TooltipTrigger>
             <TooltipContent>
               <p className="capitalize">
-                {envInfo.label}: {tooltipText}
+                {env.name}: {tooltipText}
               </p>
             </TooltipContent>
           </Tooltip>

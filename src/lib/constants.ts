@@ -1,9 +1,13 @@
 
 
-import type { FieldConfig, FieldType, RepositoryConfig } from './types';
+import type { FieldConfig, FieldType, RepositoryConfig, Environment } from './types';
 
 export const TASK_STATUSES = ['To Do', 'In Progress', 'Code Review', 'QA', 'Hold', 'Done'] as const;
-export const ENVIRONMENTS = ['dev', 'stage', 'production'] as const;
+export const ENVIRONMENTS: Environment[] = [
+    { name: 'dev', color: '#3b82f6' },
+    { name: 'stage', color: '#f59e0b' },
+    { name: 'production', color: '#22c55e' },
+];
 
 export const INITIAL_REPOSITORY_CONFIGS: RepositoryConfig[] = [
     { id: 'repo_1', name: 'UI-Dashboard', baseUrl: 'https://dev.azure.com/ideaelan/Infinity/_git/UI-Dashboard/pullrequest/' },

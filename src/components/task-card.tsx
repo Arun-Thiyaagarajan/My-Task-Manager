@@ -199,18 +199,19 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   const statusConfig = getStatusConfig(task.status);
   const { Icon, cardClassName, iconColorClassName } = statusConfig;
 
-  const defaultEnvs = ['dev', 'stage', 'production'];
-  const relevantEnvs = task.relevantEnvironments?.length ? task.relevantEnvironments : (uiConfig?.environments || []);
-  
-  const deployedCustomEnvs = relevantEnvs.filter(env => {
-      if (defaultEnvs.includes(env.toLowerCase())) return false;
-      const isSelected = task.deploymentStatus?.[env] ?? false;
-      const hasDate = task.deploymentDates && task.deploymentDates[env];
+  const defaultEnvs = (uiConfig?.environments || []).filter(e => ['dev', 'stage', 'production'].includes(e.name));
+  const customDeployedEnvs = (uiConfig?.environments || []).filter(env => {
+      if (defaultEnvs.some(e => e.name === env.name)) return false;
+      const isSelected = task.deploymentStatus?.[env.name] ?? false;
+      const hasDate = task.deploymentDates && task.deploymentDates[env.name];
       return isSelected && !!hasDate;
   });
-
-  const cardEnvs = [...new Set([...defaultEnvs, ...deployedCustomEnvs])].filter(env => relevantEnvs.includes(env));
-
+  
+  const allRelevantEnvs = (uiConfig?.environments || []).filter(e => (task.relevantEnvironments || ['dev','stage','production']).includes(e.name));
+  
+  const cardEnvs = allRelevantEnvs.filter(env => 
+      defaultEnvs.some(e => e.name === env.name) || customDeployedEnvs.some(e => e.name === env.name)
+  );
 
   return (
     <>
