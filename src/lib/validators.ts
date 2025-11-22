@@ -38,6 +38,7 @@ export const noteSchema = z.object({
     path: ["content"], // Point error to content field for simplicity
 });
 
+
 export const createTaskSchema = (uiConfig: UiConfig) => {
   let schema = z.object({
     id: z.string().optional(),
@@ -148,5 +149,3 @@ export const taskSchema = createTaskSchema({
   repositoryConfigs: [],
   taskStatuses: [],
 });
-
-    

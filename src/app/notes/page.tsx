@@ -7,12 +7,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { getNotes, addNote, updateNote, deleteNote, getUiConfig } from '@/lib/data';
 import type { Note } from '@/lib/types';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { StickyNote, Plus, Trash2, Loader2, Edit, X, Check } from 'lucide-react';
+import { StickyNote, Loader2, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
@@ -31,7 +31,7 @@ export default function NotesPage() {
   
   const { toast } = useToast();
 
-  const { register, handleSubmit, reset, watch, formState: { isSubmitting, isDirty } } = useForm<NoteFormData>({
+  const { register, handleSubmit, reset, watch, formState: { isSubmitting } } = useForm<NoteFormData>({
     resolver: zodResolver(noteSchema),
     defaultValues: { title: '', content: '' },
   });
@@ -41,6 +41,7 @@ export default function NotesPage() {
   const showSaveButton = (newNoteContent && newNoteContent.trim() !== '') || (newNoteTitle && newNoteTitle.trim() !== '');
   
   const newNoteTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
      const config = getUiConfig();
@@ -54,7 +55,22 @@ export default function NotesPage() {
   useEffect(() => {
     refreshNotes();
     setIsLoading(false);
-  }, []);
+
+    function handleClickOutside(event: MouseEvent) {
+        if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+            if (showSaveButton) {
+                handleSubmit(onSubmit)();
+            } else {
+                setIsCreating(false);
+            }
+        }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSaveButton]);
   
   const onSubmit = async (data: NoteFormData) => {
     addNote({ title: data.title, content: data.content });
@@ -67,10 +83,8 @@ export default function NotesPage() {
   const handleUpdateNote = (id: string, data: Partial<Note>) => {
     try {
         updateNote(id, data);
-        if (editingNoteId === id) { // Only toast if we're in edit mode
-            toast({ variant: 'success', title: "Note updated" });
-            setEditingNoteId(null);
-        }
+        toast({ variant: 'success', title: "Note updated" });
+        setEditingNoteId(null);
         refreshNotes();
     } catch(e: any) {
         toast({ variant: 'destructive', title: "Error updating note", description: e.message });
@@ -87,7 +101,7 @@ export default function NotesPage() {
     }
   };
   
-  const handleClearNewNote = () => {
+  const handleCloseNewNote = () => {
     reset({ title: '', content: '' });
     setIsCreating(false);
   };
@@ -111,7 +125,7 @@ export default function NotesPage() {
         </div>
       </div>
       
-      <div className="max-w-2xl mx-auto mb-12">
+      <div ref={containerRef} className="max-w-2xl mx-auto mb-12">
         <Card className="shadow-lg">
           <form onSubmit={handleSubmit(onSubmit)}>
              <CardContent className="p-4 pt-6">
@@ -127,7 +141,10 @@ export default function NotesPage() {
                       {...register('content')}
                       ref={newNoteTextareaRef}
                       placeholder="Take a note..."
-                      className={cn("border-0 focus-visible:ring-0 shadow-none px-2 min-h-[60px]", isCreating && 'pb-12')}
+                      className={cn(
+                          "border-0 focus-visible:ring-0 shadow-none px-2 min-h-[60px]", 
+                          isCreating ? 'pb-12' : 'min-h-[40px] flex items-center'
+                      )}
                       onFocus={() => setIsCreating(true)}
                       enableHotkeys
                   />
@@ -139,14 +156,14 @@ export default function NotesPage() {
                </div>
             </CardContent>
             {isCreating && (
-                <CardFooter className="p-2 pt-0 flex justify-end gap-2">
+                <CardFooter className="p-3 flex justify-end gap-2">
                     {showSaveButton && (
                         <Button type="submit" disabled={isSubmitting}>
                             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Save
                         </Button>
                     )}
-                    <Button type="button" variant="ghost" onClick={handleClearNewNote}>
+                    <Button type="button" variant="ghost" onClick={handleCloseNewNote}>
                         Close
                     </Button>
                 </CardFooter>
@@ -189,7 +206,7 @@ interface NoteCardProps {
 }
 
 function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDelete }: NoteCardProps) {
-  const { register, handleSubmit, reset, formState: { isSubmitting, errors } } = useForm<NoteFormData>({
+  const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<NoteFormData>({
     resolver: zodResolver(noteSchema),
     defaultValues: { title: note.title, content: note.content },
   });
@@ -212,7 +229,6 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
         {isEditing ? (
           <form onSubmit={handleSubmit(handleUpdateSubmit)} className="space-y-2">
             <Input {...register('title')} placeholder="Title" className="text-md font-semibold border-0 focus-visible:ring-0 shadow-none px-1 h-auto"/>
-            {errors.title && <p className="text-sm text-destructive px-1">{errors.title.message}</p>}
             <div className="pt-1"></div>
             <div className="relative">
               <Textarea 
@@ -225,7 +241,6 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
               />
               <TextareaToolbar onFormatClick={(type) => editNoteTextareaRef.current && applyFormat(type, editNoteTextareaRef.current)} />
             </div>
-            {errors.content && <p className="text-sm text-destructive px-1">{errors.content.message}</p>}
           </form>
         ) : (
           <div className="space-y-2">
@@ -274,7 +289,3 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
     </Card>
   );
 }
-
-    
-
-    

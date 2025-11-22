@@ -8,6 +8,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { Inter } from 'next/font/google';
 import { UnsavedChangesProvider } from '@/hooks/use-unsaved-changes';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { FloatingNotesButton } from '@/components/floating-notes-button';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -45,6 +46,7 @@ export default function RootLayout({
               <div className="relative flex min-h-screen flex-col">
                 <Header />
                 <main className="flex-1">{children}</main>
+                <FloatingNotesButton />
               </div>
               <Toaster />
             </TooltipProvider>
