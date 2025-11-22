@@ -102,10 +102,10 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     const handleMentionSelect = (name: string) => {
         if(localRef.current && mentionStartIndex.current !== null) {
             const { value } = localRef.current;
-            const start = mentionStartIndex.current - 1; // include the @
+            const start = mentionStartIndex.current - 2; // include the @<
             const end = localRef.current.selectionStart;
 
-            const mentionText = `**@${name}** `;
+            const mentionText = `@<${name}> `;
             const newValue = value.substring(0, start) + mentionText + value.substring(end);
             
             const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
@@ -146,13 +146,13 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     
     const handleTextareaInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const { value, selectionStart } = e.currentTarget;
-        const lastChar = value[selectionStart - 1];
+        const trigger = value.substring(selectionStart - 2, selectionStart);
 
-        if (lastChar === '@') {
+        if (trigger === '@<') {
             openMentionPopover();
         } else if (isMentionOpen && mentionStartIndex.current !== null) {
             const queryText = value.substring(mentionStartIndex.current, selectionStart);
-            if (!queryText || /\s/.test(queryText)) {
+            if (!queryText.trim() || queryText.includes('>')) {
                 closeMentionPopover();
             } else {
                 setMentionQuery(queryText.toLowerCase());

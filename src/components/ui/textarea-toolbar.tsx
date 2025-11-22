@@ -18,43 +18,27 @@ export function applyFormat(formatType: FormatType, target: HTMLTextAreaElement,
     const { selectionStart, selectionEnd, value } = target;
 
     if (formatType === 'mention') {
-        const atIndex = value.substring(0, selectionStart).lastIndexOf('@');
         let textToInsert = '';
         let newCursorPos = selectionStart;
 
-        if (mentionValue) {
-            // This case is for when a user is selected from the popover
-            textToInsert = `**@${mentionValue}** `;
-            if (atIndex !== -1) {
-                const newValue = value.substring(0, atIndex) + textToInsert + value.substring(selectionEnd);
-                newCursorPos = atIndex + textToInsert.length;
-                
-                const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
-                nativeInputValueSetter?.call(target, newValue);
-                const event = new Event('input', { bubbles: true });
-                target.dispatchEvent(event);
-
-                target.selectionStart = newCursorPos;
-                target.selectionEnd = newCursorPos;
-                target.focus();
-                return;
-            }
-        } else {
-             // This case is for when the toolbar button is clicked
-            textToInsert = '@';
-            newCursorPos = selectionStart + 1;
-            const newValue = value.substring(0, selectionStart) + textToInsert + value.substring(selectionEnd);
-            
-            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
-            nativeInputValueSetter?.call(target, newValue);
-            const event = new Event('input', { bubbles: true });
-            target.dispatchEvent(event);
-            
-            target.selectionStart = newCursorPos;
-            target.selectionEnd = newCursorPos;
-            target.focus();
-            return;
-        }
+        // This case is for when the toolbar button is clicked
+        textToInsert = '@<';
+        newCursorPos = selectionStart + 2;
+        const newValue = value.substring(0, selectionStart) + textToInsert + value.substring(selectionEnd);
+        
+        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+        nativeInputValueSetter?.call(target, newValue);
+        const event = new Event('input', { bubbles: true });
+        target.dispatchEvent(event);
+        
+        target.selectionStart = newCursorPos;
+        target.selectionEnd = newCursorPos;
+        target.focus();
+        
+        // This will trigger the popover in the textarea component
+        const inputEvent = new Event('input', { bubbles: true });
+        target.dispatchEvent(inputEvent);
+        return;
     }
 
 
@@ -134,7 +118,7 @@ export function TextareaToolbar({ onFormatClick }: TextareaToolbarProps) {
         { type: 'strike', icon: <Strikethrough className="h-4 w-4" />, tooltip: 'Strikethrough', shortcut: 'Shift+X' },
         { type: 'code', icon: <Code className="h-4 w-4" />, tooltip: 'Inline Code', shortcut: 'E' },
         { type: 'code-block', icon: <Code2 className="h-4 w-4" />, tooltip: 'Code Block', shortcut: 'Shift+C' },
-        { type: 'mention', icon: <AtSign className="h-4 w-4" />, tooltip: 'Mention User', shortcut: '@' },
+        { type: 'mention', icon: <AtSign className="h-4 w-4" />, tooltip: 'Mention User', shortcut: '@&lt;' },
     ];
 
     return (
@@ -162,9 +146,9 @@ export function TextareaToolbar({ onFormatClick }: TextareaToolbarProps) {
             <TooltipContent side="top">
                 <div className="flex items-center gap-2">
                     <span>{tooltip}</span>
-                    {shortcut === '@' ? (
+                    {shortcut === '@&lt;' ? (
                         <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                           @
+                           @&lt;
                         </kbd>
                     ) : (
                          <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">

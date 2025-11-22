@@ -90,7 +90,8 @@ const CodeBlock = ({ content }: { content: string }) => {
     );
 };
 
-const regex = /(\*\*(.*?)\*\*|_(.*?)_|~(.*?)~|`(.*?)`|https?:\/\/[^\s<]+|\[(.*?)\]\((.*?)\))/gm;
+const regex = /(\*\*(.*?)\*\*|_(.*?)_|~(.*?)~|`(.*?)`|@<(.*?)>|https?:\/\/[^\s<]+|\[(.*?)\]\((.*?)\))/gm;
+
 
 export const RichTextViewer = memo(({ text }: RichTextViewerProps) => {
   const parts = useMemo(() => {
@@ -114,7 +115,7 @@ export const RichTextViewer = memo(({ text }: RichTextViewerProps) => {
             
             let match;
             while ((match = regex.exec(line)) !== null) {
-                const [fullMatch, , bold, italic, strike, code, bareLinkOrLinkText, linkUrl] = match;
+                const [fullMatch, , bold, italic, strike, code, mention, bareLinkOrLinkText, linkUrl] = match;
                 const startIndex = match.index;
 
                 if (startIndex > lastIndex) {
@@ -129,6 +130,8 @@ export const RichTextViewer = memo(({ text }: RichTextViewerProps) => {
                     inlineResult.push(<s key={lastIndex}>{strike}</s>);
                 } else if (code) {
                     inlineResult.push(<code key={lastIndex} className="bg-muted text-foreground font-semibold rounded-sm px-1 py-0.5">{code}</code>);
+                } else if (mention) {
+                    inlineResult.push(<span key={lastIndex} className="bg-primary/10 text-primary font-semibold rounded-sm px-1 py-0.5">@{mention}</span>);
                 } else if (linkUrl !== undefined) {
                     inlineResult.push(<a href={linkUrl} key={lastIndex} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{bareLinkOrLinkText}</a>);
                 } else if (fullMatch.startsWith('http')) {
