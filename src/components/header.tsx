@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -151,10 +152,6 @@ export function Header() {
                   <Home className="mr-2 h-4 w-4" />
                   Tasks
                </HeaderLink>
-               <HeaderLink href="/notes" id="header-nav-notes" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                  <StickyNote className="mr-2 h-4 w-4" />
-                  Notes
-               </HeaderLink>
                <HeaderLink href="/dashboard" id="header-nav-dashboard" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                   <LayoutDashboard className="mr-2 h-4 w-4" />
                   Dashboard
@@ -274,11 +271,6 @@ export function Header() {
                   <DropdownMenuItem asChild>
                     <HeaderLink href="/" className="w-full flex items-center gap-2">
                        <Home className="h-4 w-4" /> Tasks
-                    </HeaderLink>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <HeaderLink href="/notes" className="w-full flex items-center gap-2">
-                       <StickyNote className="h-4 w-4" /> Notes
                     </HeaderLink>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
