@@ -285,7 +285,7 @@ export default function TaskPage() {
   const handleSaveEditing = (key: string, isCustom: boolean, value?: any) => {
     if (!task) return;
 
-    const finalValue = value !== undefined ? value : editingValue;
+    let finalValue = value !== undefined ? value : editingValue;
     const trimmedValue = typeof finalValue === 'string' ? finalValue.trim() : finalValue;
 
     if (key === 'title') {
@@ -1485,3 +1485,4 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
 
 
     
+
