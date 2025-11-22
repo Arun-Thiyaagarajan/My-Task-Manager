@@ -869,7 +869,7 @@ const handleCopyDescription = () => {
                 <div className="relative z-10 flex flex-col h-full">
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start gap-4">
-                      <div className="flex-1 flex items-center gap-2" onClick={() => !isBinned && handleStartEditing('title', task.title)}>
+                      <div className="flex-1 flex items-center gap-2 cursor-pointer" onClick={() => !isBinned && handleStartEditing('title', task.title)}>
                         {editingSection === 'title' ? (
                             <Input 
                                 ref={titleInputRef}
@@ -880,9 +880,18 @@ const handleCopyDescription = () => {
                                 className="text-3xl font-bold h-auto p-0 border-0 focus-visible:ring-0"
                             />
                         ) : (
-                            <CardTitle className="text-3xl font-bold">
-                                {task.title}
-                            </CardTitle>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <CardTitle className="text-3xl font-bold">
+                                  {task.title}
+                              </CardTitle>
+                            </TooltipTrigger>
+                            {!isBinned && (
+                              <TooltipContent>
+                                <p>Click to edit</p>
+                              </TooltipContent>
+                            )}
+                          </Tooltip>
                         )}
                         {uiConfig.remindersEnabled && !isBinned && (
                           <Tooltip>
@@ -924,7 +933,7 @@ const handleCopyDescription = () => {
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="pt-2 flex-grow group/description" onClick={() => !isBinned && editingSection !== 'description' && handleStartEditing('description', task.description)}>
+                  <CardContent className="pt-2 flex-grow group/description cursor-pointer" onClick={() => !isBinned && editingSection !== 'description' && handleStartEditing('description', task.description)}>
                     <CardDescription className="mb-4">
                         Last updated {formatTimestamp(task.updatedAt, uiConfig.timeFormat)}
                     </CardDescription>
@@ -958,7 +967,18 @@ const handleCopyDescription = () => {
                             </div>
                            </div>
                         ) : (
-                          <RichTextViewer text={task.description} />
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div>
+                                <RichTextViewer text={task.description} />
+                              </div>
+                            </TooltipTrigger>
+                            {!isBinned && (
+                              <TooltipContent>
+                                <p>Click to edit</p>
+                              </TooltipContent>
+                            )}
+                          </Tooltip>
                         )}
                     </div>
                   </CardContent>
