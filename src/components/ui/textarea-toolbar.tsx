@@ -1,19 +1,19 @@
 
 'use client';
 
-import { Bold, Italic, Strikethrough, Code, Code2 } from 'lucide-react';
+import { Bold, Italic, Strikethrough, Code, Code2, AtSign } from 'lucide-react';
 import { Button } from './button';
 import { Tooltip, TooltipContent, TooltipTrigger } from './tooltip';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 
-type FormatType = 'bold' | 'italic' | 'strike' | 'code' | 'code-block';
+export type FormatType = 'bold' | 'italic' | 'strike' | 'code' | 'code-block' | 'mention';
 
 interface TextareaToolbarProps {
   onFormatClick: (formatType: FormatType) => void;
 }
 
-export function applyFormat(formatType: FormatType, target: HTMLTextAreaElement) {
+export function applyFormat(formatType: FormatType, target: HTMLTextAreaElement, mentionValue?: string) {
     const { selectionStart, selectionEnd, value } = target;
     let chars = '';
     let block = false;
@@ -24,6 +24,21 @@ export function applyFormat(formatType: FormatType, target: HTMLTextAreaElement)
         case 'strike': chars = '~'; break;
         case 'code': chars = '`'; break;
         case 'code-block': chars = '```'; block = true; break;
+        case 'mention':
+            // Special handling for mentions
+            const mentionText = `**@${mentionValue}** `;
+            const newText = value.substring(0, selectionStart -1) + mentionText + value.substring(selectionEnd);
+            const newCursorPos = selectionStart -1 + mentionText.length;
+
+            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+            nativeInputValueSetter?.call(target, newText);
+            const event = new Event('input', { bubbles: true });
+            target.dispatchEvent(event);
+
+            target.selectionStart = newCursorPos;
+            target.selectionEnd = newCursorPos;
+            target.focus();
+            return;
     }
 
     const selectedText = value.substring(selectionStart, selectionEnd);
@@ -94,6 +109,7 @@ export function TextareaToolbar({ onFormatClick }: TextareaToolbarProps) {
         { type: 'strike', icon: <Strikethrough className="h-4 w-4" />, tooltip: 'Strikethrough', shortcut: 'Shift+X' },
         { type: 'code', icon: <Code className="h-4 w-4" />, tooltip: 'Inline Code', shortcut: 'E' },
         { type: 'code-block', icon: <Code2 className="h-4 w-4" />, tooltip: 'Code Block', shortcut: 'Shift+C' },
+        { type: 'mention', icon: <AtSign className="h-4 w-4" />, tooltip: 'Mention User', shortcut: '@' },
     ];
 
     return (
@@ -122,7 +138,11 @@ export function TextareaToolbar({ onFormatClick }: TextareaToolbarProps) {
                 <div className="flex items-center gap-2">
                     <span>{tooltip}</span>
                     <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                        <span className="text-xs">{commandKey}</span>{shortcut}
+                        {shortcut.length > 1 ? (
+                            <><span className="text-xs">{commandKey}</span>{shortcut}</>
+                        ) : (
+                            shortcut
+                        )}
                     </kbd>
                 </div>
             </TooltipContent>
@@ -131,5 +151,3 @@ export function TextareaToolbar({ onFormatClick }: TextareaToolbarProps) {
         </div>
     );
 }
-
-    
