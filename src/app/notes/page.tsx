@@ -25,6 +25,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { TextareaToolbar, applyFormat } from '@/components/ui/textarea-toolbar';
+import { useSearchParams } from 'next/navigation';
 
 function EditNoteDialog({ note, isOpen, onOpenChange, onSave }: { note: Note | null, isOpen: boolean, onOpenChange: (open: boolean) => void, onSave: (id: string, content: string) => void }) {
     const [content, setContent] = useState('');
@@ -111,6 +112,7 @@ function NoteInputBar() {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const { toast } = useToast();
     const [commandKey, setCommandKey] = useState('Ctrl');
+    const searchParams = useSearchParams();
 
     useEffect(() => {
         const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
@@ -128,6 +130,14 @@ function NoteInputBar() {
             window.removeEventListener('keydown', handleKeyDown);
         };
     }, []);
+
+    useEffect(() => {
+        if (searchParams.get('focus') === 'true') {
+            textareaRef.current?.focus();
+            // Remove the query param from the URL without reloading the page
+            window.history.replaceState(null, '', '/notes');
+        }
+    }, [searchParams]);
 
     const handleSave = () => {
         if (!content.trim()) {

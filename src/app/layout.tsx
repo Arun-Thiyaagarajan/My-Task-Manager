@@ -9,7 +9,6 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { Inter } from 'next/font/google';
 import { UnsavedChangesProvider } from '@/hooks/use-unsaved-changes';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { StickyNote } from 'lucide-react';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
@@ -32,12 +31,13 @@ function FloatingNotesButton() {
 
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
-    prompt(() => router.push('/notes'));
+    // Add a query param to signal the notes page to focus the input
+    prompt(() => router.push('/notes?focus=true'));
   };
 
   return (
     <Button asChild className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-40" size="icon">
-      <a href="/notes" onClick={handleClick} aria-label="Open Notes">
+      <a href="/notes?focus=true" onClick={handleClick} aria-label="Open Notes">
         <StickyNote className="h-6 w-6" />
       </a>
     </Button>
