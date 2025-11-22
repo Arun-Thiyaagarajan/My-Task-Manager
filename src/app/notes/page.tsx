@@ -226,6 +226,7 @@ export default function NotesPage() {
               onLayoutChange={onLayoutChange}
               isDraggable
               isResizable
+              draggableCancel=".note-card-footer"
           >
               {notes.map(note => (
                   <div key={note.id} data-grid={note.layout}>

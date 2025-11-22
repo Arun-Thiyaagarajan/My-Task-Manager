@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Note, UiConfig } from '@/lib/types';
@@ -17,6 +18,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { formatTimestamp } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 interface NoteCardProps {
   note: Note;
@@ -49,7 +51,7 @@ export function NoteCard({ note, uiConfig, onEdit, onDelete }: NoteCardProps) {
       <CardContent className="p-4 flex-grow overflow-y-auto cursor-pointer">
         <RichTextViewer text={note.content} />
       </CardContent>
-      <CardFooter className="p-2 border-t flex justify-between items-center bg-background/50">
+      <CardFooter className={cn("note-card-footer", "p-2 border-t flex justify-between items-center bg-background/50")}>
         <p className="text-xs text-muted-foreground">
           {formatTimestamp(note.updatedAt, uiConfig.timeFormat)}
         </p>
