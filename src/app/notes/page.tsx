@@ -18,7 +18,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
 import { TextareaToolbar, applyFormat } from '@/components/ui/textarea-toolbar';
 import { noteSchema } from '@/lib/validators';
-import { getNoteTitle } from '@/ai/flows/get-note-title-flow';
 import { cn } from '@/lib/utils';
 
 
@@ -32,7 +31,7 @@ export default function NotesPage() {
   
   const { toast } = useToast();
 
-  const { register, handleSubmit, reset, watch, setValue, formState: { isSubmitting, isDirty } } = useForm<NoteFormData>({
+  const { register, handleSubmit, reset, watch, formState: { isSubmitting, isDirty } } = useForm<NoteFormData>({
     resolver: zodResolver(noteSchema),
     defaultValues: { title: '', content: '' },
   });
@@ -275,5 +274,7 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
     </Card>
   );
 }
+
+    
 
     
