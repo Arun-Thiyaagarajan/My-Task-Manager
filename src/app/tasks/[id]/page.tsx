@@ -978,6 +978,7 @@ const handleCopyDescription = () => {
                                   onChange={e => setEditingValue(e.target.value)}
                                   className="min-h-[150px] pb-12"
                                   placeholder="Enter a description..."
+                                  enableHotkeys
                                />
                                <TextareaToolbar onFormatClick={(type) => descriptionEditorRef.current && applyFormat(type, descriptionEditorRef.current)} />
                              </div>
@@ -1485,4 +1486,5 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
 
 
     
+
 

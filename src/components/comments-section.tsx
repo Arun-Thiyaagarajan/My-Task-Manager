@@ -128,6 +128,7 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
                                                     value={editingText}
                                                     onChange={(e) => setEditingText(e.target.value)}
                                                     className="min-h-[100px] pb-12"
+                                                    enableHotkeys
                                                 />
                                                 <TextareaToolbar onFormatClick={(type) => editCommentRef.current && applyFormat(type, editCommentRef.current)} />
                                             </div>
@@ -179,6 +180,7 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
                                             onChange={(e) => setNewComment(e.target.value)}
                                             placeholder="Type your comment here..."
                                             className="min-h-[100px] pb-12"
+                                            enableHotkeys
                                         />
                                         <TextareaToolbar onFormatClick={(type) => newCommentRef.current && applyFormat(type, newCommentRef.current)} />
                                     </div>

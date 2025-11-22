@@ -397,7 +397,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                  const ref = key === 'description' ? descriptionRef : undefined;
                  return (
                     <div className="relative">
-                        <Textarea {...field} value={field.value ?? ''} ref={ref} className="pb-12"/>
+                        <Textarea {...field} value={field.value ?? ''} ref={ref} className="pb-12" enableHotkeys/>
                         <TextareaToolbar onFormatClick={(type) => ref?.current && applyFormat(type, ref.current)} />
                     </div>
                  )

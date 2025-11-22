@@ -2,12 +2,35 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { applyFormat } from "./textarea-toolbar";
 
 export interface TextareaProps
-  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}
+  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+    enableHotkeys?: boolean;
+}
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className, ...props }, ref) => {
+  ({ className, enableHotkeys = false, ...props }, ref) => {
+    
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (enableHotkeys && (e.ctrlKey || e.metaKey)) {
+            let handled = false;
+            switch(e.key.toLowerCase()) {
+                case 'b': applyFormat('bold', e.currentTarget); handled = true; break;
+                case 'i': applyFormat('italic', e.currentTarget); handled = true; break;
+                case 'e': applyFormat('code', e.currentTarget); handled = true; break;
+                case 'x': if (e.shiftKey) { applyFormat('strike', e.currentTarget); handled = true; } break;
+                case 'c': if (e.shiftKey) { applyFormat('code-block', e.currentTarget); handled = true; } break;
+            }
+            if(handled) {
+                e.preventDefault();
+            }
+        }
+        if (props.onKeyDown) {
+            props.onKeyDown(e);
+        }
+    }
+    
     return (
       <textarea
         className={cn(
@@ -15,6 +38,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           className
         )}
         ref={ref}
+        onKeyDown={handleKeyDown}
         {...props}
       />
     )
@@ -23,4 +47,3 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
 Textarea.displayName = "Textarea"
 
 export { Textarea }
-
