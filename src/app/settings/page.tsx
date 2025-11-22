@@ -732,7 +732,7 @@ export default function SettingsPage() {
                                         {editingEnv?.name === env.name ? (
                                             <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">
                                                 <Input type="color" value={editingEnv.color} onChange={e => setEditingEnv({ ...editingEnv, color: e.target.value })} className="h-8 w-10 p-1" />
-                                                <Input value={editingEnv.name} onChange={e => setEditingEnv({ ...editingEnv, name: e.target.value })} onKeyDown={e => { if (e.key === 'Enter') handleUpdateEnvironment(editingEnv); }} className="h-8" />
+                                                <Input value={editingEnv.name} onChange={e => setEditingEnv({ ...editingEnv, name: e.target.value })} onKeyDown={e => { if (e.key === 'Enter') {e.preventDefault(); handleUpdateEnvironment(editingEnv);} }} className="h-8" />
                                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleUpdateEnvironment(editingEnv)}><Check className="h-4 w-4" /></Button>
                                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingEnv(null)}><X className="h-4 w-4" /></Button>
                                             </div>
