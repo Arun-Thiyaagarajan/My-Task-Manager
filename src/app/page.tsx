@@ -280,6 +280,19 @@ export default function Home() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const getDeploymentScore = (task: Task) => {
+    // The order of importance for sorting
+    const deploymentOrder = ['production', 'stage', 'dev'];
+    for (let i = 0; i < deploymentOrder.length; i++) {
+      const env = deploymentOrder[i];
+      if (task.deploymentStatus?.[env]) {
+        // Higher score for more important environments
+        return deploymentOrder.length - i;
+      }
+    }
+    return 0; // No deployment
+  };
+
   const filteredTasks = tasks.filter((task: Task) => {
     if (favoritesOnly && !task.isFavorite) {
       return false;
@@ -344,19 +357,6 @@ export default function Home() {
 
     return statusMatch && repoMatch && searchMatch && dateMatch && deploymentMatch && tagsMatch;
   });
-
-  const getDeploymentScore = (task: Task) => {
-    // The order of importance for sorting
-    const deploymentOrder = ['production', 'stage', 'dev'];
-    for (let i = 0; i < deploymentOrder.length; i++) {
-      const env = deploymentOrder[i];
-      if (task.deploymentStatus?.[env]) {
-        // Higher score for more important environments
-        return deploymentOrder.length - i;
-      }
-    }
-    return 0; // No deployment
-  };
 
   const sortedTasks = [...filteredTasks].sort((a, b) => {
     const [sortBy, sortDirection] = sortDescriptor.split('-');
@@ -551,50 +551,53 @@ export default function Home() {
     };
   }, [activeCompanyId, toast]);
   
+  // Single effect for automatic backup logic
   useEffect(() => {
-    if (isLoading) return; // Don't run backup logic while still loading initial data
-    const config = getUiConfig();
-    const backupFrequency = config.autoBackupFrequency || 'off';
+    if (isLoading || !uiConfig) return; // Don't run backup logic while still loading initial data
     
-    if (backupFrequency !== 'off') {
-        const lastBackup = localStorage.getItem(LAST_BACKUP_KEY);
-        const backupHour = config.autoBackupTime ?? 6;
+    const backupFrequency = uiConfig.autoBackupFrequency || 'off';
+    if (backupFrequency === 'off') return;
 
-        if (!lastBackup) {
-            // Use a timeout to ensure this runs after initial render cycle completes
+    const lastBackupStr = localStorage.getItem(LAST_BACKUP_KEY);
+    const now = new Date();
+    
+    if (!lastBackupStr) {
+        // First time backup for a new user
+        setTimeout(() => {
+            handleExport('all_tasks');
+            toast({
+                title: 'First Automatic Backup',
+                description: 'A backup of all your tasks has been downloaded.',
+                duration: 10000,
+            });
+        }, 2000);
+    } else {
+        const lastBackupDate = new Date(lastBackupStr);
+        const backupHour = uiConfig.autoBackupTime ?? 6;
+        let nextBackupDate = new Date(lastBackupDate);
+        
+        switch (backupFrequency) {
+            case 'daily': nextBackupDate.setDate(nextBackupDate.getDate() + 1); break;
+            case 'weekly': nextBackupDate.setDate(nextBackupDate.getDate() + 7); break;
+            case 'monthly': nextBackupDate = addMonths(nextBackupDate, 1); break;
+            case 'yearly': nextBackupDate = addYears(nextBackupDate, 1); break;
+        }
+
+        // Set the time for the next backup
+        nextBackupDate = set(nextBackupDate, { hours: backupHour, minutes: 0, seconds: 0, milliseconds: 0 });
+        
+        if (now >= nextBackupDate) {
             setTimeout(() => {
                 handleExport('all_tasks');
                 toast({
-                    title: 'First Automatic Backup',
-                    description: 'A backup of all your tasks has been downloaded.',
+                    title: 'Automatic Backup',
+                    description: `A ${backupFrequency} backup of all your tasks has been downloaded.`,
                     duration: 10000,
                 });
             }, 2000);
-        } else {
-            const now = new Date();
-            let lastBackupDate = new Date(lastBackup);
-            lastBackupDate = set(lastBackupDate, { hours: backupHour, minutes: 0, seconds: 0, milliseconds: 0 });
-
-            let nextBackupDate = new Date(lastBackupDate);
-            switch(backupFrequency) {
-                case 'daily': nextBackupDate.setDate(nextBackupDate.getDate() + 1); break;
-                case 'weekly': nextBackupDate.setDate(nextBackupDate.getDate() + 7); break;
-                case 'monthly': nextBackupDate = addMonths(nextBackupDate, 1); break;
-                case 'yearly': nextBackupDate = addYears(nextBackupDate, 1); break;
-            }
-            if (now >= nextBackupDate) {
-                setTimeout(() => {
-                    handleExport('all_tasks');
-                    toast({
-                        title: 'Automatic Backup',
-                        description: `A ${backupFrequency} backup of all your tasks has been downloaded.`,
-                        duration: 10000,
-                    });
-                }, 2000);
-            }
         }
     }
-  }, [isLoading, handleExport, toast]);
+  }, [isLoading, uiConfig, handleExport, toast]);
 
   const handlePinToggle = (taskIdToToggle: string) => {
     setPinnedTaskIds(currentIds => {
@@ -1683,3 +1686,4 @@ export default function Home() {
     </div>
   );
 }
+
