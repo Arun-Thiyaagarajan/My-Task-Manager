@@ -520,13 +520,47 @@ export default function Home() {
         setSortDescriptor(savedSortDescriptor);
     }
     
-    // Automatic backup logic
+    // Reminder clearing logic
+    const { updatedTaskIds, unpinnedTaskIds } = clearExpiredReminders();
+    if (updatedTaskIds.length > 0) {
+        toast({ title: `${updatedTaskIds.length} reminder(s) expired and were cleared.` });
+        if (unpinnedTaskIds.length > 0) {
+            const currentPinned = JSON.parse(localStorage.getItem(PINNED_TASKS_STORAGE_KEY) || '[]');
+            const newPinned = currentPinned.filter((id: string) => !unpinnedTaskIds.includes(id));
+            setPinnedTaskIds(newPinned);
+            localStorage.setItem(PINNED_TASKS_STORAGE_KEY, JSON.stringify(newPinned));
+        }
+    }
+
+    refreshData();
+    setIsLoading(false);
+    
+    const storageHandler = () => {
+        refreshData();
+    };
+
+    window.addEventListener('storage', storageHandler);
+    window.addEventListener('config-changed', storageHandler);
+    window.addEventListener('company-changed', storageHandler);
+    
+    return () => {
+      window.removeEventListener('storage', storageHandler);
+      window.removeEventListener('config-changed', storageHandler);
+      window.removeEventListener('company-changed', storageHandler);
+    };
+  }, [activeCompanyId, toast]);
+  
+  useEffect(() => {
+    if (isLoading) return; // Don't run backup logic while still loading initial data
+    const config = getUiConfig();
     const backupFrequency = config.autoBackupFrequency || 'off';
+    
     if (backupFrequency !== 'off') {
         const lastBackup = localStorage.getItem(LAST_BACKUP_KEY);
         const backupHour = config.autoBackupTime ?? 6;
 
         if (!lastBackup) {
+            // Use a timeout to ensure this runs after initial render cycle completes
             setTimeout(() => {
                 handleExport('all_tasks');
                 toast({
@@ -559,36 +593,7 @@ export default function Home() {
             }
         }
     }
-    
-    // Reminder clearing logic
-    const { updatedTaskIds, unpinnedTaskIds } = clearExpiredReminders();
-    if (updatedTaskIds.length > 0) {
-        toast({ title: `${updatedTaskIds.length} reminder(s) expired and were cleared.` });
-        if (unpinnedTaskIds.length > 0) {
-            const currentPinned = JSON.parse(localStorage.getItem(PINNED_TASKS_STORAGE_KEY) || '[]');
-            const newPinned = currentPinned.filter((id: string) => !unpinnedTaskIds.includes(id));
-            setPinnedTaskIds(newPinned);
-            localStorage.setItem(PINNED_TASKS_STORAGE_KEY, JSON.stringify(newPinned));
-        }
-    }
-
-    refreshData();
-    setIsLoading(false);
-    
-    const storageHandler = () => {
-        refreshData();
-    };
-
-    window.addEventListener('storage', storageHandler);
-    window.addEventListener('config-changed', storageHandler);
-    window.addEventListener('company-changed', storageHandler);
-    
-    return () => {
-      window.removeEventListener('storage', storageHandler);
-      window.removeEventListener('config-changed', storageHandler);
-      window.removeEventListener('company-changed', storageHandler);
-    };
-  }, [activeCompanyId, handleExport, toast]);
+  }, [isLoading, handleExport, toast]);
 
   const handlePinToggle = (taskIdToToggle: string) => {
     setPinnedTaskIds(currentIds => {
