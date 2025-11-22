@@ -1,14 +1,14 @@
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { addNote, getNotes, updateNote, deleteNote, getUiConfig } from '@/lib/data';
-import type { Note, UiConfig } from '@/lib/types';
+import { useState, useEffect, useCallback } from 'react';
+import { addNote, getNotes, updateNote, deleteNote, getUiConfig, updateNoteLayouts } from '@/lib/data';
+import type { Note, UiConfig, NoteLayout } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { FileText, Trash2, Edit, Save, StickyNote } from 'lucide-react';
+import { Edit, Trash2, StickyNote, PlusCircle } from 'lucide-react';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
 import { cn, formatTimestamp } from '@/lib/utils';
 import {
@@ -20,7 +20,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
   Dialog,
@@ -28,11 +27,14 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogClose,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { TextareaToolbar, applyFormat } from '@/components/ui/textarea-toolbar';
-import { useSearchParams } from 'next/navigation';
+import { Responsive, WidthProvider } from 'react-grid-layout';
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
+
+const ResponsiveGridLayout = WidthProvider(Responsive);
 
 function NoteEditorDialog({
   note,
@@ -46,12 +48,11 @@ function NoteEditorDialog({
   onSave: (id: string | undefined, content: string) => void;
 }) {
   const [content, setContent] = useState('');
-  const descriptionEditorRef = useRef<HTMLTextAreaElement>(null);
+  const descriptionEditorRef = React.useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       setContent(note?.content || '');
-      // Focus the textarea when the dialog opens
       setTimeout(() => {
         descriptionEditorRef.current?.focus();
       }, 100);
@@ -59,10 +60,6 @@ function NoteEditorDialog({
   }, [isOpen, note]);
 
   const handleSave = () => {
-    if (!content.trim()) {
-      onOpenChange(false);
-      return;
-    }
     onSave(note?.id, content);
     onOpenChange(false);
   };
@@ -105,11 +102,11 @@ function NoteEditorDialog({
 
 function NoteCard({ note, uiConfig, onEdit, onDelete }: { note: Note, uiConfig: UiConfig, onEdit: (note: Note) => void, onDelete: (noteId: string) => void }) {
     return (
-        <Card className="flex flex-col h-full group w-full sm:max-w-sm">
-            <CardContent className="p-4 flex-grow">
+        <Card className="flex flex-col h-full group w-full overflow-hidden">
+            <CardContent className="p-4 flex-grow overflow-y-auto">
                 <RichTextViewer text={note.content} />
             </CardContent>
-            <CardFooter className="p-2 border-t flex justify-between items-center">
+            <CardFooter className="p-2 border-t flex justify-between items-center bg-background/50">
                 <p className="text-xs text-muted-foreground">
                     {formatTimestamp(note.updatedAt, uiConfig.timeFormat)}
                 </p>
@@ -140,47 +137,6 @@ function NoteCard({ note, uiConfig, onEdit, onDelete }: { note: Note, uiConfig: 
     );
 }
 
-function NoteInputTrigger({ onTrigger }: { onTrigger: () => void }) {
-    const [commandKey, setCommandKey] = useState('Ctrl');
-    const triggerRef = useRef<HTMLButtonElement>(null);
-    const searchParams = useSearchParams();
-
-    useEffect(() => {
-        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-        setCommandKey(isMac ? '⌘' : 'Ctrl');
-
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === '/') {
-                e.preventDefault();
-                onTrigger();
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [onTrigger]);
-
-    useEffect(() => {
-        if (searchParams.get('focus') === 'true') {
-            onTrigger();
-            // Remove the query param from the URL without reloading the page
-            window.history.replaceState(null, '', '/notes');
-        }
-    }, [searchParams, onTrigger]);
-    
-    return (
-        <div className="max-w-3xl mx-auto w-full mb-8">
-            <button
-                ref={triggerRef}
-                onClick={onTrigger}
-                className="w-full text-left p-3 rounded-lg shadow-lg bg-card border text-muted-foreground hover:bg-muted/50 transition-colors"
-            >
-                Take a note... ({commandKey}+/)
-            </button>
-        </div>
-    )
-}
-
 export default function NotesPage() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -190,13 +146,13 @@ export default function NotesPage() {
 
   const { toast } = useToast();
 
-  const refreshData = () => {
+  const refreshData = useCallback(() => {
     setNotes(getNotes());
     const config = getUiConfig();
     setUiConfig(config);
     document.title = `Notes | ${config.appName || 'My Task Manager'}`;
     setIsLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     refreshData();
@@ -206,7 +162,7 @@ export default function NotesPage() {
         window.removeEventListener('storage', refreshData);
         window.removeEventListener('notes-updated', refreshData);
     };
-  }, []);
+  }, [refreshData]);
   
   const handleOpenNewNote = () => {
       setNoteToEdit({});
@@ -220,17 +176,9 @@ export default function NotesPage() {
 
   const handleSaveNote = (id: string | undefined, content: string) => {
     if (id) {
-        // Editing existing note
-        if (content) {
-            updateNote(id, { content });
-            toast({ variant: 'success', title: 'Note Updated' });
-        } else {
-            // If content is empty, delete it
-            deleteNote(id);
-            toast({ variant: 'success', title: 'Note Deleted' });
-        }
+        updateNote(id, { content });
+        toast({ variant: 'success', title: 'Note Updated' });
     } else {
-        // Creating new note
         addNote({ content });
         toast({ variant: 'success', title: 'Note Saved' });
     }
@@ -247,9 +195,17 @@ export default function NotesPage() {
     refreshData();
   };
 
+  const onLayoutChange = (layout: any, layouts: any) => {
+    updateNoteLayouts(layouts.lg);
+  };
+
   if (isLoading || !uiConfig) {
     return <LoadingSpinner text="Loading notes..." />;
   }
+
+  const layouts = {
+      lg: notes.map(note => note.layout)
+  };
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -257,21 +213,39 @@ export default function NotesPage() {
         <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <StickyNote className="h-7 w-7"/> Notes
         </h1>
+        <Button onClick={handleOpenNewNote} size="sm">
+          <PlusCircle className="h-4 w-4 mr-2" />
+          New Note
+        </Button>
       </div>
-
-      <NoteInputTrigger onTrigger={handleOpenNewNote} />
 
       {notes.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg mt-8">
             <p className="text-lg font-semibold">No notes yet.</p>
-            <p className="mt-1">Use the input bar above to create your first note.</p>
+            <p className="mt-1">Click "New Note" to create your first note.</p>
         </div>
       ) : (
-        <div className="flex flex-wrap items-start gap-4">
+        <ResponsiveGridLayout
+            className="layout"
+            layouts={layouts}
+            breakpoints={{lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0}}
+            cols={{lg: 12, md: 10, sm: 6, xs: 4, xxs: 2}}
+            rowHeight={30}
+            onLayoutChange={onLayoutChange}
+            isDraggable
+            isResizable
+        >
             {notes.map(note => (
-                <NoteCard key={note.id} note={note} uiConfig={uiConfig} onEdit={handleEditNote} onDelete={handleDeleteNote} />
+                <div key={note.id} data-grid={note.layout}>
+                    <NoteCard 
+                        note={note} 
+                        uiConfig={uiConfig} 
+                        onEdit={handleEditNote} 
+                        onDelete={handleDeleteNote} 
+                    />
+                </div>
             ))}
-        </div>
+        </ResponsiveGridLayout>
       )}
 
       <NoteEditorDialog 

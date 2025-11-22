@@ -60,12 +60,22 @@ export interface GeneralReminder {
   createdAt: string;
 }
 
+export interface NoteLayout {
+  i: string; // Corresponds to note.id
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  minW?: number;
+  minH?: number;
+}
 export interface Note {
   id: string;
   title: string;
   content: string;
   createdAt: string;
   updatedAt: string;
+  layout: NoteLayout;
 }
 
 export interface Task {

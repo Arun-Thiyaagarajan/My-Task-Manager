@@ -1,5 +1,5 @@
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note } from './types';
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout } from './types';
 import cloneDeep from 'lodash/cloneDeep';
 import { format, isToday, isYesterday } from 'date-fns';
 
@@ -1509,23 +1509,51 @@ export function getNotes(): Note[] {
     const data = getAppData();
     const companyData = data.companyData[data.activeCompanyId];
     if (!companyData) return [];
-    return (companyData.notes || []).sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    
+    // Migration: Add layout property to existing notes
+    const notes = companyData.notes || [];
+    notes.forEach((note, index) => {
+        if (!note.layout) {
+            note.layout = {
+                i: note.id,
+                x: (index * 4) % 12, // Cascade new notes
+                y: Infinity, // Puts it at the bottom
+                w: 4,
+                h: 4,
+                minW: 2,
+                minH: 2
+            };
+        }
+    });
+
+    return notes.sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 }
 
-export function addNote(noteData: Partial<Omit<Note, 'id' | 'createdAt' | 'updatedAt'>>): Note {
+export function addNote(noteData: Partial<Omit<Note, 'id' | 'createdAt' | 'updatedAt' | 'layout'>>): Note {
     const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
+    const companyData = data.companyData[activeCompanyId];
+    const notes = companyData.notes || [];
 
     const now = new Date().toISOString();
+    const newNoteId = `note-${crypto.randomUUID()}`;
     const newNote: Note = {
-        id: `note-${crypto.randomUUID()}`,
+        id: newNoteId,
         title: noteData.title || '',
         content: noteData.content || '',
         createdAt: now,
         updatedAt: now,
+        layout: {
+            i: newNoteId,
+            x: (notes.length * 4) % 12,
+            y: Infinity,
+            w: 4,
+            h: 4,
+            minW: 2,
+            minH: 2,
+        },
     };
 
-    companyData.notes = [newNote, ...(companyData.notes || [])];
+    companyData.notes = [newNote, ...notes];
     const logTitle = newNote.title || `note created at ${format(new Date(now), 'p')}`;
     _addLog(companyData, { message: `Created new note: **"${logTitle}"**.` });
 
@@ -1579,4 +1607,23 @@ export function deleteNote(id: string): boolean {
 
     setAppData(data);
     return true;
+}
+
+export function updateNoteLayouts(layouts: NoteLayout[]): void {
+  const data = getAppData();
+  const companyData = data.companyData[data.activeCompanyId];
+  if (!companyData || !companyData.notes) return;
+
+  const notesMap = new Map(companyData.notes.map(note => [note.id, note]));
+
+  layouts.forEach(layout => {
+    const note = notesMap.get(layout.i);
+    if (note) {
+      note.layout = { ...note.layout, ...layout };
+      note.updatedAt = new Date().toISOString();
+    }
+  });
+
+  setAppData(data);
+  // No log for layout changes to avoid spamming the logs
 }
