@@ -1515,12 +1515,12 @@ export function getNotes(): Note[] {
     let needsUpdate = false;
     const notes = companyData.notes || [];
     notes.forEach((note, index) => {
-        if (!note.layout) {
+        if (!note.layout || typeof note.layout.x !== 'number' || typeof note.layout.y !== 'number') {
             needsUpdate = true;
             note.layout = {
                 i: note.id,
                 x: (index * 4) % 12,
-                y: 0,
+                y: Math.floor(index / 3) * 4,
                 w: 4,
                 h: 4,
                 minW: 2,
@@ -1542,11 +1542,12 @@ export function addNote(noteData: Partial<Omit<Note, 'id' | 'createdAt' | 'updat
     const companyData = data.companyData[activeCompanyId];
     const notes = companyData.notes || [];
     
-    const calculateNewY = () => {
+    const calculateNewY = (): number => {
         if (notes.length === 0) {
-            return 0;
+            return 0; // Return 0 if there are no notes.
         }
-        return Math.max(0, ...notes.map(n => n.layout.y + n.layout.h));
+        // Find the maximum y + h of all notes to place the new one at the bottom.
+        return Math.max(0, ...notes.map(n => (n.layout.y || 0) + (n.layout.h || 0)));
     };
 
     const now = new Date().toISOString();
@@ -1642,4 +1643,3 @@ export function updateNoteLayouts(layouts: NoteLayout[]): void {
   setAppData(data);
   // No log for layout changes to avoid spamming the logs
 }
-
