@@ -43,7 +43,7 @@ export const createTaskSchema = (uiConfig: UiConfig) => {
     reminderExpiresAt: z.coerce.date().optional().nullable(),
     
     // Default fields that are always present
-    title: z.string().min(3, { message: 'Title must be at least 3 characters.' }),
+    title: z.string().min(3, { message: "Title must be at least 3 characters." }),
     description: z.string().min(3, { message: 'Description must be at least 3 characters.' }),
     status: z.string().min(1, 'Status is required.'),
     repositories: z.array(z.string()).optional(),
