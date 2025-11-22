@@ -741,8 +741,8 @@ const handleCopyDescription = () => {
   
   const developersById = new Map(developers.map(d => [d.id, d.name]));
   const testersById = new Map(testers.map(t => [t.id, t.name]));
-  const assignedDevelopers = (task.developers || []).map(id => developersById.get(id)).filter((d): d is Person => !!d);
-  const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter((t): t is Person => !!t);
+  const assignedDevelopers = (task.developers || []).map(id => developers.find(p => p.id === id)).filter((p): p is Person => !!p);
+  const assignedTesters = (task.testers || []).map(id => testers.find(p => p.id === id)).filter((p): p is Person => !!p);
 
   const azureFieldConfig = uiConfig.fields.find(f => f.key === 'azureWorkItemId');
   
@@ -1567,4 +1567,5 @@ function TimelineSection({
 
 
     
+
 
