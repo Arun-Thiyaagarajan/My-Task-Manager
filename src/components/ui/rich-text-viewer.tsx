@@ -39,7 +39,7 @@ const CodeBlock = ({ content }: { content: string }) => {
     );
 };
 
-const regex = /(\*\*(.*?)\*\*|_(.*?)_|~(.*?)~|`(.*?)`|https?:\/\/[^\s<]+)/g;
+const regex = /(\*\*(.*?)\*\*|_(.*?)_|~(.*?)~|`(.*?)`|https?:\/\/[^\s<]+|\[(.*?)\]\((.*?)\))/g;
 
 export const RichTextViewer = memo(({ text }: RichTextViewerProps) => {
   const parts = useMemo(() => {
@@ -61,7 +61,7 @@ export const RichTextViewer = memo(({ text }: RichTextViewerProps) => {
         const inlineResult: (string | JSX.Element)[] = [];
         
         while ((match = regex.exec(section)) !== null) {
-          const [fullMatch, , bold, italic, strike, code, link] = match;
+          const [fullMatch, , bold, italic, strike, code, bareLinkOrLinkText, linkUrl] = match;
           const startIndex = match.index;
 
           if (startIndex > lastIndex) {
@@ -76,8 +76,10 @@ export const RichTextViewer = memo(({ text }: RichTextViewerProps) => {
             inlineResult.push(<s key={lastIndex}>{strike}</s>);
           } else if (code) {
             inlineResult.push(<code key={lastIndex} className="bg-muted text-muted-foreground rounded-sm px-1.5 py-0.5 font-mono text-sm">{code}</code>);
-          } else if (link) {
-            inlineResult.push(<a href={link} key={lastIndex} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{link}</a>);
+          } else if (linkUrl !== undefined) { // This is a markdown link like [text](url)
+            inlineResult.push(<a href={linkUrl} key={lastIndex} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{bareLinkOrLinkText}</a>);
+          } else if (fullMatch.startsWith('http')) { // This is a bare link
+            inlineResult.push(<a href={fullMatch} key={lastIndex} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{fullMatch}</a>);
           }
           
           lastIndex = startIndex + fullMatch.length;
