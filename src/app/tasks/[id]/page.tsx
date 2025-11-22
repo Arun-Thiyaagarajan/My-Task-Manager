@@ -287,6 +287,24 @@ export default function TaskPage() {
     if (!task) return;
 
     let finalValue = value !== undefined ? value : editingValue;
+
+    if (key === 'title' && (!finalValue || finalValue.trim() === '')) {
+      toast({
+        variant: 'destructive',
+        title: 'Validation Error',
+        description: 'Title cannot be empty.',
+      });
+      return;
+    }
+    
+    if (key === 'description' && (!finalValue || finalValue.trim() === '')) {
+      toast({
+        variant: 'destructive',
+        title: 'Validation Error',
+        description: 'Description cannot be empty.',
+      });
+      return;
+    }
     
     // Ensure repositories is always an array
     if (key === 'repositories' && !Array.isArray(finalValue)) {
@@ -1459,5 +1477,6 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
 }
 
     
+
 
 
