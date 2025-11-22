@@ -4,7 +4,7 @@ import type { TASK_STATUSES } from './constants';
 
 export type TaskStatus = string;
 export type Repository = string;
-export type Environment = { name: string; color: string };
+export type Environment = { id: string; name: string; color: string };
 export type FieldType = 'text' | 'textarea' | 'number' | 'url' | 'date' | 'select' | 'multiselect' | 'checkbox' | 'tags' | 'object';
 export type PersonFieldType = 'text' | 'textarea' | 'url' | 'number' | 'date';
 

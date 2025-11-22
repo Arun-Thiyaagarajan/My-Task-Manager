@@ -14,7 +14,7 @@ const getInitialData = (): MyTaskManagerData => {
             return { ...f, options: TASK_STATUSES.map(s => ({id: s, value: s, label: s})) };
         }
         if (f.key === 'relevantEnvironments') {
-            return { ...f, options: ENVIRONMENTS.map(e => ({id: e.name, value: e.name, label: e.name})) };
+            return { ...f, options: ENVIRONMENTS.map(e => ({id: e.id, value: e.name, label: e.name})) };
         }
         return f;
     });
@@ -306,7 +306,7 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
     }
     const relevantEnvsField = resultConfig.fields.find(f => f.key === 'relevantEnvironments');
     if (relevantEnvsField) {
-        relevantEnvsField.options = resultConfig.environments.map(e => ({ id: e.name, value: e.name, label: e.name }));
+        relevantEnvsField.options = resultConfig.environments.map(e => ({ id: e.id, value: e.name, label: e.name }));
     }
     
     resultConfig.fields
@@ -614,6 +614,7 @@ export function addEnvironment(name: string): boolean {
     }
     
     const newEnv: Environment = {
+        id: `env_${crypto.randomUUID()}`,
         name: trimmedName,
         color: `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}` // Random color
     };
@@ -1779,4 +1780,3 @@ export function resetNotesLayout(): boolean {
     setAppData(data);
     return true;
 }
-

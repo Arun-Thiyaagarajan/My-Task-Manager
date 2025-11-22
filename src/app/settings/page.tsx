@@ -734,8 +734,8 @@ export default function SettingsPage() {
                                 if (!env || !env.name) return null;
                                 const isProtected = ['dev', 'production'].includes(env.name.toLowerCase());
                                 return (
-                                    <div key={env.name}>
-                                        {editingEnv?.name === env.name ? (
+                                    <div key={env.id}>
+                                        {editingEnv?.id === env.id ? (
                                             <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">
                                                 <Input type="color" value={editingEnv.color} onChange={e => setEditingEnv({ ...editingEnv, color: e.target.value })} className="h-8 w-10 p-1" />
                                                 <Input value={editingEnv.name} onChange={e => setEditingEnv({ ...editingEnv, name: e.target.value })} onKeyDown={e => { if (e.key === 'Enter') {e.preventDefault(); handleUpdateEnvironment();} }} className="h-8" />

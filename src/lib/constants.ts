@@ -4,9 +4,9 @@ import type { FieldConfig, FieldType, RepositoryConfig, Environment } from './ty
 
 export const TASK_STATUSES = ['To Do', 'In Progress', 'Code Review', 'QA', 'Hold', 'Done'] as const;
 export const ENVIRONMENTS: Environment[] = [
-    { name: 'dev', color: '#3b82f6' },
-    { name: 'stage', color: '#f59e0b' },
-    { name: 'production', color: '#22c55e' },
+    { id: 'env_1', name: 'dev', color: '#3b82f6' },
+    { id: 'env_2', name: 'stage', color: '#f59e0b' },
+    { id: 'env_3', name: 'production', color: '#22c55e' },
 ];
 
 export const INITIAL_REPOSITORY_CONFIGS: RepositoryConfig[] = [
@@ -40,7 +40,7 @@ export const INITIAL_UI_CONFIG: FieldConfig[] = [
   { id: 'field_prLinks', key: 'prLinks', label: 'Pull Request Links', type: 'object', group: 'Pull Requests', isActive: true, isRequired: false, isCustom: false, order: 8 },
   { id: 'field_attachments', key: 'attachments', label: 'Attachments', type: 'object', group: 'Attachments', isActive: true, isRequired: false, isCustom: false, order: 9 },
   { id: 'field_deploymentStatus', key: 'deploymentStatus', label: 'Deployment Status', type: 'object', group: 'Deployment', isActive: true, isRequired: false, isCustom: false, order: 10 },
-  { id: 'field_relevantEnvs', key: 'relevantEnvironments', label: 'Relevant Environments', type: 'multiselect', group: 'Deployment', isActive: true, isRequired: false, isCustom: false, order: 11, options: ENVIRONMENTS.map(e => ({id: e.name, value: e.name, label: e.name})) },
+  { id: 'field_relevantEnvs', key: 'relevantEnvironments', label: 'Relevant Environments', type: 'multiselect', group: 'Deployment', isActive: true, isRequired: false, isCustom: false, order: 11, options: ENVIRONMENTS.map(e => ({id: e.id, value: e.name, label: e.name})) },
   { id: 'field_devStartDate', key: 'devStartDate', label: 'Dev Start Date', type: 'date', group: 'Dates', isActive: true, isRequired: false, isCustom: false, order: 12 },
   { id: 'field_devEndDate', key: 'devEndDate', label: 'Dev End Date', type: 'date', group: 'Dates', isActive: true, isRequired: false, isCustom: false, order: 13 },
   { id: 'field_qaStartDate', key: 'qaStartDate', label: 'QA Start Date', type: 'date', group: 'Dates', isActive: true, isRequired: false, isCustom: false, order: 14 },
