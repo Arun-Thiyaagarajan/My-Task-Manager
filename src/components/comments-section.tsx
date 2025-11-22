@@ -138,13 +138,13 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
                                             </div>
                                         </div>
                                         ) : (
-                                        <div className="flex flex-col justify-between items-start gap-2">
-                                            <div className="flex justify-between items-start w-full gap-2">
-                                                <div className="text-foreground/80 flex-1 pt-1">
-                                                  <RichTextViewer text={text} />
+                                        <div className="flex flex-col items-start gap-2">
+                                            <div className="flex w-full items-start justify-between gap-2">
+                                                <div className="min-w-0 flex-1 pt-1 text-foreground/80">
+                                                    <RichTextViewer text={text} />
                                                 </div>
                                                 {!readOnly && (
-                                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                                                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(index)}>
                                                         <Pencil className="h-4 w-4" />
                                                         <span className="sr-only">Edit comment</span>

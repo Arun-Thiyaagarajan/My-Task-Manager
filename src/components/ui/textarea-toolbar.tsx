@@ -5,6 +5,7 @@ import { Bold, Italic, Strikethrough, Code, Code2, Link as LinkIcon } from 'luci
 import { Button } from './button';
 import { Tooltip, TooltipContent, TooltipTrigger } from './tooltip';
 import { useEffect, useState } from 'react';
+import { cn } from '@/lib/utils';
 
 type FormatType = 'bold' | 'italic' | 'strike' | 'code' | 'code-block';
 
@@ -89,7 +90,10 @@ export function TextareaToolbar({ onFormatClick }: TextareaToolbarProps) {
     ];
 
     return (
-        <div className="absolute bottom-2 left-2 flex items-center gap-1">
+        <div className={cn(
+            "absolute bottom-2 left-2 flex items-center gap-1",
+            "p-1 rounded-lg bg-background/60 backdrop-blur-sm border border-border"
+        )}>
         {tools.map(({ type, icon, tooltip, shortcut }) => (
             <Tooltip key={type}>
             <TooltipTrigger asChild>
