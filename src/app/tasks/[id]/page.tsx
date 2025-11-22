@@ -710,6 +710,48 @@ const handleCopyDescription = () => {
     }
   };
 
+  const handleDateUpdate = (key: keyof Task, date: Date | null) => {
+    if (!task) return;
+
+    let updatePayload: Partial<Task> = {
+        [key]: date ? date.toISOString() : null
+    };
+
+    // If a start date is cleared, also clear the end date
+    if (date === null) {
+      if (key === 'devStartDate') updatePayload['devEndDate'] = null;
+      if (key === 'qaStartDate') updatePayload['qaEndDate'] = null;
+    }
+    
+    const updatedTask = updateTask(task.id, updatePayload);
+    if (updatedTask) {
+        setTask(updatedTask);
+        setTaskLogs(getLogsForTask(task.id));
+        toast({
+            variant: 'success',
+            title: 'Date Updated',
+            description: `The date for "${fieldLabels.get(key) || key}" has been updated.`
+        });
+    }
+  };
+  
+  const handleDeploymentDateUpdate = (env: string, date: Date | null) => {
+      if (!task) return;
+
+      const newDeploymentDates = { ...task.deploymentDates, [env]: date ? date.toISOString() : null };
+      
+      const updatedTask = updateTask(task.id, { deploymentDates: newDeploymentDates });
+      if (updatedTask) {
+          setTask(updatedTask);
+          setTaskLogs(getLogsForTask(task.id));
+          toast({
+              variant: 'success',
+              title: 'Deployment Date Updated',
+              description: `The deployment date for "${env}" has been updated.`
+          });
+      }
+  };
+
   if (isLoading || !uiConfig) {
     return <LoadingSpinner text="Loading task details..." />;
   }
@@ -739,8 +781,6 @@ const handleCopyDescription = () => {
   
   const customFields = uiConfig.fields.filter(f => f.isCustom && f.isActive && task.customFields && typeof task.customFields[f.key] !== 'undefined' && task.customFields[f.key] !== null && task.customFields[f.key] !== '');
   
-  const developersById = new Map(developers.map(d => [d.id, d.name]));
-  const testersById = new Map(testers.map(t => [t.id, t.name]));
   const assignedDevelopers = (task.developers || []).map(id => developers.find(p => p.id === id)).filter((p): p is Person => !!p);
   const assignedTesters = (task.testers || []).map(id => testers.find(p => p.id === id)).filter((p): p is Person => !!p);
 
@@ -759,31 +799,6 @@ const handleCopyDescription = () => {
   const attachmentsField = uiConfig.fields.find(f => f.key === 'attachments' && f.isActive);
   const commentsField = uiConfig.fields.find(f => f.key === 'comments' && f.isActive);
   const historyField = !isBinned && taskLogs.length > 0;
-  
-  const handleDateUpdate = (key: keyof Task, date: Date | null) => {
-    if (!task) return;
-
-    let updatePayload: Partial<Task> = {
-        [key]: date ? date.toISOString() : null
-    };
-
-    // If a start date is cleared, also clear the end date
-    if (date === null) {
-      if (key === 'devStartDate') updatePayload['devEndDate'] = null;
-      if (key === 'qaStartDate') updatePayload['qaEndDate'] = null;
-    }
-    
-    const updatedTask = updateTask(task.id, updatePayload);
-    if (updatedTask) {
-        setTask(updatedTask);
-        setTaskLogs(getLogsForTask(task.id));
-        toast({
-            variant: 'success',
-            title: 'Date Updated',
-            description: `The date for "${fieldLabels.get(key) || key}" has been updated.`
-        });
-    }
-  };
 
   return (
     <>
@@ -1229,7 +1244,7 @@ const handleCopyDescription = () => {
                   <Separator />
                   <div>
                     <h4 className="text-sm font-semibold text-muted-foreground mb-2">Important Dates</h4>
-                    <TimelineSection task={task} uiConfig={uiConfig} fieldLabels={fieldLabels} onDateUpdate={handleDateUpdate} isBinned={isBinned}/>
+                    <TimelineSection task={task} uiConfig={uiConfig} fieldLabels={fieldLabels} onDateUpdate={handleDateUpdate} onDeploymentDateUpdate={handleDeploymentDateUpdate} isBinned={isBinned}/>
                   </div>
                 </CardContent>
             </Card>
@@ -1453,12 +1468,14 @@ function TimelineSection({
   uiConfig,
   fieldLabels,
   onDateUpdate,
+  onDeploymentDateUpdate,
   isBinned,
 }: {
   task: Task;
   uiConfig: UiConfig;
   fieldLabels: Map<string, string>;
   onDateUpdate: (key: keyof Task, date: Date | null) => void;
+  onDeploymentDateUpdate: (env: string, date: Date | null) => void;
   isBinned: boolean;
 }) {
   const isValidDate = (d: any): d is string | Date => d && !isNaN(new Date(d).getTime());
@@ -1522,12 +1539,63 @@ function TimelineSection({
     );
   };
   
+  const DeploymentDateField = ({ env, date }: { env: string, date: string | null | undefined }) => {
+      const dateValue = date ? new Date(date) : null;
+      const [isOpen, setIsOpen] = useState(false);
+      
+      const isDeployed = task.deploymentStatus?.[env];
+      if (!isDeployed || env === 'dev') return null;
+
+      return (
+        <div className="flex justify-between items-center group">
+            <span className="text-muted-foreground capitalize">{env} Deployed</span>
+            <Popover open={isOpen} onOpenChange={isBinned ? undefined : setIsOpen}>
+                <PopoverTrigger asChild disabled={isBinned}>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className={cn("h-7 px-2", !dateValue && "text-muted-foreground hover:text-foreground")}
+                    >
+                        {dateValue ? format(dateValue, 'PPP') : 'Set Date'}
+                        <Pencil className="ml-2 h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar
+                        mode="single"
+                        selected={dateValue || undefined}
+                        onSelect={(d) => {
+                            onDeploymentDateUpdate(env, d || null);
+                            setIsOpen(false);
+                        }}
+                        defaultMonth={dateValue || undefined}
+                        initialFocus
+                    />
+                     <div className="p-2 border-t text-center">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => {
+                                onDeploymentDateUpdate(env, null);
+                                setIsOpen(false);
+                            }}
+                        >
+                            Clear Date
+                        </Button>
+                    </div>
+                </PopoverContent>
+            </Popover>
+        </div>
+      );
+  };
+
   const hasAnyDeploymentDate = Object.values(task.deploymentDates || {}).some(date => isValidDate(date));
 
-  const devStartConfig = uiConfig?.fields.find(f => f.key === 'devStartDate' && f.isActive);
-  const devEndConfig = uiConfig?.fields.find(f => f.key === 'devEndDate' && f.isActive);
-  const qaStartConfig = uiConfig?.fields.find(f => f.key === 'qaStartDate' && f.isActive);
-  const qaEndConfig = uiConfig?.fields.find(f => f.key === 'qaEndDate' && f.isActive);
+  const devStartConfig = uiConfig.fields.find(f => f.key === 'devStartDate' && f.isActive);
+  const devEndConfig = uiConfig.fields.find(f => f.key === 'devEndDate' && f.isActive);
+  const qaStartConfig = uiConfig.fields.find(f => f.key === 'qaStartDate' && f.isActive);
+  const qaEndConfig = uiConfig.fields.find(f => f.key === 'qaEndDate' && f.isActive);
 
   if (!devStartConfig && !devEndConfig && !qaStartConfig && !qaEndConfig && !hasAnyDeploymentDate) {
     return <p className="text-muted-foreground text-center text-xs py-2">No date fields are active.</p>
@@ -1541,17 +1609,11 @@ function TimelineSection({
       {qaStartConfig && <DateField fieldKey="qaStartDate" label={qaStartConfig.label} />}
       {qaEndConfig && <DateField fieldKey="qaEndDate" label={qaEndConfig.label} />}
 
-      {((devStartConfig || devEndConfig) || (qaStartConfig || qaEndConfig)) && hasAnyDeploymentDate && <Separator className="my-2"/>}
+      {(devStartConfig || devEndConfig || qaStartConfig || qaEndConfig) && hasAnyDeploymentDate && <Separator className="my-2"/>}
 
-      {task.deploymentDates && Object.entries(task.deploymentDates).map(([env, date]) => {
-          if (!isValidDate(date)) return null;
-          return (
-              <div key={env} className="flex justify-between items-center">
-                  <span className="text-muted-foreground capitalize">{env} Deployed</span>
-                  <span className="pr-2">{format(new Date(date), 'PPP')}</span>
-              </div>
-          )
-      })}
+      {task.deploymentDates && uiConfig.environments.map(env => (
+          <DeploymentDateField key={env} env={env} date={task.deploymentDates?.[env]} />
+      ))}
     </div>
   );
 }
@@ -1567,5 +1629,6 @@ function TimelineSection({
 
 
     
+
 
 
