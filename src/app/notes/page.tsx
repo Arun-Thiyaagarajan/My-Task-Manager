@@ -148,13 +148,13 @@ export default function NotesPage() {
       <div className="max-w-2xl mx-auto mb-12">
         <Card className="shadow-lg">
           <form onSubmit={handleSubmit(onSubmit)}>
-             <CardContent className="p-4">
-               <div className="relative">
+             <CardContent className="p-4 pt-6">
+               <div className="relative space-y-2">
                  {isCreating && (
                     <Input
                         {...register('title')}
                         placeholder="Title"
-                        className="text-lg font-semibold border-0 focus-visible:ring-0 shadow-none px-2 h-auto mb-2"
+                        className="text-lg font-semibold border-0 focus-visible:ring-0 shadow-none px-2 h-auto"
                     />
                  )}
                  <Textarea
@@ -307,3 +307,5 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
     </Card>
   );
 }
+
+    
