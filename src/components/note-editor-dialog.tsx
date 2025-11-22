@@ -52,12 +52,19 @@ export function NoteEditorDialog({
       applyFormat(type, descriptionEditorRef.current);
     }
   };
+  
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+      }
+  };
 
   if (!isOpen) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl flex flex-col max-h-[90vh]">
+      <DialogContent className="sm:max-w-2xl flex flex-col max-h-[90vh]" onKeyDown={handleKeyDown}>
         <DialogHeader>
           <DialogTitle>{note?.id ? 'Edit Note' : 'New Note'}</DialogTitle>
         </DialogHeader>
