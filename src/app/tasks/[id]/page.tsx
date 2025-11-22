@@ -1408,8 +1408,8 @@ function TaskDetailSection({ title, people, setPersonInView, isDeveloper }: {
         <h4 className="text-sm font-semibold text-muted-foreground mb-2">{title}</h4>
         <div className="flex flex-wrap gap-4">
             {people.length > 0 ? (
-                people.map((person) => (
-                  <Tooltip key={`${isDeveloper ? 'dev' : 'test'}-${person.id}`}>
+                people.map((person, index) => (
+                  <Tooltip key={`${isDeveloper ? 'dev' : 'test'}-${person.id}-${index}`}>
                     <TooltipTrigger asChild>
                       <button 
                         className="flex items-center gap-2 p-1 -m-1 rounded-md hover:bg-muted/50 transition-colors disabled:cursor-not-allowed disabled:opacity-70"
@@ -1567,3 +1567,4 @@ function TimelineSection({
 
 
     
+
