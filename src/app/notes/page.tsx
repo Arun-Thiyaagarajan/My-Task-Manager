@@ -2,13 +2,14 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { addNote, getNotes, updateNote, deleteNote, getUiConfig, updateNoteLayouts } from '@/lib/data';
 import type { Note, UiConfig, NoteLayout } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Edit, Trash2, StickyNote, PlusCircle } from 'lucide-react';
+import { Edit, Trash2, StickyNote, Send, Check } from 'lucide-react';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
 import { cn, formatTimestamp } from '@/lib/utils';
 import {
@@ -94,7 +95,7 @@ function NoteEditorDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSave}>Save</Button>
+          <Button onClick={handleSave}>Save Changes</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -144,8 +145,26 @@ export default function NotesPage() {
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
   const [noteToEdit, setNoteToEdit] = useState<Partial<Note> | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
-
+  const [newNoteContent, setNewNoteContent] = useState('');
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const newNoteRef = useRef<HTMLTextAreaElement>(null);
+  const [commandKey, setCommandKey] = useState('Ctrl');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+        setCommandKey(navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? '⌘' : 'Ctrl');
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === '/') {
+            e.preventDefault();
+            newNoteRef.current?.focus();
+        }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const refreshData = useCallback(() => {
     setNotes(getNotes());
@@ -165,23 +184,29 @@ export default function NotesPage() {
     };
   }, [refreshData]);
   
-  const handleOpenNewNote = () => {
-      setNoteToEdit({});
-      setIsEditorOpen(true);
-  }
+  useEffect(() => {
+    if (searchParams.get('focus') === 'true') {
+        newNoteRef.current?.focus();
+    }
+  }, [searchParams]);
 
   const handleEditNote = (note: Note) => {
     setNoteToEdit(note);
     setIsEditorOpen(true);
   };
+  
+  const handleSaveNewNote = () => {
+    if (!newNoteContent.trim()) return;
+    addNote({ content: newNoteContent });
+    toast({ variant: 'success', title: 'Note Saved' });
+    setNewNoteContent('');
+    refreshData();
+  };
 
-  const handleSaveNote = (id: string | undefined, content: string) => {
+  const handleSaveEditedNote = (id: string | undefined, content: string) => {
     if (id) {
         updateNote(id, { content });
         toast({ variant: 'success', title: 'Note Updated' });
-    } else {
-        addNote({ content });
-        toast({ variant: 'success', title: 'Note Saved' });
     }
     refreshData();
   };
@@ -214,40 +239,64 @@ export default function NotesPage() {
         <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <StickyNote className="h-7 w-7"/> Notes
         </h1>
-        <Button onClick={handleOpenNewNote} size="sm">
-          <PlusCircle className="h-4 w-4 mr-2" />
-          New Note
-        </Button>
       </div>
 
-      {notes.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg mt-8">
-            <p className="text-lg font-semibold">No notes yet.</p>
-            <p className="mt-1">Click "New Note" to create your first note.</p>
+      <div className="pb-28">
+        {notes.length === 0 ? (
+          <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg mt-8">
+              <p className="text-lg font-semibold">No notes yet.</p>
+              <p className="mt-1">Use the bar below to create your first note.</p>
+          </div>
+        ) : (
+          <ResponsiveGridLayout
+              className="layout"
+              layouts={layouts}
+              breakpoints={{lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0}}
+              cols={{lg: 12, md: 10, sm: 6, xs: 4, xxs: 2}}
+              rowHeight={30}
+              onLayoutChange={onLayoutChange}
+              isDraggable
+              isResizable
+          >
+              {notes.map(note => (
+                  <div key={note.id} data-grid={note.layout}>
+                      <NoteCard 
+                          note={note} 
+                          uiConfig={uiConfig} 
+                          onEdit={handleEditNote} 
+                          onDelete={handleDeleteNote} 
+                      />
+                  </div>
+              ))}
+          </ResponsiveGridLayout>
+        )}
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 z-10 border-t bg-background/95 backdrop-blur-sm">
+        <div className="container mx-auto flex max-w-3xl items-start gap-4 px-4 py-3 sm:px-6 lg:px-8">
+            <div className="relative flex-1">
+                <Textarea
+                    ref={newNoteRef}
+                    value={newNoteContent}
+                    onChange={(e) => setNewNoteContent(e.target.value)}
+                    placeholder={`Take a note... (${commandKey} + /)`}
+                    className="min-h-[52px] pr-12 pb-12"
+                    onKeyDown={(e) => {
+                      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSaveNewNote();
+                      }
+                    }}
+                    enableHotkeys
+                />
+                <TextareaToolbar onFormatClick={(type) => newNoteRef.current && applyFormat(type, newNoteRef.current)} />
+            </div>
+            <Button onClick={handleSaveNewNote} disabled={!newNoteContent.trim()}>
+                <Send className="h-4 w-4 mr-2" />
+                Save
+            </Button>
         </div>
-      ) : (
-        <ResponsiveGridLayout
-            className="layout"
-            layouts={layouts}
-            breakpoints={{lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0}}
-            cols={{lg: 12, md: 10, sm: 6, xs: 4, xxs: 2}}
-            rowHeight={30}
-            onLayoutChange={onLayoutChange}
-            isDraggable
-            isResizable
-        >
-            {notes.map(note => (
-                <div key={note.id} data-grid={note.layout}>
-                    <NoteCard 
-                        note={note} 
-                        uiConfig={uiConfig} 
-                        onEdit={handleEditNote} 
-                        onDelete={handleDeleteNote} 
-                    />
-                </div>
-            ))}
-        </ResponsiveGridLayout>
-      )}
+      </div>
 
       <NoteEditorDialog 
         note={noteToEdit} 
@@ -258,7 +307,7 @@ export default function NotesPage() {
             }
             setIsEditorOpen(isOpen);
         }}
-        onSave={handleSaveNote}
+        onSave={handleSaveEditedNote}
       />
     </div>
   );
