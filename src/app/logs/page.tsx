@@ -185,7 +185,10 @@ export default function LogsPage() {
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
-                                                    {monthLogs.map(log => (
+                                                    {monthLogs.map(log => {
+                                                        const isNoteLog = log.message.toLowerCase().includes('note');
+
+                                                        return (
                                                         <TableRow key={log.id}>
                                                             <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
                                                                 {formatTimestamp(log.timestamp, uiConfig.timeFormat)}
@@ -194,11 +197,18 @@ export default function LogsPage() {
                                                                 <p className="whitespace-pre-wrap">{parseLogMessage(log.message)}</p>
                                                             </TableCell>
                                                             <TableCell className="text-right">
-                                                                {log.taskId ? (
+                                                                {log.taskId && !isNoteLog ? (
                                                                     <Button asChild variant="outline" size="sm">
                                                                         <Link href={`/tasks/${log.taskId}`}>
                                                                             <LinkIcon className="mr-2 h-3 w-3" />
                                                                             View Task
+                                                                        </Link>
+                                                                    </Button>
+                                                                ) : isNoteLog ? (
+                                                                     <Button asChild variant="outline" size="sm">
+                                                                        <Link href="/notes">
+                                                                            <StickyNote className="mr-2 h-3 w-3" />
+                                                                            View Notes
                                                                         </Link>
                                                                     </Button>
                                                                 ) : log.message.includes('to the bin') ? (
@@ -220,7 +230,7 @@ export default function LogsPage() {
                                                                 )}
                                                             </TableCell>
                                                         </TableRow>
-                                                    ))}
+                                                    )})}
                                                 </TableBody>
                                             </Table>
                                         </div>

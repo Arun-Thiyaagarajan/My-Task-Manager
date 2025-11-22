@@ -1,13 +1,14 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { addNote, getNotes, updateNote, deleteNote, getUiConfig, updateNoteLayouts, resetNotesLayout } from '@/lib/data';
+import { addNote, getNotes, updateNote, deleteNote, getUiConfig, updateNoteLayouts, resetNotesLayout, deleteMultipleNotes } from '@/lib/data';
 import type { Note, UiConfig, NoteLayout } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { StickyNote, LayoutGrid, PlusCircle } from 'lucide-react';
+import { StickyNote, LayoutGrid, PlusCircle, CheckSquare, X, Trash2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -15,12 +16,26 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { TextareaToolbar, applyFormat } from '@/components/ui/textarea-toolbar';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { NoteCard } from '@/components/note-card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -96,6 +111,9 @@ export default function NotesPage() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const { toast } = useToast();
   const [commandKey, setCommandKey] = useState('Ctrl');
+  
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedNoteIds, setSelectedNoteIds] = useState<string[]>([]);
   
   const handleOpenNewNoteDialog = useCallback(() => {
     setNoteToEdit(null);
@@ -175,6 +193,26 @@ export default function NotesPage() {
   const onLayoutChange = (layout: any, layouts: any) => {
     updateNoteLayouts(layouts.lg);
   };
+  
+  const handleToggleSelectMode = () => {
+    setIsSelectMode(prev => !prev);
+    setSelectedNoteIds([]);
+  };
+
+  const handleToggleSelectAll = (checked: boolean | 'indeterminate') => {
+    setSelectedNoteIds(checked === true ? notes.map(n => n.id) : []);
+  };
+  
+  const handleBulkDelete = () => {
+    deleteMultipleNotes(selectedNoteIds);
+    toast({
+        variant: 'success',
+        title: `${selectedNoteIds.length} Note(s) Deleted`,
+        description: 'The selected notes have been moved to the bin.',
+    });
+    refreshData();
+    setIsSelectMode(false);
+  };
 
   if (isLoading || !uiConfig) {
     return <LoadingSpinner text="Loading notes..." />;
@@ -191,8 +229,13 @@ export default function NotesPage() {
             <StickyNote className="h-7 w-7"/> Notes
         </h1>
          <div className="flex items-center gap-2">
-            <Button onClick={handleOpenNewNoteDialog} size="sm">
-                <PlusCircle className="mr-2 h-4 w-4" /> New Note
+            <Button
+                variant={isSelectMode ? 'secondary' : 'outline'}
+                size="sm"
+                onClick={handleToggleSelectMode}
+            >
+              {isSelectMode ? <X className="h-4 w-4 mr-2" /> : <CheckSquare className="h-4 w-4 mr-2" />}
+              {isSelectMode ? 'Cancel' : 'Select'}
             </Button>
             <Button variant="outline" size="sm" onClick={handleResetLayout}>
                 <LayoutGrid className="mr-2 h-4 w-4"/>
@@ -210,6 +253,65 @@ export default function NotesPage() {
             </button>
         </div>
 
+      {isSelectMode && (
+          <div className="sticky top-[68px] z-30 mb-4">
+            <Card className="border-primary/50 bg-background/90 backdrop-blur-sm shadow-lg">
+              <CardContent className="p-3 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="select-all-notes"
+                    checked={
+                      notes.length > 0 &&
+                      selectedNoteIds.length === notes.length
+                        ? true
+                        : selectedNoteIds.length > 0
+                        ? 'indeterminate'
+                        : false
+                    }
+                    onCheckedChange={handleToggleSelectAll}
+                    aria-label="Select all notes"
+                    disabled={notes.length === 0}
+                  />
+                  <Label
+                    htmlFor="select-all-notes"
+                    className="text-sm font-medium"
+                  >
+                    {selectedNoteIds.length > 0
+                      ? `${selectedNoteIds.length} of ${notes.length} selected`
+                      : `Select all notes`}
+                  </Label>
+                </div>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm" disabled={selectedNoteIds.length === 0}>
+                      <Trash2 className="mr-2 h-4 w-4" /> Move to Bin
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Move to Bin?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to move the selected{' '}
+                        {selectedNoteIds.length} note(s) to the bin? You
+                        can restore them later.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleBulkDelete}
+                        className="bg-destructive hover:bg-destructive/90"
+                      >
+                        Move to Bin
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </CardContent>
+            </Card>
+          </div>
+      )}
+      
       <div className="pb-8">
         {notes.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg mt-8">
@@ -229,12 +331,27 @@ export default function NotesPage() {
               draggableCancel=".note-card-footer"
           >
               {notes.map(note => (
-                  <div key={note.id} data-grid={note.layout}>
+                  <div key={note.id} data-grid={note.layout} className="relative group/card-wrapper">
+                      {isSelectMode && (
+                          <div className="absolute top-2 left-2 z-10">
+                            <Checkbox
+                                checked={selectedNoteIds.includes(note.id)}
+                                onCheckedChange={checked => {
+                                    setSelectedNoteIds(prev =>
+                                        checked ? [...prev, note.id] : prev.filter(id => id !== note.id)
+                                    );
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                className={cn("bg-background/80 h-5 w-5", selectedNoteIds.includes(note.id) && "bg-primary")}
+                            />
+                          </div>
+                      )}
                       <NoteCard 
                           note={note} 
                           uiConfig={uiConfig} 
                           onEdit={handleEditNote} 
-                          onDelete={handleDeleteNote} 
+                          onDelete={handleDeleteNote}
+                          isSelected={selectedNoteIds.includes(note.id)}
                       />
                   </div>
               ))}

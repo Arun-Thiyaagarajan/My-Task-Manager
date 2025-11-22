@@ -426,14 +426,14 @@ const generateUiConfigUpdateLogs = (oldConfig: UiConfig, newConfig: UiConfig): s
 
             if (oldOptionsString !== newOptionsString) {
                 const oldOptions = new Map((oldField.options || []).map(o => [o.value, o.label]));
-                const newOptions = new Map((newField.options || []).map(o => [o.value, o.label]));
+                const newOptions = new Map((newField.options || []).map(o => ({ value: o.value, label: o.label })));
                 
                 const optionChanges: string[] = [];
-                newOptions.forEach((label, value) => {
-                    if (!oldOptions.has(value)) {
-                        optionChanges.push(`  - Added option: "${label}"`);
-                    } else if (oldOptions.get(value) !== label) {
-                        optionChanges.push(`  - Renamed option from "${oldOptions.get(value)}" to "${label}"`);
+                newOptions.forEach((option) => {
+                    if (!oldOptions.has(option.value)) {
+                        optionChanges.push(`  - Added option: "${option.label}"`);
+                    } else if (oldOptions.get(option.value) !== option.label) {
+                        optionChanges.push(`  - Renamed option from "${oldOptions.get(option.value)}" to "${option.label}"`);
                     }
                 });
                 oldOptions.forEach((label, value) => {
@@ -1544,9 +1544,8 @@ export function addNote(noteData: Partial<Omit<Note, 'id' | 'createdAt' | 'updat
     
     const calculateNewY = (): number => {
         if (notes.length === 0) {
-            return 0; // Return 0 if there are no notes.
+            return 0;
         }
-        // Find the maximum y + h of all notes to place the new one at the bottom.
         return Math.max(0, ...notes.map(n => (n.layout?.y || 0) + (n.layout?.h || 0)));
     };
 
@@ -1625,6 +1624,39 @@ export function deleteNote(id: string): boolean {
     return true;
 }
 
+export function deleteMultipleNotes(ids: string[]): boolean {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    if (!companyData || !companyData.notes) return false;
+
+    const notesToDelete = companyData.notes.filter(note => ids.includes(note.id));
+    if (notesToDelete.length === 0) return false;
+
+    const now = new Date().toISOString();
+    notesToDelete.forEach(note => {
+        const asTask: Task = {
+            id: note.id,
+            title: `Note: ${note.title || 'Untitled'}`,
+            description: note.content,
+            status: 'Archived',
+            createdAt: note.createdAt,
+            updatedAt: now,
+            deletedAt: now,
+        };
+        companyData.trash.unshift(asTask);
+        const logTitle = note.title || `note created at ${format(new Date(note.createdAt), 'p')}`;
+        _addLog(companyData, { message: `Deleted note: **"${logTitle}"**.` });
+    });
+    
+    _addLog(companyData, { message: `Moved ${notesToDelete.length} note(s) to the bin.` });
+
+    companyData.notes = companyData.notes.filter(note => !ids.includes(note.id));
+    
+    setAppData(data);
+    return true;
+}
+
+
 export function updateNoteLayouts(layouts: NoteLayout[]): void {
   const data = getAppData();
   const companyData = data.companyData[data.activeCompanyId];
@@ -1654,9 +1686,9 @@ export function resetNotesLayout(): boolean {
     sortedNotes.forEach((note, index) => {
         note.layout = {
             i: note.id,
-            x: (index % 4) * 3,
-            y: Math.floor(index / 4) * 4,
-            w: 3,
+            x: (index % 3) * 4, // 3 columns
+            y: Math.floor(index / 3) * 4,
+            w: 4,
             h: 4,
             minW: 2,
             minH: 2

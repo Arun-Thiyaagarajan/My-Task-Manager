@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import type { Note, UiConfig } from '@/lib/types';
@@ -25,9 +26,10 @@ interface NoteCardProps {
   uiConfig: UiConfig;
   onEdit: (note: Note) => void;
   onDelete: (noteId: string) => void;
+  isSelected?: boolean;
 }
 
-export function NoteCard({ note, uiConfig, onEdit, onDelete }: NoteCardProps) {
+export function NoteCard({ note, uiConfig, onEdit, onDelete, isSelected }: NoteCardProps) {
   const handleEditClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onEdit(note);
@@ -47,7 +49,13 @@ export function NoteCard({ note, uiConfig, onEdit, onDelete }: NoteCardProps) {
   }
 
   return (
-    <Card className="flex flex-col h-full group w-full overflow-hidden" onDoubleClick={handleDoubleClick}>
+    <Card 
+        className={cn(
+            "flex flex-col h-full group w-full overflow-hidden transition-all duration-300", 
+            isSelected && "shadow-lg shadow-primary/20 border-primary/50"
+        )} 
+        onDoubleClick={handleDoubleClick}
+    >
       <CardContent className="p-4 flex-grow overflow-y-auto cursor-pointer">
         <RichTextViewer text={note.content} />
       </CardContent>
