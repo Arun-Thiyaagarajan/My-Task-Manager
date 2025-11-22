@@ -128,7 +128,7 @@ export const RichTextViewer = memo(({ text }: RichTextViewerProps) => {
                 } else if (strike) {
                     inlineResult.push(<s key={lastIndex}>{strike}</s>);
                 } else if (code) {
-                    inlineResult.push(<code key={lastIndex} className="bg-[#282a36] text-[#f1fa8c] rounded-sm px-1.5 py-0.5 font-mono text-xs">{code}</code>);
+                    inlineResult.push(<code key={lastIndex} className="bg-muted text-foreground rounded-sm px-1.5 py-0.5 font-mono text-sm font-semibold">{code}</code>);
                 } else if (linkUrl !== undefined) {
                     inlineResult.push(<a href={linkUrl} key={lastIndex} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{bareLinkOrLinkText}</a>);
                 } else if (fullMatch.startsWith('http')) {
@@ -168,5 +168,3 @@ export const RichTextViewer = memo(({ text }: RichTextViewerProps) => {
 });
 
 RichTextViewer.displayName = 'RichTextViewer';
-
-    
