@@ -36,7 +36,8 @@ export function FloatingNotes() {
         }
 
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (pathname === '/notes') return; // Don't handle shortcut on notes page itself
+            // Do not handle shortcut on notes page itself
+            if (pathname === '/notes') return; 
             
             if ((e.metaKey || e.ctrlKey) && e.key === '/') {
                 e.preventDefault();
@@ -153,5 +154,3 @@ export function FloatingNotes() {
         </>
     );
 }
-
-    

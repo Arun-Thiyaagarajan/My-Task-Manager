@@ -17,6 +17,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
@@ -50,9 +51,19 @@ export default function NotesPage() {
   
   useEffect(() => {
     if (typeof window !== 'undefined') {
-        setCommandKey(navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? '⌘' : 'Ctrl');
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        setCommandKey(isMac ? '⌘' : 'Ctrl');
     }
-  }, []);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === '/') {
+            e.preventDefault();
+            handleOpenNewNoteDialog();
+        }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleOpenNewNoteDialog]);
 
   const refreshData = useCallback(() => {
     setNotes(getNotes());
@@ -139,7 +150,10 @@ export default function NotesPage() {
   }
 
   const layouts = {
-      lg: notes.map(note => note.layout)
+      lg: notes.map(note => note.layout),
+      sm: notes.map(note => ({ ...note.layout, x: (note.layout.x / 2) % 2, w: 1 })),
+      xs: notes.map(note => ({ ...note.layout, x: 0, w: 1 })),
+      xxs: notes.map(note => ({ ...note.layout, x: 0, w: 1 })),
   };
 
   return (
@@ -260,8 +274,6 @@ export default function NotesPage() {
               cols={{lg: 12, md: 10, sm: 2, xs: 1, xxs: 1}}
               rowHeight={30}
               onLayoutChange={onLayoutChange}
-              isDraggable
-              isResizable
               draggableCancel=".note-card-footer"
           >
               {notes.map(note => (
@@ -307,5 +319,3 @@ export default function NotesPage() {
     </div>
   );
 }
-
-    
