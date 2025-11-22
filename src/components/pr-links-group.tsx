@@ -132,14 +132,14 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repository
                         </h4>
                         {prIds.length > 0 ? (
                             <div className="flex flex-wrap gap-2">
-                            {prIds.map((id) => {
+                            {prIds.map((id, index) => {
                                 const baseUrl = repoConfig ? repoConfig.baseUrl : '';
                                 const canBeLinked = baseUrl && id;
                                 const url = canBeLinked ? `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}${id}` : '#';
 
                                 return (
                                 <Badge
-                                    key={`${repo}-${env}-${id}`}
+                                    key={`${repo}-${env}-${id}-${index}`}
                                     variant="outline"
                                     className={cn(
                                     "font-normal py-1 px-2.5 group/badge relative hover:bg-muted/50 transition-all duration-300",
