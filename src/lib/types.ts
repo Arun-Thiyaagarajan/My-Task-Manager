@@ -1,3 +1,4 @@
+
 import type { TASK_STATUSES, ENVIRONMENTS } from './constants';
 
 export type TaskStatus = string;
@@ -103,6 +104,7 @@ export interface Task {
   deploymentDates?: {
     [key: string]: string | null | undefined;
   };
+  relevantEnvironments?: string[];
   developers?: string[]; // Storing Person IDs
   testers?: string[]; // Storing Person IDs
   comments?: Comment[];

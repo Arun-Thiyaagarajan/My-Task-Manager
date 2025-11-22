@@ -199,6 +199,9 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   const statusConfig = getStatusConfig(task.status);
   const { Icon, cardClassName, iconColorClassName } = statusConfig;
 
+  const relevantEnvs = task.relevantEnvironments?.length ? task.relevantEnvironments : uiConfig?.environments || [];
+
+
   return (
     <>
       <div
@@ -369,7 +372,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                 <EnvironmentStatus
                   deploymentStatus={task.deploymentStatus}
                   deploymentDates={task.deploymentDates}
-                  configuredEnvs={uiConfig?.environments || []}
+                  configuredEnvs={relevantEnvs}
                   size="sm"
                   interactive={true}
                   onToggle={handleToggleDeployment}

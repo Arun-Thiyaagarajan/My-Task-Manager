@@ -62,6 +62,7 @@ const getInitialTaskData = (task?: Partial<Task>) => {
             tags: [],
             prLinks: {},
             deploymentStatus: {},
+            relevantEnvironments: ['dev', 'stage', 'production'],
             attachments: [],
             deploymentDates: {},
             customFields: {},
@@ -88,6 +89,7 @@ const getInitialTaskData = (task?: Partial<Task>) => {
         customFields: task.customFields || {},
         prLinks: task.prLinks || {},
         deploymentStatus: task.deploymentStatus || {},
+        relevantEnvironments: task.relevantEnvironments || ['dev', 'stage', 'production'],
         developers: task.developers || [],
         testers: task.testers || [],
         tags: task.tags || [],
@@ -347,6 +349,8 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
       options = (uiConfig?.taskStatuses || []).map(s => ({ value: s, label: s}));
       // Status field should not be sorted alphabetically
       return options;
+    } else if (field.key === 'relevantEnvironments') {
+        options = (uiConfig?.environments || []).map(e => ({ value: e, label: e }));
     } else if(field.key === 'developers') {
         options = (developersList || []).map(d => ({ value: d.id, label: d.name }));
     } else if(field.key === 'testers') {
@@ -534,6 +538,8 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
 
   const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
   const deploymentFieldConfig = uiConfig.fields.find(f => f.key === 'deploymentStatus');
+  const relevantEnvsFieldConfig = uiConfig.fields.find(f => f.key === 'relevantEnvironments');
+
 
   const groupedFields = uiConfig.fields
     .filter(f => f.isActive && f.key !== 'comments') // Filter out comments here
@@ -662,6 +668,8 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
+                            {relevantEnvsFieldConfig && relevantEnvsFieldConfig.isActive && renderField(relevantEnvsFieldConfig)}
+
                             {allConfiguredEnvs.map(env => (
                                 <div key={env} className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4 p-3 border rounded-md">
                                     <FormField

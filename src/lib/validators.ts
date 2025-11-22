@@ -1,3 +1,4 @@
+
 import { z } from 'zod';
 import { TASK_STATUSES } from './constants';
 import type { UiConfig } from './types';
@@ -61,6 +62,7 @@ export const createTaskSchema = (uiConfig: UiConfig) => {
     
     deploymentStatus: z.record(z.string(), z.boolean().optional()).optional(),
     deploymentDates: z.record(z.string(), z.coerce.date().optional().nullable()).optional(),
+    relevantEnvironments: z.array(z.string()).optional(),
     
     prLinks: z.record(z.string(), prLinkSchema.optional()).optional(),
 

@@ -777,7 +777,7 @@ const handleCopyDescription = () => {
 
   const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
 
-  const allConfiguredEnvs = uiConfig.environments || [];
+  const allConfiguredEnvs = task.relevantEnvironments?.length ? task.relevantEnvironments : uiConfig.environments || [];
   
   const customFields = uiConfig.fields.filter(f => f.isCustom && f.isActive && task.customFields && typeof task.customFields[f.key] !== 'undefined' && task.customFields[f.key] !== null && task.customFields[f.key] !== '');
   
@@ -1084,7 +1084,7 @@ const handleCopyDescription = () => {
                       )}
                     </CardHeader>
                     <CardContent>
-                      <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} configuredEnvs={uiConfig.environments} repositoryConfigs={uiConfig.repositoryConfigs} onUpdate={handlePrLinksUpdate} isEditing={isEditingPrLinks && !isBinned} />
+                      <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} configuredEnvs={allConfiguredEnvs} repositoryConfigs={uiConfig.repositoryConfigs} onUpdate={handlePrLinksUpdate} isEditing={isEditingPrLinks && !isBinned} />
                     </CardContent>
                   </Card>
                 )}
@@ -1601,6 +1601,9 @@ function TimelineSection({
     return <p className="text-muted-foreground text-center text-xs py-2">No date fields are active.</p>
   }
   
+  const relevantEnvs = task.relevantEnvironments?.length ? task.relevantEnvironments : uiConfig.environments || [];
+
+
   return (
     <div className="space-y-2 text-sm">
       {devStartConfig && <DateField fieldKey="devStartDate" label={devStartConfig.label} />}
@@ -1611,24 +1614,9 @@ function TimelineSection({
 
       {(devStartConfig || devEndConfig || qaStartConfig || qaEndConfig) && hasAnyDeploymentDate && <Separator className="my-2"/>}
 
-      {task.deploymentDates && uiConfig.environments.map(env => (
+      {task.deploymentDates && relevantEnvs.map(env => (
           <DeploymentDateField key={env} env={env} date={task.deploymentDates?.[env]} />
       ))}
     </div>
   );
 }
-    
-
-
-
-
-
-    
-
-
-
-
-    
-
-
-
