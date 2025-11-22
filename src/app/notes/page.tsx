@@ -164,8 +164,8 @@ export default function NotesPage() {
 
   const layouts = {
       lg: notes.map(note => note.layout),
-      md: notes.map(note => ({ ...note.layout, x: (note.layout.x / 2) % 2, w: 1 })),
-      sm: notes.map(note => ({ ...note.layout, x: (note.layout.x / 2) % 2, w: 1 })),
+      md: notes.map((note, i) => ({ ...note.layout, x: i % 2, w: 1 })),
+      sm: notes.map((note, i) => ({ ...note.layout, x: i % 2, w: 1 })),
       xs: notes.map(note => ({ ...note.layout, x: 0, w: 1 })),
       xxs: notes.map(note => ({ ...note.layout, x: 0, w: 1 })),
   };
@@ -285,7 +285,7 @@ export default function NotesPage() {
               className="layout"
               layouts={layouts}
               breakpoints={{lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0}}
-              cols={{lg: 12, md: 10, sm: 2, xs: 1, xxs: 1}}
+              cols={{lg: 12, md: 2, sm: 2, xs: 1, xxs: 1}}
               rowHeight={30}
               onLayoutChange={onLayoutChange}
               draggableCancel=".note-card-footer, .note-card-content"
