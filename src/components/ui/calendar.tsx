@@ -15,7 +15,11 @@ export type CalendarProps = React.ComponentProps<typeof DayPicker>
 function CustomCaption(props: CaptionProps) {
   const { fromYear = 2000, toYear = 2100 } = useDayPicker();
   const { goToMonth, nextMonth, previousMonth } = useNavigation();
-  const months = Array.from({ length: 12 }, (_, i) => new Date(new Date().getFullYear(), i, 1));
+  const months = React.useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, i) => new Date(new Date().getFullYear(), i, 1)),
+    []
+  )
   const years = Array.from({ length: (toYear - fromYear) + 1 }, (_, i) => fromYear + i);
   
   const handleMonthChange = (value: string) => {
