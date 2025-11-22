@@ -14,6 +14,57 @@ interface RichTextViewerProps {
 const CodeBlock = ({ content }: { content: string }) => {
     const { toast } = useToast();
     const [isCopied, setIsCopied] = React.useState(false);
+    
+    // Dracula theme inspired colors
+    const colors = {
+        keyword: '#ff79c6', // Pink
+        string: '#f1fa8c',  // Yellow
+        function: '#50fa7b', // Green
+        comment: '#6272a4',  // Grayish Blue
+        number: '#bd93f9',   // Purple
+        operator: '#ff79c6', // Pink
+        punctuation: '#f8f8f2', // Foreground
+    };
+
+    const highlightedCode = useMemo(() => {
+        const keywords = ['const', 'let', 'var', 'function', 'return', 'if', 'else', 'for', 'while', 'import', 'from', 'export', 'default', 'async', 'await', 'new'];
+        const keywordRegex = new RegExp(`\\b(${keywords.join('|')})\\b`, 'g');
+        const functionCallRegex = /(\w+)\s*\(/g;
+        const stringRegex = /(["'`])(.*?)\1/g;
+        const commentRegex = /(\/\/.*|\/\*[\s\S]*?\*\/)/g;
+        const numberRegex = /\b\d+\b/g;
+        const operatorRegex = /([=+\-*/<>!&|{}()\[\];:,])/g;
+
+        const parts = content.split(
+            /(```[\s\S]*?```|\/\/.*|\/\*[\s\S]*?\*\/|["'`].*?["'`]|\b(?:const|let|var|function|return|if|else|for|while|import|from|export|default|async|await|new)\b|\w+\s*\(|[=+\-*/<>!&|{}()\[\];:,]|\b\d+\b)/
+        );
+
+        return parts.map((part, index) => {
+            if (!part) return null;
+            if (part.match(keywordRegex)) {
+                return <span key={index} style={{ color: colors.keyword }}>{part}</span>;
+            }
+            if (part.match(stringRegex)) {
+                return <span key={index} style={{ color: colors.string }}>{part}</span>;
+            }
+            if (part.match(commentRegex)) {
+                return <span key={index} style={{ color: colors.comment }}>{part}</span>;
+            }
+            if (part.match(functionCallRegex)) {
+                const functionName = part.replace('(', '');
+                return <span key={index}><span style={{ color: colors.function }}>{functionName}</span>(</span>;
+            }
+            if (part.match(numberRegex)) {
+                return <span key={index} style={{ color: colors.number }}>{part}</span>
+            }
+            if (part.match(operatorRegex)) {
+                return <span key={index} style={{ color: colors.operator }}>{part}</span>;
+            }
+            return part;
+        });
+
+    }, [content, colors]);
+
 
     const handleCopy = () => {
         navigator.clipboard.writeText(content);
@@ -25,7 +76,7 @@ const CodeBlock = ({ content }: { content: string }) => {
     return (
         <div className="bg-[#282a36] text-[#f8f8f2] border border-black/20 dark:border-white/20 rounded-md my-2 relative font-mono text-sm group/code">
             <pre className="p-3 pl-4 pr-10 overflow-x-auto">
-                <code>{content}</code>
+                <code>{highlightedCode}</code>
             </pre>
             <Button
                 variant="ghost"
