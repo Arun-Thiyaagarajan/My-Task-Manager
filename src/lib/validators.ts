@@ -148,5 +148,3 @@ export const taskSchema = createTaskSchema({
   repositoryConfigs: [],
   taskStatuses: [],
 });
-
-    

@@ -6,7 +6,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { getNotes, addNote, updateNote, deleteNote } from '@/lib/data';
-import { getNoteTitle } from '@/ai/flows/get-note-title-flow';
 import type { Note } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -88,35 +87,12 @@ export default function NotesPage() {
   }, []);
   
   const onSubmit = async (data: NoteFormData) => {
-    const { title, content } = data;
-
-    if (!title?.trim() && !content?.trim()) {
-        setIsCreating(false);
-        reset({ title: '', content: '' });
-        return;
-    }
-
-    try {
-      let finalTitle = title;
-      if (!finalTitle && content && content.trim()) {
-        try {
-          const result = await getNoteTitle({ content: content });
-          finalTitle = result.title;
-          toast({ variant: 'success', title: "AI Generated a Title!", description: "A title was automatically created for your note." });
-        } catch (e) {
-          console.error("AI title generation failed, saving without title.", e);
-          toast({ variant: 'warning', title: "AI Title Generation Failed", description: "Could not generate a title. The note was saved without one." });
-        }
-      }
-      addNote({ title: finalTitle, content: content });
-      toast({ variant: 'success', title: "Note created successfully" });
-      reset({ title: '', content: '' });
-      localStorage.removeItem(DRAFT_NOTE_STORAGE_KEY);
-      setIsCreating(false);
-      refreshNotes();
-    } catch(e: any) {
-        toast({ variant: 'destructive', title: "Error creating note", description: e.message });
-    }
+    addNote({ title: data.title, content: data.content });
+    toast({ variant: 'success', title: "Note created successfully" });
+    reset({ title: '', content: '' });
+    localStorage.removeItem(DRAFT_NOTE_STORAGE_KEY);
+    setIsCreating(false);
+    refreshNotes();
   };
 
   const handleUpdateNote = (id: string, data: Partial<Note>) => {
@@ -175,7 +151,7 @@ export default function NotesPage() {
                  {isCreating && (
                     <Input
                         {...register('title')}
-                        placeholder="Title (or let AI generate one)"
+                        placeholder="Title"
                         className="text-lg font-semibold border-0 focus-visible:ring-0 shadow-none px-2 h-auto"
                     />
                  )}
@@ -259,20 +235,7 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
   }, [note, isEditing, reset]);
 
   const handleUpdateSubmit = async (data: NoteFormData) => {
-    let finalTitle = data.title;
-    if (!finalTitle && data.content && data.content.trim() !== '') {
-        try {
-          const { toast } = useToast();
-          const result = await getNoteTitle({ content: data.content });
-          finalTitle = result.title;
-          toast({ variant: 'success', title: "AI Generated a Title!", description: "A title was automatically created for your note." });
-        } catch (e) {
-          const { toast } = useToast();
-          console.error("AI title generation failed, saving without title.", e);
-          toast({ variant: 'warning', title: "AI Title Generation Failed", description: "Could not generate a title. The note was saved without one." });
-        }
-    }
-    onUpdate(note.id, { title: finalTitle, content: data.content });
+    onUpdate(note.id, { title: data.title, content: data.content });
   };
   
   return (
@@ -280,7 +243,7 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
       <CardContent className="p-4 flex-grow cursor-pointer" onClick={!isEditing ? onEditStart : undefined}>
         {isEditing ? (
           <form onSubmit={handleSubmit(handleUpdateSubmit)} className="space-y-2">
-            <Input {...register('title')} placeholder="Title (or let AI generate one)" className="text-md font-semibold border-0 focus-visible:ring-0 shadow-none px-1 h-auto"/>
+            <Input {...register('title')} placeholder="Title" className="text-md font-semibold border-0 focus-visible:ring-0 shadow-none px-1 h-auto"/>
             {errors.title && <p className="text-sm text-destructive px-1">{errors.title.message}</p>}
             <div className="relative">
               <Textarea 
@@ -298,6 +261,7 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
         ) : (
           <div className="space-y-2">
             {note.title && <h3 className="font-semibold">{note.title}</h3>}
+            {note.title && note.content && <div className="pt-1"></div>}
             <div className="text-sm text-foreground space-y-1">
               <RichTextViewer text={note.content || ''} />
             </div>
@@ -341,5 +305,3 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
     </Card>
   );
 }
-
-    
