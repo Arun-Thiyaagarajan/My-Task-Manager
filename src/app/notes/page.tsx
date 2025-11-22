@@ -145,12 +145,16 @@ export default function NotesPage() {
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
   const [noteToEdit, setNoteToEdit] = useState<Partial<Note> | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
-  const [newNoteContent, setNewNoteContent] = useState('');
   const { toast } = useToast();
   const searchParams = useSearchParams();
-  const newNoteRef = useRef<HTMLTextAreaElement>(null);
   const [commandKey, setCommandKey] = useState('Ctrl');
+  const newNoteTriggerRef = useRef<HTMLButtonElement>(null);
 
+  const handleOpenNewNoteDialog = useCallback(() => {
+    setNoteToEdit(null);
+    setIsEditorOpen(true);
+  }, []);
+  
   useEffect(() => {
     if (typeof window !== 'undefined') {
         setCommandKey(navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? '⌘' : 'Ctrl');
@@ -159,12 +163,12 @@ export default function NotesPage() {
     const handleKeyDown = (e: KeyboardEvent) => {
         if ((e.metaKey || e.ctrlKey) && e.key === '/') {
             e.preventDefault();
-            newNoteRef.current?.focus();
+            handleOpenNewNoteDialog();
         }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [handleOpenNewNoteDialog]);
 
   const refreshData = useCallback(() => {
     setNotes(getNotes());
@@ -186,27 +190,26 @@ export default function NotesPage() {
   
   useEffect(() => {
     if (searchParams.get('focus') === 'true') {
-        newNoteRef.current?.focus();
+        handleOpenNewNoteDialog();
     }
-  }, [searchParams]);
+  }, [searchParams, handleOpenNewNoteDialog]);
 
   const handleEditNote = (note: Note) => {
     setNoteToEdit(note);
     setIsEditorOpen(true);
   };
-  
-  const handleSaveNewNote = () => {
-    if (!newNoteContent.trim()) return;
-    addNote({ content: newNoteContent });
-    toast({ variant: 'success', title: 'Note Saved' });
-    setNewNoteContent('');
-    refreshData();
-  };
 
-  const handleSaveEditedNote = (id: string | undefined, content: string) => {
+  const handleSaveNote = (id: string | undefined, content: string) => {
+    if (!content.trim()) {
+        toast({ variant: 'destructive', title: 'Cannot save empty note.' });
+        return;
+    }
     if (id) {
         updateNote(id, { content });
         toast({ variant: 'success', title: 'Note Updated' });
+    } else {
+        addNote({ content });
+        toast({ variant: 'success', title: 'Note Saved' });
     }
     refreshData();
   };
@@ -240,12 +243,22 @@ export default function NotesPage() {
             <StickyNote className="h-7 w-7"/> Notes
         </h1>
       </div>
+      
+       <div className="mb-8">
+            <button
+                ref={newNoteTriggerRef}
+                onClick={handleOpenNewNoteDialog}
+                className="w-full text-left p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors text-muted-foreground shadow-sm"
+            >
+                Take a note... ({commandKey} + /)
+            </button>
+        </div>
 
-      <div className="pb-28">
+      <div className="pb-8">
         {notes.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg mt-8">
               <p className="text-lg font-semibold">No notes yet.</p>
-              <p className="mt-1">Use the bar below to create your first note.</p>
+              <p className="mt-1">Use the bar above to create your first note.</p>
           </div>
         ) : (
           <ResponsiveGridLayout
@@ -271,33 +284,7 @@ export default function NotesPage() {
           </ResponsiveGridLayout>
         )}
       </div>
-
-      <div className="fixed bottom-0 left-0 right-0 z-10 border-t bg-background/95 backdrop-blur-sm">
-        <div className="container mx-auto flex max-w-3xl items-start gap-4 px-4 py-3 sm:px-6 lg:px-8">
-            <div className="relative flex-1">
-                <Textarea
-                    ref={newNoteRef}
-                    value={newNoteContent}
-                    onChange={(e) => setNewNoteContent(e.target.value)}
-                    placeholder={`Take a note... (${commandKey} + /)`}
-                    className="min-h-[52px] pr-12 pb-12"
-                    onKeyDown={(e) => {
-                      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                          e.preventDefault();
-                          handleSaveNewNote();
-                      }
-                    }}
-                    enableHotkeys
-                />
-                <TextareaToolbar onFormatClick={(type) => newNoteRef.current && applyFormat(type, newNoteRef.current)} />
-            </div>
-            <Button onClick={handleSaveNewNote} disabled={!newNoteContent.trim()}>
-                <Send className="h-4 w-4 mr-2" />
-                Save
-            </Button>
-        </div>
-      </div>
-
+      
       <NoteEditorDialog 
         note={noteToEdit} 
         isOpen={isEditorOpen}
@@ -307,8 +294,10 @@ export default function NotesPage() {
             }
             setIsEditorOpen(isOpen);
         }}
-        onSave={handleSaveEditedNote}
+        onSave={handleSaveNote}
       />
     </div>
   );
 }
+
+    
