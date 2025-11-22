@@ -93,7 +93,6 @@ export function TextareaToolbar({ onFormatClick }: TextareaToolbarProps) {
         { type: 'bold', icon: <Bold className="h-4 w-4" />, tooltip: 'Bold', shortcut: 'B' },
         { type: 'italic', icon: <Italic className="h-4 w-4" />, tooltip: 'Italic', shortcut: 'I' },
         { type: 'strike', icon: <Strikethrough className="h-4 w-4" />, tooltip: 'Strikethrough', shortcut: 'Shift+X' },
-        { type: 'todo', icon: <ListTodo className="h-4 w-4" />, tooltip: 'To-do list', shortcut: 'Shift+L' },
         { type: 'code', icon: <Code className="h-4 w-4" />, tooltip: 'Inline Code', shortcut: 'E' },
         { type: 'code-block', icon: <Code2 className="h-4 w-4" />, tooltip: 'Code Block', shortcut: 'Shift+C' },
     ];

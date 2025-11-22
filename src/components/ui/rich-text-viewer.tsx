@@ -91,21 +91,7 @@ const CodeBlock = ({ content }: { content: string }) => {
     );
 };
 
-const CheckboxIcon = ({ checked, onClick, isInteractive }: { checked: boolean, onClick?: () => void, isInteractive: boolean }) => (
-    <button 
-        onClick={onClick}
-        disabled={!isInteractive}
-        className={cn(
-            "w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 mr-2", 
-            checked ? 'bg-primary border-primary' : 'border-muted-foreground',
-            isInteractive && "cursor-pointer"
-        )}
-    >
-      {checked && <Check className="w-3 h-3 text-primary-foreground" />}
-    </button>
-);
-
-const regex = /(\*\*(.*?)\*\*|_(.*?)_|~(.*?)~|`(.*?)`|https?:\/\/[^\s<]+|\[(.*?)\]\((.*?)\)|(^\s*\[([xX ])\]\s+.*))/gm;
+const regex = /(\*\*(.*?)\*\*|_(.*?)_|~(.*?)~|`(.*?)`|https?:\/\/[^\s<]+|\[(.*?)\]\((.*?)\))/gm;
 
 export const RichTextViewer = memo(({ text, onTextChange }: RichTextViewerProps) => {
   const parts = useMemo(() => {
@@ -114,17 +100,14 @@ export const RichTextViewer = memo(({ text, onTextChange }: RichTextViewerProps)
     const finalResult: (string | JSX.Element)[] = [];
     
     const codeBlockSections = text.split(/(```[\s\S]*?```)/g);
-    let lineCounter = 0;
     
     codeBlockSections.forEach((section, sectionIndex) => {
       if (section.startsWith('```') && section.endsWith('```')) {
         const codeContent = section.slice(3, -3).trim();
         finalResult.push(<CodeBlock key={`code-${sectionIndex}`} content={codeContent} />);
-        lineCounter += codeContent.split('\n').length + 2; // Account for the ``` lines
       } else {
         const lines = section.split('\n');
         lines.forEach((line, lineIndex) => {
-            const currentLineNumber = lineCounter + lineIndex;
             let lastIndex = 0;
             const inlineResult: (string | JSX.Element)[] = [];
 
@@ -132,36 +115,14 @@ export const RichTextViewer = memo(({ text, onTextChange }: RichTextViewerProps)
             
             let match;
             while ((match = regex.exec(line)) !== null) {
-                const [fullMatch, , bold, italic, strike, code, bareLinkOrLinkText, linkUrl, checkboxLine, checkboxState] = match;
+                const [fullMatch, , bold, italic, strike, code, bareLinkOrLinkText, linkUrl] = match;
                 const startIndex = match.index;
 
                 if (startIndex > lastIndex) {
                     inlineResult.push(line.substring(lastIndex, startIndex));
                 }
 
-                if (checkboxLine) {
-                    const isChecked = checkboxState.toLowerCase() === 'x';
-                    const label = checkboxLine.replace(/^\s*\[[xX ]\]\s*/, '');
-                    
-                    const handleToggle = () => {
-                      if (onTextChange) {
-                          const allLines = text.split('\n');
-                          if (allLines[currentLineNumber] !== undefined) {
-                            allLines[currentLineNumber] = isChecked 
-                              ? allLines[currentLineNumber].replace(/\[[xX]\]/, '[ ]') 
-                              : allLines[currentLineNumber].replace(/\[ \]/, '[x]');
-                            onTextChange(allLines.join('\n'));
-                          }
-                      }
-                    };
-
-                    inlineResult.push(
-                        <div key={lastIndex} className={cn("flex items-start", isChecked && onTextChange && "text-muted-foreground line-through")}>
-                            <CheckboxIcon checked={isChecked} onClick={handleToggle} isInteractive={!!onTextChange} />
-                            <span>{label}</span>
-                        </div>
-                    );
-                } else if (bold) {
+                if (bold) {
                     inlineResult.push(<strong key={lastIndex} className="font-bold">{bold}</strong>);
                 } else if (italic) {
                     inlineResult.push(<em key={lastIndex} className="italic">{italic}</em>);
@@ -192,12 +153,11 @@ export const RichTextViewer = memo(({ text, onTextChange }: RichTextViewerProps)
                 finalResult.push(<div key={`line-${sectionIndex}-${lineIndex}`} className="h-4" />);
             }
         });
-        lineCounter += lines.length;
       }
     });
 
     return finalResult;
-  }, [text, onTextChange]);
+  }, [text]);
 
   return (
     <div className="whitespace-pre-wrap break-words">

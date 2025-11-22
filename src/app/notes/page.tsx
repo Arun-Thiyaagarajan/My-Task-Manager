@@ -20,7 +20,25 @@ import { RichTextViewer } from '@/components/ui/rich-text-viewer';
 import { TextareaToolbar, applyFormat } from '@/components/ui/textarea-toolbar';
 import { noteSchema } from '@/lib/validators';
 
+const DRAFT_NOTE_STORAGE_KEY = 'taskflow_draft_note';
 type NoteFormData = z.infer<typeof noteSchema>;
+
+// Helper to get item from localStorage safely
+const getInitialDraft = (): NoteFormData => {
+    if (typeof window === 'undefined') {
+        return { title: '', content: '' };
+    }
+    const savedValue = localStorage.getItem(DRAFT_NOTE_STORAGE_KEY);
+    if (savedValue) {
+        try {
+            return JSON.parse(savedValue);
+        } catch (e) {
+            return { title: '', content: '' };
+        }
+    }
+    return { title: '', content: '' };
+};
+
 
 export default function NotesPage() {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -30,9 +48,9 @@ export default function NotesPage() {
   
   const { toast } = useToast();
 
-  const { register, handleSubmit, reset, setFocus, watch, formState: { isSubmitting } } = useForm<NoteFormData>({
+  const { register, handleSubmit, reset, watch, setValue, formState: { isSubmitting } } = useForm<NoteFormData>({
     resolver: zodResolver(noteSchema),
-    defaultValues: { title: '', content: '' },
+    defaultValues: getInitialDraft(),
   });
   
   const newNoteContent = watch('content');
@@ -40,6 +58,25 @@ export default function NotesPage() {
   const showSaveButton = (newNoteContent && newNoteContent.trim() !== '') || (newNoteTitle && newNoteTitle.trim() !== '');
   
   const newNoteTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Load draft from localStorage on initial mount
+  useEffect(() => {
+    const draft = getInitialDraft();
+    setValue('title', draft.title);
+    setValue('content', draft.content);
+    if(draft.title || draft.content) {
+      setIsCreating(true);
+    }
+  }, [setValue]);
+
+  // Save draft to localStorage whenever it changes
+  useEffect(() => {
+    const subscription = watch((value) => {
+      localStorage.setItem(DRAFT_NOTE_STORAGE_KEY, JSON.stringify(value));
+    });
+    return () => subscription.unsubscribe();
+  }, [watch]);
+
 
   const refreshNotes = () => {
     setNotes(getNotes());
@@ -53,7 +90,6 @@ export default function NotesPage() {
   const onSubmit = async (data: NoteFormData) => {
     const { title, content } = data;
 
-    // Only proceed if there's actually some content to save
     if (!title?.trim() && !content?.trim()) {
         setIsCreating(false);
         reset({ title: '', content: '' });
@@ -75,6 +111,7 @@ export default function NotesPage() {
       addNote({ title: finalTitle, content: content });
       toast({ variant: 'success', title: "Note created successfully" });
       reset({ title: '', content: '' });
+      localStorage.removeItem(DRAFT_NOTE_STORAGE_KEY);
       setIsCreating(false);
       refreshNotes();
     } catch(e: any) {
@@ -107,6 +144,7 @@ export default function NotesPage() {
   
   const handleClearNewNote = () => {
     reset({ title: '', content: '' });
+    localStorage.removeItem(DRAFT_NOTE_STORAGE_KEY);
     setIsCreating(false);
   };
 
@@ -132,14 +170,27 @@ export default function NotesPage() {
       <div className="max-w-2xl mx-auto mb-12">
         <Card className="shadow-lg">
           <form onSubmit={handleSubmit(onSubmit)}>
-            <CardContent className="p-4 space-y-2">
-              {isCreating && (
-                 <Input
-                    {...register('title')}
-                    placeholder="Title (or let AI generate one)"
-                    className="text-lg font-semibold border-0 focus-visible:ring-0 shadow-none px-2"
-                />
+            {isCreating && (
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <Input
+                        {...register('title')}
+                        placeholder="Title (or let AI generate one)"
+                        className="text-lg font-semibold border-0 focus-visible:ring-0 shadow-none px-2 flex-grow"
+                    />
+                     <div className="flex gap-2">
+                        {showSaveButton && (
+                            <Button type="submit" disabled={isSubmitting}>
+                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Save
+                            </Button>
+                        )}
+                         <Button type="button" size="icon" variant="ghost" onClick={handleClearNewNote} className="h-9 w-9">
+                            <X className="h-5 w-5" />
+                        </Button>
+                    </div>
+                </CardHeader>
               )}
+            <CardContent className="p-4 pt-0">
                <div className="relative">
                  <Textarea
                       {...register('content')}
@@ -156,19 +207,6 @@ export default function NotesPage() {
                   )}
                </div>
             </CardContent>
-            {isCreating && (
-                <CardFooter className="p-4 pt-0 flex justify-end">
-                    <div className="flex gap-2">
-                        <Button type="button" variant="ghost" onClick={handleClearNewNote}>Close</Button>
-                        {showSaveButton && (
-                            <Button type="submit" disabled={isSubmitting}>
-                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Save Note
-                            </Button>
-                        )}
-                    </div>
-                </CardFooter>
-            )}
           </form>
         </Card>
       </div>
@@ -222,7 +260,6 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
 
   const handleUpdateSubmit = async (data: NoteFormData) => {
     let finalTitle = data.title;
-    // If title was cleared and content exists, regenerate title
     if (!finalTitle && data.content && data.content.trim() !== '') {
         try {
           const { toast } = useToast();
@@ -266,7 +303,7 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
           <div className="space-y-2">
             {note.title && <h3 className="font-semibold">{note.title}</h3>}
             <div className="text-sm text-foreground space-y-1">
-              <RichTextViewer text={note.content} onTextChange={(newContent) => handleContentChange(newContent)} />
+              <RichTextViewer text={note.content} onTextChange={handleContentChange} />
             </div>
           </div>
         )}
