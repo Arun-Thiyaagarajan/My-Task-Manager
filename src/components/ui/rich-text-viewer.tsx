@@ -126,7 +126,7 @@ export const RichTextViewer = memo(({ text }: RichTextViewerProps) => {
           } else if (strike) {
             inlineResult.push(<s key={lastIndex}>{strike}</s>);
           } else if (code) {
-            inlineResult.push(<code key={lastIndex} className="bg-muted text-muted-foreground rounded-sm px-1.5 py-0.5 font-mono text-sm">{code}</code>);
+            inlineResult.push(<code key={lastIndex} className="bg-[#282a36] text-[#f1fa8c] rounded-sm px-1.5 py-0.5 font-mono text-sm">{code}</code>);
           } else if (linkUrl !== undefined) { // This is a markdown link like [text](url)
             inlineResult.push(<a href={linkUrl} key={lastIndex} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{bareLinkOrLinkText}</a>);
           } else if (fullMatch.startsWith('http')) { // This is a bare link
