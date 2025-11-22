@@ -38,6 +38,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
             setIsMentionOpen(true);
             setDevelopers(getDevelopers());
             setTesters(getTesters());
+            setActiveSuggestion(0);
         }
     }, []);
     
@@ -74,9 +75,9 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (isMentionOpen) {
+            const allPeople = [...developers.filter(d => d.name.toLowerCase().includes(mentionQuery)), ...testers.filter(t => t.name.toLowerCase().includes(mentionQuery))];
             if (['ArrowUp', 'ArrowDown', 'Enter', 'Tab'].includes(e.key)) {
                 e.preventDefault();
-                const allPeople = [...developers.filter(d => d.name.toLowerCase().includes(mentionQuery)), ...testers.filter(t => t.name.toLowerCase().includes(mentionQuery))];
                 if (e.key === 'ArrowUp') {
                     setActiveSuggestion(prev => Math.max(0, prev - 1));
                 } else if (e.key === 'ArrowDown') {
@@ -142,8 +143,8 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         if (lastChar === '@') {
             openMentionPopover();
         } else if (isMentionOpen) {
-            const atIndex = value.lastIndexOf('@', selectionStart -1);
-            if (atIndex === -1 || /\s/.test(value.substring(atIndex, selectionStart))) {
+            const atIndex = value.substring(0, selectionStart).lastIndexOf('@');
+            if (atIndex === -1 || /\s/.test(value.substring(atIndex + 1, selectionStart))) {
                 setIsMentionOpen(false);
             } else {
                 setMentionQuery(value.substring(atIndex + 1, selectionStart).toLowerCase());
