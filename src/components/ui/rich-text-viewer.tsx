@@ -114,20 +114,23 @@ export const RichTextViewer = memo(({ text, onTextChange }: RichTextViewerProps)
     const finalResult: (string | JSX.Element)[] = [];
     
     const codeBlockSections = text.split(/(```[\s\S]*?```)/g);
+    let lineCounter = 0;
     
-    codeBlockSections.forEach((section, index) => {
+    codeBlockSections.forEach((section, sectionIndex) => {
       if (section.startsWith('```') && section.endsWith('```')) {
         const codeContent = section.slice(3, -3).trim();
-        finalResult.push(<CodeBlock key={`code-${index}`} content={codeContent} />);
+        finalResult.push(<CodeBlock key={`code-${sectionIndex}`} content={codeContent} />);
+        lineCounter += codeContent.split('\n').length + 2; // Account for the ``` lines
       } else {
         const lines = section.split('\n');
         lines.forEach((line, lineIndex) => {
+            const currentLineNumber = lineCounter + lineIndex;
             let lastIndex = 0;
-            let match;
             const inlineResult: (string | JSX.Element)[] = [];
 
             regex.lastIndex = 0;
             
+            let match;
             while ((match = regex.exec(line)) !== null) {
                 const [fullMatch, , bold, italic, strike, code, bareLinkOrLinkText, linkUrl, checkboxLine, checkboxState] = match;
                 const startIndex = match.index;
@@ -143,12 +146,10 @@ export const RichTextViewer = memo(({ text, onTextChange }: RichTextViewerProps)
                     const handleToggle = () => {
                       if (onTextChange) {
                           const allLines = text.split('\n');
-                          const globalLineIndex = text.split('\n', lineIndex + index).join('\n').length > 0 ? lineIndex : 0;
-                          
-                          if (allLines[globalLineIndex] !== undefined) {
-                            allLines[globalLineIndex] = isChecked 
-                              ? allLines[globalLineIndex].replace('[x]', '[ ]') 
-                              : allLines[globalLineIndex].replace('[ ]', '[x]');
+                          if (allLines[currentLineNumber] !== undefined) {
+                            allLines[currentLineNumber] = isChecked 
+                              ? allLines[currentLineNumber].replace(/\[[xX]\]/, '[ ]') 
+                              : allLines[currentLineNumber].replace(/\[ \]/, '[x]');
                             onTextChange(allLines.join('\n'));
                           }
                       }
@@ -183,14 +184,15 @@ export const RichTextViewer = memo(({ text, onTextChange }: RichTextViewerProps)
             
             if (inlineResult.length > 0) {
                 finalResult.push(
-                  <div key={`line-${index}-${lineIndex}`} className={lines.length > 1 && line.trim() === '' ? 'h-4' : ''}>
+                  <div key={`line-${sectionIndex}-${lineIndex}`} className={lines.length > 1 && line.trim() === '' ? 'h-4' : ''}>
                       {inlineResult}
                   </div>
                 );
             } else if (lines.length > 1) { // Render empty lines
-                finalResult.push(<div key={`line-${index}-${lineIndex}`} className="h-4" />);
+                finalResult.push(<div key={`line-${sectionIndex}-${lineIndex}`} className="h-4" />);
             }
         });
+        lineCounter += lines.length;
       }
     });
 
