@@ -1104,7 +1104,7 @@ export function restoreTask(id: string): boolean {
             content: taskToRestore.description || '',
             createdAt: taskToRestore.createdAt,
             updatedAt: new Date().toISOString(),
-            layout: { i: taskToRestore.id, x: 0, y: Infinity, w: 4, h: 4, minW: 2, minH: 2 }
+            layout: { i: taskToRestore.id, x: 0, y: Infinity, w: 3, h: 6, minW: 2, minH: 3 }
         };
         companyData.notes = companyData.notes || [];
         companyData.notes.unshift(asNote);
@@ -1138,7 +1138,7 @@ export function restoreMultipleTasks(ids: string[]): boolean {
                 content: item.description || '',
                 createdAt: item.createdAt,
                 updatedAt: new Date().toISOString(),
-                layout: { i: item.id, x: 0, y: Infinity, w: 4, h: 4, minW: 2, minH: 2 }
+                layout: { i: item.id, x: 0, y: Infinity, w: 3, h: 6, minW: 2, minH: 3 }
             };
             companyData.notes = companyData.notes || [];
             companyData.notes.unshift(asNote);
@@ -1555,12 +1555,12 @@ export function getNotes(): Note[] {
             needsUpdate = true;
             note.layout = {
                 i: note.id,
-                x: (index * 4) % 12,
-                y: Math.floor(index / 3) * 4,
-                w: 4,
-                h: 4,
+                x: (index * 3) % 12,
+                y: Math.floor(index / 4) * 6,
+                w: 3,
+                h: 6,
                 minW: 2,
-                minH: 2
+                minH: 3
             };
         }
     });
@@ -1595,12 +1595,12 @@ export function addNote(noteData: Partial<Omit<Note, 'id' | 'createdAt' | 'updat
         updatedAt: now,
         layout: {
             i: newNoteId,
-            x: (notes.length * 4) % 12,
+            x: (notes.length * 3) % 12,
             y: calculateNewY(),
-            w: 4,
-            h: 4,
+            w: 3,
+            h: 6,
             minW: 2,
-            minH: 2,
+            minH: 3,
         },
     };
 
@@ -1722,12 +1722,12 @@ export function resetNotesLayout(): boolean {
     sortedNotes.forEach((note, index) => {
         note.layout = {
             i: note.id,
-            x: (index % 3) * 4, // 3 columns
-            y: Math.floor(index / 3) * 4,
-            w: 4,
-            h: 4,
+            x: (index % 4) * 3, // 4 columns
+            y: Math.floor(index / 4) * 6,
+            w: 3,
+            h: 6,
             minW: 2,
-            minH: 2
+            minH: 3
         };
     });
     
