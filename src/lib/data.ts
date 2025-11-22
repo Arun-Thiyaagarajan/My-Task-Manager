@@ -1551,7 +1551,7 @@ export function getNotes(): Note[] {
     let needsUpdate = false;
     const notes = companyData.notes || [];
     notes.forEach((note, index) => {
-        if (!note.layout || typeof note.layout.x !== 'number' || typeof note.layout.y !== 'number' || note.layout.y === null || !Number.isFinite(note.layout.y)) {
+        if (!note.layout || typeof note.layout.x !== 'number' || typeof note.layout.y !== 'number' || !Number.isFinite(note.layout.y)) {
             needsUpdate = true;
             note.layout = {
                 i: note.id,
@@ -1719,16 +1719,25 @@ export function resetNotesLayout(): boolean {
 
     const sortedNotes = companyData.notes.sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
-    sortedNotes.forEach((note, index) => {
+    const cols = 4;
+    const colWidth = 3;
+
+    let colHeights = Array(cols).fill(0);
+
+    sortedNotes.forEach((note) => {
+        const minHeightCol = colHeights.indexOf(Math.min(...colHeights));
+        
         note.layout = {
             i: note.id,
-            x: (index % 4) * 3, // 4 columns
-            y: Math.floor(index / 4) * 6,
-            w: 3,
+            x: minHeightCol * colWidth,
+            y: colHeights[minHeightCol],
+            w: colWidth,
             h: 6,
             minW: 2,
             minH: 3
         };
+
+        colHeights[minHeightCol] += 6;
     });
     
     companyData.notes = sortedNotes;
