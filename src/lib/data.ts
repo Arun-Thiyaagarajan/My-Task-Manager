@@ -1,4 +1,5 @@
 
+
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
 import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout } from './types';
 import cloneDeep from 'lodash/cloneDeep';
@@ -960,7 +961,7 @@ const generateTaskUpdateLogs = (
                 const newIds = new Set((newRepoLinks[repo] || '').split(',').map(s => s.trim()).filter(Boolean));
 
                 const added = [...newIds].filter(id => !oldIds.has(id));
-                const removed = [...oldIds].filter(id => !oldIds.has(id));
+                const removed = [...oldIds].filter(id => !newIds.has(id));
 
                 added.forEach(id => prChanges.push(`- Added PR **#${id}** to *${repo} (${env})*.`));
                 removed.forEach(id => prChanges.push(`- Removed PR **#${id}** from *${repo} (${env})*.`));
@@ -1518,7 +1519,7 @@ export function getNotes(): Note[] {
             note.layout = {
                 i: note.id,
                 x: (index * 4) % 12, // Cascade new notes
-                y: Infinity, // Puts it at the bottom
+                y: 0, // Puts it at the bottom
                 w: 4,
                 h: 4,
                 minW: 2,
@@ -1535,6 +1536,14 @@ export function addNote(noteData: Partial<Omit<Note, 'id' | 'createdAt' | 'updat
     const activeCompanyId = data.activeCompanyId;
     const companyData = data.companyData[activeCompanyId];
     const notes = companyData.notes || [];
+    
+    const calculateNewY = () => {
+        if (notes.length === 0) {
+            return 0;
+        }
+        // Find the maximum y + h of all existing notes to place the new one at the bottom.
+        return Math.max(0, ...notes.map(n => n.layout.y + n.layout.h));
+    };
 
     const now = new Date().toISOString();
     const newNoteId = `note-${crypto.randomUUID()}`;
@@ -1547,7 +1556,7 @@ export function addNote(noteData: Partial<Omit<Note, 'id' | 'createdAt' | 'updat
         layout: {
             i: newNoteId,
             x: (notes.length * 4) % 12,
-            y: Infinity,
+            y: calculateNewY(),
             w: 4,
             h: 4,
             minW: 2,
