@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { StickyNote, Plus, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { NoteEditorDialog } from '@/components/note-editor-dialog';
 import type { Note } from '@/lib/types';
@@ -21,13 +21,19 @@ export function FloatingNotes() {
     const [isNoteEditorOpen, setIsNoteEditorOpen] = useState(false);
     const [noteToEdit, setNoteToEdit] = useState<Partial<Note> | null>(null);
     const { toast } = useToast();
+    const [commandKey, setCommandKey] = useState('Ctrl');
     
     const handleOpenNewNoteDialog = useCallback(() => {
         setNoteToEdit(null);
         setIsNoteEditorOpen(true);
     }, []);
-
+    
     useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+            setCommandKey(isMac ? '⌘' : 'Ctrl');
+        }
+
         const handleKeyDown = (e: KeyboardEvent) => {
             if ((e.metaKey || e.ctrlKey) && e.key === '/') {
                 e.preventDefault();
@@ -74,48 +80,59 @@ export function FloatingNotes() {
                             isOpen ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
                         )}
                     >
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    size="icon"
-                                    className="rounded-full h-12 w-12 shadow-md"
-                                    onClick={handleOpenNewNoteDialog}
-                                >
-                                    <Plus className="h-5 w-5" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="left">
-                                <p>Create Note</p>
-                            </TooltipContent>
-                        </Tooltip>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        size="icon"
+                                        className="rounded-full h-12 w-12 shadow-md"
+                                        onClick={handleOpenNewNoteDialog}
+                                    >
+                                        <Plus className="h-5 w-5" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="left">
+                                     <div className="flex items-center gap-2">
+                                        <span>Create Note</span>
+                                        <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                                            <span className="text-xs">{commandKey}</span>/
+                                        </kbd>
+                                    </div>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                         
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button asChild size="icon" className="rounded-full h-12 w-12 shadow-md">
+                                        <a href="/notes" onClick={handleViewNotesClick}>
+                                            <Eye className="h-5 w-5" />
+                                        </a>
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="left">
+                                    <p>View Notes</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </div>
+
+                    {/* Main FAB */}
+                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button asChild size="icon" className="rounded-full h-12 w-12 shadow-md">
+                                 <Button asChild size="icon" className="h-14 w-14 rounded-full shadow-lg">
                                     <a href="/notes" onClick={handleViewNotesClick}>
-                                        <Eye className="h-5 w-5" />
+                                        <StickyNote className="h-6 w-6" />
                                     </a>
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent side="left">
-                                <p>View Notes</p>
+                                <p>Notes</p>
                             </TooltipContent>
                         </Tooltip>
-                    </div>
-
-                    {/* Main FAB */}
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                             <Button asChild size="icon" className="h-14 w-14 rounded-full shadow-lg">
-                                <a href="/notes" onClick={handleViewNotesClick}>
-                                    <StickyNote className="h-6 w-6" />
-                                </a>
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="left">
-                            <p>Notes</p>
-                        </TooltipContent>
-                    </Tooltip>
+                    </TooltipProvider>
                 </div>
             </div>
 
