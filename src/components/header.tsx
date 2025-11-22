@@ -24,7 +24,7 @@ import {
   getGeneralReminders,
 } from '@/lib/data';
 import type { Company, UiConfig } from '@/lib/types';
-import { Building, PlusCircle, Trash2, Edit, LayoutDashboard, Cog, Menu, FileClock, Home, Bell, GraduationCap, StickyNote } from 'lucide-react';
+import { Building, PlusCircle, Trash2, Edit, LayoutDashboard, Cog, Menu, FileClock, Home, Bell, GraduationCap } from 'lucide-react';
 import { CompaniesManager } from './companies-manager';
 import { useToast } from '@/hooks/use-toast';
 import {

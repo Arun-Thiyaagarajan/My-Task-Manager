@@ -93,7 +93,6 @@ export const getAppData = (): MyTaskManagerData => {
             if (!company.logs) company.logs = [];
             if (!company.generalReminders) company.generalReminders = [];
             if (!company.notes) company.notes = [];
-            if ((company as any).notes) delete (company as any).notes;
             company.developers.forEach(p => { if (!p.additionalFields) p.additionalFields = []; });
             company.testers.forEach(p => { if (!p.additionalFields) p.additionalFields = []; });
         });

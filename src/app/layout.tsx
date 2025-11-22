@@ -7,10 +7,8 @@ import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Inter } from 'next/font/google';
 import { UnsavedChangesProvider } from '@/hooks/use-unsaved-changes';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { StickyNote } from 'lucide-react';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { NoteInputBar } from '@/components/note-input-bar';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -48,21 +46,7 @@ export default function RootLayout({
               <div className="relative flex min-h-screen flex-col">
                 <Header />
                 <main className="flex-1">{children}</main>
-                 <div className="fixed bottom-6 right-6 z-50">
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button asChild size="icon" className="h-14 w-14 rounded-full shadow-lg">
-                                <Link href="/notes">
-                                    <StickyNote className="h-6 w-6" />
-                                    <span className="sr-only">Go to Notes</span>
-                                </Link>
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="left">
-                            <p>Notes</p>
-                        </TooltipContent>
-                    </Tooltip>
-                 </div>
+                <NoteInputBar />
               </div>
               <Toaster />
             </TooltipProvider>
