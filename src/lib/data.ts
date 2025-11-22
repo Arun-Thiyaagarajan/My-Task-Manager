@@ -1512,14 +1512,15 @@ export function getNotes(): Note[] {
     const companyData = data.companyData[data.activeCompanyId];
     if (!companyData) return [];
     
-    // Migration: Add layout property to existing notes
+    let needsUpdate = false;
     const notes = companyData.notes || [];
     notes.forEach((note, index) => {
         if (!note.layout) {
+            needsUpdate = true;
             note.layout = {
                 i: note.id,
-                x: (index * 4) % 12, // Cascade new notes
-                y: 0, // Puts it at the bottom
+                x: (index * 4) % 12,
+                y: 0,
                 w: 4,
                 h: 4,
                 minW: 2,
@@ -1527,6 +1528,10 @@ export function getNotes(): Note[] {
             };
         }
     });
+
+    if (needsUpdate) {
+        setAppData(data);
+    }
 
     return notes.sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 }
@@ -1541,7 +1546,6 @@ export function addNote(noteData: Partial<Omit<Note, 'id' | 'createdAt' | 'updat
         if (notes.length === 0) {
             return 0;
         }
-        // Find the maximum y + h of all existing notes to place the new one at the bottom.
         return Math.max(0, ...notes.map(n => n.layout.y + n.layout.h));
     };
 
@@ -1638,3 +1642,4 @@ export function updateNoteLayouts(layouts: NoteLayout[]): void {
   setAppData(data);
   // No log for layout changes to avoid spamming the logs
 }
+
