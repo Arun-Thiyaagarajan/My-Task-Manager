@@ -13,7 +13,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { StickyNote } from 'lucide-react';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 
 const inter = Inter({
@@ -24,6 +24,11 @@ const inter = Inter({
 function FloatingNotesButton() {
   const { prompt } = useUnsavedChanges();
   const router = useRouter();
+  const pathname = usePathname();
+
+  if (pathname === '/notes') {
+    return null;
+  }
 
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();

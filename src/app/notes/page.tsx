@@ -150,22 +150,26 @@ function NoteInputBar() {
     return (
          <div className="max-w-3xl mx-auto w-full">
             <div className="relative flex items-center gap-2 py-3">
-                <Textarea
-                    ref={textareaRef}
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    placeholder={`Take a note... (${commandKey}+/)`}
-                    className="pr-12 resize-none max-h-40 shadow-lg"
-                    onKeyDown={(e) => {
-                        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                            e.preventDefault();
-                            handleSave();
-                        }
-                    }}
-                />
+                <div className="relative w-full">
+                    <Textarea
+                        ref={textareaRef}
+                        value={content}
+                        onChange={(e) => setContent(e.target.value)}
+                        placeholder={`Take a note... (${commandKey}+/)`}
+                        className="pr-12 resize-none max-h-40 shadow-lg pb-12"
+                        onKeyDown={(e) => {
+                            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                                e.preventDefault();
+                                handleSave();
+                            }
+                        }}
+                        enableHotkeys
+                    />
+                     <TextareaToolbar onFormatClick={(type) => textareaRef.current && applyFormat(type, textareaRef.current)} />
+                </div>
                 <Button
                     size="icon"
-                    className={cn("absolute right-2 shrink-0 transition-opacity duration-300", content.trim() ? "opacity-100" : "opacity-0 pointer-events-none")}
+                    className={cn("absolute right-2 bottom-5 shrink-0 transition-opacity duration-300", content.trim() ? "opacity-100" : "opacity-0 pointer-events-none")}
                     onClick={handleSave}
                 >
                     <Save className="h-4 w-4" />
