@@ -287,7 +287,7 @@ export default function NotesPage() {
               cols={{lg: 12, md: 12, sm: 12, xs: 1, xxs: 1}}
               rowHeight={30}
               onLayoutChange={onLayoutChange}
-              draggableCancel=".note-card-footer, .note-card-content, .note-card-header"
+              draggableHandle=".drag-handle"
           >
               {notes.map(note => (
                   <div key={note.id} data-grid={note.layout} className="relative group/card-wrapper">
