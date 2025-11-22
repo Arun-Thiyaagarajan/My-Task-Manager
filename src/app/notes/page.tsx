@@ -215,8 +215,10 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
   const editNoteTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    reset({ title: note.title, content: note.content });
-  }, [note, reset]);
+    if (isEditing) {
+      reset({ title: note.title, content: note.content });
+    }
+  }, [note, isEditing, reset]);
 
   const handleUpdateSubmit = async (data: NoteFormData) => {
     let finalTitle = data.title;

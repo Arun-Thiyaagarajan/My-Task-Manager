@@ -135,6 +135,9 @@ export const createTaskSchema = (uiConfig: UiConfig) => {
 export const noteSchema = z.object({
   title: z.string().optional(),
   content: z.string().optional(),
+}).refine(data => !!data.title?.trim() || !!data.content?.trim(), {
+    message: "Note cannot be empty.",
+    path: ["content"],
 });
 
 // A default schema for use where uiConfig is not available.
@@ -145,5 +148,3 @@ export const taskSchema = createTaskSchema({
   repositoryConfigs: [],
   taskStatuses: [],
 });
-
-    
