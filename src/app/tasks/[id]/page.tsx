@@ -40,7 +40,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { FavoriteToggleButton } from '@/components/favorite-toggle';
 import { TaskHistory } from '@/components/task-history';
@@ -286,18 +285,21 @@ export default function TaskPage() {
   const handleSaveEditing = (key: string, isCustom: boolean, value?: any) => {
     if (!task) return;
 
-    let finalValue = value !== undefined ? value : editingValue;
+    const finalValue = value !== undefined ? value : editingValue;
+    const trimmedValue = typeof finalValue === 'string' ? finalValue.trim() : finalValue;
 
-    if (key === 'title' && (!finalValue || finalValue.trim() === '')) {
-      toast({
-        variant: 'destructive',
-        title: 'Validation Error',
-        description: 'Title cannot be empty.',
-      });
-      return;
+    if (key === 'title') {
+        if (!trimmedValue) {
+            toast({ variant: 'destructive', title: 'Validation Error', description: 'Title cannot be empty.' });
+            return;
+        }
+        if (trimmedValue === task.title) {
+            handleCancelEditing();
+            return; // No change, no save.
+        }
     }
     
-    if (key === 'description' && (!finalValue || finalValue.trim() === '')) {
+    if (key === 'description' && (!trimmedValue || trimmedValue.trim() === '')) {
       toast({
         variant: 'destructive',
         title: 'Validation Error',
@@ -883,7 +885,7 @@ const handleCopyDescription = () => {
                 <div className="relative z-10 flex flex-col h-full">
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start gap-4">
-                      <div className="flex-1 flex items-center gap-2 cursor-pointer group/title" onDoubleClick={() => !isBinned && handleStartEditing('title', task.title)}>
+                      <div className="flex-1 flex items-center gap-2 group/title" onDoubleClick={() => !isBinned && handleStartEditing('title', task.title)}>
                         {editingSection === 'title' ? (
                             <Input 
                                 ref={titleInputRef}
@@ -896,7 +898,7 @@ const handleCopyDescription = () => {
                         ) : (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <CardTitle className="text-3xl font-bold">
+                              <CardTitle className="text-3xl font-bold cursor-pointer">
                                   {task.title}
                               </CardTitle>
                             </TooltipTrigger>
