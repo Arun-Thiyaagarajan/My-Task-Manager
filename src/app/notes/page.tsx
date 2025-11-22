@@ -5,23 +5,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { addNote, getNotes, updateNote, deleteNote, getUiConfig, updateNoteLayouts, resetNotesLayout } from '@/lib/data';
 import type { Note, UiConfig, NoteLayout } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Edit, Trash2, StickyNote, LayoutGrid, PlusCircle } from 'lucide-react';
-import { RichTextViewer } from '@/components/ui/rich-text-viewer';
-import { cn, formatTimestamp } from '@/lib/utils';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
+import { StickyNote, LayoutGrid, PlusCircle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -34,6 +20,7 @@ import { TextareaToolbar, applyFormat } from '@/components/ui/textarea-toolbar';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
+import { NoteCard } from '@/components/note-card';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -99,43 +86,6 @@ function NoteEditorDialog({
       </DialogContent>
     </Dialog>
   );
-}
-
-function NoteCard({ note, uiConfig, onEdit, onDelete }: { note: Note, uiConfig: UiConfig, onEdit: (note: Note) => void, onDelete: (noteId: string) => void }) {
-    return (
-        <Card className="flex flex-col h-full group w-full overflow-hidden">
-            <CardContent className="p-4 flex-grow overflow-y-auto">
-                <RichTextViewer text={note.content} />
-            </CardContent>
-            <CardFooter className="p-2 border-t flex justify-between items-center bg-background/50">
-                <p className="text-xs text-muted-foreground">
-                    {formatTimestamp(note.updatedAt, uiConfig.timeFormat)}
-                </p>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); onEdit(note); }}>
-                        <Edit className="h-4 w-4" />
-                    </Button>
-                    <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={(e) => e.stopPropagation()}>
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Delete this note?</AlertDialogTitle>
-                                <AlertDialogDescription>This will move the note to the bin. You can restore it from there later.</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={(e) => { e.stopPropagation(); onDelete(note.id); }} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
-                </div>
-            </CardFooter>
-        </Card>
-    );
 }
 
 export default function NotesPage() {
@@ -305,5 +255,3 @@ export default function NotesPage() {
     </div>
   );
 }
-
-    
