@@ -132,6 +132,11 @@ export const createTaskSchema = (uiConfig: UiConfig) => {
   );
 };
 
+export const noteSchema = z.object({
+  title: z.string().optional(),
+  content: z.string().min(1, "Content cannot be empty."),
+});
+
 // A default schema for use where uiConfig is not available.
 // This one won't have dynamic required fields.
 export const taskSchema = createTaskSchema({
