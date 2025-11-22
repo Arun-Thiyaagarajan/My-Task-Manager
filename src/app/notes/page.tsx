@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { getNotes, addNote, updateNote, deleteNote } from '@/lib/data';
+import { getNotes, addNote, updateNote, deleteNote, getUiConfig } from '@/lib/data';
 import type { Note } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -66,6 +66,8 @@ export default function NotesPage() {
     if(draft.title || draft.content) {
       setIsCreating(true);
     }
+     const config = getUiConfig();
+     document.title = `Notes | ${config.appName || 'My Task Manager'}`;
   }, [setValue]);
 
   // Save draft to localStorage whenever it changes
@@ -146,13 +148,13 @@ export default function NotesPage() {
       <div className="max-w-2xl mx-auto mb-12">
         <Card className="shadow-lg">
           <form onSubmit={handleSubmit(onSubmit)}>
-             <CardContent className="p-2 pt-2">
+             <CardContent className="p-4">
                <div className="relative">
                  {isCreating && (
                     <Input
                         {...register('title')}
                         placeholder="Title"
-                        className="text-lg font-semibold border-0 focus-visible:ring-0 shadow-none px-2 h-auto"
+                        className="text-lg font-semibold border-0 focus-visible:ring-0 shadow-none px-2 h-auto mb-2"
                     />
                  )}
                  <Textarea
@@ -171,7 +173,7 @@ export default function NotesPage() {
                </div>
             </CardContent>
             {isCreating && (
-                <CardFooter className="p-2 flex justify-end gap-2">
+                <CardFooter className="p-2 pt-0 flex justify-end gap-2">
                     {showSaveButton && (
                         <Button type="submit" disabled={isSubmitting}>
                             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
