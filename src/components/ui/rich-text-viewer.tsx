@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 
 interface RichTextViewerProps {
   text: string;
+  onTextChange?: (newText: string) => void;
 }
 
 const CodeBlock = ({ content }: { content: string }) => {
@@ -90,19 +91,23 @@ const CodeBlock = ({ content }: { content: string }) => {
     );
 };
 
-const CheckboxIcon = ({ checked }: { checked: boolean }) => (
-    <div className={cn("w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 mr-2", 
-      checked ? 'bg-primary border-primary' : 'border-muted-foreground'
-    )}>
+const CheckboxIcon = ({ checked, onClick, isInteractive }: { checked: boolean, onClick?: () => void, isInteractive: boolean }) => (
+    <button 
+        onClick={onClick}
+        disabled={!isInteractive}
+        className={cn(
+            "w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 mr-2", 
+            checked ? 'bg-primary border-primary' : 'border-muted-foreground',
+            isInteractive && "cursor-pointer"
+        )}
+    >
       {checked && <Check className="w-3 h-3 text-primary-foreground" />}
-    </div>
+    </button>
 );
-
 
 const regex = /(\*\*(.*?)\*\*|_(.*?)_|~(.*?)~|`(.*?)`|https?:\/\/[^\s<]+|\[(.*?)\]\((.*?)\)|(^\s*\[([xX ])\]\s+.*))/gm;
 
-
-export const RichTextViewer = memo(({ text }: RichTextViewerProps) => {
+export const RichTextViewer = memo(({ text, onTextChange }: RichTextViewerProps) => {
   const parts = useMemo(() => {
     if (!text) return [];
 
@@ -121,7 +126,6 @@ export const RichTextViewer = memo(({ text }: RichTextViewerProps) => {
             let match;
             const inlineResult: (string | JSX.Element)[] = [];
 
-            // Reset regex for each line
             regex.lastIndex = 0;
             
             while ((match = regex.exec(line)) !== null) {
@@ -135,20 +139,35 @@ export const RichTextViewer = memo(({ text }: RichTextViewerProps) => {
                 if (checkboxLine) {
                     const isChecked = checkboxState.toLowerCase() === 'x';
                     const label = checkboxLine.replace(/^\s*\[[xX ]\]\s*/, '');
+                    
+                    const handleToggle = () => {
+                      if (onTextChange) {
+                          const allLines = text.split('\n');
+                          const globalLineIndex = text.split('\n', lineIndex + index).join('\n').length > 0 ? lineIndex : 0;
+                          
+                          if (allLines[globalLineIndex] !== undefined) {
+                            allLines[globalLineIndex] = isChecked 
+                              ? allLines[globalLineIndex].replace('[x]', '[ ]') 
+                              : allLines[globalLineIndex].replace('[ ]', '[x]');
+                            onTextChange(allLines.join('\n'));
+                          }
+                      }
+                    };
+
                     inlineResult.push(
-                        <div key={lastIndex} className={cn("flex items-start", isChecked && "text-muted-foreground line-through")}>
-                            <CheckboxIcon checked={isChecked} />
+                        <div key={lastIndex} className={cn("flex items-start", isChecked && onTextChange && "text-muted-foreground line-through")}>
+                            <CheckboxIcon checked={isChecked} onClick={handleToggle} isInteractive={!!onTextChange} />
                             <span>{label}</span>
                         </div>
                     );
                 } else if (bold) {
-                    inlineResult.push(<strong key={lastIndex}>{bold}</strong>);
+                    inlineResult.push(<strong key={lastIndex} className="font-bold">{bold}</strong>);
                 } else if (italic) {
-                    inlineResult.push(<em key={lastIndex}>{italic}</em>);
+                    inlineResult.push(<em key={lastIndex} className="italic">{italic}</em>);
                 } else if (strike) {
                     inlineResult.push(<s key={lastIndex}>{strike}</s>);
                 } else if (code) {
-                    inlineResult.push(<code key={lastIndex} className="bg-[#282a36] text-[#f1fa8c] rounded-sm px-1.5 py-0.5 font-mono text-sm">{code}</code>);
+                    inlineResult.push(<code key={lastIndex} className="bg-[#282a36] text-[#f1fa8c] rounded-sm px-1.5 py-0.5 font-mono text-xs">{code}</code>);
                 } else if (linkUrl !== undefined) {
                     inlineResult.push(<a href={linkUrl} key={lastIndex} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{bareLinkOrLinkText}</a>);
                 } else if (fullMatch.startsWith('http')) {
@@ -176,7 +195,7 @@ export const RichTextViewer = memo(({ text }: RichTextViewerProps) => {
     });
 
     return finalResult;
-  }, [text]);
+  }, [text, onTextChange]);
 
   return (
     <div className="whitespace-pre-wrap break-words">

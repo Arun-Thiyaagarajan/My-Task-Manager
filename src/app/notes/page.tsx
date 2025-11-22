@@ -60,11 +60,13 @@ export default function NotesPage() {
     }
   };
 
-  const handleUpdateNote = (id: string, data: NoteFormData) => {
+  const handleUpdateNote = (id: string, data: Partial<Note>) => {
     try {
-        updateNote(id, { title: data.title, content: data.content });
-        toast({ variant: 'success', title: "Note updated" });
-        setEditingNoteId(null);
+        updateNote(id, data);
+        if (editingNoteId === id) { // Only toast if we're in edit mode
+            toast({ variant: 'success', title: "Note updated" });
+            setEditingNoteId(null);
+        }
         refreshNotes();
     } catch(e: any) {
         toast({ variant: 'destructive', title: "Error updating note", description: e.message });
@@ -174,7 +176,7 @@ interface NoteCardProps {
   isEditing: boolean;
   onEditStart: () => void;
   onEditCancel: () => void;
-  onUpdate: (id: string, data: NoteFormData) => void;
+  onUpdate: (id: string, data: Partial<Note>) => void;
   onDelete: (id: string) => void;
 }
 
@@ -192,6 +194,10 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
 
   const handleUpdateSubmit = (data: NoteFormData) => {
     onUpdate(note.id, data);
+  };
+  
+  const handleContentChange = (newContent: string) => {
+    onUpdate(note.id, { content: newContent });
   };
 
   return (
@@ -215,7 +221,9 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
         ) : (
           <div className="space-y-2">
             {note.title && <h3 className="font-semibold">{note.title}</h3>}
-            <div className="text-sm text-foreground space-y-1"><RichTextViewer text={note.content} /></div>
+            <div className="text-sm text-foreground space-y-1">
+              <RichTextViewer text={note.content} onTextChange={handleContentChange} />
+            </div>
           </div>
         )}
       </CardContent>

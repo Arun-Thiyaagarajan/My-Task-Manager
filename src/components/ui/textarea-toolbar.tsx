@@ -1,13 +1,13 @@
 
 'use client';
 
-import { Bold, Italic, Strikethrough, Code, Code2, Link as LinkIcon } from 'lucide-react';
+import { Bold, Italic, Strikethrough, Code, Code2, Link as LinkIcon, ListTodo } from 'lucide-react';
 import { Button } from './button';
 import { Tooltip, TooltipContent, TooltipTrigger } from './tooltip';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 
-type FormatType = 'bold' | 'italic' | 'strike' | 'code' | 'code-block';
+type FormatType = 'bold' | 'italic' | 'strike' | 'code' | 'code-block' | 'todo';
 
 interface TextareaToolbarProps {
   onFormatClick: (formatType: FormatType) => void;
@@ -18,12 +18,14 @@ export function applyFormat(formatType: FormatType, target: HTMLTextAreaElement)
     let chars = '';
     let block = false;
     let isLink = false;
+    let isTodo = false;
     switch (formatType) {
         case 'bold': chars = '**'; break;
         case 'italic': chars = '_'; break;
         case 'strike': chars = '~'; break;
         case 'code': chars = '`'; break;
         case 'code-block': chars = '```'; block = true; break;
+        case 'todo': chars = '[ ] '; isTodo = true; break;
     }
 
     const selectedText = value.substring(selectionStart, selectionEnd);
@@ -41,6 +43,12 @@ export function applyFormat(formatType: FormatType, target: HTMLTextAreaElement)
             newSelectionStart = newText.lastIndexOf('(') + 1;
             newSelectionEnd = newText.lastIndexOf(')');
         }
+    } else if (isTodo) {
+        const lineStart = value.lastIndexOf('\n', selectionStart - 1) + 1;
+        const lineText = value.substring(lineStart, selectionEnd);
+        newText = `${value.substring(0, lineStart)}${chars}${lineText}${value.substring(selectionEnd)}`;
+        newSelectionStart = selectionStart + chars.length;
+        newSelectionEnd = selectionEnd + chars.length;
     } else if (block) {
         const isAlreadyBlock = selectedText.startsWith(chars) && selectedText.endsWith(chars);
         if (isAlreadyBlock) {
@@ -85,6 +93,7 @@ export function TextareaToolbar({ onFormatClick }: TextareaToolbarProps) {
         { type: 'bold', icon: <Bold className="h-4 w-4" />, tooltip: 'Bold', shortcut: 'B' },
         { type: 'italic', icon: <Italic className="h-4 w-4" />, tooltip: 'Italic', shortcut: 'I' },
         { type: 'strike', icon: <Strikethrough className="h-4 w-4" />, tooltip: 'Strikethrough', shortcut: 'Shift+X' },
+        { type: 'todo', icon: <ListTodo className="h-4 w-4" />, tooltip: 'To-do list', shortcut: 'Shift+L' },
         { type: 'code', icon: <Code className="h-4 w-4" />, tooltip: 'Inline Code', shortcut: 'E' },
         { type: 'code-block', icon: <Code2 className="h-4 w-4" />, tooltip: 'Code Block', shortcut: 'Shift+C' },
     ];
