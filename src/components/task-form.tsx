@@ -671,7 +671,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                         <CardContent className="space-y-4">
                             {relevantEnvsFieldConfig && relevantEnvsFieldConfig.isActive && renderField(relevantEnvsFieldConfig)}
 
-                            {allConfiguredEnvs.map(env => (
+                            {allConfiguredEnvs.filter(env => env && env.name).map(env => (
                                 <div key={env.name} className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4 p-3 border rounded-md">
                                     <FormField
                                         control={form.control}
@@ -740,7 +740,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                                     {watchedRepositories.map(repo => (
                                         <TabsContent key={repo} value={repo}>
                                             <div className="space-y-4 pt-4">
-                                            {allConfiguredEnvs.map(env => (
+                                            {allConfiguredEnvs.filter(env => env && env.name).map(env => (
                                                 <FormField
                                                     key={`${repo}-${env.name}`}
                                                     control={form.control}
