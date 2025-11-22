@@ -132,7 +132,7 @@ export function MultiSelect({
         >
           <div className="flex flex-wrap gap-1 items-center flex-grow">
             {safeSelected.length === 0 && <span className="text-muted-foreground">{placeholder}</span>}
-            {safeSelected.length > 0 && safeSelected.map(value => {
+            {safeSelected.map(value => {
                 const label = selectedMap.get(value);
                 return (
                     <Badge key={value} variant="secondary" className="whitespace-nowrap">
