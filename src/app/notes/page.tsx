@@ -342,3 +342,4 @@ function NoteCard({ note, isEditing, onEditStart, onEditCancel, onUpdate, onDele
   );
 }
 
+    

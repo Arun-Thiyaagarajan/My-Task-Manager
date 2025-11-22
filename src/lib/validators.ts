@@ -30,6 +30,14 @@ export const commentSchema = z.object({
   timestamp: z.string().datetime(),
 });
 
+export const noteSchema = z.object({
+  title: z.string().optional(),
+  content: z.string().optional(),
+}).refine(data => (data.title && data.title.trim() !== '') || (data.content && data.content.trim() !== ''), {
+    message: "Note cannot be empty. Please provide a title or content.",
+    path: ["content"], // Point error to content field for simplicity
+});
+
 export const createTaskSchema = (uiConfig: UiConfig) => {
   let schema = z.object({
     id: z.string().optional(),
@@ -132,14 +140,6 @@ export const createTaskSchema = (uiConfig: UiConfig) => {
   );
 };
 
-export const noteSchema = z.object({
-  title: z.string().optional(),
-  content: z.string().optional(),
-}).refine(data => !!data.title?.trim() || !!data.content?.trim(), {
-    message: "Note cannot be empty.",
-    path: ["content"],
-});
-
 // A default schema for use where uiConfig is not available.
 // This one won't have dynamic required fields.
 export const taskSchema = createTaskSchema({
@@ -148,3 +148,5 @@ export const taskSchema = createTaskSchema({
   repositoryConfigs: [],
   taskStatuses: [],
 });
+
+    
