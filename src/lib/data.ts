@@ -1,7 +1,7 @@
 
 
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency } from './types';
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note } from './types';
 import cloneDeep from 'lodash/cloneDeep';
 import { format, isToday, isYesterday } from 'date-fns';
 
@@ -40,6 +40,7 @@ const getInitialData = (): MyTaskManagerData => {
                 },
                 logs: [],
                 generalReminders: [],
+                notes: [],
             },
         },
     };
@@ -72,6 +73,7 @@ export const getAppData = (): MyTaskManagerData => {
                     uiConfig: defaultConfig,
                     logs: [],
                     generalReminders: [],
+                    notes: [],
                 },
             },
         };
@@ -92,6 +94,7 @@ export const getAppData = (): MyTaskManagerData => {
             if (!company.trash) company.trash = [];
             if (!company.logs) company.logs = [];
             if (!company.generalReminders) company.generalReminders = [];
+            if (!company.notes) company.notes = [];
             company.developers.forEach(p => { if (!p.additionalFields) p.additionalFields = []; });
             company.testers.forEach(p => { if (!p.additionalFields) p.additionalFields = []; });
         });
@@ -1500,3 +1503,70 @@ export function deleteGeneralReminder(id: string): boolean {
     return false;
 }
 
+// Note Functions
+export function getNotes(): Note[] {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    return (companyData?.notes || []).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+}
+
+export function getNoteById(id: string): Note | undefined {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    return (companyData?.notes || []).find(note => note.id === id);
+}
+
+export function addNote(noteData: Partial<Omit<Note, 'id' | 'createdAt' | 'updatedAt'>>): Note {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    if (!companyData) throw new Error("Cannot add note, no active company data found.");
+
+    const now = new Date().toISOString();
+    const newNote: Note = {
+        id: `note-${crypto.randomUUID()}`,
+        title: noteData.title || '',
+        content: noteData.content || '',
+        createdAt: now,
+        updatedAt: now,
+    };
+
+    companyData.notes = [newNote, ...(companyData.notes || [])];
+    _addLog(companyData, { message: `Created a new note: "${newNote.title || 'Untitled Note'}"`, noteId: newNote.id });
+    setAppData(data);
+    return newNote;
+}
+
+export function updateNote(id: string, noteData: Partial<Omit<Note, 'id' | 'createdAt' | 'updatedAt'>>): Note | undefined {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    if (!companyData) return undefined;
+
+    const noteIndex = (companyData.notes || []).findIndex(note => note.id === id);
+    if (noteIndex === -1) return undefined;
+
+    const oldNote = companyData.notes[noteIndex];
+    const updatedNote: Note = {
+        ...oldNote,
+        ...noteData,
+        updatedAt: new Date().toISOString(),
+    };
+    companyData.notes[noteIndex] = updatedNote;
+    
+    _addLog(companyData, { message: `Updated note: "${updatedNote.title || 'Untitled Note'}"`, noteId: id });
+    setAppData(data);
+    return updatedNote;
+}
+
+export function deleteNote(id: string): boolean {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    if (!companyData || !companyData.notes) return false;
+
+    const noteToDelete = companyData.notes.find(note => note.id === id);
+    if (!noteToDelete) return false;
+
+    companyData.notes = companyData.notes.filter(note => note.id !== id);
+    _addLog(companyData, { message: `Deleted note: "${noteToDelete.title || 'Untitled Note'}"`, noteId: id });
+    setAppData(data);
+    return true;
+}

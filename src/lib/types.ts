@@ -1,4 +1,5 @@
 
+
 import type { TASK_STATUSES, ENVIRONMENTS } from './constants';
 
 export type TaskStatus = string;
@@ -47,6 +48,7 @@ export interface Log {
   timestamp: string;
   message: string;
   taskId?: string;
+  noteId?: string;
   details?: Record<string, any>;
 }
 
@@ -105,6 +107,14 @@ export interface FieldOption {
   value: string;
 }
 
+export interface Note {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface FieldConfig {
   id: string;
   key: string;
@@ -144,6 +154,7 @@ export interface CompanyData {
     uiConfig: UiConfig;
     logs: Log[];
     generalReminders: GeneralReminder[];
+    notes: Note[];
 }
 
 export interface MyTaskManagerData {

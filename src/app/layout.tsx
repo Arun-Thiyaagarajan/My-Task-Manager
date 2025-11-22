@@ -16,6 +16,7 @@ const inter = Inter({
 
 
 export const metadata: Metadata = {
+  title: 'TaskFlow',
   description: 'A sleek and simple task tracker for multiple teams.',
 };
 
