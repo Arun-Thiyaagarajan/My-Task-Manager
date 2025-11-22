@@ -883,7 +883,7 @@ const handleCopyDescription = () => {
                 <div className="relative z-10 flex flex-col h-full">
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start gap-4">
-                      <div className="flex-1 flex items-center gap-2 cursor-pointer group/title" onClick={() => !isBinned && handleStartEditing('title', task.title)}>
+                      <div className="flex-1 flex items-center gap-2 cursor-pointer group/title" onDoubleClick={() => !isBinned && handleStartEditing('title', task.title)}>
                         {editingSection === 'title' ? (
                             <Input 
                                 ref={titleInputRef}
@@ -902,7 +902,7 @@ const handleCopyDescription = () => {
                             </TooltipTrigger>
                             {!isBinned && (
                               <TooltipContent>
-                                <p>Click to edit</p>
+                                <p>Double-click to edit</p>
                               </TooltipContent>
                             )}
                           </Tooltip>
@@ -947,7 +947,7 @@ const handleCopyDescription = () => {
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="pt-2 flex-grow group/description" onClick={() => !isBinned && editingSection !== 'description' && handleStartEditing('description', task.description)}>
+                  <CardContent className="pt-2 flex-grow group/description" onDoubleClick={() => !isBinned && editingSection !== 'description' && handleStartEditing('description', task.description)}>
                     <CardDescription className="mb-4">
                         Last updated {formatTimestamp(task.updatedAt, uiConfig.timeFormat)}
                     </CardDescription>
@@ -993,7 +993,7 @@ const handleCopyDescription = () => {
                             </TooltipTrigger>
                             {!isBinned && (
                               <TooltipContent>
-                                <p>Click to edit</p>
+                                <p>Double-click to edit</p>
                               </TooltipContent>
                             )}
                           </Tooltip>
@@ -1480,3 +1480,6 @@ function TimelineSection({ task, fieldLabels }: { task: Task, fieldLabels: Map<s
 
 
 
+
+
+    
