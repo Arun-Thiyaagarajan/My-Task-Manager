@@ -1096,9 +1096,24 @@ export function restoreTask(id: string): boolean {
 
     const [taskToRestore] = companyData.trash.splice(taskIndex, 1);
     delete taskToRestore.deletedAt;
-    companyData.tasks.unshift(taskToRestore);
+    
+    if (taskToRestore.title.startsWith('Note: ')) {
+        const asNote: Note = {
+            id: taskToRestore.id,
+            title: taskToRestore.title.replace('Note: ', ''),
+            content: taskToRestore.description || '',
+            createdAt: taskToRestore.createdAt,
+            updatedAt: new Date().toISOString(),
+            layout: { i: taskToRestore.id, x: 0, y: Infinity, w: 4, h: 4, minW: 2, minH: 2 }
+        };
+        companyData.notes = companyData.notes || [];
+        companyData.notes.unshift(asNote);
+        _addLog(companyData, { message: `Restored note "${asNote.title || 'Untitled'}" from the bin.` });
+    } else {
+        companyData.tasks.unshift(taskToRestore);
+        _addLog(companyData, { message: `Restored task "${taskToRestore.title}" from the bin.`, taskId: id });
+    }
 
-    _addLog(companyData, { message: `Restored task "${taskToRestore.title}" from the bin.`, taskId: id });
     setAppData(data);
     return true;
 }
@@ -1108,18 +1123,39 @@ export function restoreMultipleTasks(ids: string[]): boolean {
     const companyData = data.companyData[data.activeCompanyId];
     if (!companyData || !companyData.trash) return false;
 
-    const tasksToRestore = companyData.trash.filter(task => ids.includes(task.id));
-    if (tasksToRestore.length === 0) return false;
+    const itemsToRestore = companyData.trash.filter(task => ids.includes(task.id));
+    if (itemsToRestore.length === 0) return false;
+    
+    let restoredTasks = 0;
+    let restoredNotes = 0;
 
-    tasksToRestore.forEach(task => {
-        delete task.deletedAt;
-        _addLog(companyData, { message: `Restored task "${task.title}" from the bin.`, taskId: task.id });
+    itemsToRestore.forEach(item => {
+        delete item.deletedAt;
+        if (item.title.startsWith('Note: ')) {
+            const asNote: Note = {
+                id: item.id,
+                title: item.title.replace('Note: ', ''),
+                content: item.description || '',
+                createdAt: item.createdAt,
+                updatedAt: new Date().toISOString(),
+                layout: { i: item.id, x: 0, y: Infinity, w: 4, h: 4, minW: 2, minH: 2 }
+            };
+            companyData.notes = companyData.notes || [];
+            companyData.notes.unshift(asNote);
+            restoredNotes++;
+        } else {
+            companyData.tasks.unshift(item);
+            restoredTasks++;
+        }
     });
+    
+    let logMessage = `Restored ${itemsToRestore.length} item(s) from the bin.`;
+    if(restoredTasks > 0) logMessage += ` (${restoredTasks} task/s)`;
+    if(restoredNotes > 0) logMessage += ` (${restoredNotes} note/s)`;
+    _addLog(companyData, { message: logMessage });
 
-    _addLog(companyData, { message: `Restored ${tasksToRestore.length} task(s) from the bin.` });
 
     companyData.trash = companyData.trash.filter(task => !ids.includes(task.id));
-    companyData.tasks.unshift(...tasksToRestore);
     
     setAppData(data);
     return true;
@@ -1135,7 +1171,7 @@ export function permanentlyDeleteTask(id: string): boolean {
 
     companyData.trash = companyData.trash.filter(task => task.id !== id);
     
-    _addLog(companyData, { message: `Permanently deleted task "${taskToDelete.title}".` });
+    _addLog(companyData, { message: `Permanently deleted item "${taskToDelete.title}".` });
     
     setAppData(data);
     return true;
@@ -1151,7 +1187,7 @@ export function permanentlyDeleteMultipleTasks(ids: string[]): boolean {
     
     companyData.trash = companyData.trash.filter(task => !ids.includes(task.id));
     
-    _addLog(companyData, { message: `Permanently deleted ${tasksToDelete.length} task(s).` });
+    _addLog(companyData, { message: `Permanently deleted ${tasksToDelete.length} item(s).` });
 
     setAppData(data);
     return true;
@@ -1162,7 +1198,7 @@ export function emptyBin(): boolean {
     const companyData = data.companyData[data.activeCompanyId];
     if (!companyData || !companyData.trash || companyData.trash.length === 0) return false;
     
-    const logMessage = `Emptied all ${companyData.trash.length} tasks from the bin.`;
+    const logMessage = `Emptied all ${companyData.trash.length} items from the bin.`;
     companyData.trash = [];
 
     _addLog(companyData, { message: logMessage });
@@ -1515,7 +1551,7 @@ export function getNotes(): Note[] {
     let needsUpdate = false;
     const notes = companyData.notes || [];
     notes.forEach((note, index) => {
-        if (!note.layout || typeof note.layout.x !== 'number' || typeof note.layout.y !== 'number' || note.layout.y === null) {
+        if (!note.layout || typeof note.layout.x !== 'number' || typeof note.layout.y !== 'number' || note.layout.y === null || !Number.isFinite(note.layout.y)) {
             needsUpdate = true;
             note.layout = {
                 i: note.id,

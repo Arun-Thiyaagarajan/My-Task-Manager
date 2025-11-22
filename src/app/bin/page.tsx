@@ -12,7 +12,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { TaskStatusBadge } from '@/components/task-status-badge';
-import { Trash2, History, ArrowLeft, Recycle } from 'lucide-react';
+import { Trash2, History, ArrowLeft, Recycle, StickyNote } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -25,10 +25,32 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useActiveCompany } from '@/hooks/use-active-company';
 import { formatTimestamp } from '@/lib/utils';
+import { RichTextViewer } from '@/components/ui/rich-text-viewer';
 
+
+function NoteViewerDialog({ isOpen, onOpenChange, note }: { isOpen: boolean, onOpenChange: (open: boolean) => void, note: Task | null }) {
+    if (!note) return null;
+    
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-xl max-h-[80vh] flex flex-col">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <StickyNote className="h-5 w-5" /> Deleted Note
+                    </DialogTitle>
+                    <DialogDescription>{note.title.replace('Note: ', '')}</DialogDescription>
+                </DialogHeader>
+                <div className="flex-grow min-h-0 overflow-y-auto pr-4">
+                    <RichTextViewer text={note.description || ''} />
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 export default function BinPage() {
   const router = useRouter();
@@ -38,6 +60,9 @@ export default function BinPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
   const { toast } = useToast();
+  
+  const [noteToView, setNoteToView] = useState<Task | null>(null);
+  const [isNoteViewerOpen, setIsNoteViewerOpen] = useState(false);
 
   const refreshData = () => {
     if (activeCompanyId) {
@@ -57,6 +82,15 @@ export default function BinPage() {
     return () => window.removeEventListener('storage', refreshData);
   }, [activeCompanyId]);
 
+  const handleRowClick = (task: Task) => {
+    if (task.title.startsWith('Note: ')) {
+        setNoteToView(task);
+        setIsNoteViewerOpen(true);
+    } else {
+        router.push(`/tasks/${task.id}`);
+    }
+  };
+
   const handleSelectAll = (checked: boolean) => {
     setSelectedTaskIds(checked ? binnedTasks.map(task => task.id) : []);
   };
@@ -71,8 +105,8 @@ export default function BinPage() {
     restoreMultipleTasks(selectedTaskIds);
     toast({
       variant: 'success',
-      title: 'Tasks Restored',
-      description: `${selectedTaskIds.length} task(s) have been restored to your main list.`
+      title: 'Items Restored',
+      description: `${selectedTaskIds.length} item(s) have been restored.`
     });
     refreshData();
     setSelectedTaskIds([]);
@@ -82,8 +116,8 @@ export default function BinPage() {
     permanentlyDeleteMultipleTasks(selectedTaskIds);
     toast({
       variant: 'success',
-      title: 'Tasks Deleted',
-      description: `${selectedTaskIds.length} task(s) have been permanently deleted.`
+      title: 'Items Deleted',
+      description: `${selectedTaskIds.length} item(s) have been permanently deleted.`
     });
     refreshData();
     setSelectedTaskIds([]);
@@ -94,7 +128,7 @@ export default function BinPage() {
     toast({
       variant: 'success',
       title: 'Bin Emptied',
-      description: 'All tasks in the bin have been permanently deleted.'
+      description: 'All items in the bin have been permanently deleted.'
     });
     refreshData();
     setSelectedTaskIds([]);
@@ -116,7 +150,7 @@ export default function BinPage() {
             <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
                 <Trash2 className="h-7 w-7"/> Bin
             </h1>
-            <p className="text-muted-foreground mt-1">Tasks deleted in the last 30 days. Items will be permanently deleted after this period.</p>
+            <p className="text-muted-foreground mt-1">Items deleted in the last 30 days. They will be permanently deleted after this period.</p>
         </div>
         <Button asChild variant="ghost">
             <Link href="/">
@@ -129,7 +163,7 @@ export default function BinPage() {
       <Card>
         <CardHeader>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                <CardTitle>Deleted Tasks</CardTitle>
+                <CardTitle>Deleted Items</CardTitle>
                  {binnedTasks.length > 0 && (
                   <AlertDialog>
                       <AlertDialogTrigger asChild>
@@ -138,7 +172,7 @@ export default function BinPage() {
                       <AlertDialogContent>
                           <AlertDialogHeader>
                               <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                              <AlertDialogDescription>This action cannot be undone. All {binnedTasks.length} tasks in the bin will be permanently deleted.</AlertDialogDescription>
+                              <AlertDialogDescription>This action cannot be undone. All {binnedTasks.length} items in the bin will be permanently deleted.</AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -150,7 +184,7 @@ export default function BinPage() {
             </div>
             {selectedTaskIds.length > 0 && (
                 <div className="mt-4 p-3 bg-muted rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <span className="text-sm font-medium self-start sm:self-center">{selectedTaskIds.length} task(s) selected</span>
+                    <span className="text-sm font-medium self-start sm:self-center">{selectedTaskIds.length} item(s) selected</span>
                     <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                         <Button size="sm" onClick={handleRestore}><History className="mr-2 h-4 w-4"/> Restore</Button>
                         <AlertDialog>
@@ -160,7 +194,7 @@ export default function BinPage() {
                             <AlertDialogContent>
                                 <AlertDialogHeader>
                                     <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                    <AlertDialogDescription>This will permanently delete the selected {selectedTaskIds.length} task(s). This action cannot be undone.</AlertDialogDescription>
+                                    <AlertDialogDescription>This will permanently delete the selected {selectedTaskIds.length} item(s). This action cannot be undone.</AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -176,7 +210,7 @@ export default function BinPage() {
           {binnedTasks.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
               <p className="text-lg font-semibold">The bin is empty.</p>
-              <p className="mt-1">Deleted tasks will appear here.</p>
+              <p className="mt-1">Deleted items will appear here.</p>
             </div>
           ) : (
             <div className="border rounded-lg overflow-x-auto">
@@ -202,12 +236,14 @@ export default function BinPage() {
                             ...(task.developers || []).map(id => developersById.get(id)?.name),
                             ...(task.testers || []).map(id => testersById.get(id)?.name)
                         ].filter(Boolean);
+                        
+                        const isNote = task.title.startsWith('Note: ');
 
                         return (
                             <TableRow
                               key={task.id}
                               data-state={selectedTaskIds.includes(task.id) && "selected"}
-                              onClick={() => router.push(`/tasks/${task.id}`)}
+                              onClick={() => handleRowClick(task)}
                               className="cursor-pointer group"
                             >
                                 <TableCell onClick={(e) => e.stopPropagation()}>
@@ -217,7 +253,14 @@ export default function BinPage() {
                                     aria-label={`Select task ${task.title}`}
                                     />
                                 </TableCell>
-                                <TableCell className="font-medium group-hover:text-primary group-hover:underline transition-colors whitespace-nowrap">{task.title}</TableCell>
+                                <TableCell className="font-medium group-hover:text-primary group-hover:underline transition-colors whitespace-nowrap">
+                                    {isNote ? (
+                                        <span className="flex items-center gap-2">
+                                            <StickyNote className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                            {task.title.replace('Note: ', '')}
+                                        </span>
+                                    ) : task.title}
+                                </TableCell>
                                 <TableCell><TaskStatusBadge status={task.status} /></TableCell>
                                 <TableCell className="text-muted-foreground text-xs truncate max-w-xs">{assignees.join(', ') || 'N/A'}</TableCell>
                                 <TableCell className="text-right text-muted-foreground text-xs whitespace-nowrap">
@@ -232,6 +275,8 @@ export default function BinPage() {
           )}
         </CardContent>
       </Card>
+      
+      <NoteViewerDialog isOpen={isNoteViewerOpen} onOpenChange={setIsNoteViewerOpen} note={noteToView} />
     </div>
   );
 }
