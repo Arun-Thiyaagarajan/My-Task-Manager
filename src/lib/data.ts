@@ -1515,7 +1515,7 @@ export function getNotes(): Note[] {
     let needsUpdate = false;
     const notes = companyData.notes || [];
     notes.forEach((note, index) => {
-        if (!note.layout || typeof note.layout.x !== 'number' || typeof note.layout.y !== 'number') {
+        if (!note.layout || typeof note.layout.x !== 'number' || typeof note.layout.y !== 'number' || note.layout.y === null) {
             needsUpdate = true;
             note.layout = {
                 i: note.id,
@@ -1547,7 +1547,7 @@ export function addNote(noteData: Partial<Omit<Note, 'id' | 'createdAt' | 'updat
             return 0; // Return 0 if there are no notes.
         }
         // Find the maximum y + h of all notes to place the new one at the bottom.
-        return Math.max(0, ...notes.map(n => (n.layout.y || 0) + (n.layout.h || 0)));
+        return Math.max(0, ...notes.map(n => (n.layout?.y || 0) + (n.layout?.h || 0)));
     };
 
     const now = new Date().toISOString();
@@ -1642,4 +1642,31 @@ export function updateNoteLayouts(layouts: NoteLayout[]): void {
 
   setAppData(data);
   // No log for layout changes to avoid spamming the logs
+}
+
+export function resetNotesLayout(): boolean {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    if (!companyData || !companyData.notes) return false;
+
+    const sortedNotes = companyData.notes.sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+    sortedNotes.forEach((note, index) => {
+        note.layout = {
+            i: note.id,
+            x: (index % 4) * 3,
+            y: Math.floor(index / 4) * 4,
+            w: 3,
+            h: 4,
+            minW: 2,
+            minH: 2
+        };
+    });
+    
+    companyData.notes = sortedNotes;
+    
+    _addLog(companyData, { message: `Reset the notes layout to the default grid.` });
+
+    setAppData(data);
+    return true;
 }

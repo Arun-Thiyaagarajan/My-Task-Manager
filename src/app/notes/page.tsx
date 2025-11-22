@@ -2,14 +2,13 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { addNote, getNotes, updateNote, deleteNote, getUiConfig, updateNoteLayouts } from '@/lib/data';
+import { addNote, getNotes, updateNote, deleteNote, getUiConfig, updateNoteLayouts, resetNotesLayout } from '@/lib/data';
 import type { Note, UiConfig, NoteLayout } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Edit, Trash2, StickyNote } from 'lucide-react';
+import { Edit, Trash2, StickyNote, LayoutGrid } from 'lucide-react';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
 import { cn, formatTimestamp } from '@/lib/utils';
 import {
@@ -146,10 +145,8 @@ export default function NotesPage() {
   const [noteToEdit, setNoteToEdit] = useState<Partial<Note> | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const { toast } = useToast();
-  const searchParams = useSearchParams();
   const [commandKey, setCommandKey] = useState('Ctrl');
-  const newNoteTriggerRef = useRef<HTMLButtonElement>(null);
-
+  
   const handleOpenNewNoteDialog = useCallback(() => {
     setNoteToEdit(null);
     setIsEditorOpen(true);
@@ -187,13 +184,6 @@ export default function NotesPage() {
         window.removeEventListener('notes-updated', refreshData);
     };
   }, [refreshData]);
-  
-  useEffect(() => {
-    if (searchParams.get('focus') === 'true') {
-        // Clean the URL without reloading the page
-        window.history.replaceState({}, '', '/notes');
-    }
-  }, [searchParams]);
 
   const handleEditNote = (note: Note) => {
     setNoteToEdit(note);
@@ -224,6 +214,13 @@ export default function NotesPage() {
     });
     refreshData();
   };
+  
+  const handleResetLayout = () => {
+    if (resetNotesLayout()) {
+        toast({ variant: 'success', title: 'Layout Reset', description: 'Your notes layout has been reset to the default grid.' });
+        refreshData();
+    }
+  };
 
   const onLayoutChange = (layout: any, layouts: any) => {
     updateNoteLayouts(layouts.lg);
@@ -243,11 +240,14 @@ export default function NotesPage() {
         <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <StickyNote className="h-7 w-7"/> Notes
         </h1>
+        <Button variant="outline" size="sm" onClick={handleResetLayout}>
+            <LayoutGrid className="mr-2 h-4 w-4"/>
+            Reset Layout
+        </Button>
       </div>
       
        <div className="mb-8">
             <button
-                ref={newNoteTriggerRef}
                 onClick={handleOpenNewNoteDialog}
                 className="w-full text-left p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors text-muted-foreground shadow-sm"
             >
