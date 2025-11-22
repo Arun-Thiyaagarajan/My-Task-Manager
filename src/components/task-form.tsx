@@ -30,7 +30,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { getLinkAlias } from '@/ai/flows/get-link-alias-flow';
 import { Textarea } from '@/components/ui/textarea';
-import { TextareaToolbar, applyFormat } from '@/components/ui/textarea-toolbar';
+import { TextareaToolbar, applyFormat, FormatType } from '@/components/ui/textarea-toolbar';
 
 
 type TaskFormData = z.infer<ReturnType<typeof createTaskSchema>>;
@@ -375,6 +375,12 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
     return options;
   }
   
+  const handleFormat = (ref: React.RefObject<HTMLTextAreaElement>, type: FormatType) => {
+      if (ref.current) {
+          applyFormat(type, ref.current);
+      }
+  };
+  
   const renderField = (fieldConfig: FieldConfig) => {
     const { key, type, label, isCustom, isRequired, baseUrl } = fieldConfig;
     const fieldName = isCustom ? `customFields.${key}` : key;
@@ -398,7 +404,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                  return (
                     <div className="relative">
                         <Textarea {...field} value={field.value ?? ''} ref={ref} className="pb-12" enableHotkeys/>
-                        <TextareaToolbar onFormatClick={(type) => ref?.current && applyFormat(type, ref.current)} />
+                        <TextareaToolbar onFormatClick={(type) => handleFormat(ref, type)} />
                     </div>
                  )
             }

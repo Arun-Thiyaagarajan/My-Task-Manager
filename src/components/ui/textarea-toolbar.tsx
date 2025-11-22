@@ -16,6 +16,48 @@ interface TextareaToolbarProps {
 
 export function applyFormat(formatType: FormatType, target: HTMLTextAreaElement, mentionValue?: string) {
     const { selectionStart, selectionEnd, value } = target;
+
+    if (formatType === 'mention') {
+        const atIndex = value.substring(0, selectionStart).lastIndexOf('@');
+        let textToInsert = '';
+        let newCursorPos = selectionStart;
+
+        if (mentionValue) {
+            // This case is for when a user is selected from the popover
+            textToInsert = `**@${mentionValue}** `;
+            if (atIndex !== -1) {
+                const newValue = value.substring(0, atIndex) + textToInsert + value.substring(selectionEnd);
+                newCursorPos = atIndex + textToInsert.length;
+                
+                const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+                nativeInputValueSetter?.call(target, newValue);
+                const event = new Event('input', { bubbles: true });
+                target.dispatchEvent(event);
+
+                target.selectionStart = newCursorPos;
+                target.selectionEnd = newCursorPos;
+                target.focus();
+                return;
+            }
+        } else {
+             // This case is for when the toolbar button is clicked
+            textToInsert = '@';
+            newCursorPos = selectionStart + 1;
+            const newValue = value.substring(0, selectionStart) + textToInsert + value.substring(selectionEnd);
+            
+            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+            nativeInputValueSetter?.call(target, newValue);
+            const event = new Event('input', { bubbles: true });
+            target.dispatchEvent(event);
+            
+            target.selectionStart = newCursorPos;
+            target.selectionEnd = newCursorPos;
+            target.focus();
+            return;
+        }
+    }
+
+
     let chars = '';
     let block = false;
 
@@ -25,25 +67,6 @@ export function applyFormat(formatType: FormatType, target: HTMLTextAreaElement,
         case 'strike': chars = '~'; break;
         case 'code': chars = '`'; break;
         case 'code-block': chars = '```'; block = true; break;
-        case 'mention':
-             if (mentionValue === undefined) return;
-             // This case is handled by the Textarea component itself to manage popover state
-             const atIndex = value.substring(0, selectionStart).lastIndexOf('@');
-             if (atIndex === -1) return;
-
-             const mentionText = `**@${mentionValue}** `;
-             const newText = value.substring(0, atIndex) + mentionText + value.substring(selectionEnd);
-             const newCursorPos = atIndex + mentionText.length;
- 
-             const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
-             nativeInputValueSetter?.call(target, newText);
-             const event = new Event('input', { bubbles: true });
-             target.dispatchEvent(event);
- 
-             target.selectionStart = newCursorPos;
-             target.selectionEnd = newCursorPos;
-             target.focus();
-             return;
     }
 
     const selectedText = value.substring(selectionStart, selectionEnd);
@@ -69,17 +92,14 @@ export function applyFormat(formatType: FormatType, target: HTMLTextAreaElement,
         const isWrapped = surroundingChars.startsWith(chars) && surroundingChars.endsWith(chars);
 
         if (isAlreadyFormatted) {
-            // Unformat by removing the characters from inside the selection
             newText = value.substring(0, selectionStart) + selectedText.slice(chars.length, -chars.length) + value.substring(selectionEnd);
             newSelectionStart = selectionStart;
             newSelectionEnd = selectionEnd - (2 * chars.length);
         } else if (isWrapped) {
-            // Unformat by removing the characters from around the selection
             newText = value.substring(0, selectionStart - chars.length) + selectedText + value.substring(selectionEnd + chars.length);
             newSelectionStart = selectionStart - chars.length;
             newSelectionEnd = selectionEnd - chars.length;
         } else {
-            // Format by adding characters
             newText = `${value.substring(0, selectionStart)}${chars}${selectedText || 'text'}${chars}${value.substring(selectionEnd)}`;
             newSelectionStart = selectionStart + chars.length;
             newSelectionEnd = selectionEnd + (selectedText.length || 4) + chars.length;

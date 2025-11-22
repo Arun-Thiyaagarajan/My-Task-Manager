@@ -1,4 +1,6 @@
 
+"use client"
+
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { applyFormat, FormatType } from "./textarea-toolbar";
@@ -34,7 +36,6 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     const [activeSuggestion, setActiveSuggestion] = React.useState(0);
     const mentionStartIndex = React.useRef<number | null>(null);
 
-
     const openMentionPopover = React.useCallback(() => {
         if (localRef.current) {
             mentionStartIndex.current = localRef.current.selectionStart;
@@ -45,77 +46,13 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         }
     }, []);
 
-    const closeMentionPopover = () => {
+    const closeMentionPopover = React.useCallback(() => {
         setIsMentionOpen(false);
         setMentionQuery('');
         mentionStartIndex.current = null;
-    }
+    }, []);
     
-    const handleFormatClick = (formatType: FormatType) => {
-        if(formatType === 'mention') {
-            if (localRef.current) {
-                // Manually insert '@' to trigger the popover
-                const { selectionStart, value } = localRef.current;
-                const newValue = value.substring(0, selectionStart) + '@' + value.substring(selectionStart);
-                
-                const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
-                nativeInputValueSetter?.call(localRef.current, newValue);
-                
-                const event = new Event('input', { bubbles: true });
-                localRef.current.dispatchEvent(event);
-
-                localRef.current.selectionStart = selectionStart + 1;
-                localRef.current.selectionEnd = selectionStart + 1;
-                localRef.current.focus();
-
-                openMentionPopover();
-            }
-        } else {
-            if (localRef.current) {
-                applyFormat(formatType, localRef.current);
-            }
-        }
-    };
-    
-    // This hook is not standard and will cause issues.
-    // React.useImperativeHandle(props.forwardedRef, () => ({
-    //     ...localRef.current,
-    //     handleFormatClick,
-    // }));
-
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        if (isMentionOpen) {
-            const allPeople = [...developers.filter(d => d.name.toLowerCase().includes(mentionQuery)), ...testers.filter(t => t.name.toLowerCase().includes(mentionQuery))];
-            if (['ArrowUp', 'ArrowDown', 'Enter', 'Tab'].includes(e.key)) {
-                e.preventDefault();
-                if (e.key === 'ArrowUp') {
-                    setActiveSuggestion(prev => Math.max(0, prev - 1));
-                } else if (e.key === 'ArrowDown') {
-                    setActiveSuggestion(prev => Math.min(allPeople.length - 1, prev + 1));
-                } else if ((e.key === 'Enter' || e.key === 'Tab') && allPeople[activeSuggestion]) {
-                    handleMentionSelect(allPeople[activeSuggestion].name);
-                }
-            }
-        }
-
-        if (enableHotkeys && (e.ctrlKey || e.metaKey)) {
-            let handled = false;
-            switch(e.key.toLowerCase()) {
-                case 'b': applyFormat('bold', e.currentTarget); handled = true; break;
-                case 'i': applyFormat('italic', e.currentTarget); handled = true; break;
-                case 'e': applyFormat('code', e.currentTarget); handled = true; break;
-                case 'x': if (e.shiftKey) { applyFormat('strike', e.currentTarget); handled = true; } break;
-                case 'c': if (e.shiftKey) { applyFormat('code-block', e.currentTarget); handled = true; } break;
-            }
-            if(handled) {
-                e.preventDefault();
-            }
-        }
-        if (props.onKeyDown) {
-            props.onKeyDown(e);
-        }
-    }
-    
+    // This effect handles the dynamic sizing of the textarea
     React.useEffect(() => {
       const textarea = localRef.current;
       const handleInput = () => {
@@ -126,22 +63,46 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       };
 
       if (textarea) {
-        // Initial adjustment in a timeout to ensure DOM is ready
-        setTimeout(handleInput, 0);
+        setTimeout(handleInput, 0); // Initial adjustment
         textarea.addEventListener('input', handleInput);
       }
-
       return () => {
         if (textarea) {
           textarea.removeEventListener('input', handleInput);
         }
       };
     }, [props.value]);
+    
+    // This effect handles the hotkeys for formatting
+    React.useEffect(() => {
+        const textarea = localRef.current;
+        if (!textarea || !enableHotkeys) return;
+        
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.ctrlKey || e.metaKey) {
+                let handled = false;
+                switch(e.key.toLowerCase()) {
+                    case 'b': applyFormat('bold', textarea); handled = true; break;
+                    case 'i': applyFormat('italic', textarea); handled = true; break;
+                    case 'e': applyFormat('code', textarea); handled = true; break;
+                    case 'x': if (e.shiftKey) { applyFormat('strike', textarea); handled = true; } break;
+                    case 'c': if (e.shiftKey) { applyFormat('code-block', textarea); handled = true; } break;
+                }
+                if(handled) {
+                    e.preventDefault();
+                }
+            }
+        };
+
+        textarea.addEventListener('keydown', handleKeyDown);
+        return () => textarea.removeEventListener('keydown', handleKeyDown);
+    }, [enableHotkeys]);
+
 
     const handleMentionSelect = (name: string) => {
         if(localRef.current && mentionStartIndex.current !== null) {
             const { value } = localRef.current;
-            const start = mentionStartIndex.current -1; // include the @
+            const start = mentionStartIndex.current - 1; // include the @
             const end = localRef.current.selectionStart;
 
             const mentionText = `**@${name}** `;
@@ -163,6 +124,26 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         closeMentionPopover();
     };
 
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        const filteredPeople = [...filteredDevelopers, ...filteredTesters];
+        if (isMentionOpen) {
+            if (['ArrowUp', 'ArrowDown', 'Enter', 'Tab'].includes(e.key)) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (e.key === 'ArrowUp') {
+                    setActiveSuggestion(prev => Math.max(0, prev - 1));
+                } else if (e.key === 'ArrowDown') {
+                    setActiveSuggestion(prev => Math.min(filteredPeople.length - 1, prev + 1));
+                } else if ((e.key === 'Enter' || e.key === 'Tab') && filteredPeople[activeSuggestion]) {
+                    handleMentionSelect(filteredPeople[activeSuggestion].name);
+                }
+            }
+        }
+        if (props.onKeyDown) {
+            props.onKeyDown(e);
+        }
+    };
+    
     const handleTextareaInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const { value, selectionStart } = e.currentTarget;
         const lastChar = value[selectionStart - 1];

@@ -13,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { TextareaToolbar, applyFormat } from '@/components/ui/textarea-toolbar';
+import { TextareaToolbar, applyFormat, FormatType } from '@/components/ui/textarea-toolbar';
 
 interface NoteEditorDialogProps {
   note: Partial<Note> | null;
@@ -46,6 +46,12 @@ export function NoteEditorDialog({
     onSave(note?.id, title, content);
     onOpenChange(false);
   };
+  
+  const handleFormat = (type: FormatType) => {
+    if (descriptionEditorRef.current) {
+      applyFormat(type, descriptionEditorRef.current);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -63,21 +69,23 @@ export function NoteEditorDialog({
               onChange={(e) => setTitle(e.target.value)}
               className="text-lg font-semibold"
             />
-            <Textarea
-              ref={descriptionEditorRef}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Take a note..."
-              className="min-h-[200px] max-h-[calc(80vh-200px)] w-full text-base"
-              enableHotkeys
-              onKeyDown={(e) => {
-                  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                      e.preventDefault();
-                      handleSave();
-                  }
-              }}
-            />
-            <TextareaToolbar onFormatClick={(type) => descriptionEditorRef.current && applyFormat(type, descriptionEditorRef.current)} />
+            <div className="relative">
+              <Textarea
+                ref={descriptionEditorRef}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="Take a note..."
+                className="min-h-[200px] max-h-[calc(80vh-200px)] w-full text-base pb-12"
+                enableHotkeys
+                onKeyDown={(e) => {
+                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSave();
+                    }
+                }}
+              />
+              <TextareaToolbar onFormatClick={handleFormat} />
+            </div>
           </div>
         </div>
         <DialogFooter>

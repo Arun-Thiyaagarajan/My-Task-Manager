@@ -10,7 +10,7 @@ import type { Comment } from '@/lib/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { RichTextViewer } from './ui/rich-text-viewer';
 import { Textarea } from './ui/textarea';
-import { TextareaToolbar, applyFormat } from './ui/textarea-toolbar';
+import { TextareaToolbar, applyFormat, FormatType } from './ui/textarea-toolbar';
 
 interface CommentsSectionProps {
   taskId: string;
@@ -96,6 +96,13 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
         onCommentsUpdate(updatedTask.comments || []);
     }
   };
+  
+  const handleFormat = (ref: React.RefObject<HTMLTextAreaElement>, type: FormatType) => {
+      if (ref.current) {
+          applyFormat(type, ref.current);
+      }
+  };
+
 
   return (
     <Card>
@@ -130,7 +137,7 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
                                                     className="min-h-[100px] pb-12"
                                                     enableHotkeys
                                                 />
-                                                <TextareaToolbar onFormatClick={(type) => editCommentRef.current && applyFormat(type, editCommentRef.current)} />
+                                                <TextareaToolbar onFormatClick={(type) => handleFormat(editCommentRef, type)} />
                                             </div>
                                             <div className="flex gap-2 justify-end">
                                                 <Button size="sm" variant="ghost" onClick={handleCancelEdit}><X className="h-4 w-4 mr-1" />Cancel</Button>
@@ -182,7 +189,7 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
                                             className="min-h-[100px] pb-12"
                                             enableHotkeys
                                         />
-                                        <TextareaToolbar onFormatClick={(type) => newCommentRef.current && applyFormat(type, newCommentRef.current)} />
+                                        <TextareaToolbar onFormatClick={(type) => handleFormat(newCommentRef, type)} />
                                     </div>
                                     <div className="flex justify-end gap-2">
                                       {newComment && <Button variant="ghost" size="sm" onClick={handleCancelNewComment}>Cancel</Button>}
