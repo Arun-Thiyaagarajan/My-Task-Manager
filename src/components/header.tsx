@@ -24,7 +24,7 @@ import {
   getGeneralReminders,
 } from '@/lib/data';
 import type { Company, UiConfig } from '@/lib/types';
-import { Building, PlusCircle, Trash2, Edit, LayoutDashboard, Cog, Menu, FileClock, Home, Bell, GraduationCap } from 'lucide-react';
+import { Building, PlusCircle, Trash2, Edit, LayoutDashboard, Cog, Menu, FileClock, Home, Bell, GraduationCap, StickyNote } from 'lucide-react';
 import { CompaniesManager } from './companies-manager';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -41,7 +41,7 @@ import {
 import { useActiveCompany } from '@/hooks/use-active-company';
 import { ThemeToggle } from './theme-toggle';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { ImagePreviewDialog } from './image-preview-dialog';
 import { GeneralRemindersDialog } from './general-reminders-dialog';
 import { useTutorial } from '@/hooks/use-tutorial';
@@ -49,6 +49,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
 const HeaderLink = ({ href, children, className, onClick }: { href: string; children: React.ReactNode, className?: string; onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void; }) => {
     const router = useRouter();
+    const pathname = usePathname();
     const { prompt } = useUnsavedChanges();
 
     const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -57,6 +58,10 @@ const HeaderLink = ({ href, children, className, onClick }: { href: string; chil
             if (e.defaultPrevented) {
                 return; // If custom logic prevented default, stop here
             }
+        }
+        if (pathname === href) {
+            e.preventDefault();
+            return;
         }
         e.preventDefault();
         prompt(() => router.push(href));

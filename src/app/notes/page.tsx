@@ -1,14 +1,14 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import * as React from 'react';
-import { getNotes, updateNote, deleteNote, getUiConfig } from '@/lib/data';
+import { addNote, getNotes, updateNote, deleteNote, getUiConfig } from '@/lib/data';
 import type { Note, UiConfig } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { FileText, Trash2, Edit } from 'lucide-react';
+import { FileText, Trash2, Edit, Save, StickyNote } from 'lucide-react';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
 import { cn, formatTimestamp } from '@/lib/utils';
 import {
@@ -28,7 +28,7 @@ import { TextareaToolbar, applyFormat } from '@/components/ui/textarea-toolbar';
 
 function EditNoteDialog({ note, isOpen, onOpenChange, onSave }: { note: Note | null, isOpen: boolean, onOpenChange: (open: boolean) => void, onSave: (id: string, content: string) => void }) {
     const [content, setContent] = useState('');
-    const descriptionEditorRef = React.useRef<HTMLTextAreaElement>(null);
+    const descriptionEditorRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
         if (note) {
@@ -106,6 +106,75 @@ function NoteCard({ note, uiConfig, onEdit, onDelete }: { note: Note, uiConfig: 
     );
 }
 
+function NoteInputBar() {
+    const [content, setContent] = useState('');
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const { toast } = useToast();
+    const [commandKey, setCommandKey] = useState('Ctrl');
+
+    useEffect(() => {
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        setCommandKey(isMac ? '⌘' : 'Ctrl');
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === '/') {
+                e.preventDefault();
+                textareaRef.current?.focus();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, []);
+
+    const handleSave = () => {
+        if (!content.trim()) {
+            toast({
+                variant: 'destructive',
+                title: 'Cannot save an empty note.',
+            });
+            return;
+        }
+
+        addNote({ content });
+        toast({
+            variant: 'success',
+            title: 'Note Saved',
+        });
+        setContent('');
+        window.dispatchEvent(new Event('notes-updated'));
+    };
+
+    return (
+         <div className="max-w-3xl mx-auto w-full">
+            <div className="relative flex items-center gap-2 py-3">
+                <Textarea
+                    ref={textareaRef}
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    placeholder={`Take a note... (${commandKey}+/)`}
+                    className="pr-12 resize-none max-h-40 shadow-lg"
+                    onKeyDown={(e) => {
+                        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                            e.preventDefault();
+                            handleSave();
+                        }
+                    }}
+                />
+                <Button
+                    size="icon"
+                    className={cn("absolute right-2 shrink-0 transition-opacity duration-300", content.trim() ? "opacity-100" : "opacity-0 pointer-events-none")}
+                    onClick={handleSave}
+                >
+                    <Save className="h-4 w-4" />
+                </Button>
+            </div>
+        </div>
+    );
+}
+
 export default function NotesPage() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -158,19 +227,21 @@ export default function NotesPage() {
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-2">
         <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <FileText className="h-7 w-7"/> Notes
+            <StickyNote className="h-7 w-7"/> Notes
         </h1>
       </div>
 
+      <NoteInputBar />
+
       {notes.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg">
+        <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg mt-8">
             <p className="text-lg font-semibold">No notes yet.</p>
-            <p className="mt-1">Use the input bar at the bottom of the screen to create your first note.</p>
+            <p className="mt-1">Use the input bar above to create your first note.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 pb-24">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 pt-8">
             {notes.map(note => (
                 <NoteCard key={note.id} note={note} uiConfig={uiConfig} onEdit={handleEditNote} onDelete={handleDeleteNote} />
             ))}
