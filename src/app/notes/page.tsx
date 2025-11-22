@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { addNote, getNotes, updateNote, deleteNote, getUiConfig, updateNoteLayouts } from '@/lib/data';
 import type { Note, UiConfig, NoteLayout } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
   Dialog,
@@ -48,7 +49,7 @@ function NoteEditorDialog({
   onSave: (id: string | undefined, content: string) => void;
 }) {
   const [content, setContent] = useState('');
-  const descriptionEditorRef = React.useRef<HTMLTextAreaElement>(null);
+  const descriptionEditorRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (isOpen) {
