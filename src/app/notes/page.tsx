@@ -105,40 +105,38 @@ function NoteEditorDialog({
 
 function NoteCard({ note, uiConfig, onEdit, onDelete }: { note: Note, uiConfig: UiConfig, onEdit: (note: Note) => void, onDelete: (noteId: string) => void }) {
     return (
-        <div className="break-inside-avoid">
-            <Card className="flex flex-col h-full group mb-4">
-                <CardContent className="p-4 flex-grow">
-                    <RichTextViewer text={note.content} />
-                </CardContent>
-                <CardFooter className="p-2 border-t flex justify-between items-center">
-                    <p className="text-xs text-muted-foreground">
-                        {formatTimestamp(note.updatedAt, uiConfig.timeFormat)}
-                    </p>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(note)}>
-                            <Edit className="h-4 w-4" />
-                        </Button>
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete this note?</AlertDialogTitle>
-                                    <AlertDialogDescription>This will move the note to the bin. You can restore it from there later.</AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => onDelete(note.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                    </div>
-                </CardFooter>
-            </Card>
-        </div>
+        <Card className="flex flex-col h-full group w-full sm:max-w-sm">
+            <CardContent className="p-4 flex-grow">
+                <RichTextViewer text={note.content} />
+            </CardContent>
+            <CardFooter className="p-2 border-t flex justify-between items-center">
+                <p className="text-xs text-muted-foreground">
+                    {formatTimestamp(note.updatedAt, uiConfig.timeFormat)}
+                </p>
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(note)}>
+                        <Edit className="h-4 w-4" />
+                    </Button>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Delete this note?</AlertDialogTitle>
+                                <AlertDialogDescription>This will move the note to the bin. You can restore it from there later.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => onDelete(note.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </div>
+            </CardFooter>
+        </Card>
     );
 }
 
@@ -269,7 +267,7 @@ export default function NotesPage() {
             <p className="mt-1">Use the input bar above to create your first note.</p>
         </div>
       ) : (
-        <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4">
+        <div className="flex flex-wrap items-start gap-4">
             {notes.map(note => (
                 <NoteCard key={note.id} note={note} uiConfig={uiConfig} onEdit={handleEditNote} onDelete={handleDeleteNote} />
             ))}
