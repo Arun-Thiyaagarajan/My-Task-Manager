@@ -32,15 +32,24 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     const [developers, setDevelopers] = React.useState<Person[]>([]);
     const [testers, setTesters] = React.useState<Person[]>([]);
     const [activeSuggestion, setActiveSuggestion] = React.useState(0);
+    const mentionStartIndex = React.useRef<number | null>(null);
+
 
     const openMentionPopover = React.useCallback(() => {
         if (localRef.current) {
+            mentionStartIndex.current = localRef.current.selectionStart;
             setIsMentionOpen(true);
             setDevelopers(getDevelopers());
             setTesters(getTesters());
             setActiveSuggestion(0);
         }
     }, []);
+
+    const closeMentionPopover = () => {
+        setIsMentionOpen(false);
+        setMentionQuery('');
+        mentionStartIndex.current = null;
+    }
     
     const handleFormatClick = (formatType: FormatType) => {
         if(formatType === 'mention') {
@@ -68,10 +77,11 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         }
     };
     
-    React.useImperativeHandle(props.forwardedRef, () => ({
-        ...localRef.current,
-        handleFormatClick,
-    }));
+    // This hook is not standard and will cause issues.
+    // React.useImperativeHandle(props.forwardedRef, () => ({
+    //     ...localRef.current,
+    //     handleFormatClick,
+    // }));
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (isMentionOpen) {
@@ -129,11 +139,28 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     }, [props.value]);
 
     const handleMentionSelect = (name: string) => {
-        if(localRef.current) {
-            applyFormat('mention', localRef.current, name);
+        if(localRef.current && mentionStartIndex.current !== null) {
+            const { value } = localRef.current;
+            const start = mentionStartIndex.current -1; // include the @
+            const end = localRef.current.selectionStart;
+
+            const mentionText = `**@${name}** `;
+            const newValue = value.substring(0, start) + mentionText + value.substring(end);
+            
+            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+            nativeInputValueSetter?.call(localRef.current, newValue);
+            
+            const event = new Event('input', { bubbles: true });
+            localRef.current.dispatchEvent(event);
+
+            const newCursorPos = start + mentionText.length;
+            localRef.current.focus();
+            setTimeout(() => {
+                localRef.current!.selectionStart = newCursorPos;
+                localRef.current!.selectionEnd = newCursorPos;
+            }, 0);
         }
-        setIsMentionOpen(false);
-        setMentionQuery('');
+        closeMentionPopover();
     };
 
     const handleTextareaInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -142,12 +169,13 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
 
         if (lastChar === '@') {
             openMentionPopover();
-        } else if (isMentionOpen) {
-            const atIndex = value.substring(0, selectionStart).lastIndexOf('@');
-            if (atIndex === -1 || /\s/.test(value.substring(atIndex + 1, selectionStart))) {
-                setIsMentionOpen(false);
+        } else if (isMentionOpen && mentionStartIndex.current !== null) {
+            const queryText = value.substring(mentionStartIndex.current, selectionStart);
+            if (!queryText || /\s/.test(queryText)) {
+                closeMentionPopover();
             } else {
-                setMentionQuery(value.substring(atIndex + 1, selectionStart).toLowerCase());
+                setMentionQuery(queryText.toLowerCase());
+                setActiveSuggestion(0);
             }
         }
 
@@ -178,6 +206,8 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                 className="w-64 p-0" 
                 onOpenAutoFocus={(e) => e.preventDefault()} // Prevent focus stealing
                 align="start"
+                onEscapeKeyDown={closeMentionPopover}
+                onInteractOutside={closeMentionPopover}
             >
                 <Command>
                     <CommandList>
