@@ -2,7 +2,7 @@
 'use client';
 
 import { useForm, useFieldArray } from 'react-hook-form';
-import { zodResolver } from '@zod-resolvers/zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
 import { createTaskSchema } from '@/lib/validators';
 import type { Task, FieldConfig, FieldType, UiConfig, Attachment, Person } from '@/lib/types';
@@ -29,8 +29,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { getLinkAlias } from '@/ai/flows/get-link-alias-flow';
-import { Textarea } from './ui/textarea';
-import { TextareaToolbar, applyFormat } from './ui/textarea-toolbar';
+import { Textarea } from './textarea';
+import { TextareaToolbar, applyFormat } from './textarea-toolbar';
 
 
 type TaskFormData = z.infer<ReturnType<typeof createTaskSchema>>;
