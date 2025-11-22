@@ -605,7 +605,10 @@ export function addEnvironment(name: string): boolean {
     const trimmedName = name.trim();
     if (trimmedName === '') return false;
 
-    const currentEnvs = companyData.uiConfig.environments.map(e => e.name.toLowerCase());
+    const currentEnvs = companyData.uiConfig.environments
+        .filter(e => e && e.name)
+        .map(e => e.name.toLowerCase());
+        
     if (currentEnvs.includes(trimmedName.toLowerCase())) {
         return false;
     }
@@ -640,7 +643,7 @@ export function updateEnvironment(oldName: string, updatedEnv: Environment): boo
     const existingEnv = companyData.uiConfig.environments[envIndex];
     
     // Check if new name conflicts with another existing environment
-    if (trimmedNewName.toLowerCase() !== oldName.toLowerCase() && companyData.uiConfig.environments.some(env => env.name.toLowerCase() === trimmedNewName.toLowerCase())) {
+    if (trimmedNewName.toLowerCase() !== oldName.toLowerCase() && companyData.uiConfig.environments.some(env => env && env.name && env.name.toLowerCase() === trimmedNewName.toLowerCase())) {
         return false;
     }
 
@@ -701,7 +704,7 @@ export function deleteEnvironment(name: string): boolean {
     }
     
     const { uiConfig, tasks, trash } = companyData;
-    uiConfig.environments = uiConfig.environments.filter(env => env.name !== name);
+    uiConfig.environments = uiConfig.environments.filter(env => env && env.name !== name);
 
     const deleteEnvFromTask = (task: Task) => {
         let changed = false;
@@ -958,6 +961,7 @@ const generateTaskUpdateLogs = (
     // Detailed deployment check
     const allEnvs = uiConfig.environments || [];
     allEnvs.forEach(env => {
+        if (!env || !env.name) return;
         const oldStatus = oldTask.deploymentStatus?.[env.name] ?? false;
         const newStatus = 'deploymentStatus' in newTaskData ? (newTaskData.deploymentStatus?.[env.name] ?? false) : oldStatus;
         
@@ -1775,3 +1779,4 @@ export function resetNotesLayout(): boolean {
     setAppData(data);
     return true;
 }
+
