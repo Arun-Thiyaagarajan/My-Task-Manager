@@ -81,7 +81,7 @@ const CodeBlock = ({ content }: { content: string }) => {
             <Button
                 variant="ghost"
                 size="icon"
-                className="absolute top-1.5 right-1.5 h-7 w-7 bg-white/20 text-zinc-900 hover:bg-white/30 hover:text-zinc-900 opacity-0 group-hover/code:opacity-100 transition-opacity"
+                className="absolute top-1.5 right-1.5 h-7 w-7 bg-white/90 text-zinc-900 hover:bg-white hover:text-zinc-900 opacity-0 group-hover/code:opacity-100 transition-opacity"
                 onClick={handleCopy}
             >
                 {isCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
@@ -128,7 +128,7 @@ export const RichTextViewer = memo(({ text }: RichTextViewerProps) => {
                 } else if (strike) {
                     inlineResult.push(<s key={lastIndex}>{strike}</s>);
                 } else if (code) {
-                    inlineResult.push(<code key={lastIndex} className="bg-muted text-foreground rounded-sm px-1.5 py-0.5 font-mono text-sm font-semibold">{code}</code>);
+                    inlineResult.push(<code key={lastIndex} className="bg-muted text-foreground font-semibold rounded-sm px-1 py-0.5">{code}</code>);
                 } else if (linkUrl !== undefined) {
                     inlineResult.push(<a href={linkUrl} key={lastIndex} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{bareLinkOrLinkText}</a>);
                 } else if (fullMatch.startsWith('http')) {
