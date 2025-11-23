@@ -499,7 +499,7 @@ export function getUiConfig(): UiConfig {
     return validatedConfig;
 }
 
-export function updateUiConfig(newConfig: UiConfig): UiConfig {
+export function updateUiConfig(newConfig: UiConfig, fromImport: boolean = false): UiConfig {
     const data = getAppData();
     const activeCompanyId = getActiveCompanyId();
     const companyData = data.companyData[activeCompanyId];
@@ -508,11 +508,31 @@ export function updateUiConfig(newConfig: UiConfig): UiConfig {
         return newConfig;
     }
     
-    const oldConfig = companyData.uiConfig;
+    let oldConfig = companyData.uiConfig;
+    let finalConfig = newConfig;
+
+    if (fromImport) {
+        // When importing, we merge the imported settings with the existing ones
+        const mergedConfig = {
+            ...oldConfig, // Start with existing config
+            ...newConfig, // Overwrite with imported values
+            fields: oldConfig.fields, // Keep existing field structure initially
+            repositoryConfigs: newConfig.repositoryConfigs || oldConfig.repositoryConfigs,
+            environments: newConfig.environments || oldConfig.environments,
+        };
+        // Re-validate and migrate fields after merging
+        finalConfig = _validateAndMigrateConfig(mergedConfig);
+        _addLog(companyData, { message: `Imported new application settings.` });
+    } else {
+        const logMessage = generateUiConfigUpdateLogs(oldConfig, newConfig);
+        if (logMessage) {
+            _addLog(companyData, { message: logMessage });
+        }
+    }
 
     // Sort fields by order to ensure consistency
-    newConfig.fields.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
-    newConfig.fields.forEach((field, index) => {
+    finalConfig.fields.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+    finalConfig.fields.forEach((field, index) => {
         field.order = index;
         const isSortable = ['select', 'multiselect', 'tags'].includes(field.type) && field.key !== 'status';
         if (isSortable && !field.sortDirection) {
@@ -522,7 +542,7 @@ export function updateUiConfig(newConfig: UiConfig): UiConfig {
     
     // --- Repository Rename Logic ---
     const oldRepoNameToId = new Map((oldConfig.repositoryConfigs || []).map(r => [r.name, r.id]));
-    const newRepoIdToName = new Map((newConfig.repositoryConfigs || []).map(r => [r.id, r.name]));
+    const newRepoIdToName = new Map((finalConfig.repositoryConfigs || []).map(r => [r.id, r.name]));
 
     const tasksToUpdate = [
         ...companyData.tasks,
@@ -582,19 +602,13 @@ export function updateUiConfig(newConfig: UiConfig): UiConfig {
         }
     });
 
-    const logMessage = generateUiConfigUpdateLogs(oldConfig, newConfig);
-    if (logMessage) {
-        _addLog(companyData, { message: logMessage });
-    }
-    
     // Finally, update the config and save everything
-    companyData.uiConfig = newConfig;
+    companyData.uiConfig = finalConfig;
     setAppData(data);
     window.dispatchEvent(new Event('company-changed'));
     
-    return newConfig;
+    return finalConfig;
 }
-
 
 export function addEnvironment(name: string): boolean {
     const data = getAppData();

@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck, Server, Globe, Image as ImageIcon, BellRing, Settings2, GraduationCap, Download, DatabaseZap } from 'lucide-react';
+import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck, Server, Globe, Image as ImageIcon, BellRing, Settings2, GraduationCap, Download, DatabaseZap, Upload } from 'lucide-react';
 import { EditFieldDialog } from '@/components/edit-field-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -63,6 +63,7 @@ export default function SettingsPage() {
   const iconInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [commandKey, setCommandKey] = useState('Ctrl');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -439,6 +440,66 @@ export default function SettingsPage() {
         window.location.reload();
     }, 2000);
   };
+  
+    const handleExportSettings = () => {
+        if (!config) return;
+        const appNamePrefix = config.appName?.replace(/\s+/g, '_') || 'MyTaskManager';
+        const dateSuffix = format(new Date(), "yyyy-MM-dd");
+        const fileName = `${appNamePrefix}_Settings_${dateSuffix}.json`;
+        
+        const settingsToExport = {
+            appName: config.appName,
+            appIcon: config.appIcon,
+            taskStatuses: config.taskStatuses,
+            repositoryConfigs: config.repositoryConfigs,
+            environments: config.environments,
+            fields: config.fields,
+            remindersEnabled: config.remindersEnabled,
+            tutorialEnabled: config.tutorialEnabled,
+            timeFormat: config.timeFormat,
+            autoBackupFrequency: config.autoBackupFrequency,
+            autoBackupTime: config.autoBackupTime,
+        };
+
+        const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(settingsToExport, null, 2))}`;
+        const link = document.createElement("a");
+        link.href = jsonString;
+        link.download = fileName;
+        link.click();
+        
+        toast({ variant: 'success', title: 'Settings Exported', description: 'Your application settings have been downloaded.' });
+    };
+
+    const handleImportSettings = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const text = e.target?.result as string;
+                const importedConfig = JSON.parse(text);
+
+                // Basic validation
+                if (typeof importedConfig !== 'object' || !importedConfig.fields) {
+                    throw new Error("Invalid settings file format.");
+                }
+
+                updateUiConfig(importedConfig, true);
+                
+                toast({ variant: 'success', title: 'Settings Imported', description: 'Your application has been updated with the new settings.' });
+                refreshData(); // Re-render the page with the new config
+
+            } catch (error: any) {
+                toast({ variant: 'destructive', title: 'Import Failed', description: error.message || 'There was an error processing your file.' });
+            } finally {
+                if (fileInputRef.current) {
+                    fileInputRef.current.value = '';
+                }
+            }
+        };
+        reader.readAsText(file);
+    };
 
   const isDataURI = (str: string | null): str is string => !!str && str.startsWith('data:image');
 
@@ -818,13 +879,29 @@ export default function SettingsPage() {
                 </div>
                  <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-destructive"><DatabaseZap className="h-5 w-5" />Advanced Settings</CardTitle>
-                        <CardDescription>Use these actions with caution. They can result in data loss.</CardDescription>
+                        <CardTitle className="flex items-center gap-2 text-destructive"><DatabaseZap className="h-5 w-5" />Data Management</CardTitle>
+                        <CardDescription>Actions for exporting, importing, or deleting application data.</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="space-y-2">
+                        <Button variant="outline" className="w-full justify-start gap-2" onClick={handleExportSettings}>
+                            <Download className="h-4 w-4" />
+                            Export Settings
+                        </Button>
+                         <Button variant="outline" className="w-full justify-start gap-2" onClick={() => fileInputRef.current?.click()}>
+                            <Upload className="h-4 w-4" />
+                            Import Settings
+                        </Button>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleImportSettings}
+                            className="hidden"
+                            accept=".json"
+                        />
+                         <Separator className="my-2" />
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
-                                <Button variant="destructive" className="w-full">
+                                <Button variant="destructive" className="w-full justify-start gap-2">
                                     <Trash2 className="mr-2 h-4 w-4" />
                                     Clear All Local Data
                                 </Button>
@@ -833,7 +910,7 @@ export default function SettingsPage() {
                                 <AlertDialogHeader>
                                     <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                        This action cannot be undone. This will permanently delete all tasks, notes, settings, and other data for all companies from this browser.
+                                        This will permanently delete all tasks, notes, settings, and other data for all companies from this browser. This action cannot be undone.
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
