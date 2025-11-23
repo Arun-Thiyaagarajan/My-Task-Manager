@@ -3,14 +3,14 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { getUiConfig, updateUiConfig, addEnvironment, updateEnvironment, deleteEnvironment, getDevelopers, getTesters } from '@/lib/data';
+import { getUiConfig, updateUiConfig, addEnvironment, updateEnvironment, deleteEnvironment, getDevelopers, getTesters, DATA_KEY } from '@/lib/data';
 import type { UiConfig, FieldConfig, RepositoryConfig, Person, BackupFrequency, Environment } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck, Server, Globe, Image as ImageIcon, BellRing, Settings2, GraduationCap, Download } from 'lucide-react';
+import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck, Server, Globe, Image as ImageIcon, BellRing, Settings2, GraduationCap, Download, HardDriveZap } from 'lucide-react';
 import { EditFieldDialog } from '@/components/edit-field-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -420,6 +420,26 @@ export default function SettingsPage() {
     });
   };
 
+  const handleClearData = () => {
+    // Clear all localStorage items that start with 'taskflow_'
+    Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('taskflow_')) {
+            localStorage.removeItem(key);
+        }
+    });
+    // Clear the main data key
+    localStorage.removeItem(DATA_KEY);
+    toast({
+        variant: 'success',
+        title: 'Data Cleared',
+        description: 'All local application data has been removed. The page will now reload.',
+        duration: 5000,
+    });
+    setTimeout(() => {
+        window.location.reload();
+    }, 2000);
+  };
+
   const isDataURI = (str: string | null): str is string => !!str && str.startsWith('data:image');
 
   const filteredAndGroupedFields = useMemo(() => {
@@ -796,6 +816,34 @@ export default function SettingsPage() {
                         <CardContent><Button onClick={() => openPeopleManager('tester')} className="w-full">Manage Testers</Button></CardContent>
                     </Card>
                 </div>
+                 <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-destructive"><HardDriveZap className="h-5 w-5" />Advanced Settings</CardTitle>
+                        <CardDescription>Use these actions with caution. They can result in data loss.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="destructive" className="w-full">
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Clear All Local Data
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This action cannot be undone. This will permanently delete all tasks, notes, settings, and other data for all companies from this browser.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleClearData} className="bg-destructive hover:bg-destructive/90">Clear Data</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </CardContent>
+                </Card>
             </div>
         </div>
       </div>

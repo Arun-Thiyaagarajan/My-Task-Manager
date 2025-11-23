@@ -5,7 +5,7 @@ import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskMa
 import cloneDeep from 'lodash/cloneDeep';
 import { format, isToday, isYesterday } from 'date-fns';
 
-const DATA_KEY = 'my_task_manager_data';
+export const DATA_KEY = 'my_task_manager_data';
 
 const getInitialData = (): MyTaskManagerData => {
     const defaultCompanyId = `company-${crypto.randomUUID()}`;
@@ -641,6 +641,7 @@ export function updateEnvironment(oldName: string, updatedEnv: Environment): boo
     if (trimmedNewName === '') return false;
 
     const envIndex = companyData.uiConfig.environments.findIndex(e => e.name === oldName);
+    if (envIndex === -1) return false;
     const existingEnv = companyData.uiConfig.environments[envIndex];
     
     // Check if new name conflicts with another existing environment
