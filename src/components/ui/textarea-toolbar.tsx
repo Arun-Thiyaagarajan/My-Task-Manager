@@ -18,22 +18,21 @@ export function applyFormat(formatType: FormatType, target: HTMLTextAreaElement,
     const { selectionStart, selectionEnd, value } = target;
 
     if (formatType === 'mention') {
-        let textToInsert = '';
-        let newCursorPos = selectionStart;
-
-        // This case is for when the toolbar button is clicked
-        textToInsert = '@<';
-        newCursorPos = selectionStart + 2;
+        const placeholder = 'placeholder';
+        const textToInsert = `@<${placeholder}>`;
+        const newSelectionStart = selectionStart + 2; // after @<
+        const newSelectionEnd = newSelectionStart + placeholder.length;
         const newValue = value.substring(0, selectionStart) + textToInsert + value.substring(selectionEnd);
         
         const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
         nativeInputValueSetter?.call(target, newValue);
+        
         const event = new Event('input', { bubbles: true });
         target.dispatchEvent(event);
         
-        target.selectionStart = newCursorPos;
-        target.selectionEnd = newCursorPos;
         target.focus();
+        target.selectionStart = newSelectionStart;
+        target.selectionEnd = newSelectionEnd;
         
         // This will trigger the popover in the textarea component
         const inputEvent = new Event('input', { bubbles: true });
