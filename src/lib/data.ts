@@ -517,8 +517,6 @@ export function updateUiConfig(newConfig: UiConfig, fromImport: boolean = false)
             ...oldConfig, // Start with existing config
             ...newConfig, // Overwrite with imported values
             fields: oldConfig.fields, // Keep existing field structure initially
-            repositoryConfigs: newConfig.repositoryConfigs || oldConfig.repositoryConfigs,
-            environments: newConfig.environments || oldConfig.environments,
         };
         // Re-validate and migrate fields after merging
         finalConfig = _validateAndMigrateConfig(mergedConfig);

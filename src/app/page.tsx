@@ -798,10 +798,10 @@ export default function Home() {
 
             allImportedTasks.forEach(task => {
                 if (!task) return;
-                Object.keys(task.deploymentStatus || {}).forEach(env => discoveredEnvs.add(env));
-                Object.keys(task.deploymentDates || {}).forEach(env => discoveredEnvs.add(env));
-                Object.keys(task.prLinks || {}).forEach(env => discoveredEnvs.add(env));
-                (task.relevantEnvironments || []).forEach(env => discoveredEnvs.add(env));
+                if(task.deploymentStatus) Object.keys(task.deploymentStatus).forEach(env => discoveredEnvs.add(env));
+                if(task.deploymentDates) Object.keys(task.deploymentDates).forEach(env => discoveredEnvs.add(env));
+                if(task.prLinks) Object.keys(task.prLinks).forEach(env => discoveredEnvs.add(env));
+                if(task.relevantEnvironments) task.relevantEnvironments.forEach(env => discoveredEnvs.add(env));
             });
 
             const newEnvsToAdd: string[] = [];
