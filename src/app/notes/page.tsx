@@ -172,12 +172,13 @@ export default function NotesPage() {
   
   const handleResetLayout = () => {
     if (resetNotesLayout()) {
-        toast({ variant: 'success', title: 'Layout Reset', description: 'Your notes layout has been reset to the default grid.' });
+        toast({ variant: 'success', title: 'Layout Reset', description: 'Your notes layout has been reset to a compact grid.' });
         refreshData();
     }
   };
 
   const onLayoutChange = (layout: any, layouts: any) => {
+    if (areFiltersActive) return; // Don't save layout changes while filtering
     updateNoteLayouts(layouts.lg);
   };
   
@@ -315,25 +316,64 @@ export default function NotesPage() {
       return searchQuery.trim() !== '' || dateFilter !== undefined;
   }, [searchQuery, dateFilter]);
 
-  const prevFiltersActive = useRef(areFiltersActive);
-  useEffect(() => {
-      if (areFiltersActive && !prevFiltersActive.current) {
-          if (resetNotesLayout()) {
-              toast({ variant: 'success', title: 'Layout Reset', description: 'Notes layout has been reset to a compact grid.' });
-              refreshData();
-          }
-      }
-      prevFiltersActive.current = areFiltersActive;
-  }, [areFiltersActive, refreshData, toast]);
+  const layouts = useMemo(() => {
+    // This is a compact, read-only layout for when filters are active
+    const generateCompactLayout = (notesToLayout: Note[], breakpoint: 'lg' | 'md' | 'sm' | 'xs' | 'xxs') => {
+        const cols = { lg: 12, md: 12, sm: 12, xs: 12, xxs: 12 };
+        const colWidth = { lg: 3, md: 4, sm: 6, xs: 12, xxs: 12 };
+        
+        let colHeights: number[] = Array(12).fill(0);
+        
+        return notesToLayout.map((note) => {
+            let minH = Infinity;
+            let bestCol = 0;
+            for (let i = 0; i < cols[breakpoint]; i += colWidth[breakpoint]) {
+                const h = colHeights.slice(i, i + colWidth[breakpoint]).reduce((a, b) => Math.max(a, b), 0);
+                if (h < minH) {
+                    minH = h;
+                    bestCol = i;
+                }
+            }
+            
+            const noteHeight = note.layout?.h || 6;
+            const newLayout = {
+                ...note.layout,
+                i: note.id,
+                x: bestCol,
+                y: minH,
+                w: colWidth[breakpoint],
+                isDraggable: false,
+                isResizable: false,
+            };
 
+            for (let i = bestCol; i < bestCol + colWidth[breakpoint]; i++) {
+                colHeights[i] = minH + noteHeight;
+            }
+            
+            return newLayout;
+        });
+    };
 
-  const layouts = {
-      lg: filteredNotes.map(n => n.layout),
-      md: filteredNotes.map(n => ({ ...n.layout, w: 4 })),
-      sm: filteredNotes.map(n => ({ ...n.layout, w: 6 })),
-      xs: filteredNotes.map(n => ({ ...n.layout, x: 0, w: 12 })),
-      xxs: filteredNotes.map(n => ({ ...n.layout, x: 0, w: 12 })),
-  };
+    if (areFiltersActive) {
+        return {
+            lg: generateCompactLayout(filteredNotes, 'lg'),
+            md: generateCompactLayout(filteredNotes, 'md'),
+            sm: generateCompactLayout(filteredNotes, 'sm'),
+            xs: generateCompactLayout(filteredNotes, 'xs'),
+            xxs: generateCompactLayout(filteredNotes, 'xxs'),
+        };
+    }
+    
+    // Return the original saved layouts otherwise
+    return {
+        lg: filteredNotes.map(n => n.layout),
+        md: filteredNotes.map(n => ({ ...n.layout, w: Math.min(n.layout.w, 4) })),
+        sm: filteredNotes.map(n => ({ ...n.layout, w: Math.min(n.layout.w, 6) })),
+        xs: filteredNotes.map(n => ({ ...n.layout, x: 0, w: 12 })),
+        xxs: filteredNotes.map(n => ({ ...n.layout, x: 0, w: 12 })),
+    };
+}, [areFiltersActive, filteredNotes]);
+
 
   if (isLoading || !uiConfig) {
     return <LoadingSpinner text="Loading notes..." />;
@@ -511,10 +551,12 @@ export default function NotesPage() {
               cols={{lg: 12, md: 12, sm: 12, xs: 12, xxs: 12}}
               rowHeight={30}
               onLayoutChange={onLayoutChange}
-              draggableHandle=".drag-handle"
+              draggableHandle={areFiltersActive ? undefined : ".drag-handle"}
+              isDraggable={!areFiltersActive}
+              isResizable={!areFiltersActive}
           >
               {filteredNotes.map(note => (
-                  <div key={note.id} data-grid={note.layout} className="relative group/card-wrapper">
+                  <div key={note.id} data-grid={layouts.lg.find(l => l.i === note.id)} className="relative group/card-wrapper">
                       {isSelectMode && (
                           <div className="absolute top-2 left-2 z-10">
                             <Checkbox
