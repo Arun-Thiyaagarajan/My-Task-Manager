@@ -327,22 +327,37 @@ export default function NotesPage() {
         case 'sm': cols = 2; break;
         default: cols = 1;
     }
+    
+    // Note: The grid layout has 12 columns total.
     const colWidth = 12 / cols;
+
     return notesToLayout.map((note, i) => ({
       ...note.layout,
+      i: note.id,
       x: (i % cols) * colWidth,
       y: Math.floor(i / cols) * note.layout.h,
       w: colWidth,
     }));
   };
 
-  const layouts = {
-      lg: areFiltersActive ? generateCompactLayout(filteredNotes, 'lg') : filteredNotes.map(note => note.layout),
-      md: areFiltersActive ? generateCompactLayout(filteredNotes, 'md') : filteredNotes.map(note => ({...note.layout, w: 4})),
-      sm: areFiltersActive ? generateCompactLayout(filteredNotes, 'sm') : filteredNotes.map(note => ({...note.layout, w: 6})),
-      xs: areFiltersActive ? generateCompactLayout(filteredNotes, 'xs') : filteredNotes.map(note => ({...note.layout, x: 0, w: 12})),
-      xxs: areFiltersActive ? generateCompactLayout(filteredNotes, 'xxs') : filteredNotes.map(note => ({...note.layout, x: 0, w: 12})),
-  };
+  const layouts = useMemo(() => {
+    if (areFiltersActive) {
+        return {
+            lg: generateCompactLayout(filteredNotes, 'lg'),
+            md: generateCompactLayout(filteredNotes, 'md'),
+            sm: generateCompactLayout(filteredNotes, 'sm'),
+            xs: generateCompactLayout(filteredNotes, 'xs'),
+            xxs: generateCompactLayout(filteredNotes, 'xxs'),
+        };
+    }
+    return {
+        lg: filteredNotes.map(n => n.layout),
+        md: filteredNotes.map(n => ({ ...n.layout, w: 4 })),
+        sm: filteredNotes.map(n => ({ ...n.layout, w: 6 })),
+        xs: filteredNotes.map(n => ({ ...n.layout, x: 0, w: 12 })),
+        xxs: filteredNotes.map(n => ({ ...n.layout, x: 0, w: 12 })),
+    };
+  }, [areFiltersActive, filteredNotes]);
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
