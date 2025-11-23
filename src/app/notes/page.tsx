@@ -219,8 +219,16 @@ export default function NotesPage() {
             const validNotes = validationResults.map((res, i) => res.success ? importedNotesData[i] : null).filter((n): n is Partial<Note> => n !== null);
             const failedCount = validationResults.length - validNotes.length;
 
-            if (validNotes.length > 0) {
-                const newNotes = importNotes(validNotes);
+            const existingNotes = getNotes();
+            const existingContent = new Set(existingNotes.map(n => `${n.title.trim()}|${n.content.trim()}`));
+            const uniqueNotesToImport = validNotes.filter(n => {
+                const noteContent = `${(n.title || '').trim()}|${(n.content || '').trim()}`;
+                return !existingContent.has(noteContent);
+            });
+            const duplicateCount = validNotes.length - uniqueNotesToImport.length;
+            
+            if (uniqueNotesToImport.length > 0) {
+                const newNotes = importNotes(uniqueNotesToImport);
                 addLog({ message: `Imported ${newNotes.length} notes.` });
                 toast({ variant: 'success', title: 'Import Complete', description: `${newNotes.length} notes were successfully imported.` });
             }
@@ -228,9 +236,12 @@ export default function NotesPage() {
             if (failedCount > 0) {
                 toast({ variant: 'warning', title: 'Import Warning', description: `${failedCount} notes failed validation and were not imported.` });
             }
+            if (duplicateCount > 0) {
+                toast({ variant: 'default', title: 'Duplicates Skipped', description: `${duplicateCount} notes were duplicates and were not imported.` });
+            }
 
-            if(validNotes.length === 0 && failedCount === 0) {
-                 toast({ variant: 'default', title: 'Nothing to Import', description: 'The file contained no notes to import.' });
+            if(uniqueNotesToImport.length === 0 && failedCount === 0) {
+                 toast({ variant: 'default', title: 'Nothing to Import', description: 'The file contained no new notes to import.' });
             }
 
             refreshData();
