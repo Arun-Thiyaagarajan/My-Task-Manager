@@ -315,10 +315,6 @@ export default function NotesPage() {
       return searchQuery.trim() !== '' || dateFilter !== undefined;
   }, [searchQuery, dateFilter]);
 
-  if (isLoading || !uiConfig) {
-    return <LoadingSpinner text="Loading notes..." />;
-  }
-
   const generateCompactLayout = (notesToLayout: Note[], breakpoint: string): NoteLayout[] => {
     let cols: number;
     switch(breakpoint) {
@@ -358,6 +354,10 @@ export default function NotesPage() {
         xxs: filteredNotes.map(n => ({ ...n.layout, x: 0, w: 12 })),
     };
   }, [areFiltersActive, filteredNotes]);
+
+  if (isLoading || !uiConfig) {
+    return <LoadingSpinner text="Loading notes..." />;
+  }
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -600,3 +600,4 @@ export default function NotesPage() {
     
 
     
+
