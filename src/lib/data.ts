@@ -1000,7 +1000,7 @@ const generateTaskUpdateLogs = (
             } else if (oldDate && !newDate) {
                 changes.push(`- Cleared **${env.name.charAt(0).toUpperCase() + env.name.slice(1)} deployment date**.`);
             } else if (oldDate && newDate) {
-                changes.push(`- Changed **${env.name.charAt(0).toUpperCase() + env.name.slice(1)} deployment date** from *${format(new Date(oldDate), 'PPP')}* to *${format(new Date(newDate), 'PPP')}*.`);
+                changes.push(`- Changed **${env.name.charAt(0).toUpperCase() + env.name.slice(1)} deployment date** from *${format(new Date(oldDate), 'PPP')}* to *${format(new Date(newDate!), 'PPP')}*.`);
             }
         }
     });
@@ -1835,24 +1835,23 @@ export function resetNotesLayout(): boolean {
 
     const cols = 4;
     const colWidth = 3;
+    const defaultHeight = 6;
 
     let colHeights = Array(cols).fill(0);
 
     sortedNotes.forEach((note) => {
         const minHeightCol = colHeights.indexOf(Math.min(...colHeights));
         
-        // Use the note's actual height for calculation, but reset width and position
-        const noteHeight = note.layout?.h || 6;
-
         note.layout = {
             ...note.layout,
             i: note.id,
             x: minHeightCol * colWidth,
             y: colHeights[minHeightCol],
             w: colWidth,
+            h: defaultHeight,
         };
 
-        colHeights[minHeightCol] += noteHeight;
+        colHeights[minHeightCol] += defaultHeight;
     });
     
     companyData.notes = sortedNotes;
