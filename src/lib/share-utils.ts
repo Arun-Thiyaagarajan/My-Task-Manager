@@ -4,7 +4,7 @@
 
 import jsPDF from 'jspdf';
 import { format } from 'date-fns';
-import type { Task, UiConfig, Person, FieldConfig } from './types';
+import type { Task, UiConfig, Person, FieldConfig, Environment } from './types';
 
 // --- SVG ICONS FOR PDF WATERMARK ---
 const STATUS_SVG_ICONS: Record<string, string> = {
@@ -386,13 +386,14 @@ const _drawTaskOnPage = async (
     
     if (uiConfig.environments.length > 0) {
       if (task.devStartDate || task.devEndDate || task.qaStartDate || task.qaEndDate) y += 2;
-      uiConfig.environments.forEach(env => {
-          const isSelected = task.deploymentStatus?.[env] ?? false;
-          const hasDate = task.deploymentDates && task.deploymentDates[env];
-          const isDeployed = isSelected && (env === 'dev' || !!hasDate);
+      uiConfig.environments.forEach((env: Environment) => {
+          if (!env || !env.name) return;
+          const isSelected = task.deploymentStatus?.[env.name] ?? false;
+          const hasDate = task.deploymentDates && task.deploymentDates[env.name];
+          const isDeployed = isSelected && (env.name === 'dev' || !!hasDate);
           if (isDeployed) {
               const deploymentDate = hasDate ? `on ${format(new Date(hasDate), 'PPP')}` : '(Deployed)';
-              drawKeyValue(`${env.charAt(0).toUpperCase() + env.slice(1)} Deployed`, deploymentDate);
+              drawKeyValue(`${env.name.charAt(0).toUpperCase() + env.name.slice(1)} Deployed`, deploymentDate);
           }
       });
     }

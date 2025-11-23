@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester, updateUiConfig, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addTagsToMultipleTasks } from '@/lib/data';
+import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester, updateUiConfig, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addTagsToMultipleTasks, addEnvironment } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -56,7 +56,7 @@ import {
   CalendarDays,
 } from 'lucide-react';
 import { cn, fuzzySearch, formatTimestamp } from '@/lib/utils';
-import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig, Log, GeneralReminder, BackupFrequency } from '@/lib/types';
+import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig, Log, GeneralReminder, BackupFrequency, Environment } from '@/lib/types';
 import {
   Popover,
   PopoverContent,
@@ -457,6 +457,7 @@ export default function Home() {
         appName: currentUiConfig.appName,
         appIcon: currentUiConfig.appIcon,
         repositoryConfigs: currentUiConfig.repositoryConfigs,
+        environments: currentUiConfig.environments,
         customFieldDefinitions: customFieldDefinitions,
         developers: developersToExport.map(cleanPerson),
         testers: testersToExport.map(cleanPerson),
@@ -692,8 +693,13 @@ export default function Home() {
           appName: "My Awesome Project",
           appIcon: "🚀",
           repositoryConfigs: [
-              { name: "UI-Dashboard", baseUrl: "https://github.com/org/ui-dashboard/pull/" },
-              { name: "Backend-API", baseUrl: "https://github.com/org/backend-api/pull/" }
+              { id: 'repo_1', name: "UI-Dashboard", baseUrl: "https://github.com/org/ui-dashboard/pull/" },
+              { id: 'repo_2', name: "Backend-API", baseUrl: "https://github.com/org/backend-api/pull/" }
+          ],
+          environments: [
+              { id: 'env_1', name: 'dev', color: '#3b82f6' },
+              { id: 'env_2', name: 'stage', color: '#f59e0b' },
+              { id: 'env_3', name: 'production', color: '#22c55e' },
           ],
           developers: [
               { name: "Grace Hopper", email: "grace@example.com", phone: "111-222-3333", additionalFields: [{ id: "field_1", label: "GitHub", value: "gracehopper", type: "url" }] }
@@ -711,6 +717,8 @@ export default function Home() {
               testers: ["Ada Lovelace"],
               azureWorkItemId: "101",
               isFavorite: true,
+              deploymentStatus: { dev: true },
+              deploymentDates: { dev: new Date().toISOString() },
             }
           ]
       };
@@ -738,6 +746,7 @@ export default function Home() {
             let importedDevelopers: Partial<Omit<Person, 'id'>>[] = [];
             let importedTesters: Partial<Omit<Person, 'id'>>[] = [];
             let importedRepoConfigs: RepositoryConfig[] | undefined = undefined;
+            let importedEnvironments: Environment[] | undefined = undefined;
             let importedAppName: string | undefined = undefined;
             let importedAppIcon: string | null | undefined = undefined;
             let importedCustomFieldDefs: FieldConfig[] = [];
@@ -753,6 +762,7 @@ export default function Home() {
                 importedDevelopers = parsedJson.developers || [];
                 importedTesters = parsedJson.testers || [];
                 importedRepoConfigs = parsedJson.repositoryConfigs;
+                importedEnvironments = parsedJson.environments;
                 importedAppName = parsedJson.appName;
                 importedAppIcon = parsedJson.appIcon;
                 importedCustomFieldDefs = parsedJson.customFieldDefinitions || [];
@@ -779,7 +789,35 @@ export default function Home() {
             let configUpdated = false, devCreatedCount = 0, devUpdatedCount = 0,
                 testerCreatedCount = 0, testerUpdatedCount = 0,
                 createdCount = 0, updatedCount = 0, binnedCreatedCount = 0, 
-                binnedUpdatedCount = 0, failedCount = 0, importedLogCount = 0;
+                binnedUpdatedCount = 0, failedCount = 0, importedLogCount = 0,
+                envCreatedCount = 0;
+
+            // --- Discover and add new environments from tasks ---
+            const existingEnvs = new Set(companyData.uiConfig.environments.map(e => e.name.toLowerCase()));
+            const discoveredEnvs = new Set<string>();
+
+            allImportedTasks.forEach(task => {
+                if (!task) return;
+                Object.keys(task.deploymentStatus || {}).forEach(env => discoveredEnvs.add(env));
+                Object.keys(task.deploymentDates || {}).forEach(env => discoveredEnvs.add(env));
+                Object.keys(task.prLinks || {}).forEach(env => discoveredEnvs.add(env));
+                (task.relevantEnvironments || []).forEach(env => discoveredEnvs.add(env));
+            });
+
+            const newEnvsToAdd: string[] = [];
+            discoveredEnvs.forEach(envName => {
+                if (envName && !existingEnvs.has(envName.toLowerCase())) {
+                    if (addEnvironment(envName)) {
+                        newEnvsToAdd.push(envName);
+                        envCreatedCount++;
+                    }
+                }
+            });
+
+            if (newEnvsToAdd.length > 0) {
+                configUpdated = true;
+            }
+
 
             // --- Process Custom Field Definitions ---
             if (importedCustomFieldDefs.length > 0) {
@@ -820,6 +858,23 @@ export default function Home() {
                 });
                 const repoField = companyData.uiConfig.fields.find(f => f.key === 'repositories');
                 if (repoField) { repoField.options = companyData.uiConfig.repositoryConfigs.map(r => ({ id: r.id, value: r.name, label: r.name })); }
+                configUpdated = true;
+            }
+            if (importedEnvironments) {
+                const existingEnvsByName = new Map(companyData.uiConfig.environments.map(e => [e.name, e]));
+                importedEnvironments.forEach(importedEnv => {
+                    if (!importedEnv.name || !importedEnv.color) return;
+                    const existingEnv = existingEnvsByName.get(importedEnv.name);
+                    if (existingEnv) {
+                        existingEnv.color = importedEnv.color;
+                    } else {
+                        companyData.uiConfig.environments.push({ id: `env_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`, name: importedEnv.name, color: importedEnv.color });
+                    }
+                });
+                const envField = companyData.uiConfig.fields.find(f => f.key === 'relevantEnvironments');
+                if (envField) {
+                    envField.options = companyData.uiConfig.environments.map(e => ({ id: e.id, value: e.name, label: e.name }));
+                }
                 configUpdated = true;
             }
             
@@ -1039,6 +1094,7 @@ export default function Home() {
             // --- Toast Summary ---
             let summaryParts: string[] = [];
             if (configUpdated) summaryParts.push('App settings updated.');
+            if (envCreatedCount > 0) summaryParts.push(`${envCreatedCount} new environment(s) added.`);
             if (devCreatedCount > 0) summaryParts.push(`${devCreatedCount} dev(s) added.`);
             if (devUpdatedCount > 0) summaryParts.push(`${devUpdatedCount} dev(s) updated.`);
             if (testerCreatedCount > 0) summaryParts.push(`${testerCreatedCount} tester(s) added.`);

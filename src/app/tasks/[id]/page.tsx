@@ -3,7 +3,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask, clearExpiredReminders, addTagsToMultipleTasks, addDeveloper, addTester } from '@/lib/data';
+import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask, clearExpiredReminders, addTagsToMultipleTasks, addDeveloper, addTester, addEnvironment } from '@/lib/data';
 import { getLinkAlias } from '@/ai/flows/get-link-alias-flow';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -18,7 +18,7 @@ import { PrLinksGroup } from '@/components/pr-links-group';
 import { Badge } from '@/components/ui/badge';
 import { cn, getInitials, getAvatarColor, getRepoBadgeStyle, formatTimestamp } from '@/lib/utils';
 import { format } from 'date-fns';
-import type { Task, FieldConfig, UiConfig, TaskStatus, Person, Attachment, Log, Comment } from '@/lib/types';
+import type { Task, FieldConfig, UiConfig, TaskStatus, Person, Attachment, Log, Comment, Environment } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useToast } from '@/hooks/use-toast';
@@ -777,7 +777,7 @@ const handleCopyDescription = () => {
 
   const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
 
-  const allConfiguredEnvs = task.relevantEnvironments?.length ? task.relevantEnvironments : uiConfig.environments || [];
+  const allConfiguredEnvs = (task.relevantEnvironments || []).map(name => uiConfig?.environments.find(e => e.name === name)).filter((e): e is Environment => !!e);
   
   const customFields = uiConfig.fields.filter(f => f.isCustom && f.isActive && task.customFields && typeof task.customFields[f.key] !== 'undefined' && task.customFields[f.key] !== null && task.customFields[f.key] !== '');
   
@@ -790,7 +790,7 @@ const handleCopyDescription = () => {
   const repoField = uiConfig.fields.find(f => f.key === 'repositories');
   
   const tagsOptions = [...new Set([...(tagsField?.options?.map(opt => opt.value) || []), ...(allTasks.flatMap(t => t.tags || []))])].map(t => ({value: t, label: t}));
-  const repoOptions = (repoField?.options || uiConfig.repositoryConfigs).map(opt => ({ value: opt.value ?? opt.label, label: opt.label }));
+  const repoOptions = (repoField?.options || uiConfig.repositoryConfigs).map(opt => ({ value: (opt as any).value ?? (opt as any).label, label: (opt as any).label }));
   const developerOptions = developers.map(d => ({value: d.id, label: d.name}));
   const testerOptions = testers.map(t => ({value: t.id, label: t.name}));
 
@@ -1055,14 +1055,15 @@ const handleCopyDescription = () => {
                     <CardContent>
                       <div className="space-y-1 text-sm">
                         {allConfiguredEnvs.length > 0 ? (
-                          allConfiguredEnvs.map(env => {
-                            const isSelected = task.deploymentStatus?.[env] ?? false;
-                            const hasDate = task.deploymentDates && task.deploymentDates[env];
-                            const isDeployed = isSelected && (env === 'dev' || !!hasDate);
+                          allConfiguredEnvs.map((env: Environment) => {
+                            if (!env || !env.name) return null;
+                            const isSelected = task.deploymentStatus?.[env.name] ?? false;
+                            const hasDate = task.deploymentDates && task.deploymentDates[env.name];
+                            const isDeployed = isSelected && (env.name === 'dev' || !!hasDate);
                             return (
-                              <div key={env} className={cn("flex justify-between items-center p-2 -m-2 rounded-lg transition-colors",!isBinned && 'cursor-pointer hover:bg-muted/50')} onClick={!isBinned ? () => handleToggleDeployment(env) : undefined}>
-                                <span className="capitalize text-foreground font-medium">{env}</span>
-                                <div onAnimationEnd={() => setJustUpdatedEnv(null)} className={cn('flex items-center gap-2 font-medium', isDeployed ? 'text-green-600 dark:text-green-500' : 'text-yellow-600 dark:text-yellow-500', justUpdatedEnv === env && 'animate-status-in')}>
+                              <div key={env.name} className={cn("flex justify-between items-center p-2 -m-2 rounded-lg transition-colors",!isBinned && 'cursor-pointer hover:bg-muted/50')} onClick={!isBinned ? () => handleToggleDeployment(env.name) : undefined}>
+                                <span className="capitalize text-foreground font-medium">{env.name}</span>
+                                <div onAnimationEnd={() => setJustUpdatedEnv(null)} className={cn('flex items-center gap-2 font-medium', isDeployed ? 'text-green-600 dark:text-green-500' : 'text-yellow-600 dark:text-yellow-500', justUpdatedEnv === env.name && 'animate-status-in')}>
                                   {isDeployed ? (<><CheckCircle2 className="h-4 w-4" /><span>Deployed</span></>) : (<><Clock className="h-4 w-4" /><span>Pending</span></>)}
                                 </div>
                               </div>
@@ -1084,7 +1085,7 @@ const handleCopyDescription = () => {
                       )}
                     </CardHeader>
                     <CardContent>
-                      <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} configuredEnvs={allConfiguredEnvs} repositoryConfigs={uiConfig.repositoryConfigs} onUpdate={handlePrLinksUpdate} isEditing={isEditingPrLinks && !isBinned} />
+                      <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} configuredEnvs={allConfiguredEnvs.map(e => e.name)} repositoryConfigs={uiConfig.repositoryConfigs} onUpdate={handlePrLinksUpdate} isEditing={isEditingPrLinks && !isBinned} />
                     </CardContent>
                   </Card>
                 )}
@@ -1601,7 +1602,7 @@ function TimelineSection({
     return <p className="text-muted-foreground text-center text-xs py-2">No date fields are active.</p>
   }
   
-  const relevantEnvs = task.relevantEnvironments?.length ? task.relevantEnvironments : uiConfig.environments || [];
+  const relevantEnvs = (task.relevantEnvironments || []).map(name => uiConfig?.environments.find(e => e.name === name)).filter((e): e is Environment => !!e);
 
 
   return (
@@ -1614,8 +1615,8 @@ function TimelineSection({
 
       {(devStartConfig || devEndConfig || qaStartConfig || qaEndConfig) && hasAnyDeploymentDate && <Separator className="my-2"/>}
 
-      {task.deploymentDates && relevantEnvs.map(env => (
-          <DeploymentDateField key={env} env={env} date={task.deploymentDates?.[env]} />
+      {task.deploymentDates && relevantEnvs.map((env: Environment) => (
+          <DeploymentDateField key={env.id} env={env.name} date={task.deploymentDates?.[env.name]} />
       ))}
     </div>
   );
