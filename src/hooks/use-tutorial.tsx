@@ -100,6 +100,13 @@ export function useTutorial() {
             },
         },
         {
+            element: 'div.space-y-1.text-sm > div:first-child',
+            popover: {
+                title: 'Update Deployments',
+                description: 'Click on any environment badge to quickly toggle its deployment status between "Pending" and "Deployed".'
+            }
+        },
+        {
             element: 'button[aria-label="Set Reminder"]',
             popover: {
                 title: 'Set Reminders',
@@ -124,7 +131,7 @@ export function useTutorial() {
              }
         },
         {
-            element: '#settings-people-management',
+            element: 'div[id*="settings-people-management"]',
             popover: {
                 title: 'Manage People',
                 description: 'Add and manage your lists of developers and testers in these sections.'
@@ -137,6 +144,58 @@ export function useTutorial() {
                 description: 'Define your deployment environments beyond the standard dev, stage, and production.'
             }
         },
+        {
+            element: 'div:has(> h2.flex.items-center.gap-2.text-destructive)',
+            popover: {
+                title: 'Data Management',
+                description: 'Export your settings for backup or import them into another workspace. You can also clear all local data from this browser.'
+            }
+        },
+        {
+            element: 'div:has(> div > h2.flex.items-center.gap-2)',
+            popover: {
+                title: 'Feature Management',
+                description: 'Enable or disable features like task reminders, this tutorial, and automatic data backups.'
+            }
+        }
+    ];
+    
+    const notesPageSteps: DriveStep[] = [
+        {
+            element: 'button.w-full.text-left',
+            popover: {
+                title: 'Create a Note',
+                description: 'Click here to create a new note. You can also use the shortcut (⌘ + /) from any page.'
+            }
+        },
+        {
+            element: '.flex.items-center.gap-2.flex-wrap',
+            popover: {
+                title: 'Manage Your Notes',
+                description: 'You can export all notes, import from a file, select multiple notes for bulk actions, or reset the entire grid layout.'
+            }
+        },
+        {
+            element: '.grid.grid-cols-1.sm\\:grid-cols-2.gap-4',
+            popover: {
+                title: 'Filter & Search',
+                description: 'Quickly find notes by searching their content or filtering by date.'
+            }
+        },
+        {
+            element: '.note-card-content',
+            popover: {
+                title: 'View & Edit',
+                description: 'Click on a note\'s content to open the full viewer, where you can also edit or delete it.'
+            }
+        },
+        {
+            element: '.note-card-footer',
+            popover: {
+                title: 'Rearrange Notes',
+                description: 'Click and drag this handle to rearrange your notes on the grid however you like.'
+            }
+        }
     ];
 
     const dashboardPageSteps: DriveStep[] = [
@@ -151,7 +210,7 @@ export function useTutorial() {
 
     const logsPageSteps: DriveStep[] = [
         {
-            element: '.relative.w-full.max-w-sm',
+            element: '.relative.flex.items-center.w-full.max-w-sm',
             popover: {
                 title: 'Activity Logs',
                 description: 'Here you can view a complete, filterable audit trail of every change made to tasks and settings.'
@@ -182,9 +241,7 @@ export function useTutorial() {
             steps = homePageSteps;
         } else if (path.startsWith('/tasks/new')) {
              steps = newTaskPageSteps;
-        } else if (path.match(/\/tasks\/[a-zA-Z0-9-]+$/)) {
-            steps = taskDetailPageSteps;
-        } else if (path.startsWith('/tasks/')) { // Catch edit page too
+        } else if (path.startsWith('/tasks/')) {
             steps = taskDetailPageSteps;
         } else if (path === '/settings') {
             steps = settingsPageSteps;
@@ -194,6 +251,8 @@ export function useTutorial() {
             steps = logsPageSteps;
         } else if (path === '/bin') {
             steps = binPageSteps;
+        } else if (path === '/notes') {
+            steps = notesPageSteps;
         }
 
         if (steps.length === 0) {
