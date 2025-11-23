@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -39,8 +38,25 @@ import { Calendar } from '@/components/ui/calendar';
 import type { DateRange } from 'react-day-picker';
 import { FolderSearch } from 'lucide-react';
 
-
 const ResponsiveGridLayout = WidthProvider(Responsive);
+
+const NOTES_FILTER_STORAGE_KEYS = {
+    search: 'taskflow_notes_filter_searchQuery',
+    date: 'taskflow_notes_filter_date',
+};
+
+const getInitialStateFromStorage = <T>(key: string, defaultValue: T): T => {
+    if (typeof window === 'undefined') {
+        return defaultValue;
+    }
+    try {
+        const savedValue = localStorage.getItem(key);
+        return savedValue ? JSON.parse(savedValue) : defaultValue;
+    } catch (e) {
+        console.error(`Failed to parse ${key} from localStorage`, e);
+        return defaultValue;
+    }
+};
 
 export default function NotesPage() {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -58,10 +74,21 @@ export default function NotesPage() {
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const [searchQuery, setSearchQuery] = useState('');
-  const [dateFilter, setDateFilter] = useState<DateRange | undefined>();
+  const [searchQuery, setSearchQuery] = useState(() => getInitialStateFromStorage(NOTES_FILTER_STORAGE_KEYS.search, ''));
+  const [dateFilter, setDateFilter] = useState<DateRange | undefined>(() => {
+    const savedDate = getInitialStateFromStorage<{from?: string; to?: string} | undefined>(NOTES_FILTER_STORAGE_KEYS.date, undefined);
+    if (savedDate?.from) {
+        return {
+            from: new Date(savedDate.from),
+            to: savedDate.to ? new Date(savedDate.to) : undefined,
+        };
+    }
+    return undefined;
+  });
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
 
+  useEffect(() => { localStorage.setItem(NOTES_FILTER_STORAGE_KEYS.search, JSON.stringify(searchQuery)); }, [searchQuery]);
+  useEffect(() => { localStorage.setItem(NOTES_FILTER_STORAGE_KEYS.date, JSON.stringify(dateFilter)); }, [dateFilter]);
   
   const handleOpenNewNoteDialog = useCallback(() => {
     setNoteToEdit(null);
@@ -229,7 +256,7 @@ export default function NotesPage() {
             const failedCount = validationResults.length - validNotes.length;
 
             const existingNotes = getNotes();
-            const existingContent = new Set(existingNotes.map(n => `${n.title.trim()}|${n.content.trim()}`));
+            const existingContent = new Set(existingNotes.map(n => `${(n.title || '').trim()}|${(n.content || '').trim()}`));
             const uniqueNotesToImport = validNotes.filter(n => {
                 const noteContent = `${(n.title || '').trim()}|${(n.content || '').trim()}`;
                 return !existingContent.has(noteContent);
@@ -250,7 +277,7 @@ export default function NotesPage() {
             }
 
             if(uniqueNotesToImport.length === 0 && failedCount === 0) {
-                 toast({ variant: 'default', title: 'Nothing to Import', description: 'The file contained no new notes to import.' });
+                 toast({ variant: 'default', title: 'Nothing to Import', description: 'All notes in the file were already present and were skipped.' });
             }
 
             refreshData();
@@ -530,3 +557,5 @@ export default function NotesPage() {
     </div>
   );
 }
+
+    
