@@ -51,7 +51,8 @@ const getInitialStateFromStorage = <T>(key: string, defaultValue: T): T => {
     }
     try {
         const savedValue = localStorage.getItem(key);
-        return savedValue ? JSON.parse(savedValue) : defaultValue;
+        // Add a check to prevent parsing "undefined" string
+        return savedValue && savedValue !== 'undefined' ? JSON.parse(savedValue) : defaultValue;
     } catch (e) {
         console.error(`Failed to parse ${key} from localStorage`, e);
         return defaultValue;
