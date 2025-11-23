@@ -365,26 +365,15 @@ export default function NotesPage() {
       </div>
       
        <div className="space-y-4 mb-8">
-            <TooltipProvider>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <button
-                            onClick={handleOpenNewNoteDialog}
-                            className="w-full text-left p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors text-muted-foreground shadow-sm"
-                        >
-                            Take a note...
-                        </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <div className="flex items-center gap-2">
-                            <span>Create a new note</span>
-                            <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                                <span className="text-xs">{commandKey}</span>/
-                            </kbd>
-                        </div>
-                    </TooltipContent>
-                </Tooltip>
-            </TooltipProvider>
+            <button
+                onClick={handleOpenNewNoteDialog}
+                className="w-full text-left p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors text-muted-foreground shadow-sm flex justify-between items-center"
+            >
+                <span>Take a note...</span>
+                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                    <span className="text-xs">{commandKey}</span>/
+                </kbd>
+            </button>
 
              <Card>
                 <CardContent className="p-3">
@@ -576,7 +565,3 @@ export default function NotesPage() {
 }
 
     
-
-    
-
-
