@@ -310,17 +310,38 @@ export default function NotesPage() {
         return searchMatch && dateMatch;
     });
   }, [notes, searchQuery, dateFilter]);
+  
+  const areFiltersActive = useMemo(() => {
+      return searchQuery.trim() !== '' || dateFilter !== undefined;
+  }, [searchQuery, dateFilter]);
 
   if (isLoading || !uiConfig) {
     return <LoadingSpinner text="Loading notes..." />;
   }
 
+  const generateCompactLayout = (notesToLayout: Note[], breakpoint: string): NoteLayout[] => {
+    let cols: number;
+    switch(breakpoint) {
+        case 'lg': cols = 4; break;
+        case 'md': cols = 3; break;
+        case 'sm': cols = 2; break;
+        default: cols = 1;
+    }
+    const colWidth = 12 / cols;
+    return notesToLayout.map((note, i) => ({
+      ...note.layout,
+      x: (i % cols) * colWidth,
+      y: Math.floor(i / cols) * note.layout.h,
+      w: colWidth,
+    }));
+  };
+
   const layouts = {
-      lg: filteredNotes.map(note => note.layout),
-      md: filteredNotes.map((note, i) => ({ ...note.layout, x: (i % 2) * 6, w: 6, h: 6 })),
-      sm: filteredNotes.map((note, i) => ({ ...note.layout, x: (i % 2) * 6, w: 6, h: 6 })),
-      xs: filteredNotes.map(note => ({ ...note.layout, x: 0, w: 1, h: 6 })),
-      xxs: filteredNotes.map(note => ({ ...note.layout, x: 0, w: 1, h: 6 })),
+      lg: areFiltersActive ? generateCompactLayout(filteredNotes, 'lg') : filteredNotes.map(note => note.layout),
+      md: areFiltersActive ? generateCompactLayout(filteredNotes, 'md') : filteredNotes.map(note => ({...note.layout, w: 4})),
+      sm: areFiltersActive ? generateCompactLayout(filteredNotes, 'sm') : filteredNotes.map(note => ({...note.layout, w: 6})),
+      xs: areFiltersActive ? generateCompactLayout(filteredNotes, 'xs') : filteredNotes.map(note => ({...note.layout, x: 0, w: 12})),
+      xxs: areFiltersActive ? generateCompactLayout(filteredNotes, 'xxs') : filteredNotes.map(note => ({...note.layout, x: 0, w: 12})),
   };
 
   return (
@@ -503,13 +524,15 @@ export default function NotesPage() {
               className="layout"
               layouts={layouts}
               breakpoints={{lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0}}
-              cols={{lg: 12, md: 12, sm: 12, xs: 1, xxs: 1}}
+              cols={{lg: 12, md: 12, sm: 12, xs: 12, xxs: 12}}
               rowHeight={30}
               onLayoutChange={onLayoutChange}
               draggableHandle=".drag-handle"
+              isDraggable={!areFiltersActive}
+              isResizable={!areFiltersActive}
           >
               {filteredNotes.map(note => (
-                  <div key={note.id} data-grid={note.layout} className="relative group/card-wrapper">
+                  <div key={note.id} data-grid={areFiltersActive ? layouts.lg.find(l => l.i === note.id) : note.layout} className="relative group/card-wrapper">
                       {isSelectMode && (
                           <div className="absolute top-2 left-2 z-10">
                             <Checkbox
@@ -558,5 +581,7 @@ export default function NotesPage() {
     </div>
   );
 }
+
+    
 
     
