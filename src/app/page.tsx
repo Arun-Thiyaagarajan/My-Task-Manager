@@ -78,7 +78,6 @@ import {
   addYears,
   setMonth,
   getYear,
-  getMonth,
   set,
 } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
@@ -269,15 +268,17 @@ export default function Home() {
         setCommandKey(navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? '⌘' : 'Ctrl');
         
         // Restore state on initial load
-        const navState = sessionStorage.getItem('taskflow_nav_state');
-        if (navState) {
+        const navStateRaw = sessionStorage.getItem('taskflow_nav_state');
+        if (navStateRaw) {
             try {
-                const { view, date } = JSON.parse(navState);
-                if (view) setDateView(view);
-                if (date) setSelectedDate(new Date(date));
+                const navState = JSON.parse(navStateRaw);
+                if (navState.view) setDateView(navState.view);
+                if (navState.date) setSelectedDate(new Date(navState.date));
+                // Clear the state after using it to prevent it from affecting future navigations
                 sessionStorage.removeItem('taskflow_nav_state');
             } catch (e) {
                 console.error("Could not parse navigation state:", e);
+                sessionStorage.removeItem('taskflow_nav_state');
             }
         }
     }
@@ -791,8 +792,8 @@ export default function Home() {
             const allImportedTasks = [...importedTasks, ...importedBinnedTasks];
             
             // Auto-discover people from tasks if they are not in the main lists
-            const devNames = new Set(importedDevelopers.map(d => d?.name?.toLowerCase()).filter(Boolean));
-            const testerNames = new Set(importedTesters.map(t => t?.name?.toLowerCase()).filter(Boolean));
+            const devNames = new Set((importedDevelopers || []).map(d => d?.name?.toLowerCase()).filter(Boolean));
+            const testerNames = new Set((importedTesters || []).map(t => t?.name?.toLowerCase()).filter(Boolean));
             allImportedTasks.forEach(task => {
                 if (!task) return;
                 (task.developers || []).forEach(nameOrId => { if (typeof nameOrId === 'string' && !isIdRegex.test(nameOrId) && !devNames.has(nameOrId.toLowerCase())) { importedDevelopers.push({ name: nameOrId }); devNames.add(nameOrId.toLowerCase()); }});
@@ -1259,14 +1260,10 @@ export default function Home() {
   });
   const tagsOptions: SelectOption[] = combinedTags.sort((a, b) => a.label.localeCompare(b.label));
 
-  const deploymentOptions: SelectOption[] = [
-      { value: 'dev', label: 'Deployed to Dev' },
-      { value: 'not_dev', label: 'Not Deployed to Dev' },
-      { value: 'stage', label: 'Deployed to Stage' },
-      { value: 'not_stage', label: 'Not Deployed to Stage' },
-      { value: 'production', label: 'Deployed to Production' },
-      { value: 'not_production', label: 'Not Deployed to Production' },
-  ];
+  const deploymentOptions: SelectOption[] = (uiConfig.environments || []).flatMap(env => [
+    { value: env.name, label: `Deployed to ${env.name}` },
+    { value: `not_${env.name}`, label: `Not Deployed to ${env.name}` }
+  ]);
 
   const handleTaskLinkClick = (e: React.MouseEvent) => {
     if (dateView !== 'all') {
