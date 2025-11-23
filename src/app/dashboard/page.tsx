@@ -235,7 +235,7 @@ export default function DashboardPage() {
                                     tickLine={false}
                                     axisLine={false}
                                     tickMargin={8}
-                                    tickFormatter={(value) => value.slice(0, 10)}
+                                    
                                  />
                                  <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} />
                                  <ChartTooltip content={<ChartTooltipContent />} />
@@ -288,7 +288,7 @@ export default function DashboardPage() {
                                     tickLine={false}
                                     axisLine={false}
                                     tickMargin={8}
-                                    tickFormatter={(value) => value.slice(0, 10)}
+                                    
                                  />
                                  <XAxis type="number" hide />
                                  <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" nameKey="tasks" />} />
@@ -348,7 +348,7 @@ export default function DashboardPage() {
                                     tickLine={false}
                                     axisLine={false}
                                     tickMargin={8}
-                                    tickFormatter={(value) => value.slice(0, 10)}
+                                    
                                  />
                                  <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} />
                                  <ChartTooltip content={<ChartTooltipContent />} />
@@ -378,7 +378,7 @@ export default function DashboardPage() {
                                     tickLine={false}
                                     axisLine={false}
                                     tickMargin={8}
-                                    tickFormatter={(value) => value.slice(0, 10)}
+                                    
                                  />
                                  <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} />
                                  <ChartTooltip content={<ChartTooltipContent />} />
