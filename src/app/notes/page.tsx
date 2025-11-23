@@ -367,8 +367,8 @@ export default function NotesPage() {
             <StickyNote className="h-7 w-7"/> Notes
         </h1>
          <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={handleExportNotes}><Download className="mr-2 h-4 w-4"/>Export Notes</Button>
-            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2 h-4 w-4"/>Import Notes</Button>
+            <Button variant="outline" size="sm" onClick={handleExportNotes}><Upload className="mr-2 h-4 w-4"/>Export Notes</Button>
+            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}><Download className="mr-2 h-4 w-4"/>Import Notes</Button>
             <input type="file" ref={fileInputRef} onChange={handleImportNotes} className="hidden" accept=".json" />
             <Button
                 variant={isSelectMode ? 'secondary' : 'outline'}
