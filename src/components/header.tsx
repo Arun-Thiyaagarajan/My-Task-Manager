@@ -152,7 +152,7 @@ export function Header() {
               </HeaderLink>
             </div>
 
-            <nav className="hidden md:flex items-center gap-4">
+            <nav className="hidden lg:flex items-center gap-4">
                <HeaderLink href="/" id="header-nav-home" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                   <Home className="mr-2 h-4 w-4" />
                   Tasks
@@ -160,10 +160,6 @@ export function Header() {
                <HeaderLink href="/dashboard" id="header-nav-dashboard" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                   <LayoutDashboard className="mr-2 h-4 w-4" />
                   Dashboard
-               </HeaderLink>
-               <HeaderLink href="/notes" id="header-nav-notes" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                  <StickyNote className="mr-2 h-4 w-4" />
-                  Notes
                </HeaderLink>
                <HeaderLink href="/settings" id="header-nav-settings" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                   <Cog className="mr-2 h-4 w-4" />
@@ -268,7 +264,7 @@ export function Header() {
                 <span className="sr-only">General Reminders</span>
             </Button>
             <ThemeToggle />
-            <div className="md:hidden">
+            <div className="lg:hidden">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon">
@@ -285,11 +281,6 @@ export function Header() {
                   <DropdownMenuItem asChild>
                     <HeaderLink href="/dashboard" className="w-full flex items-center gap-2">
                       <LayoutDashboard className="h-4 w-4" /> Dashboard
-                    </HeaderLink>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <HeaderLink href="/notes" className="w-full flex items-center gap-2">
-                      <StickyNote className="h-4 w-4" /> Notes
                     </HeaderLink>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
