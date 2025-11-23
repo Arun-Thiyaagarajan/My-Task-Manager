@@ -153,21 +153,20 @@ const getInitialStateFromStorage = <T>(key: string, defaultValue: T): T => {
 };
 
 const getInitialDateView = (): DateView => {
-    if (typeof window === 'undefined') {
-        return 'all';
-    }
-    const savedValue = localStorage.getItem('taskflow_date_view');
-    // Handle old format (plain string) and new format (JSON string)
-    if (savedValue) {
-        try {
-            const parsed = JSON.parse(savedValue);
-            if (['all', 'monthly', 'yearly'].includes(parsed)) {
-                return parsed;
-            }
-        } catch {
-            // It's likely a plain string from the old version
-            if (['all', 'monthly', 'yearly'].includes(savedValue)) {
-                return savedValue as DateView;
+    if (typeof window !== 'undefined') {
+        const savedValue = localStorage.getItem('taskflow_date_view');
+        // Handle old format (plain string) and new format (JSON string)
+        if (savedValue) {
+            try {
+                const parsed = JSON.parse(savedValue);
+                if (['all', 'monthly', 'yearly'].includes(parsed)) {
+                    return parsed;
+                }
+            } catch {
+                // It's likely a plain string from the old version
+                if (['all', 'monthly', 'yearly'].includes(savedValue)) {
+                    return savedValue as DateView;
+                }
             }
         }
     }
@@ -268,6 +267,19 @@ export default function Home() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
         setCommandKey(navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? '⌘' : 'Ctrl');
+        
+        // Restore state on initial load
+        const navState = sessionStorage.getItem('taskflow_nav_state');
+        if (navState) {
+            try {
+                const { view, date } = JSON.parse(navState);
+                if (view) setDateView(view);
+                if (date) setSelectedDate(new Date(date));
+                sessionStorage.removeItem('taskflow_nav_state');
+            } catch (e) {
+                console.error("Could not parse navigation state:", e);
+            }
+        }
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1260,8 +1272,16 @@ export default function Home() {
       { value: 'not_production', label: 'Not Deployed to Production' },
   ];
 
+  const handleTaskLinkClick = (e: React.MouseEvent) => {
+    if (dateView !== 'all') {
+        const navState = { view: dateView, date: selectedDate.toISOString() };
+        sessionStorage.setItem('taskflow_nav_state', JSON.stringify(navState));
+    }
+  };
+
   const handleNewTaskClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
+    handleTaskLinkClick(e);
     prompt(() => router.push('/tasks/new'));
   };
 
@@ -1730,11 +1750,13 @@ export default function Home() {
             </Dialog>
 
           {sortedTasks.length > 0 ? (
-            viewMode === 'grid' ? (
-              <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handlePinToggle} />
-            ) : (
-              <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} />
-            )
+            <div onClick={handleTaskLinkClick}>
+              {viewMode === 'grid' ? (
+                <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handlePinToggle} />
+              ) : (
+                <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} />
+              )}
+            </div>
           ) : (
             <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg flex flex-col items-center justify-center">
                 <FolderSearch className="h-16 w-16 mb-4 text-muted-foreground/50"/>

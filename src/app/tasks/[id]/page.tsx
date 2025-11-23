@@ -5,7 +5,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask, clearExpiredReminders, addTagsToMultipleTasks, addDeveloper, addTester, addEnvironment } from '@/lib/data';
 import { getLinkAlias } from '@/ai/flows/get-link-alias-flow';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -67,6 +67,7 @@ const isImageUrl = (url: string): boolean => {
 export default function TaskPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [task, setTask] = useState<Task | null>(null);
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
   const [developers, setDevelopers] = useState<Person[]>([]);
@@ -753,6 +754,14 @@ const handleCopyDescription = () => {
       }
   };
 
+  const backLink = (() => {
+    const navState = typeof window !== 'undefined' ? sessionStorage.getItem('taskflow_nav_state') : null;
+    if (navState) {
+        return '/';
+    }
+    return isBinned ? '/bin' : '/';
+  })();
+
   if (isLoading || !uiConfig) {
     return <LoadingSpinner text="Loading task details..." />;
   }
@@ -806,7 +815,7 @@ const handleCopyDescription = () => {
       <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <Button asChild variant="ghost" className="pl-1">
-            <Link href={isBinned ? "/bin" : "/"}>
+            <Link href={backLink}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               {isBinned ? "Back to Bin" : "Back to tasks"}
             </Link>
