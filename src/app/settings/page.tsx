@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck, Server, Globe, Image as ImageIcon, BellRing, Settings2, GraduationCap, Download, HardDriveZap } from 'lucide-react';
+import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck, Server, Globe, Image as ImageIcon, BellRing, Settings2, GraduationCap, Download, DatabaseZap } from 'lucide-react';
 import { EditFieldDialog } from '@/components/edit-field-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -818,7 +818,7 @@ export default function SettingsPage() {
                 </div>
                  <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-destructive"><HardDriveZap className="h-5 w-5" />Advanced Settings</CardTitle>
+                        <CardTitle className="flex items-center gap-2 text-destructive"><DatabaseZap className="h-5 w-5" />Advanced Settings</CardTitle>
                         <CardDescription>Use these actions with caution. They can result in data loss.</CardDescription>
                     </CardHeader>
                     <CardContent>
