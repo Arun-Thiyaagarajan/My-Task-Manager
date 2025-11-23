@@ -1841,17 +1841,18 @@ export function resetNotesLayout(): boolean {
     sortedNotes.forEach((note) => {
         const minHeightCol = colHeights.indexOf(Math.min(...colHeights));
         
+        // Use the note's actual height for calculation, but reset width and position
+        const noteHeight = note.layout?.h || 6;
+
         note.layout = {
+            ...note.layout,
             i: note.id,
             x: minHeightCol * colWidth,
             y: colHeights[minHeightCol],
             w: colWidth,
-            h: 6,
-            minW: 2,
-            minH: 3
         };
 
-        colHeights[minHeightCol] += 6;
+        colHeights[minHeightCol] += noteHeight;
     });
     
     companyData.notes = sortedNotes;
