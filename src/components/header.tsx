@@ -24,7 +24,7 @@ import {
   getGeneralReminders,
 } from '@/lib/data';
 import type { Company, UiConfig } from '@/lib/types';
-import { Building, PlusCircle, Trash2, Edit, LayoutDashboard, Cog, Menu, FileClock, Home, Bell, GraduationCap, StickyNote } from 'lucide-react';
+import { Building, PlusCircle, Trash2, Edit, LayoutDashboard, Cog, Menu, FileClock, Home, Bell, GraduationCap } from 'lucide-react';
 import { CompaniesManager } from './companies-manager';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -203,16 +203,16 @@ export function Header() {
                       </DropdownMenuItem>
                       <DropdownMenuLabel className="pt-2">Manage Companies</DropdownMenuLabel>
                       {companies.map((company) => (
-                          <div key={company.id} className="flex items-center justify-between pl-2 pr-1 relative group">
-                              <span className="text-sm py-1.5 flex-1 pr-16 truncate">{company.name}</span>
-                              <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center bg-popover opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditCompany(company)}>
+                          <DropdownMenuItem key={company.id} onSelect={e => e.preventDefault()} className="flex justify-between items-center pr-1">
+                              <span className="flex-1 truncate pr-2">{company.name}</span>
+                              <div className="flex items-center">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleEditCompany(company); }}>
                                       <Edit className="h-4 w-4" />
                                   </Button>
                                   
                                   <AlertDialog>
                                       <AlertDialogTrigger asChild>
-                                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+                                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={e => e.stopPropagation()}>
                                               <Trash2 className="h-4 w-4" />
                                           </Button>
                                       </AlertDialogTrigger>
@@ -232,7 +232,7 @@ export function Header() {
                                       </AlertDialogContent>
                                   </AlertDialog>
                               </div>
-                          </div>
+                          </DropdownMenuItem>
                       ))}
                   </DropdownMenuGroup>
                 </DropdownMenuContent>
