@@ -119,30 +119,23 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
 
   const handleToggleDeployment = (env: string) => {
     if (!task) return;
-
-    const isDeployed = task.deploymentStatus?.[env] ?? false;
-    const newDeploymentStatus = !isDeployed;
-
+    const newStatus = !(task.deploymentStatus?.[env] ?? false);
     const updatedTaskData = {
-        deploymentStatus: {
-            ...task.deploymentStatus,
-            [env]: newDeploymentStatus,
-        },
-        deploymentDates: {
-            ...task.deploymentDates,
-            [env]: newDeploymentStatus && !task.deploymentDates?.[env] ? new Date().toISOString() : task.deploymentDates?.[env],
-        }
+      deploymentStatus: { ...task.deploymentStatus, [env]: newStatus },
+      deploymentDates: { ...task.deploymentDates },
     };
-    
-    if (!newDeploymentStatus) {
-        updatedTaskData.deploymentDates[env] = null;
+  
+    // Only add a date if it's being marked as deployed for the first time
+    if (newStatus && !task.deploymentDates?.[env]) {
+      updatedTaskData.deploymentDates[env] = new Date().toISOString();
     }
-    
+  
     const updatedTaskResult = updateTask(task.id, updatedTaskData);
+  
     if(updatedTaskResult) {
-        setTask(updatedTaskResult);
-        setJustUpdatedEnv(env);
-        onTaskUpdate();
+      setTask(updatedTaskResult);
+      setJustUpdatedEnv(env);
+      onTaskUpdate();
     } else {
         toast({
             variant: 'destructive',
@@ -578,3 +571,5 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
     </>
   );
 }
+
+    

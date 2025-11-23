@@ -266,21 +266,6 @@ export default function Home() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
         setCommandKey(navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? '⌘' : 'Ctrl');
-        
-        // Restore state on initial load
-        const navStateRaw = sessionStorage.getItem('taskflow_nav_state');
-        if (navStateRaw) {
-            try {
-                const navState = JSON.parse(navStateRaw);
-                if (navState.view) setDateView(navState.view);
-                if (navState.date) setSelectedDate(new Date(navState.date));
-                // Clear the state after using it to prevent it from affecting future navigations
-                sessionStorage.removeItem('taskflow_nav_state');
-            } catch (e) {
-                console.error("Could not parse navigation state:", e);
-                sessionStorage.removeItem('taskflow_nav_state');
-            }
-        }
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -509,6 +494,23 @@ export default function Home() {
   useEffect(() => {
     if (!activeCompanyId) return;
 
+    // This block now handles restoring state from session storage
+    if (typeof window !== 'undefined') {
+        const navStateRaw = sessionStorage.getItem('taskflow_nav_state');
+        if (navStateRaw) {
+            try {
+                const navState = JSON.parse(navStateRaw);
+                setDateView(navState.view || 'all');
+                setSelectedDate(navState.date ? new Date(navState.date) : new Date());
+                // Clear the state after using it to prevent it from affecting future navigations
+                sessionStorage.removeItem('taskflow_nav_state');
+            } catch (e) {
+                console.error("Could not parse navigation state:", e);
+                sessionStorage.removeItem('taskflow_nav_state');
+            }
+        }
+    }
+    
     const config = getUiConfig();
     if (!config.tutorialEnabled) {
       localStorage.removeItem(TUTORIAL_PROMPTED_KEY);
@@ -1781,5 +1783,7 @@ export default function Home() {
     </div>
   );
 }
+
+    
 
     

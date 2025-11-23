@@ -148,3 +148,18 @@ export function formatTimestamp(date: string | Date, timeFormat: '12h' | '24h' =
     }
     return format(d, timeFormat === '24h' ? 'MMM d, yyyy HH:mm' : 'MMM d, yyyy p');
 }
+
+export function getEnvInfo(envName: string) {
+  let hash = 0;
+  for (let i = 0; i < envName.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash % 360);
+
+  return {
+    deployedColor: `bg-green-100 text-green-800 border-green-200 hover:bg-green-200 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700/80 dark:hover:bg-green-900/60`,
+    pendingColor: `bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-200 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border-yellow-700/80 dark:hover:bg-yellow-900/60`
+  }
+}
+
+    

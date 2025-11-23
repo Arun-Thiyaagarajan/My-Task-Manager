@@ -95,29 +95,20 @@ function TasksTableRow({
   };
 
   const handleToggleDeployment = (env: string) => {
-    const isSelected = task.deploymentStatus?.[env] ?? false;
-    const hasDate = task.deploymentDates && task.deploymentDates[env];
-    const isDeployed = isSelected && (env === 'dev' || !!hasDate);
-    const newIsDeployed = !isDeployed;
-
-    const newDeploymentStatus = { ...task.deploymentStatus };
-    const newDeploymentDates = { ...task.deploymentDates };
-
-    if (newIsDeployed) {
-      newDeploymentStatus[env] = true;
-      if (env !== 'dev') {
-        newDeploymentDates[env] = new Date().toISOString();
-      }
-    } else {
-      newDeploymentStatus[env] = false;
-      newDeploymentDates[env] = null;
-    }
-
+    const newStatus = !(task.deploymentStatus?.[env] ?? false);
+  
     const updatedTaskData = {
-      deploymentStatus: newDeploymentStatus,
-      deploymentDates: newDeploymentDates,
+      deploymentStatus: { ...task.deploymentStatus, [env]: newStatus },
+      deploymentDates: { ...task.deploymentDates },
     };
+  
+    // Only add a date if it's being marked as deployed for the first time
+    if (newStatus && !task.deploymentDates?.[env]) {
+      updatedTaskData.deploymentDates[env] = new Date().toISOString();
+    }
+  
     const updatedTask = updateTask(task.id, updatedTaskData);
+  
     if (updatedTask) {
       setTask(updatedTask);
       setJustUpdatedEnv(env);
@@ -281,27 +272,26 @@ function TasksTableRow({
           onAnimationEnd={() => setJustUpdatedEnv(null)}
         >
           {(uiConfig.environments || []).map((env) => {
-            const envInfo = getEnvInfo(env);
-            const isSelected = task.deploymentStatus?.[env] ?? false;
-            const hasDate = task.deploymentDates && task.deploymentDates[env];
-            const isDeployed = isSelected && (env === 'dev' || !!hasDate);
+            if (!env || !env.name) return null;
+            const envInfo = getEnvInfo(env.name);
+            const isDeployed = task.deploymentStatus?.[env.name] ?? false;
 
             return (
-              <Tooltip key={env}>
+              <Tooltip key={env.name}>
                 <TooltipTrigger asChild>
                   <Badge
                     variant="outline"
-                    onClick={() => handleToggleDeployment(env)}
+                    onClick={() => handleToggleDeployment(env.name)}
                     className={cn(
                       'capitalize font-medium transition-colors cursor-pointer',
                       isDeployed
                         ? envInfo.deployedColor
                         : envInfo.pendingColor,
                       'px-1.5 py-0 text-[10px] h-4',
-                      justUpdatedEnv === env && 'animate-status-in'
+                      justUpdatedEnv === env.name && 'animate-status-in'
                     )}
                   >
-                    {env}
+                    {env.name}
                   </Badge>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -311,7 +301,7 @@ function TasksTableRow({
                     ) : (
                       <Clock className="h-3 w-3 text-yellow-500" />
                     )}
-                    {env}: {isDeployed ? 'Deployed' : 'Pending'}
+                    {env.name}: {isDeployed ? 'Deployed' : 'Pending'}
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -489,3 +479,5 @@ export function TasksTable({
     </div>
   );
 }
+
+    

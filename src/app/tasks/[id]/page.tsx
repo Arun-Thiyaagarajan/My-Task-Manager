@@ -762,9 +762,8 @@ const handleCopyDescription = () => {
       </div>
     );
   }
-
+  
   const isBinned = !!task.deletedAt;
-
   const backLink = isBinned ? '/bin' : '/';
   
   const statusConfig = getStatusConfig(task.status);
@@ -1614,3 +1613,6 @@ function TimelineSection({
     </div>
   );
 }
+
+
+    
