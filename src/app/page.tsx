@@ -783,8 +783,8 @@ export default function Home() {
             const allImportedTasks = [...importedTasks, ...importedBinnedTasks];
             
             // Auto-discover people from tasks if they are not in the main lists
-            const devNames = new Set(importedDevelopers.map(d => d.name?.toLowerCase()));
-            const testerNames = new Set(importedTesters.map(t => t.name?.toLowerCase()));
+            const devNames = new Set(importedDevelopers.map(d => d?.name?.toLowerCase()).filter(Boolean));
+            const testerNames = new Set(importedTesters.map(t => t?.name?.toLowerCase()).filter(Boolean));
             allImportedTasks.forEach(task => {
                 if (!task) return;
                 (task.developers || []).forEach(nameOrId => { if (typeof nameOrId === 'string' && !isIdRegex.test(nameOrId) && !devNames.has(nameOrId.toLowerCase())) { importedDevelopers.push({ name: nameOrId }); devNames.add(nameOrId.toLowerCase()); }});
@@ -902,7 +902,7 @@ export default function Home() {
             // --- People Update ---
             const existingDevsByName = new Map(companyData.developers.map(d => [d.name.toLowerCase(), d]));
             importedDevelopers.forEach(dev => {
-                if (!dev.name) return;
+                if (!dev?.name) return;
                 const personData = { name: dev.name.trim(), email: dev.email || '', phone: dev.phone || '', additionalFields: dev.additionalFields || [] };
                 const existingDev = existingDevsByName.get(personData.name.toLowerCase());
                 if (!existingDev) {
@@ -918,7 +918,7 @@ export default function Home() {
 
             const existingTestersByName = new Map(companyData.testers.map(t => [t.name.toLowerCase(), t.id]));
             importedTesters.forEach(tester => {
-                if (!tester.name) return;
+                if (!tester?.name) return;
                 const personData = { name: tester.name.trim(), email: tester.email || '', phone: tester.phone || '', additionalFields: tester.additionalFields || [] };
                 const existingTester = existingTestersByName.get(personData.name.toLowerCase());
                 if (!existingTester) {

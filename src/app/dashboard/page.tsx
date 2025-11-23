@@ -3,8 +3,8 @@
 
 import { useState, useEffect } from 'react';
 import { getTasks, getUiConfig, getDevelopers, getTesters } from '@/lib/data';
-import type { Task, Person, UiConfig } from '@/lib/types';
-import { REPOSITORIES, ENVIRONMENTS } from '@/lib/constants';
+import type { Task, Person, UiConfig, Environment } from '@/lib/types';
+import { REPOSITORIES } from '@/lib/constants';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { BarChart, PieChartIcon, ListChecks, CheckCircle2, Loader2, Bug, GitMerge, Server, Code2, ClipboardCheck } from 'lucide-react';
 import { Bar, Pie, PieChart, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, Cell } from 'recharts';
@@ -47,6 +47,8 @@ export default function DashboardPage() {
 
   const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
   const TASK_STATUSES = uiConfig.taskStatuses;
+  const ENVIRONMENTS: Environment[] = uiConfig.environments || [];
+
 
   // Key Stats
   const totalTasks = tasks.length;
@@ -122,13 +124,13 @@ export default function DashboardPage() {
 
   // New Chart: Deployments by Environment
   const deploymentsByEnvData = ENVIRONMENTS.map(env => ({
-    name: env,
+    name: env.name,
     count: tasks.filter(task => {
-        const isSelected = task.deploymentStatus?.[env] ?? false;
+        const isSelected = task.deploymentStatus?.[env.name] ?? false;
         // For 'dev', being selected is enough to be considered deployed.
-        if (env === 'dev') return isSelected;
+        if (env.name === 'dev') return isSelected;
         // For other envs, a date is required.
-        const hasDate = task.deploymentDates && task.deploymentDates[env];
+        const hasDate = task.deploymentDates && task.deploymentDates[env.name];
         return isSelected && !!hasDate;
     }).length,
   }));
