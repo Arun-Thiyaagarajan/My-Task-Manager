@@ -406,7 +406,6 @@ export default function TaskPage() {
         },
         deploymentDates: {
             ...task.deploymentDates,
-            // Automatically set date only if newly deployed, but don't clear it if un-deployed
             [env]: newStatus && !task.deploymentDates?.[env] ? new Date().toISOString() : task.deploymentDates?.[env],
         }
     };
@@ -744,14 +743,6 @@ const handleCopyDescription = () => {
       }
   };
 
-  const backLink = (() => {
-    const navState = typeof window !== 'undefined' ? sessionStorage.getItem('taskflow_nav_state') : null;
-    if (navState) {
-        return '/';
-    }
-    return isBinned ? '/bin' : '/';
-  })();
-
   if (isLoading || !uiConfig) {
     return <LoadingSpinner text="Loading task details..." />;
   }
@@ -772,6 +763,15 @@ const handleCopyDescription = () => {
   }
 
   const isBinned = !!task.deletedAt;
+
+  const backLink = (() => {
+    const navState = typeof window !== 'undefined' ? sessionStorage.getItem('taskflow_nav_state') : null;
+    if (navState) {
+        return '/';
+    }
+    return isBinned ? '/bin' : '/';
+  })();
+  
   const statusConfig = getStatusConfig(task.status);
   const { Icon, cardClassName, iconColorClassName } = statusConfig;
 
@@ -1620,4 +1620,3 @@ function TimelineSection({
   );
 }
 
-    
