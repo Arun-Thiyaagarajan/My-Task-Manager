@@ -119,15 +119,21 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
 
   const handleToggleDeployment = (env: string) => {
     if (!task) return;
+
     const newStatus = !(task.deploymentStatus?.[env] ?? false);
-    const updatedTaskData = {
-      deploymentStatus: { ...task.deploymentStatus, [env]: newStatus },
-      deploymentDates: { ...task.deploymentDates },
+    const updatedTaskData: Partial<Task> = {
+        deploymentStatus: {
+            ...task.deploymentStatus,
+            [env]: newStatus,
+        },
     };
-  
-    // Only add a date if it's being marked as deployed for the first time
+
+    // Only add a date automatically if it's being marked as deployed for the first time
     if (newStatus && !task.deploymentDates?.[env]) {
-      updatedTaskData.deploymentDates[env] = new Date().toISOString();
+        updatedTaskData.deploymentDates = {
+            ...task.deploymentDates,
+            [env]: new Date().toISOString(),
+        };
     }
   
     const updatedTaskResult = updateTask(task.id, updatedTaskData);
@@ -186,19 +192,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   const statusConfig = getStatusConfig(task.status);
   const { Icon, cardClassName, iconColorClassName } = statusConfig;
 
-  const defaultEnvs = (uiConfig?.environments || []).filter(e => ['dev', 'stage', 'production'].includes(e.name));
-  const customDeployedEnvs = (uiConfig?.environments || []).filter(env => {
-      if (defaultEnvs.some(e => e.name === env.name)) return false;
-      const isSelected = task.deploymentStatus?.[env.name] ?? false;
-      const hasDate = task.deploymentDates && task.deploymentDates[env.name];
-      return isSelected && !!hasDate;
-  });
-  
   const allRelevantEnvs = (uiConfig?.environments || []).filter(e => (task.relevantEnvironments || ['dev','stage','production']).includes(e.name));
-  
-  const cardEnvs = allRelevantEnvs.filter(env => 
-      defaultEnvs.some(e => e.name === env.name) || customDeployedEnvs.some(e => e.name === env.name)
-  );
 
   return (
     <>
@@ -370,7 +364,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                 <EnvironmentStatus
                   deploymentStatus={task.deploymentStatus}
                   deploymentDates={task.deploymentDates}
-                  configuredEnvs={cardEnvs}
+                  configuredEnvs={allRelevantEnvs}
                   size="sm"
                   interactive={true}
                   onToggle={handleToggleDeployment}
@@ -571,5 +565,3 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
     </>
   );
 }
-
-    

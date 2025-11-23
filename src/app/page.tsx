@@ -524,9 +524,6 @@ export default function Home() {
     const savedViewMode = localStorage.getItem('taskflow_view_mode') as ViewMode;
     if (savedViewMode) setViewMode(savedViewMode);
 
-    const savedSelectedDate = localStorage.getItem('taskflow_selected_date');
-    if (savedSelectedDate) setSelectedDate(new Date(savedSelectedDate));
-
     const savedOpenGroups = localStorage.getItem('taskflow_open_groups');
     if (savedOpenGroups) {
       setOpenGroups(JSON.parse(savedOpenGroups));
