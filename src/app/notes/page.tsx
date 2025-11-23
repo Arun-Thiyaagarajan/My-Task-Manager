@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -166,6 +167,16 @@ export default function NotesPage() {
   const handleExportNotes = () => {
     if (!uiConfig) return;
     const currentNotes = getNotes();
+    
+    if (currentNotes.length === 0) {
+        toast({
+            variant: 'warning',
+            title: 'Nothing to Export',
+            description: 'There are no notes to export.',
+        });
+        return;
+    }
+
     const appNamePrefix = uiConfig.appName?.replace(/\s+/g, '_') || 'MyTaskManager';
     const dateSuffix = format(new Date(), "yyyy-MM-dd");
     const fileName = `${appNamePrefix}_Notes_${dateSuffix}.json`;

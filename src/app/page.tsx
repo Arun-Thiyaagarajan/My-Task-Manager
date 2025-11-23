@@ -422,6 +422,15 @@ export default function Home() {
         const allLogs = getLogs();
         logsToExport = allLogs.filter(log => log.taskId && taskIdsInView.has(log.taskId));
     }
+    
+    if (activeTasksToExport.length === 0 && binnedTasksToExport.length === 0) {
+        toast({
+            variant: 'warning',
+            title: 'Nothing to Export',
+            description: 'There are no tasks in the current view to export.',
+        });
+        return;
+    }
 
     const allTasksForPeopleMapping = [...activeTasksToExport, ...binnedTasksToExport];
     
