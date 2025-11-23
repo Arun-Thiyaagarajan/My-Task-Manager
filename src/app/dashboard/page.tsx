@@ -89,7 +89,7 @@ export default function DashboardPage() {
       const name = developer ? developer.name : 'Unknown';
       return {
           name,
-          value,
+          tasks: value,
           fill: `#${getAvatarColor(name)}`,
       };
   });
@@ -98,6 +98,7 @@ export default function DashboardPage() {
       acc[item.name] = { label: item.name, color: item.fill };
       return acc;
   }, {} as ChartConfig);
+
 
   // Deployments by Environment
   const deploymentsByEnvData = ENVIRONMENTS.map((env, index) => ({
@@ -164,7 +165,7 @@ export default function DashboardPage() {
     return acc;
   }, {} as Record<string, number>);
 
-  const tasksByTagData = Object.entries(tasksByTag).map(([name, value]) => ({ name, value }));
+  const tasksByTagData = Object.entries(tasksByTag).map(([name, value]) => ({ name, tasks: value }));
   const tasksByTagConfig = tasksByTagData.reduce((acc, item, index) => {
     acc[item.name] = { label: item.name, color: `hsl(var(--chart-${(index % 5) + 1}))` };
     return acc;
@@ -178,7 +179,7 @@ export default function DashboardPage() {
     return acc;
   }, {} as Record<string, number>);
 
-  const tasksByRepoData = Object.entries(tasksByRepo).map(([name, value]) => ({ name, value }));
+  const tasksByRepoData = Object.entries(tasksByRepo).map(([name, value]) => ({ name, tasks: value }));
   const tasksByRepoConfig = tasksByRepoData.reduce((acc, item, index) => {
     acc[item.name] = { label: item.name, color: `hsl(var(--chart-${(index % 5) + 1}))` };
     return acc;
@@ -278,26 +279,25 @@ export default function DashboardPage() {
                         </CardTitle>
                          <CardDescription>Breakdown of task assignments to Developers.</CardDescription>
                     </CardHeader>
-                    <CardContent className="flex items-center justify-center">
+                    <CardContent>
                        <ChartContainer config={tasksByDeveloperConfig} className="h-[300px] w-full">
-                            <PieChart>
-                                <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
-                                <Pie data={tasksByDeveloperData} dataKey="value" nameKey="name" innerRadius={60}>
-                                    {tasksByDeveloperData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                                    ))}
-                                </Pie>
-                                <Legend content={({ payload }) => (
-                                    <div className="flex flex-wrap gap-x-4 gap-y-1 justify-center mt-4 text-sm">
-                                    {payload?.map((entry, index) => (
-                                        <div key={`item-${index}`} className="flex items-center gap-1.5">
-                                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
-                                            <span>{entry.value}</span>
-                                        </div>
-                                    ))}
-                                    </div>
-                                )} />
-                            </PieChart>
+                            <RechartsBarChart data={tasksByDeveloperData} layout="vertical" accessibilityLayer>
+                                 <YAxis
+                                    dataKey="name"
+                                    type="category"
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tickMargin={8}
+                                    tickFormatter={(value) => value.slice(0, 10)}
+                                 />
+                                 <XAxis type="number" hide />
+                                 <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" nameKey="tasks" />} />
+                                 <Bar dataKey="tasks" radius={4} layout="vertical">
+                                     {tasksByDeveloperData.map((entry) => (
+                                         <Cell key={entry.name} fill={entry.fill} />
+                                     ))}
+                                 </Bar>
+                            </RechartsBarChart>
                         </ChartContainer>
                     </CardContent>
                 </Card>
@@ -340,42 +340,24 @@ export default function DashboardPage() {
                         </CardTitle>
                          <CardDescription>Distribution of tasks across different tags.</CardDescription>
                     </CardHeader>
-                    <CardContent className="flex items-center justify-center">
+                    <CardContent>
                        <ChartContainer config={tasksByTagConfig} className="h-[300px] w-full">
-                            <PieChart>
-                                <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
-                                <Pie data={tasksByTagData} dataKey="value" nameKey="name" innerRadius={60} labelLine={false} label={({
-                                        cx,
-                                        cy,
-                                        midAngle,
-                                        innerRadius,
-                                        outerRadius,
-                                        value,
-                                        index,
-                                    }) => {
-                                        const RADIAN = Math.PI / 180
-                                        const radius = 10 + innerRadius + (outerRadius - innerRadius)
-                                        const x = cx + radius * Math.cos(-midAngle * RADIAN)
-                                        const y = cy + radius * Math.sin(-midAngle * RADIAN)
-
-                                        return (
-                                        <text
-                                            x={x}
-                                            y={y}
-                                            fill="hsl(var(--foreground))"
-                                            textAnchor={x > cx ? "start" : "end"}
-                                            dominantBaseline="central"
-                                            className="text-xs fill-muted-foreground"
-                                        >
-                                            {tasksByTagData[index].name} ({value})
-                                        </text>
-                                        )
-                                }}>
-                                    {tasksByTagData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={tasksByTagConfig[entry.name]?.color} />
-                                    ))}
-                                </Pie>
-                            </PieChart>
+                            <RechartsBarChart data={tasksByTagData} accessibilityLayer>
+                                 <XAxis
+                                    dataKey="name"
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tickMargin={8}
+                                    tickFormatter={(value) => value.slice(0, 10)}
+                                 />
+                                 <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} />
+                                 <ChartTooltip content={<ChartTooltipContent />} />
+                                 <Bar dataKey="tasks" radius={4}>
+                                     {tasksByTagData.map((entry) => (
+                                         <Cell key={entry.name} fill={tasksByTagConfig[entry.name]?.color} />
+                                     ))}
+                                 </Bar>
+                            </RechartsBarChart>
                         </ChartContainer>
                     </CardContent>
                 </Card>
@@ -388,42 +370,24 @@ export default function DashboardPage() {
                         </CardTitle>
                          <CardDescription>Distribution of tasks across different repositories.</CardDescription>
                     </CardHeader>
-                    <CardContent className="flex items-center justify-center">
+                    <CardContent>
                        <ChartContainer config={tasksByRepoConfig} className="h-[300px] w-full">
-                            <PieChart>
-                                <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
-                                <Pie data={tasksByRepoData} dataKey="value" nameKey="name" innerRadius={60} labelLine={false} label={({
-                                        cx,
-                                        cy,
-                                        midAngle,
-                                        innerRadius,
-                                        outerRadius,
-                                        value,
-                                        index,
-                                    }) => {
-                                        const RADIAN = Math.PI / 180
-                                        const radius = 10 + innerRadius + (outerRadius - innerRadius)
-                                        const x = cx + radius * Math.cos(-midAngle * RADIAN)
-                                        const y = cy + radius * Math.sin(-midAngle * RADIAN)
-
-                                        return (
-                                        <text
-                                            x={x}
-                                            y={y}
-                                            fill="hsl(var(--foreground))"
-                                            textAnchor={x > cx ? "start" : "end"}
-                                            dominantBaseline="central"
-                                            className="text-xs fill-muted-foreground"
-                                        >
-                                            {tasksByRepoData[index].name} ({value})
-                                        </text>
-                                        )
-                                }}>
-                                    {tasksByRepoData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={tasksByRepoConfig[entry.name]?.color} />
-                                    ))}
-                                </Pie>
-                            </PieChart>
+                            <RechartsBarChart data={tasksByRepoData} accessibilityLayer>
+                                 <XAxis
+                                    dataKey="name"
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tickMargin={8}
+                                    tickFormatter={(value) => value.slice(0, 10)}
+                                 />
+                                 <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} />
+                                 <ChartTooltip content={<ChartTooltipContent />} />
+                                 <Bar dataKey="tasks" radius={4}>
+                                     {tasksByRepoData.map((entry) => (
+                                         <Cell key={entry.name} fill={tasksByRepoConfig[entry.name]?.color} />
+                                     ))}
+                                 </Bar>
+                            </RechartsBarChart>
                         </ChartContainer>
                     </CardContent>
                 </Card>
