@@ -12,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Button } from './ui/button';
 import { getStatusConfig, TaskStatusBadge } from './task-status-badge';
 import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck, Share2, BellRing, MoreVertical, Trash2 } from 'lucide-react';
 import { Badge } from './ui/badge';
@@ -120,29 +120,23 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   const handleToggleDeployment = (env: string) => {
     if (!task) return;
 
-    const isSelected = task.deploymentStatus?.[env] ?? false;
-    const hasDate = task.deploymentDates && task.deploymentDates[env];
-    const isDeployed = isSelected && (env === 'dev' || !!hasDate);
-
-    const newIsDeployed = !isDeployed;
-
-    const newDeploymentStatus = { ...(task.deploymentStatus || {}) };
-    const newDeploymentDates = { ...(task.deploymentDates || {}) };
-
-    if (newIsDeployed) {
-      newDeploymentStatus[env] = true;
-      if (env !== 'dev') {
-        newDeploymentDates[env] = new Date().toISOString();
-      }
-    } else {
-      newDeploymentStatus[env] = false;
-      newDeploymentDates[env] = null;
-    }
+    const isDeployed = task.deploymentStatus?.[env] ?? false;
+    const newDeploymentStatus = !isDeployed;
 
     const updatedTaskData = {
-        deploymentStatus: newDeploymentStatus,
-        deploymentDates: newDeploymentDates,
+        deploymentStatus: {
+            ...task.deploymentStatus,
+            [env]: newDeploymentStatus,
+        },
+        deploymentDates: {
+            ...task.deploymentDates,
+            [env]: newDeploymentStatus && !task.deploymentDates?.[env] ? new Date().toISOString() : task.deploymentDates?.[env],
+        }
     };
+    
+    if (!newDeploymentStatus) {
+        updatedTaskData.deploymentDates[env] = null;
+    }
     
     const updatedTaskResult = updateTask(task.id, updatedTaskData);
     if(updatedTaskResult) {
