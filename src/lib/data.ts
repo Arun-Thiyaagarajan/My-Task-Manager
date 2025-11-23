@@ -916,7 +916,13 @@ const generateTaskUpdateLogs = (
                 const oldDate = oldValue ? new Date(oldValue as string).toISOString() : null;
                 const newDate = newValue ? new Date(newValue as string).toISOString() : null;
                 if(oldDate !== newDate) {
-                    logEntry = `- Changed **${label}** to *${newDate ? format(new Date(newDate), 'PPP') : 'empty'}*.`;
+                     if (!oldDate && newDate) {
+                        logEntry = `- Set **${label}** to *${format(new Date(newDate), 'PPP')}*.`;
+                    } else if (oldDate && !newDate) {
+                        logEntry = `- Cleared **${label}** (was *${format(new Date(oldDate), 'PPP')}*).`;
+                    } else {
+                        logEntry = `- Changed **${label}** from *${format(new Date(oldDate!), 'PPP')}* to *${format(new Date(newDate!), 'PPP')}*.`;
+                    }
                 }
                 break;
             }
@@ -987,6 +993,15 @@ const generateTaskUpdateLogs = (
         
         if (oldDeployed !== newDeployed) {
             changes.push(`- Changed **${env.name.charAt(0).toUpperCase() + env.name.slice(1)}** deployment to *${newDeployed ? 'Deployed' : 'Pending'}*.`);
+        } else if (newDeployed && oldDate !== newDate) {
+            // It was already deployed, but the date changed.
+            if (!oldDate && newDate) {
+                changes.push(`- Set **${env.name.charAt(0).toUpperCase() + env.name.slice(1)} deployment date** to *${format(new Date(newDate!), 'PPP')}*.`);
+            } else if (oldDate && !newDate) {
+                changes.push(`- Cleared **${env.name.charAt(0).toUpperCase() + env.name.slice(1)} deployment date**.`);
+            } else if (oldDate && newDate) {
+                changes.push(`- Changed **${env.name.charAt(0).toUpperCase() + env.name.slice(1)} deployment date** from *${format(new Date(oldDate), 'PPP')}* to *${format(new Date(newDate), 'PPP')}*.`);
+            }
         }
     });
 
