@@ -46,6 +46,7 @@ import { ImagePreviewDialog } from './image-preview-dialog';
 import { GeneralRemindersDialog } from './general-reminders-dialog';
 import { useTutorial } from '@/hooks/use-tutorial';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { NotesPage } from '@/app/notes/page';
 
 const HeaderLink = ({ href, children, className, onClick }: { href: string; children: React.ReactNode, className?: string; onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void; }) => {
     const router = useRouter();
@@ -160,6 +161,10 @@ export function Header() {
                <HeaderLink href="/dashboard" id="header-nav-dashboard" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                   <LayoutDashboard className="mr-2 h-4 w-4" />
                   Dashboard
+               </HeaderLink>
+               <HeaderLink href="/notes" id="header-nav-notes" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  <StickyNote className="mr-2 h-4 w-4" />
+                  Notes
                </HeaderLink>
                <HeaderLink href="/settings" id="header-nav-settings" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                   <Cog className="mr-2 h-4 w-4" />
@@ -281,6 +286,11 @@ export function Header() {
                   <DropdownMenuItem asChild>
                     <HeaderLink href="/dashboard" className="w-full flex items-center gap-2">
                       <LayoutDashboard className="h-4 w-4" /> Dashboard
+                    </HeaderLink>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <HeaderLink href="/notes" className="w-full flex items-center gap-2">
+                      <StickyNote className="h-4 w-4" /> Notes
                     </HeaderLink>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
