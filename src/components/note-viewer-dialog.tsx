@@ -1,6 +1,7 @@
 
 'use client';
 
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -12,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
 import type { Note } from '@/lib/types';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, Copy, Check } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,6 +25,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+
 
 interface NoteViewerDialogProps {
   note: Note | null;
@@ -34,12 +38,33 @@ interface NoteViewerDialogProps {
 }
 
 export function NoteViewerDialog({ note, isOpen, onOpenChange, onEdit, onDelete }: NoteViewerDialogProps) {
+  const [isCopied, setIsCopied] = useState(false);
+  const { toast } = useToast();
+
   if (!note) {
     return null;
   }
 
+  const handleCopy = () => {
+    const textToCopy = `${note.title ? `${note.title}\n\n` : ''}${note.content}`;
+    navigator.clipboard.writeText(textToCopy).then(() => {
+        setIsCopied(true);
+        toast({ variant: 'success', title: 'Note copied to clipboard!' });
+        setTimeout(() => setIsCopied(false), 2000);
+    }).catch(err => {
+        toast({ variant: 'destructive', title: 'Failed to copy' });
+    });
+  };
+
+  const handleOpenChangeWithReset = (open: boolean) => {
+    if (!open) {
+      setIsCopied(false);
+    }
+    onOpenChange(open);
+  }
+
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChangeWithReset}>
       <DialogContent className="sm:max-w-2xl flex flex-col max-h-[90vh]">
         <DialogHeader className="pr-12">
           {note.title ? (
@@ -78,6 +103,14 @@ export function NoteViewerDialog({ note, isOpen, onOpenChange, onEdit, onDelete 
             </AlertDialogContent>
           </AlertDialog>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={handleCopy} className="w-[100px]">
+                {isCopied ? (
+                    <Check className="mr-2 h-4 w-4 text-green-500" />
+                ) : (
+                    <Copy className="mr-2 h-4 w-4" />
+                )}
+                {isCopied ? 'Copied!' : 'Copy'}
+            </Button>
             <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
             <Button onClick={onEdit}>
                 <Pencil className="mr-2 h-4 w-4" />
@@ -89,5 +122,3 @@ export function NoteViewerDialog({ note, isOpen, onOpenChange, onEdit, onDelete 
     </Dialog>
   );
 }
-
-    
