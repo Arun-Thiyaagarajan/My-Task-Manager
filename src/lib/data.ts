@@ -512,13 +512,13 @@ export function updateUiConfig(newConfig: UiConfig, fromImport: boolean = false)
     let finalConfig = newConfig;
 
     if (fromImport) {
-        // When importing, we merge the imported settings with the existing ones
-        const mergedConfig = {
-            ...oldConfig, // Start with existing config
-            ...newConfig, // Overwrite with imported values
-            fields: oldConfig.fields, // Keep existing field structure initially
-        };
-        // Re-validate and migrate fields after merging
+        const mergedConfig = cloneDeep(oldConfig);
+        if (newConfig.environments) mergedConfig.environments = newConfig.environments;
+        if (newConfig.repositoryConfigs) mergedConfig.repositoryConfigs = newConfig.repositoryConfigs;
+        if (newConfig.fields) mergedConfig.fields = newConfig.fields;
+        mergedConfig.appName = newConfig.appName ?? mergedConfig.appName;
+        mergedConfig.appIcon = newConfig.appIcon ?? mergedConfig.appIcon;
+        // ... merge other settings
         finalConfig = _validateAndMigrateConfig(mergedConfig);
         _addLog(companyData, { message: `Imported new application settings.` });
     } else {
@@ -617,7 +617,7 @@ export function addEnvironment(name: string): boolean {
     const trimmedName = name.trim();
     if (trimmedName === '') return false;
 
-    const currentEnvs = companyData.uiConfig.environments
+    const currentEnvs = (companyData.uiConfig.environments || [])
         .filter(e => e && e.name)
         .map(e => e.name.toLowerCase());
         
@@ -1656,6 +1656,59 @@ export function addNote(noteData: Partial<Omit<Note, 'id' | 'createdAt' | 'updat
 
     setAppData(data);
     return newNote;
+}
+
+export function importNotes(importedNotes: Partial<Note>[]): Note[] {
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    const companyData = data.companyData[activeCompanyId];
+    const existingNotes = companyData.notes || [];
+    const existingNoteIds = new Set(existingNotes.map(n => n.id));
+
+    const calculateNewY = (currentNotes: Note[]): number => {
+        if (currentNotes.length === 0) return 0;
+        return Math.max(0, ...currentNotes.map(n => (n.layout?.y || 0) + (n.layout?.h || 0)));
+    };
+
+    const newNotes: Note[] = [];
+    let currentY = calculateNewY(existingNotes);
+    let currentX = 0;
+
+    importedNotes.forEach(importedNote => {
+        const now = new Date().toISOString();
+        let newNoteId = importedNote.id && !existingNoteIds.has(importedNote.id) ? importedNote.id : `note-${crypto.randomUUID()}`;
+        
+        const newNote: Note = {
+            id: newNoteId,
+            title: importedNote.title || '',
+            content: importedNote.content || '',
+            createdAt: importedNote.createdAt || now,
+            updatedAt: now,
+            layout: {
+                i: newNoteId,
+                x: currentX,
+                y: currentY,
+                w: 3,
+                h: 6,
+                minW: 2,
+                minH: 3,
+            },
+        };
+        newNotes.push(newNote);
+        
+        currentX += 3;
+        if (currentX >= 12) {
+            currentX = 0;
+            currentY += 6;
+        }
+    });
+
+    if (newNotes.length > 0) {
+        companyData.notes = [...existingNotes, ...newNotes];
+        setAppData(data);
+    }
+    
+    return newNotes;
 }
 
 export function updateNote(id: string, noteData: Partial<Omit<Note, 'id' | 'createdAt' | 'updatedAt'>>): Note | undefined {

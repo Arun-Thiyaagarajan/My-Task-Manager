@@ -31,9 +31,23 @@ export const commentSchema = z.object({
   timestamp: z.string().datetime(),
 });
 
+export const noteLayoutSchema = z.object({
+    i: z.string(),
+    x: z.number(),
+    y: z.number(),
+    w: z.number(),
+    h: z.number(),
+    minW: z.number().optional(),
+    minH: z.number().optional(),
+});
+
 export const noteSchema = z.object({
-  title: z.string().optional(),
-  content: z.string().optional(),
+  id: z.string(),
+  title: z.string(),
+  content: z.string(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+  layout: noteLayoutSchema,
 }).refine(data => !!data.title?.trim() || !!data.content?.trim(), {
   message: "Note must have a title or content.",
 });
