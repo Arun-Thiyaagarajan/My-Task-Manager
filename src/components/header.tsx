@@ -46,7 +46,6 @@ import { ImagePreviewDialog } from './image-preview-dialog';
 import { GeneralRemindersDialog } from './general-reminders-dialog';
 import { useTutorial } from '@/hooks/use-tutorial';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
-import { NotesPage } from '@/app/notes/page';
 
 const HeaderLink = ({ href, children, className, onClick }: { href: string; children: React.ReactNode, className?: string; onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void; }) => {
     const router = useRouter();
