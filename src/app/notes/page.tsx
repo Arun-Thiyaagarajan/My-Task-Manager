@@ -2,13 +2,13 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { addNote, getNotes, updateNote, deleteNote, getUiConfig, updateNoteLayouts, resetNotesLayout, deleteMultipleNotes, importNotes, addLog } from '@/lib/data';
 import type { Note, UiConfig, NoteLayout } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { StickyNote, LayoutGrid, Plus, CheckSquare, X, Trash2, Upload, Download } from 'lucide-react';
+import { StickyNote, LayoutGrid, Plus, CheckSquare, X, Trash2, Upload, Download, Search, CalendarIcon, XCircle } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,12 +27,17 @@ import { NoteCard } from '@/components/note-card';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
+import { cn, fuzzySearch } from '@/lib/utils';
 import { NoteEditorDialog } from '@/components/note-editor-dialog';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { NoteViewerDialog } from '@/components/note-viewer-dialog';
-import { format } from 'date-fns';
+import { format, startOfDay, endOfDay } from 'date-fns';
 import { noteSchema } from '@/lib/validators';
+import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import type { DateRange } from 'react-day-picker';
+import { FolderSearch } from 'lucide-react';
 
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -52,6 +57,10 @@ export default function NotesPage() {
   const [noteToView, setNoteToView] = useState<Note | null>(null);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dateFilter, setDateFilter] = useState<DateRange | undefined>();
+  const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
 
   
   const handleOpenNewNoteDialog = useCallback(() => {
@@ -237,7 +246,7 @@ export default function NotesPage() {
                 toast({ variant: 'warning', title: 'Import Warning', description: `${failedCount} notes failed validation and were not imported.` });
             }
             if (duplicateCount > 0) {
-                toast({ variant: 'default', title: 'Duplicates Skipped', description: `${duplicateCount} notes were duplicates and were not imported.` });
+                toast({ variant: 'default', title: 'Duplicates Skipped', description: `${duplicateCount} duplicate notes were not imported.` });
             }
 
             if(uniqueNotesToImport.length === 0 && failedCount === 0) {
@@ -255,17 +264,35 @@ export default function NotesPage() {
     };
     reader.readAsText(file);
   };
+  
+  const filteredNotes = useMemo(() => {
+    return notes.filter(note => {
+        const searchMatch = searchQuery.trim() === '' ||
+            fuzzySearch(searchQuery, note.title) ||
+            fuzzySearch(searchQuery, note.content);
+        
+        const dateMatch = (() => {
+            if (!dateFilter?.from) return true;
+            const noteDate = new Date(note.updatedAt);
+            const from = startOfDay(dateFilter.from);
+            const to = dateFilter.to ? endOfDay(dateFilter.to) : endOfDay(dateFilter.from);
+            return noteDate >= from && noteDate <= to;
+        })();
+        
+        return searchMatch && dateMatch;
+    });
+  }, [notes, searchQuery, dateFilter]);
 
   if (isLoading || !uiConfig) {
     return <LoadingSpinner text="Loading notes..." />;
   }
 
   const layouts = {
-      lg: notes.map(note => note.layout),
-      md: notes.map((note, i) => ({ ...note.layout, x: (i % 2) * 6, w: 6, h: 6 })),
-      sm: notes.map((note, i) => ({ ...note.layout, x: (i % 2) * 6, w: 6, h: 6 })),
-      xs: notes.map(note => ({ ...note.layout, x: 0, w: 1, h: 6 })),
-      xxs: notes.map(note => ({ ...note.layout, x: 0, w: 1, h: 6 })),
+      lg: filteredNotes.map(note => note.layout),
+      md: filteredNotes.map((note, i) => ({ ...note.layout, x: (i % 2) * 6, w: 6, h: 6 })),
+      sm: filteredNotes.map((note, i) => ({ ...note.layout, x: (i % 2) * 6, w: 6, h: 6 })),
+      xs: filteredNotes.map(note => ({ ...note.layout, x: 0, w: 1, h: 6 })),
+      xxs: filteredNotes.map(note => ({ ...note.layout, x: 0, w: 1, h: 6 })),
   };
 
   return (
@@ -293,7 +320,7 @@ export default function NotesPage() {
         </div>
       </div>
       
-       <div className="mb-8">
+       <div className="space-y-4 mb-8">
             <TooltipProvider>
                 <Tooltip>
                     <TooltipTrigger asChild>
@@ -314,6 +341,64 @@ export default function NotesPage() {
                     </TooltipContent>
                 </Tooltip>
             </TooltipProvider>
+
+             <Card>
+                <CardContent className="p-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="relative flex items-center w-full">
+                            <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search notes..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full pl-10"
+                            />
+                        </div>
+                         <Popover open={isDatePopoverOpen} onOpenChange={setIsDatePopoverOpen}>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                        "justify-start text-left font-normal",
+                                        !dateFilter && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {dateFilter?.from ? (
+                                        dateFilter.to ? (
+                                        <>
+                                            {format(dateFilter.from, "LLL dd, y")} - {format(dateFilter.to, "LLL dd, y")}
+                                        </>
+                                        ) : (
+                                        format(dateFilter.from, "LLL dd, y")
+                                        )
+                                    ) : (
+                                        <span>Filter by date</span>
+                                    )}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    initialFocus
+                                    mode="range"
+                                    defaultMonth={dateFilter?.from}
+                                    selected={dateFilter}
+                                    onSelect={setDateFilter}
+                                    numberOfMonths={2}
+                                />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                     {(searchQuery || dateFilter) && (
+                        <div className="flex items-center gap-2 pt-3">
+                             <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setDateFilter(undefined); }}>
+                                <XCircle className="mr-2 h-4 w-4" /> Clear filters
+                             </Button>
+                             <p className="text-sm text-muted-foreground">{filteredNotes.length} of {notes.length} notes shown.</p>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
         </div>
 
       {isSelectMode && (
@@ -324,23 +409,26 @@ export default function NotesPage() {
                   <Checkbox
                     id="select-all-notes"
                     checked={
-                      notes.length > 0 &&
-                      selectedNoteIds.length === notes.length
+                      filteredNotes.length > 0 &&
+                      selectedNoteIds.length === filteredNotes.length
                         ? true
                         : selectedNoteIds.length > 0
                         ? 'indeterminate'
                         : false
                     }
-                    onCheckedChange={handleToggleSelectAll}
+                    onCheckedChange={(checked) => {
+                        const idsToSelect = filteredNotes.map(n => n.id);
+                        setSelectedNoteIds(checked === true ? idsToSelect : []);
+                    }}
                     aria-label="Select all notes"
-                    disabled={notes.length === 0}
+                    disabled={filteredNotes.length === 0}
                   />
                   <Label
                     htmlFor="select-all-notes"
                     className="text-sm font-medium"
                   >
                     {selectedNoteIds.length > 0
-                      ? `${selectedNoteIds.length} of ${notes.length} selected`
+                      ? `${selectedNoteIds.length} of ${filteredNotes.length} selected`
                       : `Select all notes`}
                   </Label>
                 </div>
@@ -376,10 +464,11 @@ export default function NotesPage() {
       )}
       
       <div className="pb-8">
-        {notes.length === 0 ? (
+        {filteredNotes.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg mt-8">
-              <p className="text-lg font-semibold">No notes yet.</p>
-              <p className="mt-1">Use the bar above to create your first note.</p>
+              <FolderSearch className="h-16 w-16 mb-4 text-muted-foreground/50 mx-auto"/>
+              <p className="text-lg font-semibold">{notes.length > 0 ? 'No notes match your filters.' : 'No notes yet.'}</p>
+              <p className="mt-1">{notes.length > 0 ? 'Try adjusting your search or date filters.' : 'Use the bar above to create your first note.'}</p>
           </div>
         ) : (
           <ResponsiveGridLayout
@@ -391,7 +480,7 @@ export default function NotesPage() {
               onLayoutChange={onLayoutChange}
               draggableHandle=".drag-handle"
           >
-              {notes.map(note => (
+              {filteredNotes.map(note => (
                   <div key={note.id} data-grid={note.layout} className="relative group/card-wrapper">
                       {isSelectMode && (
                           <div className="absolute top-2 left-2 z-10">
