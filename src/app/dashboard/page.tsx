@@ -6,11 +6,12 @@ import { getTasks, getUiConfig, getDevelopers, getTesters } from '@/lib/data';
 import type { Task, Person, UiConfig, Environment } from '@/lib/types';
 import { REPOSITORIES } from '@/lib/constants';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { BarChart, PieChartIcon, ListChecks, CheckCircle2, Loader2, Bug, GitMerge, Server, Code2, ClipboardCheck } from 'lucide-react';
-import { Bar, Pie, PieChart, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, Cell } from 'recharts';
+import { BarChart, PieChartIcon, ListChecks, CheckCircle2, Loader2, Bug, GitMerge, Server, Code2, ClipboardCheck, LineChart, Tag, GitBranch } from 'lucide-react';
+import { Bar, Pie, PieChart, Line, BarChart as RechartsBarChart, LineChart as RechartsLineChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, Cell } from 'recharts';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { getAvatarColor, cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 
 export default function DashboardPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -67,14 +68,13 @@ export default function DashboardPage() {
   const tasksByStatusData = TASK_STATUSES.map(status => ({
     name: status,
     count: tasks.filter(task => task.status === status).length,
+    fill: `var(--color-${status.toLowerCase().replace(' ', '-')})`,
   }));
 
-  const tasksByStatusConfig = {
-    count: {
-      label: 'Tasks',
-      color: 'hsl(var(--chart-1))',
-    },
-  } satisfies ChartConfig;
+  const tasksByStatusConfig = TASK_STATUSES.reduce((acc, status) => {
+    acc[status] = { label: status, color: `hsl(var(--chart-${(TASK_STATUSES.indexOf(status) % 5) + 1}))` };
+    return acc;
+  }, {} as ChartConfig);
 
   const developersById = new Map(developers.map(d => [d.id, d]));
   const tasksByDeveloperId = tasks.reduce((acc, task) => {
@@ -99,48 +99,90 @@ export default function DashboardPage() {
       return acc;
   }, {} as ChartConfig);
 
-  const testersById = new Map(testers.map(t => [t.id, t]));
-  const tasksByTesterId = tasks.reduce((acc, task) => {
-    (task.testers || []).forEach(testerId => {
-        acc[testerId] = (acc[testerId] || 0) + 1;
+  // Deployments by Environment
+  const deploymentsByEnvData = ENVIRONMENTS.map((env, index) => ({
+    name: env.name,
+    count: tasks.filter(task => {
+        const isSelected = task.deploymentStatus?.[env.name] ?? false;
+        if (env.name === 'dev') return isSelected;
+        const hasDate = task.deploymentDates && task.deploymentDates[env.name];
+        return isSelected && !!hasDate;
+    }).length,
+    fill: `var(--color-deployments-${index})`
+  }));
+
+  const deploymentsByEnvConfig = ENVIRONMENTS.reduce((acc, env, index) => {
+    acc[`deployments-${index}`] = { label: env.name, color: `hsl(var(--chart-${(index % 5) + 1}))` };
+    return acc;
+  }, {
+    count: { label: 'Deployments' }
+  } as ChartConfig);
+
+  // Monthly Task Trends
+  const monthlyData: { name: string; created: number; completed: number }[] = [];
+  const sixMonthsAgo = startOfMonth(subMonths(new Date(), 5));
+
+  for (let i = 0; i < 6; i++) {
+    const month = startOfMonth(subMonths(new Date(), 5 - i));
+    monthlyData.push({
+      name: format(month, 'MMM'),
+      created: 0,
+      completed: 0,
+    });
+  }
+
+  tasks.forEach(task => {
+    const createdAt = new Date(task.createdAt);
+    if (createdAt >= sixMonthsAgo) {
+      const monthIndex = 5 - (new Date().getMonth() - createdAt.getMonth() + 12 * (new Date().getFullYear() - createdAt.getFullYear()));
+      if (monthIndex >= 0 && monthIndex < 6) {
+        monthlyData[monthIndex].created += 1;
+      }
+    }
+    // Using updatedAt for completed tasks is a proxy. A dedicated `completedAt` field would be better.
+    if (task.status === 'Done') {
+        const completedAt = new Date(task.updatedAt);
+         if (completedAt >= sixMonthsAgo) {
+            const monthIndex = 5 - (new Date().getMonth() - completedAt.getMonth() + 12 * (new Date().getFullYear() - completedAt.getFullYear()));
+            if (monthIndex >= 0 && monthIndex < 6) {
+              monthlyData[monthIndex].completed += 1;
+            }
+        }
+    }
+  });
+  
+  const monthlyChartConfig = {
+      created: { label: 'Created', color: 'hsl(var(--chart-1))' },
+      completed: { label: 'Completed', color: 'hsl(var(--chart-2))' },
+  } satisfies ChartConfig;
+
+  // Tasks by Tag
+  const tasksByTag = tasks.reduce((acc, task) => {
+    (task.tags || []).forEach(tag => {
+      acc[tag] = (acc[tag] || 0) + 1;
     });
     return acc;
   }, {} as Record<string, number>);
 
-  const tasksByTesterData = Object.entries(tasksByTesterId).map(([testerId, value]) => {
-      const tester = testersById.get(testerId);
-      const name = tester ? tester.name : 'Unknown';
-      return {
-          name,
-          value,
-          fill: `#${getAvatarColor(name)}`,
-      };
-  });
-
-  const tasksByTesterConfig = tasksByTesterData.reduce((acc, item) => {
-      acc[item.name] = { label: item.name, color: item.fill };
-      return acc;
+  const tasksByTagData = Object.entries(tasksByTag).map(([name, value]) => ({ name, value }));
+  const tasksByTagConfig = tasksByTagData.reduce((acc, item, index) => {
+    acc[item.name] = { label: item.name, color: `hsl(var(--chart-${(index % 5) + 1}))` };
+    return acc;
   }, {} as ChartConfig);
 
-  // New Chart: Deployments by Environment
-  const deploymentsByEnvData = ENVIRONMENTS.map(env => ({
-    name: env.name,
-    count: tasks.filter(task => {
-        const isSelected = task.deploymentStatus?.[env.name] ?? false;
-        // For 'dev', being selected is enough to be considered deployed.
-        if (env.name === 'dev') return isSelected;
-        // For other envs, a date is required.
-        const hasDate = task.deploymentDates && task.deploymentDates[env.name];
-        return isSelected && !!hasDate;
-    }).length,
-  }));
+  // Tasks by Repository
+  const tasksByRepo = tasks.reduce((acc, task) => {
+    (Array.isArray(task.repositories) ? task.repositories : []).forEach(repo => {
+        acc[repo] = (acc[repo] || 0) + 1;
+    });
+    return acc;
+  }, {} as Record<string, number>);
 
-  const deploymentsByEnvConfig = {
-    count: {
-        label: 'Deployments',
-        color: 'hsl(var(--chart-3))',
-    },
-  } satisfies ChartConfig;
+  const tasksByRepoData = Object.entries(tasksByRepo).map(([name, value]) => ({ name, value }));
+  const tasksByRepoConfig = tasksByRepoData.reduce((acc, item, index) => {
+    acc[item.name] = { label: item.name, color: `hsl(var(--chart-${(index % 5) + 1}))` };
+    return acc;
+  }, {} as ChartConfig);
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -196,12 +238,38 @@ export default function DashboardPage() {
                                  />
                                  <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} />
                                  <ChartTooltip content={<ChartTooltipContent />} />
-                                 <Bar dataKey="count" fill="var(--color-count)" radius={4} />
+                                 <Bar dataKey="count" radius={4}>
+                                     {tasksByStatusData.map((entry) => (
+                                         <Cell key={entry.name} fill={tasksByStatusConfig[entry.name]?.color} />
+                                     ))}
+                                 </Bar>
                             </RechartsBarChart>
                         </ChartContainer>
                     </CardContent>
                 </Card>
 
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <LineChart className="h-5 w-5 text-chart-3" />
+                            Monthly Task Trends
+                        </CardTitle>
+                         <CardDescription>Tasks created vs. completed over the last 6 months.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="h-[300px]">
+                       <ChartContainer config={monthlyChartConfig} className="h-full w-full">
+                            <RechartsLineChart data={monthlyData} accessibilityLayer>
+                                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
+                                <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} />
+                                <ChartTooltip content={<ChartTooltipContent />} />
+                                <Legend />
+                                <Line type="monotone" dataKey="created" stroke="var(--color-created)" strokeWidth={2} dot={false} />
+                                <Line type="monotone" dataKey="completed" stroke="var(--color-completed)" strokeWidth={2} dot={false} />
+                            </RechartsLineChart>
+                        </ChartContainer>
+                    </CardContent>
+                </Card>
+                
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
@@ -233,38 +301,6 @@ export default function DashboardPage() {
                         </ChartContainer>
                     </CardContent>
                 </Card>
-                
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <ClipboardCheck className="h-5 w-5 text-chart-3" />
-                            Tasks per {fieldLabels.get('testers') || 'Testers'}
-                        </CardTitle>
-                        <CardDescription>Breakdown of task assignments to Testers.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex items-center justify-center">
-                       <ChartContainer config={tasksByTesterConfig} className="h-[300px] w-full">
-                            <PieChart>
-                                <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
-                                <Pie data={tasksByTesterData} dataKey="value" nameKey="name" innerRadius={60}>
-                                    {tasksByTesterData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                                    ))}
-                                </Pie>
-                                <Legend content={({ payload }) => (
-                                    <div className="flex flex-wrap gap-x-4 gap-y-1 justify-center mt-4 text-sm">
-                                    {payload?.map((entry, index) => (
-                                        <div key={`item-${index}`} className="flex items-center gap-1.5">
-                                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
-                                            <span>{entry.value}</span>
-                                        </div>
-                                    ))}
-                                    </div>
-                                )} />
-                            </PieChart>
-                        </ChartContainer>
-                    </CardContent>
-                </Card>
 
                 <Card>
                     <CardHeader>
@@ -276,7 +312,7 @@ export default function DashboardPage() {
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={deploymentsByEnvConfig} className="h-[300px] w-full">
-                            <RechartsBarChart data={deploymentsByEnvData} accessibilityLayer>
+                             <RechartsBarChart data={deploymentsByEnvData} accessibilityLayer>
                                  <XAxis
                                     dataKey="name"
                                     tickLine={false}
@@ -286,11 +322,112 @@ export default function DashboardPage() {
                                  />
                                  <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} />
                                  <ChartTooltip content={<ChartTooltipContent />} />
-                                 <Bar dataKey="count" fill="var(--color-count)" radius={4} />
+                                 <Bar dataKey="count" radius={4}>
+                                    {deploymentsByEnvData.map((entry, index) => (
+                                         <Cell key={entry.name} fill={deploymentsByEnvConfig[`deployments-${index}`]?.color} />
+                                    ))}
+                                 </Bar>
                             </RechartsBarChart>
                         </ChartContainer>
                     </CardContent>
                 </Card>
+
+                 <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Tag className="h-5 w-5 text-chart-4" />
+                            Tasks by Tag
+                        </CardTitle>
+                         <CardDescription>Distribution of tasks across different tags.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex items-center justify-center">
+                       <ChartContainer config={tasksByTagConfig} className="h-[300px] w-full">
+                            <PieChart>
+                                <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
+                                <Pie data={tasksByTagData} dataKey="value" nameKey="name" innerRadius={60} labelLine={false} label={({
+                                        cx,
+                                        cy,
+                                        midAngle,
+                                        innerRadius,
+                                        outerRadius,
+                                        value,
+                                        index,
+                                    }) => {
+                                        const RADIAN = Math.PI / 180
+                                        const radius = 10 + innerRadius + (outerRadius - innerRadius)
+                                        const x = cx + radius * Math.cos(-midAngle * RADIAN)
+                                        const y = cy + radius * Math.sin(-midAngle * RADIAN)
+
+                                        return (
+                                        <text
+                                            x={x}
+                                            y={y}
+                                            fill="hsl(var(--foreground))"
+                                            textAnchor={x > cx ? "start" : "end"}
+                                            dominantBaseline="central"
+                                            className="text-xs fill-muted-foreground"
+                                        >
+                                            {tasksByTagData[index].name} ({value})
+                                        </text>
+                                        )
+                                }}>
+                                    {tasksByTagData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={tasksByTagConfig[entry.name]?.color} />
+                                    ))}
+                                </Pie>
+                            </PieChart>
+                        </ChartContainer>
+                    </CardContent>
+                </Card>
+
+                 <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <GitBranch className="h-5 w-5 text-chart-1" />
+                            Tasks by Repository
+                        </CardTitle>
+                         <CardDescription>Distribution of tasks across different repositories.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex items-center justify-center">
+                       <ChartContainer config={tasksByRepoConfig} className="h-[300px] w-full">
+                            <PieChart>
+                                <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
+                                <Pie data={tasksByRepoData} dataKey="value" nameKey="name" innerRadius={60} labelLine={false} label={({
+                                        cx,
+                                        cy,
+                                        midAngle,
+                                        innerRadius,
+                                        outerRadius,
+                                        value,
+                                        index,
+                                    }) => {
+                                        const RADIAN = Math.PI / 180
+                                        const radius = 10 + innerRadius + (outerRadius - innerRadius)
+                                        const x = cx + radius * Math.cos(-midAngle * RADIAN)
+                                        const y = cy + radius * Math.sin(-midAngle * RADIAN)
+
+                                        return (
+                                        <text
+                                            x={x}
+                                            y={y}
+                                            fill="hsl(var(--foreground))"
+                                            textAnchor={x > cx ? "start" : "end"}
+                                            dominantBaseline="central"
+                                            className="text-xs fill-muted-foreground"
+                                        >
+                                            {tasksByRepoData[index].name} ({value})
+                                        </text>
+                                        )
+                                }}>
+                                    {tasksByRepoData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={tasksByRepoConfig[entry.name]?.color} />
+                                    ))}
+                                </Pie>
+                            </PieChart>
+                        </ChartContainer>
+                    </CardContent>
+                </Card>
+
             </div>
         </div>
       )}
