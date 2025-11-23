@@ -39,9 +39,7 @@ export function EnvironmentStatus({
       onAnimationEnd={onAnimationEnd}
     >
       {visibleEnvs.map(env => {
-        const isSelected = deploymentStatus?.[env.name] ?? false;
-        const hasDate = deploymentDates && deploymentDates[env.name];
-        const isDeployed = isSelected && (env.name === 'dev' || !!hasDate);
+        const isDeployed = deploymentStatus?.[env.name] ?? false;
 
         const tooltipText = isDeployed ? 'Deployed' : 'Pending';
 
@@ -105,3 +103,5 @@ export function EnvironmentStatus({
     </div>
   );
 }
+
+    

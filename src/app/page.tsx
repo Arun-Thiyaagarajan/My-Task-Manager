@@ -359,11 +359,7 @@ export default function Home() {
     const deploymentMatch = deploymentFilter.length === 0 || deploymentFilter.every(filter => {
       const isNegative = filter.startsWith('not_');
       const env = isNegative ? filter.substring(4) : filter;
-      
-      const isSelected = task.deploymentStatus?.[env] ?? false;
-      const hasDate = task.deploymentDates && task.deploymentDates[env];
-      const isDeployed = isSelected && (env === 'dev' || !!hasDate);
-
+      const isDeployed = task.deploymentStatus?.[env] ?? false;
       return isNegative ? !isDeployed : isDeployed;
     });
 
@@ -1788,3 +1784,5 @@ export default function Home() {
     </div>
   );
 }
+
+    

@@ -103,12 +103,7 @@ export default function DashboardPage() {
   // Deployments by Environment
   const deploymentsByEnvData = ENVIRONMENTS.map((env, index) => ({
     name: env.name,
-    count: tasks.filter(task => {
-        const isSelected = task.deploymentStatus?.[env.name] ?? false;
-        if (env.name === 'dev') return isSelected;
-        const hasDate = task.deploymentDates && task.deploymentDates[env.name];
-        return isSelected && !!hasDate;
-    }).length,
+    count: tasks.filter(task => task.deploymentStatus?.[env.name] === true).length,
     fill: `var(--color-deployments-${index})`
   }));
 

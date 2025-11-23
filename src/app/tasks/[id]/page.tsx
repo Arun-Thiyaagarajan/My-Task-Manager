@@ -397,28 +397,18 @@ export default function TaskPage() {
   const handleToggleDeployment = (env: string) => {
     if (!task) return;
 
-    const isSelected = task.deploymentStatus?.[env] ?? false;
-    const hasDate = task.deploymentDates && task.deploymentDates[env];
-    const isDeployed = isSelected && (env === 'dev' || !!hasDate);
-
-    const newIsDeployed = !isDeployed;
-
-    const newDeploymentStatus = { ...task.deploymentStatus };
-    const newDeploymentDates = { ...task.deploymentDates };
-
-    if (newIsDeployed) {
-      newDeploymentStatus[env] = true;
-      if (env !== 'dev') {
-        newDeploymentDates[env] = new Date().toISOString();
-      }
-    } else {
-      newDeploymentStatus[env] = false;
-      newDeploymentDates[env] = null;
-    }
+    const newStatus = !(task.deploymentStatus?.[env] ?? false);
 
     const updatedTaskData = {
-        deploymentStatus: newDeploymentStatus,
-        deploymentDates: newDeploymentDates,
+        deploymentStatus: {
+            ...task.deploymentStatus,
+            [env]: newStatus,
+        },
+        deploymentDates: {
+            ...task.deploymentDates,
+            // Automatically set date only if newly deployed, but don't clear it if un-deployed
+            [env]: newStatus && !task.deploymentDates?.[env] ? new Date().toISOString() : task.deploymentDates?.[env],
+        }
     };
     
     const updatedTaskResult = updateTask(task.id, updatedTaskData);
@@ -1067,9 +1057,7 @@ const handleCopyDescription = () => {
                         {allConfiguredEnvs.length > 0 ? (
                           allConfiguredEnvs.map((env: Environment) => {
                             if (!env || !env.name) return null;
-                            const isSelected = task.deploymentStatus?.[env.name] ?? false;
-                            const hasDate = task.deploymentDates && task.deploymentDates[env.name];
-                            const isDeployed = isSelected && (env.name === 'dev' || !!hasDate);
+                            const isDeployed = task.deploymentStatus?.[env.name] ?? false;
                             return (
                               <div key={env.name} className={cn("flex justify-between items-center p-2 -m-2 rounded-lg transition-colors",!isBinned && 'cursor-pointer hover:bg-muted/50')} onClick={!isBinned ? () => handleToggleDeployment(env.name) : undefined}>
                                 <span className="capitalize text-foreground font-medium">{env.name}</span>
@@ -1555,7 +1543,7 @@ function TimelineSection({
       const [isOpen, setIsOpen] = useState(false);
       
       const isDeployed = task.deploymentStatus?.[env];
-      if (!isDeployed || env === 'dev') return null;
+      if (!isDeployed) return null;
 
       return (
         <div className="flex justify-between items-center group">
@@ -1631,3 +1619,5 @@ function TimelineSection({
     </div>
   );
 }
+
+    
