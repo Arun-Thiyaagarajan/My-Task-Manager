@@ -318,59 +318,40 @@ export default function NotesPage() {
 
   const layouts = useMemo(() => {
     // This is a compact, read-only layout for when filters are active
-    const generateCompactLayout = (notesToLayout: Note[], breakpoint: 'lg' | 'md' | 'sm' | 'xs' | 'xxs') => {
-        const cols = { lg: 12, md: 12, sm: 12, xs: 12, xxs: 12 };
-        const colWidth = { lg: 3, md: 4, sm: 6, xs: 12, xxs: 12 };
+    const generateCompactLayout = (notesToLayout: Note[]) => {
+        let colHeights: { [key: string]: number } = { lg: 0, md: 0, sm: 0, xs: 0, xxs: 0 };
+        const cols: { [key: string]: number } = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 };
         
-        let colHeights: number[] = Array(12).fill(0);
-        
-        return notesToLayout.map((note) => {
-            let minH = Infinity;
-            let bestCol = 0;
-            for (let i = 0; i < cols[breakpoint]; i += colWidth[breakpoint]) {
-                const h = colHeights.slice(i, i + colWidth[breakpoint]).reduce((a, b) => Math.max(a, b), 0);
-                if (h < minH) {
-                    minH = h;
-                    bestCol = i;
-                }
-            }
-            
-            const noteHeight = note.layout?.h || 6;
-            const newLayout = {
-                ...note.layout,
-                i: note.id,
-                x: bestCol,
-                y: minH,
-                w: colWidth[breakpoint],
-                isDraggable: false,
-                isResizable: false,
-            };
+        const layouts: { [key: string]: NoteLayout[] } = { lg: [], md: [], sm: [], xs: [], xxs: [] };
 
-            for (let i = bestCol; i < bestCol + colWidth[breakpoint]; i++) {
-                colHeights[i] = minH + noteHeight;
-            }
-            
-            return newLayout;
+        notesToLayout.forEach(note => {
+            Object.keys(cols).forEach(bp => {
+                const colWidth = cols[bp];
+                
+                const layoutItem = {
+                    ...note.layout,
+                    i: note.id,
+                    x: 0,
+                    y: colHeights[bp],
+                    w: colWidth,
+                    isDraggable: false,
+                    isResizable: false,
+                };
+                layouts[bp].push(layoutItem);
+                colHeights[bp] += note.layout.h;
+            });
         });
+        
+        return layouts;
     };
-
+    
     if (areFiltersActive) {
-        return {
-            lg: generateCompactLayout(filteredNotes, 'lg'),
-            md: generateCompactLayout(filteredNotes, 'md'),
-            sm: generateCompactLayout(filteredNotes, 'sm'),
-            xs: generateCompactLayout(filteredNotes, 'xs'),
-            xxs: generateCompactLayout(filteredNotes, 'xxs'),
-        };
+        return generateCompactLayout(filteredNotes);
     }
     
     // Return the original saved layouts otherwise
     return {
         lg: filteredNotes.map(n => n.layout),
-        md: filteredNotes.map(n => ({ ...n.layout, w: Math.min(n.layout.w, 4) })),
-        sm: filteredNotes.map(n => ({ ...n.layout, w: Math.min(n.layout.w, 6) })),
-        xs: filteredNotes.map(n => ({ ...n.layout, x: 0, w: 12 })),
-        xxs: filteredNotes.map(n => ({ ...n.layout, x: 0, w: 12 })),
     };
 }, [areFiltersActive, filteredNotes]);
 
@@ -548,7 +529,7 @@ export default function NotesPage() {
               className="layout"
               layouts={layouts}
               breakpoints={{lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0}}
-              cols={{lg: 12, md: 12, sm: 12, xs: 12, xxs: 12}}
+              cols={{lg: 12, md: 10, sm: 6, xs: 4, xxs: 2}}
               rowHeight={30}
               onLayoutChange={onLayoutChange}
               draggableHandle={areFiltersActive ? undefined : ".drag-handle"}
@@ -556,7 +537,7 @@ export default function NotesPage() {
               isResizable={!areFiltersActive}
           >
               {filteredNotes.map(note => (
-                  <div key={note.id} data-grid={layouts.lg.find(l => l.i === note.id)} className="relative group/card-wrapper">
+                  <div key={note.id} data-grid={areFiltersActive ? layouts.lg.find(l => l.i === note.id) : note.layout} className="relative group/card-wrapper">
                       {isSelectMode && (
                           <div className="absolute top-2 left-2 z-10">
                             <Checkbox
