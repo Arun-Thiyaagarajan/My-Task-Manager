@@ -151,27 +151,6 @@ const getInitialStateFromStorage = <T>(key: string, defaultValue: T): T => {
     return defaultValue;
 };
 
-const getInitialDateView = (): DateView => {
-    if (typeof window !== 'undefined') {
-        const savedValue = localStorage.getItem('taskflow_date_view');
-        // Handle old format (plain string) and new format (JSON string)
-        if (savedValue) {
-            try {
-                const parsed = JSON.parse(savedValue);
-                if (['all', 'monthly', 'yearly'].includes(parsed)) {
-                    return parsed;
-                }
-            } catch {
-                // It's likely a plain string from the old version
-                if (['all', 'monthly', 'yearly'].includes(savedValue)) {
-                    return savedValue as DateView;
-                }
-            }
-        }
-    }
-    return 'all';
-}
-
 
 export default function Home() {
   const activeCompanyId = useActiveCompany();
@@ -204,7 +183,7 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { prompt } = useUnsavedChanges();
   
-  const [dateView, setDateView] = useState<DateView>(getInitialDateView);
+  const [dateView, setDateView] = useState<DateView>('all');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
@@ -492,9 +471,11 @@ export default function Home() {
     }
   }, [isSelectMode, selectedTaskIds, sortedTasks, toast]);
 
+  // This is the primary effect for initialization and handling external changes.
   useEffect(() => {
     if (!activeCompanyId) return;
 
+    // --- State Restoration Logic ---
     if (!hasRestoredNavState.current && typeof window !== 'undefined') {
         const navStateRaw = sessionStorage.getItem('taskflow_nav_state');
         if (navStateRaw) {
@@ -507,37 +488,29 @@ export default function Home() {
                 console.error("Could not parse navigation state:", e);
                 sessionStorage.removeItem('taskflow_nav_state');
             }
+        } else {
+             const savedDateView = localStorage.getItem('taskflow_date_view');
+             if(savedDateView) setDateView(JSON.parse(savedDateView));
         }
         hasRestoredNavState.current = true;
     }
     
     const config = getUiConfig();
-    if (!config.tutorialEnabled) {
-      localStorage.removeItem(TUTORIAL_PROMPTED_KEY);
-    } else {
-      const tutorialPrompted = localStorage.getItem(TUTORIAL_PROMPTED_KEY);
-      if (!tutorialPrompted) {
-        setTimeout(() => setShowTutorialPrompt(true), 1000);
-      }
+    if (config.tutorialEnabled && !localStorage.getItem(TUTORIAL_PROMPTED_KEY)) {
+      setTimeout(() => setShowTutorialPrompt(true), 1000);
     }
     
     const savedViewMode = localStorage.getItem('taskflow_view_mode') as ViewMode;
     if (savedViewMode) setViewMode(savedViewMode);
 
     const savedOpenGroups = localStorage.getItem('taskflow_open_groups');
-    if (savedOpenGroups) {
-      setOpenGroups(JSON.parse(savedOpenGroups));
-    }
+    if (savedOpenGroups) setOpenGroups(JSON.parse(savedOpenGroups));
     
     const savedPinnedTasks = localStorage.getItem(PINNED_TASKS_STORAGE_KEY);
-    if (savedPinnedTasks) {
-      setPinnedTaskIds(JSON.parse(savedPinnedTasks));
-    }
+    if (savedPinnedTasks) setPinnedTaskIds(JSON.parse(savedPinnedTasks));
     
     const savedSortDescriptor = localStorage.getItem('taskflow_sort_descriptor');
-    if (savedSortDescriptor) {
-        setSortDescriptor(savedSortDescriptor);
-    }
+    if (savedSortDescriptor) setSortDescriptor(savedSortDescriptor);
     
     // Reminder clearing logic
     const { updatedTaskIds, unpinnedTaskIds } = clearExpiredReminders();
@@ -554,9 +527,7 @@ export default function Home() {
     refreshData();
     setIsLoading(false);
     
-    const storageHandler = () => {
-        refreshData();
-    };
+    const storageHandler = () => refreshData();
 
     window.addEventListener('storage', storageHandler);
     window.addEventListener('config-changed', storageHandler);
@@ -1784,3 +1755,4 @@ export default function Home() {
     
 
     
+
