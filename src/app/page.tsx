@@ -202,7 +202,6 @@ export default function Home() {
   const [isTagsDialogOpen, setIsTagsDialogOpen] = useState(false);
   const [tagsToApply, setTagsToApply] = useState<string[]>([]);
 
-  const previousDateViewRef = useRef<DateView>('all');
   const hasRestoredNavState = useRef(false);
 
   const handlePreviousDate = () => {
@@ -483,14 +482,21 @@ export default function Home() {
                 const navState = JSON.parse(navStateRaw);
                 setDateView(navState.view || 'all');
                 setSelectedDate(navState.date ? new Date(navState.date) : new Date());
+                setViewMode(navState.viewMode || 'grid');
                 sessionStorage.removeItem('taskflow_nav_state');
             } catch (e) {
                 console.error("Could not parse navigation state:", e);
                 sessionStorage.removeItem('taskflow_nav_state');
             }
         } else {
+             const savedViewMode = localStorage.getItem('taskflow_view_mode') as ViewMode | null;
+             if (savedViewMode) setViewMode(savedViewMode);
+             
              const savedDateView = localStorage.getItem('taskflow_date_view');
              if(savedDateView) setDateView(JSON.parse(savedDateView));
+
+             const savedSelectedDate = localStorage.getItem('taskflow_selected_date');
+             if(savedSelectedDate) setSelectedDate(new Date(savedSelectedDate));
         }
         hasRestoredNavState.current = true;
     }
@@ -500,9 +506,6 @@ export default function Home() {
       setTimeout(() => setShowTutorialPrompt(true), 1000);
     }
     
-    const savedViewMode = localStorage.getItem('taskflow_view_mode') as ViewMode;
-    if (savedViewMode) setViewMode(savedViewMode);
-
     const savedOpenGroups = localStorage.getItem('taskflow_open_groups');
     if (savedOpenGroups) setOpenGroups(JSON.parse(savedOpenGroups));
     
@@ -643,14 +646,7 @@ export default function Home() {
   };
   
   const handleFavoritesToggle = () => {
-    const willBeOn = !favoritesOnly;
-    if (willBeOn) {
-        previousDateViewRef.current = dateView;
-        setDateView('all');
-    } else {
-        setDateView(previousDateViewRef.current);
-    }
-    setFavoritesOnly(willBeOn);
+    setFavoritesOnly(!favoritesOnly);
   };
   
   const handleSortChange = (value: string) => {
@@ -1236,10 +1232,12 @@ export default function Home() {
   ]);
 
   const handleTaskLinkClick = (e: React.MouseEvent) => {
-    if (dateView !== 'all') {
-        const navState = { view: dateView, date: selectedDate.toISOString() };
-        sessionStorage.setItem('taskflow_nav_state', JSON.stringify(navState));
-    }
+    const navState = {
+        view: dateView,
+        date: selectedDate.toISOString(),
+        viewMode: viewMode,
+    };
+    sessionStorage.setItem('taskflow_nav_state', JSON.stringify(navState));
   };
 
   const handleNewTaskClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -1755,4 +1753,5 @@ export default function Home() {
     
 
     
+
 

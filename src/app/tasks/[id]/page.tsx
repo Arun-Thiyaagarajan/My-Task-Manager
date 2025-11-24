@@ -16,7 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { DeleteTaskButton } from '@/components/delete-task-button';
 import { PrLinksGroup } from '@/components/pr-links-group';
 import { Badge } from '@/components/ui/badge';
-import { cn, getInitials, getAvatarColor, getRepoBadgeStyle, formatTimestamp } from '@/lib/utils';
+import { cn, getInitials, getAvatarColor, getRepoBadgeStyle, formatTimestamp, getEnvInfo } from '@/lib/utils';
 import { format } from 'date-fns';
 import type { Task, FieldConfig, UiConfig, TaskStatus, Person, Attachment, Log, Comment, Environment } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
@@ -406,8 +406,7 @@ export default function TaskPage() {
         },
         deploymentDates: {
             ...task.deploymentDates,
-            // Only set a date if it's being marked as deployed and doesn't already have one
-            [env]: newStatus && !task.deploymentDates?.[env] ? new Date().toISOString() : task.deploymentDates?.[env],
+            [env]: newStatus ? task.deploymentDates?.[env] || new Date().toISOString() : task.deploymentDates?.[env],
         }
     };
     
@@ -801,7 +800,7 @@ const handleCopyDescription = () => {
           <Button asChild variant="ghost" className="pl-1">
             <Link href={backLink}>
               <ArrowLeft className="mr-2 h-4 w-4" />
-              {isBinned ? "Back to Bin" : "Back to tasks"}
+              Back
             </Link>
           </Button>
           {isBinned ? (
@@ -1616,4 +1615,5 @@ function TimelineSection({
 
 
     
+
 
