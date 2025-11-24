@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { getTasks, addTask, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, updateDeveloper, updateTester, updateUiConfig, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addTagsToMultipleTasks, addEnvironment } from '@/lib/data';
+import { getTasks, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addTagsToMultipleTasks, addEnvironment } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,6 @@ import {
   List,
   Plus,
   Search,
-  Calendar as CalendarIcon,
   Download,
   Upload,
   FolderSearch,
@@ -47,15 +46,11 @@ import {
   HelpCircle,
   History,
   Heart,
-  StickyNote,
-  PinOff,
   BellRing,
-  MoreVertical,
   GraduationCap,
   Tag,
-  CalendarDays,
 } from 'lucide-react';
-import { cn, fuzzySearch, formatTimestamp } from '@/lib/utils';
+import { cn, fuzzySearch } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig, Log, GeneralReminder, BackupFrequency, Environment } from '@/lib/types';
 import {
   Popover,
@@ -67,7 +62,6 @@ import {
   format,
   startOfDay,
   endOfDay,
-  subDays,
   startOfMonth,
   endOfMonth,
   startOfYear,
@@ -78,7 +72,7 @@ import {
   addYears,
   setMonth,
   getYear,
-  set,
+  isValid,
 } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { useActiveCompany } from '@/hooks/use-active-company';
@@ -97,7 +91,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -124,74 +117,42 @@ const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
 const TUTORIAL_PROMPTED_KEY = 'taskflow_tutorial_prompted';
 const LAST_BACKUP_KEY = 'taskflow_last_auto_backup';
 
-const FILTER_STORAGE_KEYS = {
-    search: 'taskflow_filter_searchQuery',
-    status: 'taskflow_filter_status',
-    repo: 'taskflow_filter_repo',
-    deployment: 'taskflow_filter_deployment',
-    date: 'taskflow_filter_date',
-    favorites: 'taskflow_filter_favoritesOnly',
-    tags: 'taskflow_filter_tags',
-};
-
-// Helper function to safely get item from localStorage
-const getInitialStateFromStorage = <T>(key: string, defaultValue: T): T => {
-    if (typeof window === 'undefined') {
-        return defaultValue;
-    }
-    const savedValue = localStorage.getItem(key);
-    if (savedValue && savedValue !== 'undefined') {
-        try {
-            return JSON.parse(savedValue);
-        } catch (e) {
-            console.error(`Failed to parse ${key} from localStorage`, e);
-            return defaultValue;
-        }
-    }
-    return defaultValue;
-};
-
-
 export default function Home() {
   const activeCompanyId = useActiveCompany();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = '/';
+  
   const [tasks, setTasks] = useState<Task[]>([]);
   const [developers, setDevelopers] = useState<Person[]>([]);
   const [testers, setTesters] = useState<Person[]>([]);
   const [generalReminders, setGeneralReminders] = useState<GeneralReminder[]>([]);
-  const [statusFilter, setStatusFilter] = useState<string[]>(() => getInitialStateFromStorage(FILTER_STORAGE_KEYS.status, []));
-  const [repoFilter, setRepoFilter] = useState<string[]>(() => getInitialStateFromStorage(FILTER_STORAGE_KEYS.repo, []));
-  const [deploymentFilter, setDeploymentFilter] = useState<string[]>(() => getInitialStateFromStorage(FILTER_STORAGE_KEYS.deployment, []));
-  const [searchQuery, setSearchQuery] = useState(() => getInitialStateFromStorage(FILTER_STORAGE_KEYS.search, ''));
-  const [tagsFilter, setTagsFilter] = useState<string[]>(() => getInitialStateFromStorage(FILTER_STORAGE_KEYS.tags, []));
-  const [dateFilter, setDateFilter] = useState<DateRange | undefined>(() => {
-    const savedDate = getInitialStateFromStorage<{from?: string; to?: string} | undefined>(FILTER_STORAGE_KEYS.date, undefined);
-    if (savedDate?.from) {
-        return {
-            from: new Date(savedDate.from),
-            to: savedDate.to ? new Date(savedDate.to) : undefined,
-        };
-    }
-    return undefined;
-  });
-  const [sortDescriptor, setSortDescriptor] = useState('status-asc');
-  const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  
   const [isLoading, setIsLoading] = useState(true);
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { prompt } = useUnsavedChanges();
   
-  const [dateView, setDateView] = useState<DateView>('all');
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-
+  // State initialization from URL Search Params
+  const [viewMode, setViewMode] = useState<ViewMode>(searchParams.get('viewMode') as ViewMode || 'grid');
+  const [dateView, setDateView] = useState<DateView>(searchParams.get('dateView') as DateView || 'all');
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    const dateStr = searchParams.get('date');
+    const date = dateStr ? new Date(dateStr) : new Date();
+    return isValid(date) ? date : new Date();
+  });
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
+  const [statusFilter, setStatusFilter] = useState<string[]>(searchParams.getAll('status') || []);
+  const [repoFilter, setRepoFilter] = useState<string[]>(searchParams.getAll('repo') || []);
+  const [deploymentFilter, setDeploymentFilter] = useState<string[]>(searchParams.getAll('deployment') || []);
+  const [tagsFilter, setTagsFilter] = useState<string[]>(searchParams.getAll('tags') || []);
+  const [favoritesOnly, setFavoritesOnly] = useState(searchParams.get('favorites') === 'true');
+  const [sortDescriptor, setSortDescriptor] = useState(searchParams.get('sort') || 'status-asc');
+  
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [openGroups, setOpenGroups] = useState<string[]>(['priority', 'completed', 'other', 'hold']);
-  const [favoritesOnly, setFavoritesOnly] = useState<boolean>(() => getInitialStateFromStorage(FILTER_STORAGE_KEYS.favorites, false));
   const [pinnedTaskIds, setPinnedTaskIds] = useState<string[]>([]);
   const [isReminderStackOpen, setIsReminderStackOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -202,6 +163,33 @@ export default function Home() {
 
   const [isTagsDialogOpen, setIsTagsDialogOpen] = useState(false);
   const [tagsToApply, setTagsToApply] = useState<string[]>([]);
+  
+  // This effect updates the URL whenever a filter changes.
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+    
+    // Clean up previous array-based params
+    params.delete('status');
+    params.delete('repo');
+    params.delete('deployment');
+    params.delete('tags');
+
+    // Set new values
+    if (searchQuery) params.set('search', searchQuery); else params.delete('search');
+    if (sortDescriptor) params.set('sort', sortDescriptor); else params.delete('sort');
+    if (viewMode) params.set('viewMode', viewMode); else params.delete('viewMode');
+    if (dateView) params.set('dateView', dateView); else params.delete('dateView');
+    if (selectedDate) params.set('date', selectedDate.toISOString()); else params.delete('date');
+    if (favoritesOnly) params.set('favorites', 'true'); else params.delete('favorites');
+    
+    statusFilter.forEach(s => params.append('status', s));
+    repoFilter.forEach(r => params.append('repo', r));
+    deploymentFilter.forEach(d => params.append('deployment', d));
+    tagsFilter.forEach(t => params.append('tags', t));
+
+    router.replace(`${pathname}?${params.toString()}`);
+  }, [searchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, statusFilter, repoFilter, deploymentFilter, tagsFilter, router, pathname, searchParams]);
+
 
   const handlePreviousDate = () => {
       if (dateView === 'monthly') {
@@ -230,16 +218,6 @@ export default function Home() {
         setSelectedTaskIds([]);
     }
   };
-  
-  // Save filters to localStorage whenever they change
-  useEffect(() => { localStorage.setItem(FILTER_STORAGE_KEYS.search, JSON.stringify(searchQuery)); }, [searchQuery]);
-  useEffect(() => { localStorage.setItem(FILTER_STORAGE_KEYS.status, JSON.stringify(statusFilter)); }, [statusFilter]);
-  useEffect(() => { localStorage.setItem(FILTER_STORAGE_KEYS.repo, JSON.stringify(repoFilter)); }, [repoFilter]);
-  useEffect(() => { localStorage.setItem(FILTER_STORAGE_KEYS.deployment, JSON.stringify(deploymentFilter)); }, [deploymentFilter]);
-  useEffect(() => { localStorage.setItem(FILTER_STORAGE_KEYS.date, JSON.stringify(dateFilter)); }, [dateFilter]);
-  useEffect(() => { localStorage.setItem(FILTER_STORAGE_KEYS.favorites, JSON.stringify(favoritesOnly)); }, [favoritesOnly]);
-  useEffect(() => { localStorage.setItem(FILTER_STORAGE_KEYS.tags, JSON.stringify(tagsFilter)); }, [tagsFilter]);
-
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -257,16 +235,14 @@ export default function Home() {
   }, []);
 
   const getDeploymentScore = (task: Task) => {
-    // The order of importance for sorting
     const deploymentOrder = ['production', 'stage', 'dev'];
     for (let i = 0; i < deploymentOrder.length; i++) {
       const env = deploymentOrder[i];
       if (task.deploymentStatus?.[env]) {
-        // Higher score for more important environments
         return deploymentOrder.length - i;
       }
     }
-    return 0; // No deployment
+    return 0;
   };
 
   const filteredTasks = tasks.filter((task: Task) => {
@@ -295,13 +271,7 @@ export default function Home() {
 
     const dateMatch = (() => {
       if (dateView === 'all') {
-          // Date range picker logic for 'all' view
-          if (!dateFilter?.from) return true;
-          if (!task.devStartDate) return false;
-          const taskDate = new Date(task.devStartDate);
-          const from = startOfDay(dateFilter.from);
-          const to = dateFilter.to ? endOfDay(dateFilter.to) : endOfDay(dateFilter.from);
-          return taskDate >= from && taskDate <= to;
+          return true; // The 'all' view has no date filter itself
       }
       if (dateView === 'monthly') {
           if (!task.devStartDate) return false;
@@ -472,15 +442,6 @@ export default function Home() {
   // This is the primary effect for initialization and handling external changes.
   useEffect(() => {
     if (!activeCompanyId) return;
-
-    // Restore state from query params on first load
-    const view = searchParams.get('view') as DateView | null;
-    const date = searchParams.get('date');
-    const mode = searchParams.get('viewMode') as ViewMode | null;
-
-    if(view) setDateView(view);
-    if(date) setSelectedDate(new Date(date));
-    if(mode) setViewMode(mode);
     
     const config = getUiConfig();
     if (config.tutorialEnabled && !localStorage.getItem(TUTORIAL_PROMPTED_KEY)) {
@@ -492,9 +453,6 @@ export default function Home() {
     
     const savedPinnedTasks = localStorage.getItem(PINNED_TASKS_STORAGE_KEY);
     if (savedPinnedTasks) setPinnedTaskIds(JSON.parse(savedPinnedTasks));
-    
-    const savedSortDescriptor = localStorage.getItem('taskflow_sort_descriptor');
-    if (savedSortDescriptor) setSortDescriptor(savedSortDescriptor);
     
     // Reminder clearing logic
     const { updatedTaskIds, unpinnedTaskIds } = clearExpiredReminders();
@@ -522,11 +480,11 @@ export default function Home() {
       window.removeEventListener('config-changed', storageHandler);
       window.removeEventListener('company-changed', storageHandler);
     };
-  }, [activeCompanyId, toast, searchParams]);
+  }, [activeCompanyId, toast]);
   
   // Single effect for automatic backup logic
   useEffect(() => {
-    if (isLoading || !uiConfig) return; // Don't run backup logic while still loading initial data
+    if (isLoading || !uiConfig) return;
     
     const backupFrequency = uiConfig.autoBackupFrequency || 'off';
     if (backupFrequency === 'off') return;
@@ -537,8 +495,6 @@ export default function Home() {
     let nextBackupDate: Date;
     
     if (!lastBackupStr) {
-        // This is the first time the user is using the app with this feature.
-        // Schedule the first backup for the *next* designated time.
         nextBackupDate = new Date(now);
     } else {
         nextBackupDate = new Date(lastBackupStr);
@@ -548,16 +504,12 @@ export default function Home() {
     let scheduleBackup = false;
 
     if (!lastBackupStr) {
-        // First backup logic: set it for the next upcoming backup time.
         let firstBackupDate = new Date(now);
         firstBackupDate.setHours(backupHour, 0, 0, 0);
         if (now >= firstBackupDate) {
-            // If the time has passed for today, schedule for tomorrow.
             firstBackupDate.setDate(firstBackupDate.getDate() + 1);
         }
         nextBackupDate = firstBackupDate;
-        // Don't trigger a backup immediately, just set the date for the next check.
-        // The backup will happen on the next app load *after* this scheduled time.
     } else {
         let proposedNextDate = new Date(lastBackupStr);
         switch (backupFrequency) {
@@ -582,7 +534,7 @@ export default function Home() {
                 description: `A ${backupFrequency} backup of all your tasks has been downloaded.`,
                 duration: 10000,
             });
-        }, 2000); // Small delay to allow the UI to settle
+        }, 2000);
     }
   }, [isLoading, uiConfig, handleExport, toast]);
 
@@ -613,13 +565,6 @@ export default function Home() {
       });
     }
   };
-
-  const handleViewModeChange = (mode: ViewMode) => {
-    if (mode === 'grid' || mode === 'table') {
-      localStorage.setItem('taskflow_view_mode', mode);
-      setViewMode(mode);
-    }
-  };
   
   const handleToggleSelectMode = () => {
     setIsSelectMode(prev => !prev);
@@ -630,16 +575,9 @@ export default function Home() {
     setFavoritesOnly(!favoritesOnly);
   };
   
-  const handleSortChange = (value: string) => {
-      setSortDescriptor(value);
-      localStorage.setItem('taskflow_sort_descriptor', value);
-  };
-
   useEffect(() => {
-    localStorage.setItem('taskflow_date_view', JSON.stringify(dateView));
-    localStorage.setItem('taskflow_selected_date', selectedDate.toISOString());
     localStorage.setItem('taskflow_open_groups', JSON.stringify(openGroups));
-  }, [dateView, selectedDate, openGroups]);
+  }, [openGroups]);
 
   const pinnedReminders = tasks
     .filter(t => pinnedTaskIds.includes(t.id) && t.reminder)
@@ -738,7 +676,6 @@ export default function Home() {
             
             const allImportedTasks = [...importedTasks, ...importedBinnedTasks];
             
-            // Auto-discover people from tasks if they are not in the main lists
             const devNames = new Set((importedDevelopers || []).map(d => d?.name?.toLowerCase()).filter(Boolean));
             const testerNames = new Set((importedTesters || []).map(t => t?.name?.toLowerCase()).filter(Boolean));
             allImportedTasks.forEach(task => {
@@ -747,7 +684,6 @@ export default function Home() {
                 (task.testers || []).forEach(nameOrId => { if (typeof nameOrId === 'string' && !isIdRegex.test(nameOrId) && !testerNames.has(nameOrId.toLowerCase())) { importedTesters.push({ name: nameOrId }); testerNames.add(nameOrId.toLowerCase()); }});
             });
 
-            // --- BATCH PROCESSING ---
             const data = getAppData();
             const companyData = data.companyData[data.activeCompanyId];
 
@@ -757,7 +693,6 @@ export default function Home() {
                 binnedUpdatedCount = 0, failedCount = 0, importedLogCount = 0,
                 envCreatedCount = 0;
 
-            // --- Discover and add new environments from tasks ---
             const existingEnvs = new Set(companyData.uiConfig.environments.map(e => e.name.toLowerCase()));
             const discoveredEnvs = new Set<string>();
 
@@ -784,7 +719,6 @@ export default function Home() {
             }
 
 
-            // --- Process Custom Field Definitions ---
             if (importedCustomFieldDefs.length > 0) {
                 const existingFieldKeys = new Set(companyData.uiConfig.fields.map(f => f.key));
                 let newFieldsAdded = false;
@@ -807,7 +741,6 @@ export default function Home() {
                 }
             }
             
-            // --- Config Update ---
             if (importedAppName || typeof importedAppIcon !== 'undefined') {
                 companyData.uiConfig.appName = importedAppName || companyData.uiConfig.appName;
                 companyData.uiConfig.appIcon = typeof importedAppIcon === 'undefined' ? companyData.uiConfig.appIcon : importedAppIcon;
@@ -843,19 +776,16 @@ export default function Home() {
                 configUpdated = true;
             }
             
-            // --- Log Processing ---
             if (importedLogs.length > 0) {
                 const existingLogIds = new Set(companyData.logs.map(l => l.id));
                 const newLogs = importedLogs.filter(log => !existingLogIds.has(log.id));
                 if (newLogs.length > 0) {
                     companyData.logs.push(...newLogs);
-                    // Re-sort logs by timestamp to maintain chronological order (newest first)
                     companyData.logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
                     importedLogCount = newLogs.length;
                 }
             }
 
-            // --- People Update ---
             const existingDevsByName = new Map(companyData.developers.map(d => [d.name.toLowerCase(), d]));
             importedDevelopers.forEach(dev => {
                 if (!dev?.name) return;
@@ -888,7 +818,6 @@ export default function Home() {
                 }
             });
 
-            // --- Task Processing ---
             const allTasksById = new Map([...companyData.tasks, ...companyData.trash].map(t => [t.id, t]));
             const devsByName = new Map(companyData.developers.map(d => [d.name.toLowerCase(), d.id]));
             const allDevIds = new Set(companyData.developers.map(d => d.id));
@@ -1048,7 +977,6 @@ export default function Home() {
             processTaskArray(importedTasks, false);
             processTaskArray(importedBinnedTasks, true);
 
-            // --- Finalize ---
             setAppData(data);
 
             if (configUpdated) {
@@ -1056,7 +984,6 @@ export default function Home() {
             }
             refreshData();
             
-            // --- Toast Summary ---
             let summaryParts: string[] = [];
             if (configUpdated) summaryParts.push('App settings updated.');
             if (envCreatedCount > 0) summaryParts.push(`${envCreatedCount} new environment(s) added.`);
@@ -1169,7 +1096,6 @@ export default function Home() {
             const conflictingValue = isNegative ? baseEnv : `not_${baseEnv}`;
 
             if (newValues.includes(conflictingValue)) {
-                // If the new value's conflict is already present, remove the conflict
                 valuesToSet = newValues.filter(v => v !== conflictingValue);
             }
         }
@@ -1239,10 +1165,7 @@ export default function Home() {
   };
 
   const getTaskLink = (taskId: string) => {
-    const params = new URLSearchParams();
-    params.set('view', dateView);
-    params.set('date', selectedDate.toISOString());
-    params.set('viewMode', viewMode);
+    const params = new URLSearchParams(searchParams);
     return `/tasks/${taskId}?${params.toString()}`;
   };
 
@@ -1393,7 +1316,7 @@ export default function Home() {
                           <Button variant="outline" size="icon" onClick={handlePreviousDate} aria-label="Previous period" className="h-10 w-10">
                               <ChevronLeft className="h-4 w-4" />
                           </Button>
-                          <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                          <Popover>
                               <PopoverTrigger asChild>
                                   <Button
                                       variant="outline"
@@ -1403,52 +1326,12 @@ export default function Home() {
                                   </Button>
                               </PopoverTrigger>
                               <PopoverContent className="w-auto p-0" align="start">
-                                  {dateView === 'monthly' ? (
-                                      <Calendar
-                                          mode="single"
-                                          selected={selectedDate}
-                                          onSelect={(day) => { if(day) setSelectedDate(day); setIsDatePickerOpen(false); }}
-                                          initialFocus
-                                      />
-                                  ) : (
-                                      <div className="p-2">
-                                            <div className="flex justify-between items-center pb-2">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-7 w-7"
-                                                    onClick={() => setSelectedDate(subYears(selectedDate, 1))}
-                                                >
-                                                    <ChevronLeft className="h-4 w-4" />
-                                                </Button>
-                                                <span className="font-semibold text-sm">{getYear(selectedDate)}</span>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-7 w-7"
-                                                    onClick={() => setSelectedDate(addYears(selectedDate, 1))}
-                                                >
-                                                    <ChevronRight className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                            <div className="grid grid-cols-4 gap-1">
-                                                {Array.from({ length: 12 }).map((_, i) => {
-                                                    const monthDate = setMonth(new Date(getYear(selectedDate), 0, 1), i);
-                                                    return (
-                                                        <Button
-                                                            key={i}
-                                                            variant={'ghost'}
-                                                            size="sm"
-                                                            className="w-full justify-center"
-                                                            disabled
-                                                        >
-                                                            {format(monthDate, 'MMM')}
-                                                        </Button>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                  )}
+                                  <Calendar
+                                      mode="single"
+                                      selected={selectedDate}
+                                      onSelect={(day) => { if(day) setSelectedDate(day); }}
+                                      initialFocus
+                                  />
                               </PopoverContent>
                           </Popover>
                           <Button variant="outline" size="icon" onClick={handleNextDate} aria-label="Next period" className="h-10 w-10">
@@ -1467,7 +1350,7 @@ export default function Home() {
                 </div>
 
                 <div id="view-mode-toggle" className="flex items-center gap-x-2 gap-y-2 flex-wrap justify-start sm:justify-end">
-                  <Select value={sortDescriptor} onValueChange={handleSortChange}>
+                  <Select value={sortDescriptor} onValueChange={setSortDescriptor}>
                       <SelectTrigger className="w-auto sm:w-[180px] h-10">
                           <SelectValue placeholder="Sort by" />
                       </SelectTrigger>
@@ -1509,7 +1392,7 @@ export default function Home() {
                           "h-8 w-8",
                           viewMode === 'grid' && 'bg-card text-foreground shadow-sm hover:bg-card'
                         )}
-                        onClick={() => handleViewModeChange('grid')}
+                        onClick={() => setViewMode('grid')}
                       >
                         <LayoutGrid className="h-4 w-4" />
                         <span className="sr-only">Grid View</span>
@@ -1521,7 +1404,7 @@ export default function Home() {
                           "h-8 w-8",
                           viewMode === 'table' && 'bg-card text-foreground shadow-sm hover:bg-card'
                         )}
-                        onClick={() => handleViewModeChange('table')}
+                        onClick={() => setViewMode('table')}
                       >
                         <List className="h-4 w-4" />
                         <span className="sr-only">Table View</span>
@@ -1694,7 +1577,7 @@ export default function Home() {
               const target = e.target as HTMLElement;
               const link = target.closest('a');
               if(link) {
-                  const taskId = link.href.split('/tasks/')[1];
+                  const taskId = link.href.split('/tasks/')[1]?.split('?')[0];
                   if(taskId) {
                       link.href = getTaskLink(taskId);
                   }
@@ -1737,10 +1620,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
-
-    
-
-
-

@@ -100,7 +100,6 @@ export default function TaskPage() {
   const taskId = params.id as string;
   
   const loadData = () => {
-    // Clear state before loading new task data to prevent content bleed
     setTask(null); 
     setIsLoading(true);
 
@@ -165,7 +164,6 @@ export default function TaskPage() {
   }
 
   useEffect(() => {
-    // Run this first to clear any expired reminders before we read data
     const { updatedTaskIds } = clearExpiredReminders();
     if (updatedTaskIds.includes(taskId)) {
         toast({ title: 'Reminder Cleared', description: 'The reminder for this task expired and was automatically cleared.' });
@@ -189,7 +187,7 @@ export default function TaskPage() {
     return () => {
         window.removeEventListener('storage', handleStorageChange);
     };
-  }, [taskId]);
+  }, [taskId, toast]);
 
   useEffect(() => {
     if (!task || task.deletedAt) {
@@ -198,8 +196,6 @@ export default function TaskPage() {
       return;
     }
     
-    // This logic runs only on the client, after the task has been loaded.
-    // This avoids hydration errors from Math.random().
     const allDevs = getDevelopers();
     const tasksForRelated = getTasks().filter(t => t.id !== task.id);
     const strategies: (() => { title: string, tasks: Task[] } | null)[] = [];
@@ -312,7 +308,6 @@ export default function TaskPage() {
         }
     }
     
-    // Ensure repositories is always an array
     if (key === 'repositories' && !Array.isArray(finalValue)) {
         finalValue = finalValue ? [finalValue] : [];
     }
@@ -497,7 +492,6 @@ export default function TaskPage() {
       toast({ variant: 'success', title: 'Link ready to be saved.'});
   }
 
-  // Effect for handling pasted content
   useEffect(() => {
     const handlePaste = (event: ClipboardEvent) => {
       if (!isEditingAttachments) return;
@@ -506,7 +500,6 @@ export default function TaskPage() {
 
       let foundContent = false;
       for (let i = 0; i < items.length; i++) {
-        // Handle images
         if (items[i].type.indexOf('image') !== -1) {
           const file = items[i].getAsFile();
           if (file) {
@@ -516,7 +509,6 @@ export default function TaskPage() {
             break;
           }
         }
-        // Handle text (for URLs)
         if (items[i].type === 'text/plain') {
             items[i].getAsString(async (pastedText) => {
                 try {
@@ -537,7 +529,7 @@ export default function TaskPage() {
                     // Not a valid URL, do nothing
                 }
             });
-            foundContent = true; // Assume we might find a URL, to prevent default paste
+            foundContent = true;
             break;
         }
       }
@@ -547,7 +539,7 @@ export default function TaskPage() {
     return () => {
       window.removeEventListener('paste', handlePaste);
     };
-  }, [isEditingAttachments]);
+  }, [isEditingAttachments, toast]);
   
   const handleRestore = () => {
     if (task && task.deletedAt) {
@@ -583,7 +575,7 @@ export default function TaskPage() {
         description: `The reminder for "${task.title}" has been removed.` 
       });
       
-      handleReminderSuccess(); // This reloads the task data
+      handleReminderSuccess();
   };
   
   const handleExportJson = () => {
@@ -708,7 +700,6 @@ const handleCopyDescription = () => {
         [key]: date ? date.toISOString() : null
     };
 
-    // If a start date is cleared, also clear the end date
     if (date === null) {
       if (key === 'devStartDate') updatePayload['devEndDate'] = null;
       if (key === 'qaStartDate') updatePayload['qaEndDate'] = null;
@@ -762,8 +753,8 @@ const handleCopyDescription = () => {
     );
   }
   
-  const isBinned = !!task.deletedAt;
   const backLink = `/?${searchParams.toString()}`;
+  const isBinned = !!task.deletedAt;
   
   const statusConfig = getStatusConfig(task.status);
   const { Icon, cardClassName, iconColorClassName } = statusConfig;
@@ -1128,7 +1119,6 @@ const handleCopyDescription = () => {
             )}
           </div>
 
-          {/* Right Column */}
           <div className="space-y-6">
             <Card className="h-fit">
                 <CardHeader>
@@ -1612,9 +1602,3 @@ function TimelineSection({
     </div>
   );
 }
-
-
-    
-
-
-
