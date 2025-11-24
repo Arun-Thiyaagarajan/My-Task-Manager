@@ -275,7 +275,7 @@ export default function TaskPage() {
   }, [editingSection]);
   
   const handleStartEditing = (section: string, initialValue: any) => {
-    if (isBinned) return;
+    if (!task || task.deletedAt) return;
     setEditingSection(section);
     setEditingValue(initialValue);
   };
@@ -764,7 +764,7 @@ const handleCopyDescription = () => {
   }
   
   const isBinned = !!task.deletedAt;
-  const backLink = isBinned ? '/bin' : '/';
+  const backLink = "/";
   
   const statusConfig = getStatusConfig(task.status);
   const { Icon, cardClassName, iconColorClassName } = statusConfig;
@@ -919,7 +919,7 @@ const handleCopyDescription = () => {
                 <div className="relative z-10 flex flex-col h-full">
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start gap-4">
-                      <div className="flex-1 flex items-center gap-2 group/title" onDoubleClick={() => !isBinned && handleStartEditing('title', task.title)}>
+                      <div className="flex-1 flex items-center gap-2 group/title" onDoubleClick={() => handleStartEditing('title', task.title)}>
                         {editingSection === 'title' ? (
                             <Input 
                                 ref={titleInputRef}

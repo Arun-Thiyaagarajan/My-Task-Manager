@@ -224,6 +224,7 @@ export default function Home() {
   const [tagsToApply, setTagsToApply] = useState<string[]>([]);
 
   const previousDateViewRef = useRef<DateView>('all');
+  const hasRestoredNavState = useRef(false);
 
   const handlePreviousDate = () => {
       if (dateView === 'monthly') {
@@ -494,21 +495,20 @@ export default function Home() {
   useEffect(() => {
     if (!activeCompanyId) return;
 
-    // This block now handles restoring state from session storage
-    if (typeof window !== 'undefined') {
+    if (!hasRestoredNavState.current && typeof window !== 'undefined') {
         const navStateRaw = sessionStorage.getItem('taskflow_nav_state');
         if (navStateRaw) {
             try {
                 const navState = JSON.parse(navStateRaw);
                 setDateView(navState.view || 'all');
                 setSelectedDate(navState.date ? new Date(navState.date) : new Date());
-                // Clear the state after using it to prevent it from affecting future navigations
                 sessionStorage.removeItem('taskflow_nav_state');
             } catch (e) {
                 console.error("Could not parse navigation state:", e);
                 sessionStorage.removeItem('taskflow_nav_state');
             }
         }
+        hasRestoredNavState.current = true;
     }
     
     const config = getUiConfig();
