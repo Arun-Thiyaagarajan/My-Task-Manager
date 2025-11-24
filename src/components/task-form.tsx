@@ -90,7 +90,7 @@ const getInitialTaskData = (task?: Partial<Task>) => {
         customFields: task.customFields || {},
         prLinks: task.prLinks || {},
         deploymentStatus: task.deploymentStatus || {},
-        relevantEnvironments: task.relevantEnvironments || ['dev', 'stage', 'production'],
+        relevantEnvironments: task.relevantEnvironments && task.relevantEnvironments.length > 0 ? task.relevantEnvironments : ['dev', 'stage', 'production'],
         developers: task.developers || [],
         testers: task.testers || [],
         tags: task.tags || [],
@@ -238,7 +238,9 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
   }, [appendAttachment, toast]);
 
   const watchedRepositories = form.watch('repositories', []);
+  const watchedRelevantEnvs = form.watch('relevantEnvironments', []);
   const allConfiguredEnvs = uiConfig?.environments || [];
+  const activeEnvs = allConfiguredEnvs.filter(env => env && env.name && watchedRelevantEnvs?.includes(env.name));
 
   const handleCreateDeveloper = (name: string): string | undefined => {
     try {
@@ -671,7 +673,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                         <CardContent className="space-y-4">
                             {relevantEnvsFieldConfig && relevantEnvsFieldConfig.isActive && renderField(relevantEnvsFieldConfig)}
 
-                            {allConfiguredEnvs.filter(env => env && env.name).map(env => (
+                            {activeEnvs.length > 0 ? activeEnvs.map(env => (
                                 <div key={env.name} className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4 p-3 border rounded-md">
                                     <FormField
                                         control={form.control}
@@ -694,7 +696,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                                             </FormItem>
                                         )}
                                     />
-                                    {form.watch(`deploymentStatus.${env.name}`) && env.name !== 'dev' && (
+                                    {form.watch(`deploymentStatus.${env.name}`) && (
                                         <FormField
                                             control={form.control}
                                             name={`deploymentDates.${env.name}`}
@@ -718,7 +720,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                                         />
                                     )}
                                 </div>
-                            ))}
+                            )) : <p className="text-sm text-muted-foreground text-center py-4">Select relevant environments to see deployment options.</p>}
                         </CardContent>
                     </Card>
                 )}
@@ -740,7 +742,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                                     {watchedRepositories.map(repo => (
                                         <TabsContent key={repo} value={repo}>
                                             <div className="space-y-4 pt-4">
-                                            {allConfiguredEnvs.filter(env => env && env.name).map(env => (
+                                            {activeEnvs.length > 0 ? activeEnvs.map(env => (
                                                 <FormField
                                                     key={`${repo}-${env.name}`}
                                                     control={form.control}
@@ -754,7 +756,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                                                         </FormItem>
                                                     )}
                                                 />
-                                            ))}
+                                            )) : <p className="text-sm text-muted-foreground text-center py-4">Select relevant environments to add PR links.</p>}
                                             </div>
                                         </TabsContent>
                                     ))}

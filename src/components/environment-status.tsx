@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import type { Task, Environment } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { CheckCircle2, Clock } from 'lucide-react';
 
 interface EnvironmentStatusProps {
   deploymentStatus: Task['deploymentStatus'];
@@ -39,6 +40,7 @@ export function EnvironmentStatus({
       onAnimationEnd={onAnimationEnd}
     >
       {visibleEnvs.map(env => {
+        if (!env || !env.name) return null;
         const isDeployed = deploymentStatus?.[env.name] ?? false;
 
         const tooltipText = isDeployed ? 'Deployed' : 'Pending';
@@ -57,7 +59,7 @@ export function EnvironmentStatus({
               <Badge
                 onClick={handleClick}
                 style={{
-                    backgroundColor: isDeployed ? env.color : `${env.color}20`,
+                    backgroundColor: isDeployed ? env.color : 'transparent',
                     color: isDeployed ? '#fff' : env.color,
                     borderColor: env.color,
                 }}
@@ -75,9 +77,14 @@ export function EnvironmentStatus({
               </Badge>
             </TooltipTrigger>
             <TooltipContent>
-              <p className="capitalize">
-                {env.name}: {tooltipText}
-              </p>
+               <p className="capitalize flex items-center gap-1.5">
+                    {isDeployed ? (
+                      <CheckCircle2 className="h-3 w-3 text-green-500" />
+                    ) : (
+                      <Clock className="h-3 w-3 text-yellow-500" />
+                    )}
+                    {env.name}: {tooltipText}
+                </p>
             </TooltipContent>
           </Tooltip>
         );
@@ -103,5 +110,3 @@ export function EnvironmentStatus({
     </div>
   );
 }
-
-    

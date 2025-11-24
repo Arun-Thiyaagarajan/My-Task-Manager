@@ -17,11 +17,10 @@ import { TaskStatusBadge, getStatusConfig } from '@/components/task-status-badge
 import {
   ArrowRight,
   Check,
-  Clock,
   CheckCircle2,
   ChevronDown,
 } from 'lucide-react';
-import type { Task, UiConfig, Person, TaskStatus } from '@/lib/types';
+import type { Task, UiConfig, Person, TaskStatus, Environment } from '@/lib/types';
 import { Badge } from './ui/badge';
 import { DeleteTaskButton } from './delete-task-button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -30,7 +29,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { getInitials, getAvatarColor, cn, getRepoBadgeStyle, getEnvInfo } from '@/lib/utils';
+import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,6 +42,7 @@ import { useToast } from '@/hooks/use-toast';
 import { updateTask } from '@/lib/data';
 import { PersonProfileCard } from './person-profile-card';
 import { Checkbox } from './ui/checkbox';
+import { EnvironmentStatus } from './environment-status';
 
 interface TasksTableRowProps {
   task: Task;
@@ -101,12 +101,7 @@ function TasksTableRow({
       deploymentStatus: { ...task.deploymentStatus, [env]: newStatus },
       deploymentDates: { ...task.deploymentDates },
     };
-  
-    // Only add a date if it's being marked as deployed for the first time
-    if (newStatus && !task.deploymentDates?.[env]) {
-      updatedTaskData.deploymentDates[env] = new Date().toISOString();
-    }
-  
+    
     const updatedTask = updateTask(task.id, updatedTaskData);
   
     if (updatedTask) {
@@ -131,6 +126,8 @@ function TasksTableRow({
 
   const statusConfig = getStatusConfig(task.status);
   const { Icon, iconColorClassName } = statusConfig;
+  
+  const allRelevantEnvs = (uiConfig?.environments || []).filter(e => (task.relevantEnvironments || ['dev','stage','production']).includes(e.name));
 
   return (
     <TableRow key={task.id} className="group/row" data-state={isSelected ? 'selected' : undefined}>
@@ -267,47 +264,16 @@ function TasksTableRow({
         </div>
       </TableCell>
       <TableCell className="align-top">
-        <div
-          className="flex flex-wrap items-center gap-1.5"
+        <EnvironmentStatus
+          deploymentStatus={task.deploymentStatus}
+          deploymentDates={task.deploymentDates}
+          configuredEnvs={allRelevantEnvs}
+          size="sm"
+          interactive={true}
+          onToggle={handleToggleDeployment}
+          justUpdatedEnv={justUpdatedEnv}
           onAnimationEnd={() => setJustUpdatedEnv(null)}
-        >
-          {(uiConfig.environments || []).map((env) => {
-            if (!env || !env.name) return null;
-            const envInfo = getEnvInfo(env.name);
-            const isDeployed = task.deploymentStatus?.[env.name] ?? false;
-
-            return (
-              <Tooltip key={env.name}>
-                <TooltipTrigger asChild>
-                  <Badge
-                    variant="outline"
-                    onClick={() => handleToggleDeployment(env.name)}
-                    className={cn(
-                      'capitalize font-medium transition-colors cursor-pointer',
-                      isDeployed
-                        ? envInfo.deployedColor
-                        : envInfo.pendingColor,
-                      'px-1.5 py-0 text-[10px] h-4',
-                      justUpdatedEnv === env.name && 'animate-status-in'
-                    )}
-                  >
-                    {env.name}
-                  </Badge>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="capitalize flex items-center gap-1.5">
-                    {isDeployed ? (
-                      <CheckCircle2 className="h-3 w-3 text-green-500" />
-                    ) : (
-                      <Clock className="h-3 w-3 text-yellow-500" />
-                    )}
-                    {env.name}: {isDeployed ? 'Deployed' : 'Pending'}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </div>
+        />
       </TableCell>
       <TableCell className="align-top">
         <div className="flex items-center justify-end gap-2">
@@ -479,5 +445,3 @@ export function TasksTable({
     </div>
   );
 }
-
-    

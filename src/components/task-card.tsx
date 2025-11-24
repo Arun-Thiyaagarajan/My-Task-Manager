@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import type { Task, TaskStatus, UiConfig, Person } from '@/lib/types';
+import type { Task, TaskStatus, UiConfig, Person, Environment } from '@/lib/types';
 import {
   Card,
   CardContent,
@@ -127,14 +127,6 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
             [env]: newStatus,
         },
     };
-
-    // Only add a date automatically if it's being marked as deployed for the first time
-    if (newStatus && !task.deploymentDates?.[env]) {
-        updatedTaskData.deploymentDates = {
-            ...task.deploymentDates,
-            [env]: new Date().toISOString(),
-        };
-    }
   
     const updatedTaskResult = updateTask(task.id, updatedTaskData);
   
