@@ -743,9 +743,9 @@ const handleCopyDescription = () => {
         <div className="text-center space-y-4">
             <h1 className="text-2xl font-bold">Task not found</h1>
             <p className="text-muted-foreground">The task you are looking for does not exist.</p>
-            <Button onClick={() => router.push('/')} className="mt-4">
+            <Button onClick={() => router.back()} className="mt-4">
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Go to Home
+                Go Back
             </Button>
         </div>
       </div>
@@ -753,7 +753,7 @@ const handleCopyDescription = () => {
   }
   
   const isBinned = !!task.deletedAt;
-  const backLink = `/?${searchParams.toString()}`;
+  const backLink = `/`;
   
   const statusConfig = getStatusConfig(task.status);
   const { Icon, cardClassName, iconColorClassName } = statusConfig;
@@ -787,7 +787,7 @@ const handleCopyDescription = () => {
     <>
       <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          <Button asChild variant="ghost" className="pl-1">
+          <Button asChild variant="ghost" className="pl-1" onClick={() => router.back()}>
             <Link href={backLink}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
@@ -1601,3 +1601,4 @@ function TimelineSection({
     </div>
   );
 }
+
