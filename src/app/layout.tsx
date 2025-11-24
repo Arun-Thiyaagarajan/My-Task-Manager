@@ -1,6 +1,4 @@
 
-'use client';
-
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/header';
