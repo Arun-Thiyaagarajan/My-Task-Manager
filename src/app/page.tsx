@@ -83,7 +83,7 @@ import {
 import type { DateRange } from 'react-day-picker';
 import { useActiveCompany } from '@/hooks/use-active-company';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { taskSchema } from '@/lib/validators';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Card, CardContent } from '@/components/ui/card';
@@ -155,6 +155,7 @@ const getInitialStateFromStorage = <T>(key: string, defaultValue: T): T => {
 export default function Home() {
   const activeCompanyId = useActiveCompany();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [developers, setDevelopers] = useState<Person[]>([]);
   const [testers, setTesters] = useState<Person[]>([]);
@@ -201,8 +202,6 @@ export default function Home() {
 
   const [isTagsDialogOpen, setIsTagsDialogOpen] = useState(false);
   const [tagsToApply, setTagsToApply] = useState<string[]>([]);
-
-  const hasRestoredNavState = useRef(false);
 
   const handlePreviousDate = () => {
       if (dateView === 'monthly') {
@@ -474,32 +473,14 @@ export default function Home() {
   useEffect(() => {
     if (!activeCompanyId) return;
 
-    // --- State Restoration Logic ---
-    if (!hasRestoredNavState.current && typeof window !== 'undefined') {
-        const navStateRaw = sessionStorage.getItem('taskflow_nav_state');
-        if (navStateRaw) {
-            try {
-                const navState = JSON.parse(navStateRaw);
-                setDateView(navState.view || 'all');
-                setSelectedDate(navState.date ? new Date(navState.date) : new Date());
-                setViewMode(navState.viewMode || 'grid');
-                sessionStorage.removeItem('taskflow_nav_state');
-            } catch (e) {
-                console.error("Could not parse navigation state:", e);
-                sessionStorage.removeItem('taskflow_nav_state');
-            }
-        } else {
-             const savedViewMode = localStorage.getItem('taskflow_view_mode') as ViewMode | null;
-             if (savedViewMode) setViewMode(savedViewMode);
-             
-             const savedDateView = localStorage.getItem('taskflow_date_view');
-             if(savedDateView) setDateView(JSON.parse(savedDateView));
+    // Restore state from query params on first load
+    const view = searchParams.get('view') as DateView | null;
+    const date = searchParams.get('date');
+    const mode = searchParams.get('viewMode') as ViewMode | null;
 
-             const savedSelectedDate = localStorage.getItem('taskflow_selected_date');
-             if(savedSelectedDate) setSelectedDate(new Date(savedSelectedDate));
-        }
-        hasRestoredNavState.current = true;
-    }
+    if(view) setDateView(view);
+    if(date) setSelectedDate(new Date(date));
+    if(mode) setViewMode(mode);
     
     const config = getUiConfig();
     if (config.tutorialEnabled && !localStorage.getItem(TUTORIAL_PROMPTED_KEY)) {
@@ -541,7 +522,7 @@ export default function Home() {
       window.removeEventListener('config-changed', storageHandler);
       window.removeEventListener('company-changed', storageHandler);
     };
-  }, [activeCompanyId, toast]);
+  }, [activeCompanyId, toast, searchParams]);
   
   // Single effect for automatic backup logic
   useEffect(() => {
@@ -1231,18 +1212,8 @@ export default function Home() {
     { value: `not_${env.name}`, label: `Not Deployed to ${env.name}` }
   ]);
 
-  const handleTaskLinkClick = (e: React.MouseEvent) => {
-    const navState = {
-        view: dateView,
-        date: selectedDate.toISOString(),
-        viewMode: viewMode,
-    };
-    sessionStorage.setItem('taskflow_nav_state', JSON.stringify(navState));
-  };
-
   const handleNewTaskClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
-    handleTaskLinkClick(e);
     prompt(() => router.push('/tasks/new'));
   };
 
@@ -1265,6 +1236,14 @@ export default function Home() {
   const handleDismissTutorialPrompt = () => {
     setShowTutorialPrompt(false);
     localStorage.setItem(TUTORIAL_PROMPTED_KEY, 'true');
+  };
+
+  const getTaskLink = (taskId: string) => {
+    const params = new URLSearchParams();
+    params.set('view', dateView);
+    params.set('date', selectedDate.toISOString());
+    params.set('viewMode', viewMode);
+    return `/tasks/${taskId}?${params.toString()}`;
   };
 
   return (
@@ -1711,7 +1690,16 @@ export default function Home() {
             </Dialog>
 
           {sortedTasks.length > 0 ? (
-            <div onClick={handleTaskLinkClick}>
+            <div onClick={(e) => {
+              const target = e.target as HTMLElement;
+              const link = target.closest('a');
+              if(link) {
+                  const taskId = link.href.split('/tasks/')[1];
+                  if(taskId) {
+                      link.href = getTaskLink(taskId);
+                  }
+              }
+            }}>
               {viewMode === 'grid' ? (
                 <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handlePinToggle} />
               ) : (
@@ -1753,5 +1741,6 @@ export default function Home() {
     
 
     
+
 
 

@@ -763,7 +763,7 @@ const handleCopyDescription = () => {
   }
   
   const isBinned = !!task.deletedAt;
-  const backLink = isBinned ? "/bin" : "/";
+  const backLink = `/?${searchParams.toString()}`;
   
   const statusConfig = getStatusConfig(task.status);
   const { Icon, cardClassName, iconColorClassName } = statusConfig;
@@ -1615,5 +1615,6 @@ function TimelineSection({
 
 
     
+
 
 
