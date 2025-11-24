@@ -40,7 +40,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { FavoriteToggleButton } from '@/components/favorite-toggle';
 import { TaskHistory } from '@/components/task-history';
@@ -753,8 +752,8 @@ const handleCopyDescription = () => {
     );
   }
   
-  const backLink = `/?${searchParams.toString()}`;
   const isBinned = !!task.deletedAt;
+  const backLink = `/?${searchParams.toString()}`;
   
   const statusConfig = getStatusConfig(task.status);
   const { Icon, cardClassName, iconColorClassName } = statusConfig;
@@ -1051,7 +1050,7 @@ const handleCopyDescription = () => {
                               </div>
                             );
                           })
-                        ) : (<p className="text-muted-foreground text-center text-xs pt-2">No environments configured in settings.</p>)}
+                        ) : (<p className="text-muted-foreground text-center text-xs pt-2">No relevant environments selected for this task.</p>)}
                       </div>
                     </CardContent>
                   </Card>
