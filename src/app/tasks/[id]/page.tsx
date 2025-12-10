@@ -4,7 +4,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask, clearExpiredReminders, addTagsToMultipleTasks, addDeveloper, addTester, addEnvironment } from '@/lib/data';
-import { getLinkAlias } from '@/ai/flows/get-link-alias-flow';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -485,9 +484,8 @@ export default function TaskPage() {
                     if (url.protocol === 'http:' || url.protocol === 'https:') {
                         event.preventDefault();
                         
-                        const aliasResult = await getLinkAlias({ url: pastedText });
                         const newAttachment: Attachment = {
-                            name: aliasResult.alias || pastedText,
+                            name: pastedText,
                             url: pastedText,
                             type: 'link',
                         };
@@ -1571,5 +1569,6 @@ function TimelineSection({
     </div>
   );
 }
+
 
 

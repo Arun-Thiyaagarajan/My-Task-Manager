@@ -29,7 +29,6 @@ import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { getLinkAlias } from '@/ai/flows/get-link-alias-flow';
 import { Textarea } from '@/components/ui/textarea';
 import { TextareaToolbar, applyFormat, FormatType } from '@/components/ui/textarea-toolbar';
 
@@ -212,9 +211,8 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
               if (url.protocol === 'http:' || url.protocol === 'https:') {
                 event.preventDefault();
 
-                const aliasResult = await getLinkAlias({ url: pastedText });
                 const newAttachment: Attachment = {
-                  name: aliasResult.alias || pastedText,
+                  name: pastedText,
                   url: pastedText,
                   type: 'link',
                 };
