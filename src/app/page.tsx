@@ -134,21 +134,16 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { prompt } = useUnsavedChanges();
   
-  // State initialization from URL Search Params
-  const [viewMode, setViewMode] = useState<ViewMode>(searchParams.get('viewMode') as ViewMode || 'grid');
-  const [dateView, setDateView] = useState<DateView>(searchParams.get('dateView') as DateView || 'all');
-  const [selectedDate, setSelectedDate] = useState<Date>(() => {
-    const dateStr = searchParams.get('date');
-    const date = dateStr ? new Date(dateStr) : new Date();
-    return isValid(date) ? date : new Date();
-  });
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
-  const [statusFilter, setStatusFilter] = useState<string[]>(searchParams.getAll('status') || []);
-  const [repoFilter, setRepoFilter] = useState<string[]>(searchParams.getAll('repo') || []);
-  const [deploymentFilter, setDeploymentFilter] = useState<string[]>(searchParams.getAll('deployment') || []);
-  const [tagsFilter, setTagsFilter] = useState<string[]>(searchParams.getAll('tags') || []);
-  const [favoritesOnly, setFavoritesOnly] = useState(searchParams.get('favorites') === 'true');
-  const [sortDescriptor, setSortDescriptor] = useState(searchParams.get('sort') || 'status-asc');
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [dateView, setDateView] = useState<DateView>('all');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [repoFilter, setRepoFilter] = useState<string[]>([]);
+  const [deploymentFilter, setDeploymentFilter] = useState<string[]>([]);
+  const [tagsFilter, setTagsFilter] = useState<string[]>([]);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [sortDescriptor, setSortDescriptor] = useState('status-asc');
   
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [isSelectMode, setIsSelectMode] = useState(false);
@@ -168,13 +163,11 @@ export default function Home() {
   useEffect(() => {
     const params = new URLSearchParams(searchParams);
     
-    // Clean up previous array-based params
     params.delete('status');
     params.delete('repo');
     params.delete('deployment');
     params.delete('tags');
 
-    // Set new values
     if (searchQuery) params.set('search', searchQuery); else params.delete('search');
     if (sortDescriptor) params.set('sort', sortDescriptor); else params.delete('sort');
     if (viewMode) params.set('viewMode', viewMode); else params.delete('viewMode');
@@ -187,9 +180,24 @@ export default function Home() {
     deploymentFilter.forEach(d => params.append('deployment', d));
     tagsFilter.forEach(t => params.append('tags', t));
 
-    router.replace(`${pathname}?${params.toString()}`);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }, [searchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, statusFilter, repoFilter, deploymentFilter, tagsFilter, router, pathname, searchParams]);
 
+  // This effect initializes state from the URL on first load.
+  useEffect(() => {
+    setViewMode(searchParams.get('viewMode') as ViewMode || 'grid');
+    setDateView(searchParams.get('dateView') as DateView || 'all');
+    const dateStr = searchParams.get('date');
+    const date = dateStr ? new Date(dateStr) : new Date();
+    setSelectedDate(isValid(date) ? date : new Date());
+    setSearchQuery(searchParams.get('search') || '');
+    setStatusFilter(searchParams.getAll('status') || []);
+    setRepoFilter(searchParams.getAll('repo') || []);
+    setDeploymentFilter(searchParams.getAll('deployment') || []);
+    setTagsFilter(searchParams.getAll('tags') || []);
+    setFavoritesOnly(searchParams.get('favorites') === 'true');
+    setSortDescriptor(searchParams.get('sort') || 'status-asc');
+  }, []); // Run only once on mount
 
   const handlePreviousDate = () => {
       if (dateView === 'monthly') {
@@ -499,15 +507,12 @@ export default function Home() {
     let nextBackupDate: Date;
 
     if (!lastBackupStr) {
-        // First backup ever: schedule it for the next backup time.
         nextBackupDate = new Date(now);
         nextBackupDate.setHours(uiConfig.autoBackupTime ?? 6, 0, 0, 0);
         if (now > nextBackupDate) {
-            // If the time has already passed today, schedule for tomorrow.
             nextBackupDate.setDate(nextBackupDate.getDate() + 1);
         }
     } else {
-        // Subsequent backups: calculate next date based on last one.
         nextBackupDate = new Date(lastBackupStr);
         switch (backupFrequency) {
             case 'daily': nextBackupDate.setDate(nextBackupDate.getDate() + 1); break;
@@ -519,7 +524,6 @@ export default function Home() {
     }
 
     if (now >= nextBackupDate) {
-        // Use a small timeout to allow the main UI to render first
         setTimeout(() => {
             handleExport('all_tasks');
             toast({
@@ -1613,5 +1617,6 @@ export default function Home() {
     </div>
   );
 }
+
 
 
