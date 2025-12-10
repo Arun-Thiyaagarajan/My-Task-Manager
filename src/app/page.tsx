@@ -345,8 +345,7 @@ export default function Home() {
 
     const appNamePrefix = currentUiConfig.appName?.replace(/\s+/g, '_') || 'MyTaskManager';
     const dateSuffix = format(new Date(), "do MMM yyyy");
-    const fileName = `${appNamePrefix} ${dateSuffix}.json`;
-
+    
     let activeTasksToExport: Task[] = [];
     let binnedTasksToExport: Task[] = [];
     let logsToExport: Log[] = [];
@@ -365,15 +364,20 @@ export default function Home() {
         logsToExport = allLogs.filter(log => log.taskId && taskIdsInView.has(log.taskId));
     }
     
-    if (activeTasksToExport.length === 0 && binnedTasksToExport.length === 0) {
+    const hasData = activeTasksToExport.length > 0 || binnedTasksToExport.length > 0 || logsToExport.length > 0;
+
+    if (!hasData) {
+      if (exportType === 'current_view') {
         toast({
             variant: 'warning',
             title: 'Nothing to Export',
             description: 'There are no tasks in the current view to export.',
         });
-        return;
+      }
+      return;
     }
 
+    const fileName = `${appNamePrefix} ${dateSuffix}.json`;
     const allTasksForPeopleMapping = [...activeTasksToExport, ...binnedTasksToExport];
     
     const devIdsInExport = new Set<string>();
@@ -485,7 +489,7 @@ export default function Home() {
   // Single effect for automatic backup logic
   useEffect(() => {
     if (isLoading || !uiConfig) return;
-    
+
     const backupFrequency = uiConfig.autoBackupFrequency || 'off';
     if (backupFrequency === 'off') return;
 
@@ -493,48 +497,37 @@ export default function Home() {
     const now = new Date();
     
     let nextBackupDate: Date;
-    
+
     if (!lastBackupStr) {
+        // First backup ever: schedule it for the next backup time.
         nextBackupDate = new Date(now);
+        nextBackupDate.setHours(uiConfig.autoBackupTime ?? 6, 0, 0, 0);
+        if (now > nextBackupDate) {
+            // If the time has already passed today, schedule for tomorrow.
+            nextBackupDate.setDate(nextBackupDate.getDate() + 1);
+        }
     } else {
+        // Subsequent backups: calculate next date based on last one.
         nextBackupDate = new Date(lastBackupStr);
-    }
-
-    const backupHour = uiConfig.autoBackupTime ?? 6;
-    let scheduleBackup = false;
-
-    if (!lastBackupStr) {
-        let firstBackupDate = new Date(now);
-        firstBackupDate.setHours(backupHour, 0, 0, 0);
-        if (now >= firstBackupDate) {
-            firstBackupDate.setDate(firstBackupDate.getDate() + 1);
-        }
-        nextBackupDate = firstBackupDate;
-    } else {
-        let proposedNextDate = new Date(lastBackupStr);
         switch (backupFrequency) {
-            case 'daily': proposedNextDate.setDate(proposedNextDate.getDate() + 1); break;
-            case 'weekly': proposedNextDate.setDate(proposedNextDate.getDate() + 7); break;
-            case 'monthly': proposedNextDate = addMonths(proposedNextDate, 1); break;
-            case 'yearly': proposedNextDate = addYears(proposedNextDate, 1); break;
+            case 'daily': nextBackupDate.setDate(nextBackupDate.getDate() + 1); break;
+            case 'weekly': nextBackupDate.setDate(nextBackupDate.getDate() + 7); break;
+            case 'monthly': nextBackupDate = addMonths(nextBackupDate, 1); break;
+            case 'yearly': nextBackupDate = addYears(nextBackupDate, 1); break;
         }
-        proposedNextDate.setHours(backupHour, 0, 0, 0);
-        nextBackupDate = proposedNextDate;
-        
-        if (now >= nextBackupDate) {
-            scheduleBackup = true;
-        }
+        nextBackupDate.setHours(uiConfig.autoBackupTime ?? 6, 0, 0, 0);
     }
-    
-    if (scheduleBackup) {
+
+    if (now >= nextBackupDate) {
+        // Use a small timeout to allow the main UI to render first
         setTimeout(() => {
             handleExport('all_tasks');
             toast({
                 title: 'Automatic Backup',
-                description: `A ${backupFrequency} backup of all your tasks has been downloaded.`,
+                description: `A ${backupFrequency} backup has been created.`,
                 duration: 10000,
             });
-        }, 2000);
+        }, 5000);
     }
   }, [isLoading, uiConfig, handleExport, toast]);
 
@@ -1620,4 +1613,5 @@ export default function Home() {
     </div>
   );
 }
+
 
