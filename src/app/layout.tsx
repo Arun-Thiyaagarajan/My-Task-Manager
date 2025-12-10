@@ -3,10 +3,8 @@ import './globals.css';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/header';
 import { Toaster } from '@/components/ui/toaster';
-import { ThemeProvider } from '@/components/theme-provider';
+import { Providers } from '@/components/providers';
 import { Inter } from 'next/font/google';
-import { UnsavedChangesProvider } from '@/hooks/use-unsaved-changes';
-import { TooltipProvider } from '@/components/ui/tooltip';
 import { FloatingNotes } from '@/components/floating-notes';
 
 
@@ -29,23 +27,14 @@ export default function RootLayout({
         )}
         suppressHydrationWarning={true}
       >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <UnsavedChangesProvider>
-            <TooltipProvider>
-              <div className="relative flex min-h-screen flex-col">
-                <Header />
-                <main className="flex-1">{children}</main>
-                <FloatingNotes />
-              </div>
-              <Toaster />
-            </TooltipProvider>
-          </UnsavedChangesProvider>
-        </ThemeProvider>
+        <Providers>
+            <div className="relative flex min-h-screen flex-col">
+            <Header />
+            <main className="flex-1">{children}</main>
+            <FloatingNotes />
+            </div>
+            <Toaster />
+        </Providers>
       </body>
     </html>
   );
