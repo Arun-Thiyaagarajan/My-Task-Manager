@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Task, Person } from '@/lib/types';
 import { createTaskSchema } from '@/lib/validators';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { generateSummary } from '@/ai/flows/summary-flow';
 
 export default function NewTaskPage() {
   const router = useRouter();
@@ -52,7 +53,7 @@ export default function NewTaskPage() {
     setIsLoading(false);
   }, [toast]);
 
-  const handleCreateTask = (data: any) => {
+  const handleCreateTask = async (data: any) => {
     const validationSchema = createTaskSchema(getUiConfig());
     const validationResult = validationSchema.safeParse(data);
 
@@ -88,6 +89,16 @@ export default function NewTaskPage() {
             }
             return acc;
         }, {} as { [key: string]: string | null });
+    }
+    
+    if (taskDataToCreate.description && taskDataToCreate.description.length > 200) {
+      try {
+        const summary = await generateSummary({ text: taskDataToCreate.description });
+        taskDataToCreate.summary = summary.summary;
+      } catch (error) {
+        console.error('Failed to generate summary:', error);
+        // Silently fail, don't block task creation
+      }
     }
 
     addTask(taskDataToCreate);

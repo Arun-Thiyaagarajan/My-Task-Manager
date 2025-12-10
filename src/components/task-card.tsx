@@ -272,7 +272,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
             <CardContent className="flex-grow flex flex-col p-4 pt-2">
               <div className="relative mb-3 text-sm text-muted-foreground min-h-[40px]">
                 <p className="line-clamp-2">
-                  {task.description}
+                  {task.summary || task.description}
                 </p>
               </div>
               <div className="flex-grow space-y-3">

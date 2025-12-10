@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2, AlertCircle, HelpCircle } from 'lucide-react';
+import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2, AlertCircle, HelpCircle, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTransition, useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { addDeveloper, getUiConfig, addTester } from '@/lib/data';
+import { addDeveloper, getUiConfig, addTester, updateTask } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -31,6 +31,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Textarea } from '@/components/ui/textarea';
 import { TextareaToolbar, applyFormat, FormatType } from '@/components/ui/textarea-toolbar';
+import { getLinkAlias } from '@/ai/flows/alias-flow';
 
 
 type TaskFormData = z.infer<ReturnType<typeof createTaskSchema>>;
@@ -159,7 +160,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
   const devStartDate = form.watch('devStartDate');
   const qaStartDate = form.watch('qaStartDate');
   
-  const { fields: attachments, append: appendAttachment, remove: removeAttachment } = useFieldArray({
+  const { fields: attachments, append: appendAttachment, remove: removeAttachment, update: updateAttachment } = useFieldArray({
     control: form.control,
     name: 'attachments',
   });
@@ -210,14 +211,27 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
               const url = new URL(pastedText);
               if (url.protocol === 'http:' || url.protocol === 'https:') {
                 event.preventDefault();
-
+                
                 const newAttachment: Attachment = {
                   name: pastedText,
                   url: pastedText,
                   type: 'link',
                 };
+                const newAttachmentIndex = attachments.length;
                 appendAttachment(newAttachment);
-                toast({ variant: 'success', title: 'Pasted link added.' });
+                toast({ variant: 'success', title: 'Link added. Generating title...' });
+
+                try {
+                  const alias = await getLinkAlias({ url: pastedText });
+                  updateAttachment(newAttachmentIndex, {
+                    ...newAttachment,
+                    name: alias.name || pastedText,
+                  });
+                   toast({ variant: 'success', title: 'Smart title generated!' });
+                } catch(e) {
+                  console.error('Failed to generate smart title:', e);
+                  // Silently fail, original URL is kept as name
+                }
               }
             } catch (_) {
               // Not a valid URL, do nothing
@@ -233,7 +247,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
     return () => {
       window.removeEventListener('paste', handlePaste);
     };
-  }, [appendAttachment, toast]);
+  }, [appendAttachment, toast, updateAttachment, attachments.length]);
 
   const watchedRepositories = form.watch('repositories', []);
   const watchedRelevantEnvs = form.watch('relevantEnvironments', []);

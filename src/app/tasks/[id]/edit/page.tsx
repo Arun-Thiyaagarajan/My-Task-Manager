@@ -13,6 +13,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createTaskSchema } from '@/lib/validators';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { generateSummary } from '@/ai/flows/summary-flow';
 
 export default function EditTaskPage() {
   const params = useParams();
@@ -48,7 +49,7 @@ export default function EditTaskPage() {
     }
   }, [taskId]);
 
-  const handleUpdateTask = (data: any) => {
+  const handleUpdateTask = async (data: any) => {
     if (!task) return;
 
     const validationSchema = createTaskSchema(getUiConfig());
@@ -77,7 +78,15 @@ export default function EditTaskPage() {
         deploymentDates: {}
     };
 
-    if (taskDataToUpdate.description !== task.description) {
+    if (taskDataToUpdate.description && taskDataToUpdate.description !== task.description && taskDataToUpdate.description.length > 200) {
+      try {
+        const summary = await generateSummary({ text: taskDataToUpdate.description });
+        taskDataToUpdate.summary = summary.summary;
+      } catch (error) {
+        console.error('Failed to generate summary:', error);
+        taskDataToUpdate.summary = null;
+      }
+    } else if (taskDataToUpdate.description && taskDataToUpdate.description.length <= 200) {
       taskDataToUpdate.summary = null;
     }
 

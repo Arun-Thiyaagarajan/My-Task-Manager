@@ -50,6 +50,8 @@ import { RichTextViewer } from '@/components/ui/rich-text-viewer';
 import { Textarea } from '@/components/ui/textarea';
 import { TextareaToolbar, applyFormat } from '@/components/ui/textarea-toolbar';
 import { Calendar } from '@/components/ui/calendar';
+import { getLinkAlias } from '@/ai/flows/alias-flow';
+import { generateSummary } from '@/ai/flows/summary-flow';
 
 
 const isImageUrl = (url: string): boolean => {
@@ -73,6 +75,7 @@ export default function TaskPage() {
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [justUpdatedEnv, setJustUpdatedEnv] = useState<string | null>(null);
   const [personInView, setPersonInView] = useState<{person: Person, isDeveloper: boolean} | null>(null);
   const [isEditingPrLinks, setIsEditingPrLinks] = useState(false);
@@ -249,7 +252,7 @@ export default function TaskPage() {
     setEditingValue('');
   };
   
-  const handleSaveEditing = (key: string, isCustom: boolean, value?: any) => {
+  const handleSaveEditing = async (key: string, isCustom: boolean, value?: any) => {
     if (!task) return;
 
     let finalValue = value !== undefined ? value : editingValue;
@@ -282,7 +285,19 @@ export default function TaskPage() {
     
     let updatePayload: Partial<Task> = {};
     if (key === 'description' && finalValue !== task.description) {
-        updatePayload.summary = null;
+        if(finalValue.length > 200) {
+          setIsGeneratingSummary(true);
+          try {
+            const summaryResult = await generateSummary({ text: finalValue });
+            updatePayload.summary = summaryResult.summary;
+          } catch(e) {
+            console.error('Summary generation failed:', e);
+            updatePayload.summary = null;
+          }
+          setIsGeneratingSummary(false);
+        } else {
+          updatePayload.summary = null;
+        }
     }
 
     if (isCustom) {
@@ -446,7 +461,7 @@ export default function TaskPage() {
     reader.readAsDataURL(file);
   };
 
-  const handleAddLink = () => {
+  const handleAddLink = async () => {
       const validationResult = attachmentSchema.safeParse({ ...newLink, type: 'link' });
       if(!validationResult.success) {
           const errors = validationResult.error.flatten().fieldErrors;
@@ -454,10 +469,26 @@ export default function TaskPage() {
           return;
       }
       const newAttachment: Attachment = { ...validationResult.data, type: 'link' };
+      const newAttachmentIndex = localAttachments.length;
       setLocalAttachments(prev => [...prev, newAttachment]);
+      
       setNewLink({ name: '', url: '' });
       setIsAddLinkPopoverOpen(false);
-      toast({ variant: 'success', title: 'Link ready to be saved.'});
+      toast({ variant: 'success', title: 'Link added. Generating title...' });
+      
+      try {
+        const alias = await getLinkAlias({ url: newAttachment.url });
+        const updatedAttachments = [...localAttachments];
+        updatedAttachments[newAttachmentIndex] = {
+          ...newAttachment,
+          name: alias.name || newAttachment.name,
+        };
+        setLocalAttachments(updatedAttachments);
+        toast({ variant: 'success', title: 'Smart title generated!'});
+      } catch (e) {
+        console.error('Could not generate smart title', e);
+        // Silently fail
+      }
   }
 
   useEffect(() => {
@@ -489,8 +520,22 @@ export default function TaskPage() {
                             url: pastedText,
                             type: 'link',
                         };
+                        const newAttachmentIndex = localAttachments.length;
                         setLocalAttachments(prev => [...prev, newAttachment]);
-                        toast({ variant: 'success', title: 'Pasted link ready to be saved.' });
+                        toast({ variant: 'success', title: 'Pasted link added. Generating title...' });
+
+                        try {
+                          const alias = await getLinkAlias({ url: pastedText });
+                          const currentAttachments = [...localAttachments, newAttachment];
+                          currentAttachments[newAttachmentIndex] = {
+                            ...newAttachment,
+                            name: alias.name || pastedText,
+                          };
+                          setLocalAttachments(currentAttachments);
+                          toast({ variant: 'success', title: 'Smart title generated!'});
+                        } catch(e) {
+                           console.error('Failed to generate smart title', e);
+                        }
                     }
                 } catch (_) {
                     // Not a valid URL, do nothing
@@ -506,7 +551,7 @@ export default function TaskPage() {
     return () => {
       window.removeEventListener('paste', handlePaste);
     };
-  }, [isEditingAttachments, toast]);
+  }, [isEditingAttachments, toast, localAttachments]);
   
   const handleRestore = () => {
     if (task && task.deletedAt) {
@@ -944,6 +989,11 @@ const handleCopyDescription = () => {
                     <CardDescription className="mb-4">
                         Last updated {formatTimestamp(task.updatedAt, uiConfig.timeFormat)}
                     </CardDescription>
+                     {task.summary && (
+                      <div className="mb-4 p-3 rounded-md bg-background/50 border border-border/50">
+                          <p className="text-sm italic text-muted-foreground leading-relaxed">{task.summary}</p>
+                      </div>
+                    )}
                      <div className={cn("relative", !isBinned && "cursor-pointer")}>
                        {task.description && !isBinned && editingSection !== 'description' && (
                             <Tooltip>
@@ -975,7 +1025,10 @@ const handleCopyDescription = () => {
                              </div>
                             <div className="flex justify-end gap-2">
                                 <Button variant="ghost" size="sm" onClick={handleCancelEditing}>Cancel</Button>
-                                <Button size="sm" onClick={() => handleSaveEditing('description', false)}>Save</Button>
+                                <Button size="sm" onClick={() => handleSaveEditing('description', false)} disabled={isGeneratingSummary}>
+                                  {isGeneratingSummary && <Sparkles className="h-4 w-4 mr-2 animate-pulse" />}
+                                  Save
+                                </Button>
                             </div>
                            </div>
                         ) : (
@@ -1569,6 +1622,7 @@ function TimelineSection({
     </div>
   );
 }
+
 
 
 
