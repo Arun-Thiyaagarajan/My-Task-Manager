@@ -31,7 +31,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { PersonProfileCard } from './person-profile-card';
-import { summarizeText } from '@/ai/flows/summarize-flow';
 import { Skeleton } from './ui/skeleton';
 import { EnvironmentStatus } from './environment-status';
 import { Checkbox } from './ui/checkbox';
@@ -58,7 +57,6 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   const { toast } = useToast();
   const [taskStatuses, setTaskStatuses] = useState<string[]>([]);
   const [personInView, setPersonInView] = useState<{person: Person, isDeveloper: boolean} | null>(null);
-  const [isSummarizing, setIsSummarizing] = useState(false);
   const [justUpdatedEnv, setJustUpdatedEnv] = useState<string | null>(null);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
   
@@ -74,28 +72,6 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
           setTaskStatuses(uiConfig.taskStatuses);
       }
   }, [uiConfig]);
-
-  useEffect(() => {
-    const summarize = async () => {
-      if (task.description && task.description.length > 200 && !task.summary && !isSummarizing) {
-        setIsSummarizing(true);
-        try {
-          const result = await summarizeText({ textToSummarize: task.description });
-          const updatedTask = updateTask(task.id, { summary: result.summary });
-          if (updatedTask) {
-            setTask(updatedTask);
-            onTaskUpdate();
-          }
-        } catch (error) {
-          console.error("Failed to summarize:", error);
-        } finally {
-          setIsSummarizing(false);
-        }
-      }
-    };
-
-    summarize();
-  }, [task.id, task.description, task.summary, onTaskUpdate, isSummarizing]);
 
   const handleStatusChange = (newStatus: TaskStatus) => {
     const updatedTask = updateTask(task.id, { status: newStatus });
@@ -295,16 +271,9 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
             </CardHeader>
             <CardContent className="flex-grow flex flex-col p-4 pt-2">
               <div className="relative mb-3 text-sm text-muted-foreground min-h-[40px]">
-                {isSummarizing || (task.description && task.description.length > 200 && !task.summary) ? (
-                  <div className="space-y-1.5">
-                    <Skeleton className="h-4 w-5/6" />
-                    <Skeleton className="h-4 w-4/6" />
-                  </div>
-                ) : (
-                  <p className={cn("line-clamp-2", task.summary && "italic")}>
-                    {task.summary || task.description}
-                  </p>
-                )}
+                <p className="line-clamp-2">
+                  {task.description}
+                </p>
               </div>
               <div className="flex-grow space-y-3">
                 <div className="flex items-start gap-2 text-sm text-muted-foreground">

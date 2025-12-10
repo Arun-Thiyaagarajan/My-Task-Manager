@@ -124,36 +124,6 @@ export default function TaskPage() {
             setTaskLogs([]);
         } else {
             setTaskLogs(getLogsForTask(taskId));
-            config.fields.forEach(field => {
-                const isLinkField = field.type === 'url' || (field.type === 'text' && !!field.baseUrl);
-                if (isLinkField && field.isCustom) {
-                    const value = foundTask.customFields?.[field.key];
-                    const aliasKey = `${field.key}_alias`;
-                    const hasAlias = foundTask.customFields?.[aliasKey];
-
-                    if (value && !hasAlias) {
-                        (async () => {
-                            try {
-                                const fullUrl = (field.type === 'text' && field.baseUrl) ? `${field.baseUrl}${value}` : value;
-                                const result = await getLinkAlias({ url: fullUrl });
-                                if (result.alias) {
-                                    const currentTask = getTaskById(taskId);
-                                    if (currentTask) {
-                                        updateTask(taskId, {
-                                            customFields: {
-                                                ...currentTask.customFields,
-                                                [aliasKey]: result.alias,
-                                            }
-                                        });
-                                    }
-                                }
-                            } catch (e) {
-                                console.error(`Failed to generate alias for ${field.key}:`, e);
-                            }
-                        })();
-                    }
-                }
-            });
         }
       } else {
         document.title = `Task Not Found | ${config.appName || 'My Task Manager'}`;
@@ -753,7 +723,7 @@ const handleCopyDescription = () => {
   }
   
   const isBinned = !!task.deletedAt;
-  const backLink = `/`;
+  const backLink = isBinned ? '/bin' : `/?${searchParams.toString()}`;
   
   const statusConfig = getStatusConfig(task.status);
   const { Icon, cardClassName, iconColorClassName } = statusConfig;
@@ -787,7 +757,7 @@ const handleCopyDescription = () => {
     <>
       <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          <Button asChild variant="ghost" className="pl-1" onClick={() => router.back()}>
+          <Button asChild variant="ghost" className="pl-1">
             <Link href={backLink}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back

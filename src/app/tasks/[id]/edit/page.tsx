@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -10,7 +11,7 @@ import type { Task, Person } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { taskSchema } from '@/lib/validators';
+import { createTaskSchema } from '@/lib/validators';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export default function EditTaskPage() {
@@ -50,7 +51,8 @@ export default function EditTaskPage() {
   const handleUpdateTask = (data: any) => {
     if (!task) return;
 
-    const validationResult = taskSchema.safeParse(data);
+    const validationSchema = createTaskSchema(getUiConfig());
+    const validationResult = validationSchema.safeParse(data);
 
      if (!validationResult.success) {
       console.error(validationResult.error.flatten().fieldErrors);

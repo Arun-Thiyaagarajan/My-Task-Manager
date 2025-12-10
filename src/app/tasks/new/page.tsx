@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -8,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import type { Task, Person } from '@/lib/types';
-import { taskSchema } from '@/lib/validators';
+import { createTaskSchema } from '@/lib/validators';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export default function NewTaskPage() {
@@ -49,10 +50,11 @@ export default function NewTaskPage() {
     }
 
     setIsLoading(false);
-  }, []);
+  }, [toast]);
 
   const handleCreateTask = (data: any) => {
-    const validationResult = taskSchema.safeParse(data);
+    const validationSchema = createTaskSchema(getUiConfig());
+    const validationResult = validationSchema.safeParse(data);
 
     if (!validationResult.success) {
       console.error(validationResult.error.flatten().fieldErrors);
