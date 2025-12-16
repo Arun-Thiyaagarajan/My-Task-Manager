@@ -19,9 +19,10 @@ interface TasksGridProps {
   setOpenGroups: (groups: string[]) => void;
   pinnedTaskIds: string[];
   onPinToggle: (taskId: string) => void;
+  currentQueryString: string;
 }
 
-export function TasksGrid({ tasks, onTaskDelete, onTaskUpdate, uiConfig, developers, testers, selectedTaskIds, setSelectedTaskIds, isSelectMode, openGroups, setOpenGroups, pinnedTaskIds, onPinToggle }: TasksGridProps) {
+export function TasksGrid({ tasks, onTaskDelete, onTaskUpdate, uiConfig, developers, testers, selectedTaskIds, setSelectedTaskIds, isSelectMode, openGroups, setOpenGroups, pinnedTaskIds, onPinToggle, currentQueryString }: TasksGridProps) {
   const priorityStatuses = ['To Do', 'In Progress', 'Code Review', 'QA'];
   
   const priorityTasks = tasks.filter(task => priorityStatuses.includes(task.status));
@@ -60,6 +61,7 @@ export function TasksGrid({ tasks, onTaskDelete, onTaskUpdate, uiConfig, develop
             isSelectMode={isSelectMode}
             pinnedTaskIds={pinnedTaskIds}
             onPinToggle={onPinToggle}
+            currentQueryString={currentQueryString}
         />
       ))}
     </div>

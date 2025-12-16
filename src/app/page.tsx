@@ -162,19 +162,14 @@ export default function Home() {
   
   // This effect updates the URL whenever a filter changes.
   useEffect(() => {
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams();
     
-    params.delete('status');
-    params.delete('repo');
-    params.delete('deployment');
-    params.delete('tags');
-
-    if (searchQuery) params.set('search', searchQuery); else params.delete('search');
-    if (sortDescriptor) params.set('sort', sortDescriptor); else params.delete('sort');
-    if (viewMode) params.set('viewMode', viewMode); else params.delete('viewMode');
-    if (dateView) params.set('dateView', dateView); else params.delete('dateView');
-    if (selectedDate) params.set('date', selectedDate.toISOString()); else params.delete('date');
-    if (favoritesOnly) params.set('favorites', 'true'); else params.delete('favorites');
+    if (searchQuery) params.set('search', searchQuery);
+    if (sortDescriptor) params.set('sort', sortDescriptor);
+    if (viewMode) params.set('viewMode', viewMode);
+    if (dateView) params.set('dateView', dateView);
+    if (selectedDate) params.set('date', selectedDate.toISOString());
+    if (favoritesOnly) params.set('favorites', 'true');
     
     statusFilter.forEach(s => params.append('status', s));
     repoFilter.forEach(r => params.append('repo', r));
@@ -182,7 +177,7 @@ export default function Home() {
     tagsFilter.forEach(t => params.append('tags', t));
 
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  }, [searchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, statusFilter, repoFilter, deploymentFilter, tagsFilter, router, pathname, searchParams]);
+  }, [searchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, statusFilter, repoFilter, deploymentFilter, tagsFilter, router, pathname]);
 
   // This effect initializes state from the URL on first load.
   useEffect(() => {
@@ -198,7 +193,7 @@ export default function Home() {
     setTagsFilter(searchParams.getAll('tags') || []);
     setFavoritesOnly(searchParams.get('favorites') === 'true');
     setSortDescriptor(searchParams.get('sort') || 'status-asc');
-  }, []); // Run only once on mount
+  }, [searchParams]);
 
   const handlePreviousDate = () => {
       if (dateView === 'monthly') {
@@ -1162,10 +1157,7 @@ export default function Home() {
     localStorage.setItem(TUTORIAL_PROMPTED_KEY, 'true');
   };
 
-  const getTaskLink = (taskId: string) => {
-    const params = new URLSearchParams(searchParams);
-    return `/tasks/${taskId}?${params.toString()}`;
-  };
+  const currentQueryString = searchParams.toString();
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -1571,20 +1563,11 @@ export default function Home() {
             </Dialog>
 
           {sortedTasks.length > 0 ? (
-            <div onClick={(e) => {
-              const target = e.target as HTMLElement;
-              const link = target.closest('a');
-              if(link) {
-                  const taskId = link.href.split('/tasks/')[1]?.split('?')[0];
-                  if(taskId) {
-                      link.href = getTaskLink(taskId);
-                  }
-              }
-            }}>
+            <div>
               {viewMode === 'grid' ? (
-                <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handlePinToggle} />
+                <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handlePinToggle} currentQueryString={currentQueryString} />
               ) : (
-                <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} />
+                <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} currentQueryString={currentQueryString} />
               )}
             </div>
           ) : (
@@ -1618,6 +1601,7 @@ export default function Home() {
     </div>
   );
 }
+
 
 
 

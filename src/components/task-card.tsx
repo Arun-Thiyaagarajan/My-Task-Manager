@@ -50,9 +50,10 @@ interface TaskCardProps {
   isSelectMode?: boolean;
   pinnedTaskIds: string[];
   onPinToggle: (taskId: string) => void;
+  currentQueryString: string;
 }
 
-export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConfig, developers, testers, selectedTaskIds, setSelectedTaskIds, isSelectMode, pinnedTaskIds, onPinToggle }: TaskCardProps) {
+export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConfig, developers, testers, selectedTaskIds, setSelectedTaskIds, isSelectMode, pinnedTaskIds, onPinToggle, currentQueryString }: TaskCardProps) {
   const [task, setTask] = useState(initialTask);
   const { toast } = useToast();
   const [taskStatuses, setTaskStatuses] = useState<string[]>([]);
@@ -204,7 +205,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                 <div className="flex items-start justify-between gap-2">
                     <div className="flex-grow min-w-0 flex items-center gap-2">
                         <Link
-                          href={`/tasks/${task.id}`}
+                          href={`/tasks/${task.id}?${currentQueryString}`}
                           className="flex-grow min-w-0 cursor-pointer group/title"
                           onClick={(e) => {
                             if (isSelectMode) {

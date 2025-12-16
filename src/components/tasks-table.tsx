@@ -54,6 +54,7 @@ interface TasksTableRowProps {
   isSelected: boolean;
   onToggleSelection: (taskId: string, checked: boolean) => void;
   isSelectMode: boolean;
+  currentQueryString: string;
 }
 
 function TasksTableRow({
@@ -66,6 +67,7 @@ function TasksTableRow({
   isSelected,
   onToggleSelection,
   isSelectMode,
+  currentQueryString
 }: TasksTableRowProps) {
   const [task, setTask] = useState(initialTask);
   const [justUpdatedEnv, setJustUpdatedEnv] = useState<string | null>(null);
@@ -148,7 +150,7 @@ function TasksTableRow({
         )} />
         <div className="relative z-10">
             <Link
-              href={`/tasks/${task.id}`}
+              href={`/tasks/${task.id}?${currentQueryString}`}
               className="font-semibold block truncate group/title"
               onClick={(e) => {
                 if (isSelectMode) {
@@ -278,7 +280,7 @@ function TasksTableRow({
       <TableCell className="align-top">
         <div className="flex items-center justify-end gap-2">
           <Button asChild variant="ghost" size="sm">
-            <Link href={`/tasks/${task.id}`}>
+            <Link href={`/tasks/${task.id}?${currentQueryString}`}>
               View
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
@@ -301,6 +303,7 @@ export function TasksTable({
   isSelectMode,
   openGroups,
   setOpenGroups,
+  currentQueryString,
 }: {
   tasks: Task[];
   onTaskDelete: () => void;
@@ -312,6 +315,7 @@ export function TasksTable({
   isSelectMode: boolean;
   openGroups: string[];
   setOpenGroups: (ids: string[]) => void;
+  currentQueryString: string;
 }) {
   const [personInView, setPersonInView] = useState<{
     person: Person;
@@ -376,6 +380,7 @@ export function TasksTable({
         isSelected={selectedTaskIds.includes(task.id)}
         onToggleSelection={handleToggleSelection}
         isSelectMode={isSelectMode}
+        currentQueryString={currentQueryString}
       />
     ));
   };
