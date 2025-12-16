@@ -185,8 +185,8 @@ export default function Home() {
 
   // This effect initializes state from the URL on first load.
   useEffect(() => {
-    setViewMode(searchParams.get('viewMode') as ViewMode || 'grid');
-    setDateView(searchParams.get('dateView') as DateView || 'all');
+    setViewMode((searchParams.get('viewMode') as ViewMode) || 'grid');
+    setDateView((searchParams.get('dateView') as DateView) || 'all');
     const dateStr = searchParams.get('date');
     const date = dateStr ? new Date(dateStr) : new Date();
     setSelectedDate(isValid(date) ? date : new Date());
@@ -1617,6 +1617,7 @@ export default function Home() {
     </div>
   );
 }
+
 
 
 
