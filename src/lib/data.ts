@@ -432,14 +432,14 @@ const generateUiConfigUpdateLogs = (oldConfig: UiConfig, newConfig: UiConfig): s
 
             if (oldOptionsString !== newOptionsString) {
                 const oldOptions = new Map((oldField.options || []).map(o => [o.value, o.label]));
-                const newOptions = new Map((newField.options || []).map(o => ({ value: o.value, label: o.label })));
+                const newOptions = new Map((newField.options || []).map(o => [o.value, o.label]));
                 
                 const optionChanges: string[] = [];
-                newOptions.forEach((option) => {
-                    if (!oldOptions.has(option.value)) {
-                        optionChanges.push(`  - Added option: "${option.label}"`);
-                    } else if (oldOptions.get(option.value) !== option.label) {
-                        optionChanges.push(`  - Renamed option from "${oldOptions.get(option.value)}" to "${option.label}"`);
+                newOptions.forEach((label, value) => {
+                    if (!oldOptions.has(value)) {
+                        optionChanges.push(`  - Added option: "${label}"`);
+                    } else if (oldOptions.get(value) !== label) {
+                        optionChanges.push(`  - Renamed option from "${oldOptions.get(value)}" to "${label}"`);
                     }
                 });
                 oldOptions.forEach((label, value) => {
@@ -724,8 +724,7 @@ export function deleteEnvironment(name: string): boolean {
         if (task.deploymentStatus && name in task.deploymentStatus) {
             delete task.deploymentStatus[name];
             changed = true;
-        }
-        if (task.deploymentDates && name in task.deploymentDates) {
+        }if (task.deploymentDates && name in task.deploymentDates) {
             delete task.deploymentDates[name];
             changed = true;
         }
