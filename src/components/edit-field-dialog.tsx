@@ -22,7 +22,7 @@ import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X } from 'lucide-re
 import type { FieldConfig, FieldOption, FieldType, RepositoryConfig, Task } from '@/lib/types';
 import { FIELD_TYPES } from '@/lib/constants';
 import * as React from 'react';
-import { getUiConfig, getTasks, updateTask } from '@/lib/data';
+import { getUiConfig, getTasks, updateTask, addLog } from '@/lib/data';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -126,7 +126,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
   };
 
   const handleAddRepo = () => {
-    setLocalRepoConfigs(prev => [...prev, { id: `repo_${Date.now()}`, name: 'New-Repo', baseUrl: 'https://github.com/org/repo/pull/' }]);
+    setLocalRepoConfigs(prev => [...prev, { id: `repo_${crypto.randomUUID()}`, name: 'New-Repo', baseUrl: 'https://github.com/org/repo/pull/' }]);
   };
 
   const handleDeleteRepo = (id: string) => {
@@ -135,32 +135,50 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
   
   const handleAddTag = () => {
     const trimmedTag = newTag.trim();
-    if (trimmedTag && !allTags.some(opt => opt.value.toLowerCase() === trimmedTag.toLowerCase())) {
-        const newOption = { id: `option_${Date.now()}`, label: trimmedTag, value: trimmedTag };
+    // Only check against already predefined options to allow promoting dynamic ones
+    if (trimmedTag && !options.some(opt => opt.value.toLowerCase() === trimmedTag.toLowerCase())) {
+        const newOption = { id: `option_${crypto.randomUUID()}`, label: trimmedTag, value: trimmedTag };
         append(newOption);
-        setAllTags(prev => [...prev, newOption].sort((a,b) => a.label.localeCompare(b.label)));
+        
+        setAllTags(prev => {
+            // Replace existing dynamic tag with new predefined one if names match
+            const filtered = prev.filter(t => t.value.toLowerCase() !== trimmedTag.toLowerCase());
+            return [...filtered, newOption].sort((a,b) => a.label.localeCompare(b.label));
+        });
         setNewTag('');
     }
   };
   
   const handleDeleteTag = (tagToDelete: FieldOption) => {
-    remove(options.findIndex(opt => opt.id === tagToDelete.id));
-    setAllTags(prev => prev.filter(t => t.id !== tagToDelete.id));
+    // Correctly find index by value to avoid ID mismatch issues with dynamic tags
+    const optionIndex = options.findIndex(opt => opt.value === tagToDelete.value);
+    if (optionIndex > -1) {
+        remove(optionIndex);
+    }
+    
+    setAllTags(prev => prev.filter(t => t.value !== tagToDelete.value));
 
     // Also remove this tag from all tasks
     const allTasks = getTasks();
+    let updatedCount = 0;
     allTasks.forEach(task => {
         if (task.tags?.includes(tagToDelete.value)) {
-            updateTask(task.id, { tags: task.tags.filter(t => t !== tagToDelete.value) });
+            // Silent update to avoid flooding logs with individual updates
+            updateTask(task.id, { tags: task.tags.filter(t => t !== tagToDelete.value) }, true);
+            updatedCount++;
         }
     });
+    
+    if (updatedCount > 0) {
+        addLog({ message: `Bulk removed tag "**${tagToDelete.value}**" from ${updatedCount} task(s).` });
+    }
   };
 
 
   const onSubmit = (data: FieldFormData) => {
     const finalField: FieldConfig = {
       ...(field || {
-        id: `field_custom_${Date.now()}`,
+        id: `field_custom_${crypto.randomUUID()}`,
         key: '', // Key will be generated in parent
         order: 0, // Order will be set in parent
         isCustom: true,
@@ -217,7 +235,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
 
             combinedTags.sort((a,b) => a.label.localeCompare(b.label));
             setAllTags(combinedTags);
-            // Replace the form state with the full list of tags (predefined only)
+            // Initialize form state with predefined options only
             replace(predefinedOptions);
         }
     }
@@ -456,7 +474,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                             </div>
                             <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
                                 {allTags.map((tag) => {
-                                    const isPredefined = options.some(opt => opt.id === tag.id);
+                                    const isPredefined = options.some(opt => opt.value === tag.value);
                                     return (
                                         <div key={tag.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50 group">
                                             <div className="flex items-center gap-2">
@@ -527,7 +545,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                                 </div>
                             ))}
                              {form.formState.errors.options && <p className="text-sm text-destructive mt-1">{form.formState.errors.options.message}</p>}
-                            <Button type="button" variant="outline" size="sm" onClick={() => append({id: `option_${Date.now()}`, label: '', value: ''})}>
+                            <Button type="button" variant="outline" size="sm" onClick={() => append({id: `option_${crypto.randomUUID()}`, label: '', value: ''})}>
                                 <PlusCircle className="h-4 w-4 mr-2" /> Add Option
                             </Button>
                         </div>

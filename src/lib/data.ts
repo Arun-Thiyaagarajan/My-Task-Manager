@@ -1,5 +1,4 @@
 
-
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
 import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment } from './types';
 import cloneDeep from 'lodash/cloneDeep';
@@ -366,7 +365,7 @@ const generateUiConfigUpdateLogs = (oldConfig: UiConfig, newConfig: UiConfig): s
 
     // Repository configuration changes
     if (JSON.stringify(oldConfig.repositoryConfigs) !== JSON.stringify(newConfig.repositoryConfigs)) {
-        const oldRepos = new Map((oldConfig.repositoryConfigs || []).map(r => [r.id, r]));
+        const oldRepos = new Map((oldConfig.repositoryConfigs || []).map(r => [r.name, r]));
         const newRepos = new Map((newConfig.repositoryConfigs || []).map(r => [r.id, r]));
         const repoLogDetails: string[] = [];
 
@@ -1039,7 +1038,7 @@ const generateTaskUpdateLogs = (
     return `Updated task "${taskTitle}":\n${changes.join('\n')}`;
 };
 
-export function updateTask(id: string, taskData: Partial<Omit<Task, 'id' | 'createdAt' | 'updatedAt'>>): Task | undefined {
+export function updateTask(id: string, taskData: Partial<Omit<Task, 'id' | 'createdAt' | 'updatedAt'>>, silent: boolean = false): Task | undefined {
   const data = getAppData();
   const activeCompanyId = data.activeCompanyId;
   const companyData = data.companyData[activeCompanyId];
@@ -1070,7 +1069,7 @@ export function updateTask(id: string, taskData: Partial<Omit<Task, 'id' | 'crea
   const uiConfig = companyData.uiConfig;
   const logMessage = generateTaskUpdateLogs(oldTask, taskData, uiConfig, companyData.developers, companyData.testers);
 
-  if(logMessage) {
+  if(!silent && logMessage) {
     _addLog(companyData, { message: logMessage, taskId: id });
   }
 

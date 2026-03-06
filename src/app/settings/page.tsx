@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -99,6 +98,17 @@ export default function SettingsPage() {
     const loadedConfig = getUiConfig();
     document.title = `Settings | ${loadedConfig.appName || 'My Task Manager'}`;
     refreshData();
+
+    // Listen for changes from other tabs or bulk operations
+    window.addEventListener('storage', refreshData);
+    window.addEventListener('config-changed', refreshData);
+    window.addEventListener('company-changed', refreshData);
+
+    return () => {
+        window.removeEventListener('storage', refreshData);
+        window.removeEventListener('config-changed', refreshData);
+        window.removeEventListener('company-changed', refreshData);
+    };
   }, []);
   
   const handleToggleActive = (fieldId: string) => {
@@ -835,7 +845,9 @@ export default function SettingsPage() {
                                                     {!isProtected && (
                                                         <AlertDialog>
                                                             <AlertDialogTrigger asChild>
-                                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={e => e.stopPropagation()}>
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </Button>
                                                             </AlertDialogTrigger>
                                                             <AlertDialogContent>
                                                                 <AlertDialogHeader>
