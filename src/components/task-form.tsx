@@ -110,8 +110,12 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
   const [commandKey, setCommandKey] = useState('Ctrl');
   const [activeId, setActiveId] = useState<string>('');
   const [sidebarPosition, setSidebarPosition] = useState<'left' | 'right'>('left');
+  
+  // Use refs to handle jump-to behavior without interference from scroll spy
+  const isJumpingRef = useRef(false);
+  const jumpTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const SCROLL_THRESHOLD = 120; // Unified offset for jumping and highlighting
+  const SCROLL_THRESHOLD = 120; 
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -628,8 +632,11 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
     if (!uiConfig || navigableSections.length === 0) return;
 
     const handleScroll = () => {
-        const scrollPosition = window.scrollY + SCROLL_THRESHOLD + 10;
-        const isAtBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 50;
+        // If we are currently performing a manual jump scroll, do nothing
+        if (isJumpingRef.current) return;
+
+        const scrollPosition = window.scrollY + SCROLL_THRESHOLD + 20; // Added extra buffer for reliability
+        const isAtBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 100;
         
         if (isAtBottom && navigableSections.length > 0) {
             const lastSection = navigableSections[navigableSections.length - 1];
@@ -643,12 +650,22 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
 
         navigableSections.forEach(section => {
             const sectionEl = document.getElementById(section.id);
-            if (sectionEl) allTargets.push({ id: section.id, top: sectionEl.offsetTop });
+            if (sectionEl) {
+                // Use getBoundingClientRect for more accurate absolute position
+                const rect = sectionEl.getBoundingClientRect();
+                allTargets.push({ id: section.id, top: rect.top + window.scrollY });
+            }
             section.fields.forEach(field => {
                 const fieldEl = document.getElementById(field.id);
-                if (fieldEl) allTargets.push({ id: field.id, top: fieldEl.offsetTop });
+                if (fieldEl) {
+                    const rect = fieldEl.getBoundingClientRect();
+                    allTargets.push({ id: field.id, top: rect.top + window.scrollY });
+                }
             });
         });
+
+        // Sorting is crucial for the "last match" logic
+        allTargets.sort((a, b) => a.top - b.top);
 
         for (let i = 0; i < allTargets.length; i++) {
             if (scrollPosition >= allTargets[i].top) {
@@ -658,17 +675,26 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
             }
         }
 
-        if (foundActiveId) setActiveId(foundActiveId);
+        if (foundActiveId && foundActiveId !== activeId) {
+            setActiveId(foundActiveId);
+        }
     };
 
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [navigableSections, uiConfig]);
+  }, [navigableSections, uiConfig, activeId]);
 
   const scrollToId = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
+        // Prevent scroll spy from overriding during the smooth scroll
+        isJumpingRef.current = true;
+        if (jumpTimeoutRef.current) clearTimeout(jumpTimeoutRef.current);
+        
+        // Optimistically set active ID for immediate feedback
+        setActiveId(id);
+
         const bodyRect = document.body.getBoundingClientRect().top;
         const elementRect = element.getBoundingClientRect().top;
         const elementPosition = elementRect - bodyRect;
@@ -679,8 +705,10 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
             behavior: 'smooth'
         });
         
-        // Optimistically set active ID to prevent highlighting flicker during scroll
-        setActiveId(id);
+        // Re-enable scroll spy after the smooth scroll is likely finished
+        jumpTimeoutRef.current = setTimeout(() => {
+            isJumpingRef.current = false;
+        }, 800);
     }
   };
 
