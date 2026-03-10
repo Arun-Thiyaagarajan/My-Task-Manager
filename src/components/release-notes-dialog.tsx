@@ -1,7 +1,6 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -12,9 +11,8 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Sparkles, Rocket, Zap, Bug, ArrowRight, ExternalLink } from 'lucide-react';
-import type { ReleaseUpdate, ReleaseItem } from '@/lib/types';
+import { Sparkles, Rocket, Zap, Bug, ArrowRight } from 'lucide-react';
+import type { ReleaseUpdate, ReleaseItemType } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -35,7 +33,7 @@ export function ReleaseNotesDialog({ release, isOpen, onOpenChange }: ReleaseNot
     router.push(link);
   };
 
-  const getIcon = (type: string) => {
+  const getIcon = (type: ReleaseItemType) => {
     switch (type) {
       case 'feature': return <Rocket className="h-4 w-4 text-primary" />;
       case 'improvement': return <Zap className="h-4 w-4 text-amber-500" />;
@@ -46,8 +44,8 @@ export function ReleaseNotesDialog({ release, isOpen, onOpenChange }: ReleaseNot
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl h-[90vh] sm:max-h-[85vh] p-0 gap-0 border-none shadow-2xl flex flex-col overflow-hidden">
-        {/* Header Section - Static */}
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] p-0 gap-0 border-none shadow-2xl flex flex-col overflow-hidden">
+        {/* Header Section - Static & Non-shrinking */}
         <div className="bg-primary p-8 text-primary-foreground relative overflow-hidden shrink-0">
             <div className="absolute top-0 right-0 p-4 opacity-10">
                 <Sparkles className="h-32 w-32 rotate-12" />
@@ -63,71 +61,69 @@ export function ReleaseNotesDialog({ release, isOpen, onOpenChange }: ReleaseNot
             </div>
         </div>
 
-        {/* Scrollable Content Section */}
-        <div className="flex-1 min-h-0 relative">
-            <ScrollArea className="absolute inset-0">
-                <div className="px-8 py-6 space-y-8 pb-12">
-                    {release.description && (
-                        <p className="text-muted-foreground text-base leading-relaxed">
-                            {release.description}
-                        </p>
-                    )}
+        {/* Scrollable Content Section - Flexible & Scrolling */}
+        <div className="flex-1 overflow-y-auto min-h-0 bg-background">
+            <div className="px-8 py-6 space-y-8">
+                {release.description && (
+                    <p className="text-muted-foreground text-base leading-relaxed">
+                        {release.description}
+                    </p>
+                )}
 
-                    <div className="space-y-8">
-                        {['feature', 'improvement', 'fix'].map(type => {
-                            const items = release.items.filter(i => i.type === type);
-                            if (items.length === 0) return null;
+                <div className="space-y-8 pb-10">
+                    {['feature', 'improvement', 'fix'].map(type => {
+                        const items = release.items.filter(i => i.type === type);
+                        if (items.length === 0) return null;
 
-                            return (
-                                <div key={type} className="space-y-4">
-                                    <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                                        {getIcon(type)}
-                                        {type === 'feature' ? 'New Features' : type === 'improvement' ? 'Improvements' : 'Bug Fixes'}
-                                    </h3>
-                                    <div className="grid gap-3">
-                                        {items.map(item => (
-                                            <div 
-                                                key={item.id} 
-                                                className={cn(
-                                                    "group p-4 rounded-xl border bg-card transition-all duration-300",
-                                                    item.link && "hover:border-primary/50 hover:bg-primary/5 cursor-pointer"
-                                                )}
-                                                onClick={() => item.link && handleAction(item.link)}
-                                            >
-                                                <div className="flex items-start justify-between gap-4">
-                                                    <div className="space-y-1">
-                                                        <p className="text-sm font-semibold leading-none group-hover:text-primary transition-colors">
-                                                            {item.text}
-                                                        </p>
-                                                        {item.link && (
-                                                            <span className="text-[10px] text-primary flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                View feature <ArrowRight className="h-2.5 w-2.5" />
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    {item.imageUrl && (
-                                                        <div className="h-12 w-12 rounded-lg bg-muted flex-shrink-0 overflow-hidden border">
-                                                            <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />
-                                                        </div>
+                        return (
+                            <div key={type} className="space-y-4">
+                                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                                    {getIcon(type as ReleaseItemType)}
+                                    {type === 'feature' ? 'New Features' : type === 'improvement' ? 'Improvements' : 'Bug Fixes'}
+                                </h3>
+                                <div className="grid gap-3">
+                                    {items.map(item => (
+                                        <div 
+                                            key={item.id} 
+                                            className={cn(
+                                                "group p-4 rounded-xl border bg-card transition-all duration-300",
+                                                item.link && "hover:border-primary/50 hover:bg-primary/5 cursor-pointer"
+                                            )}
+                                            onClick={() => item.link && handleAction(item.link)}
+                                        >
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div className="space-y-1">
+                                                    <p className="text-sm font-semibold leading-none group-hover:text-primary transition-colors">
+                                                        {item.text}
+                                                    </p>
+                                                    {item.link && (
+                                                        <span className="text-[10px] text-primary flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity mt-1 inline-flex items-center">
+                                                            View feature <ArrowRight className="h-2.5 w-2.5 ml-1" />
+                                                        </span>
                                                     )}
                                                 </div>
+                                                {item.imageUrl && (
+                                                    <div className="h-12 w-12 rounded-lg bg-muted flex-shrink-0 overflow-hidden border">
+                                                        <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />
+                                                    </div>
+                                                )}
                                             </div>
-                                        ))}
-                                    </div>
+                                        </div>
+                                    ))}
                                 </div>
-                            );
-                        })}
-                    </div>
+                            </div>
+                        );
+                    })}
                 </div>
-            </ScrollArea>
+            </div>
         </div>
 
-        {/* Footer Section - Static */}
-        <DialogFooter className="px-8 py-6 bg-muted/30 border-t sm:justify-between items-center gap-4 shrink-0">
-            <p className="text-xs text-muted-foreground">
+        {/* Footer Section - Static & Non-shrinking */}
+        <DialogFooter className="px-8 py-6 bg-muted/30 border-t sm:justify-between items-center gap-4 shrink-0 flex-row">
+            <p className="hidden sm:block text-xs text-muted-foreground">
                 Thank you for using TaskFlow!
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                 <Button variant="outline" onClick={() => onOpenChange(false)}>Dismiss</Button>
                 <Button onClick={() => onOpenChange(false)}>Got it!</Button>
             </div>
