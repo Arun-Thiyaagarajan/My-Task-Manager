@@ -205,7 +205,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
       if (!items) return;
 
       for (let i = 0; i < items.length; i++) {
-        // Handle images
         if (items[i].type.indexOf('image') !== -1) {
           const file = items[i].getAsFile();
           if (file) {
@@ -214,7 +213,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
             break;
           }
         }
-        // Handle text (for URLs)
         if (items[i].type === 'text/plain') {
           items[i].getAsString(async (pastedText) => {
             try {
@@ -243,7 +241,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                 }
               }
             } catch (_) {
-              // Not a valid URL, do nothing
             }
           });
           break;
@@ -630,10 +627,17 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
 
     const handleScroll = () => {
         const scrollPosition = window.scrollY + 150;
+        const isAtBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 50;
         
+        if (isAtBottom && navigableSections.length > 0) {
+            const lastSection = navigableSections[navigableSections.length - 1];
+            const lastField = lastSection.fields.length > 0 ? lastSection.fields[lastSection.fields.length - 1] : null;
+            setActiveId(lastField ? lastField.id : lastSection.id);
+            return;
+        }
+
         let foundId = '';
         
-        // Check fields first for finer precision
         for (const section of navigableSections) {
             for (const field of section.fields) {
                 const element = document.getElementById(field.id);
@@ -648,7 +652,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
             if (foundId) break;
         }
 
-        // Fallback to sections if no field found
         if (!foundId) {
             for (const section of navigableSections) {
                 const element = document.getElementById(section.id);
@@ -697,7 +700,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
             "flex flex-col gap-8 pb-24 relative",
             sidebarPosition === 'left' ? "lg:flex-row" : "lg:flex-row-reverse"
         )}>
-            {/* Sidebar Navigation */}
             <aside className="hidden lg:block w-72 shrink-0">
                 <div className="sticky top-20 space-y-1">
                     <div className="flex items-center justify-between px-3 mb-4">
@@ -709,12 +711,12 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                                 <TooltipTrigger asChild>
                                     <Button 
                                         type="button" 
-                                        variant="ghost" 
+                                        variant="outline" 
                                         size="icon" 
-                                        className="h-6 w-6 text-muted-foreground"
+                                        className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors"
                                         onClick={toggleSidebarPosition}
                                     >
-                                        {sidebarPosition === 'left' ? <PanelRight className="h-3 w-3" /> : <PanelLeft className="h-3 w-3" />}
+                                        {sidebarPosition === 'left' ? <PanelRight className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent side="top">
@@ -756,13 +758,13 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                                                             type="button"
                                                             onClick={() => scrollToId(field.id)}
                                                             className={cn(
-                                                                "flex items-center gap-2 px-2 py-1 rounded text-xs transition-colors text-left",
+                                                                "flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors text-left",
                                                                 isFieldActive 
                                                                     ? "text-primary font-semibold bg-primary/5" 
                                                                     : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                                                             )}
                                                         >
-                                                            <CircleDot className={cn("h-2 w-2 shrink-0", isFieldActive ? "text-primary" : "text-transparent")} />
+                                                            <CircleDot className={cn("h-2.5 w-2.5 shrink-0", isFieldActive ? "text-primary" : "text-transparent")} />
                                                             <span className="truncate">{field.label}</span>
                                                         </button>
                                                     );
@@ -777,7 +779,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                 </div>
             </aside>
 
-            {/* Main Form Content */}
             <div className="flex-1 space-y-6">
                 {groupOrder.map(groupName => {
                     if (['Attachments', 'Deployment', 'Pull Requests'].includes(groupName)) {
@@ -809,7 +810,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                     )
                 })}
 
-                {/* Attachments Card */}
                 {uiConfig.fields.find(f => f.key === 'attachments' && f.isActive) && (
                     <Card id="attachments" className="scroll-mt-24 transition-all duration-300">
                         <CardHeader>
@@ -883,7 +883,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                     </Card>
                 )}
 
-                {/* Deployment Card */}
                 {deploymentFieldConfig && deploymentFieldConfig.isActive && (
                     <Card id="deployment" className="scroll-mt-24 transition-all duration-300">
                         <CardHeader>
@@ -948,7 +947,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                     </Card>
                 )}
 
-                {/* Pull Requests Card */}
                 {uiConfig.fields.find(f => f.key === 'prLinks' && f.isActive) && (
                     <Card id="pull-requests" className="scroll-mt-24 transition-all duration-300">
                         <CardHeader>
