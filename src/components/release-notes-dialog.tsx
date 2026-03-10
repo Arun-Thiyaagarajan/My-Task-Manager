@@ -46,8 +46,9 @@ export function ReleaseNotesDialog({ release, isOpen, onOpenChange }: ReleaseNot
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl overflow-hidden p-0 gap-0 border-none shadow-2xl">
-        <div className="bg-primary p-8 text-primary-foreground relative overflow-hidden">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden p-0 gap-0 border-none shadow-2xl flex flex-col">
+        {/* Header Section - Static */}
+        <div className="bg-primary p-8 text-primary-foreground relative overflow-hidden shrink-0">
             <div className="absolute top-0 right-0 p-4 opacity-10">
                 <Sparkles className="h-32 w-32 rotate-12" />
             </div>
@@ -62,8 +63,9 @@ export function ReleaseNotesDialog({ release, isOpen, onOpenChange }: ReleaseNot
             </div>
         </div>
 
-        <div className="p-0">
-            <ScrollArea className="max-h-[60vh] px-8 py-6">
+        {/* Scrollable Content Section */}
+        <div className="flex-1 min-h-0 overflow-hidden">
+            <ScrollArea className="h-full px-8 py-6">
                 {release.description && (
                     <p className="text-muted-foreground mb-8 leading-relaxed">
                         {release.description}
@@ -118,7 +120,8 @@ export function ReleaseNotesDialog({ release, isOpen, onOpenChange }: ReleaseNot
             </ScrollArea>
         </div>
 
-        <DialogFooter className="px-8 py-6 bg-muted/30 border-t sm:justify-between items-center gap-4">
+        {/* Footer Section - Static */}
+        <DialogFooter className="px-8 py-6 bg-muted/30 border-t sm:justify-between items-center gap-4 shrink-0">
             <p className="text-xs text-muted-foreground">
                 Thank you for using TaskFlow!
             </p>
