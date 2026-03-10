@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -686,7 +684,7 @@ export default function Home() {
                 binnedUpdatedCount = 0, failedCount = 0, importedLogCount = 0,
                 envCreatedCount = 0;
 
-            const existingEnvs = new Set(companyData.uiConfig.environments.map(e => e.name.toLowerCase()));
+            const existingEnvs = new Set((companyData.uiConfig.environments || []).filter(e => e && e.name).map(e => e.name.toLowerCase()));
             const discoveredEnvs = new Set<string>();
 
             allImportedTasks.forEach(task => {
@@ -779,7 +777,7 @@ export default function Home() {
                 }
             }
 
-            const existingDevsByName = new Map(companyData.developers.map(d => [d.name.toLowerCase(), d]));
+            const existingDevsByName = new Map((companyData.developers || []).filter(d => d && d.name).map(d => [d.name.toLowerCase(), d]));
             importedDevelopers.forEach(dev => {
                 if (!dev?.name) return;
                 const personData = { name: dev.name.trim(), email: dev.email || '', phone: dev.phone || '', additionalFields: dev.additionalFields || [] };
@@ -795,7 +793,7 @@ export default function Home() {
                 }
             });
 
-            const existingTestersByName = new Map(companyData.testers.map(t => [t.name.toLowerCase(), t.id]));
+            const existingTestersByName = new Map((companyData.testers || []).filter(t => t && t.name).map(t => [t.name.toLowerCase(), t.id]));
             importedTesters.forEach(tester => {
                 if (!tester?.name) return;
                 const personData = { name: tester.name.trim(), email: tester.email || '', phone: tester.phone || '', additionalFields: tester.additionalFields || [] };
@@ -812,10 +810,10 @@ export default function Home() {
             });
 
             const allTasksById = new Map([...companyData.tasks, ...companyData.trash].map(t => [t.id, t]));
-            const devsByName = new Map(companyData.developers.map(d => [d.name.toLowerCase(), d.id]));
-            const allDevIds = new Set(companyData.developers.map(d => d.id));
-            const testersByName = new Map(companyData.testers.map(t => [t.name.toLowerCase(), t.id]));
-            const allTesterIds = new Set(companyData.testers.map(t => t.id));
+            const devsByName = new Map((companyData.developers || []).filter(d => d && d.name).map(d => [d.name.toLowerCase(), d.id]));
+            const allDevIds = new Set((companyData.developers || []).map(d => d.id));
+            const testersByName = new Map((companyData.testers || []).filter(t => t && t.name).map(t => [t.name.toLowerCase(), t.id]));
+            const allTesterIds = new Set((companyData.testers || []).map(t => t.id));
 
             const processTaskArray = (tasksToProcess: Partial<Task>[], isBinned: boolean) => {
               let baseSchema: any = taskSchema;
@@ -1538,29 +1536,31 @@ export default function Home() {
               </div>
             )}
             
-            <Dialog open={isTagsDialogOpen} onOpenChange={setIsTagsDialogOpen}>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add Tags to {selectedTaskIds.length} Tasks</DialogTitle>
-                  <DialogDescription>
-                    The selected tags will be added to all chosen tasks. Existing tags will not be removed.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="py-4">
-                  <MultiSelect
-                      selected={tagsToApply}
-                      onChange={setTagsToApply}
-                      options={tagsOptions}
-                      placeholder="Select or create tags to add..."
-                      creatable
-                  />
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsTagsDialogOpen(false)}>Cancel</Button>
-                  <Button onClick={handleBulkApplyTags}>Apply Tags</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <div className="pt-4">
+                <Dialog open={isTagsDialogOpen} onOpenChange={setIsTagsDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                    <DialogTitle>Add Tags to {selectedTaskIds.length} Tasks</DialogTitle>
+                    <DialogDescription>
+                        The selected tags will be added to all chosen tasks. Existing tags will not be removed.
+                    </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                    <MultiSelect
+                        selected={tagsToApply}
+                        onChange={setTagsToApply}
+                        options={tagsOptions}
+                        placeholder="Select or create tags to add..."
+                        creatable
+                    />
+                    </div>
+                    <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsTagsDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={handleBulkApplyTags}>Apply Tags</Button>
+                    </DialogFooter>
+                </DialogContent>
+                </Dialog>
+            </div>
 
           {sortedTasks.length > 0 ? (
             <div>
@@ -1601,9 +1601,3 @@ export default function Home() {
     </div>
   );
 }
-
-
-
-
-
-
