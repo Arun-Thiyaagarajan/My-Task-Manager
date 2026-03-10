@@ -24,7 +24,7 @@ import {
   getGeneralReminders,
 } from '@/lib/data';
 import type { Company, UiConfig } from '@/lib/types';
-import { Building, PlusCircle, Trash2, Edit, LayoutDashboard, Cog, Menu, FileClock, Home, Bell, GraduationCap } from 'lucide-react';
+import { Building, PlusCircle, Trash2, Edit, LayoutDashboard, Cog, Menu, FileClock, Home, Bell, GraduationCap, History } from 'lucide-react';
 import { CompaniesManager } from './companies-manager';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -47,16 +47,16 @@ import { GeneralRemindersDialog } from './general-reminders-dialog';
 import { useTutorial } from '@/hooks/use-tutorial';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
-const HeaderLink = ({ href, children, className, onClick }: { href: string; children: React.ReactNode, className?: string; onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void; }) => {
+const HeaderLink = ({ href, children, className, onClick, id }: { href: string; children: React.ReactNode, className?: string; onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void; id?: string; }) => {
     const router = useRouter();
     const pathname = usePathname();
     const { prompt } = useUnsavedChanges();
 
     const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
         if (onClick) {
-            onClick(e); // Allow custom onClick logic to run
+            onClick(e);
             if (e.defaultPrevented) {
-                return; // If custom logic prevented default, stop here
+                return;
             }
         }
         if (pathname === href) {
@@ -67,7 +67,7 @@ const HeaderLink = ({ href, children, className, onClick }: { href: string; chil
         prompt(() => router.push(href));
     };
 
-    return <a href={href} onClick={handleClick} className={className}>{children}</a>;
+    return <a href={href} onClick={handleClick} className={className} id={id}>{children}</a>;
 }
 
 
@@ -164,6 +164,10 @@ export function Header() {
                <HeaderLink href="/settings" id="header-nav-settings" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                   <Cog className="mr-2 h-4 w-4" />
                   Settings
+               </HeaderLink>
+               <HeaderLink href="/releases" id="header-nav-releases" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  <History className="mr-2 h-4 w-4" />
+                  Releases
                </HeaderLink>
                <HeaderLink href="/logs" id="header-nav-logs" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                   <FileClock className="mr-2 h-4 w-4" />
@@ -286,6 +290,11 @@ export function Header() {
                   <DropdownMenuItem asChild>
                     <HeaderLink href="/settings" className="w-full flex items-center gap-2">
                        <Cog className="h-4 w-4" /> Settings
+                    </HeaderLink>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <HeaderLink href="/releases" className="w-full flex items-center gap-2">
+                       <History className="h-4 w-4" /> Releases
                     </HeaderLink>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>

@@ -1,6 +1,5 @@
 
-
-import type { FieldConfig, FieldType, RepositoryConfig, Environment } from './types';
+import type { FieldConfig, FieldType, RepositoryConfig, Environment, ReleaseUpdate } from './types';
 
 export const TASK_STATUSES = ['To Do', 'In Progress', 'Code Review', 'QA', 'Hold', 'Done'] as const;
 export const ENVIRONMENTS: Environment[] = [
@@ -46,4 +45,34 @@ export const INITIAL_UI_CONFIG: FieldConfig[] = [
   { id: 'field_qaStartDate', key: 'qaStartDate', label: 'QA Start Date', type: 'date', group: 'Dates', isActive: true, isRequired: false, isCustom: false, order: 14 },
   { id: 'field_qaEndDate', key: 'qaEndDate', label: 'QA End Date', type: 'date', group: 'Dates', isActive: true, isRequired: false, isCustom: false, order: 15 },
   { id: 'field_comments', key: 'comments', label: 'Comments', type: 'text', group: 'Comments', isActive: true, isRequired: false, isCustom: false, order: 16 },
+];
+
+export const INITIAL_RELEASES: ReleaseUpdate[] = [
+    {
+        id: 'release-1-0-0',
+        version: '1.0.0',
+        date: '2024-03-01T10:00:00.000Z',
+        title: 'Initial Launch',
+        description: 'Welcome to TaskFlow! The ultimate task management workspace.',
+        isPublished: true,
+        items: [
+            { id: 'item-1', type: 'feature', text: 'Comprehensive Task Tracking with custom fields.' },
+            { id: 'item-2', type: 'feature', text: 'Multi-company and project workspace support.' },
+            { id: 'item-3', type: 'feature', text: 'Real-time Activity Logs and Bin for safe deletion.' },
+        ]
+    },
+    {
+        id: 'release-1-1-0',
+        version: '1.1.0',
+        date: '2024-03-15T12:00:00.000Z',
+        title: 'Productivity Boost',
+        description: 'New tools to help you stay organized and move faster.',
+        isPublished: true,
+        items: [
+            { id: 'item-4', type: 'feature', text: 'Floating Notes: Jot down ideas from any page.', link: '/notes' },
+            { id: 'item-5', type: 'improvement', text: 'Enhanced Dashboard with more detailed charts.' },
+            { id: 'item-6', type: 'improvement', text: 'Optimized mobile views for better on-the-go management.' },
+            { id: 'item-7', type: 'fix', text: 'Resolved an issue where deployment dates were sometimes not saving correctly.' },
+        ]
+    }
 ];

@@ -1,5 +1,4 @@
 
-
 import type { TASK_STATUSES } from './constants';
 
 export type TaskStatus = string;
@@ -80,6 +79,26 @@ export interface Note {
   layout: NoteLayout;
 }
 
+export type ReleaseItemType = 'feature' | 'improvement' | 'fix';
+
+export interface ReleaseItem {
+    id: string;
+    type: ReleaseItemType;
+    text: string;
+    link?: string;
+    imageUrl?: string;
+}
+
+export interface ReleaseUpdate {
+    id: string;
+    version: string;
+    date: string;
+    title: string;
+    description?: string;
+    items: ReleaseItem[];
+    isPublished: boolean;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -137,6 +156,7 @@ export interface UiConfig {
   timeFormat?: '12h' | '24h';
   autoBackupFrequency?: BackupFrequency;
   autoBackupTime?: number;
+  currentVersion: string;
 }
 
 export type BackupFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'off';
@@ -150,6 +170,7 @@ export interface CompanyData {
     uiConfig: UiConfig;
     logs: Log[];
     generalReminders: GeneralReminder[];
+    releaseUpdates: ReleaseUpdate[];
 }
 
 export interface MyTaskManagerData {

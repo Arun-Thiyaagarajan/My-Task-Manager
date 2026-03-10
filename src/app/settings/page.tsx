@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck, Server, Globe, Image as ImageIcon, BellRing, Settings2, GraduationCap, Download, DatabaseZap, Upload } from 'lucide-react';
+import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck, Server, Globe, Image as ImageIcon, BellRing, Settings2, GraduationCap, Download, DatabaseZap, Upload, History } from 'lucide-react';
 import { EditFieldDialog } from '@/components/edit-field-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -31,6 +31,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
+import { ReleaseManagementCard } from '@/components/release-management-card';
 
 
 export default function SettingsPage() {
@@ -58,7 +59,7 @@ export default function SettingsPage() {
   const [remindersEnabled, setRemindersEnabled] = useState(false);
   const [tutorialEnabled, setTutorialEnabled] = useState(false);
   const [autoBackupFrequency, setAutoBackupFrequency] = useState<BackupFrequency>('off');
-  const [autoBackupTime, setAutoBackupTime] = useState(6); // Default to 6 AM
+  const [autoBackupTime, setAutoBackupTime] = useState(6);
   const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>('12h');
   const iconInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -99,7 +100,6 @@ export default function SettingsPage() {
     document.title = `Settings | ${loadedConfig.appName || 'My Task Manager'}`;
     refreshData();
 
-    // Listen for changes from other tabs or bulk operations
     window.addEventListener('storage', refreshData);
     window.addEventListener('config-changed', refreshData);
     window.addEventListener('company-changed', refreshData);
@@ -348,7 +348,6 @@ export default function SettingsPage() {
         title: 'Display Settings Updated',
         description: 'Your application display settings have been saved.',
     });
-    // This event will trigger the header to re-fetch the config.
     window.dispatchEvent(new Event('company-changed'));
   };
 
@@ -392,9 +391,7 @@ export default function SettingsPage() {
               }
               
               ctx.drawImage(img, 0, 0, width, height);
-
-              // Get compressed data URL (webp is preferred for its quality/size ratio)
-              const dataUrl = canvas.toDataURL('image/webp', 0.85); // 0.85 quality
+              const dataUrl = canvas.toDataURL('image/webp', 0.85);
               setAppIcon(dataUrl);
 
               toast({
@@ -433,13 +430,11 @@ export default function SettingsPage() {
   };
 
   const handleClearData = () => {
-    // Clear all localStorage items that start with 'taskflow_'
     Object.keys(localStorage).forEach(key => {
         if (key.startsWith('taskflow_')) {
             localStorage.removeItem(key);
         }
     });
-    // Clear the main data key
     localStorage.removeItem(DATA_KEY);
     toast({
         variant: 'success',
@@ -470,6 +465,7 @@ export default function SettingsPage() {
             timeFormat: config.timeFormat,
             autoBackupFrequency: config.autoBackupFrequency,
             autoBackupTime: config.autoBackupTime,
+            currentVersion: config.currentVersion,
         };
 
         const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(settingsToExport, null, 2))}`;
@@ -491,7 +487,6 @@ export default function SettingsPage() {
                 const text = e.target?.result as string;
                 const importedConfig = JSON.parse(text);
 
-                // Basic validation
                 if (typeof importedConfig !== 'object' || !importedConfig.fields) {
                     throw new Error("Invalid settings file format.");
                 }
@@ -499,7 +494,7 @@ export default function SettingsPage() {
                 updateUiConfig(importedConfig, true);
                 
                 toast({ variant: 'success', title: 'Settings Imported', description: 'Your application has been updated with the new settings.' });
-                refreshData(); // Re-render the page with the new config
+                refreshData();
 
             } catch (error: any) {
                 toast({ variant: 'destructive', title: 'Import Failed', description: error.message || 'There was an error processing your file.' });
@@ -647,7 +642,7 @@ export default function SettingsPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Field Configuration</CardTitle>
-                    <CardDescription>Drag active fields to reorder them. Edit, activate, or deactivate fields as needed. Required fields cannot be deactivated. Custom fields are the only fields that can be deleted.</CardDescription>
+                    <CardDescription>Drag active fields to reorder them. Edit, activate, or deactivate fields as needed.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="relative flex items-center w-full max-w-sm mb-6">
@@ -747,6 +742,9 @@ export default function SettingsPage() {
                     <Button onClick={handleSaveDisplaySettings} className="w-full">Save Display Settings</Button>
                 </CardFooter>
             </Card>
+
+            <ReleaseManagementCard />
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-8">
                  <Card>
                     <CardHeader>
@@ -818,7 +816,7 @@ export default function SettingsPage() {
                  <Card id="settings-environment-card">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2"><Server className="h-5 w-5" />Environment Management</CardTitle>
-                        <CardDescription>Add or rename deployment environments. `dev` and `production` are protected.</CardDescription>
+                        <CardDescription>Add or rename deployment environments.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
                         <div className="space-y-2">
@@ -852,7 +850,7 @@ export default function SettingsPage() {
                                                             <AlertDialogContent>
                                                                 <AlertDialogHeader>
                                                                     <AlertDialogTitle>Delete Environment?</AlertDialogTitle>
-                                                                    <AlertDialogDescription>This will permanently delete the "{env.name}" environment and all associated deployment data from your tasks. This action cannot be undone.</AlertDialogDescription>
+                                                                    <AlertDialogDescription>This will permanently delete the "{env.name}" environment.</AlertDialogDescription>
                                                                 </AlertDialogHeader>
                                                                 <AlertDialogFooter>
                                                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -882,18 +880,18 @@ export default function SettingsPage() {
                 </Card>
                 <div id="settings-people-management" className="space-y-8">
                     <Card>
-                        <CardHeader><CardTitle className="flex items-center justify-between"><span className="flex items-center gap-2"><Code2 className="h-5 w-5" />Developer Management</span><Badge variant="outline">{developers.length}</Badge></CardTitle><CardDescription>Manage their names, contact info, and assignments.</CardDescription></CardHeader>
+                        <CardHeader><CardTitle className="flex items-center justify-between"><span className="flex items-center gap-2"><Code2 className="h-5 w-5" />Developer Management</span><Badge variant="outline">{developers.length}</Badge></CardTitle><CardDescription>Manage your list of developers.</CardDescription></CardHeader>
                         <CardContent><Button onClick={() => openPeopleManager('developer')} className="w-full">Manage Developers</Button></CardContent>
                     </Card>
                     <Card>
-                        <CardHeader><CardTitle className="flex items-center justify-between"><span className="flex items-center gap-2"><ClipboardCheck className="h-5 w-5" />Tester Management</span><Badge variant="outline">{testers.length}</Badge></CardTitle><CardDescription>Manage their names, contact info, and assignments.</CardDescription></CardHeader>
+                        <CardHeader><CardTitle className="flex items-center justify-between"><span className="flex items-center gap-2"><ClipboardCheck className="h-5 w-5" />Tester Management</span><Badge variant="outline">{testers.length}</Badge></CardTitle><CardDescription>Manage your list of testers.</CardDescription></CardHeader>
                         <CardContent><Button onClick={() => openPeopleManager('tester')} className="w-full">Manage Testers</Button></CardContent>
                     </Card>
                 </div>
                  <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-destructive"><DatabaseZap className="h-5 w-5" />Data Management</CardTitle>
-                        <CardDescription>Actions for exporting, importing, or deleting application data.</CardDescription>
+                        <CardDescription>Export, import, or delete local data.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-2">
                         <Button variant="outline" className="w-full justify-start gap-2" onClick={handleExportSettings}>
@@ -923,7 +921,7 @@ export default function SettingsPage() {
                                 <AlertDialogHeader>
                                     <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                        This will permanently delete all tasks, notes, settings, and other data for all companies from this browser. This action cannot be undone.
+                                        This will permanently delete all tasks, notes, settings, and releases.
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>

@@ -1,6 +1,6 @@
 
-import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment } from './types';
+import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES, INITIAL_RELEASES } from './constants';
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem } from './types';
 import cloneDeep from 'lodash/cloneDeep';
 import { format, isToday, isYesterday } from 'date-fns';
 
@@ -40,9 +40,11 @@ const getInitialData = (): MyTaskManagerData => {
                     timeFormat: '12h',
                     autoBackupFrequency: 'weekly',
                     autoBackupTime: 6,
+                    currentVersion: '1.1.0',
                 },
                 logs: [],
                 generalReminders: [],
+                releaseUpdates: [...INITIAL_RELEASES],
             },
         },
     };
@@ -62,6 +64,7 @@ export const getAppData = (): MyTaskManagerData => {
             timeFormat: '12h',
             autoBackupFrequency: 'weekly',
             autoBackupTime: 6,
+            currentVersion: '1.1.0',
         };
         return {
             companies: [{ id: 'company-placeholder', name: 'Default Company' }],
@@ -76,6 +79,7 @@ export const getAppData = (): MyTaskManagerData => {
                     uiConfig: defaultConfig,
                     logs: [],
                     generalReminders: [],
+                    releaseUpdates: [],
                 },
             },
         };
@@ -91,12 +95,15 @@ export const getAppData = (): MyTaskManagerData => {
         if (!data.companies || !data.companyData || data.companies.length === 0) {
             throw new Error("Invalid core data structure, resetting.");
         }
-        // Migration for existing users: ensure trash and logs arrays exist
+        // Migration for existing users
         Object.values(data.companyData).forEach(company => {
             if (!company.trash) company.trash = [];
             if (!company.logs) company.logs = [];
             if (!company.generalReminders) company.generalReminders = [];
             if (!company.notes) company.notes = [];
+            if (!company.releaseUpdates) company.releaseUpdates = [...INITIAL_RELEASES];
+            if (!company.uiConfig.currentVersion) company.uiConfig.currentVersion = '1.1.0';
+            
             company.developers.forEach(p => { if (!p.additionalFields) p.additionalFields = []; });
             company.testers.forEach(p => { if (!p.additionalFields) p.additionalFields = []; });
         });
@@ -130,8 +137,7 @@ function _addLog(companyData: CompanyData, logData: Omit<Log, 'id' | 'timestamp'
     
     companyData.logs.unshift(newLog);
 
-    // Optional: Trim logs to prevent excessive storage usage
-    if (companyData.logs.length > 2000) { // Keep last 2000 logs
+    if (companyData.logs.length > 2000) {
         companyData.logs = companyData.logs.slice(0, 2000);
     }
 }
@@ -247,6 +253,7 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
         timeFormat: '12h',
         autoBackupFrequency: 'weekly',
         autoBackupTime: 6,
+        currentVersion: '1.1.0',
     };
 
     if (!savedConfig || typeof savedConfig !== 'object') {
@@ -265,6 +272,7 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
     resultConfig.remindersEnabled = savedConfig.remindersEnabled ?? defaultConfig.remindersEnabled;
     resultConfig.tutorialEnabled = savedConfig.tutorialEnabled ?? defaultConfig.tutorialEnabled;
     resultConfig.timeFormat = savedConfig.timeFormat || defaultConfig.timeFormat;
+    resultConfig.currentVersion = savedConfig.currentVersion || defaultConfig.currentVersion;
     
     if (typeof (savedConfig as any).autoBackupEnabled === 'boolean') {
         resultConfig.autoBackupFrequency = (savedConfig as any).autoBackupEnabled ? 'weekly' : 'off';
@@ -363,9 +371,13 @@ const generateUiConfigUpdateLogs = (oldConfig: UiConfig, newConfig: UiConfig): s
         createDetail(`Changed time format to ${newConfig.timeFormat === '24h' ? '24-hour' : '12-hour'}.`);
     }
 
+    if (oldConfig.currentVersion !== newConfig.currentVersion) {
+        createDetail(`Application version updated to **${newConfig.currentVersion}**.`);
+    }
+
     // Repository configuration changes
     if (JSON.stringify(oldConfig.repositoryConfigs) !== JSON.stringify(newConfig.repositoryConfigs)) {
-        const oldRepos = new Map((oldConfig.repositoryConfigs || []).map(r => [r.name, r]));
+        const oldRepos = new Map((oldConfig.repositoryConfigs || []).map(r => [r.id, r]));
         const newRepos = new Map((newConfig.repositoryConfigs || []).map(r => [r.id, r]));
         const repoLogDetails: string[] = [];
 
@@ -398,13 +410,11 @@ const generateUiConfigUpdateLogs = (oldConfig: UiConfig, newConfig: UiConfig): s
     const oldFieldsMap = new Map(oldConfig.fields.map(f => [f.id, f]));
     const newFieldsMap = new Map(newConfig.fields.map(f => [f.id, f]));
 
-    // Check for added/deleted/updated fields
     const allFieldIds = new Set([...oldFieldsMap.keys(), ...newFieldsMap.keys()]);
     allFieldIds.forEach(id => {
         const oldField = oldFieldsMap.get(id);
         const newField = newFieldsMap.get(id);
         
-        // Skip repository field as its config changes are logged separately
         if (newField?.key === 'repositories' || oldField?.key === 'repositories') return;
 
         if (newField && !oldField) {
@@ -465,13 +475,6 @@ const generateUiConfigUpdateLogs = (oldConfig: UiConfig, newConfig: UiConfig): s
         }
     });
     
-    // Check for field reordering as a fallback log
-    const oldActiveOrder = oldConfig.fields.filter(f => f.isActive).map(f => f.id).join(',');
-    const newActiveOrder = newConfig.fields.filter(f => f.isActive).map(f => f.id).join(',');
-    if (oldActiveOrder !== newActiveOrder && logDetails.length === 0) {
-        createDetail('Reordered active fields.');
-    }
-    
     if (logDetails.length === 0) return null;
     if (logDetails.length === 1) return logDetails[0];
 
@@ -484,16 +487,12 @@ export function getUiConfig(): UiConfig {
     const activeCompanyId = getActiveCompanyId();
     const companyData = data.companyData[activeCompanyId];
 
-    // On server, companyData can be undefined.
     if (!companyData) {
         return _validateAndMigrateConfig(undefined);
     }
 
     const validatedConfig = _validateAndMigrateConfig(companyData.uiConfig);
 
-    // This is a silent migration. If the validated config is different,
-    // it means the saved config was outdated or invalid. We save the
-    // corrected version back to localStorage.
     if (JSON.stringify(validatedConfig) !== JSON.stringify(companyData.uiConfig)) {
         companyData.uiConfig = validatedConfig;
         setAppData(data);
@@ -521,7 +520,6 @@ export function updateUiConfig(newConfig: UiConfig, fromImport: boolean = false)
         if (newConfig.fields) mergedConfig.fields = newConfig.fields;
         mergedConfig.appName = newConfig.appName ?? mergedConfig.appName;
         mergedConfig.appIcon = newConfig.appIcon ?? mergedConfig.appIcon;
-        // ... merge other settings
         finalConfig = _validateAndMigrateConfig(mergedConfig);
         _addLog(companyData, { message: `Imported new application settings.` });
     } else {
@@ -531,7 +529,6 @@ export function updateUiConfig(newConfig: UiConfig, fromImport: boolean = false)
         }
     }
 
-    // Sort fields by order to ensure consistency
     finalConfig.fields.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
     finalConfig.fields.forEach((field, index) => {
         field.order = index;
@@ -541,7 +538,6 @@ export function updateUiConfig(newConfig: UiConfig, fromImport: boolean = false)
         }
     });
     
-    // --- Repository Rename Logic ---
     const oldRepoNameToId = new Map((oldConfig.repositoryConfigs || []).map(r => [r.name, r.id]));
     const newRepoIdToName = new Map((finalConfig.repositoryConfigs || []).map(r => [r.id, r.name]));
 
@@ -553,14 +549,13 @@ export function updateUiConfig(newConfig: UiConfig, fromImport: boolean = false)
     tasksToUpdate.forEach(task => {
         let wasUpdated = false;
 
-        // Update task.repositories with new names
         if (task.repositories && task.repositories.length > 0) {
             const updatedRepos = task.repositories
                 .map(oldName => {
                     const repoId = oldRepoNameToId.get(oldName);
                     return repoId ? newRepoIdToName.get(repoId) : oldName;
                 })
-                .filter((r): r is string => !!r); // Filter out deleted repos
+                .filter((r): r is string => !!r);
 
             if (JSON.stringify(task.repositories.sort()) !== JSON.stringify(updatedRepos.sort())) {
                 task.repositories = updatedRepos;
@@ -568,7 +563,6 @@ export function updateUiConfig(newConfig: UiConfig, fromImport: boolean = false)
             }
         }
 
-        // Update task.prLinks keys with new names
         if (task.prLinks) {
             const newPrLinks: Task['prLinks'] = {};
             let prLinksUpdated = false;
@@ -581,7 +575,7 @@ export function updateUiConfig(newConfig: UiConfig, fromImport: boolean = false)
                         const repoId = oldRepoNameToId.get(oldName);
                         const newName = repoId ? newRepoIdToName.get(repoId) : undefined;
                         
-                        if (newName) { // Only add if it still exists
+                        if (newName) {
                             newPrLinks[env]![newName] = repoLinks[oldName];
                         }
 
@@ -603,7 +597,6 @@ export function updateUiConfig(newConfig: UiConfig, fromImport: boolean = false)
         }
     });
 
-    // Finally, update the config and save everything
     companyData.uiConfig = finalConfig;
     setAppData(data);
     window.dispatchEvent(new Event('company-changed'));
@@ -631,7 +624,7 @@ export function addEnvironment(name: string): boolean {
     const newEnv: Environment = {
         id: `env_${crypto.randomUUID()}`,
         name: trimmedName,
-        color: `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}` // Random color
+        color: `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`
     };
     
     companyData.uiConfig.environments.push(newEnv);
@@ -659,7 +652,6 @@ export function updateEnvironment(oldName: string, updatedEnv: Environment): boo
     if (envIndex === -1) return false;
     const existingEnv = companyData.uiConfig.environments[envIndex];
     
-    // Check if new name conflicts with another existing environment
     if (trimmedNewName.toLowerCase() !== oldName.toLowerCase() && companyData.uiConfig.environments.some(env => env && env.name && env.name.toLowerCase() === trimmedNewName.toLowerCase())) {
         return false;
     }
@@ -863,8 +855,6 @@ const generateTaskUpdateLogs = (
         return `"${formattedValue}"`;
     };
 
-    // This handles most simple fields and relationships.
-    // Complex objects like deploymentStatus and prLinks are handled separately.
     const fieldsToLog = uiConfig.fields.filter(f => f.isActive && !['deploymentStatus', 'deploymentDates', 'prLinks', 'customFields'].includes(f.key));
     fieldsToLog.forEach(field => {
         const key = field.key as keyof Task;
@@ -980,7 +970,6 @@ const generateTaskUpdateLogs = (
         });
     }
     
-    // Detailed deployment check
     const allEnvs = uiConfig.environments || [];
     allEnvs.forEach(env => {
         if (!env || !env.name) return;
@@ -996,7 +985,6 @@ const generateTaskUpdateLogs = (
         if (oldDeployed !== newDeployed) {
             changes.push(`- Changed **${env.name.charAt(0).toUpperCase() + env.name.slice(1)}** deployment to *${newDeployed ? 'Deployed' : 'Pending'}*.`);
         } else if (newDeployed && oldDate !== newDate) {
-            // It was already deployed, but the date changed.
             if (!oldDate && newDate) {
                 changes.push(`- Set **${env.name.charAt(0).toUpperCase() + env.name.slice(1)} deployment date** to *${format(new Date(newDate!), 'PPP')}*.`);
             } else if (oldDate && !newDate) {
@@ -1007,7 +995,6 @@ const generateTaskUpdateLogs = (
         }
     });
 
-    // Detailed PR links check
     if ('prLinks' in newTaskData) {
         const prChanges: string[] = [];
         const oldLinks = oldTask.prLinks || {};
@@ -1093,7 +1080,6 @@ export function getBinnedTasks(): Task[] {
     const data = getAppData();
     const companyData = data.companyData[data.activeCompanyId];
     if (!companyData) return [];
-    // Auto-delete tasks older than 30 days
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const recentTrash = (companyData.trash || []).filter(task =>
@@ -1487,21 +1473,17 @@ export function deleteComment(taskId: string, index: number): Task | undefined {
 export function getAggregatedLogs(): Log[] {
     const logs = getLogs();
 
-    // Get timestamps of all aggregate logs. These are the markers for bulk operations.
     const aggregateLogMarkers = new Set(
         logs.filter(log => log.id.startsWith('log-aggregate-'))
             .map(log => log.timestamp)
     );
 
     const visibleLogs = logs.filter(log => {
-        // Always show aggregate logs themselves.
         if (log.id.startsWith('log-aggregate-')) {
             return true;
         }
 
-        // Hide individual logs that are part of a bulk action.
         if (aggregateLogMarkers.has(log.timestamp)) {
-            // Check if there's an aggregate log with the same timestamp
             const isPartOfBulk = logs.some(aggLog => 
                 aggLog.id.startsWith('log-aggregate-') && 
                 aggLog.timestamp === log.timestamp
@@ -1511,7 +1493,6 @@ export function getAggregatedLogs(): Log[] {
             }
         }
         
-        // If it's not an aggregate log and not part of a known bulk operation, show it.
         return true;
     });
 
@@ -1534,13 +1515,13 @@ export function clearExpiredReminders(): { updatedTaskIds: string[], unpinnedTas
             task.reminderExpiresAt = null;
             task.updatedAt = now.toISOString();
             updatedTaskIds.push(task.id);
-            unpinnedTaskIds.push(task.id); // The client will use this to update its state
+            unpinnedTaskIds.push(task.id);
             _addLog(companyData, { message: `Reminder expired and was cleared for task "${task.title}".`, taskId: task.id });
         }
     };
 
     companyData.tasks.forEach(processTask);
-    (companyData.trash || []).forEach(processTask); // Also clear from binned tasks
+    (companyData.trash || []).forEach(processTask);
 
     if (updatedTaskIds.length > 0) {
         setAppData(data);
@@ -1760,7 +1741,6 @@ export function deleteNote(id: string): boolean {
     const logTitle = deletedNote.title || `note created at ${format(new Date(deletedNote.createdAt), 'p')}`;
     _addLog(companyData, { message: `Deleted note: **"${logTitle}"**.` });
     
-    // Also move to the main bin for potential restoration
     const asTask: Task = {
         id: deletedNote.id,
         title: `Note: ${deletedNote.title || 'Untitled'}`,
@@ -1825,7 +1805,6 @@ export function updateNoteLayouts(layouts: NoteLayout[]): void {
   });
 
   setAppData(data);
-  // No log for layout changes to avoid spamming the logs
 }
 
 export function resetNotesLayout(): boolean {
@@ -1860,6 +1839,78 @@ export function resetNotesLayout(): boolean {
     
     _addLog(companyData, { message: `Reset the notes layout to the default grid.` });
 
+    setAppData(data);
+    return true;
+}
+
+// Release Update Functions
+export function getReleaseUpdates(onlyPublished: boolean = true): ReleaseUpdate[] {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    if (!companyData) return [];
+    
+    const releases = companyData.releaseUpdates || [];
+    const filtered = onlyPublished ? releases.filter(r => r.isPublished) : releases;
+    
+    return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
+export function addReleaseUpdate(releaseData: Partial<Omit<ReleaseUpdate, 'id'>>): ReleaseUpdate {
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    const companyData = data.companyData[activeCompanyId];
+    
+    const newRelease: ReleaseUpdate = {
+        id: `release-${crypto.randomUUID()}`,
+        version: releaseData.version || '0.0.0',
+        date: releaseData.date || new Date().toISOString(),
+        title: releaseData.title || 'New Release',
+        description: releaseData.description || '',
+        items: releaseData.items || [],
+        isPublished: releaseData.isPublished || false,
+    };
+
+    companyData.releaseUpdates = [newRelease, ...(companyData.releaseUpdates || [])];
+    _addLog(companyData, { message: `Created a draft for release **${newRelease.version}**.` });
+    setAppData(data);
+    return newRelease;
+}
+
+export function updateReleaseUpdate(id: string, releaseData: Partial<Omit<ReleaseUpdate, 'id'>>): ReleaseUpdate | undefined {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    if (!companyData || !companyData.releaseUpdates) return undefined;
+
+    const index = companyData.releaseUpdates.findIndex(r => r.id === id);
+    if (index === -1) return undefined;
+
+    const oldRelease = companyData.releaseUpdates[index];
+    const updatedRelease = { ...oldRelease, ...releaseData };
+    companyData.releaseUpdates[index] = updatedRelease;
+
+    // If publishing, update current app version
+    if (updatedRelease.isPublished && !oldRelease.isPublished) {
+        companyData.uiConfig.currentVersion = updatedRelease.version;
+        _addLog(companyData, { message: `Published release **${updatedRelease.version}**: "${updatedRelease.title}".` });
+    } else {
+        _addLog(companyData, { message: `Updated details for release **${updatedRelease.version}**.` });
+    }
+
+    setAppData(data);
+    return updatedRelease;
+}
+
+export function deleteReleaseUpdate(id: string): boolean {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    if (!companyData || !companyData.releaseUpdates) return false;
+
+    const index = companyData.releaseUpdates.findIndex(r => r.id === id);
+    if (index === -1) return false;
+
+    const [deleted] = companyData.releaseUpdates.splice(index, 1);
+    _addLog(companyData, { message: `Deleted release update **${deleted.version}**.` });
+    
     setAppData(data);
     return true;
 }
