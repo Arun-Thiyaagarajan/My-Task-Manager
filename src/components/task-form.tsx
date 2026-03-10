@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -11,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2, AlertCircle, HelpCircle, Sparkles } from 'lucide-react';
+import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2, AlertCircle, HelpCircle, Sparkles, Layout, Users, Calendar as CalendarIconLucide, Paperclip, Rocket, GitMerge, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTransition, useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -109,6 +108,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
   const imageInputRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const [commandKey, setCommandKey] = useState('Ctrl');
+  const [activeSection, setActiveSection] = useState<string>('');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -574,11 +574,112 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
       return aMinOrder - bMinOrder;
   });
 
+  const navigableSections = useMemo(() => {
+    const sections: { id: string; label: string; icon: any }[] = [];
+    
+    groupOrder.forEach(groupName => {
+        if (!['Attachments', 'Deployment', 'Pull Requests'].includes(groupName)) {
+            let icon = Layout;
+            if (groupName === 'Core Details') icon = Layout;
+            else if (groupName === 'Assignment & Tracking') icon = Users;
+            else if (groupName === 'Dates') icon = CalendarIconLucide;
+            
+            sections.push({ 
+                id: groupName.toLowerCase().replace(/\s+/g, '-'), 
+                label: groupName,
+                icon
+            });
+        }
+    });
+
+    if (uiConfig.fields.find(f => f.key === 'attachments' && f.isActive)) {
+        sections.push({ id: 'attachments', label: fieldLabels.get('attachments') || 'Attachments', icon: Paperclip });
+    }
+    if (deploymentFieldConfig && deploymentFieldConfig.isActive) {
+        sections.push({ id: 'deployment', label: fieldLabels.get('deploymentStatus') || 'Deployment', icon: Rocket });
+    }
+    if (uiConfig.fields.find(f => f.key === 'prLinks' && f.isActive)) {
+        sections.push({ id: 'pull-requests', label: fieldLabels.get('prLinks') || 'Pull Requests', icon: GitMerge });
+    }
+
+    return sections;
+  }, [groupOrder, uiConfig.fields, fieldLabels, deploymentFieldConfig]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+        const scrollPosition = window.scrollY + 150;
+        
+        for (const section of navigableSections) {
+            const element = document.getElementById(section.id);
+            if (element) {
+                const { offsetTop, offsetHeight } = element;
+                if (scrollPosition >= offsetTop && scrollPosition < offsetTop + offsetHeight) {
+                    setActiveSection(section.id);
+                    break;
+                }
+            }
+        }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    handleScroll(); // Call once to set initial active section
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [navigableSections]);
+
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+        const offset = 100;
+        const bodyRect = document.body.getBoundingClientRect().top;
+        const elementRect = element.getBoundingClientRect().top;
+        const elementPosition = elementRect - bodyRect;
+        const offsetPosition = elementPosition - offset;
+
+        window.scrollTo({
+            top: offsetPosition,
+            behavior: 'smooth'
+        });
+    }
+  };
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit, onInvalid)}>
-        <div className="pb-24">
-            <div className="space-y-6">
+        <div className="flex flex-col lg:flex-row gap-8 pb-24 relative">
+            {/* Sidebar Navigation */}
+            <aside className="hidden lg:block w-64 shrink-0">
+                <div className="sticky top-20 space-y-1">
+                    <h3 className="px-3 text-xs font-bold uppercase tracking-wider text-muted-foreground mb-4">
+                        Jump to Section
+                    </h3>
+                    <nav className="flex flex-col gap-1">
+                        {navigableSections.map((section) => {
+                            const Icon = section.icon;
+                            const isActive = activeSection === section.id;
+                            return (
+                                <button
+                                    key={section.id}
+                                    type="button"
+                                    onClick={() => scrollToSection(section.id)}
+                                    className={cn(
+                                        "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all group",
+                                        isActive 
+                                            ? "bg-primary/10 text-primary" 
+                                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    )}
+                                >
+                                    <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-primary" : "text-muted-foreground/70 group-hover:text-foreground")} />
+                                    <span className="truncate">{section.label}</span>
+                                    {isActive && <ChevronRight className="h-3 w-3 ml-auto text-primary" />}
+                                </button>
+                            );
+                        })}
+                    </nav>
+                </div>
+            </aside>
+
+            {/* Main Form Content */}
+            <div className="flex-1 space-y-6">
                 {groupOrder.map(groupName => {
                     // These groups will be handled manually with custom UI
                     if (['Attachments', 'Deployment', 'Pull Requests'].includes(groupName)) {
@@ -591,11 +692,17 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                     }
                     
                     const gridColsClass = fieldsInGroup.length > 1 ? 'md:grid-cols-2' : 'md:grid-cols-1';
+                    const sectionId = groupName.toLowerCase().replace(/\s+/g, '-');
 
                     return (
-                        <Card key={groupName} id={groupName === 'Core Details' ? 'task-form-main-card' : undefined}>
+                        <Card key={groupName} id={sectionId} className="scroll-mt-24 transition-all duration-300">
                             <CardHeader>
-                                <CardTitle>{groupName}</CardTitle>
+                                <CardTitle className="flex items-center gap-2">
+                                    {groupName === 'Core Details' && <Layout className="h-5 w-5 text-primary" />}
+                                    {groupName === 'Assignment & Tracking' && <Users className="h-5 w-5 text-primary" />}
+                                    {groupName === 'Dates' && <CalendarIconLucide className="h-5 w-5 text-primary" />}
+                                    {groupName}
+                                </CardTitle>
                             </CardHeader>
                             <CardContent className={cn("grid grid-cols-1 gap-6", gridColsClass)}>
                                 {groupedFields[groupName].map(field => <div key={field.id}>{renderField(field)}</div>)}
@@ -606,8 +713,13 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
 
                 {/* Attachments Card */}
                 {uiConfig.fields.find(f => f.key === 'attachments' && f.isActive) && (
-                    <Card>
-                        <CardHeader><CardTitle>{fieldLabels.get('attachments') || 'Attachments'}</CardTitle></CardHeader>
+                    <Card id="attachments" className="scroll-mt-24 transition-all duration-300">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Paperclip className="h-5 w-5 text-primary" />
+                                {fieldLabels.get('attachments') || 'Attachments'}
+                            </CardTitle>
+                        </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="space-y-3">
                                 {attachments.map((item, index) => (
@@ -675,9 +787,10 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
 
                 {/* Deployment Card */}
                 {deploymentFieldConfig && deploymentFieldConfig.isActive && (
-                    <Card>
+                    <Card id="deployment" className="scroll-mt-24 transition-all duration-300">
                         <CardHeader>
-                            <CardTitle>
+                            <CardTitle className="flex items-center gap-2">
+                                <Rocket className="h-5 w-5 text-primary" />
                                 {fieldLabels.get('deploymentStatus') || 'Deployment'}
                                 {deploymentFieldConfig.isRequired && <span className="text-destructive ml-1">*</span>}
                             </CardTitle>
@@ -739,8 +852,13 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
 
                 {/* Pull Requests Card */}
                 {uiConfig.fields.find(f => f.key === 'prLinks' && f.isActive) && (
-                    <Card>
-                        <CardHeader><CardTitle>{fieldLabels.get('prLinks') || 'Pull Requests'}</CardTitle></CardHeader>
+                    <Card id="pull-requests" className="scroll-mt-24 transition-all duration-300">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <GitMerge className="h-5 w-5 text-primary" />
+                                {fieldLabels.get('prLinks') || 'Pull Requests'}
+                            </CardTitle>
+                        </CardHeader>
                         <CardContent>
                             {watchedRepositories && watchedRepositories.length > 0 ? (
                                 <Tabs defaultValue={watchedRepositories[0]} className="w-full">
