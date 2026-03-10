@@ -192,7 +192,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
       const items = event.clipboardData?.items;
       if (!items) return;
 
-      let foundContent = false;
       for (let i = 0; i < items.length; i++) {
         // Handle images
         if (items[i].type.indexOf('image') !== -1) {
@@ -200,7 +199,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
           if (file) {
             event.preventDefault();
             handleImageUpload(file);
-            foundContent = true;
             break;
           }
         }
@@ -230,14 +228,12 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                    toast({ variant: 'success', title: 'Smart title generated!' });
                 } catch(e) {
                   console.error('Failed to generate smart title:', e);
-                  // Silently fail, original URL is kept as name
                 }
               }
             } catch (_) {
               // Not a valid URL, do nothing
             }
           });
-          foundContent = true; // Assume we might find a URL, to prevent default paste
           break;
         }
       }
@@ -362,7 +358,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
         options = (uiConfig?.repositoryConfigs || []).map(d => ({ value: d.name, label: d.name }));
     } else if (field.key === 'status') {
       options = (uiConfig?.taskStatuses || []).map(s => ({ value: s, label: s}));
-      // Status field should not be sorted alphabetically
       return options;
     } else if (field.key === 'relevantEnvironments') {
         options = (uiConfig?.environments || []).map(e => ({ value: e.name, label: e.name }));
@@ -389,7 +384,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
     } else if (field.sortDirection === 'desc') {
         options.sort((a, b) => b.label.localeCompare(a.label));
     }
-    // No sorting for 'manual' or undefined
 
     return options;
   }
@@ -454,8 +448,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                                 selected={field.value instanceof Date && !isNaN(field.value.getTime()) ? field.value : undefined}
                                 onSelect={(date) => {
                                     field.onChange(date);
-                                    // If a start date is changed, check if the corresponding end date is still valid.
-                                    // If not, clear it to prevent validation errors.
                                     if (fieldName === 'devStartDate') {
                                         const devEndDate = form.getValues('devEndDate');
                                         if (devEndDate && date && devEndDate < date) {
@@ -547,34 +539,35 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
     )
   }
 
-  if (!uiConfig) {
-      return <LoadingSpinner text="Loading form configuration..." />;
-  }
+  // Pre-calculate derivations for sidebar logic (guarded for safety before early return)
+  const fieldLabels = useMemo(() => new Map((uiConfig?.fields || []).map(f => [f.key, f.label])), [uiConfig]);
+  const deploymentFieldConfig = uiConfig?.fields.find(f => f.key === 'deploymentStatus');
+  const relevantEnvsFieldConfig = uiConfig?.fields.find(f => f.key === 'relevantEnvironments');
 
-  const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
-  const deploymentFieldConfig = uiConfig.fields.find(f => f.key === 'deploymentStatus');
-  const relevantEnvsFieldConfig = uiConfig.fields.find(f => f.key === 'relevantEnvironments');
-
-
-  const groupedFields = uiConfig.fields
-    .filter(f => f.isActive && f.key !== 'comments') // Filter out comments here
-    .sort((a,b) => a.order - b.order)
-    .reduce((acc, field) => {
-        const group = field.group || 'Other';
-        if (!acc[group]) acc[group] = [];
-        acc[group].push(field);
-        return acc;
-    }, {} as Record<string, FieldConfig[]>);
+  const groupedFields = useMemo(() => {
+    return (uiConfig?.fields || [])
+      .filter(f => f.isActive && f.key !== 'comments')
+      .sort((a,b) => a.order - b.order)
+      .reduce((acc, field) => {
+          const group = field.group || 'Other';
+          if (!acc[group]) acc[group] = [];
+          acc[group].push(field);
+          return acc;
+      }, {} as Record<string, FieldConfig[]>);
+  }, [uiConfig]);
     
-  const groupOrder = Object.keys(groupedFields).sort((a, b) => {
-      const aFields = groupedFields[a];
-      const bFields = groupedFields[b];
-      const aMinOrder = Math.min(...aFields.map(f => f.order));
-      const bMinOrder = Math.min(...bFields.map(f => f.order));
-      return aMinOrder - bMinOrder;
-  });
+  const groupOrder = useMemo(() => {
+    return Object.keys(groupedFields).sort((a, b) => {
+        const aFields = groupedFields[a];
+        const bFields = groupedFields[b];
+        const aMinOrder = Math.min(...aFields.map(f => f.order));
+        const bMinOrder = Math.min(...bFields.map(f => f.order));
+        return aMinOrder - bMinOrder;
+    });
+  }, [groupedFields]);
 
   const navigableSections = useMemo(() => {
+    if (!uiConfig) return [];
     const sections: { id: string; label: string; icon: any }[] = [];
     
     groupOrder.forEach(groupName => {
@@ -603,9 +596,11 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
     }
 
     return sections;
-  }, [groupOrder, uiConfig.fields, fieldLabels, deploymentFieldConfig]);
+  }, [groupOrder, uiConfig, fieldLabels, deploymentFieldConfig]);
 
   useEffect(() => {
+    if (!uiConfig || navigableSections.length === 0) return;
+
     const handleScroll = () => {
         const scrollPosition = window.scrollY + 150;
         
@@ -622,9 +617,9 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
     };
 
     window.addEventListener('scroll', handleScroll);
-    handleScroll(); // Call once to set initial active section
+    handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [navigableSections]);
+  }, [navigableSections, uiConfig]);
 
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
@@ -641,6 +636,11 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
         });
     }
   };
+
+  // Early return for loading state (MOVED HERE to avoid Rule of Hooks error)
+  if (!uiConfig) {
+      return <LoadingSpinner text="Loading form configuration..." />;
+  }
 
   return (
     <Form {...form}>
