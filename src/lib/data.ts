@@ -427,12 +427,16 @@ const generateUiConfigUpdateLogs = (oldConfig: UiConfig, newConfig: UiConfig): s
             if (oldField.baseUrl !== newField.baseUrl) { fieldUpdateDetails.push(`- Changed Base URL from "${oldField.baseUrl || 'none'}" to "${newField.baseUrl || 'none'}".`); }
             if (oldField.sortDirection !== newField.sortDirection) { fieldUpdateDetails.push(`- Changed sort order to "${newField.sortDirection}".`); }
             
-            const oldOptionsString = JSON.stringify((oldField.options || []).map(o => ({ value: o.value, label: o.label })).sort((a,b) => a.value.localeCompare(b.value)));
-            const newOptionsString = JSON.stringify((newField.options || []).map(o => ({ value: o.value, label: o.label })).sort((a,b) => a.value.localeCompare(b.value)));
+            const oldOptionsString = JSON.stringify((oldField.options || [])
+                .map(o => ({ value: o.value || '', label: o.label || '' }))
+                .sort((a,b) => (a.value || '').localeCompare(b.value || '')));
+            const newOptionsString = JSON.stringify((newField.options || [])
+                .map(o => ({ value: o.value || '', label: o.label || '' }))
+                .sort((a,b) => (a.value || '').localeCompare(b.value || '')));
 
             if (oldOptionsString !== newOptionsString) {
-                const oldOptions = new Map((oldField.options || []).map(o => [o.value, o.label]));
-                const newOptions = new Map((newField.options || []).map(o => [o.value, o.label]));
+                const oldOptions = new Map((oldField.options || []).filter(o => !!o.value).map(o => [o.value, o.label]));
+                const newOptions = new Map((newField.options || []).filter(o => !!o.value).map(o => [o.value, o.label]));
                 
                 const optionChanges: string[] = [];
                 newOptions.forEach((label, value) => {
