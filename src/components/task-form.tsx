@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2, AlertCircle, HelpCircle, Sparkles, Layout, Users, Calendar as CalendarIconLucide, Paperclip, Rocket, GitMerge, ChevronRight } from 'lucide-react';
+import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2, AlertCircle, HelpCircle, Sparkles, Layout, Users, Calendar as CalendarIconLucide, Paperclip, Rocket, GitMerge, ChevronRight, PanelLeft, PanelRight, CircleDot } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTransition, useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -108,14 +108,26 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
   const imageInputRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const [commandKey, setCommandKey] = useState('Ctrl');
-  const [activeSection, setActiveSection] = useState<string>('');
+  const [activeId, setActiveId] = useState<string>('');
+  const [sidebarPosition, setSidebarPosition] = useState<'left' | 'right'>('left');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
         const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
         setCommandKey(isMac ? '⌘' : 'Ctrl');
+        
+        const savedPos = localStorage.getItem('taskflow_form_sidebar_pos');
+        if (savedPos === 'left' || savedPos === 'right') {
+            setSidebarPosition(savedPos);
+        }
     }
   }, []);
+
+  const toggleSidebarPosition = () => {
+      const newPos = sidebarPosition === 'left' ? 'right' : 'left';
+      setSidebarPosition(newPos);
+      localStorage.setItem('taskflow_form_sidebar_pos', newPos);
+  };
 
   const { setIsDirty, prompt } = useUnsavedChanges();
 
@@ -528,7 +540,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
             control={form.control}
             name={fieldName as any}
             render={({ field }) => (
-                <FormItem>
+                <FormItem id={`field-container-${key}`} className="scroll-mt-32">
                     <FormLabel error={hasError}>{label} {isRequired && '*'}</FormLabel>
                     <FormControl>
                         {renderInput(type, field)}
@@ -539,7 +551,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
     )
   }
 
-  // Pre-calculate derivations for sidebar logic (guarded for safety before early return)
   const fieldLabels = useMemo(() => new Map((uiConfig?.fields || []).map(f => [f.key, f.label])), [uiConfig]);
   const deploymentFieldConfig = uiConfig?.fields.find(f => f.key === 'deploymentStatus');
   const relevantEnvsFieldConfig = uiConfig?.fields.find(f => f.key === 'relevantEnvironments');
@@ -568,7 +579,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
 
   const navigableSections = useMemo(() => {
     if (!uiConfig) return [];
-    const sections: { id: string; label: string; icon: any }[] = [];
+    const sections: { id: string; label: string; icon: any; fields: { id: string; label: string }[] }[] = [];
     
     groupOrder.forEach(groupName => {
         if (!['Attachments', 'Deployment', 'Pull Requests'].includes(groupName)) {
@@ -580,23 +591,39 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
             sections.push({ 
                 id: groupName.toLowerCase().replace(/\s+/g, '-'), 
                 label: groupName,
-                icon
+                icon,
+                fields: groupedFields[groupName].map(f => ({ id: `field-container-${f.key}`, label: f.label }))
             });
         }
     });
 
     if (uiConfig.fields.find(f => f.key === 'attachments' && f.isActive)) {
-        sections.push({ id: 'attachments', label: fieldLabels.get('attachments') || 'Attachments', icon: Paperclip });
+        sections.push({ 
+            id: 'attachments', 
+            label: fieldLabels.get('attachments') || 'Attachments', 
+            icon: Paperclip,
+            fields: []
+        });
     }
     if (deploymentFieldConfig && deploymentFieldConfig.isActive) {
-        sections.push({ id: 'deployment', label: fieldLabels.get('deploymentStatus') || 'Deployment', icon: Rocket });
+        sections.push({ 
+            id: 'deployment', 
+            label: fieldLabels.get('deploymentStatus') || 'Deployment', 
+            icon: Rocket,
+            fields: []
+        });
     }
     if (uiConfig.fields.find(f => f.key === 'prLinks' && f.isActive)) {
-        sections.push({ id: 'pull-requests', label: fieldLabels.get('prLinks') || 'Pull Requests', icon: GitMerge });
+        sections.push({ 
+            id: 'pull-requests', 
+            label: fieldLabels.get('prLinks') || 'Pull Requests', 
+            icon: GitMerge,
+            fields: []
+        });
     }
 
     return sections;
-  }, [groupOrder, uiConfig, fieldLabels, deploymentFieldConfig]);
+  }, [groupOrder, uiConfig, fieldLabels, deploymentFieldConfig, groupedFields]);
 
   useEffect(() => {
     if (!uiConfig || navigableSections.length === 0) return;
@@ -604,16 +631,38 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
     const handleScroll = () => {
         const scrollPosition = window.scrollY + 150;
         
+        let foundId = '';
+        
+        // Check fields first for finer precision
         for (const section of navigableSections) {
-            const element = document.getElementById(section.id);
-            if (element) {
-                const { offsetTop, offsetHeight } = element;
-                if (scrollPosition >= offsetTop && scrollPosition < offsetTop + offsetHeight) {
-                    setActiveSection(section.id);
-                    break;
+            for (const field of section.fields) {
+                const element = document.getElementById(field.id);
+                if (element) {
+                    const { offsetTop, offsetHeight } = element;
+                    if (scrollPosition >= offsetTop && scrollPosition < offsetTop + offsetHeight) {
+                        foundId = field.id;
+                        break;
+                    }
+                }
+            }
+            if (foundId) break;
+        }
+
+        // Fallback to sections if no field found
+        if (!foundId) {
+            for (const section of navigableSections) {
+                const element = document.getElementById(section.id);
+                if (element) {
+                    const { offsetTop, offsetHeight } = element;
+                    if (scrollPosition >= offsetTop && scrollPosition < offsetTop + offsetHeight) {
+                        foundId = section.id;
+                        break;
+                    }
                 }
             }
         }
+
+        if (foundId) setActiveId(foundId);
     };
 
     window.addEventListener('scroll', handleScroll);
@@ -621,7 +670,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
     return () => window.removeEventListener('scroll', handleScroll);
   }, [navigableSections, uiConfig]);
 
-  const scrollToSection = (id: string) => {
+  const scrollToId = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
         const offset = 100;
@@ -637,7 +686,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
     }
   };
 
-  // Early return for loading state (MOVED HERE to avoid Rule of Hooks error)
   if (!uiConfig) {
       return <LoadingSpinner text="Loading form configuration..." />;
   }
@@ -645,43 +693,93 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit, onInvalid)}>
-        <div className="flex flex-col lg:flex-row gap-8 pb-24 relative">
+        <div className={cn(
+            "flex flex-col gap-8 pb-24 relative",
+            sidebarPosition === 'left' ? "lg:flex-row" : "lg:flex-row-reverse"
+        )}>
             {/* Sidebar Navigation */}
-            <aside className="hidden lg:block w-64 shrink-0">
+            <aside className="hidden lg:block w-72 shrink-0">
                 <div className="sticky top-20 space-y-1">
-                    <h3 className="px-3 text-xs font-bold uppercase tracking-wider text-muted-foreground mb-4">
-                        Jump to Section
-                    </h3>
-                    <nav className="flex flex-col gap-1">
-                        {navigableSections.map((section) => {
-                            const Icon = section.icon;
-                            const isActive = activeSection === section.id;
-                            return (
-                                <button
-                                    key={section.id}
-                                    type="button"
-                                    onClick={() => scrollToSection(section.id)}
-                                    className={cn(
-                                        "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all group",
-                                        isActive 
-                                            ? "bg-primary/10 text-primary" 
-                                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                    )}
-                                >
-                                    <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-primary" : "text-muted-foreground/70 group-hover:text-foreground")} />
-                                    <span className="truncate">{section.label}</span>
-                                    {isActive && <ChevronRight className="h-3 w-3 ml-auto text-primary" />}
-                                </button>
-                            );
-                        })}
-                    </nav>
+                    <div className="flex items-center justify-between px-3 mb-4">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                            Jump to Section
+                        </h3>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button 
+                                        type="button" 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        className="h-6 w-6 text-muted-foreground"
+                                        onClick={toggleSidebarPosition}
+                                    >
+                                        {sidebarPosition === 'left' ? <PanelRight className="h-3 w-3" /> : <PanelLeft className="h-3 w-3" />}
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                    <p>Move sidebar to {sidebarPosition === 'left' ? 'right' : 'left'}</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </div>
+                    <ScrollArea className="h-[calc(100vh-200px)] pr-2">
+                        <nav className="flex flex-col gap-1">
+                            {navigableSections.map((section) => {
+                                const Icon = section.icon;
+                                const isSectionActive = activeId === section.id || section.fields.some(f => f.id === activeId);
+                                return (
+                                    <div key={section.id} className="space-y-1">
+                                        <button
+                                            key={section.id}
+                                            type="button"
+                                            onClick={() => scrollToId(section.id)}
+                                            className={cn(
+                                                "flex items-center gap-3 w-full px-3 py-2 rounded-md text-sm font-bold transition-all group",
+                                                isSectionActive 
+                                                    ? "bg-primary/10 text-primary" 
+                                                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                            )}
+                                        >
+                                            <Icon className={cn("h-4 w-4 shrink-0", isSectionActive ? "text-primary" : "text-muted-foreground/70 group-hover:text-foreground")} />
+                                            <span className="truncate">{section.label}</span>
+                                            {isSectionActive && <ChevronRight className="h-3 w-3 ml-auto text-primary" />}
+                                        </button>
+                                        
+                                        {section.fields.length > 0 && (
+                                            <div className="ml-7 border-l-2 border-muted pl-2 flex flex-col gap-0.5">
+                                                {section.fields.map(field => {
+                                                    const isFieldActive = activeId === field.id;
+                                                    return (
+                                                        <button
+                                                            key={field.id}
+                                                            type="button"
+                                                            onClick={() => scrollToId(field.id)}
+                                                            className={cn(
+                                                                "flex items-center gap-2 px-2 py-1 rounded text-xs transition-colors text-left",
+                                                                isFieldActive 
+                                                                    ? "text-primary font-semibold bg-primary/5" 
+                                                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                                            )}
+                                                        >
+                                                            <CircleDot className={cn("h-2 w-2 shrink-0", isFieldActive ? "text-primary" : "text-transparent")} />
+                                                            <span className="truncate">{field.label}</span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </nav>
+                    </ScrollArea>
                 </div>
             </aside>
 
             {/* Main Form Content */}
             <div className="flex-1 space-y-6">
                 {groupOrder.map(groupName => {
-                    // These groups will be handled manually with custom UI
                     if (['Attachments', 'Deployment', 'Pull Requests'].includes(groupName)) {
                         return null;
                     }
