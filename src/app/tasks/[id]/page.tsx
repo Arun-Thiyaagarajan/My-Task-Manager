@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -39,6 +37,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { FavoriteToggleButton } from '@/components/favorite-toggle';
 import { TaskHistory } from '@/components/task-history';
@@ -1622,7 +1621,3 @@ function TimelineSection({
     </div>
   );
 }
-
-
-
-
