@@ -111,6 +111,8 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
   const [activeId, setActiveId] = useState<string>('');
   const [sidebarPosition, setSidebarPosition] = useState<'left' | 'right'>('left');
 
+  const SCROLL_THRESHOLD = 120; // Unified offset for jumping and highlighting
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
         const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
@@ -626,7 +628,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
     if (!uiConfig || navigableSections.length === 0) return;
 
     const handleScroll = () => {
-        const scrollPosition = window.scrollY + 150;
+        const scrollPosition = window.scrollY + SCROLL_THRESHOLD + 10;
         const isAtBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 50;
         
         if (isAtBottom && navigableSections.length > 0) {
@@ -636,36 +638,27 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
             return;
         }
 
-        let foundId = '';
-        
-        for (const section of navigableSections) {
-            for (const field of section.fields) {
-                const element = document.getElementById(field.id);
-                if (element) {
-                    const { offsetTop, offsetHeight } = element;
-                    if (scrollPosition >= offsetTop && scrollPosition < offsetTop + offsetHeight) {
-                        foundId = field.id;
-                        break;
-                    }
-                }
-            }
-            if (foundId) break;
-        }
+        let foundActiveId = '';
+        const allTargets: { id: string, top: number }[] = [];
 
-        if (!foundId) {
-            for (const section of navigableSections) {
-                const element = document.getElementById(section.id);
-                if (element) {
-                    const { offsetTop, offsetHeight } = element;
-                    if (scrollPosition >= offsetTop && scrollPosition < offsetTop + offsetHeight) {
-                        foundId = section.id;
-                        break;
-                    }
-                }
+        navigableSections.forEach(section => {
+            const sectionEl = document.getElementById(section.id);
+            if (sectionEl) allTargets.push({ id: section.id, top: sectionEl.offsetTop });
+            section.fields.forEach(field => {
+                const fieldEl = document.getElementById(field.id);
+                if (fieldEl) allTargets.push({ id: field.id, top: fieldEl.offsetTop });
+            });
+        });
+
+        for (let i = 0; i < allTargets.length; i++) {
+            if (scrollPosition >= allTargets[i].top) {
+                foundActiveId = allTargets[i].id;
+            } else {
+                break;
             }
         }
 
-        if (foundId) setActiveId(foundId);
+        if (foundActiveId) setActiveId(foundActiveId);
     };
 
     window.addEventListener('scroll', handleScroll);
@@ -676,16 +669,18 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
   const scrollToId = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
-        const offset = 100;
         const bodyRect = document.body.getBoundingClientRect().top;
         const elementRect = element.getBoundingClientRect().top;
         const elementPosition = elementRect - bodyRect;
-        const offsetPosition = elementPosition - offset;
+        const offsetPosition = elementPosition - SCROLL_THRESHOLD;
 
         window.scrollTo({
             top: offsetPosition,
             behavior: 'smooth'
         });
+        
+        // Optimistically set active ID to prevent highlighting flicker during scroll
+        setActiveId(id);
     }
   };
 
