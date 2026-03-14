@@ -139,14 +139,21 @@ export default function ProfilePage() {
 
       // Update Auth Profile
       // To avoid "Photo URL too long" error, we only save the display name to Auth if the photo is a Base64 string.
-      // We clear the Auth photoURL and rely on Firestore as the source of truth for custom avatars.
-      const authUpdates: { displayName: string; photoURL?: string } = { displayName };
+      // We explicitly set photoURL to null if it was removed, or an empty string if it's a DataURI handled by Firestore.
+      const authUpdates: { displayName: string; photoURL: string | null } = { 
+        displayName,
+        photoURL: null 
+      };
+
       if (photoURL && !isDataURI(photoURL)) {
           authUpdates.photoURL = photoURL;
-      } else if (isDataURI(photoURL)) {
-          // If it's a data URI, we don't save it to Auth to prevent the length error.
-          // We set it to empty string so components know to check Firestore.
+      } else if (photoURL && isDataURI(photoURL)) {
+          // If it's a data URI, we set it to empty string in Auth to prevent the length error.
+          // Components check userProfile.photoURL as the primary source.
           authUpdates.photoURL = "";
+      } else {
+          // photoURL is null, Auth photoURL remains null to clear it.
+          authUpdates.photoURL = null;
       }
 
       await updateProfile(user, authUpdates);
