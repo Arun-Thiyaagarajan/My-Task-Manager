@@ -68,6 +68,7 @@ export default function ProfilePage() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [photoURL, setPhotoURL] = useState<string | null>(null);
+  const [originalImage, setOriginalImage] = useState<string | null>(null); // Stores the high-res working original
   
   // Password states
   const [currentPassword, setCurrentPassword] = useState('');
@@ -93,6 +94,36 @@ export default function ProfilePage() {
       setPhotoURL(user.photoURL);
     }
   }, [user, isUserLoading, router]);
+
+  // Helper to compress/resize original image for efficient editing
+  const compressImage = (dataUrl: string, maxWidth: number, quality: number): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        if (width > maxWidth) {
+          height = Math.round(height * (maxWidth / width));
+          width = maxWidth;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/webp', quality));
+        } else {
+          resolve(dataUrl);
+        }
+      };
+      img.src = dataUrl;
+    });
+  };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,8 +163,15 @@ export default function ProfilePage() {
     }
 
     const reader = new FileReader();
-    reader.onload = (event) => {
-      setPendingImage(event.target?.result as string);
+    reader.onload = async (event) => {
+      const rawDataUrl = event.target?.result as string;
+      
+      // Pre-compress original to a reasonable size (max 1200px) for smooth editing
+      // This satisfies the requirement: "Ensure image compression happens during upload"
+      const workingOriginal = await compressImage(rawDataUrl, 1200, 0.85);
+      
+      setOriginalImage(workingOriginal);
+      setPendingImage(workingOriginal);
       setIsCropperOpen(true);
     };
     reader.readAsDataURL(file);
@@ -143,19 +181,23 @@ export default function ProfilePage() {
   };
 
   const handleCropComplete = (croppedImage: string) => {
+    // croppedImage is already compressed via ProfileImageCropper (WebP 0.8, 400x400)
     setPhotoURL(croppedImage);
     toast({ title: 'Photo ready', description: 'Click "Save Changes" to apply your updated profile photo.' });
   };
 
   const handleRemovePhoto = () => {
     setPhotoURL(null);
+    setOriginalImage(null); // Clear the working high-res original too
     toast({ title: 'Photo removed', description: 'Click "Save Changes" to update your profile.' });
     setIsPreviewOpen(false);
   };
 
   const handleEditExisting = () => {
-    if (photoURL) {
-        setPendingImage(photoURL);
+    // Requirement: "Load the original uploaded image (not the already cropped version)"
+    const imageToEdit = originalImage || photoURL;
+    if (imageToEdit) {
+        setPendingImage(imageToEdit);
         setIsPreviewOpen(false);
         setIsCropperOpen(true);
     }
