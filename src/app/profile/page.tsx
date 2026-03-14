@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -13,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getInitials, getAvatarColor, cn } from '@/lib/utils';
+import { getInitials, getAvatarColor, getAvatarGradient, cn } from '@/lib/utils';
 import { 
   User as UserIcon, 
   Mail, 
@@ -28,10 +29,15 @@ import {
   KeyRound,
   Eye,
   EyeOff,
-  Settings
+  Settings,
+  Trash2,
+  Maximize2
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ProfileImageCropper } from '@/components/profile-image-cropper';
+import { ImagePreviewDialog } from '@/components/image-preview-dialog';
 
 export default function ProfilePage() {
   const { user, firestore, isUserLoading } = useFirebase();
@@ -54,6 +60,11 @@ export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
+
+  // Photo Editor states
+  const [isCropperOpen, setIsCropperOpen] = useState(false);
+  const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -97,7 +108,7 @@ export default function ProfilePage() {
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -108,11 +119,24 @@ export default function ProfilePage() {
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const dataUri = event.target?.result as string;
-      setPhotoURL(dataUri);
-      toast({ title: 'Image Previewed', description: 'Click Save Changes to apply your new photo.' });
+      setPendingImage(event.target?.result as string);
+      setIsCropperOpen(true);
     };
     reader.readAsDataURL(file);
+    
+    // Reset file input so same file can be selected again
+    if (e.target) e.target.value = '';
+  };
+
+  const handleCropComplete = (croppedImage: string) => {
+    setPhotoURL(croppedImage);
+    toast({ title: 'Photo updated locally', description: 'Click "Save Changes" to apply your new profile photo permanently.' });
+  };
+
+  const handleRemovePhoto = () => {
+    setPhotoURL(null);
+    toast({ title: 'Photo removed locally', description: 'Click "Save Changes" to update your profile.' });
+    setIsPreviewOpen(false);
   };
 
   const handlePasswordChange = async (e: React.FormEvent) => {
@@ -160,58 +184,91 @@ export default function ProfilePage() {
   if (isUserLoading) return <LoadingSpinner text="Loading profile..." />;
   if (!user) return null;
 
+  const profileName = displayName || user.email || 'User';
+
   return (
     <div className="container max-w-4xl mx-auto py-10 px-4">
       <div className="flex flex-col md:flex-row gap-8">
         {/* Left Sidebar Info */}
         <div className="w-full md:w-1/3 space-y-6">
-          <Card className="overflow-hidden">
+          <Card className="overflow-hidden shadow-md">
             <div className="h-24 bg-primary/10 w-full" />
             <div className="px-6 pb-6 text-center -mt-12">
               <div className="relative inline-block group">
-                <Avatar className="h-24 w-24 border-4 border-background shadow-xl ring-2 ring-primary/20">
-                  <AvatarImage src={photoURL || undefined} />
-                  <AvatarFallback className="text-2xl" style={{ backgroundColor: `#${getAvatarColor(displayName || user.email || 'U')}` }}>
-                    {getInitials(displayName || user.email || 'U')}
-                  </AvatarFallback>
-                </Avatar>
+                {/* Glow ring on hover */}
+                <div className="absolute inset-0 rounded-full scale-110 opacity-0 group-hover:opacity-100 transition-all duration-500 bg-primary/20 blur-md" />
+                
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button 
+                        onClick={() => photoURL ? setIsPreviewOpen(true) : fileInputRef.current?.click()}
+                        className="relative block"
+                      >
+                        <Avatar className="h-24 w-24 border-4 border-background shadow-xl ring-2 ring-primary/20 transition-transform duration-300 group-hover:scale-[1.02]">
+                          <AvatarImage src={photoURL || undefined} className="object-cover" />
+                          <AvatarFallback 
+                            className="text-2xl font-bold text-white" 
+                            style={{ background: getAvatarGradient(profileName) }}
+                          >
+                            {getInitials(profileName)}
+                          </AvatarFallback>
+                        </Avatar>
+                        
+                        {/* Camera Overlay */}
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                          {photoURL ? (
+                            <Maximize2 className="h-6 w-6 text-white" />
+                          ) : (
+                            <Camera className="h-6 w-6 text-white" />
+                          )}
+                        </div>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <p>{photoURL ? 'View profile photo' : 'Upload profile photo'}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
                 <button 
                   onClick={() => fileInputRef.current?.click()}
-                  className="absolute bottom-0 right-0 p-1.5 bg-primary text-primary-foreground rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute bottom-0 right-0 p-2 bg-primary text-primary-foreground rounded-full shadow-lg border-2 border-background scale-0 group-hover:scale-100 transition-transform duration-300 z-30 hover:bg-primary/90"
                 >
                   <Camera className="h-4 w-4" />
                 </button>
-                <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" />
+                <input type="file" ref={fileInputRef} onChange={handleImageSelect} className="hidden" accept="image/*" />
               </div>
-              <h2 className="mt-4 text-xl font-bold">{displayName || 'User Profile'}</h2>
-              <p className="text-sm text-muted-foreground truncate">{user.email}</p>
               
-              <div className="mt-6 space-y-2">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center">
+              <h2 className="mt-4 text-xl font-bold tracking-tight">{profileName}</h2>
+              <p className="text-sm text-muted-foreground truncate px-4">{user.email}</p>
+              
+              <div className="mt-6 flex flex-wrap justify-center gap-2">
+                <Badge variant="outline" className="flex items-center gap-1 py-1 h-7 text-[10px] font-bold border-muted-foreground/20">
                   <Calendar className="h-3 w-3" />
-                  Joined {user.metadata.creationTime ? new Date(user.metadata.creationTime).toLocaleDateString() : 'recently'}
-                </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center">
-                  <ShieldCheck className={cn("h-3 w-3", user.emailVerified ? "text-green-500" : "text-amber-500")} />
-                  {user.emailVerified ? 'Email Verified' : 'Email Not Verified'}
-                </div>
+                  {user.metadata.creationTime ? new Date(user.metadata.creationTime).toLocaleDateString() : 'N/A'}
+                </Badge>
+                <Badge variant={user.emailVerified ? 'default' : 'destructive'} className={cn("flex items-center gap-1 py-1 h-7 text-[10px] font-bold", user.emailVerified && "bg-green-600 hover:bg-green-600")}>
+                  {user.emailVerified ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                  {user.emailVerified ? 'Verified' : 'Unverified'}
+                </Badge>
               </div>
             </div>
           </Card>
 
-          <Card>
+          <Card className="shadow-sm">
             <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Quick Shortcuts</CardTitle>
+              <CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Quick Shortcuts</CardTitle>
             </CardHeader>
             <CardContent className="p-2 pt-0">
               <nav className="flex flex-col gap-1">
-                <Button variant="ghost" className="justify-start gap-2 h-9 text-sm" onClick={() => router.push('/')}>
-                  <AlertCircle className="h-4 w-4" />
+                <Button variant="ghost" className="justify-start gap-3 h-10 text-sm font-medium" onClick={() => router.push('/')}>
+                  <AlertCircle className="h-4 w-4 text-primary" />
                   Active Tasks
                 </Button>
-                <Button variant="ghost" className="justify-start gap-2 h-9 text-sm" onClick={() => router.push('/settings')}>
-                  <Settings className="h-4 w-4" />
-                  Manage Workspace
+                <Button variant="ghost" className="justify-start gap-3 h-10 text-sm font-medium" onClick={() => router.push('/settings')}>
+                  <Settings className="h-4 w-4 text-primary" />
+                  Workspace Settings
                 </Button>
               </nav>
             </CardContent>
@@ -221,78 +278,79 @@ export default function ProfilePage() {
         {/* Main Content Area */}
         <div className="flex-1">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="general">General Info</TabsTrigger>
-              <TabsTrigger value="security">Security</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted/50 p-1">
+              <TabsTrigger value="general" className="data-[state=active]:bg-background data-[state=active]:shadow-sm">General Info</TabsTrigger>
+              <TabsTrigger value="security" className="data-[state=active]:bg-background data-[state=active]:shadow-sm">Security</TabsTrigger>
             </TabsList>
 
             <TabsContent value="general" className="space-y-6">
               <form onSubmit={handleUpdateProfile}>
-                <Card>
+                <Card className="shadow-sm">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 text-xl">
                       <UserIcon className="h-5 w-5 text-primary" />
                       Personal Information
                     </CardTitle>
                     <CardDescription>Update your public-facing profile details.</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-6">
                     {!user.emailVerified && (
-                      <Alert variant="destructive" className="bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/50">
+                      <Alert variant="destructive" className="bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/50 text-amber-900 dark:text-amber-200">
                         <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                        <AlertTitle className="text-amber-800 dark:text-amber-200">Email not verified</AlertTitle>
-                        <AlertDescription className="text-amber-700 dark:text-amber-300 flex items-center justify-between gap-2 mt-1">
-                          Verify your email to ensure account security.
-                          <Button variant="link" onClick={handleVerifyEmail} className="h-auto p-0 text-xs font-bold text-amber-800 dark:text-amber-200">Resend Link</Button>
+                        <AlertTitle className="font-bold">Verification Required</AlertTitle>
+                        <AlertDescription className="flex items-center justify-between gap-2 mt-1">
+                          <span>Please verify your email address to ensure account security.</span>
+                          <Button variant="link" onClick={handleVerifyEmail} className="h-auto p-0 text-xs font-bold underline">Resend Link</Button>
                         </AlertDescription>
                       </Alert>
                     )}
 
                     <div className="grid gap-2">
-                      <Label htmlFor="display-name">Username / Display Name</Label>
-                      <div className="relative">
-                        <UserIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Label htmlFor="display-name" className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Display Name</Label>
+                      <div className="relative group">
+                        <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                         <Input 
                           id="display-name" 
-                          className="pl-10" 
+                          className="pl-10 h-11" 
                           value={displayName} 
                           onChange={(e) => setDisplayName(e.target.value)} 
-                          placeholder="johndoe"
+                          placeholder="e.g. John Doe"
                         />
                       </div>
                     </div>
 
-                    <div className="grid gap-2">
-                      <Label htmlFor="email">Email Address</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input 
-                          id="email" 
-                          className="pl-10 bg-muted cursor-not-allowed" 
-                          value={email} 
-                          readOnly
-                          disabled
-                        />
-                      </div>
-                      <p className="text-[10px] text-muted-foreground px-1">Email changes must be handled via verification flow.</p>
-                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="grid gap-2">
+                            <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Email Address</Label>
+                            <div className="relative">
+                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input 
+                                id="email" 
+                                className="pl-10 h-11 bg-muted/50 cursor-not-allowed border-dashed" 
+                                value={email} 
+                                readOnly
+                                disabled
+                                />
+                            </div>
+                        </div>
 
-                    <div className="grid gap-2">
-                      <Label htmlFor="phone">Phone Number</Label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input 
-                          id="phone" 
-                          className="pl-10" 
-                          value={phone} 
-                          onChange={(e) => setPhone(e.target.value)} 
-                          placeholder="+1 234 567 8900"
-                        />
-                      </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="phone" className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Phone Number</Label>
+                            <div className="relative group">
+                                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                                <Input 
+                                id="phone" 
+                                className="pl-10 h-11" 
+                                value={phone} 
+                                onChange={(e) => setPhone(e.target.value)} 
+                                placeholder="+1 234 567 8900"
+                                />
+                            </div>
+                        </div>
                     </div>
                   </CardContent>
                   <CardFooter className="bg-muted/30 border-t flex justify-end px-6 py-4">
-                    <Button type="submit" disabled={isUpdating}>
+                    <Button type="submit" disabled={isUpdating} className="px-8">
                       {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Save Changes
                     </Button>
@@ -303,48 +361,53 @@ export default function ProfilePage() {
 
             <TabsContent value="security" className="space-y-6">
               <form onSubmit={handlePasswordChange}>
-                <Card>
+                <Card className="shadow-sm">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 text-xl">
                       <KeyRound className="h-5 w-5 text-primary" />
-                      Update Password
+                      Security Settings
                     </CardTitle>
                     <CardDescription>Keep your account secure with a strong password.</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-6">
                     <div className="grid gap-2">
-                      <Label htmlFor="new-pass">New Password</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Label htmlFor="new-pass" className="text-xs font-bold uppercase tracking-wide text-muted-foreground">New Password</Label>
+                      <div className="relative group">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                         <Input 
                           id="new-pass" 
                           type={showPass ? 'text' : 'password'}
-                          className="pl-10 pr-10" 
+                          className="pl-10 pr-10 h-11" 
                           value={newPassword}
                           onChange={(e) => setNewPassword(e.target.value)}
                           placeholder="••••••••"
                         />
-                        <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-3 text-muted-foreground hover:text-foreground">
+                        <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                           {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                       </div>
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between text-[10px]">
-                          <span className="text-muted-foreground">Strength</span>
-                          <span className="font-bold">{getPasswordStrength() === 100 ? 'Strong' : getPasswordStrength() >= 50 ? 'Medium' : 'Weak'}</span>
+                      <div className="space-y-1.5 pt-1">
+                        <div className="flex items-center justify-between text-[10px] uppercase font-black tracking-widest text-muted-foreground">
+                          <span>Password Strength</span>
+                          <span className={cn(
+                              "font-bold",
+                              getPasswordStrength() === 100 ? "text-green-600" : getPasswordStrength() >= 50 ? "text-amber-600" : "text-red-600"
+                          )}>
+                              {getPasswordStrength() === 100 ? 'Strong' : getPasswordStrength() >= 50 ? 'Medium' : 'Weak'}
+                          </span>
                         </div>
-                        <Progress value={getPasswordStrength()} className="h-1" />
+                        <Progress value={getPasswordStrength()} className="h-1.5" />
                       </div>
                     </div>
 
                     <div className="grid gap-2">
-                      <Label htmlFor="confirm-pass">Confirm New Password</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Label htmlFor="confirm-pass" className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Confirm New Password</Label>
+                      <div className="relative group">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                         <Input 
                           id="confirm-pass" 
                           type="password"
-                          className="pl-10" 
+                          className="pl-10 h-11" 
                           value={confirmPassword}
                           onChange={(e) => setConfirmPassword(e.target.value)}
                           placeholder="••••••••"
@@ -353,7 +416,7 @@ export default function ProfilePage() {
                     </div>
                   </CardContent>
                   <CardFooter className="bg-muted/30 border-t flex justify-end px-6 py-4">
-                    <Button type="submit" disabled={isUpdating || !newPassword}>
+                    <Button type="submit" disabled={isUpdating || !newPassword} className="px-8">
                       {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Update Password
                     </Button>
@@ -361,18 +424,21 @@ export default function ProfilePage() {
                 </Card>
               </form>
 
-              <Card className="border-destructive/20 bg-destructive/5">
+              <Card className="border-destructive/20 bg-destructive/5 shadow-sm">
                 <CardHeader>
-                  <CardTitle className="text-destructive">Advanced Security</CardTitle>
-                  <CardDescription>Actions that affect your account session.</CardDescription>
+                  <CardTitle className="text-destructive text-lg font-bold">Advanced Account Actions</CardTitle>
+                  <CardDescription>Critical actions related to your account sessions and data.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between p-3 border rounded-lg bg-background shadow-sm">
+                  <div className="flex items-center justify-between p-4 border rounded-xl bg-background shadow-sm group hover:border-destructive/20 transition-colors">
                     <div>
-                      <p className="text-sm font-bold">Sign out of all sessions</p>
-                      <p className="text-xs text-muted-foreground">Revoke access from all browsers and devices.</p>
+                      <p className="text-sm font-bold flex items-center gap-2">
+                          <LogOut className="h-4 w-4 text-muted-foreground" />
+                          Sign out of all sessions
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">End all active sessions on other browsers and devices.</p>
                     </div>
-                    <Button variant="outline" size="sm">Manage Sessions</Button>
+                    <Button variant="outline" size="sm" className="h-8 text-xs font-bold group-hover:bg-destructive group-hover:text-white transition-all">Sign Out All</Button>
                   </div>
                 </CardContent>
               </Card>
@@ -380,6 +446,52 @@ export default function ProfilePage() {
           </Tabs>
         </div>
       </div>
+
+      <ProfileImageCropper 
+        isOpen={isCropperOpen}
+        onOpenChange={setIsCropperOpen}
+        imageSrc={pendingImage}
+        onCropComplete={handleCropComplete}
+      />
+
+      {photoURL && (
+        <ImagePreviewDialog 
+            isOpen={isPreviewOpen}
+            onOpenChange={setIsPreviewOpen}
+            imageUrl={photoURL}
+            imageName="Profile Photo"
+        />
+      )}
+      
+      {/* Photo Preview & Quick Actions Context - Overlaying ImagePreviewDialog's header if possible, 
+          but simpler to just have buttons here if the dialog has actions. 
+          The standard ImagePreviewDialog has zoom/rotate. 
+          Let's add a custom footer to it or create a specific one if needed.
+      */}
+      {isPreviewOpen && (
+          <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] flex gap-2 animate-in slide-in-from-bottom-4 duration-300">
+              <Button onClick={() => { setIsPreviewOpen(false); fileInputRef.current?.click(); }} size="sm" className="shadow-lg">
+                  <Camera className="h-4 w-4 mr-2" /> Change
+              </Button>
+              <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                      <Button variant="destructive" size="sm" className="shadow-lg">
+                          <Trash2 className="h-4 w-4 mr-2" /> Remove
+                      </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                      <AlertDialogHeader>
+                          <AlertDialogTitle>Remove profile photo?</AlertDialogTitle>
+                          <AlertDialogDescription>This will revert your avatar to your initials. You must save changes to apply this.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleRemovePhoto}>Remove Photo</AlertDialogAction>
+                      </AlertDialogFooter>
+                  </AlertDialogContent>
+              </AlertDialog>
+          </div>
+      )}
     </div>
   );
 }

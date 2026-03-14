@@ -1,5 +1,4 @@
 
-
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import type { CSSProperties } from "react"
@@ -15,10 +14,12 @@ export function getInitials(name: string) {
     return "";
   }
   return name
-    .split(" ")
+    .trim()
+    .split(/\s+/)
     .map((n) => n[0])
     .slice(0, 2)
-    .join("");
+    .join("")
+    .toUpperCase();
 }
 
 function hslToRgb(h: number, s: number, l: number): [number, number, number] {
@@ -51,21 +52,37 @@ function rgbToHex(r: number, g: number, b: number): string {
 }
 
 export function getAvatarColor(name: string): string {
-  if (!name) return 'cccccc'; // Return a default grey if name is empty
+  if (!name) return 'cccccc'; 
   
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    hash = hash & hash; // to 32bit int
+    hash = hash & hash; 
   }
   
-  const h = Math.abs(hash % 360) / 360; // hue
-  const s = 0.65; // saturation
-  const l = 0.5; // lightness for good contrast with white text
+  const h = Math.abs(hash % 360) / 360; 
+  const s = 0.65; 
+  const l = 0.55; 
   
   const [r, g, b] = hslToRgb(h, s, l);
-  
   return rgbToHex(r, g, b);
+}
+
+/**
+ * Returns a CSS gradient string based on a user's name
+ */
+export function getAvatarGradient(name: string): string {
+  if (!name) return 'linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%)';
+  
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  
+  const h1 = Math.abs(hash % 360);
+  const h2 = (h1 + 40) % 360;
+  
+  return `linear-gradient(135deg, hsl(${h1}, 70%, 65%) 0%, hsl(${h2}, 70%, 55%) 100%)`;
 }
 
 const REPO_COLORS = [
@@ -99,14 +116,8 @@ export function getRepoBadgeStyle(name: string): CSSProperties {
 }
 
 
-/**
- * A simple fuzzy search function that checks if characters from the query appear in the text in order.
- * @param query The search query string.
- * @param text The text to search within.
- * @returns `true` if the text is a fuzzy match for the query, `false` otherwise.
- */
 export function fuzzySearch(query: string, text: string): boolean {
-  if (!query) return true; // if query is empty, it's a match
+  if (!query) return true; 
   if (!text) return false;
 
   const lowerQuery = query.toLowerCase();
@@ -125,15 +136,6 @@ export function fuzzySearch(query: string, text: string): boolean {
   return queryIndex === lowerQuery.length;
 }
 
-/**
- * Formats a timestamp into a human-readable string.
- * - If the date is today, it shows "Today" and the time (e.g., "Today 1:23 PM").
- * - If the date was yesterday, it shows "Yesterday" and the time (e.g., "Yesterday 3:08 PM").
- * - Otherwise, it shows the full date and time (e.g., "Mar 6, 2024 1:23 PM").
- * @param date The date to format.
- * @param timeFormat The desired time format ('12h' or '24h').
- * @returns A formatted date string.
- */
 export function formatTimestamp(date: string | Date, timeFormat: '12h' | '24h' = '12h'): string {
     const d = new Date(date);
     if (isNaN(d.getTime())) return 'Invalid date';

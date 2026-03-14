@@ -71,7 +71,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { useFirebase } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { getInitials, getAvatarColor, cn } from '@/lib/utils';
+import { getInitials, getAvatarColor, getAvatarGradient, cn } from '@/lib/utils';
 import { AuthModal } from './auth-modal';
 
 const HeaderLink = ({ href, children, className, onClick, id }: { href: string; children: React.ReactNode, className?: string; onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void; id?: string; }) => {
@@ -179,6 +179,7 @@ export function Header() {
   };
 
   const activeCompany = companies.find((c) => c.id === activeCompanyId);
+  const profileName = user?.displayName || user?.email || 'User';
 
   return (
     <>
@@ -320,16 +321,19 @@ export function Header() {
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative h-10 w-10 rounded-full">
+                <Button variant="ghost" size="icon" className="relative h-10 w-10 rounded-full group">
                   <div className={cn(
-                    "flex h-full w-full items-center justify-center rounded-full border-2 transition-all hover:bg-muted",
+                    "flex h-full w-full items-center justify-center rounded-full border-2 transition-all group-hover:scale-105",
                     authMode === 'authenticate' && user ? "border-primary p-0.5" : "border-muted-foreground/20"
                   )}>
                     {authMode === 'authenticate' && user ? (
                       <Avatar className="h-full w-full">
-                        <AvatarImage src={user.photoURL || undefined} />
-                        <AvatarFallback style={{ backgroundColor: `#${getAvatarColor(user.displayName || user.email || 'User')}` }} className="text-white text-xs">
-                          {getInitials(user.displayName || user.email || 'U')}
+                        <AvatarImage src={user.photoURL || undefined} className="object-cover" />
+                        <AvatarFallback 
+                          className="text-white text-[10px] font-bold"
+                          style={{ background: getAvatarGradient(profileName) }}
+                        >
+                          {getInitials(profileName)}
                         </AvatarFallback>
                       </Avatar>
                     ) : (
@@ -341,10 +345,10 @@ export function Header() {
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">
+                    <p className="text-sm font-medium leading-none truncate">
                       {authMode === 'authenticate' && user ? (user.displayName || 'Authenticated User') : 'Local Mode'}
                     </p>
-                    <p className="text-xs leading-none text-muted-foreground">
+                    <p className="text-[10px] leading-none text-muted-foreground truncate">
                       {authMode === 'authenticate' && user ? (user.email || user.phoneNumber) : 'Data stored in browser'}
                     </p>
                   </div>
