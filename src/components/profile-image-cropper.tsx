@@ -167,6 +167,8 @@ export function ProfileImageCropper({
 
     const img = imgRef.current;
     const canvas = document.createElement('canvas');
+    
+    // Recommended optimized avatar size (400x400)
     const targetSize = 400;
     canvas.width = targetSize;
     canvas.height = targetSize;
@@ -208,9 +210,11 @@ export function ProfileImageCropper({
     const sourceY = relativeY * scaleRatio;
     const sourceSize = cropSize * scaleRatio;
 
+    // Fill with white background for transparent images
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, targetSize, targetSize);
     
+    // High-quality interpolation for the resize
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
     
@@ -220,7 +224,9 @@ export function ProfileImageCropper({
       0, 0, targetSize, targetSize
     );
 
-    return canvas.toDataURL('image/webp', 0.9);
+    // Compress using WebP (best for size/quality) at 80% quality
+    // This reduces file size significantly while maintaining clear visual quality.
+    return canvas.toDataURL('image/webp', 0.8);
   };
 
   const handleNextStep = () => {
@@ -247,7 +253,7 @@ export function ProfileImageCropper({
           <DialogTitle>{isStepPreview ? 'Confirm Crop' : 'Crop Photo'}</DialogTitle>
           <DialogDescription className="text-xs sm:text-sm">
             {isStepPreview 
-              ? 'Preview your final avatar below.' 
+              ? 'Preview your optimized avatar below.' 
               : 'Position your photo inside the circle.'}
           </DialogDescription>
         </DialogHeader>
