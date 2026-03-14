@@ -16,6 +16,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials, getAvatarColor, getAvatarGradient, cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { format } from 'date-fns';
 import { 
   User as UserIcon, 
   Mail, 
@@ -213,20 +214,20 @@ export default function ProfilePage() {
       <div className="flex flex-col md:flex-row gap-8">
         {/* Left Sidebar Info */}
         <div className="w-full md:w-1/3 space-y-6">
-          <Card className="overflow-hidden shadow-md">
-            <div className="h-24 bg-primary/10 w-full" />
-            <div className="px-6 pb-6 text-center -mt-12">
+          <Card className="overflow-hidden shadow-xl border-none bg-card rounded-3xl">
+            <div className="h-20 bg-gradient-to-br from-primary/20 via-primary/5 to-transparent w-full" />
+            <div className="px-6 pb-8 text-center -mt-12">
               <div className="relative inline-block group">
-                <div className="absolute inset-0 rounded-full scale-110 opacity-0 group-hover:opacity-100 transition-all duration-500 bg-primary/20 blur-md" />
+                <div className="absolute inset-0 rounded-full scale-110 opacity-0 group-hover:opacity-100 transition-all duration-500 bg-primary/10 blur-xl" />
                 
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button 
                         onClick={() => photoURL ? setIsPreviewOpen(true) : fileInputRef.current?.click()}
-                        className="relative block cursor-pointer"
+                        className="relative block cursor-pointer transition-transform duration-300 active:scale-95"
                       >
-                        <Avatar className="h-24 w-24 border-4 border-background shadow-xl ring-2 ring-primary/20 transition-transform duration-300 group-hover:scale-[1.02]">
+                        <Avatar className="h-24 w-24 border-[6px] border-background shadow-2xl transition-all duration-300 group-hover:border-primary/20">
                           <AvatarImage src={photoURL || undefined} className="object-cover" />
                           <AvatarFallback 
                             className="text-2xl font-bold text-white" 
@@ -267,18 +268,29 @@ export default function ProfilePage() {
                 <input type="file" ref={fileInputRef} onChange={handleImageSelect} className="hidden" accept="image/*" />
               </div>
               
-              <h2 className="mt-4 text-xl font-bold tracking-tight">{profileName}</h2>
-              <p className="text-sm text-muted-foreground truncate px-4">{user.email}</p>
+              <div className="mt-4 space-y-1">
+                <h2 className="text-xl font-bold tracking-tight text-foreground">{profileName}</h2>
+                <p className="text-[11px] text-muted-foreground font-medium truncate px-4">{user.email}</p>
+              </div>
               
-              <div className="mt-6 flex flex-wrap justify-center gap-2">
-                <Badge variant="outline" className="flex items-center gap-1 py-1 h-7 text-[10px] font-bold border-muted-foreground/20">
+              <div className="mt-6 flex flex-col items-center gap-3">
+                <Badge 
+                  variant="outline" 
+                  className={cn(
+                    "flex items-center gap-1.5 py-1 px-3 text-[10px] font-bold uppercase tracking-wider border-none rounded-full",
+                    user.emailVerified 
+                      ? "bg-green-500/10 text-green-600 dark:text-green-400" 
+                      : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                  )}
+                >
+                  {user.emailVerified ? <ShieldCheck className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                  {user.emailVerified ? 'Verified Account' : 'Action Required'}
+                </Badge>
+                
+                <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">
                   <Calendar className="h-3 w-3" />
-                  {user.metadata.creationTime ? new Date(user.metadata.creationTime).toLocaleDateString() : 'N/A'}
-                </Badge>
-                <Badge variant={user.emailVerified ? 'default' : 'destructive'} className={cn("flex items-center gap-1 py-1 h-7 text-[10px] font-bold", user.emailVerified && "bg-green-600 hover:bg-green-600")}>
-                  {user.emailVerified ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
-                  {user.emailVerified ? 'Verified' : 'Unverified'}
-                </Badge>
+                  Joined {user.metadata.creationTime ? format(new Date(user.metadata.creationTime), 'MMM d, yyyy') : 'N/A'}
+                </div>
               </div>
             </div>
           </Card>
