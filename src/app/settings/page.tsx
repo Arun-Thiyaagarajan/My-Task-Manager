@@ -2,14 +2,14 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { getUiConfig, updateUiConfig, addEnvironment, updateEnvironment, deleteEnvironment, getDevelopers, getTesters, DATA_KEY } from '@/lib/data';
-import type { UiConfig, FieldConfig, RepositoryConfig, Person, BackupFrequency, Environment } from '@/lib/types';
+import { getUiConfig, updateUiConfig, addEnvironment, updateEnvironment, deleteEnvironment, getDevelopers, getTesters, DATA_KEY, getAuthMode, setAuthMode } from '@/lib/data';
+import type { UiConfig, FieldConfig, RepositoryConfig, Person, BackupFrequency, Environment, AuthMode } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck, Server, Globe, Image as ImageIcon, BellRing, Settings2, GraduationCap, Download, DatabaseZap, Upload, History } from 'lucide-react';
+import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck, Server, Globe, Image as ImageIcon, BellRing, Settings2, GraduationCap, Download, DatabaseZap, Upload, History, Database, Laptop, ShieldCheck } from 'lucide-react';
 import { EditFieldDialog } from '@/components/edit-field-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -32,9 +32,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { format } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 import { ReleaseManagementCard } from '@/components/release-management-card';
+import { AuthModal } from '@/components/auth-modal';
+import { useFirebase } from '@/firebase';
+import { signOut } from 'firebase/auth';
 
 
 export default function SettingsPage() {
+  const { auth, user } = useFirebase();
   const [config, setConfig] = useState<UiConfig | null>(null);
   const [developers, setDevelopers] = useState<Person[]>([]);
   const [testers, setTesters] = useState<Person[]>([]);
@@ -61,6 +65,11 @@ export default function SettingsPage() {
   const [autoBackupFrequency, setAutoBackupFrequency] = useState<BackupFrequency>('off');
   const [autoBackupTime, setAutoBackupTime] = useState(6);
   const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>('12h');
+  const [authMode, setAuthModeState] = useState<AuthMode>('localStorage');
+  
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isAuthSwitchPending, setIsAuthSwitchPending] = useState(false);
+
   const iconInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [commandKey, setCommandKey] = useState('Ctrl');
@@ -93,6 +102,7 @@ export default function SettingsPage() {
     setAutoBackupFrequency(loadedConfig.autoBackupFrequency || 'off');
     setAutoBackupTime(loadedConfig.autoBackupTime ?? 6);
     setTimeFormat(loadedConfig.timeFormat || '12h');
+    setAuthModeState(getAuthMode());
   }
 
   useEffect(() => {
@@ -429,6 +439,44 @@ export default function SettingsPage() {
     });
   };
 
+  const handleAuthModeSwitch = async (newMode: AuthMode) => {
+    if (newMode === authMode) return;
+
+    if (newMode === 'authenticate') {
+      setIsAuthModalOpen(true);
+    } else {
+      // Logic for switching back to localStorage is handled by Confirmation Dialog
+    }
+  };
+
+  const handleAuthSuccess = () => {
+    setAuthMode('authenticate');
+    setAuthModeState('authenticate');
+    toast({ 
+      variant: 'success', 
+      title: 'Switched to Cloud Sync', 
+      description: 'Your data is now managed via secure authentication.' 
+    });
+    refreshData();
+  };
+
+  const handleConfirmLocalMode = async () => {
+    if (!auth) return;
+    try {
+      await signOut(auth);
+      setAuthMode('localStorage');
+      setAuthModeState('localStorage');
+      toast({ 
+        variant: 'success', 
+        title: 'Logged Out', 
+        description: 'Returned to Local Storage mode. Your previous local data has been restored.' 
+      });
+      refreshData();
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Sign Out Failed', description: error.message });
+    }
+  };
+
   const handleClearData = () => {
     Object.keys(localStorage).forEach(key => {
         if (key.startsWith('taskflow_')) {
@@ -466,6 +514,7 @@ export default function SettingsPage() {
             autoBackupFrequency: config.autoBackupFrequency,
             autoBackupTime: config.autoBackupTime,
             currentVersion: config.currentVersion,
+            authenticationMode: config.authenticationMode,
         };
 
         const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(settingsToExport, null, 2))}`;
@@ -523,7 +572,7 @@ export default function SettingsPage() {
             return acc;
         }, {} as Record<string, FieldConfig[]>);
 
-    const inactiveFields = allFields.filter(f => !f.isActive).sort((a,b) => a.label.localeCompare(b.label))
+    const inactiveFields = allFields.filter(f => !f.isActive).sort((a,b) => a.order - b.order)
         .reduce((acc, field) => {
             const group = field.group || 'General';
             if (!acc[group]) acc[group] = [];
@@ -668,6 +717,74 @@ export default function SettingsPage() {
             </Card>
         </div>
         <div className="lg:col-span-1 space-y-8">
+             <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5" />Authentication Mode</CardTitle>
+                    <CardDescription>Select how your data is managed and stored.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <RadioGroup 
+                    value={authMode} 
+                    onValueChange={(val: AuthMode) => handleAuthModeSwitch(val)}
+                    className="grid gap-4"
+                  >
+                    <div className={cn(
+                      "relative flex flex-col items-start gap-2 rounded-lg border p-4 cursor-pointer hover:bg-muted/50 transition-all",
+                      authMode === 'localStorage' && "border-primary bg-primary/5"
+                    )}>
+                      <RadioGroupItem value="localStorage" id="local" className="sr-only" />
+                      <Label htmlFor="local" className="flex items-center gap-2 cursor-pointer font-bold">
+                        <Laptop className="h-4 w-4" />
+                        Local Storage
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Data is stored only in your browser. Fastest mode, no login required.
+                      </p>
+                    </div>
+
+                    <div className={cn(
+                      "relative flex flex-col items-start gap-2 rounded-lg border p-4 cursor-pointer hover:bg-muted/50 transition-all",
+                      authMode === 'authenticate' && "border-primary bg-primary/5"
+                    )}>
+                      <RadioGroupItem value="authenticate" id="sync" className="sr-only" />
+                      <Label htmlFor="sync" className="flex items-center gap-2 cursor-pointer font-bold">
+                        <Database className="h-4 w-4" />
+                        Authenticate Mode
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Securely sync your tasks across devices using cloud authentication.
+                      </p>
+                    </div>
+                  </RadioGroup>
+
+                  {authMode === 'authenticate' && user && (
+                    <div className="mt-4 p-3 bg-muted rounded-md flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="bg-background">Signed In</Badge>
+                        <span className="text-xs font-medium truncate max-w-[120px]">{user.email || user.phoneNumber}</span>
+                      </div>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="sm" className="text-xs text-destructive h-7">Switch to Local</Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Return to Local Mode?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Switching to Local Storage mode will log you out from authenticated mode. Continue?
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleConfirmLocalMode}>Continue</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  )}
+                </CardContent>
+            </Card>
+
              <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Globe className="h-5 w-5" />Display Settings</CardTitle>
@@ -935,6 +1052,12 @@ export default function SettingsPage() {
             </div>
         </div>
       </div>
+
+      <AuthModal 
+        isOpen={isAuthModalOpen} 
+        onOpenChange={setIsAuthModalOpen} 
+        onSuccess={handleAuthSuccess} 
+      />
 
       {isFieldDialogOpen && (
         <EditFieldDialog isOpen={isFieldDialogOpen} onOpenChange={setIsFieldDialogOpen} field={fieldToEdit} onSave={handleSaveField} repositoryConfigs={config.repositoryConfigs} />

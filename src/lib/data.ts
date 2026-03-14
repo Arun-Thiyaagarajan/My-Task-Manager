@@ -1,10 +1,11 @@
 
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES, INITIAL_RELEASES } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem } from './types';
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode } from './types';
 import cloneDeep from 'lodash/cloneDeep';
 import { format, isToday, isYesterday } from 'date-fns';
 
 export const DATA_KEY = 'my_task_manager_data';
+const AUTH_MODE_KEY = 'taskflow_auth_mode';
 
 const getInitialData = (): MyTaskManagerData => {
     const defaultCompanyId = `company-${crypto.randomUUID()}`;
@@ -41,6 +42,7 @@ const getInitialData = (): MyTaskManagerData => {
                     autoBackupFrequency: 'weekly',
                     autoBackupTime: 6,
                     currentVersion: '1.1.0',
+                    authenticationMode: 'localStorage',
                 },
                 logs: [],
                 generalReminders: [],
@@ -65,6 +67,7 @@ export const getAppData = (): MyTaskManagerData => {
             autoBackupFrequency: 'weekly',
             autoBackupTime: 6,
             currentVersion: '1.1.0',
+            authenticationMode: 'localStorage',
         };
         return {
             companies: [{ id: 'company-placeholder', name: 'Default Company' }],
@@ -103,6 +106,7 @@ export const getAppData = (): MyTaskManagerData => {
             if (!company.notes) company.notes = [];
             if (!company.releaseUpdates) company.releaseUpdates = [...INITIAL_RELEASES];
             if (!company.uiConfig.currentVersion) company.uiConfig.currentVersion = '1.1.0';
+            if (!company.uiConfig.authenticationMode) company.uiConfig.authenticationMode = 'localStorage';
             
             company.developers.forEach(p => { if (!p.additionalFields) p.additionalFields = []; });
             company.testers.forEach(p => { if (!p.additionalFields) p.additionalFields = []; });
@@ -121,6 +125,26 @@ export const setAppData = (data: MyTaskManagerData) => {
     window.localStorage.setItem(DATA_KEY, JSON.stringify(data));
     window.dispatchEvent(new StorageEvent('storage', { key: DATA_KEY }));
 };
+
+// Auth Mode Functions
+export function getAuthMode(): AuthMode {
+    if (typeof window === 'undefined') return 'localStorage';
+    return (window.localStorage.getItem(AUTH_MODE_KEY) as AuthMode) || 'localStorage';
+}
+
+export function setAuthMode(mode: AuthMode) {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(AUTH_MODE_KEY, mode);
+    
+    // Update active company config
+    const data = getAppData();
+    const activeCompanyId = data.activeCompanyId;
+    const companyData = data.companyData[activeCompanyId];
+    if (companyData) {
+        companyData.uiConfig.authenticationMode = mode;
+        setAppData(data);
+    }
+}
 
 // Internal logging helper that modifies the data object without saving it.
 function _addLog(companyData: CompanyData, logData: Omit<Log, 'id' | 'timestamp'>) {
@@ -254,6 +278,7 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
         autoBackupFrequency: 'weekly',
         autoBackupTime: 6,
         currentVersion: '1.1.0',
+        authenticationMode: 'localStorage',
     };
 
     if (!savedConfig || typeof savedConfig !== 'object') {
@@ -273,6 +298,7 @@ function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): 
     resultConfig.tutorialEnabled = savedConfig.tutorialEnabled ?? defaultConfig.tutorialEnabled;
     resultConfig.timeFormat = savedConfig.timeFormat || defaultConfig.timeFormat;
     resultConfig.currentVersion = savedConfig.currentVersion || defaultConfig.currentVersion;
+    resultConfig.authenticationMode = savedConfig.authenticationMode || defaultConfig.authenticationMode;
     
     if (typeof (savedConfig as any).autoBackupEnabled === 'boolean') {
         resultConfig.autoBackupFrequency = (savedConfig as any).autoBackupEnabled ? 'weekly' : 'off';
@@ -353,6 +379,10 @@ const generateUiConfigUpdateLogs = (oldConfig: UiConfig, newConfig: UiConfig): s
 
     if (oldConfig.tutorialEnabled !== newConfig.tutorialEnabled) {
         createDetail(`${newConfig.tutorialEnabled ? 'Enabled' : 'Disabled'} the Tutorial feature.`);
+    }
+
+    if (oldConfig.authenticationMode !== newConfig.authenticationMode) {
+        createDetail(`Switched authentication mode to **${newConfig.authenticationMode === 'localStorage' ? 'Local Storage' : 'Cloud Sync'}**.`);
     }
 
     if (oldConfig.autoBackupFrequency !== newConfig.autoBackupFrequency) {
@@ -520,6 +550,7 @@ export function updateUiConfig(newConfig: UiConfig, fromImport: boolean = false)
         if (newConfig.fields) mergedConfig.fields = newConfig.fields;
         mergedConfig.appName = newConfig.appName ?? mergedConfig.appName;
         mergedConfig.appIcon = newConfig.appIcon ?? mergedConfig.appIcon;
+        mergedConfig.authenticationMode = newConfig.authenticationMode ?? mergedConfig.authenticationMode;
         finalConfig = _validateAndMigrateConfig(mergedConfig);
         _addLog(companyData, { message: `Imported new application settings.` });
     } else {
@@ -645,8 +676,8 @@ export function updateEnvironment(oldName: string, updatedEnv: Environment): boo
         return false;
     }
 
-    const trimmedNewName = updatedEnv.name.trim();
-    if (trimmedNewName === '') return false;
+    const trimmedName = updatedEnv.name.trim();
+    if (trimmedName === '') return false;
 
     const envIndex = companyData.uiConfig.environments.findIndex(e => e.name === oldName);
     if (envIndex === -1) return false;
@@ -963,9 +994,8 @@ const generateTaskUpdateLogs = (
             if (field.isCustom && field.key in newCustomFields) {
                 const oldValue = oldCustomFields[field.key];
                 const newValue = newCustomFields[field.key];
-                if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
-                    changes.push(`- Changed **${field.label}** from ${formatValue(oldValue)} to ${formatValue(newValue)}.`);
-                }
+                if (JSON.stringify(oldValue) === JSON.stringify(newValue)) return;
+                changes.push(`- Changed **${field.label}** from ${formatValue(oldValue)} to ${formatValue(newValue)}.`);
             }
         });
     }

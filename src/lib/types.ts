@@ -144,6 +144,8 @@ export interface FieldOption {
   value: string;
 }
 
+export type AuthMode = 'localStorage' | 'authenticate';
+
 export interface UiConfig {
   fields: FieldConfig[];
   environments: Environment[];
@@ -157,6 +159,7 @@ export interface UiConfig {
   autoBackupFrequency?: BackupFrequency;
   autoBackupTime?: number;
   currentVersion: string;
+  authenticationMode: AuthMode;
 }
 
 export type BackupFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'off';
