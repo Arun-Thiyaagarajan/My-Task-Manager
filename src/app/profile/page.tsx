@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -28,7 +27,8 @@ import {
   Calendar,
   KeyRound,
   Eye,
-  EyeOff
+  EyeOff,
+  Settings
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
