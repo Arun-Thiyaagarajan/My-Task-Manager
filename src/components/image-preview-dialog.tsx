@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, MouseEvent, WheelEvent } from 'react';
@@ -9,7 +10,7 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { ZoomIn, ZoomOut, RotateCcw, X } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, X, Pencil, Camera, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ImagePreviewDialogProps {
@@ -17,6 +18,10 @@ interface ImagePreviewDialogProps {
   onOpenChange: (isOpen: boolean) => void;
   imageUrl: string | null;
   imageName: string | null;
+  onEdit?: () => void;
+  onChange?: () => void;
+  onRemove?: () => void;
+  isProfilePreview?: boolean;
 }
 
 export function ImagePreviewDialog({
@@ -24,6 +29,10 @@ export function ImagePreviewDialog({
   onOpenChange,
   imageUrl,
   imageName,
+  onEdit,
+  onChange,
+  onRemove,
+  isProfilePreview = false
 }: ImagePreviewDialogProps) {
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -46,7 +55,7 @@ export function ImagePreviewDialog({
   const handleZoom = (direction: 'in' | 'out') => {
     setScale((prevScale) => {
       const newScale = direction === 'in' ? prevScale * 1.2 : prevScale / 1.2;
-      return Math.max(0.5, Math.min(newScale, 5)); // Min 50%, Max 500% zoom
+      return Math.max(0.5, Math.min(newScale, 5));
     });
   };
 
@@ -92,33 +101,33 @@ export function ImagePreviewDialog({
     }
   };
 
-
   if (!imageUrl || !imageName) {
     return null;
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent hideClose className="max-w-4xl w-full h-[90vh] flex flex-col p-0 border-0 bg-card/80 backdrop-blur-sm">
+      <DialogContent hideClose className="max-w-4xl w-full h-[90vh] flex flex-col p-0 border-0 bg-card/80 backdrop-blur-md">
         <DialogHeader className="p-4 border-b flex-row items-center justify-between space-y-0 text-card-foreground">
           <DialogTitle className="truncate pr-4">{imageName}</DialogTitle>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" onClick={() => handleZoom('in')} className="h-8 w-8">
+            <Button variant="ghost" size="icon" onClick={() => handleZoom('in')} className="h-8 w-8 cursor-pointer">
               <ZoomIn className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => handleZoom('out')} className="h-8 w-8">
+            <Button variant="ghost" size="icon" onClick={() => handleZoom('out')} className="h-8 w-8 cursor-pointer">
               <ZoomOut className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={resetTransform} className="h-8 w-8">
+            <Button variant="ghost" size="icon" onClick={resetTransform} className="h-8 w-8 cursor-pointer">
               <RotateCcw className="h-4 w-4" />
             </Button>
             <DialogClose asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Button variant="ghost" size="icon" className="h-8 w-8 cursor-pointer">
                     <X className="h-4 w-4" />
                 </Button>
             </DialogClose>
           </div>
         </DialogHeader>
+        
         <div 
           className="flex-1 overflow-hidden relative"
           onWheel={handleWheel}
@@ -143,6 +152,20 @@ export function ImagePreviewDialog({
             />
           </div>
         </div>
+
+        {isProfilePreview && (
+            <div className="p-4 bg-background/50 border-t flex items-center justify-center gap-3">
+                <Button variant="secondary" size="sm" onClick={onChange} className="cursor-pointer">
+                    <Camera className="h-4 w-4 mr-2" /> Change Image
+                </Button>
+                <Button variant="secondary" size="sm" onClick={onEdit} className="cursor-pointer">
+                    <Pencil className="h-4 w-4 mr-2" /> Edit Crop
+                </Button>
+                <Button variant="destructive" size="sm" onClick={onRemove} className="cursor-pointer">
+                    <Trash2 className="h-4 w-4 mr-2" /> Remove Image
+                </Button>
+            </div>
+        )}
       </DialogContent>
     </Dialog>
   );

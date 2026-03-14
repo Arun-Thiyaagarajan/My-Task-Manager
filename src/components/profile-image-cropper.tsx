@@ -37,7 +37,7 @@ export function ProfileImageCropper({
   const imgRef = useRef<HTMLImageElement>(null);
   const dragStart = useRef({ x: 0, y: 0 });
 
-  const CROP_SIZE = 280; // Size of the circular crop area
+  const CROP_SIZE = 280; // Size of the circular crop area in the UI
 
   useEffect(() => {
     if (isOpen) {
@@ -73,6 +73,14 @@ export function ProfileImageCropper({
     setIsDragging(false);
   }, []);
 
+  // Handle Mouse Wheel and Trackpad Zoom
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY * -0.001;
+    const newZoom = Math.min(Math.max(0.5, zoom + delta), 3);
+    setZoom(newZoom);
+  };
+
   useEffect(() => {
     if (isDragging) {
       window.addEventListener('mousemove', handleMouseMove);
@@ -91,7 +99,7 @@ export function ProfileImageCropper({
     if (!imgRef.current) return;
 
     const canvas = document.createElement('canvas');
-    const targetSize = 400; // Final optimized size
+    const targetSize = 400; // Standard optimized avatar size
     canvas.width = targetSize;
     canvas.height = targetSize;
     const ctx = canvas.getContext('2d');
@@ -100,28 +108,27 @@ export function ProfileImageCropper({
 
     const img = imgRef.current;
     
-    // We need to calculate how to draw the image onto the canvas
-    // based on our current preview state (zoom & position)
-    
-    // 1. Get original image proportions
+    // Natural dimensions of the original image
     const naturalWidth = img.naturalWidth;
     const naturalHeight = img.naturalHeight;
     
-    // 2. Calculate displayed size vs natural size ratio
+    // Calculated displayed size based on zoom and container constraints
     const rect = img.getBoundingClientRect();
     const displayWidth = rect.width;
+    
+    // Ratio to map UI pixel coordinates back to real image pixel coordinates
     const scaleRatio = naturalWidth / displayWidth;
 
-    // 3. Find the center of the crop circle relative to the image
+    // The center of the container is our crop target
     const cropCenterX = containerSize.width / 2;
     const cropCenterY = containerSize.height / 2;
     
-    // Image position in container: position.x, position.y
-    // We want to capture a targetSize x targetSize square centered on the crop circle
+    // Calculate source rectangle on the original image
     const sourceX = (cropCenterX - position.x - (CROP_SIZE / 2)) * scaleRatio;
     const sourceY = (cropCenterY - position.y - (CROP_SIZE / 2)) * scaleRatio;
     const sourceSize = CROP_SIZE * scaleRatio;
 
+    // Draw only the cropped portion onto the target canvas
     ctx.drawImage(
       img,
       sourceX, sourceY, sourceSize, sourceSize,
@@ -139,30 +146,19 @@ export function ProfileImageCropper({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit Photo</DialogTitle>
+          <DialogTitle>Crop Photo</DialogTitle>
           <DialogDescription>
-            Drag and zoom to position your photo within the circle.
+            Drag to position and use mouse wheel or slider to zoom.
           </DialogDescription>
         </DialogHeader>
 
         <div className="py-6 flex flex-col items-center gap-6">
           <div 
             ref={containerRef}
-            className="relative w-full aspect-square bg-muted rounded-lg overflow-hidden cursor-grab active:cursor-grabbing border shadow-inner"
+            className="relative w-full aspect-square bg-muted rounded-lg overflow-hidden cursor-move border shadow-inner touch-none"
             onMouseDown={handleMouseDown}
+            onWheel={handleWheel}
           >
-            {/* Grid overlay for positioning */}
-            <div className="absolute inset-0 pointer-events-none z-10 opacity-20">
-                <div className="absolute inset-0 border-t border-b border-dashed border-white flex flex-col justify-evenly">
-                    <div className="h-px w-full border-t border-dashed border-white" />
-                    <div className="h-px w-full border-t border-dashed border-white" />
-                </div>
-                <div className="absolute inset-0 border-l border-r border-dashed border-white flex flex-row justify-evenly">
-                    <div className="w-px h-full border-l border-dashed border-white" />
-                    <div className="w-px h-full border-l border-dashed border-white" />
-                </div>
-            </div>
-
             {/* Circular Crop Overlay */}
             <div 
               className="absolute inset-0 z-20 pointer-events-none ring-[2000px] ring-black/60"
@@ -198,7 +194,7 @@ export function ProfileImageCropper({
             />
             
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-30 bg-black/40 text-white px-2 py-1 rounded text-[10px] font-medium backdrop-blur-sm pointer-events-none flex items-center gap-1">
-                <Move className="h-3 w-3" /> Drag to position
+                <Move className="h-3 w-3" /> Drag & Wheel Zoom
             </div>
           </div>
 
@@ -211,7 +207,7 @@ export function ProfileImageCropper({
                 max={3}
                 step={0.01}
                 onValueChange={([val]) => setZoom(val)}
-                className="flex-1"
+                className="flex-1 cursor-pointer"
               />
               <ZoomIn className="h-4 w-4 text-muted-foreground shrink-0" />
             </div>
@@ -230,7 +226,7 @@ export function ProfileImageCropper({
             <X className="h-4 w-4 mr-2" /> Cancel
           </Button>
           <Button onClick={handleSave}>
-            <Check className="h-4 w-4 mr-2" /> Apply Photo
+            <Check className="h-4 w-4 mr-2" /> Save Cropped
           </Button>
         </DialogFooter>
       </DialogContent>

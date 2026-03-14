@@ -33,7 +33,8 @@ import {
   Settings,
   Trash2,
   Maximize2,
-  LogOut
+  LogOut,
+  Pencil
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
@@ -137,19 +138,27 @@ export default function ProfilePage() {
     };
     reader.readAsDataURL(file);
     
-    // Reset file input so same file can be selected again
+    // Reset file input
     if (e.target) e.target.value = '';
   };
 
   const handleCropComplete = (croppedImage: string) => {
     setPhotoURL(croppedImage);
-    toast({ title: 'Photo updated locally', description: 'Click "Save Changes" to apply your new profile photo permanently.' });
+    toast({ title: 'Photo ready', description: 'Click "Save Changes" to apply your updated profile photo.' });
   };
 
   const handleRemovePhoto = () => {
     setPhotoURL(null);
-    toast({ title: 'Photo removed locally', description: 'Click "Save Changes" to update your profile.' });
+    toast({ title: 'Photo removed', description: 'Click "Save Changes" to update your profile.' });
     setIsPreviewOpen(false);
+  };
+
+  const handleEditExisting = () => {
+    if (photoURL) {
+        setPendingImage(photoURL);
+        setIsPreviewOpen(false);
+        setIsCropperOpen(true);
+    }
   };
 
   const handlePasswordChange = async (e: React.FormEvent) => {
@@ -164,7 +173,7 @@ export default function ProfilePage() {
     setIsPending(true);
     try {
       await updatePassword(user, newPassword);
-      toast({ variant: 'success', title: 'Password Changed', description: 'Your password has been updated. Use it for your next login.' });
+      toast({ variant: 'success', title: 'Password Changed', description: 'Your password has been updated.' });
       setNewPassword('');
       setConfirmPassword('');
     } catch (error: any) {
@@ -178,7 +187,7 @@ export default function ProfilePage() {
     if (!user) return;
     try {
       await sendEmailVerification(user);
-      toast({ variant: 'success', title: 'Verification Sent', description: 'Check your inbox for the verification link.' });
+      toast({ variant: 'success', title: 'Verification Sent', description: 'Check your inbox for the link.' });
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error', description: error.message });
     }
@@ -208,7 +217,6 @@ export default function ProfilePage() {
             <div className="h-24 bg-primary/10 w-full" />
             <div className="px-6 pb-6 text-center -mt-12">
               <div className="relative inline-block group">
-                {/* Glow ring on hover */}
                 <div className="absolute inset-0 rounded-full scale-110 opacity-0 group-hover:opacity-100 transition-all duration-500 bg-primary/20 blur-md" />
                 
                 <TooltipProvider>
@@ -216,7 +224,7 @@ export default function ProfilePage() {
                     <TooltipTrigger asChild>
                       <button 
                         onClick={() => photoURL ? setIsPreviewOpen(true) : fileInputRef.current?.click()}
-                        className="relative block"
+                        className="relative block cursor-pointer"
                       >
                         <Avatar className="h-24 w-24 border-4 border-background shadow-xl ring-2 ring-primary/20 transition-transform duration-300 group-hover:scale-[1.02]">
                           <AvatarImage src={photoURL || undefined} className="object-cover" />
@@ -228,12 +236,18 @@ export default function ProfilePage() {
                           </AvatarFallback>
                         </Avatar>
                         
-                        {/* Camera Overlay */}
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                        {/* Interactive Overlays */}
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
                           {photoURL ? (
-                            <Maximize2 className="h-6 w-6 text-white" />
+                            <>
+                                <Maximize2 className="h-6 w-6 text-white mb-1" />
+                                <span className="text-[10px] text-white font-bold uppercase tracking-tight">View / Edit</span>
+                            </>
                           ) : (
-                            <Camera className="h-6 w-6 text-white" />
+                            <>
+                                <Camera className="h-6 w-6 text-white mb-1" />
+                                <span className="text-[10px] text-white font-bold uppercase tracking-tight">Upload</span>
+                            </>
                           )}
                         </div>
                       </button>
@@ -246,7 +260,7 @@ export default function ProfilePage() {
 
                 <button 
                   onClick={() => fileInputRef.current?.click()}
-                  className="absolute bottom-0 right-0 p-2 bg-primary text-primary-foreground rounded-full shadow-lg border-2 border-background scale-0 group-hover:scale-100 transition-transform duration-300 z-30 hover:bg-primary/90"
+                  className="absolute bottom-0 right-0 p-2 bg-primary text-primary-foreground rounded-full shadow-lg border-2 border-background scale-0 group-hover:scale-100 transition-transform duration-300 z-30 hover:bg-primary/90 cursor-pointer"
                 >
                   <Camera className="h-4 w-4" />
                 </button>
@@ -275,11 +289,11 @@ export default function ProfilePage() {
             </CardHeader>
             <CardContent className="p-2 pt-0">
               <nav className="flex flex-col gap-1">
-                <Button variant="ghost" className="justify-start gap-3 h-10 text-sm font-medium" onClick={() => router.push('/')}>
+                <Button variant="ghost" className="justify-start gap-3 h-10 text-sm font-medium cursor-pointer" onClick={() => router.push('/')}>
                   <AlertCircle className="h-4 w-4 text-primary" />
                   Active Tasks
                 </Button>
-                <Button variant="ghost" className="justify-start gap-3 h-10 text-sm font-medium" onClick={() => router.push('/settings')}>
+                <Button variant="ghost" className="justify-start gap-3 h-10 text-sm font-medium cursor-pointer" onClick={() => router.push('/settings')}>
                   <Settings className="h-4 w-4 text-primary" />
                   Workspace Settings
                 </Button>
@@ -292,8 +306,8 @@ export default function ProfilePage() {
         <div className="flex-1">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted/50 p-1">
-              <TabsTrigger value="general" className="data-[state=active]:bg-background data-[state=active]:shadow-sm">General Info</TabsTrigger>
-              <TabsTrigger value="security" className="data-[state=active]:bg-background data-[state=active]:shadow-sm">Security</TabsTrigger>
+              <TabsTrigger value="general" className="data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer">General Info</TabsTrigger>
+              <TabsTrigger value="security" className="data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer">Security</TabsTrigger>
             </TabsList>
 
             <TabsContent value="general" className="space-y-6">
@@ -313,7 +327,7 @@ export default function ProfilePage() {
                         <AlertTitle className="font-bold">Verification Required</AlertTitle>
                         <AlertDescription className="flex items-center justify-between gap-2 mt-1">
                           <span>Please verify your email address to ensure account security.</span>
-                          <Button variant="link" onClick={handleVerifyEmail} className="h-auto p-0 text-xs font-bold underline">Resend Link</Button>
+                          <Button variant="link" onClick={handleVerifyEmail} className="h-auto p-0 text-xs font-bold underline cursor-pointer">Resend Link</Button>
                         </AlertDescription>
                       </Alert>
                     )}
@@ -363,7 +377,7 @@ export default function ProfilePage() {
                     </div>
                   </CardContent>
                   <CardFooter className="bg-muted/30 border-t flex justify-end px-6 py-4">
-                    <Button type="submit" disabled={isUpdating} className="px-8">
+                    <Button type="submit" disabled={isUpdating} className="px-8 cursor-pointer">
                       {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Save Changes
                     </Button>
@@ -395,7 +409,7 @@ export default function ProfilePage() {
                           onChange={(e) => setNewPassword(e.target.value)}
                           placeholder="••••••••"
                         />
-                        <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                        <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer">
                           {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                       </div>
@@ -429,7 +443,7 @@ export default function ProfilePage() {
                     </div>
                   </CardContent>
                   <CardFooter className="bg-muted/30 border-t flex justify-end px-6 py-4">
-                    <Button type="submit" disabled={isUpdating || !newPassword} className="px-8">
+                    <Button type="submit" disabled={isUpdating || !newPassword} className="px-8 cursor-pointer">
                       {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Update Password
                     </Button>
@@ -451,7 +465,7 @@ export default function ProfilePage() {
                       </p>
                       <p className="text-[11px] text-muted-foreground">End all active sessions on other browsers and devices.</p>
                     </div>
-                    <Button variant="outline" size="sm" className="h-8 text-xs font-bold group-hover:bg-destructive group-hover:text-white transition-all">Sign Out All</Button>
+                    <Button variant="outline" size="sm" className="h-8 text-xs font-bold group-hover:bg-destructive group-hover:text-white transition-all cursor-pointer">Sign Out All</Button>
                   </div>
                 </CardContent>
               </Card>
@@ -467,39 +481,16 @@ export default function ProfilePage() {
         onCropComplete={handleCropComplete}
       />
 
-      {photoURL && (
-        <ImagePreviewDialog 
-            isOpen={isPreviewOpen}
-            onOpenChange={setIsPreviewOpen}
-            imageUrl={photoURL}
-            imageName="Profile Photo"
-        />
-      )}
-      
-      {isPreviewOpen && (
-          <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] flex gap-2 animate-in slide-in-from-bottom-4 duration-300">
-              <Button onClick={() => { setIsPreviewOpen(false); fileInputRef.current?.click(); }} size="sm" className="shadow-lg">
-                  <Camera className="h-4 w-4 mr-2" /> Change
-              </Button>
-              <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="sm" className="shadow-lg">
-                          <Trash2 className="h-4 w-4 mr-2" /> Remove
-                      </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                      <AlertDialogHeader>
-                          <AlertDialogTitle>Remove profile photo?</AlertDialogTitle>
-                          <AlertDialogDescription>This will revert your avatar to your initials. You must save changes to apply this.</AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleRemovePhoto}>Remove Photo</AlertDialogAction>
-                      </AlertDialogFooter>
-                  </AlertDialogContent>
-              </AlertDialog>
-          </div>
-      )}
+      <ImagePreviewDialog 
+        isOpen={isPreviewOpen}
+        onOpenChange={setIsPreviewOpen}
+        imageUrl={photoURL}
+        imageName="Profile Photo"
+        isProfilePreview
+        onEdit={handleEditExisting}
+        onChange={() => { setIsPreviewOpen(false); fileInputRef.current?.click(); }}
+        onRemove={handleRemovePhoto}
+      />
     </div>
   );
 }
