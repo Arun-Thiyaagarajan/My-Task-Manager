@@ -54,23 +54,15 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     
     // This effect handles the dynamic sizing of the textarea
     React.useEffect(() => {
-      const textarea = localRef.current;
-      const handleInput = () => {
+      const adjustHeight = () => {
+        const textarea = localRef.current;
         if (textarea) {
           textarea.style.height = 'auto';
           textarea.style.height = `${textarea.scrollHeight}px`;
         }
       };
 
-      if (textarea) {
-        setTimeout(handleInput, 0); // Initial adjustment
-        textarea.addEventListener('input', handleInput);
-      }
-      return () => {
-        if (textarea) {
-          textarea.removeEventListener('input', handleInput);
-        }
-      };
+      adjustHeight();
     }, [props.value]);
     
     // This effect handles the hotkeys for formatting

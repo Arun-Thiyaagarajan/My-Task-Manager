@@ -1,8 +1,9 @@
+
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
-import { getTasks, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addTagsToMultipleTasks, addEnvironment } from '@/lib/data';
+import { getTasks, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addTagsToMultipleTasks, addEnvironment, DATA_KEY } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -174,8 +175,13 @@ export default function Home() {
     deploymentFilter.forEach(d => params.append('deployment', d));
     tagsFilter.forEach(t => params.append('tags', t));
 
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  }, [searchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, statusFilter, repoFilter, deploymentFilter, tagsFilter, router, pathname]);
+    const currentQuery = searchParams.toString();
+    const newQuery = params.toString();
+
+    if (currentQuery !== newQuery) {
+        router.replace(`${pathname}?${newQuery}`, { scroll: false });
+    }
+  }, [searchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, statusFilter, repoFilter, deploymentFilter, tagsFilter, router, pathname, searchParams]);
 
   // This effect initializes state from the URL on first load.
   useEffect(() => {
@@ -191,7 +197,7 @@ export default function Home() {
     setTagsFilter(searchParams.getAll('tags') || []);
     setFavoritesOnly(searchParams.get('favorites') === 'true');
     setSortDescriptor(searchParams.get('sort') || 'status-asc');
-  }, [searchParams]);
+  }, []);
 
   const handlePreviousDate = () => {
       if (dateView === 'monthly') {
@@ -208,7 +214,7 @@ export default function Home() {
       }
   };
 
-  const refreshData = () => {
+  const refreshData = useCallback(() => {
     if (activeCompanyId) {
         setTasks(getTasks());
         setDevelopers(getDevelopers());
@@ -219,7 +225,7 @@ export default function Home() {
         document.title = config.appName || 'My Task Manager';
         setSelectedTaskIds([]);
     }
-  };
+  }, [activeCompanyId]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -247,97 +253,82 @@ export default function Home() {
     return 0;
   };
 
-  const filteredTasks = tasks.filter((task: Task) => {
-    if (favoritesOnly && !task.isFavorite) {
-      return false;
-    }
+  const filteredTasks = useMemo(() => {
+    return tasks.filter((task: Task) => {
+        if (favoritesOnly && !task.isFavorite) return false;
 
-    const statusMatch = statusFilter.length === 0 || statusFilter.includes(task.status);
-    
-    const repoMatch = repoFilter.length === 0 || (Array.isArray(task.repositories) && task.repositories?.some(repo => repoFilter.includes(repo)) || false);
+        const statusMatch = statusFilter.length === 0 || statusFilter.includes(task.status);
+        const repoMatch = repoFilter.length === 0 || (Array.isArray(task.repositories) && task.repositories?.some(repo => repoFilter.includes(repo)) || false);
+        const tagsMatch = tagsFilter.length === 0 || (task.tags?.some(tag => tagsFilter.includes(tag)) ?? false);
 
-    const tagsMatch = tagsFilter.length === 0 || (task.tags?.some(tag => tagsFilter.includes(tag)) ?? false);
+        const developersById = new Map(developers.map(d => [d.id, d.name]));
+        const testersById = new Map(testers.map(t => [t.id, t.name]));
 
-    const developersById = new Map(developers.map(d => [d.id, d.name]));
-    const testersById = new Map(testers.map(t => [t.id, t.name]));
+        const searchMatch =
+        searchQuery.trim() === '' ||
+        fuzzySearch(searchQuery, task.title) ||
+        fuzzySearch(searchQuery, task.description) ||
+        fuzzySearch(searchQuery, task.id) ||
+        (task.azureWorkItemId && fuzzySearch(searchQuery, task.azureWorkItemId)) ||
+        task.developers?.some((devId) => fuzzySearch(searchQuery, developersById.get(devId) || '')) ||
+        task.testers?.some((testerId) => fuzzySearch(searchQuery, testersById.get(testerId) || '')) ||
+        (Array.isArray(task.repositories) && task.repositories?.some((repo) => fuzzySearch(searchQuery, repo)));
 
-    const searchMatch =
-      searchQuery.trim() === '' ||
-      fuzzySearch(searchQuery, task.title) ||
-      fuzzySearch(searchQuery, task.description) ||
-      fuzzySearch(searchQuery, task.id) ||
-      (task.azureWorkItemId && fuzzySearch(searchQuery, task.azureWorkItemId)) ||
-      task.developers?.some((devId) => fuzzySearch(searchQuery, developersById.get(devId) || '')) ||
-      task.testers?.some((testerId) => fuzzySearch(searchQuery, testersById.get(testerId) || '')) ||
-      (Array.isArray(task.repositories) && task.repositories?.some((repo) => fuzzySearch(searchQuery, repo)));
+        const dateMatch = (() => {
+        if (dateView === 'all') return true;
+        if (dateView === 'monthly') {
+            if (!task.devStartDate) return false;
+            const taskDate = new Date(task.devStartDate);
+            const start = startOfMonth(selectedDate);
+            const end = endOfMonth(selectedDate);
+            return taskDate >= start && taskDate <= end;
+        }
+        if (dateView === 'yearly') {
+            if (!task.devStartDate) return false;
+            const taskDate = new Date(task.devStartDate);
+            const start = startOfYear(selectedDate);
+            const end = endOfYear(selectedDate);
+            return taskDate >= start && taskDate <= end;
+        }
+        return true;
+        })();
+        
+        const deploymentMatch = deploymentFilter.length === 0 || deploymentFilter.every(filter => {
+        const isNegative = filter.startsWith('not_');
+        const env = isNegative ? filter.substring(4) : filter;
+        const isDeployed = task.deploymentStatus?.[env] ?? false;
+        return isNegative ? !isDeployed : isDeployed;
+        });
 
-    const dateMatch = (() => {
-      if (dateView === 'all') {
-          return true; // The 'all' view has no date filter itself
-      }
-      if (dateView === 'monthly') {
-          if (!task.devStartDate) return false;
-          const taskDate = new Date(task.devStartDate);
-          const start = startOfMonth(selectedDate);
-          const end = endOfMonth(selectedDate);
-          return taskDate >= start && taskDate <= end;
-      }
-      if (dateView === 'yearly') {
-          if (!task.devStartDate) return false;
-          const taskDate = new Date(task.devStartDate);
-          const start = startOfYear(selectedDate);
-          const end = endOfYear(selectedDate);
-          return taskDate >= start && taskDate <= end;
-      }
-      return true;
-    })();
-    
-    const deploymentMatch = deploymentFilter.length === 0 || deploymentFilter.every(filter => {
-      const isNegative = filter.startsWith('not_');
-      const env = isNegative ? filter.substring(4) : filter;
-      const isDeployed = task.deploymentStatus?.[env] ?? false;
-      return isNegative ? !isDeployed : isDeployed;
+        return statusMatch && repoMatch && searchMatch && dateMatch && deploymentMatch && tagsMatch;
     });
+  }, [tasks, statusFilter, repoFilter, tagsFilter, developers, testers, searchQuery, dateView, selectedDate, deploymentFilter, favoritesOnly]);
 
-    return statusMatch && repoMatch && searchMatch && dateMatch && deploymentMatch && tagsMatch;
-  });
+  const sortedTasks = useMemo(() => {
+    return [...filteredTasks].sort((a, b) => {
+        const [sortBy, sortDirection] = sortDescriptor.split('-');
+        const taskStatuses = uiConfig?.taskStatuses || [];
 
-  const sortedTasks = [...filteredTasks].sort((a, b) => {
-    const [sortBy, sortDirection] = sortDescriptor.split('-');
-    const taskStatuses = uiConfig?.taskStatuses || [];
-
-    if (sortBy === 'title') {
-      if (sortDirection === 'asc') {
-        return a.title.localeCompare(b.title);
-      } else {
+        if (sortBy === 'title') {
+        if (sortDirection === 'asc') return a.title.localeCompare(b.title);
         return b.title.localeCompare(a.title);
-      }
-    }
+        }
 
-    if (sortBy === 'status') {
-      const aIndex = taskStatuses.indexOf(a.status);
-      const bIndex = taskStatuses.indexOf(b.status);
-      if (sortDirection === 'asc') {
-        return aIndex - bIndex;
-      } else {
-        return bIndex - aIndex;
-      }
-    }
+        if (sortBy === 'status') {
+        const aIndex = taskStatuses.indexOf(a.status);
+        const bIndex = taskStatuses.indexOf(b.status);
+        return sortDirection === 'asc' ? aIndex - bIndex : bIndex - aIndex;
+        }
 
-    if (sortBy === 'deployment') {
-      const scoreA = getDeploymentScore(a);
-      const scoreB = getDeploymentScore(b);
-      const aIndex = taskStatuses.indexOf(a.status); // Fallback for equal scores
+        if (sortBy === 'deployment') {
+        const scoreA = getDeploymentScore(a);
+        const scoreB = getDeploymentScore(b);
+        return sortDirection === 'asc' ? scoreA - scoreB : scoreB - scoreA;
+        }
 
-      if (sortDirection === 'asc') {
-        return scoreA - scoreB;
-      } else {
-        return scoreB - aIndex;
-      }
-    }
-
-    return 0;
-  });
+        return 0;
+    });
+  }, [filteredTasks, sortDescriptor, uiConfig]);
 
   const handleExport = useCallback((exportType: 'current_view' | 'all_tasks') => {
     const allDevelopers = getDevelopers();
@@ -475,18 +466,22 @@ export default function Home() {
     refreshData();
     setIsLoading(false);
     
-    const storageHandler = () => refreshData();
+    const storageHandler = (event: StorageEvent) => {
+        if (event.key === DATA_KEY) {
+            refreshData();
+        }
+    };
 
     window.addEventListener('storage', storageHandler);
-    window.addEventListener('config-changed', storageHandler);
-    window.addEventListener('company-changed', storageHandler);
+    window.addEventListener('config-changed', refreshData);
+    window.addEventListener('company-changed', refreshData);
     
     return () => {
       window.removeEventListener('storage', storageHandler);
-      window.removeEventListener('config-changed', storageHandler);
-      window.removeEventListener('company-changed', storageHandler);
+      window.removeEventListener('config-changed', refreshData);
+      window.removeEventListener('company-changed', refreshData);
     };
-  }, [activeCompanyId, toast]);
+  }, [activeCompanyId, toast, refreshData]);
   
   // Single effect for automatic backup logic
   useEffect(() => {

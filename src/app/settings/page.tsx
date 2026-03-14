@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { getUiConfig, updateUiConfig, addEnvironment, updateEnvironment, deleteEnvironment, getDevelopers, getTesters, DATA_KEY, getAuthMode, setAuthMode } from '@/lib/data';
 import type { UiConfig, FieldConfig, RepositoryConfig, Person, BackupFrequency, Environment, AuthMode } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -36,6 +36,64 @@ import { AuthModal } from '@/components/auth-modal';
 import { useFirebase } from '@/firebase';
 import { signOut } from 'firebase/auth';
 
+const FieldRow = React.memo(({ 
+    field, 
+    isActiveList, 
+    onOpenDialog, 
+    onToggleActive, 
+    onDeleteField, 
+    onDragStart, 
+    onDragOver, 
+    onDragLeave, 
+    onDrop 
+}: { 
+    field: FieldConfig, 
+    isActiveList: boolean, 
+    onOpenDialog: (f: FieldConfig) => void,
+    onToggleActive: (id: string) => void,
+    onDeleteField: (id: string) => void,
+    onDragStart: (e: React.DragEvent, id: string) => void,
+    onDragOver: (e: React.DragEvent) => void,
+    onDragLeave: (e: React.DragEvent) => void,
+    onDrop: (e: React.DragEvent, f: FieldConfig) => void
+}) => {
+    const protectedDateFields = ['devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate'];
+    const isToggleDisabled = field.isRequired || protectedDateFields.includes(field.key);
+
+    return (
+        <div 
+          key={field.id}
+          draggable={isActiveList && !field.isRequired}
+          onDragStart={e => onDragStart(e, field.id)}
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+          onDrop={e => onDrop(e, field)}
+          className={cn("flex items-center gap-4 p-3 pr-2 border rounded-lg bg-card transition-all group", (isActiveList && !field.isRequired) && "hover:bg-muted/50 hover:shadow-sm cursor-grab active:cursor-grabbing")}
+        >
+            {(isActiveList && !field.isRequired) ? <GripVertical className="h-5 w-5 text-muted-foreground" /> : <div className="w-5 h-5" />}
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
+                <span className="font-medium text-foreground">{field.label} {field.isRequired && <span className="text-destructive">*</span>}</span>
+                <Badge variant="outline" className="w-fit">{field.type}</Badge>
+                <span className="text-sm text-muted-foreground">{field.group}</span>
+            </div>
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpenDialog(field)}><Edit className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onToggleActive(field.id)} disabled={isToggleDisabled} title={isToggleDisabled ? "This field cannot be deactivated" : (isActiveList ? 'Deactivate' : 'Activate')}>
+                    {field.isActive ? <ToggleRight className="h-5 w-5 text-primary" /> : <ToggleLeft className="h-5 w-5 text-muted-foreground"/>}
+                </Button>
+                {field.isCustom && (
+                    <AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader><AlertDialogTitle>Delete Custom Field?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the "{field.label}" field and all associated data from your tasks. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => onDeleteField(field.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction></AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                )}
+            </div>
+        </div>
+    );
+});
+FieldRow.displayName = 'FieldRow';
 
 export default function SettingsPage() {
   const { auth, user } = useFirebase();
@@ -89,7 +147,7 @@ export default function SettingsPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const refreshData = () => {
+  const refreshData = React.useCallback(() => {
     const loadedConfig = getUiConfig();
     setConfig(loadedConfig);
     setDevelopers(getDevelopers());
@@ -102,23 +160,29 @@ export default function SettingsPage() {
     setAutoBackupTime(loadedConfig.autoBackupTime ?? 6);
     setTimeFormat(loadedConfig.timeFormat || '12h');
     setAuthModeState(getAuthMode());
-  }
+  }, []);
 
   useEffect(() => {
     const loadedConfig = getUiConfig();
     document.title = `Settings | ${loadedConfig.appName || 'My Task Manager'}`;
     refreshData();
 
-    window.addEventListener('storage', refreshData);
+    const storageHandler = (e: StorageEvent) => {
+        if (e.key === DATA_KEY) {
+            refreshData();
+        }
+    }
+
+    window.addEventListener('storage', storageHandler);
     window.addEventListener('config-changed', refreshData);
     window.addEventListener('company-changed', refreshData);
 
     return () => {
-        window.removeEventListener('storage', refreshData);
+        window.removeEventListener('storage', storageHandler);
         window.removeEventListener('config-changed', refreshData);
         window.removeEventListener('company-changed', refreshData);
     };
-  }, []);
+  }, [refreshData]);
   
   const handleToggleActive = (fieldId: string) => {
     if (!config) return;
@@ -221,7 +285,12 @@ export default function SettingsPage() {
     });
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>, targetField: FieldConfig) => {
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('fieldId', id);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetField: FieldConfig) => {
     const draggedFieldId = e.dataTransfer.getData('fieldId');
     const dropTarget = e.currentTarget;
     dropTarget.classList.remove('drag-over-top', 'drag-over-bottom');
@@ -254,9 +323,9 @@ export default function SettingsPage() {
     });
   };
 
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    const dropTarget = e.currentTarget;
+    const dropTarget = e.currentTarget as HTMLDivElement;
     const rect = dropTarget.getBoundingClientRect();
     const midpoint = rect.top + rect.height / 2;
 
@@ -269,8 +338,8 @@ export default function SettingsPage() {
     }
   };
 
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.currentTarget.classList.remove('drag-over-top', 'drag-over-bottom');
+  const handleDragLeave = (e: React.DragEvent) => {
+    (e.currentTarget as HTMLDivElement).classList.remove('drag-over-top', 'drag-over-bottom');
   };
 
   const handleRenameGroup = (oldName: string, newName: string) => {
@@ -444,7 +513,7 @@ export default function SettingsPage() {
     if (newMode === 'authenticate') {
       setIsAuthModalOpen(true);
     } else {
-      // confirm logout handled via alert dialog below
+      // confirmed via dialog
     }
   };
 
@@ -592,47 +661,6 @@ export default function SettingsPage() {
     setTesters(getTesters());
   }
 
-  const renderFieldRow = (field: FieldConfig, isActiveList: boolean) => {
-    const protectedDateFields = ['devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate'];
-    const isToggleDisabled = field.isRequired || protectedDateFields.includes(field.key);
-
-    return (
-        <div 
-          key={field.id}
-          draggable={isActiveList && !field.isRequired}
-          onDragStart={e => {
-            if (field.isRequired) { e.preventDefault(); return; }
-            e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('fieldId', field.id);
-          }}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={e => handleDrop(e, field)}
-          className={cn("flex items-center gap-4 p-3 pr-2 border rounded-lg bg-card transition-all group", (isActiveList && !field.isRequired) && "hover:bg-muted/50 hover:shadow-sm cursor-grab active:cursor-grabbing")}
-        >
-            {(isActiveList && !field.isRequired) ? <GripVertical className="h-5 w-5 text-muted-foreground" /> : <div className="w-5 h-5" />}
-            <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
-                <span className="font-medium text-foreground">{field.label} {field.isRequired && <span className="text-destructive">*</span>}</span>
-                <Badge variant="outline" className="w-fit">{field.type}</Badge>
-                <span className="text-sm text-muted-foreground">{field.group}</span>
-            </div>
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100">
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenDialog(field)}><Edit className="h-4 w-4" /></Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleToggleActive(field.id)} disabled={isToggleDisabled} title={isToggleDisabled ? "This field cannot be deactivated" : (isActiveList ? 'Deactivate' : 'Activate')}>
-                    {field.isActive ? <ToggleRight className="h-5 w-5 text-primary" /> : <ToggleLeft className="h-5 w-5 text-muted-foreground"/>}
-                </Button>
-                {field.isCustom && (
-                    <AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>Delete Custom Field?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the "{field.label}" field and all associated data from your tasks. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
-                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteField(field.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction></AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
-                )}
-            </div>
-        </div>
-    )
-  };
-
   const renderFieldList = (groupedFields: Record<string, FieldConfig[]>, isActiveList: boolean) => (
       <div className="space-y-6">
         {Object.keys(groupedFields).sort().map(groupName => (
@@ -649,7 +677,22 @@ export default function SettingsPage() {
                        <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover/header:opacity-100 focus-within:opacity-100 transition-opacity" onClick={() => { setEditingGroup(groupName); setEditingGroupText(groupName); }}><Edit className="h-4 w-4"/></Button>
                    </div>
                 )}
-                <div className="space-y-2">{groupedFields[groupName].map(field => renderFieldRow(field, isActiveList))}</div>
+                <div className="space-y-2">
+                    {groupedFields[groupName].map(field => (
+                        <FieldRow 
+                            key={field.id}
+                            field={field} 
+                            isActiveList={isActiveList}
+                            onOpenDialog={handleOpenDialog}
+                            onToggleActive={handleToggleActive}
+                            onDeleteField={handleDeleteField}
+                            onDragStart={handleDragStart}
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            onDrop={handleDrop}
+                        />
+                    ))}
+                </div>
             </div>
         ))}
         {Object.keys(groupedFields).length === 0 && <p className="text-muted-foreground text-center py-4">No fields match your search in this section.</p>}

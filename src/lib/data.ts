@@ -52,6 +52,97 @@ const getInitialData = (): MyTaskManagerData => {
     };
 };
 
+function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): UiConfig {
+    const defaultConfig: UiConfig = {
+        fields: INITIAL_UI_CONFIG,
+        environments: [...ENVIRONMENTS],
+        repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
+        taskStatuses: [...TASK_STATUSES],
+        appName: 'My Task Manager',
+        appIcon: null,
+        remindersEnabled: true,
+        tutorialEnabled: true,
+        timeFormat: '12h',
+        autoBackupFrequency: 'weekly',
+        autoBackupTime: 6,
+        currentVersion: '1.1.0',
+        authenticationMode: 'localStorage',
+    };
+
+    if (!savedConfig || typeof savedConfig !== 'object') {
+        return cloneDeep(defaultConfig);
+    }
+
+    const resultConfig = cloneDeep(defaultConfig);
+
+    if (Array.isArray(savedConfig.environments)) resultConfig.environments = cloneDeep(savedConfig.environments);
+    if (Array.isArray(savedConfig.repositoryConfigs)) resultConfig.repositoryConfigs = cloneDeep(savedConfig.repositoryConfigs);
+    
+    resultConfig.taskStatuses = [...TASK_STATUSES];
+    
+    resultConfig.appName = savedConfig.appName || defaultConfig.appName;
+    resultConfig.appIcon = savedConfig.appIcon === undefined ? defaultConfig.appIcon : savedConfig.appIcon;
+    resultConfig.remindersEnabled = savedConfig.remindersEnabled ?? defaultConfig.remindersEnabled;
+    resultConfig.tutorialEnabled = savedConfig.tutorialEnabled ?? defaultConfig.tutorialEnabled;
+    resultConfig.timeFormat = savedConfig.timeFormat || defaultConfig.timeFormat;
+    resultConfig.currentVersion = savedConfig.currentVersion || defaultConfig.currentVersion;
+    resultConfig.authenticationMode = savedConfig.authenticationMode || defaultConfig.authenticationMode;
+    
+    if (typeof (savedConfig as any).autoBackupEnabled === 'boolean') {
+        resultConfig.autoBackupFrequency = (savedConfig as any).autoBackupEnabled ? 'weekly' : 'off';
+    } else {
+        resultConfig.autoBackupFrequency = savedConfig.autoBackupFrequency || defaultConfig.autoBackupFrequency;
+    }
+    resultConfig.autoBackupTime = savedConfig.autoBackupTime ?? defaultConfig.autoBackupTime;
+    
+    if (Array.isArray(savedConfig.fields)) {
+        const finalFields: FieldConfig[] = [];
+        const savedFieldsMap = new Map((savedConfig.fields).map(f => [f.key, f]));
+
+        defaultConfig.fields.forEach(defaultField => {
+            const savedField = savedFieldsMap.get(defaultField.key);
+            if (savedField) {
+                finalFields.push({ ...defaultField, ...savedField });
+                savedFieldsMap.delete(defaultField.key);
+            } else {
+                finalFields.push(defaultField);
+            }
+        });
+
+        savedFieldsMap.forEach(customField => {
+            if (customField.isCustom) {
+                finalFields.push(customField);
+            }
+        });
+        resultConfig.fields = finalFields;
+    }
+    
+    const statusField = resultConfig.fields.find(f => f.key === 'status');
+    if (statusField) {
+        statusField.options = resultConfig.taskStatuses.map(s => ({ id: s, value: s, label: s }));
+    }
+    const repoField = resultConfig.fields.find(f => f.key === 'repositories');
+    if (repoField) {
+        repoField.options = resultConfig.repositoryConfigs.map(r => ({ id: r.id, value: r.name, label: r.name }));
+    }
+    const relevantEnvsField = resultConfig.fields.find(f => f.key === 'relevantEnvironments');
+    if (relevantEnvsField) {
+        relevantEnvsField.options = resultConfig.environments.map(e => ({ id: e.id, value: e.name, label: e.name }));
+    }
+    
+    resultConfig.fields
+        .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
+        .forEach((field, index) => {
+            field.order = index;
+            const isSortable = ['select', 'multiselect', 'tags'].includes(field.type) && field.key !== 'status';
+            if (isSortable && !field.sortDirection) {
+                field.sortDirection = 'manual';
+            }
+        });
+
+    return resultConfig;
+}
+
 export const getAppData = (): MyTaskManagerData => {
     if (typeof window === 'undefined') {
         const defaultConfig: UiConfig = { 
@@ -98,19 +189,31 @@ export const getAppData = (): MyTaskManagerData => {
         if (!data.companies || !data.companyData || data.companies.length === 0) {
             throw new Error("Invalid core data structure, resetting.");
         }
+        
+        let needsUpdate = false;
+        
         // Migration for existing users
         Object.values(data.companyData).forEach(company => {
-            if (!company.trash) company.trash = [];
-            if (!company.logs) company.logs = [];
-            if (!company.generalReminders) company.generalReminders = [];
-            if (!company.notes) company.notes = [];
-            if (!company.releaseUpdates) company.releaseUpdates = [...INITIAL_RELEASES];
-            if (!company.uiConfig.currentVersion) company.uiConfig.currentVersion = '1.1.0';
-            if (!company.uiConfig.authenticationMode) company.uiConfig.authenticationMode = 'localStorage';
+            if (!company.trash) { company.trash = []; needsUpdate = true; }
+            if (!company.logs) { company.logs = []; needsUpdate = true; }
+            if (!company.generalReminders) { company.generalReminders = []; needsUpdate = true; }
+            if (!company.notes) { company.notes = []; needsUpdate = true; }
+            if (!company.releaseUpdates) { company.releaseUpdates = [...INITIAL_RELEASES]; needsUpdate = true; }
             
-            company.developers.forEach(p => { if (!p.additionalFields) p.additionalFields = []; });
-            company.testers.forEach(p => { if (!p.additionalFields) p.additionalFields = []; });
+            const validatedConfig = _validateAndMigrateConfig(company.uiConfig);
+            if (JSON.stringify(validatedConfig) !== JSON.stringify(company.uiConfig)) {
+                company.uiConfig = validatedConfig;
+                needsUpdate = true;
+            }
+            
+            company.developers.forEach(p => { if (!p.additionalFields) { p.additionalFields = []; needsUpdate = true; } });
+            company.testers.forEach(p => { if (!p.additionalFields) { p.additionalFields = []; needsUpdate = true; } });
         });
+
+        if (needsUpdate) {
+            window.localStorage.setItem(DATA_KEY, JSON.stringify(data));
+        }
+
         return data;
     } catch (e) {
         console.error(`Error with localStorage data, resetting:`, e);
@@ -262,97 +365,6 @@ export function setActiveCompanyId(id: string) {
         data.activeCompanyId = id;
         setAppData(data);
     }
-}
-
-function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): UiConfig {
-    const defaultConfig: UiConfig = {
-        fields: INITIAL_UI_CONFIG,
-        environments: [...ENVIRONMENTS],
-        repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
-        taskStatuses: [...TASK_STATUSES],
-        appName: 'My Task Manager',
-        appIcon: null,
-        remindersEnabled: true,
-        tutorialEnabled: true,
-        timeFormat: '12h',
-        autoBackupFrequency: 'weekly',
-        autoBackupTime: 6,
-        currentVersion: '1.1.0',
-        authenticationMode: 'localStorage',
-    };
-
-    if (!savedConfig || typeof savedConfig !== 'object') {
-        return cloneDeep(defaultConfig);
-    }
-
-    const resultConfig = cloneDeep(defaultConfig);
-
-    if (Array.isArray(savedConfig.environments)) resultConfig.environments = cloneDeep(savedConfig.environments);
-    if (Array.isArray(savedConfig.repositoryConfigs)) resultConfig.repositoryConfigs = cloneDeep(savedConfig.repositoryConfigs);
-    
-    resultConfig.taskStatuses = [...TASK_STATUSES];
-    
-    resultConfig.appName = savedConfig.appName || defaultConfig.appName;
-    resultConfig.appIcon = savedConfig.appIcon === undefined ? defaultConfig.appIcon : savedConfig.appIcon;
-    resultConfig.remindersEnabled = savedConfig.remindersEnabled ?? defaultConfig.remindersEnabled;
-    resultConfig.tutorialEnabled = savedConfig.tutorialEnabled ?? defaultConfig.tutorialEnabled;
-    resultConfig.timeFormat = savedConfig.timeFormat || defaultConfig.timeFormat;
-    resultConfig.currentVersion = savedConfig.currentVersion || defaultConfig.currentVersion;
-    resultConfig.authenticationMode = savedConfig.authenticationMode || defaultConfig.authenticationMode;
-    
-    if (typeof (savedConfig as any).autoBackupEnabled === 'boolean') {
-        resultConfig.autoBackupFrequency = (savedConfig as any).autoBackupEnabled ? 'weekly' : 'off';
-    } else {
-        resultConfig.autoBackupFrequency = savedConfig.autoBackupFrequency || defaultConfig.autoBackupFrequency;
-    }
-    resultConfig.autoBackupTime = savedConfig.autoBackupTime ?? defaultConfig.autoBackupTime;
-    
-    if (Array.isArray(savedConfig.fields)) {
-        const finalFields: FieldConfig[] = [];
-        const savedFieldsMap = new Map((savedConfig.fields).map(f => [f.key, f]));
-
-        defaultConfig.fields.forEach(defaultField => {
-            const savedField = savedFieldsMap.get(defaultField.key);
-            if (savedField) {
-                finalFields.push({ ...defaultField, ...savedField });
-                savedFieldsMap.delete(defaultField.key);
-            } else {
-                finalFields.push(defaultField);
-            }
-        });
-
-        savedFieldsMap.forEach(customField => {
-            if (customField.isCustom) {
-                finalFields.push(customField);
-            }
-        });
-        resultConfig.fields = finalFields;
-    }
-    
-    const statusField = resultConfig.fields.find(f => f.key === 'status');
-    if (statusField) {
-        statusField.options = resultConfig.taskStatuses.map(s => ({ id: s, value: s, label: s }));
-    }
-    const repoField = resultConfig.fields.find(f => f.key === 'repositories');
-    if (repoField) {
-        repoField.options = resultConfig.repositoryConfigs.map(r => ({ id: r.id, value: r.name, label: r.name }));
-    }
-    const relevantEnvsField = resultConfig.fields.find(f => f.key === 'relevantEnvironments');
-    if (relevantEnvsField) {
-        relevantEnvsField.options = resultConfig.environments.map(e => ({ id: e.id, value: e.name, label: e.name }));
-    }
-    
-    resultConfig.fields
-        .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
-        .forEach((field, index) => {
-            field.order = index;
-            const isSortable = ['select', 'multiselect', 'tags'].includes(field.type) && field.key !== 'status';
-            if (isSortable && !field.sortDirection) {
-                field.sortDirection = 'manual';
-            }
-        });
-
-    return resultConfig;
 }
 
 const generateUiConfigUpdateLogs = (oldConfig: UiConfig, newConfig: UiConfig): string | null => {
@@ -521,14 +533,7 @@ export function getUiConfig(): UiConfig {
         return _validateAndMigrateConfig(undefined);
     }
 
-    const validatedConfig = _validateAndMigrateConfig(companyData.uiConfig);
-
-    if (JSON.stringify(validatedConfig) !== JSON.stringify(companyData.uiConfig)) {
-        companyData.uiConfig = validatedConfig;
-        setAppData(data);
-    }
-    
-    return validatedConfig;
+    return companyData.uiConfig;
 }
 
 export function updateUiConfig(newConfig: UiConfig, fromImport: boolean = false): UiConfig {
@@ -676,8 +681,8 @@ export function updateEnvironment(oldName: string, updatedEnv: Environment): boo
         return false;
     }
 
-    const trimmedName = updatedEnv.name.trim();
-    if (trimmedName === '') return false;
+    const trimmedNewName = updatedEnv.name.trim();
+    if (trimmedNewName === '') return false;
 
     const envIndex = companyData.uiConfig.environments.findIndex(e => e.name === oldName);
     if (envIndex === -1) return false;
