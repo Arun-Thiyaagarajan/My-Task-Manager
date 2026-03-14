@@ -41,6 +41,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ProfileImageCropper } from '@/components/profile-image-cropper';
 import { ImagePreviewDialog } from '@/components/image-preview-dialog';
+import { PhoneInput } from '@/components/ui/phone-input';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -139,7 +140,6 @@ export default function ProfilePage() {
 
       // Update Auth Profile
       // To avoid "Photo URL too long" error, we only save the display name to Auth if the photo is a Base64 string.
-      // We explicitly set photoURL to null if it was removed, or an empty string if it's a DataURI handled by Firestore.
       const authUpdates: { displayName: string; photoURL: string | null } = { 
         displayName,
         photoURL: null 
@@ -148,17 +148,14 @@ export default function ProfilePage() {
       if (photoURL && !isDataURI(photoURL)) {
           authUpdates.photoURL = photoURL;
       } else if (photoURL && isDataURI(photoURL)) {
-          // If it's a data URI, we set it to empty string in Auth to prevent the length error.
-          // Components check userProfile.photoURL as the primary source.
           authUpdates.photoURL = "";
       } else {
-          // photoURL is null, Auth photoURL remains null to clear it.
           authUpdates.photoURL = null;
       }
 
       await updateProfile(user, authUpdates);
       
-      // Update Firestore Profile (this has no length limit for Base64 strings)
+      // Update Firestore Profile
       const userRef = doc(firestore, 'users', user.uid);
       await setDoc(userRef, {
         id: user.uid,
@@ -442,16 +439,11 @@ export default function ProfilePage() {
 
                         <div className="grid gap-2">
                             <Label htmlFor="phone" className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Phone Number</Label>
-                            <div className="relative group">
-                                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                                <Input 
-                                id="phone" 
-                                className="pl-10 h-11" 
-                                value={phone} 
-                                onChange={(e) => setPhone(e.target.value)} 
-                                placeholder="+1 234 567 8900"
-                                />
-                            </div>
+                            <PhoneInput 
+                              value={phone}
+                              onChange={setPhone}
+                              placeholder="Phone number"
+                            />
                         </div>
                     </div>
                   </CardContent>

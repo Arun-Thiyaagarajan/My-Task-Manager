@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -30,6 +29,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Eye, EyeOff, Mail, Lock, Phone, User, Chrome, ArrowRight, ShieldCheck } from 'lucide-react';
 import { OtpInput } from './otp-input';
 import { useFirebase } from '@/firebase';
+import { PhoneInput } from '@/components/ui/phone-input';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -291,23 +291,17 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
               <form onSubmit={handlePhoneSignIn} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number</Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      id="phone" 
-                      type="tel" 
-                      className="pl-10" 
-                      placeholder="+1 234 567 8900" 
-                      value={phone} 
-                      onChange={(e) => setPhone(e.target.value)} 
-                      required 
-                    />
-                  </div>
+                  <PhoneInput 
+                    value={phone}
+                    onChange={setPhone}
+                    placeholder="Enter phone number"
+                    disabled={isLoading}
+                  />
                   <p className="text-[10px] text-muted-foreground px-1">
-                    Include country code (e.g. +1). reCAPTCHA verification will apply.
+                    Select your country and enter your national number. reCAPTCHA verification will apply.
                   </p>
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoading || !phone}>
+                <Button type="submit" className="w-full" disabled={isLoading || !phone || phone.length < 5}>
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Send OTP Code
                 </Button>
