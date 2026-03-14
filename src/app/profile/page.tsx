@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -268,9 +267,9 @@ export default function ProfilePage() {
                 <input type="file" ref={fileInputRef} onChange={handleImageSelect} className="hidden" accept="image/*" />
               </div>
               
-              <div className="mt-4 space-y-1">
-                <h2 className="text-xl font-bold tracking-tight text-foreground">{profileName}</h2>
-                <p className="text-[11px] text-muted-foreground font-medium truncate px-4">{user.email}</p>
+              <div className="mt-4 space-y-1 overflow-hidden">
+                <h2 className="text-xl font-bold tracking-tight text-foreground truncate px-4" title={profileName}>{profileName}</h2>
+                <p className="text-[11px] text-muted-foreground font-medium truncate px-4" title={user.email || ''}>{user.email}</p>
               </div>
               
               <div className="mt-6 flex flex-col items-center gap-3">
@@ -339,7 +338,7 @@ export default function ProfilePage() {
                         <AlertTitle className="font-bold">Verification Required</AlertTitle>
                         <AlertDescription className="flex items-center justify-between gap-2 mt-1">
                           <span>Please verify your email address to ensure account security.</span>
-                          <Button variant="link" onClick={handleVerifyEmail} className="h-auto p-0 text-xs font-bold underline cursor-pointer">Resend Link</Button>
+                          <Button variant="link" onClick={handleVerifyEmail} type="button" className="h-auto p-0 text-xs font-bold underline cursor-pointer">Resend Link</Button>
                         </AlertDescription>
                       </Alert>
                     )}
