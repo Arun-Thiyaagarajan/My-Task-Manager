@@ -360,10 +360,6 @@ export function Header() {
                         <UserIcon className="mr-2 h-4 w-4" />
                         <span>My Profile</span>
                       </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => prompt(() => router.push('/profile?tab=security'))}>
-                        <Lock className="mr-2 h-4 w-4" />
-                        <span>Change Password</span>
-                      </DropdownMenuItem>
                     </>
                   ) : (
                     <DropdownMenuItem onSelect={() => setIsAuthModalOpen(true)}>
@@ -379,33 +375,8 @@ export function Header() {
                       <LogOut className="mr-2 h-4 w-4" />
                       <span>Sign Out</span>
                     </DropdownMenuItem>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                          <Smartphone className="mr-2 h-4 w-4" />
-                          <span>Switch to Local Mode</span>
-                        </DropdownMenuItem>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Return to Local Mode?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Switching to Local Storage mode will log you out. Your cloud data will remain secure on our servers.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleSignOut}>Continue</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
                   </>
-                ) : (
-                  <DropdownMenuItem onSelect={() => setIsAuthModalOpen(true)}>
-                    <Database className="mr-2 h-4 w-4" />
-                    <span>Switch to Cloud Sync</span>
-                  </DropdownMenuItem>
-                )}
+                ) : (<></>)}
               </DropdownMenuContent>
             </DropdownMenu>
 

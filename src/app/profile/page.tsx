@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -94,7 +93,8 @@ export default function ProfilePage() {
       setPhone(user.phoneNumber || '');
       
       // Use Firestore profile for photo if available, fallback to Auth
-      const avatar = userProfile?.photoURL || user.photoURL;
+      const authPhoto = user.photoURL === "" ? null : user.photoURL;
+      const avatar = userProfile?.photoURL || authPhoto;
       setPhotoURL(avatar);
     }
   }, [user, isUserLoading, userProfile, router]);
@@ -265,6 +265,17 @@ export default function ProfilePage() {
   if (!user) return null;
 
   const profileName = displayName || user.email || 'User';
+
+  // Smart change detection
+  const authPhoto = user.photoURL === "" ? null : user.photoURL;
+  const currentSavedPhoto = userProfile?.photoURL || authPhoto || null;
+  const currentSavedName = user.displayName || '';
+  const currentSavedPhone = user.phoneNumber || '';
+
+  const hasChanges = 
+    displayName !== currentSavedName || 
+    phone !== currentSavedPhone || 
+    photoURL !== currentSavedPhoto;
 
   return (
     <div className="container max-w-4xl mx-auto py-10 px-4">
@@ -445,7 +456,7 @@ export default function ProfilePage() {
                     </div>
                   </CardContent>
                   <CardFooter className="bg-muted/30 border-t flex justify-end px-6 py-4">
-                    <Button type="submit" disabled={isUpdating} className="px-8 cursor-pointer">
+                    <Button type="submit" disabled={isUpdating || !hasChanges} className="px-8 cursor-pointer">
                       {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Save Changes
                     </Button>
