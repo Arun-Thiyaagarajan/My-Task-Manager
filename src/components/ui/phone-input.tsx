@@ -106,14 +106,14 @@ export function PhoneInput({ value, onChange, placeholder, disabled, className }
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-[90px] px-2 justify-between shrink-0"
+            className="w-[100px] h-11 px-3 justify-between shrink-0"
             disabled={disabled}
           >
             <span className="flex items-center gap-2 overflow-hidden">
-              <span className="text-base">{ISO_TO_FLAG[country] || '🏳️'}</span>
-              <span className="text-xs font-bold">+{getCountryCallingCode(country)}</span>
+              <span className="text-lg">{ISO_TO_FLAG[country] || '🏳️'}</span>
+              <span className="text-sm font-medium">+{getCountryCallingCode(country)}</span>
             </span>
-            <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+            <ChevronsUpDown className="ml-1 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[300px] p-0" align="start">
