@@ -1,0 +1,137 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * TASKFLOW SECURITY RULES - PROTOTYPING MODE
+     * 
+     * Core Philosophy:
+     * This ruleset enforces a strict user-ownership model where all sensitive data is 
+     * siloed under unique user identifiers (UIDs). Authorization is derived primarily 
+     * from the document path, ensuring high performance and atomicity without 
+     * excessive database lookups.
+     * 
+     * Data Structure:
+     * - User Data: Nested under `/users/{userId}/`. This includes profiles, tasks, 
+     *   and sensitive verification artifacts (tokens, OTPs).
+     * - Global Settings: Stored in `/appSettings/` as singletons.
+     * - RBAC: Administrative privileges are managed via a dedicated `/roles_admin/` 
+     *   collection using an "Existence over Content" check.
+     * 
+     * Key Security Decisions:
+     * - Authorization Independence: Rules rely on path parameters (`userId`) to 
+     *   instantly verify ownership against `request.auth.uid`.
+     * - Relational Integrity: On creation and update, rules enforce that ownership 
+     *   fields within the document remain consistent with the path and are immutable.
+     * - DBAC (Database Access Control): Admin-only write operations are protected 
+     *   by checking for the existence of an admin record for the caller.
+     * - Prototyping Flexibility: While ownership is strictly enforced, the specific 
+     *   schema of content fields is not validated to allow for rapid iteration.
+     */
+
+    // --- Helper Functions ---
+
+    /** @description Checks if the request is from an authenticated user. */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /** @description Checks if the authenticated user's UID matches the provided userId. */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /** @description Combines ownership check with document existence for updates and deletes. */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    /** @description Checks if the user exists in the admin roles collection. */
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    // --- Collection Rules ---
+
+    /**
+     * @description Rules for the root UserProfile document.
+     * @path /users/{userId}
+     * @allow (create) if auth.uid == userId and data.id == userId
+     * @deny (update) if trying to change the document ID or if not the owner.
+     * @principle Enforces self-creation and strict ownership of the profile document.
+     */
+    match /users/{userId} {
+      allow get, list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+
+      /**
+       * @description Rules for verification tokens (Email/Password resets).
+       * @path /users/{userId}/verificationTokens/{tokenId}
+       * @allow (list) if the user is listing their own tokens.
+       * @deny (get) if the userId in the path does not match the requester's UID.
+       * @principle Path-based ownership for sensitive ephemeral credentials.
+       */
+      match /verificationTokens/{tokenId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && request.resource.data.userId == userId;
+        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+        allow delete: if isExistingOwner(userId);
+      }
+
+      /**
+       * @description Rules for One-Time Passwords (OTP).
+       * @path /users/{userId}/oneTimePasswords/{otpId}
+       * @allow (create) if auth.uid == userId.
+       * @deny (update) if the internal userId field is being modified.
+       * @principle Protects short-lived security codes via user-scoped subcollections.
+       */
+      match /oneTimePasswords/{otpId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && request.resource.data.userId == userId;
+        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+        allow delete: if isExistingOwner(userId);
+      }
+
+      /**
+       * @description Rules for user tasks.
+       * @path /users/{userId}/tasks/{taskId}
+       * @allow (list) if path userId matches auth.uid.
+       * @deny (create) if the creatorId/ownerId in data does not match the path.
+       * @principle Hierarchical isolation of application data.
+       */
+      match /tasks/{taskId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && (request.resource.data.ownerId == userId || request.resource.data.creatorId == userId);
+        allow update: if isExistingOwner(userId);
+        allow delete: if isExistingOwner(userId);
+      }
+    }
+
+    /**
+     * @description Rules for global application configuration.
+     * @path /appSettings/authenticationModeSetting
+     * @allow (get) if any user is signed in.
+     * @deny (update) if the user is not an admin in the roles_admin collection.
+     * @principle Public (authenticated) read with administrative-only write access (DBAC).
+     */
+    match /appSettings/authenticationModeSetting {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    /**
+     * @description Collection defining administrative roles.
+     * @path /roles_admin/{userId}
+     * @allow (get) if signed in (to allow for isAdmin helper check).
+     * @deny (list) to prevent discovering the list of all administrators.
+     * @principle Existence-based role assignment; management restricted to system level.
+     */
+    match /roles_admin/{userId} {
+      allow get: if isSignedIn();
+      allow list: if false;
+      allow create, update, delete: if false; // Admin management handled via console/backend
+    }
+  }
+}

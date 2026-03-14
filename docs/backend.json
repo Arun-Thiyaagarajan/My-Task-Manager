@@ -1,0 +1,272 @@
+{
+  "entities": {
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
+      "type": "object",
+      "description": "Represents a user's profile within the TaskFlow application, storing authentication-related details and linking to their data.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the UserProfile entity."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address, used as a login credential and for email verification.",
+          "format": "email"
+        },
+        "username": {
+          "type": "string",
+          "description": "The user's chosen username, which can be used as an alternative login credential."
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "The user's phone number, which can be used as a login credential and for OTP verification."
+        },
+        "emailVerified": {
+          "type": "boolean",
+          "description": "Indicates whether the user's email address has been successfully verified."
+        },
+        "phoneVerified": {
+          "type": "boolean",
+          "description": "Indicates whether the user's phone number has been successfully verified via OTP."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the user profile was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the user profile was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "VerificationToken": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "VerificationToken",
+      "type": "object",
+      "description": "Stores temporary tokens used for actions such as email verification, password reset, or linking social accounts.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the VerificationToken entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the UserProfile associated with this token. (Relationship: UserProfile 1:N VerificationToken)"
+        },
+        "token": {
+          "type": "string",
+          "description": "The unique, secret token string used for verification or resetting."
+        },
+        "type": {
+          "type": "string",
+          "description": "The purpose of the token (e.g., 'emailVerification', 'passwordReset')."
+        },
+        "expiresAt": {
+          "type": "string",
+          "description": "Timestamp indicating when this token expires and becomes invalid.",
+          "format": "date-time"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the verification token was generated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "token",
+        "type",
+        "expiresAt",
+        "createdAt"
+      ]
+    },
+    "OneTimePassword": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "OneTimePassword",
+      "type": "object",
+      "description": "Stores One-Time Passwords (OTPs) generated for phone number verification.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the OneTimePassword entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the UserProfile associated with this OTP. (Relationship: UserProfile 1:N OneTimePassword)"
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "The phone number to which the OTP was sent, matching the user's registered phone number."
+        },
+        "otpCode": {
+          "type": "string",
+          "description": "The numeric One-Time Password code sent to the user's phone."
+        },
+        "expiresAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the OTP expires and can no longer be used.",
+          "format": "date-time"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the OTP was generated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "phoneNumber",
+        "otpCode",
+        "expiresAt",
+        "createdAt"
+      ]
+    },
+    "ApplicationSetting": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ApplicationSetting",
+      "type": "object",
+      "description": "Stores global application-level settings that affect all users, such as the active authentication mode.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the ApplicationSetting entity. This should be a fixed string (e.g., 'authenticationModeSetting') as it's intended to be a singleton entity."
+        },
+        "authenticationMode": {
+          "type": "string",
+          "description": "The current active authentication mode for the application. Can be 'localStorage' (default) or 'authenticate'.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp indicating when this application setting was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "authenticationMode",
+        "updatedAt"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Stores individual user profiles. The `userId` in the path corresponds to `request.auth.uid` for ownership-based access control. Access is restricted to the user whose `userId` matches the document ID."
+        }
+      },
+      {
+        "path": "/users/{userId}/verificationTokens/{tokenId}",
+        "definition": {
+          "entityName": "VerificationToken",
+          "schema": {
+            "$ref": "#/backend/entities/VerificationToken"
+          },
+          "description": "Stores temporary tokens for email verification or password resets specific to a user. The `userId` in the path matches the `userId` field within the document for authorization independence. Access is restricted to the owner `userId` and tokens expire after a set time.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique ID of the user who owns this token."
+            },
+            {
+              "name": "tokenId",
+              "description": "The unique ID of the verification token."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/oneTimePasswords/{otpId}",
+        "definition": {
+          "entityName": "OneTimePassword",
+          "schema": {
+            "$ref": "#/backend/entities/OneTimePassword"
+          },
+          "description": "Stores One-Time Passwords for phone number verification specific to a user. The `userId` in the path matches the `userId` field within the document for authorization independence. Access is restricted to the owner `userId` and OTPs expire quickly.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique ID of the user who requested this OTP."
+            },
+            {
+              "name": "otpId",
+              "description": "The unique ID of the One-Time Password."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/tasks/{taskId}",
+        "definition": {
+          "entityName": "Task",
+          "schema": {
+            "$ref": "#/backend/entities/Task"
+          },
+          "description": "Stores tasks created and managed by a specific user. The `userId` in the path corresponds to the `ownerId` of the task for strong ownership and authorization independence. Includes task status, repository, Azure ID, and denormalized 'prLinks' object (with dev, stage, prod, others arrays) for efficient access and clear schema.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique ID of the user who owns this task."
+            },
+            {
+              "name": "taskId",
+              "description": "The unique ID of the task."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/appSettings/authenticationModeSetting",
+        "definition": {
+          "entityName": "ApplicationSetting",
+          "schema": {
+            "$ref": "#/backend/entities/ApplicationSetting"
+          },
+          "description": "Stores global application settings, specifically the active authentication mode. This is a singleton document with a fixed ID 'authenticationModeSetting'. Read access is granted to all authenticated users, while write access is restricted to administrators defined in the `/roles_admin` collection."
+        }
+      },
+      {
+        "path": "/roles_admin/{userId}",
+        "definition": {
+          "entityName": "AdminRole",
+          "schema": {
+            "$ref": "#/backend/entities/AdminRole"
+          },
+          "description": "Collection to define users with administrative privileges using Database Access Control (DBAC). The existence of a document at `/roles_admin/{userId}` grants the admin role to that `userId`, used to secure write access to global settings like `ApplicationSetting`.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique ID of the user designated as an administrator."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed following the core principles of Authorization Independence, Clarity of Intent, DBAC, and QAPs to ensure security, scalability, and debuggability for the TaskFlow application.\n\n**Authorization Independence (CRITICAL):**\nThis design prioritizes eliminating `get()` calls in Firestore security rules, which are prone to breaking atomic operations and complicate debugging. This is achieved primarily through:\n1.  **Path-Based Ownership:** For user-specific data such as `UserProfile`, `VerificationToken`, `OneTimePassword`, and `Task` entities, documents are nested under `/users/{userId}/`. In this structure, the `userId` is directly available in the path, allowing security rules to instantly verify `request.auth.uid == userId` without needing to fetch parent documents. This makes authorization checks atomic and highly efficient.\n2.  **Denormalized Authorization Fields:** While path-based ownership provides strong authorization, key authorization fields (e.g., `userId` in `VerificationToken` and `OneTimePassword`, and `ownerId` in `Task`) are also explicitly stored within the document itself. This redundancy further enhances authorization independence, providing an additional layer of clarity and enabling simpler client-side validation, even if not strictly necessary for server-side rule enforcement when the path itself defines ownership.\n3.  **Global Roles for DBAC:** For global settings like `ApplicationSetting`, write access is determined by checking the existence of a document in the `/roles_admin/{userId}` collection. This `exists()` check is an atomic operation and does not depend on data within the `ApplicationSetting` document itself, maintaining authorization independence.\n\n**QAPs (Rules are not Filters):**\nThe structure ensures that security rules do not act as data filters, guaranteeing efficient and secure `list` operations:\n1.  **User-Scoped Collections:** Collections like `/users/{userId}/tasks`, `/users/{userId}/verificationTokens`, and `/users/{userId}/oneTimePasswords` are inherently QAP-compliant. When a client performs a `list` query against `/users/{request.auth.uid}/tasks`, the security rules can directly enforce that `userId` in the path must match `request.auth.uid`. This ensures that a user can only ever retrieve their own tasks or tokens, preventing broad, inefficient, or insecure queries.\n2.  **Singleton Global Settings:** The `ApplicationSetting` is modeled as a singleton document at `/appSettings/authenticationModeSetting`. Since there's only one document, `list` operations (if ever performed, typically `get` is used) are trivially QAP-compliant as there's no data to filter.\n3.  **Explicit Role Collections:** The `/roles_admin/{userId}` collection uses document existence to grant roles. Access checks for administrative actions directly query this specific path (e.g., `exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))`), which is a direct access check, not a filtering operation.\n\n**Structural Segregation & Access Modeling:**\nData is segregated based on its security posture:\n*   **Private User Data:** All user-specific and sensitive data (`UserProfile`, `VerificationToken`, `OneTimePassword`, `Task`) is strictly private, nested under `/users/{userId}/` paths, aligning with the \"Private Data\" and \"Hierarchical Paths for User-Owned Data\" access models.\n*   **Global Application Settings:** `ApplicationSetting` is a top-level collection (`/appSettings`) for global configuration, separating it from user-specific data. It's read-only for most users and writable by defined administrators.\n*   **Role-Based Access Control (DBAC):** Admin roles are managed via the `/roles_admin/{userId}` collection, leveraging \"Existence over Content\" for clear and auditable role assignments.\n\n**Derived Entities:**\nTwo entities, `Task` and `AdminRole`, are derived from the \"App requirements\" section as they were not explicitly provided in the `backend.entities` input. Their `$ref` values (`#/backend/entities/Task` and `#/backend/entities/AdminRole` respectively) refer to conceptual schemas that would be defined internally for application development."
+  }
+}
