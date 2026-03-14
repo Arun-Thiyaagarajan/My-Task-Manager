@@ -142,10 +142,8 @@ export interface UserProfile {
   id: string;
   email?: string;
   username?: string;
-  phoneNumber?: string;
   photoURL?: string | null;
   emailVerified: boolean;
-  phoneVerified: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -194,4 +192,19 @@ export interface MyTaskManagerData {
     companyData: {
         [companyId: string]: CompanyData;
     };
+}
+
+export interface FieldConfig {
+  id: string;
+  key: string;
+  label: string;
+  type: FieldType;
+  group: string;
+  isActive: boolean;
+  isRequired: boolean;
+  isCustom: boolean;
+  order: number;
+  options?: FieldOption[];
+  baseUrl?: string;
+  sortDirection?: 'asc' | 'desc' | 'manual';
 }

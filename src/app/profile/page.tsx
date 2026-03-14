@@ -1,10 +1,11 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useFirebase } from '@/firebase';
-import { updateProfile, updateEmail, updatePassword, sendEmailVerification, type User } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { updateProfile, updatePassword, sendEmailVerification } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,35 +14,30 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getInitials, getAvatarColor, getAvatarGradient, cn } from '@/lib/utils';
+import { getInitials, getAvatarGradient, cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { 
   User as UserIcon, 
   Mail, 
-  Phone, 
   ShieldCheck, 
   Lock, 
   Camera, 
   Loader2, 
-  CheckCircle2, 
   AlertCircle,
   Calendar,
   KeyRound,
   Eye,
   EyeOff,
   Settings,
-  Trash2,
   Maximize2,
-  LogOut,
-  Pencil
+  LogOut
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ProfileImageCropper } from '@/components/profile-image-cropper';
 import { ImagePreviewDialog } from '@/components/image-preview-dialog';
-import { PhoneInput } from '@/components/ui/phone-input';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -67,12 +63,10 @@ export default function ProfilePage() {
   // Form states
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
   const [photoURL, setPhotoURL] = useState<string | null>(null);
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   
   // Password states
-  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -91,16 +85,13 @@ export default function ProfilePage() {
     if (user) {
       setDisplayName(user.displayName || '');
       setEmail(user.email || '');
-      setPhone(user.phoneNumber || '');
       
-      // Use Firestore profile for photo if available, fallback to Auth
       const authPhoto = user.photoURL === "" ? null : user.photoURL;
       const avatar = userProfile?.photoURL || authPhoto;
       setPhotoURL(avatar);
     }
   }, [user, isUserLoading, userProfile, router]);
 
-  // Helper to compress/resize original image for efficient editing
   const compressImage = (dataUrl: string, maxWidth: number, quality: number): Promise<string> => {
     return new Promise((resolve) => {
       const img = new Image();
@@ -138,8 +129,6 @@ export default function ProfilePage() {
     try {
       const isDataURI = (url: string | null) => url?.startsWith('data:');
 
-      // Update Auth Profile
-      // To avoid "Photo URL too long" error, we only save the display name to Auth if the photo is a Base64 string.
       const authUpdates: { displayName: string; photoURL: string | null } = { 
         displayName,
         photoURL: null 
@@ -155,13 +144,11 @@ export default function ProfilePage() {
 
       await updateProfile(user, authUpdates);
       
-      // Update Firestore Profile
       const userRef = doc(firestore, 'users', user.uid);
       await setDoc(userRef, {
         id: user.uid,
         username: displayName,
         email: email,
-        phoneNumber: phone,
         photoURL: photoURL,
         updatedAt: new Date().toISOString()
       }, { merge: true });
@@ -263,15 +250,12 @@ export default function ProfilePage() {
 
   const profileName = displayName || user.email || 'User';
 
-  // Smart change detection
   const authPhoto = user.photoURL === "" ? null : user.photoURL;
   const currentSavedPhoto = userProfile?.photoURL || authPhoto || null;
   const currentSavedName = user.displayName || '';
-  const currentSavedPhone = user.phoneNumber || '';
 
   const hasChanges = 
     displayName !== currentSavedName || 
-    phone !== currentSavedPhone || 
     photoURL !== currentSavedPhoto;
 
   return (
@@ -422,27 +406,16 @@ export default function ProfilePage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-6">
-                        <div className="grid gap-2">
-                            <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Email Address</Label>
-                            <div className="relative">
-                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input 
-                                id="email" 
-                                className="pl-10 h-11 bg-muted/50 cursor-not-allowed border-dashed" 
-                                value={email} 
-                                readOnly
-                                disabled
-                                />
-                            </div>
-                        </div>
-
-                        <div className="grid gap-2">
-                            <Label htmlFor="phone" className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Phone Number</Label>
-                            <PhoneInput 
-                              value={phone}
-                              onChange={setPhone}
-                              placeholder="Phone number"
+                    <div className="grid gap-2">
+                        <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Email Address</Label>
+                        <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                            id="email" 
+                            className="pl-10 h-11 bg-muted/50 cursor-not-allowed border-dashed" 
+                            value={email} 
+                            readOnly
+                            disabled
                             />
                         </div>
                     </div>
