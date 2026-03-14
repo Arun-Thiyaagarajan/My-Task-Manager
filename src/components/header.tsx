@@ -99,7 +99,7 @@ const HeaderLink = ({ href, children, className, onClick, id }: { href: string; 
 
 
 export function Header() {
-  const { auth, user } = useFirebase();
+  const { auth, user, userProfile } = useFirebase();
   const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
@@ -179,7 +179,9 @@ export function Header() {
   };
 
   const activeCompany = companies.find((c) => c.id === activeCompanyId);
-  const profileName = user?.displayName || user?.email || 'User';
+  const profileName = userProfile?.username || user?.displayName || user?.email || 'User';
+  // Use Firestore photo if available, fallback to Auth
+  const profilePhoto = userProfile?.photoURL || user?.photoURL;
 
   return (
     <>
@@ -328,7 +330,7 @@ export function Header() {
                   )}>
                     {authMode === 'authenticate' && user ? (
                       <Avatar className="h-full w-full">
-                        <AvatarImage src={user.photoURL || undefined} className="object-cover" />
+                        <AvatarImage src={profilePhoto || undefined} className="object-cover" />
                         <AvatarFallback 
                           className="text-white text-[10px] font-bold"
                           style={{ background: getAvatarGradient(profileName) }}
@@ -346,7 +348,7 @@ export function Header() {
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none truncate">
-                      {authMode === 'authenticate' && user ? (user.displayName || 'Authenticated User') : 'Local Mode'}
+                      {authMode === 'authenticate' && user ? (profileName) : 'Local Mode'}
                     </p>
                     <p className="text-[10px] leading-none text-muted-foreground truncate">
                       {authMode === 'authenticate' && user ? (user.email || user.phoneNumber) : 'Data stored in browser'}

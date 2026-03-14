@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -54,7 +55,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 export default function ProfilePage() {
-  const { user, firestore, isUserLoading } = useFirebase();
+  const { user, firestore, isUserLoading, userProfile, isProfileLoading } = useFirebase();
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -68,7 +69,7 @@ export default function ProfilePage() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [photoURL, setPhotoURL] = useState<string | null>(null);
-  const [originalImage, setOriginalImage] = useState<string | null>(null); // Stores the high-res working original
+  const [originalImage, setOriginalImage] = useState<string | null>(null);
   
   // Password states
   const [currentPassword, setCurrentPassword] = useState('');
@@ -91,9 +92,12 @@ export default function ProfilePage() {
       setDisplayName(user.displayName || '');
       setEmail(user.email || '');
       setPhone(user.phoneNumber || '');
-      setPhotoURL(user.photoURL);
+      
+      // Use Firestore profile for photo if available, fallback to Auth
+      const avatar = userProfile?.photoURL || user.photoURL;
+      setPhotoURL(avatar);
     }
-  }, [user, isUserLoading, router]);
+  }, [user, isUserLoading, userProfile, router]);
 
   // Helper to compress/resize original image for efficient editing
   const compressImage = (dataUrl: string, maxWidth: number, quality: number): Promise<string> => {
@@ -131,10 +135,23 @@ export default function ProfilePage() {
     setIsPending(true);
 
     try {
+      const isDataURI = (url: string | null) => url?.startsWith('data:');
+
       // Update Auth Profile
-      await updateProfile(user, { displayName, photoURL });
+      // To avoid "Photo URL too long" error, we only save the display name to Auth if the photo is a Base64 string.
+      // We clear the Auth photoURL and rely on Firestore as the source of truth for custom avatars.
+      const authUpdates: { displayName: string; photoURL?: string } = { displayName };
+      if (photoURL && !isDataURI(photoURL)) {
+          authUpdates.photoURL = photoURL;
+      } else if (isDataURI(photoURL)) {
+          // If it's a data URI, we don't save it to Auth to prevent the length error.
+          // We set it to empty string so components know to check Firestore.
+          authUpdates.photoURL = "";
+      }
+
+      await updateProfile(user, authUpdates);
       
-      // Update Firestore Profile
+      // Update Firestore Profile (this has no length limit for Base64 strings)
       const userRef = doc(firestore, 'users', user.uid);
       await setDoc(userRef, {
         id: user.uid,
@@ -165,36 +182,28 @@ export default function ProfilePage() {
     const reader = new FileReader();
     reader.onload = async (event) => {
       const rawDataUrl = event.target?.result as string;
-      
-      // Pre-compress original to a reasonable size (max 1200px) for smooth editing
-      // This satisfies the requirement: "Ensure image compression happens during upload"
       const workingOriginal = await compressImage(rawDataUrl, 1200, 0.85);
-      
       setOriginalImage(workingOriginal);
       setPendingImage(workingOriginal);
       setIsCropperOpen(true);
     };
     reader.readAsDataURL(file);
-    
-    // Reset file input
     if (e.target) e.target.value = '';
   };
 
   const handleCropComplete = (croppedImage: string) => {
-    // croppedImage is already compressed via ProfileImageCropper (WebP 0.8, 400x400)
     setPhotoURL(croppedImage);
     toast({ title: 'Photo ready', description: 'Click "Save Changes" to apply your updated profile photo.' });
   };
 
   const handleRemovePhoto = () => {
     setPhotoURL(null);
-    setOriginalImage(null); // Clear the working high-res original too
+    setOriginalImage(null);
     toast({ title: 'Photo removed', description: 'Click "Save Changes" to update your profile.' });
     setIsPreviewOpen(false);
   };
 
   const handleEditExisting = () => {
-    // Requirement: "Load the original uploaded image (not the already cropped version)"
     const imageToEdit = originalImage || photoURL;
     if (imageToEdit) {
         setPendingImage(imageToEdit);
@@ -245,7 +254,7 @@ export default function ProfilePage() {
     return strength;
   };
 
-  if (isUserLoading) return <LoadingSpinner text="Loading profile..." />;
+  if (isUserLoading || isProfileLoading) return <LoadingSpinner text="Loading profile..." />;
   if (!user) return null;
 
   const profileName = displayName || user.email || 'User';
@@ -278,7 +287,6 @@ export default function ProfilePage() {
                           </AvatarFallback>
                         </Avatar>
                         
-                        {/* Interactive Overlays */}
                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
                           {photoURL ? (
                             <>

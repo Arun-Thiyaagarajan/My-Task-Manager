@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserProfile": {
@@ -22,6 +23,10 @@
         "phoneNumber": {
           "type": "string",
           "description": "The user's phone number, which can be used as a login credential and for OTP verification."
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "The URL or Base64 data of the user's profile photo. Stored in Firestore to avoid Auth attribute length limits."
         },
         "emailVerified": {
           "type": "boolean",
