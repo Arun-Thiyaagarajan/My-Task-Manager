@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -41,7 +40,6 @@ import {
   History,
   User as UserIcon,
   LogOut,
-  Settings,
   ShieldCheck,
   Smartphone,
   Database,
@@ -180,7 +178,6 @@ export function Header() {
 
   const activeCompany = companies.find((c) => c.id === activeCompanyId);
   const profileName = userProfile?.username || user?.displayName || user?.email || 'User';
-  // Use Firestore photo if available, fallback to Auth
   const profilePhoto = userProfile?.photoURL || user?.photoURL;
 
   return (
@@ -363,10 +360,6 @@ export function Header() {
                         <UserIcon className="mr-2 h-4 w-4" />
                         <span>My Profile</span>
                       </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => prompt(() => router.push('/settings'))}>
-                        <Settings className="mr-2 h-4 w-4" />
-                        <span>Account Settings</span>
-                      </DropdownMenuItem>
                       <DropdownMenuItem onSelect={() => prompt(() => router.push('/profile?tab=security'))}>
                         <Lock className="mr-2 h-4 w-4" />
                         <span>Change Password</span>
@@ -443,17 +436,17 @@ export function Header() {
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <HeaderLink href="/releases" className="w-full flex items-center gap-2">
-                       <History className="h-4 w-4" /> Releases
+                       <History className="mr-2 h-4 w-4" /> Releases
                     </HeaderLink>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <HeaderLink href="/logs" className="w-full flex items-center gap-2">
-                       <FileClock className="h-4 w-4" /> Logs
+                       <FileClock className="mr-2 h-4 w-4" /> Logs
                     </HeaderLink>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <HeaderLink href="/bin" className="w-full flex items-center gap-2">
-                       <Trash2 className="h-4 w-4" /> Bin
+                       <Trash2 className="mr-2 h-4 w-4" /> Bin
                     </HeaderLink>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
