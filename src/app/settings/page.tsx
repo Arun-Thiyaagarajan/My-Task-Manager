@@ -68,7 +68,6 @@ export default function SettingsPage() {
   const [authMode, setAuthModeState] = useState<AuthMode>('localStorage');
   
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [isAuthSwitchPending, setIsAuthSwitchPending] = useState(false);
 
   const iconInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -445,7 +444,7 @@ export default function SettingsPage() {
     if (newMode === 'authenticate') {
       setIsAuthModalOpen(true);
     } else {
-      // Logic for switching back to localStorage is handled by Confirmation Dialog
+      // confirm logout handled via alert dialog below
     }
   };
 
@@ -497,7 +496,7 @@ export default function SettingsPage() {
   
     const handleExportSettings = () => {
         if (!config) return;
-        const appNamePrefix = config.appName?.replace(/\s+/g, '_') || 'MyTaskManager';
+        const appNamePrefix = config.appName?.replace(/\s+/g, '_') || 'MyTask_Manager';
         const dateSuffix = format(new Date(), "yyyy-MM-dd");
         const fileName = `${appNamePrefix}_Settings_${dateSuffix}.json`;
         
@@ -593,10 +592,6 @@ export default function SettingsPage() {
     setTesters(getTesters());
   }
 
-  if (!config) {
-    return <LoadingSpinner text="Loading settings..." />;
-  }
-
   const renderFieldRow = (field: FieldConfig, isActiveList: boolean) => {
     const protectedDateFields = ['devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate'];
     const isToggleDisabled = field.isRequired || protectedDateFields.includes(field.key);
@@ -673,6 +668,10 @@ export default function SettingsPage() {
       value: i,
       label: format(new Date(2000, 0, 1, i), 'h a'),
   }));
+
+  if (!config) {
+    return <LoadingSpinner text="Loading settings..." />;
+  }
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-8">
@@ -997,12 +996,28 @@ export default function SettingsPage() {
                 </Card>
                 <div id="settings-people-management" className="space-y-8">
                     <Card>
-                        <CardHeader><CardTitle className="flex items-center justify-between"><span className="flex items-center gap-2"><Code2 className="h-5 w-5" />Developer Management</span><Badge variant="outline">{developers.length}</Badge></CardTitle><CardDescription>Manage your list of developers.</CardDescription></CardHeader>
-                        <CardContent><Button onClick={() => openPeopleManager('developer')} className="w-full">Manage Developers</Button></CardContent>
+                        <CardHeader>
+                            <CardTitle className="flex items-center justify-between">
+                                <span className="flex items-center gap-2"><Code2 className="h-5 w-5" />Developer Management</span>
+                                <Badge variant="outline">{developers.length}</Badge>
+                            </CardTitle>
+                            <CardDescription>Manage your list of developers.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Button onClick={() => openPeopleManager('developer')} className="w-full">Manage Developers</Button>
+                        </CardContent>
                     </Card>
                     <Card>
-                        <CardHeader><CardTitle className="flex items-center justify-between"><span className="flex items-center gap-2"><ClipboardCheck className="h-5 w-5" />Tester Management</span><Badge variant="outline">{testers.length}</Badge></CardTitle><CardDescription>Manage your list of testers.</CardDescription></CardHeader>
-                        <CardContent><Button onClick={() => openPeopleManager('tester')} className="w-full">Manage Testers</Button></CardContent>
+                        <CardHeader>
+                            <CardTitle className="flex items-center justify-between">
+                                <span className="flex items-center gap-2"><ClipboardCheck className="h-5 w-5" />Tester Management</span>
+                                <Badge variant="outline">{testers.length}</Badge>
+                            </CardTitle>
+                            <CardDescription>Manage your list of testers.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Button onClick={() => openPeopleManager('tester')} className="w-full">Manage Testers</Button>
+                        </CardContent>
                     </Card>
                 </div>
                  <Card>

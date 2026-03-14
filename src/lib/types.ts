@@ -138,6 +138,18 @@ export interface Task {
   customFields?: Record<string, any>;
 }
 
+export interface UserProfile {
+  id: string;
+  email?: string;
+  username?: string;
+  phoneNumber?: string;
+  photoURL?: string | null;
+  emailVerified: boolean;
+  phoneVerified: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface FieldOption {
   id: string;
   label: string;

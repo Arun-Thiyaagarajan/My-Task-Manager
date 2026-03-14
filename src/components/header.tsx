@@ -22,9 +22,31 @@ import {
   deleteCompany,
   getUiConfig,
   getGeneralReminders,
+  getAuthMode,
+  setAuthMode,
 } from '@/lib/data';
 import type { Company, UiConfig } from '@/lib/types';
-import { Building, PlusCircle, Trash2, Edit, LayoutDashboard, Cog, Menu, FileClock, Home, Bell, GraduationCap, History } from 'lucide-react';
+import { 
+  Building, 
+  PlusCircle, 
+  Trash2, 
+  Edit, 
+  LayoutDashboard, 
+  Cog, 
+  Menu, 
+  FileClock, 
+  Home, 
+  Bell, 
+  GraduationCap, 
+  History,
+  User as UserIcon,
+  LogOut,
+  Settings,
+  ShieldCheck,
+  Smartphone,
+  Database,
+  Lock
+} from 'lucide-react';
 import { CompaniesManager } from './companies-manager';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -46,6 +68,11 @@ import { ImagePreviewDialog } from './image-preview-dialog';
 import { GeneralRemindersDialog } from './general-reminders-dialog';
 import { useTutorial } from '@/hooks/use-tutorial';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { useFirebase } from '@/firebase';
+import { signOut } from 'firebase/auth';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { getInitials, getAvatarColor, cn } from '@/lib/utils';
+import { AuthModal } from './auth-modal';
 
 const HeaderLink = ({ href, children, className, onClick, id }: { href: string; children: React.ReactNode, className?: string; onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void; id?: string; }) => {
     const router = useRouter();
@@ -72,7 +99,12 @@ const HeaderLink = ({ href, children, className, onClick, id }: { href: string; 
 
 
 export function Header() {
+  const { auth, user } = useFirebase();
   const { toast } = useToast();
+  const router = useRouter();
+  const pathname = usePathname();
+  const { prompt } = useUnsavedChanges();
+  
   const [companies, setCompanies] = useState<Company[]>([]);
   const activeCompanyId = useActiveCompany();
   const [isManagerOpen, setIsManagerOpen] = useState(false);
@@ -82,12 +114,16 @@ export function Header() {
   const [generalRemindersCount, setGeneralRemindersCount] = useState(0);
   const { startTutorial } = useTutorial();
   const [isImagePreviewOpen, setIsImagePreviewOpen] = useState(false);
+  
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authMode, setAuthModeState] = useState<'localStorage' | 'authenticate'>('localStorage');
 
   const refreshAllData = () => {
     const config = getUiConfig();
     setCompanies(getCompanies());
     setUiConfig(config);
     setGeneralRemindersCount(getGeneralReminders().length);
+    setAuthModeState(getAuthMode());
   };
 
   useEffect(() => {
@@ -127,6 +163,20 @@ export function Header() {
           toast({variant: 'destructive', title: 'Error', description: 'Cannot delete the only company.'});
       }
   }
+
+  const handleSignOut = async () => {
+    if (!auth) return;
+    try {
+      await signOut(auth);
+      setAuthMode('localStorage');
+      setAuthModeState('localStorage');
+      toast({ variant: 'success', title: 'Signed Out', description: 'You have been logged out and returned to local mode.' });
+      refreshAllData();
+      router.push('/');
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Sign Out Failed', description: error.message });
+    }
+  };
 
   const activeCompany = companies.find((c) => c.id === activeCompanyId);
 
@@ -267,6 +317,99 @@ export function Header() {
                 )}
                 <span className="sr-only">General Reminders</span>
             </Button>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative h-10 w-10 rounded-full">
+                  <div className={cn(
+                    "flex h-full w-full items-center justify-center rounded-full border-2 transition-all hover:bg-muted",
+                    authMode === 'authenticate' && user ? "border-primary p-0.5" : "border-muted-foreground/20"
+                  )}>
+                    {authMode === 'authenticate' && user ? (
+                      <Avatar className="h-full w-full">
+                        <AvatarImage src={user.photoURL || undefined} />
+                        <AvatarFallback style={{ backgroundColor: `#${getAvatarColor(user.displayName || user.email || 'User')}` }} className="text-white text-xs">
+                          {getInitials(user.displayName || user.email || 'U')}
+                        </AvatarFallback>
+                      </Avatar>
+                    ) : (
+                      <UserIcon className="h-5 w-5 text-muted-foreground" />
+                    )}
+                  </div>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">
+                      {authMode === 'authenticate' && user ? (user.displayName || 'Authenticated User') : 'Local Mode'}
+                    </p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {authMode === 'authenticate' && user ? (user.email || user.phoneNumber) : 'Data stored in browser'}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  {authMode === 'authenticate' && user ? (
+                    <>
+                      <DropdownMenuItem onSelect={() => prompt(() => router.push('/profile'))}>
+                        <UserIcon className="mr-2 h-4 w-4" />
+                        <span>My Profile</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => prompt(() => router.push('/settings'))}>
+                        <Settings className="mr-2 h-4 w-4" />
+                        <span>Account Settings</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => prompt(() => router.push('/profile?tab=security'))}>
+                        <Lock className="mr-2 h-4 w-4" />
+                        <span>Change Password</span>
+                      </DropdownMenuItem>
+                    </>
+                  ) : (
+                    <DropdownMenuItem onSelect={() => setIsAuthModalOpen(true)}>
+                      <ShieldCheck className="mr-2 h-4 w-4" />
+                      <span>Sign In</span>
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                {authMode === 'authenticate' ? (
+                  <>
+                    <DropdownMenuItem onSelect={handleSignOut} className="text-destructive focus:text-destructive">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Sign Out</span>
+                    </DropdownMenuItem>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                          <Smartphone className="mr-2 h-4 w-4" />
+                          <span>Switch to Local Mode</span>
+                        </DropdownMenuItem>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Return to Local Mode?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Switching to Local Storage mode will log you out. Your cloud data will remain secure on our servers.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleSignOut}>Continue</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </>
+                ) : (
+                  <DropdownMenuItem onSelect={() => setIsAuthModalOpen(true)}>
+                    <Database className="mr-2 h-4 w-4" />
+                    <span>Switch to Cloud Sync</span>
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <ThemeToggle />
             <div className="lg:hidden">
               <DropdownMenu>
@@ -313,6 +456,17 @@ export function Header() {
           </div>
         </div>
       </header>
+      
+      <AuthModal 
+        isOpen={isAuthModalOpen} 
+        onOpenChange={setIsAuthModalOpen} 
+        onSuccess={() => {
+          setAuthMode('authenticate');
+          setAuthModeState('authenticate');
+          window.dispatchEvent(new Event('company-changed'));
+        }} 
+      />
+
       <CompaniesManager 
         isOpen={isManagerOpen}
         onOpenChange={setIsManagerOpen}
