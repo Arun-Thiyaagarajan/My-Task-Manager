@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials, getAvatarColor, getAvatarGradient, cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 import { 
   User as UserIcon, 
   Mail, 
@@ -31,13 +32,25 @@ import {
   EyeOff,
   Settings,
   Trash2,
-  Maximize2
+  Maximize2,
+  LogOut
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ProfileImageCropper } from '@/components/profile-image-cropper';
 import { ImagePreviewDialog } from '@/components/image-preview-dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 export default function ProfilePage() {
   const { user, firestore, isUserLoading } = useFirebase();
@@ -463,11 +476,6 @@ export default function ProfilePage() {
         />
       )}
       
-      {/* Photo Preview & Quick Actions Context - Overlaying ImagePreviewDialog's header if possible, 
-          but simpler to just have buttons here if the dialog has actions. 
-          The standard ImagePreviewDialog has zoom/rotate. 
-          Let's add a custom footer to it or create a specific one if needed.
-      */}
       {isPreviewOpen && (
           <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] flex gap-2 animate-in slide-in-from-bottom-4 duration-300">
               <Button onClick={() => { setIsPreviewOpen(false); fileInputRef.current?.click(); }} size="sm" className="shadow-lg">
