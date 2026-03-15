@@ -107,10 +107,13 @@ export function ImagePreviewDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent hideClose className="max-w-4xl w-full h-[90vh] flex flex-col p-0 border-0 bg-card/80 backdrop-blur-md">
-        <DialogHeader className="p-4 border-b flex-row items-center justify-between space-y-0 text-card-foreground">
-          <DialogTitle className="truncate pr-4">{imageName}</DialogTitle>
-          <div className="flex items-center gap-1">
+      <DialogContent 
+        hideClose 
+        className="sm:max-w-4xl w-[95vw] sm:w-full h-[85vh] sm:h-[90vh] flex flex-col p-0 border-0 bg-card/80 backdrop-blur-md overflow-hidden"
+      >
+        <DialogHeader className="p-3 sm:p-4 border-b flex-row items-center justify-between space-y-0 text-card-foreground shrink-0">
+          <DialogTitle className="truncate pr-2 text-sm sm:text-base">{imageName}</DialogTitle>
+          <div className="flex items-center gap-0.5 sm:gap-1">
             <Button variant="ghost" size="icon" onClick={() => handleZoom('in')} className="h-8 w-8 cursor-pointer">
               <ZoomIn className="h-4 w-4" />
             </Button>
@@ -129,7 +132,7 @@ export function ImagePreviewDialog({
         </DialogHeader>
         
         <div 
-          className="flex-1 overflow-hidden relative"
+          className="flex-1 overflow-hidden relative bg-black/5"
           onWheel={handleWheel}
         >
           <div
@@ -154,14 +157,14 @@ export function ImagePreviewDialog({
         </div>
 
         {isProfilePreview && (
-            <div className="p-4 bg-background/50 border-t flex items-center justify-center gap-3">
-                <Button variant="secondary" size="sm" onClick={onChange} className="cursor-pointer">
+            <div className="p-4 bg-background/50 border-t flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2 sm:gap-3 shrink-0">
+                <Button variant="secondary" size="sm" onClick={onChange} className="cursor-pointer justify-start sm:justify-center">
                     <Camera className="h-4 w-4 mr-2" /> Change Image
                 </Button>
-                <Button variant="secondary" size="sm" onClick={onEdit} className="cursor-pointer">
+                <Button variant="secondary" size="sm" onClick={onEdit} className="cursor-pointer justify-start sm:justify-center">
                     <Pencil className="h-4 w-4 mr-2" /> Edit Crop
                 </Button>
-                <Button variant="destructive" size="sm" onClick={onRemove} className="cursor-pointer">
+                <Button variant="destructive" size="sm" onClick={onRemove} className="cursor-pointer justify-start sm:justify-center">
                     <Trash2 className="h-4 w-4 mr-2" /> Remove Image
                 </Button>
             </div>
