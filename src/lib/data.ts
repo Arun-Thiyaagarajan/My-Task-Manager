@@ -1,14 +1,31 @@
+'use client';
 
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES, INITIAL_RELEASES } from './constants';
 import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode } from './types';
 import cloneDeep from 'lodash/cloneDeep';
-import { format, isToday, isYesterday } from 'date-fns';
+import { getAuth } from 'firebase/auth';
+import { getFirestore, doc, setDoc, deleteDoc, updateDoc, collection } from 'firebase/firestore';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export const DATA_KEY = 'my_task_manager_data';
 const AUTH_MODE_KEY = 'taskflow_auth_mode';
 
+// Central In-Memory Cache for Real-time Cloud Data
+let _cloudCache: MyTaskManagerData | null = null;
+
+/**
+ * Updates the central cloud cache. This is typically called by the useTaskFlowData hook.
+ */
+export function setCloudCache(data: MyTaskManagerData | null) {
+    _cloudCache = data;
+}
+
+/**
+ * Returns the default initial state for the application.
+ */
 const getInitialData = (): MyTaskManagerData => {
-    const defaultCompanyId = `company-${crypto.randomUUID()}`;
+    const defaultCompanyId = `company-default`;
     const initialFields = INITIAL_UI_CONFIG.map(f => {
         if (f.key === 'status') {
             return { ...f, options: TASK_STATUSES.map(s => ({id: s, value: s, label: s})) };
@@ -52,1900 +69,530 @@ const getInitialData = (): MyTaskManagerData => {
     };
 };
 
-function _validateAndMigrateConfig(savedConfig: Partial<UiConfig> | undefined): UiConfig {
-    const defaultConfig: UiConfig = {
-        fields: INITIAL_UI_CONFIG,
-        environments: [...ENVIRONMENTS],
-        repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
-        taskStatuses: [...TASK_STATUSES],
-        appName: 'My Task Manager',
-        appIcon: null,
-        remindersEnabled: true,
-        tutorialEnabled: true,
-        timeFormat: '12h',
-        autoBackupFrequency: 'weekly',
-        autoBackupTime: 6,
-        currentVersion: '1.1.0',
-        authenticationMode: 'localStorage',
-    };
-
-    if (!savedConfig || typeof savedConfig !== 'object') {
-        return cloneDeep(defaultConfig);
-    }
-
-    const resultConfig = cloneDeep(defaultConfig);
-
-    if (Array.isArray(savedConfig.environments)) resultConfig.environments = cloneDeep(savedConfig.environments);
-    if (Array.isArray(savedConfig.repositoryConfigs)) resultConfig.repositoryConfigs = cloneDeep(savedConfig.repositoryConfigs);
-    
-    resultConfig.taskStatuses = [...TASK_STATUSES];
-    
-    resultConfig.appName = savedConfig.appName || defaultConfig.appName;
-    resultConfig.appIcon = savedConfig.appIcon === undefined ? defaultConfig.appIcon : savedConfig.appIcon;
-    resultConfig.remindersEnabled = savedConfig.remindersEnabled ?? defaultConfig.remindersEnabled;
-    resultConfig.tutorialEnabled = savedConfig.tutorialEnabled ?? defaultConfig.tutorialEnabled;
-    resultConfig.timeFormat = savedConfig.timeFormat || defaultConfig.timeFormat;
-    resultConfig.currentVersion = savedConfig.currentVersion || defaultConfig.currentVersion;
-    resultConfig.authenticationMode = savedConfig.authenticationMode || defaultConfig.authenticationMode;
-    
-    if (typeof (savedConfig as any).autoBackupEnabled === 'boolean') {
-        resultConfig.autoBackupFrequency = (savedConfig as any).autoBackupEnabled ? 'weekly' : 'off';
-    } else {
-        resultConfig.autoBackupFrequency = savedConfig.autoBackupFrequency || defaultConfig.autoBackupFrequency;
-    }
-    resultConfig.autoBackupTime = savedConfig.autoBackupTime ?? defaultConfig.autoBackupTime;
-    
-    if (Array.isArray(savedConfig.fields)) {
-        const finalFields: FieldConfig[] = [];
-        const savedFieldsMap = new Map((savedConfig.fields).map(f => [f.key, f]));
-
-        defaultConfig.fields.forEach(defaultField => {
-            const savedField = savedFieldsMap.get(defaultField.key);
-            if (savedField) {
-                finalFields.push({ ...defaultField, ...savedField });
-                savedFieldsMap.delete(defaultField.key);
-            } else {
-                finalFields.push(defaultField);
-            }
-        });
-
-        savedFieldsMap.forEach(customField => {
-            if (customField.isCustom) {
-                finalFields.push(customField);
-            }
-        });
-        resultConfig.fields = finalFields;
-    }
-    
-    const statusField = resultConfig.fields.find(f => f.key === 'status');
-    if (statusField) {
-        statusField.options = resultConfig.taskStatuses.map(s => ({ id: s, value: s, label: s }));
-    }
-    const repoField = resultConfig.fields.find(f => f.key === 'repositories');
-    if (repoField) {
-        repoField.options = resultConfig.repositoryConfigs.map(r => ({ id: r.id, value: r.name, label: r.name }));
-    }
-    const relevantEnvsField = resultConfig.fields.find(f => f.key === 'relevantEnvironments');
-    if (relevantEnvsField) {
-        relevantEnvsField.options = resultConfig.environments.map(e => ({ id: e.id, value: e.name, label: e.name }));
-    }
-    
-    resultConfig.fields
-        .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
-        .forEach((field, index) => {
-            field.order = index;
-            const isSortable = ['select', 'multiselect', 'tags'].includes(field.type) && field.key !== 'status';
-            if (isSortable && !field.sortDirection) {
-                field.sortDirection = 'manual';
-            }
-        });
-
-    return resultConfig;
-}
-
+/**
+ * Standardized mode-aware storage fetcher.
+ */
 export const getAppData = (): MyTaskManagerData => {
-    if (typeof window === 'undefined') {
-        const defaultConfig: UiConfig = { 
-            fields: INITIAL_UI_CONFIG,
-            environments: [...ENVIRONMENTS],
-            repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
-            taskStatuses: [...TASK_STATUSES],
-            appName: 'My Task Manager',
-            appIcon: null,
-            remindersEnabled: true,
-            tutorialEnabled: true,
-            timeFormat: '12h',
-            autoBackupFrequency: 'weekly',
-            autoBackupTime: 6,
-            currentVersion: '1.1.0',
-            authenticationMode: 'localStorage',
-        };
-        return {
-            companies: [{ id: 'company-placeholder', name: 'Default Company' }],
-            activeCompanyId: 'company-placeholder',
-            companyData: {
-                'company-placeholder': {
-                    tasks: [],
-                    trash: [],
-                    developers: [],
-                    testers: [],
-                    notes: [],
-                    uiConfig: defaultConfig,
-                    logs: [],
-                    generalReminders: [],
-                    releaseUpdates: [],
-                },
-            },
-        };
+    if (getAuthMode() === 'authenticate' && _cloudCache) {
+        return _cloudCache;
     }
+
+    if (typeof window === 'undefined') {
+        return getInitialData();
+    }
+
     const stored = window.localStorage.getItem(DATA_KEY);
     if (!stored) {
-        const initialData = getInitialData();
-        window.localStorage.setItem(DATA_KEY, JSON.stringify(initialData));
-        return initialData;
+        return getInitialData();
     }
+
     try {
         const data: MyTaskManagerData = JSON.parse(stored);
-        if (!data.companies || !data.companyData || data.companies.length === 0) {
-            throw new Error("Invalid core data structure, resetting.");
-        }
-        
-        let needsUpdate = false;
-        
-        // Migration for existing users
-        Object.values(data.companyData).forEach(company => {
-            if (!company.trash) { company.trash = []; needsUpdate = true; }
-            if (!company.logs) { company.logs = []; needsUpdate = true; }
-            if (!company.generalReminders) { company.generalReminders = []; needsUpdate = true; }
-            if (!company.notes) { company.notes = []; needsUpdate = true; }
-            if (!company.releaseUpdates) { company.releaseUpdates = [...INITIAL_RELEASES]; needsUpdate = true; }
-            
-            const validatedConfig = _validateAndMigrateConfig(company.uiConfig);
-            if (JSON.stringify(validatedConfig) !== JSON.stringify(company.uiConfig)) {
-                company.uiConfig = validatedConfig;
-                needsUpdate = true;
-            }
-            
-            company.developers.forEach(p => { if (!p.additionalFields) { p.additionalFields = []; needsUpdate = true; } });
-            company.testers.forEach(p => { if (!p.additionalFields) { p.additionalFields = []; needsUpdate = true; } });
-        });
-
-        if (needsUpdate) {
-            window.localStorage.setItem(DATA_KEY, JSON.stringify(data));
-        }
-
         return data;
     } catch (e) {
-        console.error(`Error with localStorage data, resetting:`, e);
-        const initialData = getInitialData();
-        window.localStorage.setItem(DATA_KEY, JSON.stringify(initialData));
-        return initialData;
+        return getInitialData();
     }
 };
 
+/**
+ * Mode-aware storage persistence.
+ */
 export const setAppData = (data: MyTaskManagerData) => {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem(DATA_KEY, JSON.stringify(data));
+
+    if (getAuthMode() === 'authenticate') {
+        _cloudCache = data;
+    } else {
+        window.localStorage.setItem(DATA_KEY, JSON.stringify(data));
+    }
     window.dispatchEvent(new StorageEvent('storage', { key: DATA_KEY }));
 };
 
-// Auth Mode Functions
+/**
+ * Returns the current storage/authentication mode.
+ */
 export function getAuthMode(): AuthMode {
     if (typeof window === 'undefined') return 'localStorage';
     return (window.localStorage.getItem(AUTH_MODE_KEY) as AuthMode) || 'localStorage';
 }
 
+/**
+ * Switches the application mode.
+ */
 export function setAuthMode(mode: AuthMode) {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(AUTH_MODE_KEY, mode);
-    
-    // Update active company config
-    const data = getAppData();
-    const activeCompanyId = data.activeCompanyId;
-    const companyData = data.companyData[activeCompanyId];
-    if (companyData) {
-        companyData.uiConfig.authenticationMode = mode;
-        setAppData(data);
+    window.dispatchEvent(new Event('company-changed'));
+}
+
+/**
+ * Handles Firestore mutations if in Authenticate mode.
+ */
+async function dispatchMutation(
+    type: 'tasks' | 'notes' | 'logs' | 'uiConfig' | 'developers' | 'testers' | 'generalReminders' | 'releaseUpdates' | 'companies',
+    id: string,
+    data: any,
+    operation: 'create' | 'update' | 'delete' | 'set'
+) {
+    if (getAuthMode() !== 'authenticate') return;
+
+    const auth = getAuth();
+    const db = getFirestore();
+    const userId = auth.currentUser?.uid;
+    const activeCompanyId = getActiveCompanyId();
+
+    if (!userId) return;
+
+    let docRef;
+    if (type === 'companies') {
+        docRef = doc(db, 'users', userId, 'companies', id);
+    } else if (type === 'uiConfig') {
+        docRef = doc(db, 'users', userId, 'companies', activeCompanyId, 'settings', 'uiConfig');
+    } else if (type === 'developers' || type === 'testers') {
+        docRef = doc(db, 'users', userId, 'companies', activeCompanyId, 'people', type);
+    } else if (type === 'generalReminders') {
+        docRef = doc(db, 'users', userId, 'companies', activeCompanyId, 'reminders', 'general');
+    } else if (type === 'releaseUpdates') {
+        docRef = doc(db, 'users', userId, 'companies', activeCompanyId, 'releases', 'updates');
+    } else {
+        docRef = doc(db, 'users', userId, 'companies', activeCompanyId, type, id);
+    }
+
+    try {
+        if (operation === 'delete') {
+            deleteDoc(docRef).catch(e => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'delete' })));
+        } else if (operation === 'update') {
+            updateDoc(docRef, data).catch(e => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'update', requestResourceData: data })));
+        } else {
+            setDoc(docRef, data, { merge: operation === 'set' }).catch(e => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'write', requestResourceData: data })));
+        }
+    } catch (e) {
+        console.error("Mutation failed:", e);
     }
 }
 
-// Internal logging helper that modifies the data object without saving it.
+/**
+ * Adds a log entry to the active company.
+ */
 function _addLog(companyData: CompanyData, logData: Omit<Log, 'id' | 'timestamp'>) {
-    if (!companyData) return;
     const newLog: Log = {
         id: `log-${crypto.randomUUID()}`,
         timestamp: new Date().toISOString(),
         ...logData,
     };
-
-    if (!companyData.logs) {
-        companyData.logs = [];
-    }
-    
-    companyData.logs.unshift(newLog);
-
-    if (companyData.logs.length > 2000) {
-        companyData.logs = companyData.logs.slice(0, 2000);
-    }
+    companyData.logs = [newLog, ...(companyData.logs || []).slice(0, 1999)];
+    dispatchMutation('logs', newLog.id, newLog, 'set');
 }
 
+// --- EXPORTED API FUNCTIONS ---
 
-// Logging Functions
-export const addLog = (logData: Omit<Log, 'id' | 'timestamp'>) => {
+// Companies
+export function getCompanies(): Company[] { return getAppData().companies; }
+export function getActiveCompanyId(): string { return getAppData().activeCompanyId; }
+export function setActiveCompanyId(id: string) {
+    const data = getAppData();
+    if (data.companies.some(c => c.id === id)) {
+        data.activeCompanyId = id;
+        if (getAuthMode() === 'localStorage') setAppData(data);
+        window.dispatchEvent(new Event('company-changed'));
+    }
+}
+export function addCompany(name: string): Company {
+    const data = getAppData();
+    const newId = `company-${crypto.randomUUID()}`;
+    const newCompany = { id: newId, name };
+    data.companies.push(newCompany);
+    data.companyData[newId] = cloneDeep(getInitialData().companyData['company-default']);
+    data.companyData[newId].uiConfig.appName = name;
+    dispatchMutation('companies', newId, newCompany, 'set');
+    setAppData(data);
+    return newCompany;
+}
+export function updateCompany(id: string, name: string) {
+    const data = getAppData();
+    const company = data.companies.find(c => c.id === id);
+    if (company) {
+        company.name = name;
+        dispatchMutation('companies', id, { id, name }, 'update');
+        setAppData(data);
+    }
+}
+export function deleteCompany(id: string) {
+    const data = getAppData();
+    if (data.companies.length <= 1) return false;
+    data.companies = data.companies.filter(c => c.id !== id);
+    delete data.companyData[id];
+    if (data.activeCompanyId === id) data.activeCompanyId = data.companies[0].id;
+    dispatchMutation('companies', id, null, 'delete');
+    setAppData(data);
+    return true;
+}
+
+// Tasks
+export function getTasks(): Task[] { return getAppData().companyData[getActiveCompanyId()]?.tasks || []; }
+export function getBinnedTasks(): Task[] { return getAppData().companyData[getActiveCompanyId()]?.trash || []; }
+export function getTaskById(id: string) { return [...getTasks(), ...getBinnedTasks()].find(t => t.id === id); }
+export function addTask(task: Partial<Task>) {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    const newTask = {
+        id: task.id || `task-${crypto.randomUUID()}`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        title: 'Untitled Task',
+        description: '',
+        status: 'To Do',
+        ...task
+    } as Task;
+    companyData.tasks.unshift(newTask);
+    dispatchMutation('tasks', newTask.id, newTask, 'set');
+    _addLog(companyData, { message: `Created task "**${newTask.title}**"`, taskId: newTask.id });
+    setAppData(data);
+    return newTask;
+}
+export function updateTask(id: string, task: Partial<Task>, silent = false) {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    let listName: 'tasks' | 'trash' = 'tasks';
+    let index = companyData.tasks.findIndex(t => t.id === id);
+    if (index === -1) { index = companyData.trash.findIndex(t => t.id === id); listName = 'trash'; }
+    if (index !== -1) {
+        companyData[listName][index] = { ...companyData[listName][index], ...task, updatedAt: new Date().toISOString() };
+        dispatchMutation('tasks', id, companyData[listName][index], 'update');
+        if (!silent) _addLog(companyData, { message: `Updated task "**${companyData[listName][index].title}**"`, taskId: id });
+        setAppData(data);
+        return companyData[listName][index];
+    }
+}
+export function moveTaskToBin(id: string) {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    const index = companyData.tasks.findIndex(t => t.id === id);
+    if (index !== -1) {
+        const [task] = companyData.tasks.splice(index, 1);
+        task.deletedAt = new Date().toISOString();
+        companyData.trash.unshift(task);
+        dispatchMutation('tasks', id, task, 'update');
+        _addLog(companyData, { message: `Moved task "**${task.title}**" to bin.`, taskId: id });
+        setAppData(data);
+    }
+}
+export function moveMultipleTasksToBin(ids: string[]) { ids.forEach(id => moveTaskToBin(id)); }
+export function restoreTask(id: string) {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    const index = companyData.trash.findIndex(t => t.id === id);
+    if (index !== -1) {
+        const [task] = companyData.trash.splice(index, 1);
+        delete task.deletedAt;
+        companyData.tasks.unshift(task);
+        dispatchMutation('tasks', id, task, 'set');
+        _addLog(companyData, { message: `Restored task "**${task.title}**" from bin.`, taskId: id });
+        setAppData(data);
+    }
+}
+export function restoreMultipleTasks(ids: string[]) { ids.forEach(id => restoreTask(id)); }
+export function permanentlyDeleteTask(id: string) {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    companyData.trash = companyData.trash.filter(t => t.id !== id);
+    dispatchMutation('tasks', id, null, 'delete');
+    setAppData(data);
+}
+export function permanentlyDeleteMultipleTasks(ids: string[]) { ids.forEach(id => permanentlyDeleteTask(id)); }
+export function emptyBin() { const binned = getBinnedTasks(); binned.forEach(t => permanentlyDeleteTask(t.id)); }
+
+// People
+export function getDevelopers() { return getAppData().companyData[getActiveCompanyId()]?.developers || []; }
+export function addDeveloper(p: Partial<Person>) {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    const newPerson = { id: `dev-${crypto.randomUUID()}`, name: '', ...p } as Person;
+    companyData.developers.push(newPerson);
+    dispatchMutation('developers', 'developers', { list: companyData.developers }, 'set');
+    setAppData(data);
+    return newPerson;
+}
+export function updateDeveloper(id: string, p: Partial<Person>) {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    const index = companyData.developers.findIndex(x => x.id === id);
+    if (index !== -1) {
+        companyData.developers[index] = { ...companyData.developers[index], ...p };
+        dispatchMutation('developers', 'developers', { list: companyData.developers }, 'set');
+        setAppData(data);
+    }
+}
+export function deleteDeveloper(id: string) {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    companyData.developers = companyData.developers.filter(x => x.id !== id);
+    dispatchMutation('developers', 'developers', { list: companyData.developers }, 'set');
+    setAppData(data);
+    return true;
+}
+export function getTesters() { return getAppData().companyData[getActiveCompanyId()]?.testers || []; }
+export function addTester(p: Partial<Person>) {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    const newPerson = { id: `test-${crypto.randomUUID()}`, name: '', ...p } as Person;
+    companyData.testers.push(newPerson);
+    dispatchMutation('testers', 'testers', { list: companyData.testers }, 'set');
+    setAppData(data);
+    return newPerson;
+}
+export function updateTester(id: string, p: Partial<Person>) {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    const index = companyData.testers.findIndex(x => x.id === id);
+    if (index !== -1) {
+        companyData.testers[index] = { ...companyData.testers[index], ...p };
+        dispatchMutation('testers', 'testers', { list: companyData.testers }, 'set');
+        setAppData(data);
+    }
+}
+export function deleteTester(id: string) {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    companyData.testers = companyData.testers.filter(x => x.id !== id);
+    dispatchMutation('testers', 'testers', { list: companyData.testers }, 'set');
+    setAppData(data);
+    return true;
+}
+
+// Config & Settings
+export function getUiConfig(): UiConfig {
+    const data = getAppData();
+    return data.companyData[data.activeCompanyId]?.uiConfig || getInitialData().companyData['company-default'].uiConfig;
+}
+export function updateUiConfig(newConfig: Partial<UiConfig>, isFullReplacement = false) {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    if (isFullReplacement) companyData.uiConfig = newConfig as UiConfig;
+    else companyData.uiConfig = { ...companyData.uiConfig, ...newConfig };
+    dispatchMutation('uiConfig', 'uiConfig', companyData.uiConfig, 'set');
+    setAppData(data);
+    window.dispatchEvent(new Event('config-changed'));
+}
+export function addEnvironment(name: string) {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    const newEnv = { id: `env-${crypto.randomUUID()}`, name, color: '#3b82f6' };
+    companyData.uiConfig.environments.push(newEnv);
+    updateUiConfig(companyData.uiConfig, true);
+    return true;
+}
+export function updateEnvironment(oldName: string, env: Environment) {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    const index = companyData.uiConfig.environments.findIndex(x => x.name === oldName);
+    if (index !== -1) {
+        companyData.uiConfig.environments[index] = env;
+        updateUiConfig(companyData.uiConfig, true);
+    }
+    return true;
+}
+export function deleteEnvironment(name: string) {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    companyData.uiConfig.environments = companyData.uiConfig.environments.filter(x => x.name !== name);
+    updateUiConfig(companyData.uiConfig, true);
+    return true;
+}
+
+// Logs
+export function getLogs() { return getAppData().companyData[getActiveCompanyId()]?.logs || []; }
+export function addLog(logData: Omit<Log, 'id' | 'timestamp'>) {
     const data = getAppData();
     const companyData = data.companyData[data.activeCompanyId];
     if (!companyData) return;
     _addLog(companyData, logData);
     setAppData(data);
-};
-
-export function getLogs(): Log[] {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    return companyData?.logs || [];
 }
-
 export function getLogsForTask(taskId: string): Log[] {
-    const allLogs = getLogs();
-    return allLogs.filter(log => log.taskId === taskId);
+    return getLogs().filter(log => log.taskId === taskId);
 }
-
-// Company Functions
-export function getCompanies(): Company[] {
-    const data = getAppData();
-    return data.companies;
-}
-
-export function addCompany(name: string): Company {
-    const data = getAppData();
-    const newCompanyId = `company-${crypto.randomUUID()}`;
-    const newCompany: Company = { id: newCompanyId, name };
-    
-    data.companies.push(newCompany);
-    data.companyData[newCompanyId] = getInitialData().companyData[Object.keys(getInitialData().companyData)[0]];
-
-    const activeCompanyData = data.companyData[data.activeCompanyId];
-    if (activeCompanyData) {
-        _addLog(activeCompanyData, { message: `Added new company: "${name}".` });
-    }
-    
-    setAppData(data);
-    return newCompany;
-}
-
-export function updateCompany(id: string, name: string): Company | undefined {
-    const data = getAppData();
-    const companyIndex = data.companies.findIndex(c => c.id === id);
-    if (companyIndex === -1) return undefined;
-    
-    const oldName = data.companies[companyIndex].name;
-    data.companies[companyIndex].name = name;
-    
-    const activeCompanyData = data.companyData[data.activeCompanyId];
-    if (activeCompanyData) {
-        _addLog(activeCompanyData, { message: `Renamed company from "${oldName}" to "${name}".` });
-    }
-
-    setAppData(data);
-    return data.companies[companyIndex];
-}
-
-export function deleteCompany(id: string): boolean {
-    const data = getAppData();
-    if (data.companies.length <= 1) return false;
-
-    const companyIndex = data.companies.findIndex(c => c.id === id);
-    if (companyIndex === -1) return false;
-    
-    const companyName = data.companies[companyIndex].name;
-    
-    delete data.companyData[id];
-    data.companies.splice(companyIndex, 1);
-
-    if (data.activeCompanyId === id) {
-        data.activeCompanyId = data.companies[0].id;
-    }
-    
-    const activeCompanyData = data.companyData[data.activeCompanyId];
-    if (activeCompanyData) {
-        _addLog(activeCompanyData, { message: `Deleted company: "${companyName}".`});
-    }
-
-    setAppData(data);
-    return true;
-}
-
-export function getActiveCompanyId(): string {
-    return getAppData().activeCompanyId;
-}
-
-export function setActiveCompanyId(id: string) {
-    const data = getAppData();
-    if (data.companies.some(c => c.id === id)) {
-        data.activeCompanyId = id;
-        setAppData(data);
-    }
-}
-
-const generateUiConfigUpdateLogs = (oldConfig: UiConfig, newConfig: UiConfig): string | null => {
-    const logDetails: string[] = [];
-    const createDetail = (message: string) => logDetails.push(message);
-
-    // Branding changes
-    if (oldConfig.appName !== newConfig.appName) {
-        createDetail(`Updated app name from "${oldConfig.appName || 'My Task Manager'}" to "${newConfig.appName || 'My Task Manager'}".`);
-    }
-    if (oldConfig.appIcon !== newConfig.appIcon) {
-        if (oldConfig.appIcon && !newConfig.appIcon) {
-            createDetail('Removed the app icon.');
-        } else if (!oldConfig.appIcon && newConfig.appIcon) {
-            createDetail('Set a new app icon.');
-        } else {
-            createDetail('Updated the app icon.');
-        }
-    }
-    
-    if (oldConfig.remindersEnabled !== newConfig.remindersEnabled) {
-        createDetail(`${newConfig.remindersEnabled ? 'Enabled' : 'Disabled'} the Task Reminders feature.`);
-    }
-
-    if (oldConfig.tutorialEnabled !== newConfig.tutorialEnabled) {
-        createDetail(`${newConfig.tutorialEnabled ? 'Enabled' : 'Disabled'} the Tutorial feature.`);
-    }
-
-    if (oldConfig.authenticationMode !== newConfig.authenticationMode) {
-        createDetail(`Switched authentication mode to **${newConfig.authenticationMode === 'localStorage' ? 'Local Storage' : 'Cloud Sync'}**.`);
-    }
-
-    if (oldConfig.autoBackupFrequency !== newConfig.autoBackupFrequency) {
-        const frequency = newConfig.autoBackupFrequency === 'off' ? 'Off' : (newConfig.autoBackupFrequency?.charAt(0).toUpperCase() + newConfig.autoBackupFrequency?.slice(1));
-        createDetail(`Set automatic backup frequency to **${frequency}**.`);
-    }
-
-    if (oldConfig.autoBackupTime !== newConfig.autoBackupTime) {
-        const formatTime = (hour: number) => format(new Date(2000, 0, 1, hour), 'h a');
-        const oldTime = oldConfig.autoBackupTime ? formatTime(oldConfig.autoBackupTime) : '6 AM';
-        const newTime = newConfig.autoBackupTime ? formatTime(newConfig.autoBackupTime) : '6 AM';
-        createDetail(`Set automatic backup time to **${newTime}**.`);
-    }
-
-    if (oldConfig.timeFormat !== newConfig.timeFormat) {
-        createDetail(`Changed time format to ${newConfig.timeFormat === '24h' ? '24-hour' : '12-hour'}.`);
-    }
-
-    if (oldConfig.currentVersion !== newConfig.currentVersion) {
-        createDetail(`Application version updated to **${newConfig.currentVersion}**.`);
-    }
-
-    // Repository configuration changes
-    if (JSON.stringify(oldConfig.repositoryConfigs) !== JSON.stringify(newConfig.repositoryConfigs)) {
-        const oldRepos = new Map((oldConfig.repositoryConfigs || []).map(r => [r.id, r]));
-        const newRepos = new Map((newConfig.repositoryConfigs || []).map(r => [r.id, r]));
-        const repoLogDetails: string[] = [];
-
-        newRepos.forEach((newRepo, id) => {
-            const oldRepo = oldRepos.get(id);
-            if (!oldRepo) {
-                repoLogDetails.push(`- Added repository: "${newRepo.name}"`);
-            } else if (oldRepo.name !== newRepo.name || oldRepo.baseUrl !== newRepo.baseUrl) {
-                repoLogDetails.push(`- Updated repository "${oldRepo.name}":`);
-                if (oldRepo.name !== newRepo.name) {
-                    repoLogDetails.push(`  - Renamed to "${newRepo.name}"`);
-                }
-                if (oldRepo.baseUrl !== newRepo.baseUrl) {
-                    repoLogDetails.push(`  - Changed URL to "${newRepo.baseUrl}"`);
-                }
-            }
-        });
-        oldRepos.forEach((oldRepo, id) => {
-            if (!newRepos.has(id)) {
-                repoLogDetails.push(`- Removed repository: "${oldRepo.name}"`);
-            }
-        });
-
-        if (repoLogDetails.length > 0) {
-            createDetail(`Updated repository configurations:\n${repoLogDetails.join('\n')}`);
-        }
-    }
-
-    // Field changes
-    const oldFieldsMap = new Map(oldConfig.fields.map(f => [f.id, f]));
-    const newFieldsMap = new Map(newConfig.fields.map(f => [f.id, f]));
-
-    const allFieldIds = new Set([...oldFieldsMap.keys(), ...newFieldsMap.keys()]);
-    allFieldIds.forEach(id => {
-        const oldField = oldFieldsMap.get(id);
-        const newField = newFieldsMap.get(id);
-        
-        if (newField?.key === 'repositories' || oldField?.key === 'repositories') return;
-
-        if (newField && !oldField) {
-            createDetail(`Added new field "${newField.label}" to the "${newField.group}" group.`);
-            return;
-        }
-
-        if (!newField && oldField && oldField.isCustom) {
-            createDetail(`Deleted custom field "${oldField.label}" from the "${oldField.group}" group.`);
-            return;
-        }
-
-        if (newField && oldField) {
-            const fieldUpdateDetails: string[] = [];
-            
-            if (oldField.label !== newField.label) { fieldUpdateDetails.push(`- Renamed from "${oldField.label}" to "${newField.label}".`); }
-            if (oldField.group !== newField.group) { fieldUpdateDetails.push(`- Moved from group "${oldField.group}" to "${newField.group}".`); }
-            if (oldField.isActive !== newField.isActive) { fieldUpdateDetails.push(`- Set as ${newField.isActive ? 'Active' : 'Inactive'}.`); }
-            if (oldField.isRequired !== newField.isRequired) { fieldUpdateDetails.push(`- Set as ${newField.isRequired ? 'Required' : 'Not Required'}.`); }
-            if (oldField.baseUrl !== newField.baseUrl) { fieldUpdateDetails.push(`- Changed Base URL from "${oldField.baseUrl || 'none'}" to "${newField.baseUrl || 'none'}".`); }
-            if (oldField.sortDirection !== newField.sortDirection) { fieldUpdateDetails.push(`- Changed sort order to "${newField.sortDirection}".`); }
-            
-            const oldOptionsString = JSON.stringify((oldField.options || [])
-                .map(o => ({ value: o.value || '', label: o.label || '' }))
-                .sort((a,b) => (a.value || '').localeCompare(b.value || '')));
-            const newOptionsString = JSON.stringify((newField.options || [])
-                .map(o => ({ value: o.value || '', label: o.label || '' }))
-                .sort((a,b) => (a.value || '').localeCompare(b.value || '')));
-
-            if (oldOptionsString !== newOptionsString) {
-                const oldOptions = new Map((oldField.options || []).filter(o => !!o.value).map(o => [o.value, o.label]));
-                const newOptions = new Map((newField.options || []).filter(o => !!o.value).map(o => [o.value, o.label]));
-                
-                const optionChanges: string[] = [];
-                newOptions.forEach((label, value) => {
-                    if (!oldOptions.has(value)) {
-                        optionChanges.push(`  - Added option: "${label}"`);
-                    } else if (oldOptions.get(value) !== label) {
-                        optionChanges.push(`  - Renamed option from "${oldOptions.get(value)}" to "${label}"`);
-                    }
-                });
-                oldOptions.forEach((label, value) => {
-                    if (!newOptions.has(value)) {
-                        optionChanges.push(`  - Removed option: "${label}"`);
-                    }
-                });
-
-                if (optionChanges.length > 0) {
-                    fieldUpdateDetails.push('- Updated selection options:');
-                    fieldUpdateDetails.push(...optionChanges);
-                }
-            }
-
-            if (fieldUpdateDetails.length > 0) {
-                const logMessage = `Updated settings for field "${oldField.label}":\n${fieldUpdateDetails.join('\n')}`;
-                createDetail(logMessage);
-            }
-        }
-    });
-    
-    if (logDetails.length === 0) return null;
-    if (logDetails.length === 1) return logDetails[0];
-
-    return `Updated application settings with multiple changes:\n\n${logDetails.join('\n\n')}`;
-};
-
-// UI Config Functions
-export function getUiConfig(): UiConfig {
-    const data = getAppData();
-    const activeCompanyId = getActiveCompanyId();
-    const companyData = data.companyData[activeCompanyId];
-
-    if (!companyData) {
-        return _validateAndMigrateConfig(undefined);
-    }
-
-    return companyData.uiConfig;
-}
-
-export function updateUiConfig(newConfig: UiConfig, fromImport: boolean = false): UiConfig {
-    const data = getAppData();
-    const activeCompanyId = getActiveCompanyId();
-    const companyData = data.companyData[activeCompanyId];
-
-    if (!companyData) {
-        return newConfig;
-    }
-    
-    let oldConfig = companyData.uiConfig;
-    let finalConfig = newConfig;
-
-    if (fromImport) {
-        const mergedConfig = cloneDeep(oldConfig);
-        if (newConfig.environments) mergedConfig.environments = newConfig.environments;
-        if (newConfig.repositoryConfigs) mergedConfig.repositoryConfigs = newConfig.repositoryConfigs;
-        if (newConfig.fields) mergedConfig.fields = newConfig.fields;
-        mergedConfig.appName = newConfig.appName ?? mergedConfig.appName;
-        mergedConfig.appIcon = newConfig.appIcon ?? mergedConfig.appIcon;
-        mergedConfig.authenticationMode = newConfig.authenticationMode ?? mergedConfig.authenticationMode;
-        finalConfig = _validateAndMigrateConfig(mergedConfig);
-        _addLog(companyData, { message: `Imported new application settings.` });
-    } else {
-        const logMessage = generateUiConfigUpdateLogs(oldConfig, newConfig);
-        if (logMessage) {
-            _addLog(companyData, { message: logMessage });
-        }
-    }
-
-    finalConfig.fields.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
-    finalConfig.fields.forEach((field, index) => {
-        field.order = index;
-        const isSortable = ['select', 'multiselect', 'tags'].includes(field.type) && field.key !== 'status';
-        if (isSortable && !field.sortDirection) {
-            field.sortDirection = 'manual';
-        }
-    });
-    
-    const oldRepoNameToId = new Map((oldConfig.repositoryConfigs || []).map(r => [r.name, r.id]));
-    const newRepoIdToName = new Map((finalConfig.repositoryConfigs || []).map(r => [r.id, r.name]));
-
-    const tasksToUpdate = [
-        ...companyData.tasks,
-        ...(companyData.trash || []),
-    ];
-
-    tasksToUpdate.forEach(task => {
-        let wasUpdated = false;
-
-        if (task.repositories && task.repositories.length > 0) {
-            const updatedRepos = task.repositories
-                .map(oldName => {
-                    const repoId = oldRepoNameToId.get(oldName);
-                    return repoId ? newRepoIdToName.get(repoId) : oldName;
-                })
-                .filter((r): r is string => !!r);
-
-            if (JSON.stringify(task.repositories.sort()) !== JSON.stringify(updatedRepos.sort())) {
-                task.repositories = updatedRepos;
-                wasUpdated = true;
-            }
-        }
-
-        if (task.prLinks) {
-            const newPrLinks: Task['prLinks'] = {};
-            let prLinksUpdated = false;
-            
-            for (const env in task.prLinks) {
-                newPrLinks[env] = {};
-                const repoLinks = task.prLinks[env];
-                if (repoLinks) {
-                    for (const oldName in repoLinks) {
-                        const repoId = oldRepoNameToId.get(oldName);
-                        const newName = repoId ? newRepoIdToName.get(repoId) : undefined;
-                        
-                        if (newName) {
-                            newPrLinks[env]![newName] = repoLinks[oldName];
-                        }
-
-                        if (newName !== oldName) {
-                            prLinksUpdated = true;
-                        }
-                    }
-                }
-            }
-
-            if (prLinksUpdated) {
-                task.prLinks = newPrLinks;
-                wasUpdated = true;
-            }
-        }
-        
-        if (wasUpdated) {
-            task.updatedAt = new Date().toISOString();
-        }
-    });
-
-    companyData.uiConfig = finalConfig;
-    setAppData(data);
-    window.dispatchEvent(new Event('company-changed'));
-    
-    return finalConfig;
-}
-
-export function addEnvironment(name: string): boolean {
-    const data = getAppData();
-    const activeCompanyId = data.activeCompanyId;
-    const companyData = data.companyData[activeCompanyId];
-    if (!companyData) return false;
-
-    const trimmedName = name.trim();
-    if (trimmedName === '') return false;
-
-    const currentEnvs = (companyData.uiConfig.environments || [])
-        .filter(e => e && e.name)
-        .map(e => e.name.toLowerCase());
-        
-    if (currentEnvs.includes(trimmedName.toLowerCase())) {
-        return false;
-    }
-    
-    const newEnv: Environment = {
-        id: `env_${crypto.randomUUID()}`,
-        name: trimmedName,
-        color: `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`
-    };
-    
-    companyData.uiConfig.environments.push(newEnv);
-    
-    _addLog(companyData, { message: `Added new environment: "${newEnv.name}".` });
-
-    setAppData(data);
-    window.dispatchEvent(new Event('config-changed'));
-    return true;
-}
-
-export function updateEnvironment(oldName: string, updatedEnv: Environment): boolean {
-    const data = getAppData();
-    const activeCompanyId = data.activeCompanyId;
-    const companyData = data.companyData[activeCompanyId];
-
-    if (!companyData || !companyData.uiConfig.environments?.find(e => e.name === oldName)) {
-        return false;
-    }
-
-    const trimmedNewName = updatedEnv.name.trim();
-    if (trimmedNewName === '') return false;
-
-    const envIndex = companyData.uiConfig.environments.findIndex(e => e.name === oldName);
-    if (envIndex === -1) return false;
-    const existingEnv = companyData.uiConfig.environments[envIndex];
-    
-    if (trimmedNewName.toLowerCase() !== oldName.toLowerCase() && companyData.uiConfig.environments.some(env => env && env.name && env.name.toLowerCase() === trimmedNewName.toLowerCase())) {
-        return false;
-    }
-
-    companyData.uiConfig.environments[envIndex] = { ...existingEnv, ...updatedEnv, name: trimmedNewName };
-    
-    const { tasks, trash } = companyData;
-    
-    if(oldName !== trimmedNewName) {
-        const renameEnvInTask = (task: Task) => {
-            let changed = false;
-            if (task.deploymentStatus && oldName in task.deploymentStatus) {
-                task.deploymentStatus[trimmedNewName] = task.deploymentStatus[oldName];
-                delete task.deploymentStatus[oldName];
-                changed = true;
-            }
-            if (task.deploymentDates && oldName in task.deploymentDates) {
-                task.deploymentDates[trimmedNewName] = task.deploymentDates[oldName];
-                delete task.deploymentDates[oldName];
-                changed = true;
-            }
-            if (task.prLinks && oldName in task.prLinks) {
-                task.prLinks[trimmedNewName] = task.prLinks[oldName];
-                delete task.prLinks[oldName];
-                changed = true;
-            }
-            if (task.relevantEnvironments?.includes(oldName)) {
-                task.relevantEnvironments = task.relevantEnvironments.map(e => e === oldName ? trimmedNewName : e);
-                changed = true;
-            }
-            if(changed) {
-              task.updatedAt = new Date().toISOString();
-            }
-        };
-        tasks.forEach(renameEnvInTask);
-        (trash || []).forEach(renameEnvInTask);
-    }
-
-    _addLog(companyData, { message: `Updated environment "${oldName}".` });
-
-    setAppData(data);
-    window.dispatchEvent(new Event('config-changed'));
-    return true;
-}
-
-
-export function deleteEnvironment(name: string): boolean {
-    const protectedEnvs = ['dev', 'production'];
-    if (protectedEnvs.includes(name.toLowerCase())) {
-        return false;
-    }
-
-    const data = getAppData();
-    const activeCompanyId = data.activeCompanyId;
-    const companyData = data.companyData[activeCompanyId];
-
-    if (!companyData || !companyData.uiConfig.environments?.find(e => e.name === name)) {
-        return false;
-    }
-    
-    const { uiConfig, tasks, trash } = companyData;
-    uiConfig.environments = uiConfig.environments.filter(env => env && env.name !== name);
-
-    const deleteEnvFromTask = (task: Task) => {
-        let changed = false;
-        if (task.deploymentStatus && name in task.deploymentStatus) {
-            delete task.deploymentStatus[name];
-            changed = true;
-        }if (task.deploymentDates && name in task.deploymentDates) {
-            delete task.deploymentDates[name];
-            changed = true;
-        }
-        if (task.prLinks && name in task.prLinks) {
-            delete task.prLinks[name];
-            changed = true;
-        }
-        if (task.relevantEnvironments?.includes(name)) {
-            task.relevantEnvironments = task.relevantEnvironments.filter(e => e !== name);
-            changed = true;
-        }
-        if(changed) {
-          task.updatedAt = new Date().toISOString();
-        }
-    };
-
-    tasks.forEach(deleteEnvFromTask);
-    (trash || []).forEach(deleteEnvFromTask);
-
-    _addLog(companyData, { message: `Deleted environment: "${name}".` });
-
-    setAppData(data);
-    window.dispatchEvent(new Event('config-changed'));
-    return true;
-}
-
-// Task Functions
-export function getTasks(): Task[] {
-  const data = getAppData();
-  if (!data.activeCompanyId || !data.companyData[data.activeCompanyId]) {
-      return [];
-  }
-  return data.companyData[data.activeCompanyId].tasks;
-}
-
-export function getTaskById(id: string): Task | undefined {
-  const allTasks = [...getTasks(), ...getBinnedTasks()];
-  return allTasks.find(task => task.id === id);
-}
-
-export function addTask(taskData: Partial<Task>, isBinned: boolean = false): Task {
-  const data = getAppData();
-  const activeCompanyId = data.activeCompanyId;
-  const companyData = data.companyData[activeCompanyId];
-  
-  const now = new Date().toISOString();
-  const taskId = taskData.id || `task-${crypto.randomUUID()}`;
-
-  const newTask: Task = {
-    id: taskId,
-    createdAt: taskData.createdAt || now,
-    updatedAt: now,
-    title: taskData.title || 'Untitled Task',
-    description: taskData.description || '',
-    status: taskData.status || 'To Do',
-    summary: taskData.summary || null,
-    isFavorite: taskData.isFavorite || false,
-    reminder: taskData.reminder || null,
-    reminderExpiresAt: taskData.reminderExpiresAt || null,
-    
-    repositories: taskData.repositories || [],
-    azureWorkItemId: taskData.azureWorkItemId || '',
-    tags: taskData.tags || [],
-    prLinks: taskData.prLinks || {},
-    deploymentStatus: taskData.deploymentStatus || {},
-    deploymentDates: taskData.deploymentDates || {},
-    relevantEnvironments: taskData.relevantEnvironments || ['dev', 'stage', 'production'],
-    developers: taskData.developers || [],
-    testers: taskData.testers || [],
-    comments: taskData.comments || [],
-    attachments: taskData.attachments || [],
-    
-    devStartDate: taskData.devStartDate || null,
-    devEndDate: taskData.devEndDate || null,
-    qaStartDate: taskData.qaStartDate || null,
-    qaEndDate: taskData.qaEndDate || null,
-
-    customFields: taskData.customFields || {},
-  };
-  
-  if (isBinned) {
-      newTask.deletedAt = taskData.deletedAt || now;
-      companyData.trash = [newTask, ...(companyData.trash || [])];
-      _addLog(companyData, { message: `Added new binned task: "${newTask.title}".`, taskId: newTask.id });
-  } else {
-      companyData.tasks = [newTask, ...companyData.tasks];
-      _addLog(companyData, { message: `Created new task: "${newTask.title}".`, taskId: newTask.id });
-  }
-
-  setAppData(data);
-  return newTask;
-}
-
-export function addTagsToMultipleTasks(taskIds: string[], tagsToAdd: string[]): boolean {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData || tagsToAdd.length === 0) return false;
-
-    const tasksToUpdate = companyData.tasks.filter(task => taskIds.includes(task.id));
-    if (tasksToUpdate.length === 0) return false;
-
-    tasksToUpdate.forEach(task => {
-        const existingTags = new Set(task.tags || []);
-        tagsToAdd.forEach(tag => existingTags.add(tag));
-        task.tags = Array.from(existingTags).sort();
-        task.updatedAt = new Date().toISOString();
-    });
-    
-    _addLog(companyData, { message: `Added tags [${tagsToAdd.join(', ')}] to ${tasksToUpdate.length} task(s).` });
-    setAppData(data);
-    return true;
-}
-
-const generateTaskUpdateLogs = (
-    oldTask: Task, 
-    newTaskData: Partial<Task>, 
-    uiConfig: UiConfig,
-    developers: Person[], 
-    testers: Person[]
-): string | null => {
-    const changes: string[] = [];
-    const taskTitle = newTaskData.title || oldTask.title;
-    
-    const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
-    const developersById = new Map(developers.map(p => [p.id, p.name]));
-    const testersById = new Map(testers.map(p => [p.id, p.name]));
-    const timeFormatString = uiConfig.timeFormat === '24h' ? 'PPP HH:mm' : 'PPP p';
-
-    const formatValue = (value: any, formatter?: (v: any) => string) => {
-        if (value === null || value === undefined || (Array.isArray(value) && value.length === 0) || value === '') return '*empty*';
-        const formattedValue = formatter ? formatter(value) : String(value);
-        return `"${formattedValue}"`;
-    };
-
-    const fieldsToLog = uiConfig.fields.filter(f => f.isActive && !['deploymentStatus', 'deploymentDates', 'prLinks', 'customFields'].includes(f.key));
-    fieldsToLog.forEach(field => {
-        const key = field.key as keyof Task;
-        if (!(key in newTaskData)) return;
-
-        let oldValue = oldTask[key];
-        let newValue = newTaskData[key];
-
-        if (key === 'repositories') {
-            oldValue = Array.isArray(oldValue) ? oldValue : (oldValue ? [oldValue] : []);
-            newValue = Array.isArray(newValue) ? newValue : (newValue ? [newValue] : []);
-        }
-
-        if (JSON.stringify(oldValue) === JSON.stringify(newValue)) return;
-        
-        let logEntry: string | null = null;
-        const label = field.label;
-        
-        switch (key) {
-            case 'title':
-            case 'status':
-                logEntry = `- Changed **${label}** from ${formatValue(oldValue)} to ${formatValue(newValue)}.`;
-                break;
-            case 'description':
-                 logEntry = `- Changed **${label}** from ${formatValue(oldValue, v => `${v.substring(0, 30)}...`)} to ${formatValue(newValue, v => `${v.substring(0, 30)}...`)}.`;
-                 break;
-            case 'developers':
-            case 'testers': {
-                const nameMap = key === 'developers' ? developersById : testersById;
-                const oldSet = new Set(oldValue as string[] || []);
-                const newSet = new Set(newValue as string[] || []);
-                const added = [...newSet].filter(id => !oldSet.has(id)).map(id => nameMap.get(id) || id);
-                const removed = [...oldSet].filter(id => !newSet.has(id)).map(id => nameMap.get(id) || id);
-
-                if (added.length > 0) changes.push(`- Assigned ${label}: **${added.join(', ')}**.`);
-                if (removed.length > 0) changes.push(`- Unassigned ${label}: **${removed.join(', ')}**.`);
-                break;
-            }
-            case 'repositories': {
-                const oldRepos = Array.isArray(oldValue) ? oldValue : [];
-                const newRepos = Array.isArray(newValue) ? newValue : [];
-                if(JSON.stringify(oldRepos.sort()) !== JSON.stringify(newRepos.sort())) {
-                    logEntry = `- Changed **${label}** to *${newRepos.join(', ') || 'empty'}*.`;
-                }
-                break;
-            }
-            case 'devStartDate':
-            case 'devEndDate':
-            case 'qaStartDate':
-            case 'qaEndDate': {
-                const oldDate = oldValue ? new Date(oldValue as string).toISOString() : null;
-                const newDate = newValue ? new Date(newValue as string).toISOString() : null;
-                if(oldDate !== newDate) {
-                     if (!oldDate && newDate) {
-                        logEntry = `- Set **${label}** to *${format(new Date(newDate), 'PPP')}*.`;
-                    } else if (oldDate && !newDate) {
-                        logEntry = `- Cleared **${label}** (was *${format(new Date(oldDate), 'PPP')}*).`;
-                    } else {
-                        logEntry = `- Changed **${label}** from *${format(new Date(oldDate!), 'PPP')}* to *${format(new Date(newDate!), 'PPP')}*.`;
-                    }
-                }
-                break;
-            }
-            case 'attachments': {
-                const oldAttachments = new Map((oldValue as Attachment[] || []).map(a => [a.url, a.name]));
-                const newAttachments = new Map((newValue as Attachment[] || []).map(a => [a.url, a.name]));
-                
-                newAttachments.forEach((name, url) => {
-                    if (!oldAttachments.has(url)) {
-                        changes.push(`- Added attachment: *"${name}"*.`);
-                    }
-                });
-
-                oldAttachments.forEach((name, url) => {
-                    if (!newAttachments.has(url)) {
-                        changes.push(`- Removed attachment: *"${name}"*.`);
-                    }
-                });
-                break;
-            }
-            case 'reminder':
-                if (oldValue && !newValue) {
-                    logEntry = '- Removed the reminder from the task.';
-                } else if (!oldValue && newValue) {
-                    logEntry = `- Set a new reminder: *"${(newValue as string).substring(0, 50)}..."*`;
-                } else {
-                    logEntry = `- Updated the reminder text to: *"${(newValue as string).substring(0, 50)}..."*`;
-                }
-                break;
-            case 'reminderExpiresAt':
-                 if (newValue && newValue !== oldValue) {
-                    logEntry = `- Set reminder expiration to *${format(new Date(newValue as string), timeFormatString)}*.`;
-                 } else if (!newValue && oldValue) {
-                    logEntry = '- Removed the reminder expiration date.';
-                 }
-                break;
-        }
-
-        if (logEntry) changes.push(logEntry);
-    });
-
-    if (newTaskData.customFields) {
-        const oldCustomFields = oldTask.customFields || {};
-        const newCustomFields = newTaskData.customFields;
-        uiConfig.fields.forEach(field => {
-            if (field.isCustom && field.key in newCustomFields) {
-                const oldValue = oldCustomFields[field.key];
-                const newValue = newCustomFields[field.key];
-                if (JSON.stringify(oldValue) === JSON.stringify(newValue)) return;
-                changes.push(`- Changed **${field.label}** from ${formatValue(oldValue)} to ${formatValue(newValue)}.`);
-            }
-        });
-    }
-    
-    const allEnvs = uiConfig.environments || [];
-    allEnvs.forEach(env => {
-        if (!env || !env.name) return;
-        const oldStatus = oldTask.deploymentStatus?.[env.name] ?? false;
-        const newStatus = 'deploymentStatus' in newTaskData ? (newTaskData.deploymentStatus?.[env.name] ?? false) : oldStatus;
-        
-        const oldDate = oldTask.deploymentDates?.[env.name] ?? null;
-        const newDate = 'deploymentDates' in newTaskData ? (newTaskData.deploymentDates?.[env.name] ?? null) : oldDate;
-
-        const oldDeployed = oldStatus && (env.name === 'dev' || !!oldDate);
-        const newDeployed = newStatus && (env.name === 'dev' || !!newDate);
-        
-        if (oldDeployed !== newDeployed) {
-            changes.push(`- Changed **${env.name.charAt(0).toUpperCase() + env.name.slice(1)}** deployment to *${newDeployed ? 'Deployed' : 'Pending'}*.`);
-        } else if (newDeployed && oldDate !== newDate) {
-            if (!oldDate && newDate) {
-                changes.push(`- Set **${env.name.charAt(0).toUpperCase() + env.name.slice(1)} deployment date** to *${format(new Date(newDate!), 'PPP')}*.`);
-            } else if (oldDate && !newDate) {
-                changes.push(`- Cleared **${env.name.charAt(0).toUpperCase() + env.name.slice(1)} deployment date**.`);
-            } else if (oldDate && newDate) {
-                changes.push(`- Changed **${env.name.charAt(0).toUpperCase() + env.name.slice(1)} deployment date** from *${format(new Date(oldDate), 'PPP')}* to *${format(new Date(newDate!), 'PPP')}*.`);
-            }
-        }
-    });
-
-    if ('prLinks' in newTaskData) {
-        const prChanges: string[] = [];
-        const oldLinks = oldTask.prLinks || {};
-        const newLinks = newTaskData.prLinks || {};
-        const allPrEnvs = [...new Set([...Object.keys(oldLinks), ...Object.keys(newLinks)])];
-
-        allPrEnvs.forEach(env => {
-            const oldRepoLinks = oldLinks[env] || {};
-            const newRepoLinks = newLinks[env] || {};
-            const allRepos = [...new Set([...Object.keys(oldRepoLinks), ...Object.keys(newRepoLinks)])];
-
-            allRepos.forEach(repo => {
-                const oldIds = new Set((oldRepoLinks[repo] || '').split(',').map(s => s.trim()).filter(Boolean));
-                const newIds = new Set((newRepoLinks[repo] || '').split(',').map(s => s.trim()).filter(Boolean));
-
-                const added = [...newIds].filter(id => !oldIds.has(id));
-                const removed = [...oldIds].filter(id => !newIds.has(id));
-
-                added.forEach(id => prChanges.push(`- Added PR **#${id}** to *${repo} (${env})*.`));
-                removed.forEach(id => prChanges.push(`- Removed PR **#${id}** from *${repo} (${env})*.`));
-            });
-        });
-
-        if (prChanges.length > 0) {
-            changes.push(`Updated **Pull Request links**:\n${prChanges.join('\n')}`);
-        }
-    }
-
-
-    if (changes.length === 0) return null;
-    return `Updated task "${taskTitle}":\n${changes.join('\n')}`;
-};
-
-export function updateTask(id: string, taskData: Partial<Omit<Task, 'id' | 'createdAt' | 'updatedAt'>>, silent: boolean = false): Task | undefined {
-  const data = getAppData();
-  const activeCompanyId = data.activeCompanyId;
-  const companyData = data.companyData[activeCompanyId];
-  if (!companyData) return undefined;
-  
-  if (taskData.repositories && !Array.isArray(taskData.repositories)) {
-    taskData.repositories = [taskData.repositories];
-  }
-
-  let oldTask: Task | undefined;
-  let taskIndex: number = -1;
-  let isBinned = false;
-
-  taskIndex = companyData.tasks.findIndex(task => task.id === id);
-  if (taskIndex !== -1) {
-    oldTask = cloneDeep(companyData.tasks[taskIndex]);
-  } else {
-    const trash = companyData.trash || [];
-    taskIndex = trash.findIndex(task => task.id === id);
-    if (taskIndex !== -1) {
-      oldTask = cloneDeep(trash[taskIndex]);
-      isBinned = true;
-    }
-  }
-
-  if (!oldTask || taskIndex === -1) return undefined;
-  
-  const uiConfig = companyData.uiConfig;
-  const logMessage = generateTaskUpdateLogs(oldTask, taskData, uiConfig, companyData.developers, companyData.testers);
-
-  if(!silent && logMessage) {
-    _addLog(companyData, { message: logMessage, taskId: id });
-  }
-
-  const updatedTask = { ...oldTask, ...taskData, updatedAt: new Date().toISOString() };
-  
-  if (isBinned) {
-    (companyData.trash || [])[taskIndex] = updatedTask;
-  } else {
-    companyData.tasks[taskIndex] = updatedTask;
-  }
-
-  setAppData(data);
-  return updatedTask;
-}
-
-// Bin/Trash Functions
-export function getBinnedTasks(): Task[] {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData) return [];
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const recentTrash = (companyData.trash || []).filter(task =>
-        task.deletedAt && new Date(task.deletedAt) > thirtyDaysAgo
-    );
-    if (recentTrash.length < (companyData.trash || []).length) {
-        companyData.trash = recentTrash;
-        setAppData(data);
-    }
-    return (companyData.trash || []).sort((a,b) => new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime());
-}
-
-export function moveTaskToBin(id: string): boolean {
-  const data = getAppData();
-  const companyData = data.companyData[data.activeCompanyId];
-  if (!companyData) return false;
-
-  const taskIndex = companyData.tasks.findIndex(task => task.id === id);
-  if (taskIndex === -1) return false;
-  
-  const [taskToBin] = companyData.tasks.splice(taskIndex, 1);
-  taskToBin.deletedAt = new Date().toISOString();
-  companyData.trash = companyData.trash || [];
-  companyData.trash.unshift(taskToBin);
-  
-  _addLog(companyData, { message: `Moved task "${taskToBin.title}" to the bin.`, taskId: id });
-
-  setAppData(data);
-  return true;
-}
-
-export function moveMultipleTasksToBin(ids: string[]): boolean {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData) return false;
-    
-    const tasksToBin = companyData.tasks.filter(task => ids.includes(task.id));
-    if (tasksToBin.length === 0) return false;
-
-    const now = new Date().toISOString();
-    tasksToBin.forEach(task => {
-        task.deletedAt = now;
-        _addLog(companyData, { message: `Moved task "${task.title}" to the bin.`, taskId: task.id });
-    });
-    
-    _addLog(companyData, { message: `Moved ${tasksToBin.length} task(s) to the bin.` });
-
-    companyData.tasks = companyData.tasks.filter(task => !ids.includes(task.id));
-    companyData.trash = companyData.trash || [];
-    companyData.trash.unshift(...tasksToBin);
-    
-    setAppData(data);
-    return true;
-}
-
-export function restoreTask(id: string): boolean {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData || !companyData.trash) return false;
-
-    const taskIndex = companyData.trash.findIndex(task => task.id === id);
-    if (taskIndex === -1) return false;
-
-    const [taskToRestore] = companyData.trash.splice(taskIndex, 1);
-    delete taskToRestore.deletedAt;
-    
-    if (taskToRestore.title.startsWith('Note: ')) {
-        const asNote: Note = {
-            id: taskToRestore.id,
-            title: taskToRestore.title.replace('Note: ', ''),
-            content: taskToRestore.description || '',
-            createdAt: taskToRestore.createdAt,
-            updatedAt: new Date().toISOString(),
-            layout: { i: taskToRestore.id, x: 0, y: Infinity, w: 3, h: 6, minW: 2, minH: 3 }
-        };
-        companyData.notes = companyData.notes || [];
-        companyData.notes.unshift(asNote);
-        _addLog(companyData, { message: `Restored note "${asNote.title || 'Untitled'}" from the bin.` });
-    } else {
-        companyData.tasks.unshift(taskToRestore);
-        _addLog(companyData, { message: `Restored task "${taskToRestore.title}" from the bin.`, taskId: id });
-    }
-
-    setAppData(data);
-    return true;
-}
-
-export function restoreMultipleTasks(ids: string[]): boolean {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData || !companyData.trash) return false;
-
-    const itemsToRestore = companyData.trash.filter(task => ids.includes(task.id));
-    if (itemsToRestore.length === 0) return false;
-    
-    let restoredTasks = 0;
-    let restoredNotes = 0;
-
-    itemsToRestore.forEach(item => {
-        delete item.deletedAt;
-        if (item.title.startsWith('Note: ')) {
-            const asNote: Note = {
-                id: item.id,
-                title: item.title.replace('Note: ', ''),
-                content: item.description || '',
-                createdAt: item.createdAt,
-                updatedAt: new Date().toISOString(),
-                layout: { i: item.id, x: 0, y: Infinity, w: 3, h: 6, minW: 2, minH: 3 }
-            };
-            companyData.notes = companyData.notes || [];
-            companyData.notes.unshift(asNote);
-            restoredNotes++;
-        } else {
-            companyData.tasks.unshift(item);
-            restoredTasks++;
-        }
-    });
-    
-    let logMessage = `Restored ${itemsToRestore.length} item(s) from the bin.`;
-    if(restoredTasks > 0) logMessage += ` (${restoredTasks} task/s)`;
-    if(restoredNotes > 0) logMessage += ` (${restoredNotes} note/s)`;
-    _addLog(companyData, { message: logMessage });
-
-
-    companyData.trash = companyData.trash.filter(task => !ids.includes(task.id));
-    
-    setAppData(data);
-    return true;
-}
-
-export function permanentlyDeleteTask(id: string): boolean {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData || !companyData.trash) return false;
-    
-    const taskToDelete = companyData.trash.find(task => task.id === id);
-    if (!taskToDelete) return false;
-
-    companyData.trash = companyData.trash.filter(task => task.id !== id);
-    
-    _addLog(companyData, { message: `Permanently deleted item "${taskToDelete.title}".` });
-    
-    setAppData(data);
-    return true;
-}
-
-export function permanentlyDeleteMultipleTasks(ids: string[]): boolean {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData || !companyData.trash) return false;
-    
-    const tasksToDelete = companyData.trash.filter(task => ids.includes(task.id));
-    if (tasksToDelete.length === 0) return false;
-    
-    companyData.trash = companyData.trash.filter(task => !ids.includes(task.id));
-    
-    _addLog(companyData, { message: `Permanently deleted ${tasksToDelete.length} item(s).` });
-
-    setAppData(data);
-    return true;
-}
-
-export function emptyBin(): boolean {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData || !companyData.trash || companyData.trash.length === 0) return false;
-    
-    const logMessage = `Emptied all ${companyData.trash.length} items from the bin.`;
-    companyData.trash = [];
-
-    _addLog(companyData, { message: logMessage });
-
-    setAppData(data);
-    return true;
-}
-
-type PersonType = 'developer' | 'tester';
-
-function _getPeople(type: PersonType): Person[] {
-    const data = getAppData();
-    const activeCompanyId = getActiveCompanyId();
-    const companyData = data.companyData[activeCompanyId];
-    if (!companyData) return [];
-
-    return type === 'developer' ? (companyData.developers || []) : (companyData.testers || []);
-}
-
-function _addPerson(type: PersonType, personData: Partial<Omit<Person, 'id'>>): Person {
-    const data = getAppData();
-    const activeCompanyId = data.activeCompanyId;
-    const companyData = data.companyData[activeCompanyId];
-
-    if (!companyData) throw new Error(`Cannot add ${type}, no active company data found.`);
-    if (!personData.name || personData.name.trim() === '') throw new Error(`${type.charAt(0).toUpperCase() + type.slice(1)} name cannot be empty.`);
-    
-    const people = type === 'developer' ? (companyData.developers || []) : (companyData.testers || []);
-    const trimmedName = personData.name.trim();
-
-    if (people.some(p => p.name.toLowerCase() === trimmedName.toLowerCase())) {
-        throw new Error(`${type.charAt(0).toUpperCase() + type.slice(1)} with this name already exists.`);
-    }
-
-    if (/^[a-z]+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmedName)) {
-        throw new Error("Invalid name format. Cannot be the same as an ID.");
-    }
-    
-    const newPerson: Person = {
-        id: `${type}-${crypto.randomUUID()}`,
-        name: trimmedName,
-        email: personData.email || '',
-        phone: personData.phone || '',
-        additionalFields: personData.additionalFields || [],
-    };
-
-    if (type === 'developer') {
-        companyData.developers = [...people, newPerson];
-    } else {
-        companyData.testers = [...people, newPerson];
-    }
-    
-    _addLog(companyData, { message: `Added new ${type}: "${newPerson.name}".` });
-    setAppData(data);
-    return newPerson;
-}
-
-function _updatePerson(type: PersonType, id: string, personData: Partial<Omit<Person, 'id'>>): Person | undefined {
-    const data = getAppData();
-    const activeCompanyId = data.activeCompanyId;
-    const companyData = data.companyData[activeCompanyId];
-    if (!companyData) return undefined;
-
-    const people = type === 'developer' ? (companyData.developers || []) : (companyData.testers || []);
-    const personIndex = people.findIndex(p => p.id === id);
-    if (personIndex === -1) return undefined;
-
-    const oldName = people[personIndex].name;
-    
-    if (personData.name) {
-        const trimmedName = personData.name.trim();
-        if (people.some(p => p.name.toLowerCase() === trimmedName.toLowerCase() && p.id !== id)) {
-            throw new Error(`${type.charAt(0).toUpperCase() + type.slice(1)} with this name already exists.`);
-        }
-        if (/^[a-z]+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4-}-[0-9a-f]{12}$/i.test(trimmedName)) {
-            throw new Error("Invalid name format. Cannot be the same as an ID.");
-        }
-    }
-
-    const updatedPerson = { ...people[personIndex], ...personData };
-
-    if (type === 'developer') {
-        companyData.developers[personIndex] = updatedPerson;
-    } else {
-        companyData.testers[personIndex] = updatedPerson;
-    }
-    
-    if(updatedPerson.name !== oldName) {
-        _addLog(companyData, { message: `Renamed ${type} from "${oldName}" to "${updatedPerson.name}".` });
-    } else {
-        _addLog(companyData, { message: `Updated details for ${type} "${updatedPerson.name}".` });
-    }
-    
-    setAppData(data);
-    return updatedPerson;
-}
-
-function _deletePerson(type: PersonType, id: string): boolean {
-    const data = getAppData();
-    const activeCompanyId = data.activeCompanyId;
-    const companyData = data.companyData[activeCompanyId];
-    if (!companyData) return false;
-
-    const people = type === 'developer' ? (companyData.developers || []) : (companyData.testers || []);
-    const personIndex = people.findIndex(p => p.id === id);
-    if (personIndex === -1) return false;
-    
-    const personName = people[personIndex].name;
-    const updatedPeople = people.filter(p => p.id !== id);
-
-    if (type === 'developer') {
-        companyData.developers = updatedPeople;
-        companyData.tasks.forEach(task => {
-            if (task.developers && task.developers.includes(id)) {
-                task.developers = task.developers.filter(personId => personId !== id);
-                task.updatedAt = new Date().toISOString();
-            }
-        });
-    } else {
-        companyData.testers = updatedPeople;
-        companyData.tasks.forEach(task => {
-            if (task.testers && task.testers.includes(id)) {
-                task.testers = task.testers.filter(personId => personId !== id);
-                task.updatedAt = new Date().toISOString();
-            }
-        });
-    }
-    
-    _addLog(companyData, { message: `Deleted ${type}: "${personName}".` });
-    setAppData(data);
-    return true;
-}
-
-
-// Developer Functions
-export function getDevelopers(): Person[] {
-    return _getPeople('developer');
-}
-export function addDeveloper(personData: Partial<Omit<Person, 'id'>>): Person {
-    return _addPerson('developer', personData);
-}
-export function updateDeveloper(id: string, personData: Partial<Omit<Person, 'id'>>): Person | undefined {
-    return _updatePerson('developer', id, personData);
-}
-export function deleteDeveloper(id: string): boolean {
-    return _deletePerson('developer', id);
-}
-
-// Tester Functions
-export function getTesters(): Person[] {
-    return _getPeople('tester');
-}
-export function addTester(personData: Partial<Omit<Person, 'id'>>): Person {
-    return _addPerson('tester', personData);
-}
-export function updateTester(id: string, personData: Partial<Omit<Person, 'id'>>): Person | undefined {
-    return _updatePerson('tester', id, personData);
-}
-export function deleteTester(id: string): boolean {
-    return _deletePerson('tester', id);
-}
-
-
-// Comment Functions
-export function addComment(taskId: string, commentText: string): Task | undefined {
-  const task = getTaskById(taskId);
-  if (!task) return undefined;
-
-  const newComment: Comment = {
-    text: commentText,
-    timestamp: new Date().toISOString(),
-  };
-
-  const newComments = [...(task.comments || []), newComment];
-  
-  const data = getAppData();
-  const companyData = data.companyData[data.activeCompanyId];
-  if (!companyData) return undefined;
-  _addLog(companyData, { message: `Added a comment to task "${task.title}": "${commentText.substring(0, 50)}..."`, taskId });
-  setAppData(data);
-  
-  return updateTask(taskId, { comments: newComments });
-}
-
-export function updateComment(taskId: string, index: number, newCommentText: string): Task | undefined {
-   const task = getTaskById(taskId);
-   if (!task || !task.comments || index < 0 || index >= task.comments.length) return undefined;
-   
-   const newComments = [...task.comments];
-   newComments[index] = {
-     text: newCommentText,
-     timestamp: new Date().toISOString(),
-   };
-   
-   const data = getAppData();
-   const companyData = data.companyData[data.activeCompanyId];
-   if (!companyData) return undefined;
-   _addLog(companyData, { message: `Updated a comment on task "${task.title}".`, taskId });
-   setAppData(data);
-
-   return updateTask(taskId, { comments: newComments });
-}
-
-export function deleteComment(taskId: string, index: number): Task | undefined {
-   const task = getTaskById(taskId);
-   if (!task || !task.comments || index < 0 || index >= task.comments.length) return undefined;
-   
-   const deletedComment = task.comments[index];
-   const newComments = task.comments.filter((_, i) => i !== index);
-
-   const data = getAppData();
-   const companyData = data.companyData[data.activeCompanyId];
-   if (!companyData) return undefined;
-   
-   const commentText = typeof deletedComment === 'string' ? deletedComment : deletedComment.text;
-   _addLog(companyData, { message: `Deleted a comment from task "${task.title}": "${commentText.substring(0, 50)}..."`, taskId });
-   setAppData(data);
-
-   return updateTask(taskId, { comments: newComments });
-}
-
-// Global logs page view
 export function getAggregatedLogs(): Log[] {
-    const logs = getLogs();
-
-    const aggregateLogMarkers = new Set(
-        logs.filter(log => log.id.startsWith('log-aggregate-'))
-            .map(log => log.timestamp)
-    );
-
-    const visibleLogs = logs.filter(log => {
-        if (log.id.startsWith('log-aggregate-')) {
-            return true;
-        }
-
-        if (aggregateLogMarkers.has(log.timestamp)) {
-            const isPartOfBulk = logs.some(aggLog => 
-                aggLog.id.startsWith('log-aggregate-') && 
-                aggLog.timestamp === log.timestamp
-            );
-            if (isPartOfBulk) {
-                return false;
-            }
-        }
-        
-        return true;
-    });
-
-    return visibleLogs;
+    return getLogs();
 }
 
-export function clearExpiredReminders(): { updatedTaskIds: string[], unpinnedTaskIds: string[] } {
+// Reminders
+export function getGeneralReminders() { return getAppData().companyData[getActiveCompanyId()]?.generalReminders || []; }
+export function addGeneralReminder(text: string) {
     const data = getAppData();
-    const activeCompanyId = data.activeCompanyId;
-    const companyData = data.companyData[activeCompanyId];
-    if (!companyData) return { updatedTaskIds: [], unpinnedTaskIds: [] };
-
-    const now = new Date();
-    const updatedTaskIds: string[] = [];
-    const unpinnedTaskIds: string[] = [];
-
-    const processTask = (task: Task) => {
-        if (task.reminder && task.reminderExpiresAt && new Date(task.reminderExpiresAt) < now) {
-            task.reminder = null;
-            task.reminderExpiresAt = null;
-            task.updatedAt = now.toISOString();
-            updatedTaskIds.push(task.id);
-            unpinnedTaskIds.push(task.id);
-            _addLog(companyData, { message: `Reminder expired and was cleared for task "${task.title}".`, taskId: task.id });
-        }
-    };
-
-    companyData.tasks.forEach(processTask);
-    (companyData.trash || []).forEach(processTask);
-
-    if (updatedTaskIds.length > 0) {
+    const companyData = data.companyData[data.activeCompanyId];
+    const newRem = { id: `rem-${crypto.randomUUID()}`, text, createdAt: new Date().toISOString() };
+    companyData.generalReminders.push(newRem);
+    dispatchMutation('generalReminders', 'general', { list: companyData.generalReminders }, 'set');
+    setAppData(data);
+    return newRem;
+}
+export function updateGeneralReminder(id: string, text: string) {
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+    const index = companyData.generalReminders.findIndex(x => x.id === id);
+    if (index !== -1) {
+        companyData.generalReminders[index].text = text;
+        dispatchMutation('generalReminders', 'general', { list: companyData.generalReminders }, 'set');
         setAppData(data);
     }
-
-    return { updatedTaskIds, unpinnedTaskIds };
 }
-
-// General Reminder Functions
-export function getGeneralReminders(): GeneralReminder[] {
+export function deleteGeneralReminder(id: string) {
     const data = getAppData();
     const companyData = data.companyData[data.activeCompanyId];
-    return companyData?.generalReminders || [];
+    companyData.generalReminders = companyData.generalReminders.filter(x => x.id !== id);
+    dispatchMutation('generalReminders', 'general', { list: companyData.generalReminders }, 'set');
+    setAppData(data);
+    return true;
 }
 
-export function addGeneralReminder(text: string): GeneralReminder {
+// Notes
+export function getNotes() { return getAppData().companyData[getActiveCompanyId()]?.notes || []; }
+export function addNote(note: Partial<Note>) {
     const data = getAppData();
     const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData) throw new Error("Cannot add reminder, no active company data found.");
-
-    const newReminder: GeneralReminder = {
-        id: `gen-reminder-${crypto.randomUUID()}`,
-        text,
+    const newNote = {
+        id: `note-${crypto.randomUUID()}`,
+        title: '',
+        content: '',
         createdAt: new Date().toISOString(),
-    };
-
-    companyData.generalReminders = [newReminder, ...(companyData.generalReminders || [])];
-    _addLog(companyData, { message: `Added a new general reminder.` });
-    setAppData(data);
-    return newReminder;
-}
-
-export function updateGeneralReminder(id: string, text: string): GeneralReminder | undefined {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData || !companyData.generalReminders) return undefined;
-
-    const reminderIndex = companyData.generalReminders.findIndex(r => r.id === id);
-    if (reminderIndex === -1) return undefined;
-
-    const updatedReminder = { ...companyData.generalReminders[reminderIndex], text };
-    companyData.generalReminders[reminderIndex] = updatedReminder;
-    
-    _addLog(companyData, { message: `Updated a general reminder.` });
-    setAppData(data);
-    return updatedReminder;
-}
-
-export function deleteGeneralReminder(id: string): boolean {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData || !companyData.generalReminders) return false;
-    
-    const initialLength = companyData.generalReminders.length;
-    companyData.generalReminders = companyData.generalReminders.filter(r => r.id !== id);
-
-    if (companyData.generalReminders.length < initialLength) {
-        _addLog(companyData, { message: `Dismissed a general reminder.` });
-        setAppData(data);
-        return true;
-    }
-    return false;
-}
-
-// Note Functions
-export function getNotes(): Note[] {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData) return [];
-    
-    let needsUpdate = false;
-    const notes = companyData.notes || [];
-    notes.forEach((note, index) => {
-        if (!note.layout || typeof note.layout.x !== 'number' || typeof note.layout.y !== 'number' || !Number.isFinite(note.layout.y)) {
-            needsUpdate = true;
-            note.layout = {
-                i: note.id,
-                x: (index * 3) % 12,
-                y: Math.floor(index / 4) * 6,
-                w: 3,
-                h: 6,
-                minW: 2,
-                minH: 3
-            };
-        }
-    });
-
-    if (needsUpdate) {
-        setAppData(data);
-    }
-
-    return notes.sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-}
-
-export function addNote(noteData: Partial<Omit<Note, 'id' | 'createdAt' | 'updatedAt' | 'layout'>>): Note {
-    const data = getAppData();
-    const activeCompanyId = data.activeCompanyId;
-    const companyData = data.companyData[activeCompanyId];
-    const notes = companyData.notes || [];
-    
-    const calculateNewY = (): number => {
-        if (notes.length === 0) {
-            return 0;
-        }
-        return Math.max(0, ...notes.map(n => (n.layout?.y || 0) + (n.layout?.h || 0)));
-    };
-
-    const now = new Date().toISOString();
-    const newNoteId = `note-${crypto.randomUUID()}`;
-    const newNote: Note = {
-        id: newNoteId,
-        title: noteData.title || '',
-        content: noteData.content || '',
-        createdAt: now,
-        updatedAt: now,
-        layout: {
-            i: newNoteId,
-            x: (notes.length * 3) % 12,
-            y: calculateNewY(),
-            w: 3,
-            h: 6,
-            minW: 2,
-            minH: 3,
-        },
-    };
-
-    companyData.notes = [newNote, ...notes];
-    const logTitle = newNote.title || `note created at ${format(new Date(now), 'p')}`;
-    _addLog(companyData, { message: `Created new note: **"${logTitle}"**.` });
-
+        updatedAt: new Date().toISOString(),
+        layout: { i: '', x: 0, y: 0, w: 3, h: 6 },
+        ...note
+    } as Note;
+    newNote.layout.i = newNote.id;
+    companyData.notes.unshift(newNote);
+    dispatchMutation('notes', newNote.id, newNote, 'set');
     setAppData(data);
     return newNote;
 }
-
-export function importNotes(importedNotes: Partial<Note>[]): Note[] {
+export function updateNote(id: string, note: Partial<Note>) {
     const data = getAppData();
-    const activeCompanyId = data.activeCompanyId;
-    const companyData = data.companyData[activeCompanyId];
-    const existingNotes = companyData.notes || [];
-    const existingNoteIds = new Set(existingNotes.map(n => n.id));
-
-    const calculateNewY = (currentNotes: Note[]): number => {
-        if (currentNotes.length === 0) return 0;
-        return Math.max(0, ...currentNotes.map(n => (n.layout?.y || 0) + (n.layout?.h || 0)));
-    };
-
-    const newNotes: Note[] = [];
-    let currentY = calculateNewY(existingNotes);
-    let currentX = 0;
-
-    importedNotes.forEach(importedNote => {
-        const now = new Date().toISOString();
-        let newNoteId = importedNote.id && !existingNoteIds.has(importedNote.id) ? importedNote.id : `note-${crypto.randomUUID()}`;
-        
-        const newNote: Note = {
-            id: newNoteId,
-            title: importedNote.title || '',
-            content: importedNote.content || '',
-            createdAt: importedNote.createdAt || now,
-            updatedAt: now,
-            layout: {
-                i: newNoteId,
-                x: currentX,
-                y: currentY,
-                w: 3,
-                h: 6,
-                minW: 2,
-                minH: 3,
-            },
-        };
-        newNotes.push(newNote);
-        
-        currentX += 3;
-        if (currentX >= 12) {
-            currentX = 0;
-            currentY += 6;
-        }
-    });
-
-    if (newNotes.length > 0) {
-        companyData.notes = [...existingNotes, ...newNotes];
+    const companyData = data.companyData[data.activeCompanyId];
+    const index = companyData.notes.findIndex(x => x.id === id);
+    if (index !== -1) {
+        companyData.notes[index] = { ...companyData.notes[index], ...note, updatedAt: new Date().toISOString() };
+        dispatchMutation('notes', id, companyData.notes[index], 'update');
         setAppData(data);
     }
-    
-    return newNotes;
 }
-
-export function updateNote(id: string, noteData: Partial<Omit<Note, 'id' | 'createdAt' | 'updatedAt'>>): Note | undefined {
+export function deleteNote(id: string) {
     const data = getAppData();
     const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData || !companyData.notes) return undefined;
-
-    const noteIndex = companyData.notes.findIndex(n => n.id === id);
-    if (noteIndex === -1) return undefined;
-
-    const oldNote = companyData.notes[noteIndex];
-    const updatedNote = { ...oldNote, ...noteData, updatedAt: new Date().toISOString() };
-    companyData.notes[noteIndex] = updatedNote;
-
-    const logTitle = updatedNote.title || `note created at ${format(new Date(updatedNote.createdAt), 'p')}`;
-    _addLog(companyData, { message: `Updated note: **"${logTitle}"**.` });
-
-    setAppData(data);
-    return updatedNote;
-}
-
-export function deleteNote(id: string): boolean {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData || !companyData.notes) return false;
-    
-    const noteIndex = companyData.notes.findIndex(n => n.id === id);
-    if (noteIndex === -1) return false;
-
-    const [deletedNote] = companyData.notes.splice(noteIndex, 1);
-    
-    const logTitle = deletedNote.title || `note created at ${format(new Date(deletedNote.createdAt), 'p')}`;
-    _addLog(companyData, { message: `Deleted note: **"${logTitle}"**.` });
-    
-    const asTask: Task = {
-        id: deletedNote.id,
-        title: `Note: ${deletedNote.title || 'Untitled'}`,
-        description: deletedNote.content,
-        status: 'Archived',
-        createdAt: deletedNote.createdAt,
-        updatedAt: deletedNote.updatedAt,
-        deletedAt: new Date().toISOString(),
-    }
-    companyData.trash = [asTask, ...(companyData.trash || [])];
-
-    setAppData(data);
-    return true;
-}
-
-export function deleteMultipleNotes(ids: string[]): boolean {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData || !companyData.notes) return false;
-
-    const notesToDelete = companyData.notes.filter(note => ids.includes(note.id));
-    if (notesToDelete.length === 0) return false;
-
-    const now = new Date().toISOString();
-    notesToDelete.forEach(note => {
-        const asTask: Task = {
-            id: note.id,
-            title: `Note: ${note.title || 'Untitled'}`,
-            description: note.content,
-            status: 'Archived',
-            createdAt: note.createdAt,
-            updatedAt: now,
-            deletedAt: now,
-        };
+    const index = companyData.notes.findIndex(x => x.id === id);
+    if (index !== -1) {
+        const [note] = companyData.notes.splice(index, 1);
+        dispatchMutation('notes', id, null, 'delete');
+        // Note trash behavior: move to task bin for safety
+        const asTask: Task = { id: note.id, title: `Note: ${note.title || 'Untitled'}`, description: note.content, status: 'Archived', createdAt: note.createdAt, updatedAt: new Date().toISOString(), deletedAt: new Date().toISOString() };
         companyData.trash.unshift(asTask);
-        const logTitle = note.title || `note created at ${format(new Date(note.createdAt), 'p')}`;
-        _addLog(companyData, { message: `Deleted note: **"${logTitle}"**.` });
-    });
-    
-    _addLog(companyData, { message: `Moved ${notesToDelete.length} note(s) to the bin.` });
-
-    companyData.notes = companyData.notes.filter(note => !ids.includes(note.id));
-    
-    setAppData(data);
-    return true;
-}
-
-
-export function updateNoteLayouts(layouts: NoteLayout[]): void {
-  const data = getAppData();
-  const companyData = data.companyData[data.activeCompanyId];
-  if (!companyData || !companyData.notes) return;
-
-  const notesMap = new Map(companyData.notes.map(note => [note.id, note]));
-
-  layouts.forEach(layout => {
-    const note = notesMap.get(layout.i);
-    if (note) {
-      note.layout = { ...note.layout, ...layout };
-      note.updatedAt = new Date().toISOString();
+        dispatchMutation('tasks', asTask.id, asTask, 'set');
+        setAppData(data);
     }
-  });
-
-  setAppData(data);
+    return true;
 }
-
-export function resetNotesLayout(): boolean {
+export function updateNoteLayouts(layouts: NoteLayout[]) {
     const data = getAppData();
     const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData || !companyData.notes) return false;
-
-    const sortedNotes = companyData.notes.sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-
-    const cols = 4;
-    const colWidth = 3;
-    const defaultHeight = 6;
-
-    let colHeights = Array(cols).fill(0);
-
-    sortedNotes.forEach((note) => {
-        const minHeightCol = colHeights.indexOf(Math.min(...colHeights));
-        
-        note.layout = {
-            ...note.layout,
-            i: note.id,
-            x: minHeightCol * colWidth,
-            y: colHeights[minHeightCol],
-            w: colWidth,
-            h: defaultHeight,
-        };
-
-        colHeights[minHeightCol] += defaultHeight;
+    layouts.forEach(l => {
+        const n = companyData.notes.find(x => x.id === l.i);
+        if (n) {
+            n.layout = { ...n.layout, ...l };
+            dispatchMutation('notes', n.id, n, 'update');
+        }
     });
-    
-    companyData.notes = sortedNotes;
-    
-    _addLog(companyData, { message: `Reset the notes layout to the default grid.` });
-
     setAppData(data);
+}
+export function resetNotesLayout() {
+    const notes = getNotes();
+    notes.forEach((n, i) => {
+        n.layout = { i: n.id, x: (i * 3) % 12, y: Math.floor(i / 4) * 6, w: 3, h: 6 };
+        dispatchMutation('notes', n.id, n, 'update');
+    });
+    setAppData(getAppData());
     return true;
 }
+export function deleteMultipleNotes(ids: string[]) { ids.forEach(id => deleteNote(id)); }
+export function importNotes(notes: Partial<Note>[]) { notes.forEach(n => addNote(n)); return getNotes(); }
 
-// Release Update Functions
-export function getReleaseUpdates(onlyPublished: boolean = true): ReleaseUpdate[] {
+// Releases
+export function getReleaseUpdates(onlyPublished = true) {
+    const rels = getAppData().companyData[getActiveCompanyId()]?.releaseUpdates || [];
+    return onlyPublished ? rels.filter(r => r.isPublished) : rels;
+}
+export function addReleaseUpdate(r: Partial<ReleaseUpdate>) {
     const data = getAppData();
     const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData) return [];
-    
-    const releases = companyData.releaseUpdates || [];
-    const filtered = onlyPublished ? releases.filter(r => r.isPublished) : releases;
-    
-    return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-}
-
-export function addReleaseUpdate(releaseData: Partial<Omit<ReleaseUpdate, 'id'>>): ReleaseUpdate {
-    const data = getAppData();
-    const activeCompanyId = data.activeCompanyId;
-    const companyData = data.companyData[activeCompanyId];
-    
-    const newRelease: ReleaseUpdate = {
-        id: `release-${crypto.randomUUID()}`,
-        version: releaseData.version || '0.0.0',
-        date: releaseData.date || new Date().toISOString(),
-        title: releaseData.title || 'New Release',
-        description: releaseData.description || '',
-        items: releaseData.items || [],
-        isPublished: releaseData.isPublished || false,
-    };
-
-    companyData.releaseUpdates = [newRelease, ...(companyData.releaseUpdates || [])];
-    _addLog(companyData, { message: `Created a draft for release **${newRelease.version}**.` });
+    const newRel = { id: `rel-${crypto.randomUUID()}`, version: '', title: '', date: new Date().toISOString(), items: [], isPublished: false, ...r };
+    companyData.releaseUpdates.unshift(newRel);
+    dispatchMutation('releaseUpdates', 'updates', { list: companyData.releaseUpdates }, 'set');
     setAppData(data);
-    return newRelease;
+    return newRel;
 }
-
-export function updateReleaseUpdate(id: string, releaseData: Partial<Omit<ReleaseUpdate, 'id'>>): ReleaseUpdate | undefined {
+export function updateReleaseUpdate(id: string, r: Partial<ReleaseUpdate>) {
     const data = getAppData();
     const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData || !companyData.releaseUpdates) return undefined;
-
-    const index = companyData.releaseUpdates.findIndex(r => r.id === id);
-    if (index === -1) return undefined;
-
-    const oldRelease = companyData.releaseUpdates[index];
-    const updatedRelease = { ...oldRelease, ...releaseData };
-    companyData.releaseUpdates[index] = updatedRelease;
-
-    // If publishing, update current app version
-    if (updatedRelease.isPublished && !oldRelease.isPublished) {
-        companyData.uiConfig.currentVersion = updatedRelease.version;
-        _addLog(companyData, { message: `Published release **${updatedRelease.version}**: "${updatedRelease.title}".` });
-    } else {
-        _addLog(companyData, { message: `Updated details for release **${updatedRelease.version}**.` });
+    const index = companyData.releaseUpdates.findIndex(x => x.id === id);
+    if (index !== -1) {
+        companyData.releaseUpdates[index] = { ...companyData.releaseUpdates[index], ...r };
+        dispatchMutation('releaseUpdates', 'updates', { list: companyData.releaseUpdates }, 'set');
+        setAppData(data);
     }
-
-    setAppData(data);
-    return updatedRelease;
 }
-
-export function deleteReleaseUpdate(id: string): boolean {
+export function deleteReleaseUpdate(id: string) {
     const data = getAppData();
     const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData || !companyData.releaseUpdates) return false;
-
-    const index = companyData.releaseUpdates.findIndex(r => r.id === id);
-    if (index === -1) return false;
-
-    const [deleted] = companyData.releaseUpdates.splice(index, 1);
-    _addLog(companyData, { message: `Deleted release update **${deleted.version}**.` });
-    
+    companyData.releaseUpdates = companyData.releaseUpdates.filter(x => x.id !== id);
+    dispatchMutation('releaseUpdates', 'updates', { list: companyData.releaseUpdates }, 'set');
     setAppData(data);
     return true;
+}
+
+// Misc
+export function clearExpiredReminders() {
+    const tasks = getTasks();
+    const now = new Date();
+    const cleared: string[] = [];
+    tasks.forEach(t => {
+        if (t.reminderExpiresAt && new Date(t.reminderExpiresAt) < now) {
+            updateTask(t.id, { reminder: null, reminderExpiresAt: null }, true);
+            cleared.push(t.id);
+        }
+    });
+    return { updatedTaskIds: cleared, unpinnedTaskIds: cleared };
+}
+
+export function addTagsToMultipleTasks(taskIds: string[], tags: string[]) {
+    taskIds.forEach(id => {
+        const task = getTaskById(id);
+        if (task) {
+            const newTags = Array.from(new Set([...(task.tags || []), ...tags]));
+            updateTask(id, { tags: newTags }, true);
+        }
+    });
+}
+
+// Comments
+export function addComment(taskId: string, text: string) {
+    const comment: Comment = { text, timestamp: new Date().toISOString() };
+    const task = getTaskById(taskId);
+    if (task) {
+        const comments = [...(task.comments || []), comment];
+        return updateTask(taskId, { comments });
+    }
+}
+export function updateComment(taskId: string, index: number, text: string) {
+    const task = getTaskById(taskId);
+    if (task && task.comments && task.comments[index]) {
+        const comments = [...task.comments];
+        comments[index] = { ...comments[index], text };
+        return updateTask(taskId, { comments });
+    }
+}
+export function deleteComment(taskId: string, index: number) {
+    const task = getTaskById(taskId);
+    if (task && task.comments) {
+        const comments = task.comments.filter((_, i) => i !== index);
+        return updateTask(taskId, { comments });
+    }
 }
