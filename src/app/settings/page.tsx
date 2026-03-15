@@ -86,7 +86,7 @@ export default function SettingsPage() {
   const handleFieldToggle = (key: string, property: 'isActive' | 'isRequired') => {
     if (!uiConfig) return;
     
-    const newFields = uiConfig.fields.map(f => {
+    const newFields = (uiConfig.fields || []).map(f => {
         if (f.key === key) {
             const updated = { ...f, [property]: !f[property] };
             // Ensure isActive is true if isRequired is true
@@ -102,7 +102,7 @@ export default function SettingsPage() {
   };
 
   const handleFieldOrder = (index: number, direction: 'up' | 'down') => {
-    if (!uiConfig) return;
+    if (!uiConfig || !uiConfig.fields) return;
     const newFields = [...uiConfig.fields];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     
@@ -117,7 +117,7 @@ export default function SettingsPage() {
   const handleSaveField = (updatedField: FieldConfig, repoConfigs?: RepositoryConfig[]) => {
     if (!uiConfig) return;
     
-    let newFields = [...uiConfig.fields];
+    let newFields = [...(uiConfig.fields || [])];
     const index = newFields.findIndex(f => f.id === updatedField.id);
     
     if (index !== -1) {
@@ -140,7 +140,7 @@ export default function SettingsPage() {
   };
 
   const handleDeleteField = (id: string) => {
-      if (!uiConfig) return;
+      if (!uiConfig || !uiConfig.fields) return;
       const fieldToDelete = uiConfig.fields.find(f => f.id === id);
       if (!fieldToDelete) return;
 
@@ -191,7 +191,8 @@ export default function SettingsPage() {
   }, [uiConfig, searchQuery]);
 
   const groupOrder = useMemo(() => {
-      return Object.keys(filteredAndGroupedFields).sort((a, b) => {
+      const keys = Object.keys(filteredAndGroupedFields);
+      return keys.sort((a, b) => {
           const aFields = filteredAndGroupedFields[a];
           const bFields = filteredAndGroupedFields[b];
           const aMin = Math.min(...aFields.map(f => f.order));
@@ -234,7 +235,7 @@ export default function SettingsPage() {
                             <Label htmlFor="app-name">Workspace Name</Label>
                             <Input 
                                 id="app-name" 
-                                value={uiConfig.appName} 
+                                value={uiConfig.appName || ''} 
                                 onChange={(e) => handleUpdateConfig({ appName: e.target.value })} 
                                 placeholder="My Task Manager"
                             />
@@ -287,7 +288,7 @@ export default function SettingsPage() {
                                 <p className="text-xs text-muted-foreground">Show helpful guided tours on first visit.</p>
                             </div>
                             <Switch 
-                                checked={uiConfig.tutorialEnabled} 
+                                checked={uiConfig.tutorialEnabled ?? true} 
                                 onCheckedChange={(val) => handleUpdateConfig({ tutorialEnabled: val })}
                             />
                         </div>
@@ -297,7 +298,7 @@ export default function SettingsPage() {
                                 <p className="text-xs text-muted-foreground">Enable or disable task and general reminders.</p>
                             </div>
                             <Switch 
-                                checked={uiConfig.remindersEnabled} 
+                                checked={uiConfig.remindersEnabled ?? true} 
                                 onCheckedChange={(val) => handleUpdateConfig({ remindersEnabled: val })}
                             />
                         </div>
@@ -474,9 +475,9 @@ export default function SettingsPage() {
                         <CardDescription>Deployment targets.</CardDescription>
                     </CardHeader>
                     <CardContent className="pb-4">
-                        <div className="text-2xl font-bold mb-1">{uiConfig.environments.length}</div>
+                        <div className="text-2xl font-bold mb-1">{(uiConfig.environments || []).length}</div>
                         <div className="flex flex-wrap gap-1 mt-2">
-                            {uiConfig.environments.map(e => (
+                            {(uiConfig.environments || []).map(e => (
                                 <Badge key={e.id} variant="outline" className="text-[10px] capitalize" style={{ borderColor: e.color, color: e.color }}>{e.name}</Badge>
                             ))}
                         </div>
@@ -554,7 +555,7 @@ export default function SettingsPage() {
         isOpen={isFieldDialogOpen}
         onOpenChange={setIsFieldDialogOpen}
         field={fieldToEdit}
-        repositoryConfigs={uiConfig.repositoryConfigs}
+        repositoryConfigs={uiConfig.repositoryConfigs || []}
         onSave={handleSaveField}
       />
     </div>
