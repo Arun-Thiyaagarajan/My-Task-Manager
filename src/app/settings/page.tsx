@@ -98,6 +98,7 @@ export default function SettingsPage() {
 
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const iconFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const config = getUiConfig();
@@ -120,6 +121,51 @@ export default function SettingsPage() {
   const handleSaveDisplaySettings = () => {
     handleUpdateConfig({ appName, appIcon, timeFormat });
     toast({ variant: 'success', title: 'Display settings saved.' });
+  };
+
+  const compressImage = (dataUrl: string, maxWidth: number, quality: number): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth) {
+          height = Math.round(height * (maxWidth / width));
+          width = maxWidth;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/webp', quality));
+        } else {
+          resolve(dataUrl);
+        }
+      };
+      img.src = dataUrl;
+    });
+  };
+
+  const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast({ variant: 'destructive', title: 'Invalid file', description: 'Please upload an image file.' });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const rawDataUrl = event.target?.result as string;
+      const compressed = await compressImage(rawDataUrl, 128, 0.8);
+      setAppIcon(compressed);
+      toast({ title: 'Icon uploaded', description: 'Click "Save Display Settings" to apply.' });
+    };
+    reader.readAsDataURL(file);
+    if (e.target) e.target.value = '';
   };
 
   const handleSaveFeatureSettings = (updates: Partial<UiConfig>) => {
@@ -443,12 +489,31 @@ export default function SettingsPage() {
                         <Input value={appName} onChange={e => setAppName(e.target.value)} className="h-9" />
                     </div>
                     <div className="space-y-2">
-                        <Label className="text-xs">App Icon</Label>
+                        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">App Icon</Label>
                         <div className="flex gap-2">
-                            <Input value={appIcon} onChange={e => setAppIcon(e.target.value)} placeholder="Paste an emoji or data URL..." className="h-9 flex-1" />
-                            <div className="h-9 w-9 border rounded-md flex items-center justify-center bg-muted text-lg">
-                                {appIcon || '📋'}
+                            <Input 
+                                value={appIcon.startsWith('data:image') ? '[Image Data]' : appIcon} 
+                                onChange={e => setAppIcon(e.target.value)} 
+                                placeholder="Paste emoji or URL..." 
+                                className="h-9 flex-1" 
+                            />
+                            <Button 
+                                variant="outline" 
+                                size="icon" 
+                                className="h-9 w-9 shrink-0" 
+                                onClick={() => iconFileInputRef.current?.click()}
+                                type="button"
+                            >
+                                <Upload className="h-4 w-4" />
+                            </Button>
+                            <div className="h-9 w-9 border rounded-md flex items-center justify-center bg-muted text-lg overflow-hidden shrink-0">
+                                {appIcon && appIcon.startsWith('data:image') ? (
+                                    <img src={appIcon} alt="Icon" className="h-full w-full object-contain" />
+                                ) : (
+                                    appIcon || '📋'
+                                )}
                             </div>
+                            <input type="file" ref={iconFileInputRef} onChange={handleIconUpload} className="hidden" accept="image/*" />
                         </div>
                     </div>
                     <div className="space-y-2">
