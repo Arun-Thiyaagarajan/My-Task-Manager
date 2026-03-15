@@ -770,7 +770,7 @@ const handleCopyDescription = () => {
   const statusConfig = getStatusConfig(task.status);
   const { Icon, cardClassName, iconColorClassName } = statusConfig;
 
-  const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
+  const fieldLabels = new Map((uiConfig?.fields || []).map(f => [f.key, f.label]));
 
   const allConfiguredEnvs = (task.relevantEnvironments || []).map(name => uiConfig?.environments.find(e => e.name === name)).filter((e): e is Environment => !!e);
   
@@ -1062,7 +1062,7 @@ const handleCopyDescription = () => {
                             if (!env || !env.name) return null;
                             const isDeployed = task.deploymentStatus?.[env.name] ?? false;
                             return (
-                              <div key={env.name} className={cn("flex justify-between items-center p-2 -m-2 rounded-lg transition-colors",!isBinned && 'cursor-pointer hover:bg-muted/50')} onClick={!isBinned ? () => handleToggleDeployment(env.name) : undefined}>
+                              <div key={env.id} className={cn("flex justify-between items-center p-2 -m-2 rounded-lg transition-colors",!isBinned && 'cursor-pointer hover:bg-muted/50')} onClick={!isBinned ? () => handleToggleDeployment(env.name) : undefined}>
                                 <span className="capitalize text-foreground font-medium">{env.name}</span>
                                 <div onAnimationEnd={() => setJustUpdatedEnv(null)} className={cn('flex items-center gap-2 font-medium', isDeployed ? 'text-green-600 dark:text-green-500' : 'text-yellow-600 dark:text-yellow-500', justUpdatedEnv === env.name && 'animate-status-in')}>
                                   {isDeployed ? (<><CheckCircle2 className="h-4 w-4" /><span>Deployed</span></>) : (<><Clock className="h-4 w-4" /><span>Pending</span></>)}

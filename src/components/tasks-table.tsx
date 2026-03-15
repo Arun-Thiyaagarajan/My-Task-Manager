@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -337,7 +335,7 @@ export function TasksTable({
     task.status !== 'Hold'
   );
 
-  const fieldLabels = new Map(uiConfig.fields.map((f) => [f.key, f.label]));
+  const fieldLabels = new Map((uiConfig?.fields || []).map((f) => [f.key, f.label]));
   const developersLabel = fieldLabels.get('developers') || 'Developers';
   const testersLabel = fieldLabels.get('testers') || 'Testers';
 

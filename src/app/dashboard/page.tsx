@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -46,7 +45,7 @@ export default function DashboardPage() {
     return <LoadingSpinner text="Loading dashboard..." />;
   }
 
-  const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
+  const fieldLabels = new Map((uiConfig?.fields || []).map(f => [f.key, f.label]));
   const TASK_STATUSES = uiConfig.taskStatuses;
   const ENVIRONMENTS: Environment[] = uiConfig.environments || [];
 
@@ -393,5 +392,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    

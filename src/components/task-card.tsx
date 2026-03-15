@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -128,7 +126,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
     setSelectedTaskIds(newSelected);
   };
 
-  const fieldLabels = new Map(uiConfig?.fields.map(f => [f.key, f.label]));
+  const fieldLabels = new Map((uiConfig?.fields || []).map(f => [f.key, f.label]));
   const developersLabel = fieldLabels.get('developers') || 'Developers';
   const testersLabel = fieldLabels.get('testers') || 'Testers';
 
