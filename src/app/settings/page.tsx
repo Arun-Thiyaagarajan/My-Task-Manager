@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -235,7 +234,11 @@ export default function SettingsPage() {
       });
       setTimeout(() => window.location.reload(), 1500);
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Error Clearing Data', description: error?.message });
+      toast({ 
+        variant: 'destructive', 
+        title: 'Clear Data Failed', 
+        description: error.message || 'An unexpected error occurred while clearing your data. Please try again.' 
+      });
       setIsClearing(false);
     }
   };

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES, INITIAL_RELEASES } from './constants';
@@ -119,14 +118,21 @@ async function dispatchMutation(
         docRef = doc(db, 'users', userId, 'companies', id);
     } else if (type === 'uiConfig') {
         docRef = doc(db, 'users', userId, 'companies', activeCompanyId, 'settings', 'uiConfig');
-    } else if (type === 'developers' || type === 'testers') {
-        docRef = doc(db, 'users', userId, 'companies', activeCompanyId, 'people', type);
-        payload = { list: data };
-    } else if (type === 'generalReminders') {
-        docRef = doc(db, 'users', userId, 'companies', activeCompanyId, 'reminders', 'general');
-        payload = { list: data };
-    } else if (type === 'releaseUpdates') {
-        docRef = doc(db, 'users', userId, 'companies', activeCompanyId, 'releases', 'updates');
+    } else if (type === 'developers' || type === 'testers' || type === 'generalReminders' || type === 'releaseUpdates') {
+        // Correctly handle documents that store arrays/lists as objects
+        const parentMap: Record<string, string> = {
+            developers: 'people',
+            testers: 'people',
+            generalReminders: 'reminders',
+            releaseUpdates: 'releases'
+        };
+        const docNameMap: Record<string, string> = {
+            developers: 'developers',
+            testers: 'testers',
+            generalReminders: 'general',
+            releaseUpdates: 'updates'
+        };
+        docRef = doc(db, 'users', userId, 'companies', activeCompanyId, parentMap[type], docNameMap[type]);
         payload = { list: data };
     } else {
         docRef = doc(db, 'users', userId, 'companies', activeCompanyId, type, id);
@@ -633,7 +639,7 @@ export function clearExpiredReminders(): { updatedTaskIds: string[], unpinnedTas
     const updatedTaskIds: string[] = [];
     const unpinnedTaskIds: string[] = [];
     tasks.forEach(t => {
-        if (t.reminderExpiresAt && new Date(t.reminderExpiresAt) <= now) {
+        if (t.reminder && t.reminderExpiresAt && new Date(t.reminderExpiresAt) <= now) {
             t.reminder = null;
             t.reminderExpiresAt = null;
             updatedTaskIds.push(t.id);
@@ -813,7 +819,9 @@ export async function clearAllData() {
         const auth = getAuth();
         const db = getFirestore();
         const userId = auth.currentUser?.uid;
-        if (!userId) return;
+        if (!userId) {
+            throw new Error("You must be signed in to clear cloud data.");
+        }
         const companyBase = `users/${userId}/companies/${companyId}`;
         try {
             const currentConfig = getUiConfig();
@@ -866,13 +874,17 @@ export async function clearAllData() {
             await batch.commit();
         } catch (error: any) {
             console.error("Critical error during cloud data clearing:", error);
-            throw new Error(`Data clearing failed: ${error.message}`);
+            throw new Error(`Cloud data clearing failed: ${error.message || 'Check your internet connection and permissions.'}`);
         }
     } else {
-        Object.keys(localStorage).forEach(key => {
-            if (key.startsWith('taskflow_')) localStorage.removeItem(key);
-        });
-        localStorage.removeItem(DATA_KEY);
+        try {
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('taskflow_')) localStorage.removeItem(key);
+            });
+            localStorage.removeItem(DATA_KEY);
+        } catch (e: any) {
+            throw new Error(`Failed to clear local storage: ${e.message || 'Unknown error'}`);
+        }
     }
 }
 
