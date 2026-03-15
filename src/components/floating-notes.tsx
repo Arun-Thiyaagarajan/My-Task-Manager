@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -36,8 +35,9 @@ export function FloatingNotes() {
         }
 
         const handleKeyDown = (e: KeyboardEvent) => {
-            // Do not handle shortcut on notes page itself
-            if (pathname === '/notes') return; 
+            // Do not handle shortcut on pages where the button is hidden
+            const isTaskForm = pathname === '/tasks/new' || pathname?.endsWith('/edit');
+            if (pathname === '/notes' || isTaskForm) return; 
             
             if ((e.metaKey || e.ctrlKey) && e.key === '/') {
                 e.preventDefault();
@@ -70,7 +70,9 @@ export function FloatingNotes() {
         setIsNoteEditorOpen(false);
     };
 
-    if (pathname === '/notes') {
+    // Hide the floating button on the notes page and task form pages (New/Edit)
+    const isTaskForm = pathname === '/tasks/new' || pathname?.endsWith('/edit');
+    if (pathname === '/notes' || isTaskForm) {
         return null;
     }
 
