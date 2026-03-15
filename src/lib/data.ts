@@ -248,6 +248,100 @@ export function setUiConfig(config: UiConfig) {
     }
 }
 
+// Environment Management
+export function addEnvironment(env: Omit<Environment, 'id'>) {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    const id = `env-${crypto.randomUUID()}`;
+    const newEnv = { ...env, id };
+    data.companyData[companyId].uiConfig.environments.push(newEnv);
+    setAppData(data);
+    addLog({ message: `Added new environment: **${env.name}**` });
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('uiConfig', '', data.companyData[companyId].uiConfig, 'set');
+    }
+}
+
+export function updateEnvironment(id: string, updates: Partial<Environment>) {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    const envs = data.companyData[companyId].uiConfig.environments;
+    const index = envs.findIndex(e => e.id === id);
+    if (index !== -1) {
+        const oldName = envs[index].name;
+        const newName = updates.name || oldName;
+        
+        // Handle renaming across tasks if name changed
+        if (newName !== oldName) {
+            const tasks = data.companyData[companyId].tasks;
+            const trash = data.companyData[companyId].trash;
+            
+            const updateTaskEnv = (t: Task) => {
+                if (t.deploymentStatus && t.deploymentStatus[oldName] !== undefined) {
+                    t.deploymentStatus[newName] = t.deploymentStatus[oldName];
+                    delete t.deploymentStatus[oldName];
+                }
+                if (t.deploymentDates && t.deploymentDates[oldName] !== undefined) {
+                    t.deploymentDates[newName] = t.deploymentDates[oldName];
+                    delete t.deploymentDates[oldName];
+                }
+                if (t.prLinks && t.prLinks[oldName]) {
+                    t.prLinks[newName] = t.prLinks[oldName];
+                    delete t.prLinks[oldName];
+                }
+                if (t.relevantEnvironments) {
+                    t.relevantEnvironments = t.relevantEnvironments.map(e => e === oldName ? newName : e);
+                }
+            };
+            
+            tasks.forEach(updateTaskEnv);
+            trash.forEach(updateTaskEnv);
+        }
+
+        envs[index] = { ...envs[index], ...updates };
+        setAppData(data);
+        addLog({ message: `Updated properties for environment: **${oldName}**` });
+        
+        if (getAuthMode() === 'authenticate') {
+            dispatchMutation('uiConfig', '', data.companyData[companyId].uiConfig, 'set');
+            // Cloud listeners will propagate the task updates since they are part of the cache
+        }
+    }
+}
+
+export function deleteEnvironment(id: string): boolean {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    const envs = data.companyData[companyId].uiConfig.environments;
+    const env = envs.find(e => e.id === id);
+    
+    if (!env) return false;
+    // Safeguard mandatory environments
+    if (env.isMandatory || ['dev', 'production'].includes(env.name.toLowerCase())) return false;
+
+    data.companyData[companyId].uiConfig.environments = envs.filter(e => e.id !== id);
+    
+    // Clean up task references
+    const tasks = data.companyData[companyId].tasks;
+    const trash = data.companyData[companyId].trash;
+    const cleanup = (t: Task) => {
+        if (t.deploymentStatus) delete t.deploymentStatus[env.name];
+        if (t.deploymentDates) delete t.deploymentDates[env.name];
+        if (t.prLinks) delete t.prLinks[env.name];
+        if (t.relevantEnvironments) t.relevantEnvironments = t.relevantEnvironments.filter(e => e !== env.name);
+    };
+    tasks.forEach(cleanup);
+    trash.forEach(cleanup);
+
+    setAppData(data);
+    addLog({ message: `Deleted environment: **${env.name}**` });
+    
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('uiConfig', '', data.companyData[companyId].uiConfig, 'set');
+    }
+    return true;
+}
+
 // People management
 export function getDevelopers(): Person[] {
     return getAppData().companyData[getActiveCompanyId()]?.developers || [];
