@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { getTaskById, getDevelopers, updateTask, getTesters, getUiConfig, getTasks } from '@/lib/data';
 import { useParams, useRouter } from 'next/navigation';
 import { TaskForm } from '@/components/task-form';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import type { Task, Person } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft } from 'lucide-react';
@@ -62,8 +62,6 @@ export default function EditTaskPage() {
       });
       return;
     }
-    
-    // Developer and tester creation is now handled inside the form's MultiSelect component.
     
     const { deploymentDates, devStartDate, devEndDate, qaStartDate, qaEndDate, ...otherData } = validationResult.data;
 
@@ -131,16 +129,14 @@ export default function EditTaskPage() {
   
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl font-bold tracking-tight">Edit Task</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <Card className="border-none lg:border lg:shadow-sm">
+        <CardContent className="p-0 lg:p-6">
           <TaskForm
             task={task}
             allTasks={allTasks}
             onSubmit={handleUpdateTask}
             submitButtonText="Save Changes"
+            formTitle="Edit Task"
             developersList={developersList}
             testersList={testersList}
           />

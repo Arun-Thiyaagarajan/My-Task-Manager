@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2, HelpCircle, Sparkles, Layout, Users, Calendar as CalendarIconLucide, Paperclip, Rocket, GitMerge, ChevronRight, PanelLeft, PanelRight, CircleDot, Save } from 'lucide-react';
+import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2, HelpCircle, Sparkles, Layout, Users, Calendar as CalendarIconLucide, Paperclip, Rocket, GitMerge, ChevronRight, PanelLeft, PanelRight, CircleDot, Save, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTransition, useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -38,6 +38,7 @@ interface TaskFormProps {
   allTasks?: Task[];
   onSubmit: (data: TaskFormData) => void;
   submitButtonText: string;
+  formTitle: string;
   developersList: Person[];
   testersList: Person[];
 }
@@ -96,7 +97,7 @@ const getInitialTaskData = (task?: Partial<Task>) => {
     }
 }
 
-export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developersList: propDevelopersList, testersList: propTestersList }: TaskFormProps) {
+export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle, developersList: propDevelopersList, testersList: propTestersList }: TaskFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
@@ -706,7 +707,22 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit, onInvalid)}>
-        {/* DESKTOP ACTION BAR: Fixed at bottom */}
+        {/* MOBILE STICKY HEADER */}
+        <div className="lg:hidden sticky top-14 z-40 bg-background/95 backdrop-blur-md border-b px-4 h-14 flex items-center justify-between shadow-sm animate-in fade-in duration-300">
+            <h2 className="text-lg font-bold tracking-tight truncate mr-4">{formTitle}</h2>
+            <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleCancel}
+                className="h-9 px-3 font-bold hover:bg-primary/10 hover:text-primary transition-all rounded-full flex items-center gap-1.5"
+            >
+                <ArrowLeft className="h-4 w-4" />
+                <span>Back</span>
+            </Button>
+        </div>
+
+        {/* DESKTOP ACTION BAR */}
         <div className={cn(
             "hidden lg:block z-50 bg-background/95 backdrop-blur-sm border-t fixed bottom-0 left-0 right-0 transition-all duration-300"
         )}>
@@ -756,25 +772,24 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
             </div>
         </div>
 
-        {/* MOBILE FAB: Floating Save Button */}
-        <div className="lg:hidden fixed bottom-20 right-6 z-40 animate-in fade-in zoom-in duration-500 pointer-events-auto">
+        {/* MOBILE FIXED BOTTOM SAVE BAR (sitting above bottom navbar) */}
+        <div className="lg:hidden fixed bottom-16 left-0 right-0 z-40 bg-background/95 backdrop-blur-md border-t px-4 h-16 flex items-center justify-center shadow-[0_-4px_10px_rgba(0,0,0,0.05)] animate-in slide-in-from-bottom-2 duration-500">
             <Button
                 type="submit"
-                size="icon"
                 disabled={isPending}
                 className={cn(
-                    "h-14 w-14 rounded-full shadow-2xl shadow-primary/40 transition-all active:scale-95",
-                    !isDirty && "opacity-60 scale-95 saturate-[0.5]"
+                    "w-full h-11 font-black shadow-lg shadow-primary/20 transition-all active:scale-[0.98]",
+                    !isDirty && "opacity-80 saturate-[0.8]"
                 )}
             >
-                {isPending ? <Loader2 className="h-6 w-6 animate-spin" /> : <Save className="h-6 w-6" />}
-                <span className="sr-only">Save Task</span>
+                {isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
+                {submitButtonText}
             </Button>
         </div>
 
         {/* FORM CONTENT */}
         <div className={cn(
-            "flex flex-col gap-8 pb-10 lg:pt-0 lg:pb-32 relative",
+            "flex flex-col gap-8 pb-32 pt-6 lg:pt-0 lg:pb-32 relative px-4 lg:px-0",
             sidebarPosition === 'left' ? "lg:flex-row" : "lg:flex-row-reverse"
         )}>
             {/* Desktop Navigation Sidebar */}
@@ -856,6 +871,9 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                 </aside>
 
             <div className="flex-1 space-y-6 max-w-full">
+                {/* Desktop-only Page Title (hidden on mobile since we have the sticky header) */}
+                <h1 className="hidden lg:block text-xl font-bold tracking-tight mb-2 px-6">{formTitle}</h1>
+
                 {groupOrder.map(groupName => {
                     if (['Attachments', 'Deployment', 'Pull Requests'].includes(groupName)) {
                         return null;

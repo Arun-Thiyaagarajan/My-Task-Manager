@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { TaskForm } from '@/components/task-form';
 import { addTask, getDevelopers, getTesters, getUiConfig, getTasks } from '@/lib/data';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import type { Task, Person } from '@/lib/types';
@@ -27,7 +27,6 @@ export default function NewTaskPage() {
     setTestersList(getTesters());
     setAllTasks(getTasks());
     
-    // This logic stays to handle failed imports from the old implementation
     const failedImportRowString = sessionStorage.getItem('failed_import_row');
     if (failedImportRowString) {
       try {
@@ -65,8 +64,6 @@ export default function NewTaskPage() {
       return;
     }
   
-    // Developer and tester creation is handled inside the form's MultiSelect component.
-
     const { deploymentDates, devStartDate, devEndDate, qaStartDate, qaEndDate, ...otherData } = validationResult.data;
 
     const taskDataToCreate: Partial<Task> = {
@@ -95,7 +92,6 @@ export default function NewTaskPage() {
         taskDataToCreate.summary = summary.summary;
       } catch (error) {
         console.error('Failed to generate summary:', error);
-        // Silently fail, don't block task creation
       }
     }
 
@@ -116,16 +112,14 @@ export default function NewTaskPage() {
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl font-bold tracking-tight">Create a New Task</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <Card className="border-none lg:border lg:shadow-sm">
+        <CardContent className="p-0 lg:p-6">
           <TaskForm
             task={initialData}
             allTasks={allTasks}
             onSubmit={handleCreateTask}
             submitButtonText="Create Task"
+            formTitle="Create a New Task"
             developersList={developersList}
             testersList={testersList}
           />
