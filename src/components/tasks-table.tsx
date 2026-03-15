@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import Link from 'next/link';
 import {
   Table,
@@ -55,7 +55,7 @@ interface TasksTableRowProps {
   currentQueryString: string;
 }
 
-function TasksTableRow({
+const TasksTableRow = memo(function TasksTableRow({
   task: initialTask,
   onTaskUpdate,
   uiConfig,
@@ -288,9 +288,9 @@ function TasksTableRow({
       </TableCell>
     </TableRow>
   );
-}
+});
 
-export function TasksTable({
+export const TasksTable = memo(function TasksTable({
   tasks,
   onTaskDelete,
   uiConfig,
@@ -452,4 +452,4 @@ export function TasksTable({
       />
     </div>
   );
-}
+});

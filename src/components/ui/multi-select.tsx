@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -41,7 +40,7 @@ interface MultiSelectProps {
   maxVisible?: number;
 }
 
-export function MultiSelect({
+export const MultiSelect = React.memo(function MultiSelect({
   options,
   selected,
   onChange,
@@ -181,7 +180,7 @@ export function MultiSelect({
             </div>
             </div>
         </PopoverTrigger>
-        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+        <PopoverContent className="w-[300px] p-0" align="start">
             <Command onKeyDown={handleKeyDown} className={cn('overflow-visible bg-transparent', className)}>
                 <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
                     <CommandPrimitive.Input
@@ -323,4 +322,4 @@ export function MultiSelect({
         </Dialog>
     </>
   );
-}
+});

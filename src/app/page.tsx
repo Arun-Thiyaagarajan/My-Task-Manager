@@ -125,7 +125,6 @@ export default function Home() {
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { prompt } = useUnsavedChanges();
   
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [dateView, setDateView] = useState<DateView>('all');
@@ -209,20 +208,21 @@ export default function Home() {
     setSortDescriptor(searchParams.get('sort') || 'status-asc');
   }, []);
 
-  const handlePreviousDate = () => {
+  const handlePreviousDate = useCallback(() => {
       if (dateView === 'monthly') {
           setSelectedDate(subMonths(selectedDate, 1));
       } else if (dateView === 'yearly') {
           setSelectedDate(subYears(selectedDate, 1));
       }
-  };
-  const handleNextDate = () => {
+  }, [dateView, selectedDate]);
+
+  const handleNextDate = useCallback(() => {
       if (dateView === 'monthly') {
           setSelectedDate(addMonths(selectedDate, 1));
       } else if (dateView === 'yearly') {
           setSelectedDate(addYears(selectedDate, 1));
       }
-  };
+  }, [dateView, selectedDate]);
 
   const refreshData = useCallback(() => {
     if (activeCompanyId) {
@@ -270,7 +270,7 @@ export default function Home() {
     }
   };
 
-  const triggerSearch = () => {
+  const triggerSearch = useCallback(() => {
     setIsSearching(true);
     setSearchError(null);
     window.dispatchEvent(new Event('sync-start'));
@@ -278,14 +278,14 @@ export default function Home() {
     setTimeout(() => {
         setExecutedSearchQuery(searchQuery);
     }, 50);
-  };
+  }, [searchQuery]);
 
-  const clearSearch = () => {
+  const clearSearch = useCallback(() => {
     setSearchQuery('');
     setExecutedSearchQuery('');
     setIsSearching(false);
     searchInputRef.current?.focus();
-  };
+  }, []);
 
   // Asynchronous Filtering Logic
   useEffect(() => {
@@ -566,7 +566,7 @@ export default function Home() {
     }
   }, [isLoading, uiConfig, handleExport, toast]);
 
-  const handlePinToggle = (taskIdToToggle: string) => {
+  const handlePinToggle = useCallback((taskIdToToggle: string) => {
     setPinnedTaskIds(currentIds => {
       const newPinnedIds = currentIds.includes(taskIdToToggle)
         ? currentIds.filter(id => id !== taskIdToToggle)
@@ -574,28 +574,28 @@ export default function Home() {
       localStorage.setItem(PINNED_TASKS_STORAGE_KEY, JSON.stringify(newPinnedIds));
       return newPinnedIds;
     });
-  };
+  }, []);
 
-  const handleUnpinFromStack = (taskId: string) => {
+  const handleUnpinFromStack = useCallback((taskId: string) => {
     handlePinToggle(taskId);
     toast({ title: 'Reminder Unpinned' });
-  };
+  }, [handlePinToggle, toast]);
   
-  const handleDismissGeneralReminder = (reminderId: string) => {
+  const handleDismissGeneralReminder = useCallback((reminderId: string) => {
     if (deleteGeneralReminder(reminderId)) {
       setGeneralReminders(prev => prev.filter(r => r.id !== reminderId));
       toast({ title: 'Reminder Dismissed' });
     }
-  };
+  }, [toast]);
   
-  const handleToggleSelectMode = () => {
+  const handleToggleSelectMode = useCallback(() => {
     setIsSelectMode(prev => !prev);
     setSelectedTaskIds([]);
-  };
+  }, []);
   
-  const handleFavoritesToggle = () => {
-    setFavoritesOnly(!favoritesOnly);
-  };
+  const handleFavoritesToggle = useCallback(() => {
+    setFavoritesOnly(prev => !prev);
+  }, []);
   
   useEffect(() => {
     localStorage.setItem('taskflow_open_groups', JSON.stringify(openGroups));
@@ -605,11 +605,11 @@ export default function Home() {
     .filter(t => pinnedTaskIds.includes(t.id) && t.reminder)
     .sort((a, b) => pinnedTaskIds.indexOf(a.id) - pinnedTaskIds.indexOf(b.id));
 
-  const handleToggleSelectAll = (checked: boolean | 'indeterminate') => {
+  const handleToggleSelectAll = useCallback((checked: boolean | 'indeterminate') => {
     setSelectedTaskIds(checked === true ? sortedTasks.map(t => t.id) : []);
-  };
+  }, [sortedTasks]);
 
-  const handleDownloadTemplate = () => {
+  const handleDownloadTemplate = useCallback(() => {
       const currentUiConfig = getUiConfig();
       const appNamePrefix = currentUiConfig.appName?.replace(/\s+/g, '_') || 'MyTaskManager';
       const fileName = `${appNamePrefix}_Import_Template.json`;
@@ -641,7 +641,7 @@ export default function Home() {
       link.href = jsonString;
       link.download = fileName;
       link.click();
-  };
+  }, []);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -706,7 +706,7 @@ export default function Home() {
     reader.readAsText(file);
   };
   
-  const handleBulkDelete = () => {
+  const handleBulkDelete = useCallback(() => {
     const idsToRestore = [...selectedTaskIds];
     moveMultipleTasksToBin(idsToRestore);
     
@@ -737,31 +737,31 @@ export default function Home() {
 
     refreshData();
     setIsSelectMode(false);
-  };
+  }, [selectedTaskIds, toast, refreshData]);
 
-  const handleBulkApplyTags = () => {
+  const handleBulkApplyTags = useCallback(() => {
     addTagsToMultipleTasks(selectedTaskIds, tagsToApply);
     toast({ variant: 'success', title: 'Tags Applied' });
     refreshData();
     setIsTagsDialogOpen(false);
     setTagsToApply([]);
-  };
+  }, [selectedTaskIds, tagsToApply, toast, refreshData]);
 
-  const handleBulkCopyText = () => {
+  const handleBulkCopyText = useCallback(() => {
     if (!uiConfig) return;
     const selectedTasks = tasks.filter(t => selectedTaskIds.includes(t.id));
     const textContent = generateTasksText(selectedTasks, uiConfig, developers, testers);
     navigator.clipboard.writeText(textContent).then(() => {
         toast({ variant: 'success', title: 'Copied to Clipboard' });
     });
-  };
+  }, [selectedTaskIds, tasks, uiConfig, developers, testers, toast]);
 
-  const handleBulkExportPdf = async () => {
+  const handleBulkExportPdf = useCallback(async () => {
     if (!uiConfig) return;
     const selectedTasks = tasks.filter(t => selectedTaskIds.includes(t.id));
     await generateTaskPdf(selectedTasks, uiConfig, developers, testers, 'save');
     toast({ variant: 'success', title: 'PDF Exported' });
-  };
+  }, [selectedTaskIds, tasks, uiConfig, developers, testers, toast]);
   
   if (isLoading || !uiConfig) {
     return <LoadingSpinner text="Loading tasks..." />;

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { TaskCard } from '@/components/task-card';
 import type { Task, UiConfig, Person } from '@/lib/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
@@ -22,7 +22,7 @@ interface TasksGridProps {
   favoritesOnly?: boolean;
 }
 
-export function TasksGrid({ 
+export const TasksGrid = memo(function TasksGrid({ 
   tasks, 
   onTaskDelete, 
   onTaskUpdate, 
@@ -123,4 +123,4 @@ export function TasksGrid({
       ))}
     </Accordion>
   );
-}
+});

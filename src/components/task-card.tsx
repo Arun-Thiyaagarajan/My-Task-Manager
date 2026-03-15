@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import Link from 'next/link';
 import type { Task, TaskStatus, UiConfig, Person, Environment } from '@/lib/types';
 import {
@@ -52,7 +51,7 @@ interface TaskCardProps {
   currentQueryString: string;
 }
 
-export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConfig, developers, testers, selectedTaskIds, setSelectedTaskIds, isSelectMode, pinnedTaskIds, onPinToggle, currentQueryString }: TaskCardProps) {
+export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConfig, developers, testers, selectedTaskIds, setSelectedTaskIds, isSelectMode, pinnedTaskIds, onPinToggle, currentQueryString }: TaskCardProps) {
   const [task, setTask] = useState(initialTask);
   const { toast } = useToast();
   const [taskStatuses, setTaskStatuses] = useState<string[]>([]);
@@ -525,4 +524,4 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
       )}
     </>
   );
-}
+});
