@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -370,62 +371,68 @@ export default function SettingsPage() {
 
   return (
     <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8 max-w-7xl">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10">
         <div>
-            <h1 className="text-4xl font-extrabold tracking-tight text-foreground">Application Settings</h1>
-            <p className="text-muted-foreground mt-1">Manage and customize fields and environments across your application.</p>
+            <h1 className="text-5xl font-black tracking-tight text-foreground">Application Settings</h1>
+            <p className="text-lg text-muted-foreground mt-2">Manage and customize fields and environments across your application.</p>
         </div>
-        <Button onClick={() => { setFieldToEdit(null); setIsFieldDialogOpen(true); }}>
-            <PlusCircle className="h-4 w-4 mr-2" /> Add Field
+        <Button size="lg" className="h-12 px-6 font-bold" onClick={() => { setFieldToEdit(null); setIsFieldDialogOpen(true); }}>
+            <PlusCircle className="h-5 w-5 mr-2" /> Add Field
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start pb-20">
         {/* Left Column: Field Configuration */}
         <div className="lg:col-span-2 space-y-8">
-            <Card id="settings-field-config-card">
-                <CardHeader>
-                    <CardTitle className="text-2xl">Field Configuration</CardTitle>
-                    <CardDescription>Edit, activate, or deactivate fields as needed.</CardDescription>
-                    <div className="pt-4">
+            <Card id="settings-field-config-card" className="border-none shadow-xl bg-card">
+                <CardHeader className="pb-6">
+                    <CardTitle className="text-3xl font-black">Field Configuration</CardTitle>
+                    <CardDescription className="text-base">Edit, activate, or deactivate fields as needed.</CardDescription>
+                    <div className="pt-6">
                         <div className="relative">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                             <Input 
                                 placeholder="Search fields..." 
-                                className="pl-9"
+                                className="pl-10 h-12 text-base font-medium"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="space-y-8">
+                <CardContent className="space-y-10">
                     <div>
-                        <h3 className="text-lg font-bold mb-4">Active Fields</h3>
-                        <div className="space-y-6">
+                        <h3 className="text-xl font-black mb-6 flex items-center gap-2">
+                            <div className="h-2 w-2 rounded-full bg-green-500" />
+                            Active Fields
+                        </h3>
+                        <div className="space-y-8">
                             {Object.entries(filteredAndGroupedFields.activeGroups).map(([groupName, fields]) => (
-                                <div key={groupName} className="space-y-2">
-                                    <h4 className="text-xs font-black uppercase tracking-wider text-muted-foreground">{groupName}</h4>
-                                    <div className="space-y-2">
+                                <div key={groupName} className="space-y-3">
+                                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2 px-1">
+                                        {groupName}
+                                        <div className="h-px bg-border flex-1" />
+                                    </h4>
+                                    <div className="grid gap-2">
                                         {fields.map(field => (
-                                            <div key={field.id} className="flex items-center justify-between p-3 bg-muted/20 border rounded-lg hover:bg-muted/40 transition-colors group">
-                                                <div className="flex items-center gap-3">
-                                                    <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
+                                            <div key={field.id} className="flex items-center justify-between p-4 bg-muted/20 border rounded-xl hover:bg-muted/40 transition-all group border-transparent hover:border-border">
+                                                <div className="flex items-center gap-4">
+                                                    <GripVertical className="h-5 w-5 text-muted-foreground/30 cursor-grab active:cursor-grabbing" />
                                                     <div>
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="font-bold text-sm">{field.label} {field.isRequired && <span className="text-destructive">*</span>}</span>
-                                                            <Badge variant="outline" className="text-[10px] uppercase font-mono">{field.type}</Badge>
+                                                        <div className="flex items-center gap-2 mb-0.5">
+                                                            <span className="font-bold text-base tracking-tight">{field.label} {field.isRequired && <span className="text-destructive">*</span>}</span>
+                                                            <Badge variant="outline" className="text-[9px] uppercase font-black px-1.5 h-4 bg-background">{field.type}</Badge>
                                                         </div>
+                                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{field.group}</p>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-4">
-                                                    <span className="text-[10px] text-muted-foreground font-medium hidden sm:inline">{field.group}</span>
+                                                <div className="flex items-center gap-2">
                                                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setFieldToEdit(field); setIsFieldDialogOpen(true); }}>
+                                                        <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => { setFieldToEdit(field); setIsFieldDialogOpen(true); }}>
                                                             <Pencil className="h-4 w-4" />
                                                         </Button>
                                                         {!['title', 'description', 'status', 'repositories'].includes(field.key) && (
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => handleFieldToggle(field.key, 'isActive')}>
+                                                            <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => handleFieldToggle(field.key, 'isActive')}>
                                                                 <X className="h-4 w-4" />
                                                             </Button>
                                                         )}
@@ -439,21 +446,26 @@ export default function SettingsPage() {
                         </div>
                     </div>
 
-                    <div className="pt-4 border-t">
-                        <h3 className="text-lg font-bold mb-4">Inactive Fields</h3>
+                    <div className="pt-8 border-t">
+                        <h3 className="text-xl font-black mb-6 flex items-center gap-2">
+                            <div className="h-2 w-2 rounded-full bg-muted-foreground/30" />
+                            Inactive Fields
+                        </h3>
                         {filteredAndGroupedFields.inactiveFields.length > 0 ? (
-                            <div className="space-y-2">
+                            <div className="grid gap-2">
                                 {filteredAndGroupedFields.inactiveFields.map(field => (
-                                    <div key={field.id} className="flex items-center justify-between p-3 bg-muted/10 border border-dashed rounded-lg opacity-60">
-                                        <span className="text-sm font-medium">{field.label}</span>
-                                        <Button variant="ghost" size="sm" className="h-8" onClick={() => handleFieldToggle(field.key, 'isActive')}>
+                                    <div key={field.id} className="flex items-center justify-between p-4 bg-muted/5 border border-dashed rounded-xl opacity-60 hover:opacity-100 transition-opacity">
+                                        <span className="text-base font-bold tracking-tight">{field.label}</span>
+                                        <Button variant="outline" size="sm" className="h-9 px-4 font-bold" onClick={() => handleFieldToggle(field.key, 'isActive')}>
                                             <Check className="h-4 w-4 mr-2" /> Activate
                                         </Button>
                                     </div>
                                 ))}
                             </div>
                         ) : (
-                            <p className="text-center text-sm text-muted-foreground py-4">No inactive fields match your search.</p>
+                            <div className="text-center py-10 bg-muted/5 rounded-xl border border-dashed">
+                                <p className="text-sm text-muted-foreground font-medium">No inactive fields match your search.</p>
+                            </div>
                         )}
                     </div>
                 </CardContent>
@@ -462,69 +474,73 @@ export default function SettingsPage() {
 
         {/* Right Column: Sidebar Cards */}
         <div className="space-y-6">
-            <Card>
-                <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                        <ShieldCheck className="h-4 w-4 text-primary" />
-                        Authentication Mode
+            <Card className="border-none shadow-lg">
+                <CardHeader className="pb-4">
+                    <CardTitle className="text-lg font-black flex items-center gap-2 uppercase tracking-wider">
+                        <ShieldCheck className="h-5 w-5 text-primary" />
+                        Storage Mode
                     </CardTitle>
-                    <CardDescription>Select how your data is managed.</CardDescription>
+                    <CardDescription className="text-xs">Select how your workspace data is managed.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                     <button 
                         onClick={() => handleInitiateModeChange('localStorage')}
                         className={cn(
-                            "w-full text-left p-3 border rounded-xl transition-all",
-                            authMode === 'localStorage' ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:border-primary/50"
+                            "w-full text-left p-4 border rounded-2xl transition-all relative overflow-hidden group",
+                            authMode === 'localStorage' ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "hover:border-primary/50"
                         )}
                     >
-                        <div className="flex items-start gap-3">
-                            <Smartphone className={cn("h-5 w-5 mt-0.5", authMode === 'localStorage' ? "text-primary" : "text-muted-foreground")} />
+                        <div className="flex items-start gap-4">
+                            <div className={cn("p-2 rounded-xl", authMode === 'localStorage' ? "bg-primary text-white" : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors")}>
+                                <Smartphone className="h-5 w-5" />
+                            </div>
                             <div>
-                                <p className="text-sm font-bold">Local Storage</p>
-                                <p className="text-[11px] text-muted-foreground">Data is stored in your browser.</p>
+                                <p className="text-sm font-black tracking-tight">Local Storage</p>
+                                <p className="text-[11px] text-muted-foreground font-medium mt-0.5">Browser-based data. Fast & Offline.</p>
                             </div>
                         </div>
                     </button>
                     <button 
                         onClick={() => handleInitiateModeChange('authenticate')}
                         className={cn(
-                            "w-full text-left p-3 border rounded-xl transition-all",
-                            authMode === 'authenticate' ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:border-primary/50"
+                            "w-full text-left p-4 border rounded-2xl transition-all relative overflow-hidden group",
+                            authMode === 'authenticate' ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "hover:border-primary/50"
                         )}
                     >
-                        <div className="flex items-start gap-3">
-                            <Database className={cn("h-5 w-5 mt-0.5", authMode === 'authenticate' ? "text-primary" : "text-muted-foreground")} />
+                        <div className="flex items-start gap-4">
+                            <div className={cn("p-2 rounded-xl", authMode === 'authenticate' ? "bg-primary text-white" : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors")}>
+                                <Database className="h-5 w-5" />
+                            </div>
                             <div>
-                                <p className="text-sm font-bold">Authenticate Mode</p>
-                                <p className="text-[11px] text-muted-foreground">Sync data across devices.</p>
+                                <p className="text-sm font-black tracking-tight">Cloud Sync</p>
+                                <p className="text-[11px] text-muted-foreground font-medium mt-0.5">Real-time sync across all devices.</p>
                             </div>
                         </div>
                     </button>
                 </CardContent>
             </Card>
 
-            <Card>
-                <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                        <Globe className="h-4 w-4 text-primary" />
-                        Display Settings
+            <Card className="border-none shadow-lg">
+                <CardHeader className="pb-4">
+                    <CardTitle className="text-lg font-black flex items-center gap-2 uppercase tracking-wider">
+                        <Globe className="h-5 w-5 text-primary" />
+                        Appearance
                     </CardTitle>
-                    <CardDescription>Appearance and formatting.</CardDescription>
+                    <CardDescription className="text-xs">Custom branding and date formatting.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-5">
                     <div className="space-y-2">
-                        <Label className="text-xs">App Name</Label>
-                        <Input value={appName} onChange={e => setAppName(e.target.value)} className="h-9" />
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Workspace Name</Label>
+                        <Input value={appName} onChange={e => setAppName(e.target.value)} className="h-10 font-bold" />
                     </div>
                     <div className="space-y-2">
-                        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">App Icon</Label>
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Workspace Icon</Label>
                         <div className="flex gap-2">
                             <Input 
                                 value={isDataURIIcon ? '' : (appIcon || '')} 
                                 onChange={e => setAppIcon(e.target.value)} 
                                 placeholder={isDataURIIcon ? "Custom image uploaded" : "Emoji or URL..."} 
-                                className="h-9 flex-1" 
+                                className="h-10 flex-1 font-medium" 
                             />
                             <TooltipProvider>
                                 <Tooltip>
@@ -532,7 +548,7 @@ export default function SettingsPage() {
                                         <Button 
                                             variant="outline" 
                                             size="icon" 
-                                            className="h-9 w-9 shrink-0" 
+                                            className="h-10 w-10 shrink-0 border-dashed" 
                                             onClick={() => iconFileInputRef.current?.click()}
                                             type="button"
                                         >
@@ -549,8 +565,8 @@ export default function SettingsPage() {
                                             type="button"
                                             onClick={() => isDataURIIcon ? setIsPreviewOpen(true) : null}
                                             className={cn(
-                                                "h-9 w-9 border rounded-md flex items-center justify-center bg-muted text-lg overflow-hidden shrink-0 transition-transform active:scale-95",
-                                                isDataURIIcon && "cursor-pointer hover:ring-2 hover:ring-primary/20"
+                                                "h-10 w-10 border rounded-xl flex items-center justify-center bg-muted text-xl overflow-hidden shrink-0 transition-transform active:scale-95",
+                                                isDataURIIcon && "cursor-pointer hover:ring-4 hover:ring-primary/10"
                                             )}
                                         >
                                             {isDataURIIcon ? (
@@ -567,43 +583,43 @@ export default function SettingsPage() {
                         </div>
                     </div>
                     <div className="space-y-2">
-                        <Label className="text-xs">Time Format</Label>
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Time Display</Label>
                         <div className="grid grid-cols-2 gap-2">
-                            <button onClick={() => setTimeFormat('12h')} className={cn("flex flex-col items-center justify-center p-2 border rounded-lg gap-1", timeFormat === '12h' ? "bg-primary/10 border-primary text-primary" : "hover:bg-muted")}>
-                                <Clock className="h-4 w-4" /><span className="text-[10px] font-bold">12-hour</span>
+                            <button onClick={() => setTimeFormat('12h')} className={cn("flex items-center justify-center p-2.5 border rounded-xl gap-2 transition-all", timeFormat === '12h' ? "bg-primary/10 border-primary text-primary font-bold shadow-sm" : "hover:bg-muted text-muted-foreground")}>
+                                <Clock className="h-4 w-4" /><span className="text-xs">12-hour</span>
                             </button>
-                            <button onClick={() => setTimeFormat('24h')} className={cn("flex flex-col items-center justify-center p-2 border rounded-lg gap-1", timeFormat === '24h' ? "bg-primary/10 border-primary text-primary" : "hover:bg-muted")}>
-                                <RotateCcw className="h-4 w-4" /><span className="text-[10px] font-bold">24-hour</span>
+                            <button onClick={() => setTimeFormat('24h')} className={cn("flex items-center justify-center p-2.5 border rounded-xl gap-2 transition-all", timeFormat === '24h' ? "bg-primary/10 border-primary text-primary font-bold shadow-sm" : "hover:bg-muted text-muted-foreground")}>
+                                <RotateCcw className="h-4 w-4" /><span className="text-xs">24-hour</span>
                             </button>
                         </div>
                     </div>
-                    <Button onClick={handleSaveDisplaySettings} className="w-full h-9">Save Display Settings</Button>
+                    <Button onClick={handleSaveDisplaySettings} className="w-full h-11 font-bold shadow-md">Save Display Settings</Button>
                 </CardContent>
             </Card>
 
-            <Card>
-                <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                        <Bell className="h-4 w-4 text-primary" />
-                        Feature Management
+            <Card className="border-none shadow-lg">
+                <CardHeader className="pb-4">
+                    <CardTitle className="text-lg font-black flex items-center gap-2 uppercase tracking-wider">
+                        <Bell className="h-5 w-5 text-primary" />
+                        Features
                     </CardTitle>
-                    <CardDescription>Enable or disable workspace features.</CardDescription>
+                    <CardDescription className="text-xs">Toggle optional workspace modules.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-transparent hover:border-border transition-colors">
                         <div className="space-y-0.5">
-                            <Label className="text-sm font-medium">Task Reminders</Label>
-                            <p className="text-[10px] text-muted-foreground">Show reminders on tasks and main page.</p>
+                            <Label className="text-sm font-bold tracking-tight">Task Reminders</Label>
+                            <p className="text-[10px] font-medium text-muted-foreground">Contextual notes on tasks.</p>
                         </div>
                         <Switch 
                             checked={uiConfig.remindersEnabled} 
                             onCheckedChange={(checked) => handleUpdateConfig({ remindersEnabled: checked })} 
                         />
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-transparent hover:border-border transition-colors">
                         <div className="space-y-0.5">
-                            <Label className="text-sm font-medium">Show Tutorial</Label>
-                            <p className="text-[10px] text-muted-foreground">Enable the interactive guided tour.</p>
+                            <Label className="text-sm font-bold tracking-tight">Guided Tour</Label>
+                            <p className="text-[10px] font-medium text-muted-foreground">Interactive tutorial mode.</p>
                         </div>
                         <Switch 
                             checked={uiConfig.tutorialEnabled} 
@@ -615,78 +631,82 @@ export default function SettingsPage() {
 
             <ReleaseManagementCard />
 
-            <Card>
-                <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                        <Rocket className="h-4 w-4 text-primary" />
-                        Environment Management
+            <Card className="border-none shadow-lg">
+                <CardHeader className="pb-4">
+                    <CardTitle className="text-lg font-black flex items-center gap-2 uppercase tracking-wider">
+                        <Rocket className="h-5 w-5 text-primary" />
+                        Environments
                     </CardTitle>
-                    <CardDescription>Deployment environments.</CardDescription>
+                    <CardDescription className="text-xs">Manage your deployment pipeline.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                    <div className="space-y-2">
+                <CardContent className="space-y-4">
+                    <div className="grid gap-2">
                         {(uiConfig.environments || []).map(env => (
-                            <div key={env.id} className="flex items-center gap-3 p-2 border rounded-lg bg-muted/20">
-                                <div className="h-3 w-3 rounded-full" style={{ backgroundColor: env.color }} />
-                                <span className="text-sm font-medium flex-1">{env.name}</span>
+                            <div key={env.id} className="flex items-center gap-3 p-2.5 border rounded-xl bg-muted/20 font-bold text-sm">
+                                <div className="h-3 w-3 rounded-full shadow-sm" style={{ backgroundColor: env.color }} />
+                                <span className="capitalize flex-1">{env.name}</span>
                             </div>
                         ))}
                     </div>
                     <div className="flex gap-2">
-                        <Input placeholder="New environment..." className="h-9 text-xs" value={newEnvName} onChange={e => setNewEnvName(e.target.value)} />
-                        <Button size="sm" className="h-9" onClick={handleAddEnv}>Add</Button>
+                        <Input placeholder="New environment..." className="h-10 text-xs font-bold" value={newEnvName} onChange={e => setNewEnvName(e.target.value)} />
+                        <Button size="sm" className="h-10 px-4 font-bold" onClick={handleAddEnv}>Add</Button>
                     </div>
                 </CardContent>
             </Card>
 
-            <Card>
-                <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                        <Users className="h-4 w-4 text-primary" />
-                        People Management
+            <Card className="border-none shadow-lg">
+                <CardHeader className="pb-4">
+                    <CardTitle className="text-lg font-black flex items-center gap-2 uppercase tracking-wider">
+                        <Users className="h-5 w-5 text-primary" />
+                        Team
                     </CardTitle>
-                    <CardDescription>Manage devs and testers.</CardDescription>
+                    <CardDescription className="text-xs">Manage developers and QA staff.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                    <Button variant="outline" className="w-full h-9 text-xs" onClick={() => setPeopleManagerType('developer')}>Manage Developers</Button>
-                    <Button variant="outline" className="w-full h-9 text-xs" onClick={() => setPeopleManagerType('tester')}>Manage Testers</Button>
+                    <Button variant="outline" className="w-full h-10 text-xs font-bold justify-between px-4 rounded-xl" onClick={() => setPeopleManagerType('developer')}>
+                        Manage Developers <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                    </Button>
+                    <Button variant="outline" className="w-full h-10 text-xs font-bold justify-between px-4 rounded-xl" onClick={() => setPeopleManagerType('tester')}>
+                        Manage Testers <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                    </Button>
                 </CardContent>
             </Card>
 
-            <Card className="border-destructive/20">
-                <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2 text-destructive">
-                        <Database className="h-4 w-4" />
-                        Data Management
+            <Card className="border-2 border-destructive/20 shadow-lg bg-destructive/[0.02]">
+                <CardHeader className="pb-4">
+                    <CardTitle className="text-lg font-black flex items-center gap-2 text-destructive uppercase tracking-wider">
+                        <Database className="h-5 w-5" />
+                        Danger Zone
                     </CardTitle>
-                    <CardDescription>Export, import, or clear data.</CardDescription>
+                    <CardDescription className="text-xs">Irreversible workspace operations.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                    <Button variant="outline" className="w-full h-9 text-xs justify-start px-3" onClick={handleExportSettings}>
-                        <Download className="h-3.5 w-3.5 mr-3" /> Export Settings
+                    <Button variant="outline" className="w-full h-10 text-xs font-bold justify-start px-4 rounded-xl" onClick={handleExportSettings}>
+                        <Download className="h-4 w-4 mr-3 text-muted-foreground" /> Export All Settings
                     </Button>
-                    <Button variant="outline" className="w-full h-9 text-xs justify-start px-3" onClick={() => fileInputRef.current?.click()}>
-                        <Upload className="h-3.5 w-3.5 mr-3" /> Import Settings
+                    <Button variant="outline" className="w-full h-10 text-xs font-bold justify-start px-4 rounded-xl" onClick={() => fileInputRef.current?.click()}>
+                        <Upload className="h-4 w-4 mr-3 text-muted-foreground" /> Import Configuration
                     </Button>
                     <input type="file" ref={fileInputRef} onChange={handleImportSettings} className="hidden" accept=".json" />
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
-                            <Button variant="destructive" className="w-full h-9 text-xs justify-start px-3 bg-destructive hover:bg-destructive/90">
-                                <Trash2 className="h-3.5 w-3.5 mr-3" /> Clear All Data
+                            <Button variant="destructive" className="w-full h-10 text-xs font-black justify-start px-4 rounded-xl bg-destructive hover:bg-destructive/90 shadow-lg">
+                                <Trash2 className="h-4 w-4 mr-3" /> Purge Workspace Data
                             </Button>
                         </AlertDialogTrigger>
-                        <AlertDialogContent>
+                        <AlertDialogContent className="rounded-3xl">
                             <AlertDialogHeader>
-                                <AlertDialogTitle>Clear all workspace data?</AlertDialogTitle>
-                                <AlertDialogDescription>
+                                <AlertDialogTitle className="text-2xl font-black tracking-tight">Clear all workspace data?</AlertDialogTitle>
+                                <AlertDialogDescription className="text-base">
                                     This action cannot be undone. All tasks, notes, people, and settings will be permanently removed from your current storage.
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel disabled={isClearing}>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleClearData} className="bg-destructive hover:bg-destructive/90" disabled={isClearing}>
+                            <AlertDialogFooter className="gap-3 mt-4">
+                                <AlertDialogCancel className="rounded-xl font-bold" disabled={isClearing}>Abort Operation</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleClearData} className="bg-destructive hover:bg-destructive/90 rounded-xl font-black px-6" disabled={isClearing}>
                                     {isClearing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                                    Clear Data
+                                    Confirm Purge
                                 </AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
@@ -722,18 +742,18 @@ export default function SettingsPage() {
       />
 
       <AlertDialog open={isModeConfirmOpen} onOpenChange={setIsModeConfirmOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-3xl">
             <AlertDialogHeader>
-                <AlertDialogTitle>Change Storage Mode?</AlertDialogTitle>
-                <AlertDialogDescription>
+                <AlertDialogTitle className="text-2xl font-black">Change Storage Mode?</AlertDialogTitle>
+                <AlertDialogDescription className="text-base">
                     {pendingModeChange === 'authenticate' 
                         ? "Switch to Cloud synchronization? You will need to sign in."
                         : "Switch to Local Storage? Cloud synchronization will be disabled."}
                 </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setPendingModeChange(null)}>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleConfirmModeChange}>Confirm</AlertDialogAction>
+            <AlertDialogFooter className="mt-4 gap-3">
+                <AlertDialogCancel className="rounded-xl font-bold" onClick={() => setPendingModeChange(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction className="rounded-xl font-black px-6" onClick={handleConfirmModeChange}>Confirm Change</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

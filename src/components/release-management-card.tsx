@@ -148,21 +148,21 @@ export function ReleaseManagementCard() {
 
     return (
         <Card id="release-management-card">
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-row items-center justify-between pb-6">
                 <div>
-                    <CardTitle className="flex items-center gap-2"><History className="h-5 w-5" />Release Management</CardTitle>
-                    <CardDescription>
+                    <CardTitle className="text-3xl font-bold flex items-center gap-3"><History className="h-7 w-7 text-primary" />Release Management</CardTitle>
+                    <CardDescription className="text-base mt-1">
                         {isAdmin ? 'Draft and publish application updates for your users.' : 'View workspace update history.'}
                     </CardDescription>
                 </div>
                 {isAdmin ? (
-                    <Button onClick={handleOpenAdd} size="sm"><Plus className="h-4 w-4 mr-2" />New Release</Button>
+                    <Button onClick={handleOpenAdd} size="lg" className="h-11 px-6 font-bold"><Plus className="h-5 w-5 mr-2" />New Release</Button>
                 ) : (
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button size="sm" variant="outline" className="cursor-not-allowed opacity-50">
-                                    <Lock className="h-3 w-3 mr-2" />New Release
+                                <Button size="lg" variant="outline" className="cursor-not-allowed opacity-50 h-11 px-6">
+                                    <Lock className="h-4 w-4 mr-2" />New Release
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent>
@@ -173,41 +173,42 @@ export function ReleaseManagementCard() {
                 )}
             </CardHeader>
             <CardContent>
-                <div className="space-y-3">
+                <div className="space-y-4">
                     {releases.map(release => (
-                        <div key={release.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                            <div className="flex items-center gap-4">
+                        <div key={release.id} className="flex items-center justify-between p-4 border rounded-xl hover:bg-muted/50 transition-colors">
+                            <div className="flex items-center gap-5">
                                 <div className={cn(
-                                    "h-10 w-10 rounded-full flex items-center justify-center border-2",
+                                    "h-12 w-12 rounded-full flex items-center justify-center border-2",
                                     release.isPublished ? "bg-primary/10 border-primary text-primary" : "bg-muted border-muted-foreground/20 text-muted-foreground"
                                 )}>
-                                    <Rocket className="h-5 w-5" />
+                                    <Rocket className="h-6 w-6" />
                                 </div>
                                 <div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="font-bold">v{release.version}</span>
-                                        <Badge variant={release.isPublished ? 'default' : 'outline'}>
+                                    <div className="flex items-center gap-2 mb-0.5">
+                                        <span className="font-black text-lg tracking-tight">v{release.version}</span>
+                                        <Badge variant={release.isPublished ? 'default' : 'outline'} className="text-[10px] uppercase font-black tracking-widest px-1.5 h-5">
                                             {release.isPublished ? 'Published' : 'Draft'}
                                         </Badge>
                                     </div>
-                                    <p className="text-sm font-medium">{release.title}</p>
-                                    <p className="text-xs text-muted-foreground">{format(new Date(release.date), 'PP')}</p>
+                                    <p className="text-base font-bold leading-tight">{release.title}</p>
+                                    <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mt-1">{format(new Date(release.date), 'PPP')}</p>
                                 </div>
                             </div>
                             {isAdmin && (
                                 <div className="flex items-center gap-1">
-                                    <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(release)}><FileEdit className="h-4 w-4" /></Button>
-                                    <Button variant="ghost" size="icon" onClick={() => togglePublish(release)}>
+                                    <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => handleOpenEdit(release)}><FileEdit className="h-4 w-4" /></Button>
+                                    <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => togglePublish(release)}>
                                         {release.isPublished ? <X className="h-4 w-4 text-amber-600" /> : <Check className="h-4 w-4 text-green-600" />}
                                     </Button>
-                                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDelete(release.id)}><Trash2 className="h-4 w-4" /></Button>
+                                    <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive hover:text-destructive" onClick={() => handleDelete(release.id)}><Trash2 className="h-4 w-4" /></Button>
                                 </div>
                             )}
                         </div>
                     ))}
                     {releases.length === 0 && (
-                        <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
-                            <p className="text-sm">No releases managed yet.</p>
+                        <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-xl bg-muted/10">
+                            <History className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                            <p className="text-base font-medium">No releases managed yet.</p>
                         </div>
                     )}
                 </div>
@@ -216,25 +217,27 @@ export function ReleaseManagementCard() {
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col">
                     <DialogHeader>
-                        <DialogTitle>{editingRelease?.id ? 'Edit Release' : 'Create New Release'}</DialogTitle>
-                        <DialogDescription>Fill in the details for this update. Published releases will trigger a popup for users.</DialogDescription>
+                        <DialogTitle className="text-2xl">{editingRelease?.id ? 'Edit Release' : 'Create New Release'}</DialogTitle>
+                        <DialogDescription className="text-base">Fill in the details for this update. Published releases will trigger a popup for users.</DialogDescription>
                     </DialogHeader>
                     
                     {editingRelease && (
                         <div className="flex-1 overflow-y-auto space-y-6 pr-2">
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label>Version Number</Label>
+                                    <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Version Number</Label>
                                     <Input 
                                         placeholder="e.g. 1.2.0" 
+                                        className="h-11 font-bold"
                                         value={editingRelease.version} 
                                         onChange={e => setEditingRelease({...editingRelease, version: e.target.value})} 
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Release Title</Label>
+                                    <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Release Title</Label>
                                     <Input 
                                         placeholder="e.g. Productivity Boost" 
+                                        className="h-11 font-bold"
                                         value={editingRelease.title} 
                                         onChange={e => setEditingRelease({...editingRelease, title: e.target.value})} 
                                     />
@@ -242,43 +245,44 @@ export function ReleaseManagementCard() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label>Main Description (Optional)</Label>
+                                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Main Description (Optional)</Label>
                                 <Textarea 
                                     placeholder="Brief overview of the release..."
+                                    className="min-h-[100px] text-base"
                                     value={editingRelease.description}
                                     onChange={e => setEditingRelease({...editingRelease, description: e.target.value})}
                                 />
                             </div>
 
-                            <div className="space-y-4 border-t pt-4">
+                            <div className="space-y-4 border-t pt-6">
                                 <div className="flex items-center justify-between">
-                                    <Label className="text-lg font-bold">Release Items</Label>
-                                    <Button type="button" variant="outline" size="sm" onClick={handleAddItem}>
+                                    <Label className="text-xl font-black tracking-tight">Release Items</Label>
+                                    <Button type="button" variant="outline" size="sm" onClick={handleAddItem} className="h-9 px-4 font-bold">
                                         <Plus className="h-4 w-4 mr-2" />Add Item
                                     </Button>
                                 </div>
 
                                 <div className="space-y-4">
                                     {editingRelease.items?.map((item, index) => (
-                                        <div key={item.id} className="p-4 border rounded-xl bg-muted/30 space-y-3 relative group">
-                                            <div className="grid grid-cols-[1fr_2fr] gap-4">
+                                        <div key={item.id} className="p-5 border rounded-2xl bg-muted/30 space-y-4 relative group">
+                                            <div className="grid grid-cols-[1fr_2.5fr] gap-4">
                                                 <div className="space-y-2">
-                                                    <Label className="text-xs">Type</Label>
+                                                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Type</Label>
                                                     <Select value={item.type} onValueChange={(val: ReleaseItemType) => handleUpdateItem(item.id, 'type', val)}>
-                                                        <SelectTrigger className="h-8">
+                                                        <SelectTrigger className="h-10 font-bold">
                                                             <SelectValue />
                                                         </SelectTrigger>
                                                         <SelectContent>
-                                                            <SelectItem value="feature"><div className="flex items-center gap-2"><Sparkles className="h-3 w-3" /> Feature</div></SelectItem>
-                                                            <SelectItem value="improvement"><div className="flex items-center gap-2"><Zap className="h-3 w-3" /> Improvement</div></SelectItem>
-                                                            <SelectItem value="fix"><div className="flex items-center gap-2"><Bug className="h-3 w-3" /> Fix</div></SelectItem>
+                                                            <SelectItem value="feature"><div className="flex items-center gap-2 font-bold"><Sparkles className="h-3.5 w-3.5 text-primary" /> Feature</div></SelectItem>
+                                                            <SelectItem value="improvement"><div className="flex items-center gap-2 font-bold"><Zap className="h-3.5 w-3.5 text-amber-500" /> Improvement</div></SelectItem>
+                                                            <SelectItem value="fix"><div className="flex items-center gap-2 font-bold"><Bug className="h-3.5 w-3.5 text-red-500" /> Fix</div></SelectItem>
                                                         </SelectContent>
                                                     </Select>
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <Label className="text-xs">Description</Label>
+                                                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Description</Label>
                                                     <Input 
-                                                        className="h-8"
+                                                        className="h-10 text-sm font-medium"
                                                         placeholder="What changed?" 
                                                         value={item.text} 
                                                         onChange={e => handleUpdateItem(item.id, 'text', e.target.value)} 
@@ -287,18 +291,18 @@ export function ReleaseManagementCard() {
                                             </div>
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="space-y-2">
-                                                    <Label className="text-xs">Action Link (Optional)</Label>
+                                                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Action Link (Optional)</Label>
                                                     <Input 
-                                                        className="h-8"
+                                                        className="h-9 text-xs font-mono"
                                                         placeholder="e.g. /notes" 
                                                         value={item.link || ''} 
                                                         onChange={e => handleUpdateItem(item.id, 'link', e.target.value)} 
                                                     />
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <Label className="text-xs">Image URL (Optional)</Label>
+                                                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Image URL (Optional)</Label>
                                                     <Input 
-                                                        className="h-8"
+                                                        className="h-9 text-xs font-mono"
                                                         placeholder="https://..." 
                                                         value={item.imageUrl || ''} 
                                                         onChange={e => handleUpdateItem(item.id, 'imageUrl', e.target.value)} 
@@ -308,15 +312,15 @@ export function ReleaseManagementCard() {
                                             <Button 
                                                 variant="ghost" 
                                                 size="icon" 
-                                                className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-background border shadow-sm text-destructive opacity-0 group-hover:opacity-100 transition-opacity" 
+                                                className="absolute -top-3 -right-3 h-8 w-8 rounded-full bg-background border shadow-md text-destructive opacity-0 group-hover:opacity-100 transition-opacity" 
                                                 onClick={() => handleRemoveItem(item.id)}
                                             >
-                                                <X className="h-3 w-3" />
+                                                <X className="h-4 w-4" />
                                             </Button>
                                         </div>
                                     ))}
                                     {(!editingRelease.items || editingRelease.items.length === 0) && (
-                                        <p className="text-center text-xs text-muted-foreground italic">No items added to this release yet.</p>
+                                        <p className="text-center text-sm text-muted-foreground italic py-4">No items added to this release yet.</p>
                                     )}
                                 </div>
                             </div>
@@ -324,8 +328,8 @@ export function ReleaseManagementCard() {
                     )}
 
                     <DialogFooter className="pt-4 border-t">
-                        <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleSave}>Save Release</Button>
+                        <Button variant="outline" size="lg" className="px-8" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                        <Button size="lg" className="px-8 font-bold" onClick={handleSave}>Save Release</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

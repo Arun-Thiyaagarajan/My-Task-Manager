@@ -17,9 +17,11 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Helper to check if the current user is an admin
+    // Robust admin check that handles cases where profile might not exist yet
     function isAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     match /users/{userId} {
@@ -38,6 +40,7 @@ service cloud.firestore {
 
       // Access to subcollections (companies, tasks, etc.)
       match /companies/{companyId} {
+        // Ownership check is prioritized to avoid unnecessary lookups
         allow get, list, create, update, delete: if isOwner(userId) || isAdmin();
         
         match /{allPaths=**} {
