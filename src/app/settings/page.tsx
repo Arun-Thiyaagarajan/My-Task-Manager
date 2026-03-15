@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -170,7 +171,7 @@ export default function SettingsPage() {
   }, [refreshData]);
   
   const handleToggleActive = (fieldId: string) => {
-    if (!config) return;
+    if (!config || !config.fields) return;
 
     const field = config.fields.find(f => f.id === fieldId);
     if (!field) return;
@@ -212,7 +213,7 @@ export default function SettingsPage() {
   }
 
   const handleDeleteField = (fieldId: string) => {
-    if (!config) return;
+    if (!config || !config.fields) return;
     const fieldToDelete = config.fields.find(f => f.id === fieldId);
     if (!fieldToDelete) return;
 
@@ -236,7 +237,7 @@ export default function SettingsPage() {
   const handleSaveField = (fieldData: FieldConfig, newRepoConfigs?: RepositoryConfig[]) => {
     if (!config) return;
 
-    const fields = [...config.fields];
+    const fields = [...(config.fields || [])];
     const existingIndex = fields.findIndex(f => f.id === fieldData.id);
 
     if (existingIndex > -1) {
@@ -279,7 +280,7 @@ export default function SettingsPage() {
     const draggedFieldId = e.dataTransfer.getData('fieldId');
     const dropTarget = e.currentTarget;
     dropTarget.classList.remove('drag-over-top', 'drag-over-bottom');
-    if (!draggedFieldId || draggedFieldId === targetField.id || !config) return;
+    if (!draggedFieldId || draggedFieldId === targetField.id || !config || !config.fields) return;
     
     let activeFields = config.fields.filter(f => f.isActive).sort((a, b) => a.order - b.order);
     const otherFields = config.fields.filter(f => !f.isActive);
@@ -334,7 +335,7 @@ export default function SettingsPage() {
         return;
     }
     
-    if (!config) return;
+    if (!config || !config.fields) return;
 
     const existingGroupNames = [...new Set(config.fields.map(f => f.group.toLowerCase()))];
     if (existingGroupNames.includes(trimmedNewName.toLowerCase()) && trimmedNewName.toLowerCase() !== oldName.toLowerCase()) {
@@ -608,10 +609,10 @@ export default function SettingsPage() {
   const isDataURI = (str: string | null): str is string => !!str && str.startsWith('data:image');
 
   const filteredAndGroupedFields = useMemo(() => {
-    if (!config) return { active: {}, inactive: {} };
+    if (!config || !config.fields) return { active: {}, inactive: {} };
     
     const queryStr = searchQuery.toLowerCase();
-    const allFields = config.fields.filter(f => f.label.toLowerCase().includes(queryStr) || f.group.toLowerCase().includes(queryStr));
+    const allFields = (config.fields || []).filter(f => f.label.toLowerCase().includes(queryStr) || f.group.toLowerCase().includes(queryStr));
 
     const activeFields = allFields.filter(f => f.isActive).sort((a,b) => a.order - b.order)
         .reduce((acc, field) => {
@@ -975,7 +976,7 @@ export default function SettingsPage() {
                     </CardHeader>
                     <CardContent className="space-y-3">
                         <div className="space-y-2">
-                           {config.environments.map(env => {
+                           {(config.environments || []).map(env => {
                                 if (!env || !env.name) return null;
                                 const isProtected = ['dev', 'production'].includes(env.name.toLowerCase());
                                 return (

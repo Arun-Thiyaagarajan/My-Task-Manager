@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -250,7 +251,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
                           <DropdownMenuContent align="end" onClick={e => e.stopPropagation()}>
                             <DropdownMenuLabel>Set Status</DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            {taskStatuses.map(s => {
+                            {(taskStatuses || []).map(s => {
                               const currentStatusConfig = getStatusConfig(s);
                               const { Icon } = currentStatusConfig;
                               return (
