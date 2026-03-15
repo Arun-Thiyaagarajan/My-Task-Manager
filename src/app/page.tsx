@@ -691,7 +691,7 @@ export default function Home() {
   }
 
   const mode = getAuthMode();
-  const TASK_STATUSES = uiConfig.taskStatuses || [];
+  const TASK_STATUSES = uiConfig?.taskStatuses || [];
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -798,7 +798,7 @@ export default function Home() {
                     </div>
                     <MultiSelect selected={statusFilter} onChange={setStatusFilter} options={(TASK_STATUSES || []).map(s => ({ value: s, label: s }))} placeholder="Status..." />
                     <MultiSelect selected={repoFilter} onChange={setRepoFilter} options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} placeholder="Repository..." />
-                    {uiConfig?.fields.find(f => f.key === 'tags')?.isActive && (
+                    {(uiConfig?.fields || []).find(f => f.key === 'tags')?.isActive && (
                         <MultiSelect selected={tagsFilter} onChange={setTagsFilter} options={[...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({value: t, label: t}))} placeholder="Tags..." />
                     )}
                     <MultiSelect selected={deploymentFilter} onChange={setDeploymentFilter} options={(uiConfig?.environments || []).flatMap(env => [{ value: env.name, label: `On ${env.name}` }, { value: `not_${env.name}`, label: `Not on ${env.name}` }])} placeholder="Deployment..." />
