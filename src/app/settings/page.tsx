@@ -510,9 +510,9 @@ export default function SettingsPage() {
                         <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">App Icon</Label>
                         <div className="flex gap-2">
                             <Input 
-                                value={appIcon.startsWith('data:image') ? '[Image Data]' : appIcon} 
+                                value={isDataURIIcon ? '' : (appIcon || '')} 
                                 onChange={e => setAppIcon(e.target.value)} 
-                                placeholder="Emoji or URL..." 
+                                placeholder={isDataURIIcon ? "Custom image uploaded" : "Emoji or URL..."} 
                                 className="h-9 flex-1" 
                             />
                             <TooltipProvider>
