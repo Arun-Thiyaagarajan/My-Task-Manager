@@ -202,9 +202,17 @@ export default function ProfilePage() {
     if (!user) return;
     try {
       await sendEmailVerification(user);
-      toast({ variant: 'success', title: 'Verification Sent', description: 'Check your inbox for the link.' });
+      toast({ 
+        variant: 'success', 
+        title: 'Verification Sent', 
+        description: 'A verification email has been sent to your inbox. Please check your email to verify your account. If you don’t see it, please check your spam/junk folder.' 
+      });
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Error', description: error.message });
+      toast({ 
+        variant: 'destructive', 
+        title: 'Error', 
+        description: 'Verification email could not be sent. Please try again later.' 
+      });
     }
   };
 
@@ -384,8 +392,10 @@ export default function ProfilePage() {
                         <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                         <AlertTitle className="font-bold">Verification Required</AlertTitle>
                         <AlertDescription className="flex items-center justify-between gap-2 mt-1">
-                          <span>Please verify your email address to ensure account security.</span>
-                          <Button variant="link" onClick={handleVerifyEmail} type="button" className="h-auto p-0 text-xs font-bold underline cursor-pointer">Resend Link</Button>
+                          <div className="flex-1">
+                            <p>A verification email has been sent to your inbox. Please check your email to verify your account. If you don’t see it, please check your spam/junk folder.</p>
+                            <Button variant="link" onClick={handleVerifyEmail} type="button" className="h-auto p-0 text-xs font-bold underline cursor-pointer mt-2">Resend verification email</Button>
+                          </div>
                         </AlertDescription>
                       </Alert>
                     )}

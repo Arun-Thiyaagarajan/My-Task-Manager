@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -57,12 +56,21 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
         toast({ variant: 'success', title: 'Welcome back!' });
       } else if (authStep === 'register') {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        await sendEmailVerification(userCredential.user);
-        toast({ 
-          variant: 'success', 
-          title: 'Account created', 
-          description: 'A verification email has been sent to your address.' 
-        });
+        
+        try {
+            await sendEmailVerification(userCredential.user);
+            toast({ 
+              variant: 'success', 
+              title: 'Account created', 
+              description: 'A verification email has been sent to your inbox. Please check your email to verify your account. If you don’t see it, please check your spam/junk folder.' 
+            });
+        } catch (emailError) {
+            toast({
+                variant: 'destructive',
+                title: 'Verification Error',
+                description: 'Verification email could not be sent. Please try again later.'
+            });
+        }
       } else if (authStep === 'forgot') {
         await sendPasswordResetEmail(auth, email);
         toast({ 
