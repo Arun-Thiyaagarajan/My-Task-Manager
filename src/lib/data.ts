@@ -304,7 +304,6 @@ export function updateEnvironment(id: string, updates: Partial<Environment>) {
         
         if (getAuthMode() === 'authenticate') {
             dispatchMutation('uiConfig', '', data.companyData[companyId].uiConfig, 'set');
-            // Cloud listeners will propagate the task updates since they are part of the cache
         }
     }
 }
@@ -1178,8 +1177,6 @@ export async function clearAllData() {
             if (!userId) throw new Error("You must be signed in to clear cloud data.");
             
             const companyBase = `users/${userId}/companies/${companyId}`;
-            const currentConfig = getUiConfig();
-            const preservedEnvs = currentConfig.environments || [];
             
             const collectionsToClear = ['tasks', 'notes', 'logs'];
             for (const colName of collectionsToClear) {

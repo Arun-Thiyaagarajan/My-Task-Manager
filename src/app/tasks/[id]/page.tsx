@@ -102,9 +102,6 @@ export default function TaskPage() {
   const taskId = params.id as string;
   
   const loadData = () => {
-    setIsLoading(true);
-    setIsLogsLoading(true);
-
     if (taskId) {
       const allDevs = getDevelopers();
       const allTesters = getTesters();
@@ -121,48 +118,21 @@ export default function TaskPage() {
 
       if (foundTask) {
         document.title = `${foundTask.title} | ${config.appName || 'My Task Manager'}`;
-        
-        const isBinned = !!foundTask.deletedAt;
-        if (isBinned) {
-            setTaskLogs([]);
-            setIsLogsLoading(false);
-        } else {
-            setTimeout(() => {
-                setTaskLogs(getLogsForTask(taskId));
-                setIsLogsLoading(false);
-            }, 100);
-        }
+        setTaskLogs(getLogsForTask(taskId));
       } else {
         document.title = `Task Not Found | ${config.appName || 'My Task Manager'}`;
-        setIsLogsLoading(false);
       }
       setIsLoading(false);
     }
   }
 
   useEffect(() => {
-    const { updatedTaskIds } = clearExpiredReminders();
-    if (updatedTaskIds.includes(taskId)) {
-        toast({ title: 'Reminder Cleared', description: 'The reminder for this task expired and was automatically cleared.' });
-    }
-
-    const savedPinnedTasks = localStorage.getItem(PINNED_TASKS_STORAGE_KEY);
-    if (savedPinnedTasks) {
-      setPinnedTaskIds(JSON.parse(savedPinnedTasks));
-    }
     loadData();
-
-    const handleStorageChange = () => {
-        const updatedPinnedTasks = localStorage.getItem(PINNED_TASKS_STORAGE_KEY);
-        if (updatedPinnedTasks) {
-          setPinnedTaskIds(JSON.parse(updatedPinnedTasks));
-        }
-        loadData();
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('storage', loadData);
+    window.addEventListener('company-changed', loadData);
     return () => {
-        window.removeEventListener('storage', handleStorageChange);
+        window.removeEventListener('storage', loadData);
+        window.removeEventListener('company-changed', loadData);
     };
   }, [taskId]);
 
@@ -394,6 +364,7 @@ export default function TaskPage() {
     const updatedTaskResult = updateTask(task.id, updatedTaskData);
     if(updatedTaskResult) {
         setTask(updatedTaskResult);
+        setTaskLogs(getLogsForTask(task.id));
         setJustUpdatedEnv(env);
     } else {
         toast({
