@@ -260,7 +260,7 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
         t.developers?.includes(person.id) || t.testers?.includes(person.id)
     );
 
-    // CRITICAL: Ensure uniqueness by task ID to avoid duplicate keys in the list
+    // Ensure uniqueness by task ID
     const uniqueRelevantTasks = Array.from(new Map(allRelevantTasks.map(t => [t.id, t])).values());
 
     if (uniqueRelevantTasks.length > 0) {
@@ -347,7 +347,7 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
     <>
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-3xl h-[90vh] flex flex-col p-0 overflow-hidden">
-          <div className="p-6 border-b shrink-0">
+          <div className="p-6 border-b shrink-0 bg-background">
             <DialogHeader>
                 <div className="flex items-center justify-between mb-2 pr-8">
                     <DialogTitle className="flex items-center gap-2 text-2xl">
@@ -397,16 +397,16 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
                   <div className="flex-1 min-h-0">
                     <ScrollArea className="h-full">
                         <Table>
-                            <TableHeader className="bg-muted/10 sticky top-0 z-10">
-                            <TableRow>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Email</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                            <TableHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+                            <TableRow className="hover:bg-transparent">
+                                <TableHead className="font-bold">Name</TableHead>
+                                <TableHead className="font-bold">Email</TableHead>
+                                <TableHead className="text-right font-bold">Actions</TableHead>
                             </TableRow>
                             </TableHeader>
                             <TableBody>
                             {filteredPeople.map((person) => (
-                                <TableRow key={person.id} className="hover:bg-muted/5 group">
+                                <TableRow key={person.id} className="hover:bg-muted/5 group border-b">
                                     <TableCell className="font-bold text-sm">{person.name}</TableCell>
                                     <TableCell className="text-xs text-muted-foreground">{person.email || '-'}</TableCell>
                                     <TableCell className="text-right">
