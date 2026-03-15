@@ -50,7 +50,8 @@ import {
     Info,
     X,
     Maximize2,
-    Camera
+    Camera,
+    Loader2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PeopleManagerDialog } from '@/components/people-manager-dialog';
@@ -566,6 +567,38 @@ export default function SettingsPage() {
                         </div>
                     </div>
                     <Button onClick={handleSaveDisplaySettings} className="w-full h-9">Save Display Settings</Button>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                        <Bell className="h-4 w-4 text-primary" />
+                        Feature Management
+                    </CardTitle>
+                    <CardDescription>Enable or disable workspace features.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                            <Label className="text-sm font-medium">Task Reminders</Label>
+                            <p className="text-[10px] text-muted-foreground">Show reminders on tasks and main page.</p>
+                        </div>
+                        <Switch 
+                            checked={uiConfig.remindersEnabled} 
+                            onCheckedChange={(checked) => handleUpdateConfig({ remindersEnabled: checked })} 
+                        />
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                            <Label className="text-sm font-medium">Show Tutorial</Label>
+                            <p className="text-[10px] text-muted-foreground">Enable the interactive guided tour.</p>
+                        </div>
+                        <Switch 
+                            checked={uiConfig.tutorialEnabled} 
+                            onCheckedChange={(checked) => handleUpdateConfig({ tutorialEnabled: checked })} 
+                        />
+                    </div>
                 </CardContent>
             </Card>
 
