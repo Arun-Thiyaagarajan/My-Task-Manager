@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2, AlertCircle, HelpCircle, Sparkles, Layout, Users, Calendar as CalendarIconLucide, Paperclip, Rocket, GitMerge, ChevronRight, PanelLeft, PanelRight, CircleDot } from 'lucide-react';
+import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2, AlertCircle, HelpCircle, Sparkles, Layout, Users, Calendar as CalendarIconLucide, Paperclip, Rocket, GitMerge, ChevronRight, PanelLeft, PanelRight, CircleDot, Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTransition, useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -108,12 +108,14 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const [commandKey, setCommandKey] = useState('Ctrl');
   const [activeId, setActiveId] = useState<string>('');
+  
   const [sidebarPosition, setSidebarPosition] = useState<'left' | 'right'>('left');
+  const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   
   const isJumpingRef = useRef(false);
   const jumpTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const SCROLL_THRESHOLD = 140; 
+  const SCROLL_THRESHOLD = 120; 
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -124,6 +126,11 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
         if (savedPos === 'left' || savedPos === 'right') {
             setSidebarPosition(savedPos);
         }
+        
+        const savedVisibility = localStorage.getItem('taskflow_form_sidebar_visible');
+        if (savedVisibility === 'false') {
+            setIsSidebarVisible(false);
+        }
     }
   }, []);
 
@@ -131,6 +138,12 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
       const newPos = sidebarPosition === 'left' ? 'right' : 'left';
       setSidebarPosition(newPos);
       localStorage.setItem('taskflow_form_sidebar_pos', newPos);
+  };
+
+  const toggleSidebarVisibility = () => {
+      const newVisibility = !isSidebarVisible;
+      setIsSidebarVisible(newVisibility);
+      localStorage.setItem('taskflow_form_sidebar_visible', String(newVisibility));
   };
 
   const { setIsDirty, prompt } = useUnsavedChanges();
@@ -710,86 +723,123 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
             "flex flex-col gap-8 pb-32 relative",
             sidebarPosition === 'left' ? "lg:flex-row" : "lg:flex-row-reverse"
         )}>
-            <aside className="hidden lg:block w-72 shrink-0">
-                <div className="sticky top-24 space-y-1">
-                    <div className="flex items-center justify-between px-3 mb-4">
-                        <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                            Jump to Section
-                        </h3>
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button 
-                                        type="button" 
-                                        variant="outline" 
-                                        size="icon" 
-                                        className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors"
-                                        onClick={toggleSidebarPosition}
-                                    >
-                                        {sidebarPosition === 'left' ? <PanelRight className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent side="top">
-                                    <p>Move sidebar to {sidebarPosition === 'left' ? 'right' : 'left'}</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                    </div>
-                    <ScrollArea className="h-fit max-h-[calc(100vh-240px)] pr-2">
-                        <nav className="flex flex-col gap-1 pb-10">
-                            {navigableSections.map((section) => {
-                                const Icon = section.icon;
-                                const isSectionActive = activeId === section.id || section.fields.some(f => f.id === activeId);
-                                return (
-                                    <div key={section.id} className="space-y-1">
-                                        <button
-                                            key={section.id}
-                                            type="button"
-                                            onClick={() => scrollToId(section.id)}
-                                            className={cn(
-                                                "flex items-center gap-3 w-full px-3 py-2 rounded-md text-sm font-bold transition-all group",
-                                                isSectionActive 
-                                                    ? "bg-primary/10 text-primary" 
-                                                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            {isSidebarVisible && (
+                <aside className="hidden lg:block w-72 shrink-0 animate-in fade-in slide-in-from-top-1 duration-300">
+                    <div className="sticky top-24 space-y-1">
+                        <div className="flex items-center justify-between px-3 mb-4">
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                Jump to Section
+                            </h3>
+                            <div className="flex gap-1">
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button 
+                                                type="button" 
+                                                variant="outline" 
+                                                size="icon" 
+                                                className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors"
+                                                onClick={toggleSidebarPosition}
+                                            >
+                                                {sidebarPosition === 'left' ? <PanelRight className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">
+                                            <p>Move to {sidebarPosition === 'left' ? 'right' : 'left'}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button 
+                                                type="button" 
+                                                variant="outline" 
+                                                size="icon" 
+                                                className="h-8 w-8 text-muted-foreground hover:text-destructive transition-colors"
+                                                onClick={toggleSidebarVisibility}
+                                            >
+                                                <EyeOff className="h-4 w-4" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">
+                                            <p>Hide Navigation</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </div>
+                        </div>
+                        <ScrollArea className="h-[calc(100vh-180px)] pr-4">
+                            <nav className="flex flex-col gap-1 pb-20">
+                                {navigableSections.map((section) => {
+                                    const Icon = section.icon;
+                                    const isSectionActive = activeId === section.id || section.fields.some(f => f.id === activeId);
+                                    return (
+                                        <div key={section.id} className="space-y-1">
+                                            <button
+                                                key={section.id}
+                                                type="button"
+                                                onClick={() => scrollToId(section.id)}
+                                                className={cn(
+                                                    "flex items-center gap-3 w-full px-3 py-2 rounded-md text-sm font-bold transition-all group",
+                                                    isSectionActive 
+                                                        ? "bg-primary/10 text-primary" 
+                                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                                )}
+                                            >
+                                                <Icon className={cn("h-4 w-4 shrink-0", isSectionActive ? "text-primary" : "text-muted-foreground/70 group-hover:text-foreground")} />
+                                                <span className="truncate">{section.label}</span>
+                                                {isSectionActive && <ChevronRight className="h-3 w-3 ml-auto text-primary" />}
+                                            </button>
+                                            
+                                            {section.fields.length > 0 && (
+                                                <div className="ml-7 border-l-2 border-muted pl-2 flex flex-col gap-0.5">
+                                                    {section.fields.map(field => {
+                                                        const isFieldActive = activeId === field.id;
+                                                        return (
+                                                            <button
+                                                                key={field.id}
+                                                                type="button"
+                                                                onClick={() => scrollToId(field.id)}
+                                                                className={cn(
+                                                                    "flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors text-left",
+                                                                    isFieldActive 
+                                                                        ? "text-primary font-semibold bg-primary/5" 
+                                                                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                                                )}
+                                                            >
+                                                                <CircleDot className={cn("h-2.5 w-2.5 shrink-0", isFieldActive ? "text-primary" : "text-transparent")} />
+                                                                <span className="truncate">{field.label}</span>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
                                             )}
-                                        >
-                                            <Icon className={cn("h-4 w-4 shrink-0", isSectionActive ? "text-primary" : "text-muted-foreground/70 group-hover:text-foreground")} />
-                                            <span className="truncate">{section.label}</span>
-                                            {isSectionActive && <ChevronRight className="h-3 w-3 ml-auto text-primary" />}
-                                        </button>
-                                        
-                                        {section.fields.length > 0 && (
-                                            <div className="ml-7 border-l-2 border-muted pl-2 flex flex-col gap-0.5">
-                                                {section.fields.map(field => {
-                                                    const isFieldActive = activeId === field.id;
-                                                    return (
-                                                        <button
-                                                            key={field.id}
-                                                            type="button"
-                                                            onClick={() => scrollToId(field.id)}
-                                                            className={cn(
-                                                                "flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors text-left",
-                                                                isFieldActive 
-                                                                    ? "text-primary font-semibold bg-primary/5" 
-                                                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                                                            )}
-                                                        >
-                                                            <CircleDot className={cn("h-2.5 w-2.5 shrink-0", isFieldActive ? "text-primary" : "text-transparent")} />
-                                                            <span className="truncate">{field.label}</span>
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </nav>
-                    </ScrollArea>
-                </div>
-            </aside>
+                                        </div>
+                                    );
+                                })}
+                            </nav>
+                        </ScrollArea>
+                    </div>
+                </aside>
+            )}
 
             <div className="flex-1 space-y-6">
+                {!isSidebarVisible && (
+                    <div className="flex justify-start mb-2 animate-in fade-in duration-500">
+                        <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={toggleSidebarVisibility}
+                            className="text-muted-foreground hover:text-primary gap-2 h-8"
+                        >
+                            <Eye className="h-4 w-4" />
+                            Show Navigation
+                        </Button>
+                    </div>
+                )}
+
                 {groupOrder.map(groupName => {
                     if (['Attachments', 'Deployment', 'Pull Requests'].includes(groupName)) {
                         return null;
