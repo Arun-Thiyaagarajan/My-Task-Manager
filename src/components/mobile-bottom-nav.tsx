@@ -12,7 +12,8 @@ import {
   Settings, 
   History, 
   LogOut,
-  ShieldCheck
+  ShieldCheck,
+  Plus
 } from 'lucide-react';
 import { cn, getInitials, getAvatarGradient } from '@/lib/utils';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
@@ -30,6 +31,7 @@ import {
 import { signOut } from 'firebase/auth';
 import { setAuthMode } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
+import { Button } from './ui/button';
 
 export function MobileBottomNav() {
   const pathname = usePathname();
@@ -41,8 +43,6 @@ export function MobileBottomNav() {
   const navItems = [
     { label: 'Tasks', href: '/', icon: Home },
     { label: 'Stats', href: '/dashboard', icon: LayoutDashboard },
-    { label: 'Logs', href: '/logs', icon: FileClock },
-    { label: 'Bin', href: '/bin', icon: Trash2 },
   ];
 
   const handleNavigate = (href: string) => {
@@ -86,6 +86,31 @@ export function MobileBottomNav() {
         );
       })}
 
+      {/* FAB - New Task */}
+      <div className="flex-1 flex flex-col items-center justify-center">
+        <Button 
+          size="icon" 
+          className="h-12 w-12 rounded-full shadow-lg shadow-primary/30 -mt-8 border-4 border-background"
+          onClick={() => handleNavigate('/tasks/new')}
+        >
+          <Plus className="h-6 w-6" />
+          <span className="sr-only">New Task</span>
+        </Button>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mt-1">New</span>
+      </div>
+
+      <button
+        onClick={() => handleNavigate('/bin')}
+        className={cn(
+          "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors",
+          pathname === '/bin' ? "text-primary" : "text-muted-foreground"
+        )}
+      >
+        <Trash2 className={cn("h-5 w-5", pathname === '/bin' && "fill-primary/10")} />
+        <span className="text-[10px] font-bold uppercase tracking-wider">Bin</span>
+        {pathname === '/bin' && <div className="absolute bottom-1 w-1 h-1 rounded-full bg-primary" />}
+      </button>
+
       <div className="flex flex-col items-center justify-center flex-1 h-full">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -123,6 +148,10 @@ export function MobileBottomNav() {
               <DropdownMenuItem onSelect={() => handleNavigate('/profile')}>
                 <UserIcon className="mr-2 h-4 w-4" />
                 <span>My Profile</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => handleNavigate('/logs')}>
+                <FileClock className="mr-2 h-4 w-4" />
+                <span>Activity Logs</span>
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => handleNavigate('/settings')}>
                 <Settings className="mr-2 h-4 w-4" />

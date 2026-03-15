@@ -235,10 +235,6 @@ export function Header() {
                   <History className="mr-2 h-4 w-4" />
                   Releases
                </HeaderLink>
-               <HeaderLink href="/logs" id="header-nav-logs" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                  <FileClock className="mr-2 h-4 w-4" />
-                  Logs
-               </HeaderLink>
                <HeaderLink href="/bin" id="header-nav-bin" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                   <Trash2 className="mr-2 h-4 w-4" />
                   Bin
@@ -384,6 +380,10 @@ export function Header() {
                         <span>Sign In</span>
                       </DropdownMenuItem>
                     )}
+                    <DropdownMenuItem onSelect={() => prompt(() => router.push('/logs'))}>
+                      <FileClock className="mr-2 h-4 w-4" />
+                      <span>Activity Logs</span>
+                    </DropdownMenuItem>
                   </DropdownMenuGroup>
                   {authMode === 'authenticate' && (
                     <>

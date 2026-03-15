@@ -892,7 +892,8 @@ export default function Home() {
                 </Button>
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />
                 
-                <Button asChild id="new-task-btn" disabled={isImporting} className="col-span-2 sm:col-auto w-full sm:w-auto h-11 shadow-lg font-bold">
+                {/* Hide New Task button on small screens because it's in the bottom FAB */}
+                <Button asChild id="new-task-btn" disabled={isImporting} className="hidden lg:flex w-full sm:w-auto h-11 shadow-lg font-bold">
                     <Link href="/tasks/new">
                         <Plus className="mr-2 h-5 w-5" /> New Task
                     </Link>
