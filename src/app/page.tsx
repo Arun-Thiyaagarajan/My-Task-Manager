@@ -41,6 +41,7 @@ import {
   BellRing,
   GraduationCap,
   Tag,
+  Loader2,
 } from 'lucide-react';
 import { cn, fuzzySearch } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig, Log, GeneralReminder, BackupFrequency, Environment } from '@/lib/types';
@@ -65,7 +66,6 @@ import {
 import { useActiveCompany } from '@/hooks/use-active-company';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { createTaskSchema } from '@/lib/validators';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Card, CardContent } from '@/components/ui/card';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
@@ -95,6 +95,7 @@ import { ReminderStack } from '@/components/reminder-stack';
 import { Badge } from '@/components/ui/badge';
 import { useTutorial } from '@/hooks/use-tutorial';
 import { MultiSelect, type SelectOption } from '@/components/ui/multi-select';
+import { Progress } from '@/components/ui/progress';
 
 
 type ViewMode = 'grid' | 'table';
@@ -145,6 +146,10 @@ export default function Home() {
 
   const [isTagsDialogOpen, setIsTagsDialogOpen] = useState(false);
   const [tagsToApply, setTagsToApply] = useState<string[]>([]);
+
+  // New Import Progress States
+  const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
   
   useEffect(() => {
     const params = new URLSearchParams();
@@ -579,76 +584,35 @@ export default function Home() {
             const mode = getAuthMode();
 
             if (mode === 'authenticate') {
-                // Bulk import to Firestore
-                toast({ title: 'Syncing to Cloud...', description: 'Please wait while we import your data.' });
-                const success = await importWorkspaceData(parsedJson);
-                if (success) {
-                    toast({ variant: 'success', title: 'Cloud Sync Complete', description: 'Your data has been imported to your cloud workspace.' });
+                // Large data handling for cloud import
+                setIsImporting(true);
+                setImportProgress(0);
+                
+                try {
+                    const success = await importWorkspaceData(parsedJson, (progress) => {
+                        setImportProgress(progress);
+                    });
+                    
+                    if (success) {
+                        toast({ 
+                            variant: 'success', 
+                            title: 'Sync Complete', 
+                            description: 'Your data has been successfully imported to your cloud workspace.' 
+                        });
+                    }
+                } catch (error: any) {
+                    toast({ 
+                        variant: 'destructive', 
+                        title: 'Sync Failed', 
+                        description: error.message || 'An error occurred during cloud synchronization.' 
+                    });
+                } finally {
+                    setIsImporting(false);
+                    setImportProgress(0);
                 }
             } else {
-                // Existing Local Import Logic
-                let importedTasks: Partial<Task>[] = [];
-                let importedBinnedTasks: Partial<Task>[] = [];
-                let importedDevelopers: Partial<Omit<Person, 'id'>>[] = [];
-                let importedTesters: Partial<Omit<Person, 'id'>>[] = [];
-                let importedRepoConfigs: RepositoryConfig[] | undefined = undefined;
-                let importedEnvironments: Environment[] | undefined = undefined;
-                let importedAppName: string | undefined = undefined;
-                let importedAppIcon: string | null | undefined = undefined;
-                let importedCustomFieldDefs: FieldConfig[] = [];
-                let importedLogs: Log[] = [];
-
-                const isIdRegex = /^[a-z]+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-                if (Array.isArray(parsedJson)) {
-                    importedTasks = parsedJson;
-                } else if (parsedJson && typeof parsedJson === 'object') {
-                    importedTasks = parsedJson.tasks || [];
-                    importedBinnedTasks = parsedJson.trash || [];
-                    importedDevelopers = parsedJson.developers || [];
-                    importedTesters = parsedJson.testers || [];
-                    importedRepoConfigs = parsedJson.repositoryConfigs;
-                    importedEnvironments = parsedJson.environments;
-                    importedAppName = parsedJson.appName;
-                    importedAppIcon = parsedJson.appIcon;
-                    importedCustomFieldDefs = parsedJson.customFieldDefinitions || [];
-                    importedLogs = parsedJson.logs || [];
-                } else {
-                    throw new Error("Invalid format.");
-                }
-                
-                const data = getAppData();
-                const companyData = data.companyData[data.activeCompanyId];
-
-                // Merge configuration
-                if (importedAppName) companyData.uiConfig.appName = importedAppName;
-                if (importedAppIcon !== undefined) companyData.uiConfig.appIcon = importedAppIcon;
-                
-                // Process People
-                importedDevelopers.forEach(dev => {
-                    if (dev.name && !companyData.developers.some(d => d.name === dev.name)) {
-                        companyData.developers.push({ id: `dev-${crypto.randomUUID()}`, name: dev.name, ...dev } as Person);
-                    }
-                });
-                importedTesters.forEach(tester => {
-                    if (tester.name && !companyData.testers.some(t => t.name === tester.name)) {
-                        companyData.testers.push({ id: `test-${crypto.randomUUID()}`, name: tester.name, ...tester } as Person);
-                    }
-                });
-
-                // Simple merge for tasks
-                importedTasks.forEach(task => {
-                    const newTask = {
-                        id: `task-${crypto.randomUUID()}`,
-                        createdAt: new Date().toISOString(),
-                        updatedAt: new Date().toISOString(),
-                        status: 'To Do',
-                        ...task
-                    } as Task;
-                    companyData.tasks.unshift(newTask);
-                });
-
-                setAppData(data);
+                // Local Import
+                await importWorkspaceData(parsedJson);
                 toast({ variant: 'success', title: 'Local Import Successful', description: 'Your browser storage has been updated.' });
             }
             refreshData();
@@ -729,6 +693,29 @@ export default function Home() {
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      {/* Import Progress Overlay */}
+      {isImporting && (
+          <div className="fixed inset-0 z-[200] bg-background/95 backdrop-blur-md flex items-center justify-center p-6 text-center">
+              <Card className="w-full max-w-md shadow-2xl border-primary/20">
+                  <CardContent className="pt-8 pb-10 flex flex-col items-center gap-6">
+                      <div className="relative">
+                        <Loader2 className="h-16 w-16 text-primary animate-spin" />
+                        <span className="absolute inset-0 flex items-center justify-center text-[10px] font-black uppercase">{importProgress}%</span>
+                      </div>
+                      <div className="space-y-2">
+                        <h2 className="text-xl font-bold tracking-tight">Syncing to Cloud</h2>
+                        <p className="text-muted-foreground text-sm max-w-xs mx-auto">
+                            Your data is being imported to the cloud. This may take a few minutes for large datasets.
+                        </p>
+                      </div>
+                      <div className="w-full px-4">
+                        <Progress value={importProgress} className="h-2" />
+                      </div>
+                  </CardContent>
+              </Card>
+          </div>
+      )}
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold tracking-tight text-foreground">Tasks</h1>
@@ -762,7 +749,7 @@ export default function Home() {
             )}
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" disabled={isImporting}>
                     <Upload className="mr-2 h-4 w-4" />
                     Export
                 </Button>
@@ -774,13 +761,13 @@ export default function Home() {
                 </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
                 <Download className="mr-2 h-4 w-4" />
                 Import ({mode === 'authenticate' ? 'Cloud' : 'Local'})
             </Button>
             <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />
             
-            <Button asChild size="sm" id="new-task-btn">
+            <Button asChild size="sm" id="new-task-btn" disabled={isImporting}>
                 <Link href="/tasks/new">
                     <Plus className="mr-2 h-4 w-4" /> New Task
                 </Link>

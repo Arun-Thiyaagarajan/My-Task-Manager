@@ -598,43 +598,153 @@ export async function clearAllData() {
     }
 }
 
+function chunkArray<T>(array: T[], size: number): T[][] {
+    const result = [];
+    for (let i = 0; i < array.length; i += size) {
+        result.push(array.slice(i, i + size));
+    }
+    return result;
+}
+
 /**
  * Centralized logic for importing entire workspace data.
- * Correctly routes to Cloud or Local storage.
+ * Correctly routes to Cloud or Local storage with batching and progress tracking.
  */
-export async function importWorkspaceData(parsedJson: any) {
+export async function importWorkspaceData(
+    parsedJson: any, 
+    onProgress?: (progress: number) => void
+) {
     const mode = getAuthMode();
-    
-    // In local mode, we use the complex in-page logic but wrapped in a setAppData call.
-    // For cloud mode, we must iterate and dispatch mutations.
+    const data = getAppData();
+    const companyData = data.companyData[data.activeCompanyId];
+
+    const tasksToImport = parsedJson.tasks || [];
+    const notesToImport = parsedJson.notes || [];
+    const developersToImport = parsedJson.developers || [];
+    const testersToImport = parsedJson.testers || [];
     
     if (mode === 'localStorage') {
-        // This is handled by passing the logic back or using a helper.
-        // For simplicity, we ensure setAppData is called which handles localStorage.
-        return false; // UI should handle local merge for now or we refactor it here.
+        // Local Import Logic
+        if (parsedJson.appName) companyData.uiConfig.appName = parsedJson.appName;
+        if (parsedJson.appIcon !== undefined) companyData.uiConfig.appIcon = parsedJson.appIcon;
+        
+        developersToImport.forEach((dev: Partial<Person>) => {
+            if (dev.name && !companyData.developers.some(d => d.name === dev.name)) {
+                companyData.developers.push({ id: `dev-${crypto.randomUUID()}`, ...dev } as Person);
+            }
+        });
+        testersToImport.forEach((tester: Partial<Person>) => {
+            if (tester.name && !companyData.testers.some(t => t.name === tester.name)) {
+                companyData.testers.push({ id: `test-${crypto.randomUUID()}`, ...tester } as Person);
+            }
+        });
+        tasksToImport.forEach((task: Partial<Task>) => {
+            companyData.tasks.unshift({
+                id: `task-${crypto.randomUUID()}`,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                status: 'To Do',
+                ...task
+            } as Task);
+        });
+        notesToImport.forEach((note: Partial<Note>) => {
+            const newNote = {
+                id: `note-${crypto.randomUUID()}`,
+                title: '',
+                content: '',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                layout: { i: '', x: 0, y: 0, w: 3, h: 6 },
+                ...note
+            } as Note;
+            newNote.layout.i = newNote.id;
+            companyData.notes.unshift(newNote);
+        });
+
+        setAppData(data);
+        if (onProgress) onProgress(100);
+        return true;
     }
 
-    // Cloud Import Logic (Iterative dispatch)
-    // 1. Environments
-    if (parsedJson.environments) {
-        parsedJson.environments.forEach((env: Environment) => addEnvironment(env.name));
-    }
-    // 2. People
-    if (parsedJson.developers) {
-        parsedJson.developers.forEach((p: Partial<Person>) => addDeveloper(p));
-    }
-    if (parsedJson.testers) {
-        parsedJson.testers.forEach((p: Partial<Person>) => addTester(p));
-    }
-    // 3. Tasks
-    if (parsedJson.tasks) {
-        parsedJson.tasks.forEach((t: Partial<Task>) => addTask(t));
-    }
-    // 4. Notes
-    if (parsedJson.notes) {
-        parsedJson.notes.forEach((n: Partial<Note>) => addNote(n));
-    }
+    // Cloud Import Logic (Batched)
+    const auth = getAuth();
+    const db = getFirestore();
+    const userId = auth.currentUser?.uid;
+    if (!userId) throw new Error("User not authenticated.");
+
+    const companyBase = `users/${userId}/companies/${data.activeCompanyId}`;
     
+    // 1. Process Metadata & People (Single docs)
+    if (parsedJson.appName) {
+        const configRef = doc(db, companyBase, 'settings', 'uiConfig');
+        await setDoc(configRef, { appName: parsedJson.appName }, { merge: true });
+    }
+
+    // Process Developers
+    const existingDevs = getDevelopers();
+    const newDevs = [...existingDevs];
+    developersToImport.forEach((p: Partial<Person>) => {
+        if (p.name && !newDevs.some(d => d.name === p.name)) {
+            newDevs.push({ id: `dev-${crypto.randomUUID()}`, ...p } as Person);
+        }
+    });
+    await setDoc(doc(db, companyBase, 'people', 'developers'), { list: newDevs });
+
+    // Process Testers
+    const existingTesters = getTesters();
+    const newTesters = [...existingTesters];
+    testersToImport.forEach((p: Partial<Person>) => {
+        if (p.name && !newTesters.some(t => t.name === p.name)) {
+            newTesters.push({ id: `test-${crypto.randomUUID()}`, ...p } as Person);
+        }
+    });
+    await setDoc(doc(db, companyBase, 'people', 'testers'), { list: newTesters });
+
+    // 2. Process Large Collections (Batched)
+    const totalItems = tasksToImport.length + notesToImport.length;
+    let itemsProcessed = 0;
+
+    const processCollection = async (items: any[], type: 'tasks' | 'notes') => {
+        const chunks = chunkArray(items, 100); // 100 items per batch for safety
+        for (const chunk of chunks) {
+            const batch = writeBatch(db);
+            chunk.forEach(item => {
+                const id = item.id || `${type === 'tasks' ? 'task' : 'note'}-${crypto.randomUUID()}`;
+                const docRef = doc(db, companyBase, type, id);
+                const fullItem = {
+                    id,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    ...(type === 'tasks' ? { status: 'To Do' } : { layout: { i: id, x: 0, y: 0, w: 3, h: 6 } }),
+                    ...item
+                };
+                batch.set(docRef, fullItem);
+            });
+            await batch.commit();
+            itemsProcessed += chunk.length;
+            if (onProgress) onProgress(Math.round((itemsProcessed / totalItems) * 100));
+        }
+    };
+
+    if (tasksToImport.length > 0) await processCollection(tasksToImport, 'tasks');
+    if (notesToImport.length > 0) await processCollection(notesToImport, 'notes');
+
+    if (onProgress) onProgress(100);
+    return true;
+}
+
+/**
+ * Centralized logic for importing notes data.
+ */
+export async function importNotesData(notesToImport: Partial<Note>[], onProgress?: (p: number) => void) {
+    return importWorkspaceData({ notes: notesToImport }, onProgress);
+}
+
+/**
+ * Centralized logic for importing settings data.
+ */
+export async function importSettingsData(settings: Partial<UiConfig>) {
+    updateUiConfig(settings, true);
     return true;
 }
 
