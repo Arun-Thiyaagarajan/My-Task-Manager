@@ -65,7 +65,7 @@ import {
 import { useActiveCompany } from '@/hooks/use-active-company';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { taskSchema } from '@/lib/validators';
+import { createTaskSchema } from '@/lib/validators';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Card, CardContent } from '@/components/ui/card';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
@@ -514,7 +514,7 @@ export default function Home() {
   
   const handleToggleSelectMode = () => {
     setIsSelectMode(prev => !prev);
-    setSelectedNoteIds([]);
+    setSelectedTaskIds([]);
   };
   
   const handleFavoritesToggle = () => {
@@ -720,7 +720,12 @@ export default function Home() {
     toast({ variant: 'success', title: 'PDF Exported' });
   };
   
+  if (isLoading || !uiConfig) {
+    return <LoadingSpinner text="Loading tasks..." />;
+  }
+
   const mode = getAuthMode();
+  const TASK_STATUSES = uiConfig.taskStatuses;
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
