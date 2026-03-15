@@ -185,14 +185,28 @@ export default function ProfilePage() {
       return;
     }
 
+    if (newPassword.length < 6) {
+      toast({ variant: 'destructive', title: 'Invalid Password', description: 'Password must be at least 6 characters.' });
+      return;
+    }
+
     setIsPending(true);
     try {
       await updatePassword(user, newPassword);
       toast({ variant: 'success', title: 'Password Changed', description: 'Your password has been updated.' });
       setNewPassword('');
       setConfirmPassword('');
+      setShowPass(false);
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Failed', description: error.message });
+      if (error.code === 'auth/requires-recent-login') {
+        toast({ 
+          variant: 'destructive', 
+          title: 'Security Action Required', 
+          description: 'This operation is sensitive and requires a recent login. Please sign out and sign back in to change your password.' 
+        });
+      } else {
+        toast({ variant: 'destructive', title: 'Failed', description: error.message });
+      }
     } finally {
       setIsPending(false);
     }
@@ -474,7 +488,12 @@ export default function ProfilePage() {
                           onChange={(e) => setNewPassword(e.target.value)}
                           placeholder="••••••••"
                         />
-                        <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer">
+                        <button 
+                          type="button" 
+                          onClick={() => setShowPass(!showPass)} 
+                          onMouseDown={(e) => e.preventDefault()}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer z-10"
+                        >
                           {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                       </div>
