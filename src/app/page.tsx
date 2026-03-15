@@ -795,7 +795,7 @@ export default function Home() {
           </div>
       )}
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-6">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-6">
         <div className="flex flex-col gap-1">
             <div className="flex items-center gap-3">
                 <h1 className="text-4xl font-black tracking-tight text-foreground">Tasks</h1>
@@ -806,7 +806,7 @@ export default function Home() {
             {uiConfig?.appName && <p className="text-muted-foreground text-sm font-medium">{uiConfig.appName}</p>}
         </div>
         
-        <div className="flex flex-col items-stretch sm:items-center sm:flex-row gap-3 w-full sm:w-auto">
+        <div className="flex flex-col items-stretch sm:items-center sm:flex-row gap-3 w-full lg:w-auto">
             <Dialog open={showTutorialPrompt} onOpenChange={setShowTutorialPrompt}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader className="items-center text-center">
@@ -835,7 +835,7 @@ export default function Home() {
               </Button>
             )}
 
-            <div className="grid grid-cols-2 lg:flex items-center gap-2">
+            <div className="grid grid-cols-2 sm:flex items-center gap-2">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" disabled={isImporting} className="w-full sm:w-auto h-11 font-bold">
@@ -856,7 +856,7 @@ export default function Home() {
                 </Button>
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />
                 
-                <Button asChild id="new-task-btn" disabled={isImporting} className="col-span-2 lg:col-auto w-full sm:w-auto h-11 shadow-lg font-bold">
+                <Button asChild id="new-task-btn" disabled={isImporting} className="col-span-2 sm:col-auto w-full sm:w-auto h-11 shadow-lg font-bold">
                     <Link href="/tasks/new">
                         <Plus className="mr-2 h-5 w-5" /> New Task
                     </Link>
@@ -887,9 +887,9 @@ export default function Home() {
               <div className={cn(
                   "transition-all duration-300 overflow-hidden",
                   "lg:block", 
-                  isFiltersOpen ? "block opacity-100 max-h-[1000px]" : "hidden lg:opacity-100 lg:max-h-none opacity-0 max-h-0"
+                  isFiltersOpen ? "block opacity-100 max-h-[1000px] mb-4" : "hidden lg:opacity-100 lg:max-h-none opacity-0 max-h-0"
               )}>
-                <Card id="task-filters" className="border-none shadow-lg lg:shadow-none bg-card lg:bg-transparent">
+                <Card id="task-filters" className="border shadow-lg lg:shadow-none bg-card lg:bg-transparent lg:border-none">
                     <CardContent className="p-4 lg:p-0">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                             <div className="relative flex flex-col w-full col-span-1 sm:col-span-2 lg:col-span-1">

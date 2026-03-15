@@ -7,7 +7,7 @@ import type { Note, UiConfig, NoteLayout } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { StickyNote, LayoutGrid, Plus, CheckSquare, X, Trash2, Upload, Download, Search, CalendarIcon, XCircle, Loader2, CornerDownLeft } from 'lucide-react';
+import { StickyNote, LayoutGrid, Plus, CheckSquare, X, Trash2, Upload, Download, Search, CalendarIcon, XCircle, Loader2, CornerDownLeft, Filter, ChevronDown } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -92,6 +92,7 @@ export default function NotesPage() {
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
   const [isFiltering, setIsFiltering] = useState(false);
   const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
   useEffect(() => { localStorage.setItem(NOTES_FILTER_STORAGE_KEYS.search, JSON.stringify(searchQuery)); }, [searchQuery]);
   useEffect(() => { localStorage.setItem(NOTES_FILTER_STORAGE_KEYS.date, JSON.stringify(dateFilter)); }, [dateFilter]);
@@ -403,7 +404,7 @@ export default function NotesPage() {
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <div className="flex items-start sm:items-center justify-between mb-6 flex-col sm:flex-row gap-4">
+      <div className="flex items-start lg:items-center justify-between mb-6 flex-col lg:flex-row gap-4">
         <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
                 <StickyNote className="h-7 w-7"/> Notes
@@ -412,7 +413,7 @@ export default function NotesPage() {
                 {mode === 'authenticate' ? 'Cloud Sync' : 'Local Only'}
             </Badge>
         </div>
-         <div className="flex items-center gap-2 flex-wrap">
+         <div className="hidden lg:flex items-center gap-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={handleExportNotes}><Upload className="mr-2 h-4 w-4"/>Export Notes</Button>
             <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}><Download className="mr-2 h-4 w-4"/>Import Notes</Button>
             <input type="file" ref={fileInputRef} onChange={handleImportNotes} className="hidden" accept=".json" />
@@ -442,98 +443,138 @@ export default function NotesPage() {
                 </kbd>
             </button>
 
-             <Card>
-                <CardContent className="p-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="relative flex items-center w-full">
-                            <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Search notes..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                onKeyDown={handleSearchKeyDown}
-                                className="w-full pl-10 h-11"
-                            />
-                            <div className="absolute right-1 flex items-center h-full gap-1">
-                                {searchQuery && (
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7 text-muted-foreground"
-                                        onClick={clearSearch}
-                                    >
-                                        <X className="h-4 w-4" />
-                                    </Button>
-                                )}
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground cursor-help">
-                                                <span className="text-xs">{commandKey}</span>K
-                                            </kbd>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top">
-                                            <div className="flex items-center gap-2">
-                                                <CornerDownLeft className="h-3 w-3" />
-                                                <span>Press Enter to search</span>
-                                            </div>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </div>
-                        </div>
-                         <Popover open={isDatePopoverOpen} onOpenChange={setIsDatePopoverOpen}>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    variant={"outline"}
-                                    className={cn(
-                                        "justify-start text-left font-normal h-11",
-                                        !dateFilter && "text-muted-foreground"
-                                    )}
-                                >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {dateFilter?.from ? (
-                                        dateFilter.to ? (
-                                        <>
-                                            {format(dateFilter.from, "LLL dd, y")} - {format(dateFilter.to, "LLL dd, y")}
-                                        </>
-                                        ) : (
-                                        format(dateFilter.from, "LLL dd, y")
-                                        )
-                                    ) : (
-                                        <span>Filter by date</span>
-                                    )}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                    initialFocus
-                                    mode="range"
-                                    defaultMonth={dateFilter?.from}
-                                    selected={dateFilter}
-                                    onSelect={setDateFilter}
-                                    numberOfMonths={2}
-                                />
-                            </PopoverContent>
-                        </Popover>
-                    </div>
-                     {(searchQuery || dateFilter) && (
-                        <div className="flex items-center gap-2 pt-3">
-                             <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setExecutedSearchQuery(''); setDateFilter(undefined); }}>
-                                <XCircle className="mr-2 h-4 w-4" /> Clear filters
-                             </Button>
-                             {isFiltering ? (
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                    Filtering notes...
-                                </div>
-                             ) : (
-                                <p className="text-sm text-muted-foreground">{filteredNotes.length} of {notes.length} notes shown.</p>
-                             )}
-                        </div>
+            <div className="lg:hidden grid grid-cols-2 gap-2 mb-4">
+                <Button variant="outline" className="font-bold h-11" onClick={handleExportNotes}><Upload className="mr-2 h-4 w-4"/>Export</Button>
+                <Button variant="outline" className="font-bold h-11" onClick={() => fileInputRef.current?.click()}><Download className="mr-2 h-4 w-4"/>Import</Button>
+                <Button
+                    variant={isSelectMode ? 'secondary' : 'outline'}
+                    className="font-bold h-11"
+                    onClick={handleToggleSelectMode}
+                >
+                  {isSelectMode ? <X className="h-4 w-4 mr-2" /> : <CheckSquare className="h-4 w-4 mr-2" />}
+                  {isSelectMode ? 'Cancel' : 'Select'}
+                </Button>
+                <Button variant="outline" className="font-bold h-11" onClick={handleResetLayout}>
+                    <LayoutGrid className="mr-2 h-4 w-4"/>
+                    Reset
+                </Button>
+            </div>
+
+            <Button 
+                variant="secondary" 
+                className="w-full flex lg:hidden items-center justify-between h-12 px-4 font-black shadow-sm border"
+                onClick={() => setIsFiltersOpen(!isFiltersOpen)}
+            >
+                <span className="flex items-center gap-2">
+                    <Filter className="h-4 w-4" />
+                    Filters
+                    {areFiltersActive && (
+                        <Badge className="bg-primary text-primary-foreground h-5 px-1.5 min-w-5">
+                            {(executedSearchQuery ? 1 : 0) + (dateFilter ? 1 : 0)}
+                        </Badge>
                     )}
-                </CardContent>
-            </Card>
+                </span>
+                <ChevronDown className={cn("h-4 w-4 transition-transform duration-300", isFiltersOpen && "rotate-180")} />
+            </Button>
+
+             <div className={cn(
+                  "transition-all duration-300 overflow-hidden",
+                  "lg:block", 
+                  isFiltersOpen ? "block opacity-100 max-h-[500px]" : "hidden lg:opacity-100 lg:max-h-none opacity-0 max-h-0"
+              )}>
+                <Card className="border shadow-lg lg:shadow-none bg-card lg:bg-transparent lg:border-none">
+                    <CardContent className="p-4 lg:p-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="relative flex items-center w-full">
+                                <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Search notes..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onKeyDown={handleSearchKeyDown}
+                                    className="w-full pl-10 h-11"
+                                />
+                                <div className="absolute right-1 flex items-center h-full gap-1">
+                                    {searchQuery && (
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 text-muted-foreground"
+                                            onClick={clearSearch}
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    )}
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground cursor-help">
+                                                    <span className="text-xs">{commandKey}</span>K
+                                                </kbd>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top">
+                                                <div className="flex items-center gap-2">
+                                                    <CornerDownLeft className="h-3 w-3" />
+                                                    <span>Press Enter to search</span>
+                                                </div>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </div>
+                            </div>
+                            <Popover open={isDatePopoverOpen} onOpenChange={setIsDatePopoverOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                            "justify-start text-left font-normal h-11",
+                                            !dateFilter && "text-muted-foreground"
+                                        )}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {dateFilter?.from ? (
+                                            dateFilter.to ? (
+                                            <>
+                                                {format(dateFilter.from, "LLL dd, y")} - {format(dateFilter.to, "LLL dd, y")}
+                                            </>
+                                            ) : (
+                                            format(dateFilter.from, "LLL dd, y")
+                                            )
+                                        ) : (
+                                            <span>Filter by date</span>
+                                        )}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                        initialFocus
+                                        mode="range"
+                                        defaultMonth={dateFilter?.from}
+                                        selected={dateFilter}
+                                        onSelect={setDateFilter}
+                                        numberOfMonths={2}
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                        {(searchQuery || dateFilter) && (
+                            <div className="flex items-center gap-2 pt-3">
+                                <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setExecutedSearchQuery(''); setDateFilter(undefined); }}>
+                                    <XCircle className="mr-2 h-4 w-4" /> Clear filters
+                                </Button>
+                                {isFiltering ? (
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                        Filtering notes...
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">{filteredNotes.length} of {notes.length} notes shown.</p>
+                                )}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
         </div>
 
       {isSelectMode && (
