@@ -147,10 +147,35 @@ export default function Home() {
   const [isTagsDialogOpen, setIsTagsDialogOpen] = useState(false);
   const [tagsToApply, setTagsToApply] = useState<string[]>([]);
 
+  // Search Loading States
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSlowSearchMessage, setShowSlowSearchMessage] = useState(false);
+
   // New Import Progress States
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   
+  // Search/Filter Loading Effect
+  useEffect(() => {
+    setIsSearching(true);
+    window.dispatchEvent(new Event('sync-start'));
+    
+    const slowTimer = setTimeout(() => {
+        setShowSlowSearchMessage(true);
+    }, 3000);
+
+    const finishTimer = setTimeout(() => {
+        setIsSearching(false);
+        setShowSlowSearchMessage(false);
+        window.dispatchEvent(new Event('sync-end'));
+    }, 500);
+
+    return () => {
+        clearTimeout(slowTimer);
+        clearTimeout(finishTimer);
+    };
+  }, [searchQuery, statusFilter, repoFilter, deploymentFilter, tagsFilter, favoritesOnly, dateView, selectedDate]);
+
   useEffect(() => {
     const params = new URLSearchParams();
     
@@ -926,34 +951,57 @@ export default function Home() {
                 </DialogContent>
             </Dialog>
 
-          {sortedTasks.length > 0 ? (
-            <div>
-              {viewMode === 'grid' ? (
-                <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handlePinToggle} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} />
-              ) : (
-                <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} />
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg flex flex-col items-center justify-center">
-                {favoritesOnly ? (
-                    <>
-                        <Heart className="h-16 w-16 mb-4 opacity-20 text-red-500" />
-                        <p className="text-lg font-semibold">No favorite tasks found.</p>
-                        <p className="text-sm mt-1 max-w-xs mx-auto">Tap the heart icon on any task card to add it to your personal favorites list.</p>
-                        <div className="flex gap-2 mt-6">
-                            <Button variant="outline" size="sm" onClick={() => setFavoritesOnly(false)}>View All Tasks</Button>
+          <div className="relative">
+            {isSearching && (
+                <div className="absolute inset-x-0 -top-12 flex flex-col items-center justify-center z-20 pointer-events-none">
+                    <div className="bg-background/95 backdrop-blur-sm px-5 py-2 rounded-full border shadow-lg flex items-center gap-3 animate-in fade-in zoom-in duration-300">
+                        <Loader2 className="h-4 w-4 text-primary animate-spin" />
+                        <div className="flex flex-col leading-none">
+                            <span className="text-xs font-bold tracking-tight">
+                                {showSlowSearchMessage ? "Still searching..." : "Searching tasks..."}
+                            </span>
+                            {showSlowSearchMessage && (
+                                <span className="text-[9px] text-muted-foreground mt-0.5">Thanks for your patience</span>
+                            )}
                         </div>
-                    </>
+                    </div>
+                </div>
+            )}
+
+            <div className={cn(
+                "transition-all duration-500",
+                isSearching ? "opacity-40 grayscale-[0.5] blur-[0.5px]" : "opacity-100 grayscale-0 blur-0"
+            )}>
+                {sortedTasks.length > 0 ? (
+                    <div>
+                    {viewMode === 'grid' ? (
+                        <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handlePinToggle} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} />
+                    ) : (
+                        <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} />
+                    )}
+                    </div>
                 ) : (
-                    <>
-                        <FolderSearch className="h-16 w-16 mb-4 opacity-50"/>
-                        <p className="text-lg font-semibold">No tasks found.</p>
-                        <Button asChild className="mt-4" size="sm"><Link href="/tasks/new"><Plus className="mr-2 h-4 w-4" /> Create Task</Link></Button>
-                    </>
+                    <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg flex flex-col items-center justify-center">
+                        {favoritesOnly ? (
+                            <>
+                                <Heart className="h-16 w-16 mb-4 opacity-20 text-red-500" />
+                                <p className="text-lg font-semibold">No favorite tasks found.</p>
+                                <p className="text-sm mt-1 max-w-xs mx-auto">Tap the heart icon on any task card to add it to your personal favorites list.</p>
+                                <div className="flex gap-2 mt-6">
+                                    <Button variant="outline" size="sm" onClick={() => setFavoritesOnly(false)}>View All Tasks</Button>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <FolderSearch className="h-16 w-16 mb-4 opacity-50"/>
+                                <p className="text-lg font-semibold">No tasks found.</p>
+                                <Button asChild className="mt-4" size="sm"><Link href="/tasks/new"><Plus className="mr-2 h-4 w-4" /> Create Task</Link></Button>
+                            </>
+                        )}
+                    </div>
                 )}
             </div>
-          )}
+          </div>
       </div>
 
       {uiConfig?.remindersEnabled && (pinnedReminders.length + generalReminders.length) > 0 && (

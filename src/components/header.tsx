@@ -438,8 +438,8 @@ export function Header() {
           
           {/* Navbar Bottom Progress Bar */}
           {showProgress && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 overflow-hidden">
-              <div className="h-full bg-primary animate-timer w-full" />
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 overflow-hidden bg-primary/10">
+              <div className="h-full bg-primary animate-loading-bar" />
             </div>
           )}
         </div>

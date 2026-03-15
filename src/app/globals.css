@@ -110,6 +110,10 @@
       opacity: 0;
     }
   }
+  @keyframes loading-bar {
+    0% { left: -30%; width: 30%; }
+    100% { left: 100%; width: 30%; }
+  }
 }
 
 @layer utilities {
@@ -141,6 +145,10 @@
     }
     .animate-ping-slow {
       animation: ping-slow 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+    }
+    .animate-loading-bar {
+      position: absolute;
+      animation: loading-bar 1.5s infinite linear;
     }
 }
 
