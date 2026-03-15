@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -14,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getInitials, getAvatarGradient, cn } from '@/lib/utils';
+import { getInitials, getAvatarGradient, cn, compressImage } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { setAuthMode, getAuthMode } from '@/lib/data';
@@ -94,35 +93,6 @@ export default function ProfilePage() {
       setPhotoURL(avatar);
     }
   }, [user, isUserLoading, userProfile, router]);
-
-  const compressImage = (dataUrl: string, maxWidth: number, quality: number): Promise<string> => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-        
-        if (width > maxWidth) {
-          height = Math.round(height * (maxWidth / width));
-          width = maxWidth;
-        }
-        
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'high';
-          ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/webp', quality));
-        } else {
-          resolve(dataUrl);
-        }
-      };
-      img.src = dataUrl;
-    });
-  };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();

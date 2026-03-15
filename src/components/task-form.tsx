@@ -14,7 +14,7 @@ import { useRouter } from 'next/navigation';
 import { useTransition, useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { cn } from '@/lib/utils';
+import { cn, compressImage } from '@/lib/utils';
 import { format } from 'date-fns';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -182,23 +182,16 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
   });
 
   const handleImageUpload = (file: File) => {
-    if (file.size > 2 * 1024 * 1024) { // 2MB limit
-        toast({
-            variant: 'destructive',
-            title: 'Image too large',
-            description: 'Please upload an image smaller than 2MB.',
-        });
-        return;
-    }
-
     const reader = new FileReader();
-    reader.onload = (e) => {
-        const dataUri = e.target?.result as string;
+    reader.onload = async (e) => {
+        const rawDataUri = e.target?.result as string;
+        const optimizedUri = await compressImage(rawDataUri);
         appendAttachment({
             name: file.name,
-            url: dataUri,
+            url: optimizedUri,
             type: 'image',
         });
+        toast({ variant: 'success', title: 'Image optimized and added.' });
     };
     reader.readAsDataURL(file);
   };

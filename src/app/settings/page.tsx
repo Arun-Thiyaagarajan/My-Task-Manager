@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -77,7 +76,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { ReleaseManagementCard } from '@/components/release-management-card';
-import { cn } from '@/lib/utils';
+import { cn, compressImage } from '@/lib/utils';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { AuthModal } from '@/components/auth-modal';
 import { ProfileImageCropper } from '@/components/profile-image-cropper';
@@ -149,33 +148,6 @@ export default function SettingsPage() {
   const handleSaveDisplaySettings = () => {
     handleUpdateConfig({ appName, appIcon, timeFormat });
     toast({ variant: 'success', title: 'Display settings saved.' });
-  };
-
-  const compressImage = (dataUrl: string, maxWidth: number, quality: number): Promise<string> => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-        if (width > maxWidth) {
-          height = Math.round(height * (maxWidth / width));
-          width = maxWidth;
-        }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'high';
-          ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/webp', quality));
-        } else {
-          resolve(dataUrl);
-        }
-      };
-      img.src = dataUrl;
-    });
   };
 
   const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

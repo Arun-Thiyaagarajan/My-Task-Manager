@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -14,7 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { DeleteTaskButton } from '@/components/delete-task-button';
 import { PrLinksGroup } from '@/components/pr-links-group';
 import { Badge } from '@/components/ui/badge';
-import { cn, getInitials, getAvatarColor, getRepoBadgeStyle, formatTimestamp, getEnvInfo } from '@/lib/utils';
+import { cn, getInitials, getAvatarColor, getRepoBadgeStyle, formatTimestamp, getEnvInfo, compressImage } from '@/lib/utils';
 import { format } from 'date-fns';
 import type { Task, FieldConfig, UiConfig, TaskStatus, Person, Attachment, Log, Comment, Environment } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
@@ -442,16 +441,13 @@ export default function TaskPage() {
   };
 
   const handleImageUpload = (file: File) => {
-    if (file.size > 1024 * 1024) { // 1MB limit for Firestore document safety
-        toast({ variant: 'destructive', title: 'Image too large', description: 'Please upload an image smaller than 1MB for reliable cloud synchronization.' });
-        return;
-    }
     const reader = new FileReader();
-    reader.onload = (e) => {
-        const dataUri = e.target?.result as string;
-        const newAttachment: Attachment = { name: file.name, url: dataUri, type: 'image' };
+    reader.onload = async (e) => {
+        const rawDataUri = e.target?.result as string;
+        const optimizedUri = await compressImage(rawDataUri);
+        const newAttachment: Attachment = { name: file.name, url: optimizedUri, type: 'image' };
         setLocalAttachments(prev => [...prev, newAttachment]);
-        toast({ variant: 'success', title: 'Image ready to be saved.'});
+        toast({ variant: 'success', title: 'Image optimized and added.'});
     };
     reader.readAsDataURL(file);
   };

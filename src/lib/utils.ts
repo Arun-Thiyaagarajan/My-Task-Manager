@@ -1,4 +1,3 @@
-
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import type { CSSProperties } from "react"
@@ -171,3 +170,38 @@ export function getEnvInfo(envName: string, isDeployed: boolean) {
         } as CSSProperties
     };
 }
+
+/**
+ * Resizes and compresses an image from a data URL.
+ * Target: ~1200px max width, WebP format, high quality.
+ */
+export const compressImage = (dataUrl: string, maxWidth = 1200, quality = 0.85): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+      
+      if (width > maxWidth) {
+        height = Math.round(height * (maxWidth / width));
+        width = maxWidth;
+      }
+      
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, width, height);
+        // Use WebP for best compression/quality ratio
+        resolve(canvas.toDataURL('image/webp', quality));
+      } else {
+        resolve(dataUrl);
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+};
