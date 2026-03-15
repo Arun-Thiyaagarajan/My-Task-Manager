@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -120,7 +118,7 @@ export default function NewTaskPage() {
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Create a New Task</CardTitle>
+          <CardTitle className="text-xl font-bold tracking-tight">Create a New Task</CardTitle>
         </CardHeader>
         <CardContent>
           <TaskForm

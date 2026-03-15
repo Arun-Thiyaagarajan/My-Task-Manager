@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -806,7 +805,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                     return (
                         <Card key={groupName} id={sectionId} className="scroll-mt-24 transition-all duration-300">
                             <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
+                                <CardTitle className="flex items-center gap-2 text-lg font-bold">
                                     {groupName === 'Core Details' && <Layout className="h-5 w-5 text-primary" />}
                                     {groupName === 'Assignment & Tracking' && <Users className="h-5 w-5 text-primary" />}
                                     {groupName === 'Dates' && <CalendarIconLucide className="h-5 w-5 text-primary" />}
@@ -823,7 +822,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                 {(uiConfig?.fields || []).find(f => f.key === 'attachments' && f.isActive) && (
                     <Card id="attachments" className="scroll-mt-24 transition-all duration-300">
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
+                            <CardTitle className="flex items-center gap-2 text-lg font-bold">
                                 <Paperclip className="h-5 w-5 text-primary" />
                                 {fieldLabels.get('attachments') || 'Attachments'}
                             </CardTitle>
@@ -896,7 +895,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                 {deploymentFieldConfig && deploymentFieldConfig.isActive && (
                     <Card id="deployment" className="scroll-mt-24 transition-all duration-300">
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
+                            <CardTitle className="flex items-center gap-2 text-lg font-bold">
                                 <Rocket className="h-5 w-5 text-primary" />
                                 {fieldLabels.get('deploymentStatus') || 'Deployment'}
                                 {deploymentFieldConfig.isRequired && <span className="text-destructive ml-1">*</span>}
@@ -960,7 +959,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                 {(uiConfig?.fields || []).find(f => f.key === 'prLinks' && f.isActive) && (
                     <Card id="pull-requests" className="scroll-mt-24 transition-all duration-300">
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
+                            <CardTitle className="flex items-center gap-2 text-lg font-bold">
                                 <GitMerge className="h-5 w-5 text-primary" />
                                 {fieldLabels.get('prLinks') || 'Pull Requests'}
                             </CardTitle>
