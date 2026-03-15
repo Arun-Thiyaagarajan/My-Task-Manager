@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -667,15 +668,15 @@ export default function Home() {
                     if (success) {
                         toast({ 
                             variant: 'success', 
-                            title: 'Sync Complete', 
+                            title: 'Import Complete', 
                             description: 'Your data has been successfully imported to your cloud workspace.' 
                         });
                     }
                 } catch (error: any) {
                     toast({ 
                         variant: 'destructive', 
-                        title: 'Sync Failed', 
-                        description: error.message || 'An error occurred while syncing. Please try again later.' 
+                        title: 'Import Failed', 
+                        description: error.message || 'An error occurred while importing. Please try again later.' 
                     });
                 } finally {
                     setIsImporting(false);
@@ -781,7 +782,7 @@ export default function Home() {
                         <span className="absolute inset-0 flex items-center justify-center text-[10px] font-black uppercase">{importProgress}%</span>
                       </div>
                       <div className="space-y-2">
-                        <h2 className="text-xl font-bold tracking-tight">Syncing to Cloud</h2>
+                        <h2 className="text-xl font-bold tracking-tight">Importing to Cloud</h2>
                         <p className="text-muted-foreground text-sm max-w-xs mx-auto">
                             Your data is being imported to the cloud. This may take a few minutes for large datasets.
                         </p>

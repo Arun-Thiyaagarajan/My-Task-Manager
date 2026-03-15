@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -87,6 +88,7 @@ export default function TaskPage() {
   const [relatedTasks, setRelatedTasks] = useState<Task[]>([]);
   const [relatedTasksTitle, setRelatedTasksTitle] = useState<string>('');
   const [taskLogs, setTaskLogs] = useState<Log[]>([]);
+  const [isLogsLoading, setIsLogsLoading] = useState(false);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
   const [pinnedTaskIds, setPinnedTaskIds] = useState<string[]>([]);
   const [isCopying, setIsCopying] = useState(false);
@@ -100,8 +102,8 @@ export default function TaskPage() {
   const taskId = params.id as string;
   
   const loadData = () => {
-    setTask(null); 
     setIsLoading(true);
+    setIsLogsLoading(true);
 
     if (taskId) {
       const allDevs = getDevelopers();
@@ -123,11 +125,18 @@ export default function TaskPage() {
         const isBinned = !!foundTask.deletedAt;
         if (isBinned) {
             setTaskLogs([]);
+            setIsLogsLoading(false);
         } else {
-            setTaskLogs(getLogsForTask(taskId));
+            // Simulate slight async delay for smooth transitions if requested, 
+            // but usually this is near-instant from cache.
+            setTimeout(() => {
+                setTaskLogs(getLogsForTask(taskId));
+                setIsLogsLoading(false);
+            }, 100);
         }
       } else {
         document.title = `Task Not Found | ${config.appName || 'My Task Manager'}`;
+        setIsLogsLoading(false);
       }
       setIsLoading(false);
     }
@@ -157,7 +166,7 @@ export default function TaskPage() {
     return () => {
         window.removeEventListener('storage', handleStorageChange);
     };
-  }, [taskId, toast]);
+  }, [taskId]);
 
   useEffect(() => {
     if (!task || task.deletedAt) {
@@ -793,7 +802,7 @@ const handleCopyDescription = () => {
   const deploymentField = (uiConfig?.fields || []).find(f => f.key === 'deploymentStatus' && f.isActive);
   const attachmentsField = (uiConfig?.fields || []).find(f => f.key === 'attachments' && f.isActive);
   const commentsField = (uiConfig?.fields || []).find(f => f.key === 'comments' && f.isActive);
-  const historyField = !isBinned && taskLogs.length > 0;
+  const historyField = !isBinned;
 
   return (
     <>
@@ -1133,7 +1142,7 @@ const handleCopyDescription = () => {
             
             {historyField && (
                 <div className="lg:col-span-2">
-                    <TaskHistory logs={taskLogs} uiConfig={uiConfig} />
+                    <TaskHistory logs={taskLogs} uiConfig={uiConfig} isLoading={isLogsLoading} />
                 </div>
             )}
           </div>
