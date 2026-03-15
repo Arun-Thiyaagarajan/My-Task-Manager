@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -893,7 +892,7 @@ export default function Home() {
                 <Card id="task-filters" className="border-none shadow-lg lg:shadow-none bg-card lg:bg-transparent">
                     <CardContent className="p-4 lg:p-0">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                            <div className="relative flex flex-col w-full col-span-1 sm:col-span-2 lg:col-span-1 gap-1.5">
+                            <div className="relative flex flex-col w-full col-span-1 sm:col-span-2 lg:col-span-1 gap-1">
                                 <div className="relative flex items-center w-full">
                                     <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
                                     <Input
@@ -920,7 +919,7 @@ export default function Home() {
                                         </kbd>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-1.5 px-1 text-[9px] font-black text-muted-foreground/60 uppercase tracking-widest">
+                                <div className="flex items-center gap-1.5 px-1 text-[10px] italic font-medium text-muted-foreground/60 uppercase tracking-tight">
                                     <CornerDownLeft className="h-2.5 w-2.5" />
                                     <span>Press Enter to search</span>
                                 </div>
@@ -1045,65 +1044,57 @@ export default function Home() {
               </div>
             )}
             
-            <Dialog open={isTagsDialogOpen} onOpenChange={setIsTagsDialogOpen}>
-                <DialogContent>
-                    <DialogHeader><DialogTitle>Add Tags to {selectedTaskIds.length} Tasks</DialogTitle></DialogHeader>
-                    <div className="py-4"><MultiSelect selected={tagsToApply} onChange={setTagsToApply} options={[]} placeholder="Create tags..." creatable /></div>
-                    <DialogFooter><Button variant="outline" onClick={() => setIsTagsDialogOpen(false)}>Cancel</Button><Button onClick={handleBulkApplyTags}>Apply</Button></DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-          <div className="relative">
-            {isSearching && (
-                <div className="absolute inset-x-0 -top-12 flex flex-col items-center justify-center z-20 pointer-events-none">
-                    <div className="bg-background/95 backdrop-blur-sm px-5 py-2 rounded-full border shadow-lg flex items-center gap-3 animate-in fade-in zoom-in duration-300">
-                        <Loader2 className="h-4 w-4 text-primary animate-spin" />
-                        <div className="flex flex-col leading-none">
-                            <span className="text-xs font-bold tracking-tight">
-                                {showSlowSearchMessage ? "Still searching..." : "Searching tasks..."}
-                            </span>
-                            {showSlowSearchMessage && (
-                                <span className="text-[9px] text-muted-foreground mt-0.5">Thanks for your patience</span>
-                            )}
+            <div className="relative">
+                {isSearching && (
+                    <div className="absolute inset-x-0 -top-12 flex flex-col items-center justify-center z-20 pointer-events-none">
+                        <div className="bg-background/95 backdrop-blur-sm px-5 py-2 rounded-full border shadow-lg flex items-center gap-3 animate-in fade-in zoom-in duration-300">
+                            <Loader2 className="h-4 w-4 text-primary animate-spin" />
+                            <div className="flex flex-col leading-none">
+                                <span className="text-xs font-bold tracking-tight">
+                                    {showSlowSearchMessage ? "Still searching..." : "Searching tasks..."}
+                                </span>
+                                {showSlowSearchMessage && (
+                                    <span className="text-[9px] text-muted-foreground mt-0.5">Thanks for your patience</span>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-
-            <div className={cn(
-                "transition-all duration-500",
-                isSearching ? "opacity-40 grayscale-[0.5] blur-[0.5px]" : "opacity-100 grayscale-0 blur-0"
-            )}>
-                {sortedTasks.length > 0 ? (
-                    <div>
-                    {viewMode === 'grid' ? (
-                        <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handlePinToggle} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} />
-                    ) : (
-                        <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} />
-                    )}
-                    </div>
-                ) : (
-                    <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg flex flex-col items-center justify-center">
-                        {favoritesOnly ? (
-                            <>
-                                <Heart className="h-16 w-16 mb-4 opacity-20 text-red-500" />
-                                <p className="text-lg font-semibold">No favorite tasks found.</p>
-                                <p className="text-sm mt-1 max-w-xs mx-auto text-center font-medium">Tap the heart icon on any task card to add it to your personal favorites list.</p>
-                                <div className="flex gap-2 mt-6">
-                                    <Button variant="outline" size="sm" onClick={() => setFavoritesOnly(false)} className="font-bold">View All Tasks</Button>
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <FolderSearch className="h-16 w-16 mb-4 opacity-50"/>
-                                <p className="text-lg font-semibold">No tasks found.</p>
-                                <Button asChild className="mt-4 font-bold" size="sm"><Link href="/tasks/new"><Plus className="mr-2 h-4 w-4" /> Create Task</Link></Button>
-                            </>
-                        )}
-                    </div>
                 )}
+
+                <div className={cn(
+                    "transition-all duration-500",
+                    isSearching ? "opacity-40 grayscale-[0.5] blur-[0.5px]" : "opacity-100 grayscale-0 blur-0"
+                )}>
+                    {sortedTasks.length > 0 ? (
+                        <div>
+                        {viewMode === 'grid' ? (
+                            <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handlePinToggle} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} />
+                        ) : (
+                            <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} />
+                        )}
+                        </div>
+                    ) : (
+                        <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg flex flex-col items-center justify-center">
+                            {favoritesOnly ? (
+                                <>
+                                    <Heart className="h-16 w-16 mb-4 opacity-20 text-red-500" />
+                                    <p className="text-lg font-semibold">No favorite tasks found.</p>
+                                    <p className="text-sm mt-1 max-w-xs mx-auto text-center font-medium">Tap the heart icon on any task card to add it to your personal favorites list.</p>
+                                    <div className="flex gap-2 mt-6">
+                                        <Button variant="outline" size="sm" onClick={() => setFavoritesOnly(false)} className="font-bold">View All Tasks</Button>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <FolderSearch className="h-16 w-16 mb-4 opacity-50"/>
+                                    <p className="text-lg font-semibold">No tasks found.</p>
+                                    <Button asChild className="mt-4 font-bold" size="sm"><Link href="/tasks/new"><Plus className="mr-2 h-4 w-4" /> Create Task</Link></Button>
+                                </>
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
-          </div>
       </div>
 
       {uiConfig?.remindersEnabled && (pinnedReminders.length + generalReminders.length) > 0 && (

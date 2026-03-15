@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -192,7 +191,7 @@ export default function LogsPage() {
                         )}
                     </CardDescription>
                      <div className="pt-4">
-                        <div className="relative flex flex-col gap-1.5 w-full max-w-sm">
+                        <div className="relative flex flex-col gap-1 w-full max-w-sm">
                             <div className="relative flex items-center w-full">
                                 <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
                                 <Input 
@@ -201,7 +200,7 @@ export default function LogsPage() {
                                     value={searchQuery} 
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     onKeyDown={handleSearchKeyDown}
-                                    className="w-full pl-10 pr-20"
+                                    className="w-full pl-10 pr-20 h-11"
                                 />
                                 <div className="absolute right-0 flex items-center h-full pr-1.5 gap-1">
                                     {searchQuery && (
@@ -219,7 +218,7 @@ export default function LogsPage() {
                                     </kbd>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-1.5 px-1 text-[9px] font-bold text-muted-foreground/60 uppercase tracking-widest">
+                            <div className="flex items-center gap-1.5 px-1 text-[10px] italic font-medium text-muted-foreground/60 uppercase tracking-tight">
                                 <CornerDownLeft className="h-2.5 w-2.5" />
                                 <span>Press Enter to search</span>
                             </div>

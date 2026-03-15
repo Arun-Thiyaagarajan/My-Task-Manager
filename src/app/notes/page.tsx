@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -434,7 +433,7 @@ export default function NotesPage() {
        <div className="space-y-4 mb-8">
             <button
                 onClick={handleOpenNewNoteDialog}
-                className="w-full text-left p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors text-muted-foreground shadow-sm flex justify-between items-center"
+                className="w-full text-left p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors text-muted-foreground shadow-sm flex justify-between items-center h-11"
             >
                 <span>Take a note...</span>
                 <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
@@ -445,7 +444,7 @@ export default function NotesPage() {
              <Card>
                 <CardContent className="p-3">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="relative flex flex-col gap-1.5 w-full">
+                        <div className="relative flex flex-col gap-1 w-full">
                             <div className="relative flex items-center w-full">
                                 <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
                                 <Input
@@ -453,7 +452,7 @@ export default function NotesPage() {
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     onKeyDown={handleSearchKeyDown}
-                                    className="w-full pl-10"
+                                    className="w-full pl-10 h-11"
                                 />
                                 {searchQuery && (
                                     <Button
@@ -466,7 +465,7 @@ export default function NotesPage() {
                                     </Button>
                                 )}
                             </div>
-                            <div className="flex items-center gap-1.5 px-1 text-[9px] font-bold text-muted-foreground/60 uppercase tracking-widest">
+                            <div className="flex items-center gap-1.5 px-1 text-[10px] italic font-medium text-muted-foreground/60 uppercase tracking-tight">
                                 <CornerDownLeft className="h-2.5 w-2.5" />
                                 <span>Press Enter to search</span>
                             </div>
@@ -476,7 +475,7 @@ export default function NotesPage() {
                                 <Button
                                     variant={"outline"}
                                     className={cn(
-                                        "justify-start text-left font-normal",
+                                        "justify-start text-left font-normal h-11",
                                         !dateFilter && "text-muted-foreground"
                                     )}
                                 >
