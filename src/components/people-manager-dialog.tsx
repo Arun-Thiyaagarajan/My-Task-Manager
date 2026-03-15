@@ -48,12 +48,12 @@ import {
   getBinnedTasks
 } from '@/lib/data';
 import type { Person, PersonFieldType, Task } from '@/lib/types';
-import { Loader2, PlusCircle, Trash2, Edit, Users, ClipboardCheck, Check, AlertCircle, Search } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, Edit, Users, ClipboardCheck, Check, AlertCircle, Search, X } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './ui/form';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select';
 import { Textarea } from './ui/textarea';
 import { ScrollArea } from './ui/scroll-area';
-import { Badge } from './ui/badge';
+import { Badge } from '@/components/ui/badge';
 
 
 const personFieldSchema = z.object({
@@ -344,7 +344,7 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
         <DialogContent className="max-w-3xl h-[90vh] flex flex-col p-0 overflow-hidden">
           <div className="p-6 border-b shrink-0">
             <DialogHeader>
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-2 pr-8">
                     <DialogTitle className="flex items-center gap-2 text-2xl">
                         <Icon className="h-6 w-6 text-primary" />
                         Manage {title}s
@@ -437,19 +437,19 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
         </DialogContent>
       </Dialog>
 
-      {/* In-Use Tasks Alert */}
-      <AlertDialog open={inUseTasks.length > 0} onOpenChange={(open) => !open && setInUseTasks([])}>
-        <AlertDialogContent className="sm:max-w-lg p-0 overflow-hidden">
+      {/* In-Use Tasks Dialog */}
+      <Dialog open={inUseTasks.length > 0} onOpenChange={(open) => !open && setInUseTasks([])}>
+        <DialogContent className="sm:max-w-lg p-0 overflow-hidden">
             <div className="p-6">
-                <AlertDialogHeader>
+                <DialogHeader>
                     <div className="mx-auto w-14 h-14 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mb-4">
                         <AlertCircle className="h-8 w-8 text-amber-600 dark:text-amber-400" />
                     </div>
-                    <AlertDialogTitle className="text-center text-xl">Deletion Blocked</AlertDialogTitle>
-                    <AlertDialogDescription className="text-center text-base">
+                    <DialogTitle className="text-center text-xl">Deletion Blocked</DialogTitle>
+                    <DialogDescription className="text-center text-base">
                         <strong>{personAttemptingDelete?.name}</strong> is currently assigned to <strong>{inUseTasks.length}</strong> task(s). Please reassign them before deleting.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
+                    </DialogDescription>
+                </DialogHeader>
                 
                 <div className="mt-6 border rounded-xl bg-muted/20 overflow-hidden">
                     <div className="p-2 border-b bg-muted/30 text-[10px] font-black uppercase tracking-widest text-muted-foreground flex justify-between px-4">
@@ -484,11 +484,13 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
                     </ScrollArea>
                 </div>
             </div>
-            <div className="p-4 bg-muted/10 border-t flex justify-center">
-                <AlertDialogAction onClick={() => setInUseTasks([])} className="w-full sm:w-32">Got it</AlertDialogAction>
-            </div>
-        </AlertDialogContent>
-      </AlertDialog>
+            <DialogFooter className="p-4 bg-muted/10 border-t flex justify-center sm:justify-center">
+                <DialogClose asChild>
+                    <Button onClick={() => setInUseTasks([])} className="w-full sm:w-32">Got it</Button>
+                </DialogClose>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Standard Confirm Delete */}
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
