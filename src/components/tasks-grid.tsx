@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { TaskCard } from '@/components/task-card';
 import type { Task, UiConfig, Person } from '@/lib/types';
@@ -20,9 +19,26 @@ interface TasksGridProps {
   pinnedTaskIds: string[];
   onPinToggle: (taskId: string) => void;
   currentQueryString: string;
+  favoritesOnly?: boolean;
 }
 
-export function TasksGrid({ tasks, onTaskDelete, onTaskUpdate, uiConfig, developers, testers, selectedTaskIds, setSelectedTaskIds, isSelectMode, openGroups, setOpenGroups, pinnedTaskIds, onPinToggle, currentQueryString }: TasksGridProps) {
+export function TasksGrid({ 
+  tasks, 
+  onTaskDelete, 
+  onTaskUpdate, 
+  uiConfig, 
+  developers, 
+  testers, 
+  selectedTaskIds, 
+  setSelectedTaskIds, 
+  isSelectMode, 
+  openGroups, 
+  setOpenGroups, 
+  pinnedTaskIds, 
+  onPinToggle, 
+  currentQueryString,
+  favoritesOnly
+}: TasksGridProps) {
   const priorityStatuses = ['To Do', 'In Progress', 'Code Review', 'QA'];
   
   const priorityTasks = tasks.filter(task => priorityStatuses.includes(task.status));
@@ -37,10 +53,13 @@ export function TasksGrid({ tasks, onTaskDelete, onTaskUpdate, uiConfig, develop
   const getPriorityTitle = () => {
     if (priorityTasks.length === 0) return null;
     const allStatuses = new Set(priorityTasks.map(t => t.status));
+    let baseTitle = "Active Tasks";
+    
     if (allStatuses.size === 1) {
-      return `${[...allStatuses][0]} Tasks`;
+      baseTitle = `${[...allStatuses][0]} Tasks`;
     }
-    return "Active Tasks";
+    
+    return favoritesOnly ? `Favorite ${baseTitle}` : baseTitle;
   }
 
   const priorityTitle = getPriorityTitle();
@@ -73,13 +92,13 @@ export function TasksGrid({ tasks, onTaskDelete, onTaskUpdate, uiConfig, develop
     groups.push({ key: 'priority', title: priorityTitle!, tasks: priorityTasks });
   }
   if (completedTasks.length > 0) {
-    groups.push({ key: 'completed', title: 'Completed Tasks', tasks: completedTasks });
+    groups.push({ key: 'completed', title: favoritesOnly ? 'Favorite Completed Tasks' : 'Completed Tasks', tasks: completedTasks });
   }
   if (otherTasks.length > 0) {
-    groups.push({ key: 'other', title: 'Other Tasks', tasks: otherTasks });
+    groups.push({ key: 'other', title: favoritesOnly ? 'Favorite Other Tasks' : 'Other Tasks', tasks: otherTasks });
   }
   if (holdTasks.length > 0) {
-    groups.push({ key: 'hold', title: 'On Hold Tasks', tasks: holdTasks });
+    groups.push({ key: 'hold', title: favoritesOnly ? 'Favorite On Hold Tasks' : 'On Hold Tasks', tasks: holdTasks });
   }
 
   return (

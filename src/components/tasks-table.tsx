@@ -302,6 +302,7 @@ export function TasksTable({
   openGroups,
   setOpenGroups,
   currentQueryString,
+  favoritesOnly,
 }: {
   tasks: Task[];
   onTaskDelete: () => void;
@@ -314,6 +315,7 @@ export function TasksTable({
   openGroups: string[];
   setOpenGroups: (ids: string[]) => void;
   currentQueryString: string;
+  favoritesOnly?: boolean;
 }) {
   const [personInView, setPersonInView] = useState<{
     person: Person;
@@ -358,10 +360,13 @@ export function TasksTable({
   const getPriorityTitle = () => {
     if (priorityTasks.length === 0) return null;
     const allStatuses = new Set(priorityTasks.map(t => t.status));
+    let baseTitle = "Active Tasks";
+    
     if (allStatuses.size === 1) {
-      return `${[...allStatuses][0]} Tasks`;
+      baseTitle = `${[...allStatuses][0]} Tasks`;
     }
-    return "Active Tasks";
+    
+    return favoritesOnly ? `Favorite ${baseTitle}` : baseTitle;
   }
   const priorityTitle = getPriorityTitle();
 
@@ -386,9 +391,9 @@ export function TasksTable({
   const groups: { key: string, title: string, tasks: Task[] }[] = [];
 
   if (priorityTasks.length > 0) groups.push({ key: 'priority', title: priorityTitle!, tasks: priorityTasks });
-  if (completedTasks.length > 0) groups.push({ key: 'completed', title: 'Completed Tasks', tasks: completedTasks });
-  if (otherTasks.length > 0) groups.push({ key: 'other', title: 'Other Tasks', tasks: otherTasks });
-  if (holdTasks.length > 0) groups.push({ key: 'hold', title: 'On Hold Tasks', tasks: holdTasks });
+  if (completedTasks.length > 0) groups.push({ key: 'completed', title: favoritesOnly ? 'Favorite Completed Tasks' : 'Completed Tasks', tasks: completedTasks });
+  if (otherTasks.length > 0) groups.push({ key: 'other', title: favoritesOnly ? 'Favorite Other Tasks' : 'Other Tasks', tasks: otherTasks });
+  if (holdTasks.length > 0) groups.push({ key: 'hold', title: favoritesOnly ? 'Favorite On Hold Tasks' : 'On Hold Tasks', tasks: holdTasks });
 
   return (
     <div className="border rounded-lg bg-card">
