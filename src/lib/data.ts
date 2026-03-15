@@ -1,11 +1,10 @@
-
 'use client';
 
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES, INITIAL_RELEASES } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode } from './types';
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode } from './types'; 
 import cloneDeep from 'lodash/cloneDeep';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, setDoc, deleteDoc, updateDoc, collection, writeBatch, getDocs, query } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, deleteDoc, updateDoc, collection, writeBatch, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -15,16 +14,10 @@ const AUTH_MODE_KEY = 'taskflow_auth_mode';
 // Central In-Memory Cache for Real-time Cloud Data
 let _cloudCache: MyTaskManagerData | null = null;
 
-/**
- * Updates the central cloud cache. This is typically called by the useTaskFlowData hook.
- */
 export function setCloudCache(data: MyTaskManagerData | null) {
     _cloudCache = data;
 }
 
-/**
- * Returns the default initial state for the application.
- */
 const getInitialData = (): MyTaskManagerData => {
     const defaultCompanyId = `company-default`;
     const initialFields = INITIAL_UI_CONFIG.map(f => {
@@ -32,7 +25,7 @@ const getInitialData = (): MyTaskManagerData => {
             return { ...f, options: TASK_STATUSES.map(s => ({id: s, value: s, label: s})) };
         }
         if (f.key === 'relevantEnvironments') {
-            return { ...f, options: ENVIRONMENTS.map(e => ({id: e.id, value: e.name, label: e.name})) };
+            return { ...f, options: ENVIRONMENTS.map(e => ({ id: e.id, value: e.name, label: e.name})) };
         }
         return f;
     });
@@ -41,7 +34,7 @@ const getInitialData = (): MyTaskManagerData => {
         companies: [{ id: defaultCompanyId, name: 'Default Company' }],
         activeCompanyId: defaultCompanyId,
         companyData: {
-            [defaultCompanyId]: {
+             [defaultCompanyId]: {
                 tasks: [],
                 trash: [],
                 developers: [],
@@ -70,37 +63,22 @@ const getInitialData = (): MyTaskManagerData => {
     };
 };
 
-/**
- * Standardized mode-aware storage fetcher.
- */
 export const getAppData = (): MyTaskManagerData => {
     if (getAuthMode() === 'authenticate' && _cloudCache) {
         return _cloudCache;
     }
-
-    if (typeof window === 'undefined') {
-        return getInitialData();
-    }
-
+    if (typeof window === 'undefined') return getInitialData();
     const stored = window.localStorage.getItem(DATA_KEY);
-    if (!stored) {
-        return getInitialData();
-    }
-
+    if (!stored) return getInitialData();
     try {
-        const data: MyTaskManagerData = JSON.parse(stored);
-        return data;
+        return JSON.parse(stored);
     } catch (e) {
         return getInitialData();
     }
 };
 
-/**
- * Mode-aware storage persistence.
- */
 export const setAppData = (data: MyTaskManagerData) => {
     if (typeof window === 'undefined') return;
-
     if (getAuthMode() === 'authenticate') {
         _cloudCache = data;
     } else {
@@ -109,26 +87,17 @@ export const setAppData = (data: MyTaskManagerData) => {
     window.dispatchEvent(new StorageEvent('storage', { key: DATA_KEY }));
 };
 
-/**
- * Returns the current storage/authentication mode.
- */
 export function getAuthMode(): AuthMode {
     if (typeof window === 'undefined') return 'localStorage';
     return (window.localStorage.getItem(AUTH_MODE_KEY) as AuthMode) || 'localStorage';
 }
 
-/**
- * Switches the application mode.
- */
 export function setAuthMode(mode: AuthMode) {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(AUTH_MODE_KEY, mode);
     window.dispatchEvent(new Event('company-changed'));
 }
 
-/**
- * Handles Firestore mutations if in Authenticate mode.
- */
 async function dispatchMutation(
     type: 'tasks' | 'notes' | 'logs' | 'uiConfig' | 'developers' | 'testers' | 'generalReminders' | 'releaseUpdates' | 'companies',
     id: string,
@@ -136,12 +105,10 @@ async function dispatchMutation(
     operation: 'create' | 'update' | 'delete' | 'set'
 ) {
     if (getAuthMode() !== 'authenticate') return;
-
     const auth = getAuth();
     const db = getFirestore();
     const userId = auth.currentUser?.uid;
     const activeCompanyId = getActiveCompanyId();
-
     if (!userId) return;
 
     let docRef;
@@ -172,9 +139,451 @@ async function dispatchMutation(
     }
 }
 
-/**
- * Adds a log entry to the active company.
- */
+// Company Management
+export function getCompanies(): Company[] {
+    return getAppData().companies;
+}
+
+export function getActiveCompanyId(): string {
+    return getAppData().activeCompanyId;
+}
+
+export function setActiveCompanyId(id: string) {
+    const data = getAppData();
+    data.activeCompanyId = id;
+    setAppData(data);
+}
+
+export function addCompany(name: string) {
+    const data = getAppData();
+    const id = `company-${crypto.randomUUID()}`;
+    const newCompany = { id, name };
+    data.companies.push(newCompany);
+    data.companyData[id] = {
+        tasks: [],
+        trash: [],
+        developers: [],
+        testers: [],
+        notes: [],
+        uiConfig: getInitialData().companyData['company-default'].uiConfig,
+        logs: [],
+        generalReminders: [],
+        releaseUpdates: [...INITIAL_RELEASES],
+    };
+    data.activeCompanyId = id;
+    setAppData(data);
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('companies', id, newCompany, 'create');
+    }
+}
+
+export function updateCompany(id: string, name: string) {
+    const data = getAppData();
+    const company = data.companies.find(c => c.id === id);
+    if (company) {
+        company.name = name;
+        setAppData(data);
+        if (getAuthMode() === 'authenticate') {
+            dispatchMutation('companies', id, { name }, 'update');
+        }
+    }
+}
+
+export function deleteCompany(id: string): boolean {
+    const data = getAppData();
+    if (data.companies.length <= 1) return false;
+    data.companies = data.companies.filter(c => c.id !== id);
+    delete data.companyData[id];
+    if (data.activeCompanyId === id) {
+        data.activeCompanyId = data.companies[0].id;
+    }
+    setAppData(data);
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('companies', id, null, 'delete');
+    }
+    return true;
+}
+
+// UI Config
+export function getUiConfig(): UiConfig {
+    const data = getAppData();
+    const config = data.companyData[getActiveCompanyId()]?.uiConfig;
+    if (!config) return getInitialData().companyData['company-default'].uiConfig;
+    
+    // Deduplicate environments by name
+    if (config.environments) {
+        const seen = new Set();
+        const uniqueEnvs = config.environments.filter(env => {
+            if (!env || !env.name) return false;
+            const name = env.name.toLowerCase();
+            if (seen.has(name)) return false;
+            seen.add(name);
+            return true;
+        });
+        if (uniqueEnvs.length !== config.environments.length) {
+            config.environments = uniqueEnvs;
+            setUiConfig(config);
+        }
+    }
+    return config;
+}
+
+export function setUiConfig(config: UiConfig) {
+    const data = getAppData();
+    data.companyData[getActiveCompanyId()].uiConfig = config;
+    setAppData(data);
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('uiConfig', '', config, 'set');
+    }
+}
+
+// Task Statuses
+export function updateTaskStatuses(statuses: string[]) {
+    const config = getUiConfig();
+    config.taskStatuses = statuses;
+    
+    // Update the status field options too
+    const statusField = config.fields.find(f => f.key === 'status');
+    if (statusField) {
+        statusField.options = statuses.map(s => ({ id: s, value: s, label: s }));
+    }
+    
+    setUiConfig(config);
+}
+
+// Environments
+export function addEnvironment(env: Omit<Environment, 'id'>) {
+    const config = getUiConfig();
+    const existing = config.environments.find(e => e.name.toLowerCase() === env.name.toLowerCase());
+    if (existing) return; // Prevent duplicates
+
+    const newEnv = { ...env, id: `env_${crypto.randomUUID()}` };
+    config.environments.push(newEnv);
+    
+    // Update the relevantEnvironments field options
+    const relEnvsField = config.fields.find(f => f.key === 'relevantEnvironments');
+    if (relEnvsField) {
+        relEnvsField.options = config.environments.map(e => ({ id: e.id, value: e.name, label: e.name }));
+    }
+    
+    setUiConfig(config);
+    addLog({ message: `Added new environment: **${env.name}**` });
+}
+
+// People management
+export function getDevelopers(): Person[] {
+    return getAppData().companyData[getActiveCompanyId()]?.developers || [];
+}
+
+export function addDeveloper(person: Omit<Person, 'id'>): Person {
+    const data = getAppData();
+    const id = `dev-${crypto.randomUUID()}`;
+    const newPerson = { ...person, id };
+    const companyId = getActiveCompanyId();
+    data.companyData[companyId].developers.push(newPerson);
+    setAppData(data);
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('developers', '', data.companyData[companyId].developers, 'set');
+    }
+    return newPerson;
+}
+
+export function updateDeveloper(id: string, updates: Partial<Person>) {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    const index = data.companyData[companyId].developers.findIndex(p => p.id === id);
+    if (index !== -1) {
+        data.companyData[companyId].developers[index] = { ...data.companyData[companyId].developers[index], ...updates };
+        setAppData(data);
+        if (getAuthMode() === 'authenticate') {
+            dispatchMutation('developers', '', data.companyData[companyId].developers, 'set');
+        }
+    }
+}
+
+export function deleteDeveloper(id: string): boolean {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    data.companyData[companyId].developers = data.companyData[companyId].developers.filter(p => p.id !== id);
+    setAppData(data);
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('developers', '', data.companyData[companyId].developers, 'set');
+    }
+    return true;
+}
+
+export function getTesters(): Person[] {
+    return getAppData().companyData[getActiveCompanyId()]?.testers || [];
+}
+
+export function addTester(person: Omit<Person, 'id'>): Person {
+    const data = getAppData();
+    const id = `tester-${crypto.randomUUID()}`;
+    const newPerson = { ...person, id };
+    const companyId = getActiveCompanyId();
+    data.companyData[companyId].testers.push(newPerson);
+    setAppData(data);
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('testers', '', data.companyData[companyId].testers, 'set');
+    }
+    return newPerson;
+}
+
+export function updateTester(id: string, updates: Partial<Person>) {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    const index = data.companyData[companyId].testers.findIndex(p => p.id === id);
+    if (index !== -1) {
+        data.companyData[companyId].testers[index] = { ...data.companyData[companyId].testers[index], ...updates };
+        setAppData(data);
+        if (getAuthMode() === 'authenticate') {
+            dispatchMutation('testers', '', data.companyData[companyId].testers, 'set');
+        }
+    }
+}
+
+export function deleteTester(id: string): boolean {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    data.companyData[companyId].testers = data.companyData[companyId].testers.filter(p => p.id !== id);
+    setAppData(data);
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('testers', '', data.companyData[companyId].testers, 'set');
+    }
+    return true;
+}
+
+// Tasks
+export function getTasks(): Task[] {
+    return getAppData().companyData[getActiveCompanyId()]?.tasks || [];
+}
+
+export function getTaskById(id: string): Task | undefined {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    return data.companyData[companyId]?.tasks.find(t => t.id === id) || 
+           data.companyData[companyId]?.trash.find(t => t.id === id);
+}
+
+export function addTask(task: Partial<Task>): Task {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    const id = `task-${crypto.randomUUID()}`;
+    const now = new Date().toISOString();
+    const newTask: Task = {
+        title: '', description: '', status: 'To Do',
+        ...task,
+        id, createdAt: now, updatedAt: now
+    } as Task;
+    data.companyData[companyId].tasks.unshift(newTask);
+    setAppData(data);
+    addLog({ message: `Created task "**${newTask.title}**"`, taskId: id });
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('tasks', id, newTask, 'create');
+    }
+    return newTask;
+}
+
+export function updateTask(id: string, updates: Partial<Task>, silent = false): Task | null {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    const taskIndex = data.companyData[companyId].tasks.findIndex(t => t.id === id);
+    if (taskIndex === -1) return null;
+
+    const oldTask = data.companyData[companyId].tasks[taskIndex];
+    const newTask = { ...oldTask, ...updates, updatedAt: new Date().toISOString() };
+    data.companyData[companyId].tasks[taskIndex] = newTask;
+    setAppData(data);
+
+    if (!silent) {
+        const changes: string[] = [];
+        if (updates.title && updates.title !== oldTask.title) changes.push(`renamed to "**${updates.title}**"`);
+        if (updates.status && updates.status !== oldTask.status) changes.push(`changed status to "**${updates.status}**"`);
+        if (changes.length > 0) {
+            addLog({ message: `Task "**${newTask.title}**" ${changes.join(' and ')}`, taskId: id });
+        }
+    }
+
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('tasks', id, newTask, 'update');
+    }
+    return newTask;
+}
+
+export function moveTaskToBin(id: string) {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    const taskIndex = data.companyData[companyId].tasks.findIndex(t => t.id === id);
+    if (taskIndex === -1) return;
+
+    const task = data.companyData[companyId].tasks.splice(taskIndex, 1)[0];
+    task.deletedAt = new Date().toISOString();
+    data.companyData[companyId].trash.unshift(task);
+    setAppData(data);
+    addLog({ message: `Moved task "**${task.title}**" to the bin`, taskId: id });
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('tasks', id, task, 'update');
+    }
+}
+
+export function restoreTask(id: string) {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    const taskIndex = data.companyData[companyId].trash.findIndex(t => t.id === id);
+    if (taskIndex === -1) return;
+
+    const task = data.companyData[companyId].trash.splice(taskIndex, 1)[0];
+    delete task.deletedAt;
+    data.companyData[companyId].tasks.unshift(task);
+    setAppData(data);
+    addLog({ message: `Restored task "**${task.title}**" from the bin`, taskId: id });
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('tasks', id, task, 'update');
+    }
+}
+
+// Bulk Task Operations
+export function moveMultipleTasksToBin(ids: string[]) {
+    ids.forEach(id => moveTaskToBin(id));
+}
+
+export function restoreMultipleTasks(ids: string[]) {
+    ids.forEach(id => restoreTask(id));
+}
+
+export function permanentlyDeleteMultipleTasks(ids: string[]) {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    data.companyData[companyId].trash = data.companyData[companyId].trash.filter(t => !ids.includes(t.id));
+    setAppData(data);
+    if (getAuthMode() === 'authenticate') {
+        ids.forEach(id => dispatchMutation('tasks', id, null, 'delete'));
+    }
+}
+
+export function emptyBin() {
+    const binned = getBinnedTasks();
+    permanentlyDeleteMultipleTasks(binned.map(t => t.id));
+}
+
+export function addTagsToMultipleTasks(taskIds: string[], tagsToAdd: string[]) {
+    taskIds.forEach(id => {
+        const task = getTaskById(id);
+        if (task) {
+            const currentTags = task.tags || [];
+            const newTags = [...new Set([...currentTags, ...tagsToAdd])];
+            updateTask(id, { tags: newTags }, true);
+        }
+    });
+    addLog({ message: `Applied tags [${tagsToAdd.join(', ')}] to ${taskIds.length} task(s).` });
+}
+
+// Binned Tasks
+export function getBinnedTasks(): Task[] {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    return data.companyData[companyId]?.trash || [];
+}
+
+// Notes
+export function getNotes(): Note[] {
+    return getAppData().companyData[getActiveCompanyId()]?.notes || [];
+}
+
+export function addNote(note: Partial<Note>): Note {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    const id = `note-${crypto.randomUUID()}`;
+    const now = new Date().toISOString();
+    const newNote: Note = {
+        title: '', content: '',
+        ...note,
+        id, createdAt: now, updatedAt: now,
+        layout: { i: id, x: 0, y: 0, w: 4, h: 4 }
+    } as Note;
+    data.companyData[companyId].notes.unshift(newNote);
+    setAppData(data);
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('notes', id, newNote, 'create');
+    }
+    return newNote;
+}
+
+export function updateNote(id: string, updates: Partial<Note>) {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    const index = data.companyData[companyId].notes.findIndex(n => n.id === id);
+    if (index !== -1) {
+        data.companyData[companyId].notes[index] = { ...data.companyData[companyId].notes[index], ...updates, updatedAt: new Date().toISOString() };
+        setAppData(data);
+        if (getAuthMode() === 'authenticate') {
+            dispatchMutation('notes', id, data.companyData[companyId].notes[index], 'update');
+        }
+    }
+}
+
+export function deleteNote(id: string) {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    data.companyData[companyId].notes = data.companyData[companyId].notes.filter(n => n.id !== id);
+    setAppData(data);
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('notes', id, null, 'delete');
+    }
+}
+
+export function deleteMultipleNotes(ids: string[]) {
+    ids.forEach(id => deleteNote(id));
+}
+
+export function importNotes(notes: Partial<Note>[]) {
+    notes.forEach(n => addNote(n));
+}
+
+export function updateNoteLayouts(layouts: NoteLayout[]) {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    layouts.forEach(l => {
+        const note = data.companyData[companyId].notes.find(n => n.id === l.i);
+        if (note) {
+            note.layout = { ...l };
+            if (getAuthMode() === 'authenticate') {
+                dispatchMutation('notes', note.id, note, 'update');
+            }
+        }
+    });
+    setAppData(data);
+}
+
+export function resetNotesLayout(): boolean {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    const notes = data.companyData[companyId].notes;
+    if (notes.length === 0) return false;
+    
+    notes.forEach((note, idx) => {
+        note.layout = { i: note.id, x: (idx * 4) % 12, y: Math.floor(idx / 3) * 4, w: 4, h: 4 };
+        if (getAuthMode() === 'authenticate') {
+            dispatchMutation('notes', note.id, note, 'update');
+        }
+    });
+    setAppData(data);
+    return true;
+}
+
+// Logs
+export function getAggregatedLogs(): Log[] {
+    return getAppData().companyData[getActiveCompanyId()]?.logs || [];
+}
+
+export function getLogs(): Log[] {
+    return getAggregatedLogs();
+}
+
+export function getLogsForTask(taskId: string): Log[] {
+    return getAggregatedLogs().filter(l => l.taskId === taskId);
+}
+
 function _addLog(companyData: CompanyData, logData: Omit<Log, 'id' | 'timestamp'>) {
     const newLog: Log = {
         id: `log-${crypto.randomUUID()}`,
@@ -185,426 +594,258 @@ function _addLog(companyData: CompanyData, logData: Omit<Log, 'id' | 'timestamp'
     dispatchMutation('logs', newLog.id, newLog, 'set');
 }
 
-// --- EXPORTED API FUNCTIONS ---
-
-// Companies
-export function getCompanies(): Company[] { return getAppData().companies; }
-export function getActiveCompanyId(): string { return getAppData().activeCompanyId; }
-export function setActiveCompanyId(id: string) {
+export function addLog(log: Omit<Log, 'id' | 'timestamp'>) {
     const data = getAppData();
-    if (data.companies.some(c => c.id === id)) {
-        data.activeCompanyId = id;
-        if (getAuthMode() === 'localStorage') setAppData(data);
-        window.dispatchEvent(new Event('company-changed'));
-    }
-}
-export function addCompany(name: string): Company {
-    const data = getAppData();
-    const newId = `company-${crypto.randomUUID()}`;
-    const newCompany = { id: newId, name };
-    data.companies.push(newCompany);
-    data.companyData[newId] = cloneDeep(getInitialData().companyData['company-default']);
-    data.companyData[newId].uiConfig.appName = name;
-    dispatchMutation('companies', newId, newCompany, 'set');
-    setAppData(data);
-    return newCompany;
-}
-export function updateCompany(id: string, name: string) {
-    const data = getAppData();
-    const company = data.companies.find(c => c.id === id);
-    if (company) {
-        company.name = name;
-        dispatchMutation('companies', id, { id, name }, 'update');
-        setAppData(data);
-    }
-}
-export function deleteCompany(id: string) {
-    const data = getAppData();
-    if (data.companies.length <= 1) return false;
-    data.companies = data.companies.filter(c => c.id !== id);
-    delete data.companyData[id];
-    if (data.activeCompanyId === id) data.activeCompanyId = data.companies[0].id;
-    dispatchMutation('companies', id, null, 'delete');
-    setAppData(data);
-    return true;
-}
-
-// Tasks
-export function getTasks(): Task[] { return getAppData().companyData[getActiveCompanyId()]?.tasks || []; }
-export function getBinnedTasks(): Task[] { return getAppData().companyData[getActiveCompanyId()]?.trash || []; }
-export function getTaskById(id: string) { return [...getTasks(), ...getBinnedTasks()].find(t => t.id === id); }
-export function addTask(task: Partial<Task>) {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    const newTask = {
-        id: task.id || `task-${crypto.randomUUID()}`,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        title: 'Untitled Task',
-        description: '',
-        status: 'To Do',
-        ...task
-    } as Task;
-    companyData.tasks.unshift(newTask);
-    dispatchMutation('tasks', newTask.id, newTask, 'set');
-    _addLog(companyData, { message: `Created task "**${newTask.title}**"`, taskId: newTask.id });
-    setAppData(data);
-    return newTask;
-}
-export function updateTask(id: string, task: Partial<Task>, silent = false) {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    let listName: 'tasks' | 'trash' = 'tasks';
-    let index = companyData.tasks.findIndex(t => t.id === id);
-    if (index === -1) { index = companyData.trash.findIndex(t => t.id === id); listName = 'trash'; }
-    if (index !== -1) {
-        companyData[listName][index] = { ...companyData[listName][index], ...task, updatedAt: new Date().toISOString() };
-        dispatchMutation('tasks', id, companyData[listName][index], 'update');
-        if (!silent) _addLog(companyData, { message: `Updated task "**${companyData[listName][index].title}**"`, taskId: id });
-        setAppData(data);
-        return companyData[listName][index];
-    }
-}
-export function moveTaskToBin(id: string) {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    const index = companyData.tasks.findIndex(t => t.id === id);
-    if (index !== -1) {
-        const [task] = companyData.tasks.splice(index, 1);
-        task.deletedAt = new Date().toISOString();
-        companyData.trash.unshift(task);
-        dispatchMutation('tasks', id, task, 'update');
-        _addLog(companyData, { message: `Moved task "**${task.title}**" to bin.`, taskId: id });
-        setAppData(data);
-    }
-}
-export function moveMultipleTasksToBin(ids: string[]) { ids.forEach(id => moveTaskToBin(id)); }
-export function restoreTask(id: string) {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    const index = companyData.trash.findIndex(t => t.id === id);
-    if (index !== -1) {
-        const [task] = companyData.trash.splice(index, 1);
-        delete task.deletedAt;
-        companyData.tasks.unshift(task);
-        dispatchMutation('tasks', id, task, 'set');
-        _addLog(companyData, { message: `Restored task "**${task.title}**" from bin.`, taskId: id });
-        setAppData(data);
-    }
-}
-export function restoreMultipleTasks(ids: string[]) { ids.forEach(id => restoreTask(id)); }
-export function permanentlyDeleteTask(id: string) {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    companyData.trash = companyData.trash.filter(t => t.id !== id);
-    dispatchMutation('tasks', id, null, 'delete');
+    const companyId = getActiveCompanyId();
+    if (!data.companyData[companyId]) return;
+    _addLog(data.companyData[companyId]!, log);
     setAppData(data);
 }
-export function permanentlyDeleteMultipleTasks(ids: string[]) { ids.forEach(id => permanentlyDeleteTask(id)); }
-export function emptyBin() { const binned = getBinnedTasks(); binned.forEach(t => permanentlyDeleteTask(t.id)); }
 
-// People
-export function getDevelopers() { return getAppData().companyData[getActiveCompanyId()]?.developers || []; }
-export function addDeveloper(p: Partial<Person>) {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    const newPerson = { id: `dev-${crypto.randomUUID()}`, name: '', ...p } as Person;
-    companyData.developers.push(newPerson);
-    dispatchMutation('developers', 'developers', { list: companyData.developers }, 'set');
-    setAppData(data);
-    return newPerson;
-}
-export function updateDeveloper(id: string, p: Partial<Person>) {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    const index = companyData.developers.findIndex(x => x.id === id);
-    if (index !== -1) {
-        companyData.developers[index] = { ...companyData.developers[index], ...p };
-        dispatchMutation('developers', 'developers', { list: companyData.developers }, 'set');
-        setAppData(data);
-    }
-}
-export function deleteDeveloper(id: string) {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    companyData.developers = companyData.developers.filter(x => x.id !== id);
-    dispatchMutation('developers', 'developers', { list: companyData.developers }, 'set');
-    setAppData(data);
-    return true;
-}
-export function getTesters() { return getAppData().companyData[getActiveCompanyId()]?.testers || []; }
-export function addTester(p: Partial<Person>) {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    const newPerson = { id: `test-${crypto.randomUUID()}`, name: '', ...p } as Person;
-    companyData.testers.push(newPerson);
-    dispatchMutation('testers', 'testers', { list: companyData.testers }, 'set');
-    setAppData(data);
-    return newPerson;
-}
-export function updateTester(id: string, p: Partial<Person>) {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    const index = companyData.testers.findIndex(x => x.id === id);
-    if (index !== -1) {
-        companyData.testers[index] = { ...companyData.testers[index], ...p };
-        dispatchMutation('testers', 'testers', { list: companyData.testers }, 'set');
-        setAppData(data);
-    }
-}
-export function deleteTester(id: string) {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    companyData.testers = companyData.testers.filter(x => x.id !== id);
-    dispatchMutation('testers', 'testers', { list: companyData.testers }, 'set');
-    setAppData(data);
-    return true;
+// General Reminders
+export function getGeneralReminders(): GeneralReminder[] {
+    return getAppData().companyData[getActiveCompanyId()]?.generalReminders || [];
 }
 
-// Config & Settings
-export function getUiConfig(): UiConfig {
-    const data = getAppData();
-    const config = data.companyData[data.activeCompanyId]?.uiConfig || getInitialData().companyData['company-default'].uiConfig;
-    
-    // Safety check: ensure environments are unique by name
-    if (config.environments && Array.isArray(config.environments)) {
-        const seen = new Set<string>();
-        const uniqueEnvs = config.environments.filter(env => {
-            if (!env || !env.name) return false;
-            const normalized = env.name.toLowerCase().trim();
-            if (seen.has(normalized)) return false;
-            seen.add(normalized);
-            return true;
-        });
-        
-        if (uniqueEnvs.length !== config.environments.length) {
-            config.environments = uniqueEnvs;
-        }
-    }
-    
-    return config;
-}
-
-export function updateUiConfig(newConfig: Partial<UiConfig>, isFullReplacement = false) {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    
-    let mergedConfig: UiConfig;
-    if (isFullReplacement) mergedConfig = newConfig as UiConfig;
-    else mergedConfig = { ...companyData.uiConfig, ...newConfig };
-
-    // Deduplicate environments on save
-    if (mergedConfig.environments && Array.isArray(mergedConfig.environments)) {
-        const seen = new Set<string>();
-        mergedConfig.environments = mergedConfig.environments.filter(env => {
-            if (!env || !env.name) return false;
-            const normalized = env.name.toLowerCase().trim();
-            if (seen.has(normalized)) return false;
-            seen.add(normalized);
-            return true;
-        });
-    }
-
-    companyData.uiConfig = mergedConfig;
-    dispatchMutation('uiConfig', 'uiConfig', companyData.uiConfig, 'set');
-    setAppData(data);
-    window.dispatchEvent(new Event('config-changed'));
-}
-
-export function addEnvironment(name: string) {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    
-    // Strict duplicate check
-    const normalizedName = name.toLowerCase().trim();
-    if (companyData.uiConfig.environments.some(e => e.name.toLowerCase().trim() === normalizedName)) {
-        return false;
-    }
-
-    const newEnv = { id: `env-${crypto.randomUUID()}`, name: name.trim(), color: '#3b82f6' };
-    companyData.uiConfig.environments.push(newEnv);
-    updateUiConfig(companyData.uiConfig, true);
-    return true;
-}
-
-export function updateEnvironment(oldName: string, env: Environment) {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    const index = companyData.uiConfig.environments.findIndex(x => x.name === oldName);
-    if (index !== -1) {
-        // Prevent renaming to another existing environment name
-        const normalizedNewName = env.name.toLowerCase().trim();
-        const conflict = companyData.uiConfig.environments.some((e, i) => i !== index && e.name.toLowerCase().trim() === normalizedNewName);
-        if (conflict) return false;
-
-        companyData.uiConfig.environments[index] = { ...env, name: env.name.trim() };
-        updateUiConfig(companyData.uiConfig, true);
-        return true;
-    }
-    return false;
-}
-
-export function deleteEnvironment(name: string) {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    companyData.uiConfig.environments = companyData.uiConfig.environments.filter(x => x.name !== name);
-    updateUiConfig(companyData.uiConfig, true);
-    return true;
-}
-
-// Logs
-export function getLogs() { return getAppData().companyData[getActiveCompanyId()]?.logs || []; }
-export function addLog(logData: Omit<Log, 'id' | 'timestamp'>) {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    if (!companyData) return;
-    _addLog(companyData, logData);
-    setAppData(data);
-}
-export function getLogsForTask(taskId: string): Log[] {
-    return getLogs().filter(log => log.taskId === taskId);
-}
-export function getAggregatedLogs(): Log[] {
-    return getLogs();
-}
-
-// Reminders
-export function getGeneralReminders() { return getAppData().companyData[getActiveCompanyId()]?.generalReminders || []; }
 export function addGeneralReminder(text: string) {
     const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    const newRem = { id: `rem-${crypto.randomUUID()}`, text, createdAt: new Date().toISOString() };
-    companyData.generalReminders.push(newRem);
-    dispatchMutation('generalReminders', 'general', { list: companyData.generalReminders }, 'set');
+    const companyId = getActiveCompanyId();
+    const id = `rem-${crypto.randomUUID()}`;
+    const newRem = { id, text, createdAt: new Date().toISOString() };
+    data.companyData[companyId].generalReminders.unshift(newRem);
     setAppData(data);
-    return newRem;
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('generalReminders', '', data.companyData[companyId].generalReminders, 'set');
+    }
 }
+
 export function updateGeneralReminder(id: string, text: string) {
     const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    const index = companyData.generalReminders.findIndex(x => x.id === id);
+    const companyId = getActiveCompanyId();
+    const index = data.companyData[companyId].generalReminders.findIndex(r => r.id === id);
     if (index !== -1) {
-        companyData.generalReminders[index].text = text;
-        dispatchMutation('generalReminders', 'general', { list: companyData.generalReminders }, 'set');
+        data.companyData[companyId].generalReminders[index].text = text;
         setAppData(data);
+        if (getAuthMode() === 'authenticate') {
+            dispatchMutation('generalReminders', '', data.companyData[companyId].generalReminders, 'set');
+        }
     }
 }
-export function deleteGeneralReminder(id: string) {
+
+export function deleteGeneralReminder(id: string): boolean {
     const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    companyData.generalReminders = companyData.generalReminders.filter(x => x.id !== id);
-    dispatchMutation('generalReminders', 'general', { list: companyData.generalReminders }, 'set');
+    const companyId = getActiveCompanyId();
+    data.companyData[companyId].generalReminders = data.companyData[companyId].generalReminders.filter(r => r.id !== id);
     setAppData(data);
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('generalReminders', '', data.companyData[companyId].generalReminders, 'set');
+    }
     return true;
 }
 
-// Notes
-export function getNotes() { return getAppData().companyData[getActiveCompanyId()]?.notes || []; }
-export function addNote(note: Partial<Note>) {
+export function clearExpiredReminders(): { updatedTaskIds: string[], unpinnedTaskIds: string[] } {
     const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    const newNote = {
-        id: `note-${crypto.randomUUID()}`,
-        title: '',
-        content: '',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        layout: { i: '', x: 0, y: 0, w: 3, h: 6 },
-        ...note
-    } as Note;
-    newNote.layout.i = newNote.id;
-    companyData.notes.unshift(newNote);
-    dispatchMutation('notes', newNote.id, newNote, 'set');
-    setAppData(data);
-    return newNote;
-}
-export function updateNote(id: string, note: Partial<Note>) {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    const index = companyData.notes.findIndex(x => x.id === id);
-    if (index !== -1) {
-        companyData.notes[index] = { ...companyData.notes[index], ...note, updatedAt: new Date().toISOString() };
-        dispatchMutation('notes', id, companyData.notes[index], 'update');
-        setAppData(data);
-    }
-}
-export function deleteNote(id: string) {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    const index = companyData.notes.findIndex(x => x.id === id);
-    if (index !== -1) {
-        const [note] = companyData.notes.splice(index, 1);
-        dispatchMutation('notes', id, null, 'delete');
-        // Note trash behavior: move to task bin for safety
-        const asTask: Task = { id: note.id, title: `Note: ${note.title || 'Untitled'}`, description: note.content, status: 'Archived', createdAt: note.createdAt, updatedAt: new Date().toISOString(), deletedAt: new Date().toISOString() };
-        companyData.trash.unshift(asTask);
-        dispatchMutation('tasks', asTask.id, asTask, 'set');
-        setAppData(data);
-    }
-    return true;
-}
-export function updateNoteLayouts(layouts: NoteLayout[]) {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    layouts.forEach(l => {
-        const n = companyData.notes.find(x => x.id === l.i);
-        if (n) {
-            n.layout = { ...n.layout, ...l };
-            dispatchMutation('notes', n.id, n, 'update');
+    const companyId = getActiveCompanyId();
+    const tasks = data.companyData[companyId].tasks;
+    const now = new Date();
+    const updatedTaskIds: string[] = [];
+    const unpinnedTaskIds: string[] = [];
+
+    tasks.forEach(t => {
+        if (t.reminderExpiresAt && new Date(t.reminderExpiresAt) <= now) {
+            t.reminder = null;
+            t.reminderExpiresAt = null;
+            updatedTaskIds.push(t.id);
+            unpinnedTaskIds.push(t.id);
+            if (getAuthMode() === 'authenticate') {
+                dispatchMutation('tasks', t.id, t, 'update');
+            }
         }
     });
-    setAppData(data);
-}
-export function resetNotesLayout() {
-    const notes = getNotes();
-    notes.forEach((n, i) => {
-        n.layout = { i: n.id, x: (i * 3) % 12, y: Math.floor(i / 4) * 6, w: 3, h: 6 };
-        dispatchMutation('notes', n.id, n, 'update');
-    });
-    setAppData(getAppData());
-    return true;
-}
-export function deleteMultipleNotes(ids: string[]) { ids.forEach(id => deleteNote(id)); }
-export function importNotes(notes: Partial<Note>[]) { notes.forEach(n => addNote(n)); return getNotes(); }
 
-// Releases
-export function getReleaseUpdates(onlyPublished = true) {
-    const rels = getAppData().companyData[getActiveCompanyId()]?.releaseUpdates || [];
-    return onlyPublished ? rels.filter(r => r.isPublished) : rels;
-}
-export function addReleaseUpdate(r: Partial<ReleaseUpdate>) {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    const newRel = { id: `rel-${crypto.randomUUID()}`, version: '', title: '', date: new Date().toISOString(), items: [], isPublished: false, ...r };
-    companyData.releaseUpdates.unshift(newRel);
-    dispatchMutation('releaseUpdates', 'updates', { list: companyData.releaseUpdates }, 'set');
-    setAppData(data);
-    return newRel;
-}
-export function updateReleaseUpdate(id: string, r: Partial<ReleaseUpdate>) {
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    const index = companyData.releaseUpdates.findIndex(x => x.id === id);
-    if (index !== -1) {
-        companyData.releaseUpdates[index] = { ...companyData.releaseUpdates[index], ...r };
-        dispatchMutation('releaseUpdates', 'updates', { list: companyData.releaseUpdates }, 'set');
+    if (updatedTaskIds.length > 0) {
         setAppData(data);
     }
+    return { updatedTaskIds, unpinnedTaskIds };
 }
-export function deleteReleaseUpdate(id: string) {
+
+// Release Updates
+export function getReleaseUpdates(publishedOnly = true): ReleaseUpdate[] {
+    const all = getAppData().companyData[getActiveCompanyId()]?.releaseUpdates || [];
+    if (publishedOnly) return all.filter(r => r.isPublished).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return [...all].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
+export function addReleaseUpdate(release: Partial<ReleaseUpdate>) {
     const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-    companyData.releaseUpdates = companyData.releaseUpdates.filter(x => x.id !== id);
-    dispatchMutation('releaseUpdates', 'updates', { list: companyData.releaseUpdates }, 'set');
+    const companyId = getActiveCompanyId();
+    const id = `rel-${crypto.randomUUID()}`;
+    const newRel = { id, version: '', title: '', items: [], date: new Date().toISOString(), isPublished: false, ...release } as ReleaseUpdate;
+    data.companyData[companyId].releaseUpdates.unshift(newRel);
     setAppData(data);
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('releaseUpdates', '', data.companyData[companyId].releaseUpdates, 'set');
+    }
+}
+
+export function updateReleaseUpdate(id: string, updates: Partial<ReleaseUpdate>) {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    const index = data.companyData[companyId].releaseUpdates.findIndex(r => r.id === id);
+    if (index !== -1) {
+        data.companyData[companyId].releaseUpdates[index] = { ...data.companyData[companyId].releaseUpdates[index], ...updates };
+        setAppData(data);
+        if (getAuthMode() === 'authenticate') {
+            dispatchMutation('releaseUpdates', '', data.companyData[companyId].releaseUpdates, 'set');
+        }
+    }
+}
+
+export function deleteReleaseUpdate(id: string): boolean {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    data.companyData[companyId].releaseUpdates = data.companyData[companyId].releaseUpdates.filter(r => r.id !== id);
+    setAppData(data);
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('releaseUpdates', '', data.companyData[companyId].releaseUpdates, 'set');
+    }
     return true;
 }
 
-// --- BULK OPERATIONS & MODE-AWARE CLEARING ---
+// Comment management
+export function addComment(taskId: string, text: string): Task | null {
+    const comment: Comment = { text, timestamp: new Date().toISOString() };
+    const task = getTaskById(taskId);
+    if (task) {
+        const comments = [...(task.comments || []), comment];
+        return updateTask(taskId, { comments }, true);
+    }
+    return null;
+}
 
-/**
- * Clears data according to the current storage mode.
- */
+export function updateComment(taskId: string, index: number, text: string): Task | null {
+    const task = getTaskById(taskId);
+    if (task && task.comments && task.comments[index]) {
+        const comments = [...task.comments];
+        comments[index] = { ...comments[index], text };
+        return updateTask(taskId, { comments }, true);
+    }
+    return null;
+}
+
+export function deleteComment(taskId: string, index: number): Task | null {
+    const task = getTaskById(taskId);
+    if (task && task.comments && task.comments[index]) {
+        const comments = task.comments.filter((_, i) => i !== index);
+        return updateTask(taskId, { comments }, true);
+    }
+    return null;
+}
+
+// Data Utility Functions
+export async function importWorkspaceData(parsedJson: any, onProgress?: (percent: number) => void) {
+    const mode = getAuthMode();
+    const companyId = getActiveCompanyId();
+    const db = getFirestore();
+    const auth = getAuth();
+    const userId = auth.currentUser?.uid;
+
+    if (mode === 'authenticate' && !userId) throw new Error("User not authenticated.");
+
+    const tasks = Array.isArray(parsedJson.tasks) ? parsedJson.tasks : [];
+    const devs = Array.isArray(parsedJson.developers) ? parsedJson.developers : [];
+    const testers = Array.isArray(parsedJson.testers) ? parsedJson.testers : [];
+    const notes = Array.isArray(parsedJson.notes) ? parsedJson.notes : [];
+    const repoConfigs = Array.isArray(parsedJson.repositoryConfigs) ? parsedJson.repositoryConfigs : [];
+    const envs = Array.isArray(parsedJson.environments) ? parsedJson.environments : [];
+
+    const total = tasks.length + devs.length + testers.length + notes.length;
+    let completed = 0;
+
+    const reportProgress = () => {
+        completed++;
+        if (onProgress) onProgress(Math.floor((completed / total) * 100));
+    };
+
+    if (mode === 'authenticate') {
+        const companyBase = `users/${userId}/companies/${companyId}`;
+        
+        // 1. Batch create/update people
+        if (devs.length > 0) {
+            const current = getDevelopers();
+            const merged = [...current];
+            devs.forEach(d => { if (!merged.some(m => m.name === d.name)) merged.push({ ...d, id: `dev-${crypto.randomUUID()}` }); });
+            await setDoc(doc(db, companyBase, 'people', 'developers'), { list: merged });
+        }
+        if (testers.length > 0) {
+            const current = getTesters();
+            const merged = [...current];
+            testers.forEach(t => { if (!merged.some(m => m.name === t.name)) merged.push({ ...t, id: `tester-${crypto.randomUUID()}` }); });
+            await setDoc(doc(db, companyBase, 'people', 'testers'), { list: merged });
+        }
+
+        // 2. Batch update UI Config (repos and envs)
+        const currentUi = getUiConfig();
+        if (repoConfigs.length > 0) {
+            const mergedRepos = [...currentUi.repositoryConfigs];
+            repoConfigs.forEach(r => { if (!mergedRepos.some(mr => mr.name === r.name)) mergedRepos.push({ ...r, id: `repo_${crypto.randomUUID()}` }); });
+            currentUi.repositoryConfigs = mergedRepos;
+        }
+        if (envs.length > 0) {
+            const mergedEnvs = [...currentUi.environments];
+            envs.forEach(e => { if (!mergedEnvs.some(me => me.name.toLowerCase() === e.name.toLowerCase())) mergedEnvs.push({ ...e, id: `env_${crypto.randomUUID()}` }); });
+            currentUi.environments = mergedEnvs;
+        }
+        await setDoc(doc(db, companyBase, 'settings', 'uiConfig'), currentUi);
+
+        // 3. Chunker for large items
+        const processItems = async (items: any[], type: 'tasks' | 'notes') => {
+            const chunks = chunkArray(items, 20);
+            for (const chunk of chunks) {
+                const batch = writeBatch(db);
+                chunk.forEach(item => {
+                    const id = item.id || `${type.slice(0,-1)}-${crypto.randomUUID()}`;
+                    batch.set(doc(db, companyBase, type, id), { 
+                        ...item, id, 
+                        createdAt: item.createdAt || new Date().toISOString(), 
+                        updatedAt: item.updatedAt || new Date().toISOString() 
+                    }, { merge: true });
+                    reportProgress();
+                });
+                await batch.commit();
+            }
+        };
+
+        await processItems(tasks, 'tasks');
+        await processItems(notes, 'notes');
+
+    } else {
+        // Local Mode
+        const data = getAppData();
+        const comp = data.companyData[companyId];
+        
+        // Simple local merge
+        const uniqueTasks = tasks.filter(nt => !comp.tasks.some(et => et.title === nt.title));
+        comp.tasks = [...uniqueTasks, ...comp.tasks];
+        
+        const uniqueNotes = notes.filter(nn => !comp.notes.some(en => en.title === nn.title && en.content === nn.content));
+        comp.notes = [...uniqueNotes, ...comp.notes];
+
+        devs.forEach(d => { if (!comp.developers.some(m => m.name === d.name)) comp.developers.push({ ...d, id: `dev-${crypto.randomUUID()}` }); });
+        testers.forEach(t => { if (!comp.testers.some(m => m.name === t.name)) comp.testers.push({ ...t, id: `tester-${crypto.randomUUID()}` }); });
+
+        if (repoConfigs.length > 0) {
+            repoConfigs.forEach(r => { if (!comp.uiConfig.repositoryConfigs.some(mr => mr.name === r.name)) comp.uiConfig.repositoryConfigs.push({ ...r, id: `repo_${crypto.randomUUID()}` }); });
+        }
+        if (envs.length > 0) {
+            envs.forEach(e => { if (!comp.uiConfig.environments.some(me => me.name.toLowerCase() === e.name.toLowerCase())) comp.uiConfig.environments.push({ ...e, id: `env_${crypto.randomUUID()}` }); });
+        }
+
+        setAppData(data);
+    }
+    return true;
+}
+
 export async function clearAllData() {
     const mode = getAuthMode();
     const companyId = getActiveCompanyId();
@@ -617,261 +858,76 @@ export async function clearAllData() {
 
         const companyBase = `users/${userId}/companies/${companyId}`;
         
-        // Use recursive deletion for cloud data
-        const collections = ['tasks', 'notes', 'logs'];
-        for (const colName of collections) {
-            const snap = await getDocs(query(collection(db, companyBase, colName)));
-            const batch = writeBatch(db);
-            snap.docs.forEach(d => batch.delete(d.ref));
-            await batch.commit();
-        }
+        try {
+            const currentConfig = getUiConfig();
+            const preservedEnvs = currentConfig.environments || [];
+            const preservedAppName = currentConfig.appName;
+            const preservedAppIcon = currentConfig.appIcon;
 
-        // Clear singleton documents
-        const singletons = [
-            doc(db, companyBase, 'people', 'developers'),
-            doc(db, companyBase, 'people', 'testers'),
-            doc(db, companyBase, 'reminders', 'general'),
-            doc(db, companyBase, 'releases', 'updates'),
-            doc(db, companyBase, 'settings', 'uiConfig')
-        ];
-        
-        const batch = writeBatch(db);
-        singletons.forEach(ref => batch.delete(ref));
-        await batch.commit();
+            const resetFields = INITIAL_UI_CONFIG.map(f => {
+                if (f.key === 'status') {
+                    return { ...f, options: TASK_STATUSES.map(s => ({id: s, value: s, label: s})) };
+                }
+                if (f.key === 'relevantEnvironments') {
+                    return { ...f, options: preservedEnvs.map(e => ({id: e.id, value: e.name, label: e.name})) };
+                }
+                return f;
+            });
 
-    } else {
-        // Clear local storage data
-        Object.keys(localStorage).forEach(key => {
-            if (key.startsWith('taskflow_')) {
-                localStorage.removeItem(key);
+            const defaultUiConfig: UiConfig = {
+                fields: resetFields,
+                environments: preservedEnvs,
+                repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
+                taskStatuses: [...TASK_STATUSES],
+                appName: preservedAppName || 'My Task Manager',
+                appIcon: preservedAppIcon,
+                remindersEnabled: true,
+                tutorialEnabled: true,
+                timeFormat: '12h',
+                autoBackupFrequency: 'weekly',
+                autoBackupTime: 6,
+                currentVersion: '1.1.0',
+                authenticationMode: 'authenticate',
+            };
+
+            const collectionsToClear = ['tasks', 'notes', 'logs'];
+            for (const colName of collectionsToClear) {
+                const q = query(collection(db, companyBase, colName), limit(500));
+                const snap = await getDocs(q);
+                if (!snap.empty) {
+                    const chunks = chunkArray(snap.docs, 50);
+                    for (const chunk of chunks) {
+                        const batch = writeBatch(db);
+                        chunk.forEach(d => batch.delete(d.ref));
+                        await batch.commit();
+                    }
+                }
             }
+
+            const batch = writeBatch(db);
+            batch.set(doc(db, companyBase, 'people', 'developers'), { list: [] });
+            batch.set(doc(db, companyBase, 'people', 'testers'), { list: [] });
+            batch.set(doc(db, companyBase, 'reminders', 'general'), { list: [] });
+            batch.set(doc(db, companyBase, 'settings', 'uiConfig'), defaultUiConfig);
+            batch.set(doc(db, companyBase, 'releases', 'updates'), { list: [...INITIAL_RELEASES] });
+            await batch.commit();
+
+        } catch (error: any) {
+            console.error("Critical error during cloud data clearing:", error);
+            throw new Error(`Data clearing failed: ${error.message}`);
+        }
+    } else {
+        Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('taskflow_')) localStorage.removeItem(key);
         });
         localStorage.removeItem(DATA_KEY);
     }
 }
 
 function chunkArray<T>(array: T[], size: number): T[][] {
-    const result = [];
+    const chunkedArr: T[][] = [];
     for (let i = 0; i < array.length; i += size) {
-        result.push(array.slice(i, i + size));
+        chunkedArr.push(array.slice(i, i + size));
     }
-    return result;
-}
-
-/**
- * Centralized logic for importing entire workspace data.
- * Correctly routes to Cloud or Local storage with batching and progress tracking.
- */
-export async function importWorkspaceData(
-    parsedJson: any, 
-    onProgress?: (progress: number) => void
-) {
-    const mode = getAuthMode();
-    const data = getAppData();
-    const companyData = data.companyData[data.activeCompanyId];
-
-    const tasksToImport = parsedJson.tasks || [];
-    const notesToImport = parsedJson.notes || [];
-    const developersToImport = parsedJson.developers || [];
-    const testersToImport = parsedJson.testers || [];
-    const environmentsToImport = parsedJson.environments || [];
-    
-    if (mode === 'localStorage') {
-        // Local Import Logic
-        if (parsedJson.appName) companyData.uiConfig.appName = parsedJson.appName;
-        if (parsedJson.appIcon !== undefined) companyData.uiConfig.appIcon = parsedJson.appIcon;
-        
-        // Merge environments uniquely
-        environmentsToImport.forEach((env: any) => {
-            if (env.name && !companyData.uiConfig.environments.some(e => e.name.toLowerCase().trim() === env.name.toLowerCase().trim())) {
-                companyData.uiConfig.environments.push({
-                    id: env.id || `env-${crypto.randomUUID()}`,
-                    name: env.name.trim(),
-                    color: env.color || '#3b82f6'
-                });
-            }
-        });
-
-        developersToImport.forEach((dev: Partial<Person>) => {
-            if (dev.name && !companyData.developers.some(d => d.name === dev.name)) {
-                companyData.developers.push({ id: `dev-${crypto.randomUUID()}`, ...dev } as Person);
-            }
-        });
-        testersToImport.forEach((tester: Partial<Person>) => {
-            if (tester.name && !companyData.testers.some(t => t.name === tester.name)) {
-                companyData.testers.push({ id: `test-${crypto.randomUUID()}`, ...tester } as Person);
-            }
-        });
-        tasksToImport.forEach((task: Partial<Task>) => {
-            companyData.tasks.unshift({
-                id: `task-${crypto.randomUUID()}`,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                status: 'To Do',
-                ...task
-            } as Task);
-        });
-        notesToImport.forEach((note: Partial<Note>) => {
-            const newNote = {
-                id: `note-${crypto.randomUUID()}`,
-                title: '',
-                content: '',
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                layout: { i: '', x: 0, y: 0, w: 3, h: 6 },
-                ...note
-            } as Note;
-            newNote.layout.i = newNote.id;
-            companyData.notes.unshift(newNote);
-        });
-
-        setAppData(data);
-        if (onProgress) onProgress(100);
-        return true;
-    }
-
-    // Cloud Import Logic (Batched)
-    const auth = getAuth();
-    const db = getFirestore();
-    const userId = auth.currentUser?.uid;
-    if (!userId) throw new Error("User not authenticated.");
-
-    const companyBase = `users/${userId}/companies/${data.activeCompanyId}`;
-    
-    // 1. Process Metadata & People (Single docs)
-    const configUpdate: any = {};
-    if (parsedJson.appName) configUpdate.appName = parsedJson.appName;
-    
-    // Merge cloud environments uniquely
-    const existingEnvs = companyData.uiConfig.environments;
-    const finalEnvs = [...existingEnvs];
-    environmentsToImport.forEach((env: any) => {
-        if (env.name && !finalEnvs.some(e => e.name.toLowerCase().trim() === env.name.toLowerCase().trim())) {
-            finalEnvs.push({
-                id: env.id || `env-${crypto.randomUUID()}`,
-                name: env.name.trim(),
-                color: env.color || '#3b82f6'
-            });
-        }
-    });
-    configUpdate.environments = finalEnvs;
-
-    const configRef = doc(db, companyBase, 'settings', 'uiConfig');
-    await setDoc(configRef, configUpdate, { merge: true });
-
-    // Process Developers
-    const existingDevs = getDevelopers();
-    const newDevs = [...existingDevs];
-    developersToImport.forEach((p: Partial<Person>) => {
-        if (p.name && !newDevs.some(d => d.name === p.name)) {
-            newDevs.push({ id: `dev-${crypto.randomUUID()}`, ...p } as Person);
-        }
-    });
-    await setDoc(doc(db, companyBase, 'people', 'developers'), { list: newDevs });
-
-    // Process Testers
-    const existingTesters = getTesters();
-    const newTesters = [...existingTesters];
-    testersToImport.forEach((p: Partial<Person>) => {
-        if (p.name && !newTesters.some(t => t.name === p.name)) {
-            newTesters.push({ id: `test-${crypto.randomUUID()}`, ...p } as Person);
-        }
-    });
-    await setDoc(doc(db, companyBase, 'people', 'testers'), { list: newTesters });
-
-    // 2. Process Large Collections (Batched)
-    const totalItems = tasksToImport.length + notesToImport.length;
-    let itemsProcessed = 0;
-
-    const processCollection = async (items: any[], type: 'tasks' | 'notes') => {
-        const chunks = chunkArray(items, 100); // 100 items per batch for safety
-        for (const chunk of chunks) {
-            const batch = writeBatch(db);
-            chunk.forEach(item => {
-                const id = item.id || `${type === 'tasks' ? 'task' : 'note'}-${crypto.randomUUID()}`;
-                const docRef = doc(db, companyBase, type, id);
-                const fullItem = {
-                    id,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString(),
-                    ...(type === 'tasks' ? { status: 'To Do' } : { layout: { i: id, x: 0, y: 0, w: 3, h: 6 } }),
-                    ...item
-                };
-                batch.set(docRef, fullItem);
-            });
-            await batch.commit();
-            itemsProcessed += chunk.length;
-            if (onProgress) onProgress(Math.round((itemsProcessed / totalItems) * 100));
-        }
-    };
-
-    if (tasksToImport.length > 0) await processCollection(tasksToImport, 'tasks');
-    if (notesToImport.length > 0) await processCollection(notesToImport, 'notes');
-
-    if (onProgress) onProgress(100);
-    return true;
-}
-
-/**
- * Centralized logic for importing notes data.
- */
-export async function importNotesData(notesToImport: Partial<Note>[], onProgress?: (p: number) => void) {
-    return importWorkspaceData({ notes: notesToImport }, onProgress);
-}
-
-/**
- * Centralized logic for importing settings data.
- */
-export async function importSettingsData(settings: Partial<UiConfig>) {
-    updateUiConfig(settings, true);
-    return true;
-}
-
-// Misc
-export function clearExpiredReminders() {
-    const tasks = getTasks();
-    const now = new Date();
-    const cleared: string[] = [];
-    tasks.forEach(t => {
-        if (t.reminderExpiresAt && new Date(t.reminderExpiresAt) < now) {
-            updateTask(t.id, { reminder: null, reminderExpiresAt: null }, true);
-            cleared.push(t.id);
-        }
-    });
-    return { updatedTaskIds: cleared, unpinnedTaskIds: cleared };
-}
-
-export function addTagsToMultipleTasks(taskIds: string[], tags: string[]) {
-    taskIds.forEach(id => {
-        const task = getTaskById(id);
-        if (task) {
-            const newTags = Array.from(new Set([...(task.tags || []), ...tags]));
-            updateTask(id, { tags: newTags }, true);
-        }
-    });
-}
-
-// Comments
-export function addComment(taskId: string, text: string) {
-    const comment: Comment = { text, timestamp: new Date().toISOString() };
-    const task = getTaskById(taskId);
-    if (task) {
-        const comments = [...(task.comments || []), comment];
-        return updateTask(taskId, { comments });
-    }
-}
-export function updateComment(taskId: string, index: number, text: string) {
-    const task = getTaskById(taskId);
-    if (task && task.comments && task.comments[index]) {
-        const comments = [...task.comments];
-        comments[index] = { ...comments[index], text };
-        return updateTask(taskId, { comments });
-    }
-}
-export function deleteComment(taskId: string, index: number) {
-    const task = getTaskById(taskId);
-    if (task && task.comments) {
-        const comments = task.comments.filter((_, i) => i !== index);
-        return updateTask(taskId, { comments });
-    }
+    return chunkedArr;
 }
