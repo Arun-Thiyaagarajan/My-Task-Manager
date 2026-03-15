@@ -45,9 +45,11 @@ import {
   Loader2,
   AlertCircle,
   CornerDownLeft,
+  Filter,
+  ChevronDown,
 } from 'lucide-react';
 import { cn, fuzzySearch } from '@/lib/utils';
-import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig, Log, GeneralReminder, BackupFrequency, Environment } from '@/lib/types';
+import type { Task, Person, UiConfig, RepositoryConfig, Log, GeneralReminder, BackupFrequency, Environment } from '@/lib/types';
 import {
   Popover,
   PopoverContent,
@@ -140,6 +142,7 @@ export default function Home() {
   const [tagsFilter, setTagsFilter] = useState<string[]>([]);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [sortDescriptor, setSortDescriptor] = useState('status-asc');
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [isSelectMode, setIsSelectMode] = useState(false);
@@ -160,7 +163,7 @@ export default function Home() {
   const [showSlowSearchMessage, setShowSlowSearchMessage] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
-  // New Import Progress States
+  // Import Progress States
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
 
@@ -273,7 +276,6 @@ export default function Home() {
     setSearchError(null);
     window.dispatchEvent(new Event('sync-start'));
     
-    // Use a small timeout to allow UI to show loader before heavy filter logic
     setTimeout(() => {
         setExecutedSearchQuery(searchQuery);
     }, 50);
@@ -349,7 +351,6 @@ export default function Home() {
         }
     };
 
-    // Background calculation
     const rafId = requestAnimationFrame(filterWork);
     return () => cancelAnimationFrame(rafId);
   }, [tasks, statusFilter, repoFilter, tagsFilter, developers, testers, executedSearchQuery, dateView, selectedDate, deploymentFilter, favoritesOnly]);
@@ -541,7 +542,7 @@ export default function Home() {
 
     if (!lastBackupStr) {
         nextBackupDate = new Date(now);
-        nextBackupDate.setHours(uiConfig.autoBackupTime ?? 6, 0, 0, 0);
+        nextBackupDate.setHours(uiConfig.autoBackupFrequency === 'daily' ? (uiConfig.autoBackupTime ?? 6) : 6, 0, 0, 0);
         if (now > nextBackupDate) nextBackupDate.setDate(nextBackupDate.getDate() + 1);
     } else {
         nextBackupDate = new Date(lastBackupStr);
@@ -794,14 +795,18 @@ export default function Home() {
           </div>
       )}
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Tasks</h1>
-            <Badge variant="outline" className={cn(mode === 'authenticate' ? "text-primary border-primary/20 bg-primary/5" : "text-muted-foreground")}>
-                {mode === 'authenticate' ? 'Cloud Sync' : 'Local Storage'}
-            </Badge>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-6">
+        <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-3">
+                <h1 className="text-4xl font-black tracking-tight text-foreground">Tasks</h1>
+                <Badge variant="outline" className={cn(mode === 'authenticate' ? "text-primary border-primary/20 bg-primary/5" : "text-muted-foreground", "h-6 px-3 text-[10px] font-bold uppercase tracking-wider")}>
+                    {mode === 'authenticate' ? 'Cloud Sync' : 'Local Storage'}
+                </Badge>
+            </div>
+            {uiConfig?.appName && <p className="text-muted-foreground text-sm font-medium">{uiConfig.appName}</p>}
         </div>
-        <div className="flex items-center gap-2 flex-wrap justify-end">
+        
+        <div className="flex flex-col items-stretch sm:items-center sm:flex-row gap-3 w-full sm:w-auto">
             <Dialog open={showTutorialPrompt} onOpenChange={setShowTutorialPrompt}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader className="items-center text-center">
@@ -821,87 +826,116 @@ export default function Home() {
             {uiConfig?.remindersEnabled && (pinnedReminders.length + generalReminders.length) > 0 && (
               <Button 
                 variant="outline" 
-                className="h-10 border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 hover:text-amber-700 dark:hover:text-amber-300 transition-all" 
+                className="h-11 border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 hover:text-amber-700 dark:hover:text-amber-300 transition-all w-full sm:w-auto font-bold" 
                 onClick={() => setIsReminderStackOpen(true)}
               >
-                <BellRing className="mr-2 h-4 w-4" />
-                 Important Reminders
+                <BellRing className="mr-2 h-4 w-4 shrink-0" />
+                 <span className="truncate">Important Reminders</span>
                 <Badge variant="secondary" className="ml-2 bg-amber-500/20 text-amber-700 dark:text-amber-300 border-none shadow-none">{pinnedReminders.length + generalReminders.length}</Badge>
               </Button>
             )}
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" disabled={isImporting}>
-                    <Upload className="mr-2 h-4 w-4" />
-                    Export
-                </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                <DropdownMenuItem onSelect={() => handleExport('current_view')}>Export Current View</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => handleExport('all_tasks')}>Export All Tasks</DropdownMenuItem>
-                <DropdownMenuItem onSelect={handleDownloadTemplate}>Download Import Template</DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
 
-            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
-                <Download className="mr-2 h-4 w-4" />
-                Import ({mode === 'authenticate' ? 'Cloud' : 'Local'})
-            </Button>
-            <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />
-            
-            <Button asChild size="sm" id="new-task-btn" disabled={isImporting}>
-                <Link href="/tasks/new">
-                    <Plus className="mr-2 h-4 w-4" /> New Task
-                </Link>
-            </Button>
+            <div className="grid grid-cols-2 lg:flex items-center gap-2">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" disabled={isImporting} className="w-full sm:w-auto h-11 font-bold">
+                        <Upload className="mr-2 h-4 w-4" />
+                        Export
+                    </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                    <DropdownMenuItem onSelect={() => handleExport('current_view')}>Export Current View</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => handleExport('all_tasks')}>Export All Tasks</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={handleDownloadTemplate}>Download Import Template</DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+
+                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isImporting} className="w-full sm:w-auto h-11 font-bold">
+                    <Download className="mr-2 h-4 w-4" />
+                    {mode === 'authenticate' ? 'Sync' : 'Import'}
+                </Button>
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />
+                
+                <Button asChild id="new-task-btn" disabled={isImporting} className="col-span-2 lg:col-auto w-full sm:w-auto h-11 shadow-lg font-bold">
+                    <Link href="/tasks/new">
+                        <Plus className="mr-2 h-5 w-5" /> New Task
+                    </Link>
+                </Button>
+            </div>
         </div>
       </div>
       
       <div className="space-y-6">
-          <Card id="task-filters">
-            <CardContent className="p-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                    <div className="relative flex flex-col w-full col-span-1 sm:col-span-2 lg:col-span-1 gap-1.5">
-                        <div className="relative flex items-center w-full">
-                            <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                ref={searchInputRef}
-                                placeholder="Search tasks..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                onKeyDown={handleSearchKeyDown}
-                                className="w-full pl-10 pr-24 h-10"
-                            />
-                            <div className="absolute right-0 flex items-center h-full pr-1.5 gap-1">
-                                {searchQuery && (
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                                        onClick={clearSearch}
-                                    >
-                                        <X className="h-4 w-4" />
-                                    </Button>
-                                )}
-                                <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
-                                    <span className="text-xs">{commandKey}</span>K
-                                </kbd>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-1.5 px-1 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">
-                            <CornerDownLeft className="h-2.5 w-2.5" />
-                            <span>Press Enter to search</span>
-                        </div>
-                    </div>
-                    <MultiSelect selected={statusFilter} onChange={setStatusFilter} options={(TASK_STATUSES || []).map(s => ({ value: s, label: s }))} placeholder="Status..." />
-                    <MultiSelect selected={repoFilter} onChange={setRepoFilter} options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} placeholder="Repository..." />
-                    {(uiConfig?.fields || []).find(f => f.key === 'tags')?.isActive && (
-                        <MultiSelect selected={tagsFilter} onChange={setTagsFilter} options={[...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({value: t, label: t}))} placeholder="Tags..." />
+          <div className="space-y-3">
+              {/* Filter Toggle for Mobile */}
+              <Button 
+                variant="secondary" 
+                className="w-full flex lg:hidden items-center justify-between h-12 px-4 font-black shadow-sm border"
+                onClick={() => setIsFiltersOpen(!isFiltersOpen)}
+              >
+                <span className="flex items-center gap-2">
+                    <Filter className="h-4 w-4" />
+                    Filters
+                    {(statusFilter.length > 0 || repoFilter.length > 0 || deploymentFilter.length > 0 || tagsFilter.length > 0) && (
+                        <Badge className="bg-primary text-primary-foreground h-5 px-1.5 min-w-5">
+                            {statusFilter.length + repoFilter.length + deploymentFilter.length + tagsFilter.length}
+                        </Badge>
                     )}
-                    <MultiSelect selected={deploymentFilter} onChange={setDeploymentFilter} options={(uiConfig?.environments || []).flatMap(env => [{ value: env.name, label: `On ${env.name}` }, { value: `not_${env.name}`, label: `Not on ${env.name}` }])} placeholder="Deployment..." />
-                </div>
-            </CardContent>
-          </Card>
+                </span>
+                <ChevronDown className={cn("h-4 w-4 transition-transform duration-300", isFiltersOpen && "rotate-180")} />
+              </Button>
+
+              <div className={cn(
+                  "transition-all duration-300 overflow-hidden",
+                  "lg:block", // Always visible on desktop
+                  isFiltersOpen ? "block opacity-100 max-h-[1000px]" : "hidden lg:opacity-100 lg:max-h-none opacity-0 max-h-0"
+              )}>
+                <Card id="task-filters" className="border-none shadow-lg lg:shadow-none bg-card lg:bg-transparent">
+                    <CardContent className="p-4 lg:p-0">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                            <div className="relative flex flex-col w-full col-span-1 sm:col-span-2 lg:col-span-1 gap-1.5">
+                                <div className="relative flex items-center w-full">
+                                    <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        ref={searchInputRef}
+                                        placeholder="Search tasks..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        onKeyDown={handleSearchKeyDown}
+                                        className="w-full pl-10 pr-24 h-11"
+                                    />
+                                    <div className="absolute right-0 flex items-center h-full pr-1.5 gap-1">
+                                        {searchQuery && (
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                                onClick={clearSearch}
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </Button>
+                                        )}
+                                        <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+                                            <span className="text-xs">{commandKey}</span>K
+                                        </kbd>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-1.5 px-1 text-[9px] font-black text-muted-foreground/60 uppercase tracking-widest">
+                                    <CornerDownLeft className="h-2.5 w-2.5" />
+                                    <span>Press Enter to search</span>
+                                </div>
+                            </div>
+                            <MultiSelect selected={statusFilter} onChange={setStatusFilter} options={(TASK_STATUSES || []).map(s => ({ value: s, label: s }))} placeholder="Status..." />
+                            <MultiSelect selected={repoFilter} onChange={setRepoFilter} options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} placeholder="Repository..." />
+                            {(uiConfig?.fields || []).find(f => f.key === 'tags')?.isActive && (
+                                <MultiSelect selected={tagsFilter} onChange={setTagsFilter} options={[...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({value: t, label: t}))} placeholder="Tags..." />
+                            )}
+                            <MultiSelect selected={deploymentFilter} onChange={setDeploymentFilter} options={(uiConfig?.environments || []).flatMap(env => [{ value: env.name, label: `On ${env.name}` }, { value: `not_${env.name}`, label: `Not on ${env.name}` }])} placeholder="Deployment..." />
+                        </div>
+                    </CardContent>
+                </Card>
+              </div>
+          </div>
           
            {searchError && (
                 <Alert variant="destructive">
@@ -930,10 +964,10 @@ export default function Home() {
                       </div>
                   )}
                     <div>
-                      <h2 className="text-base font-semibold">
+                      <h2 className="text-lg font-black tracking-tight">
                         {favoritesOnly ? 'Favorite Tasks' : `${sortedTasks.length} Results`}
                       </h2>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                         {favoritesOnly 
                           ? `Showing ${sortedTasks.length} favorited items.` 
                           : (dateView === 'all' ? 'Based on active filters.' : dateView === 'monthly' ? `Start date in ${format(selectedDate, 'MMM yyyy')}` : `Start date in ${format(selectedDate, 'yyyy')}`)}
@@ -943,7 +977,7 @@ export default function Home() {
 
                 <div id="view-mode-toggle" className="flex items-center gap-x-2 gap-y-2 flex-wrap justify-start sm:justify-end">
                   <Select value={sortDescriptor} onValueChange={setSortDescriptor}>
-                      <SelectTrigger className="w-auto sm:w-[180px] h-10"><SelectValue placeholder="Sort by" /></SelectTrigger>
+                      <SelectTrigger className="w-auto sm:w-[180px] h-10 font-semibold"><SelectValue placeholder="Sort by" /></SelectTrigger>
                       <SelectContent>
                           <SelectItem value="status-asc">Status (Asc)</SelectItem>
                           <SelectItem value="status-desc">Status (Desc)</SelectItem>
@@ -953,8 +987,8 @@ export default function Home() {
                   </Select>
 
                    <div className="flex h-10 items-center justify-center rounded-md bg-muted p-1">
-                        <Button variant={dateView === 'all' ? 'default' : 'ghost'} onClick={() => setDateView('all')} className={cn("h-8 shadow-sm", dateView === 'all' && 'bg-card text-foreground')}>All</Button>
-                        <Button variant={dateView === 'monthly' ? 'default' : 'ghost'} onClick={() => setDateView('monthly')} className={cn("h-8 shadow-sm", dateView === 'monthly' && 'bg-card text-foreground')}>Monthly</Button>
+                        <Button variant={dateView === 'all' ? 'default' : 'ghost'} onClick={() => setDateView('all')} className={cn("h-8 shadow-sm px-3 font-bold", dateView === 'all' && 'bg-card text-foreground')}>All</Button>
+                        <Button variant={dateView === 'monthly' ? 'default' : 'ghost'} onClick={() => setDateView('monthly')} className={cn("h-8 shadow-sm px-3 font-bold", dateView === 'monthly' && 'bg-card text-foreground')}>Monthly</Button>
                    </div>
 
                   <div className="flex items-center gap-2">
@@ -1054,16 +1088,16 @@ export default function Home() {
                             <>
                                 <Heart className="h-16 w-16 mb-4 opacity-20 text-red-500" />
                                 <p className="text-lg font-semibold">No favorite tasks found.</p>
-                                <p className="text-sm mt-1 max-w-xs mx-auto">Tap the heart icon on any task card to add it to your personal favorites list.</p>
+                                <p className="text-sm mt-1 max-w-xs mx-auto text-center font-medium">Tap the heart icon on any task card to add it to your personal favorites list.</p>
                                 <div className="flex gap-2 mt-6">
-                                    <Button variant="outline" size="sm" onClick={() => setFavoritesOnly(false)}>View All Tasks</Button>
+                                    <Button variant="outline" size="sm" onClick={() => setFavoritesOnly(false)} className="font-bold">View All Tasks</Button>
                                 </div>
                             </>
                         ) : (
                             <>
                                 <FolderSearch className="h-16 w-16 mb-4 opacity-50"/>
                                 <p className="text-lg font-semibold">No tasks found.</p>
-                                <Button asChild className="mt-4" size="sm"><Link href="/tasks/new"><Plus className="mr-2 h-4 w-4" /> Create Task</Link></Button>
+                                <Button asChild className="mt-4 font-bold" size="sm"><Link href="/tasks/new"><Plus className="mr-2 h-4 w-4" /> Create Task</Link></Button>
                             </>
                         )}
                     </div>
