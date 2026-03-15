@@ -676,7 +676,7 @@ export default function Home() {
                     toast({ 
                         variant: 'destructive', 
                         title: 'Import Failed', 
-                        description: error.message || 'An error occurred while importing. Please try again later.' 
+                        description: 'Some tasks could not be imported. Please try again.' 
                     });
                 } finally {
                     setIsImporting(false);
@@ -690,7 +690,7 @@ export default function Home() {
                     toast({ 
                         variant: 'destructive', 
                         title: 'Import Failed', 
-                        description: error.message || 'An error occurred during import.' 
+                        description: 'Some tasks could not be imported. Please try again.' 
                     });
                 }
             }

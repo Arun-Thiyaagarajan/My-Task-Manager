@@ -845,12 +845,13 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
     
     if (mode === 'authenticate' && !userId) throw new Error("You must be signed in to import data to the cloud.");
 
-    let rawTasks, jsonDevs, jsonTesters, jsonNotes, repoConfigs, envs;
+    let rawTasks, jsonDevs, jsonTesters, jsonNotes, jsonLogs, repoConfigs, envs;
     try {
         rawTasks = Array.isArray(parsedJson.tasks) ? parsedJson.tasks : [];
         jsonDevs = Array.isArray(parsedJson.developers) ? parsedJson.developers : [];
         jsonTesters = Array.isArray(parsedJson.testers) ? parsedJson.testers : [];
         jsonNotes = Array.isArray(parsedJson.notes) ? parsedJson.notes : [];
+        jsonLogs = Array.isArray(parsedJson.logs) ? parsedJson.logs : [];
         repoConfigs = Array.isArray(parsedJson.repositoryConfigs) ? parsedJson.repositoryConfigs : [];
         envs = Array.isArray(parsedJson.environments) ? parsedJson.environments : [];
     } catch (e) {
@@ -911,6 +912,8 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
     });
 
     // 2. Prepare processed tasks (Mapping Names -> IDs)
+    // We treat imported tasks as NEW instances to avoid blocking by existing bin items.
+    const taskIdMap = new Map<string, string>();
     const processedTasks = rawTasks.map((t: any) => {
         const devIds = (t.developers || []).map((val: any) => {
             if (typeof val !== 'string') return val;
@@ -922,17 +925,29 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             return testerMap.get(val.toLowerCase()) || val;
         }).filter(Boolean);
 
+        const newId = `task-${crypto.randomUUID()}`;
+        if (t.id) taskIdMap.set(t.id, newId);
+
         return {
             ...t,
+            id: newId,
             developers: devIds,
             testers: testerIds,
             createdAt: t.createdAt || new Date().toISOString(),
             updatedAt: t.updatedAt || new Date().toISOString(),
+            deletedAt: null // Imported tasks are always active instances
         };
     });
 
+    // Update imported logs to point to new task IDs
+    const processedLogs = jsonLogs.map((l: any) => ({
+        ...l,
+        id: `log-${crypto.randomUUID()}`,
+        taskId: l.taskId ? (taskIdMap.get(l.taskId) || l.taskId) : undefined
+    }));
+
     // 3. Execution
-    const totalOperations = processedTasks.length + jsonNotes.length + 3;
+    const totalOperations = processedTasks.length + jsonNotes.length + processedLogs.length + 3;
     let completedOps = 0;
     const bumpProgress = () => {
         completedOps++;
@@ -966,13 +981,26 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             await setDoc(doc(db, companyBase, 'settings', 'uiConfig'), currentUi);
             bumpProgress();
 
-            const importInBatches = async (items: any[], collectionName: 'tasks' | 'notes') => {
+            const importInBatches = async (items: any[], collectionName: 'tasks' | 'notes' | 'logs') => {
                 const chunks = chunkArray(items, 20);
                 for (const chunk of chunks) {
                     const batch = writeBatch(db);
                     chunk.forEach(item => {
-                        const id = item.id || `${collectionName.slice(0, -1)}-${crypto.randomUUID()}`;
-                        batch.set(doc(db, companyBase, collectionName, id), { ...item, id }, { merge: true });
+                        const id = item.id;
+                        batch.set(doc(db, companyBase, collectionName, id), item);
+                        
+                        // Add import log for tasks
+                        if (collectionName === 'tasks') {
+                            const logId = `log-${crypto.randomUUID()}`;
+                            const logEntry = {
+                                id: logId,
+                                timestamp: new Date().toISOString(),
+                                message: `Imported task "**${item.title}**" via workspace import.`,
+                                taskId: id
+                            };
+                            batch.set(doc(db, companyBase, 'logs', logId), logEntry);
+                        }
+                        
                         bumpProgress();
                     });
                     await batch.commit();
@@ -981,6 +1009,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
 
             await importInBatches(processedTasks, 'tasks');
             await importInBatches(jsonNotes, 'notes');
+            await importInBatches(processedLogs, 'logs');
         } else {
             const data = getAppData();
             const comp = data.companyData[companyId];
@@ -988,11 +1017,17 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             comp.developers = currentDevs;
             comp.testers = currentTesters;
             
-            const uniqueTasks = processedTasks.filter(nt => !comp.tasks.some(et => et.title === nt.title));
-            comp.tasks = [...uniqueTasks, ...comp.tasks];
+            // For local mode, we still treat them as new instances
+            processedTasks.forEach(newTask => {
+                comp.tasks.unshift(newTask);
+                _addLog(comp, { 
+                    message: `Imported task "**${newTask.title}**" via workspace import.`, 
+                    taskId: newTask.id 
+                });
+            });
             
-            const uniqueNotes = jsonNotes.filter(nn => !comp.notes.some(en => en.title === nn.title && en.content === nn.content));
-            comp.notes = [...uniqueNotes, ...comp.notes];
+            comp.notes = [...jsonNotes.map(n => ({...n, id: `note-${crypto.randomUUID()}`})), ...comp.notes];
+            comp.logs = [...processedLogs, ...comp.logs];
 
             if (repoConfigs.length > 0) {
                 repoConfigs.forEach((r: any) => {
