@@ -1,3 +1,4 @@
+
 'use client';
 
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES, INITIAL_RELEASES } from './constants';
@@ -363,35 +364,86 @@ export function deleteTester(id: string) {
 // Config & Settings
 export function getUiConfig(): UiConfig {
     const data = getAppData();
-    return data.companyData[data.activeCompanyId]?.uiConfig || getInitialData().companyData['company-default'].uiConfig;
+    const config = data.companyData[data.activeCompanyId]?.uiConfig || getInitialData().companyData['company-default'].uiConfig;
+    
+    // Safety check: ensure environments are unique by name
+    if (config.environments && Array.isArray(config.environments)) {
+        const seen = new Set<string>();
+        const uniqueEnvs = config.environments.filter(env => {
+            if (!env || !env.name) return false;
+            const normalized = env.name.toLowerCase().trim();
+            if (seen.has(normalized)) return false;
+            seen.add(normalized);
+            return true;
+        });
+        
+        if (uniqueEnvs.length !== config.environments.length) {
+            config.environments = uniqueEnvs;
+        }
+    }
+    
+    return config;
 }
+
 export function updateUiConfig(newConfig: Partial<UiConfig>, isFullReplacement = false) {
     const data = getAppData();
     const companyData = data.companyData[data.activeCompanyId];
-    if (isFullReplacement) companyData.uiConfig = newConfig as UiConfig;
-    else companyData.uiConfig = { ...companyData.uiConfig, ...newConfig };
+    
+    let mergedConfig: UiConfig;
+    if (isFullReplacement) mergedConfig = newConfig as UiConfig;
+    else mergedConfig = { ...companyData.uiConfig, ...newConfig };
+
+    // Deduplicate environments on save
+    if (mergedConfig.environments && Array.isArray(mergedConfig.environments)) {
+        const seen = new Set<string>();
+        mergedConfig.environments = mergedConfig.environments.filter(env => {
+            if (!env || !env.name) return false;
+            const normalized = env.name.toLowerCase().trim();
+            if (seen.has(normalized)) return false;
+            seen.add(normalized);
+            return true;
+        });
+    }
+
+    companyData.uiConfig = mergedConfig;
     dispatchMutation('uiConfig', 'uiConfig', companyData.uiConfig, 'set');
     setAppData(data);
     window.dispatchEvent(new Event('config-changed'));
 }
+
 export function addEnvironment(name: string) {
     const data = getAppData();
     const companyData = data.companyData[data.activeCompanyId];
-    const newEnv = { id: `env-${crypto.randomUUID()}`, name, color: '#3b82f6' };
+    
+    // Strict duplicate check
+    const normalizedName = name.toLowerCase().trim();
+    if (companyData.uiConfig.environments.some(e => e.name.toLowerCase().trim() === normalizedName)) {
+        return false;
+    }
+
+    const newEnv = { id: `env-${crypto.randomUUID()}`, name: name.trim(), color: '#3b82f6' };
     companyData.uiConfig.environments.push(newEnv);
     updateUiConfig(companyData.uiConfig, true);
     return true;
 }
+
 export function updateEnvironment(oldName: string, env: Environment) {
     const data = getAppData();
     const companyData = data.companyData[data.activeCompanyId];
     const index = companyData.uiConfig.environments.findIndex(x => x.name === oldName);
     if (index !== -1) {
-        companyData.uiConfig.environments[index] = env;
+        // Prevent renaming to another existing environment name
+        const normalizedNewName = env.name.toLowerCase().trim();
+        const conflict = companyData.uiConfig.environments.some((e, i) => i !== index && e.name.toLowerCase().trim() === normalizedNewName);
+        if (conflict) return false;
+
+        companyData.uiConfig.environments[index] = { ...env, name: env.name.trim() };
         updateUiConfig(companyData.uiConfig, true);
+        return true;
     }
-    return true;
+    return false;
 }
+
 export function deleteEnvironment(name: string) {
     const data = getAppData();
     const companyData = data.companyData[data.activeCompanyId];
@@ -622,12 +674,24 @@ export async function importWorkspaceData(
     const notesToImport = parsedJson.notes || [];
     const developersToImport = parsedJson.developers || [];
     const testersToImport = parsedJson.testers || [];
+    const environmentsToImport = parsedJson.environments || [];
     
     if (mode === 'localStorage') {
         // Local Import Logic
         if (parsedJson.appName) companyData.uiConfig.appName = parsedJson.appName;
         if (parsedJson.appIcon !== undefined) companyData.uiConfig.appIcon = parsedJson.appIcon;
         
+        // Merge environments uniquely
+        environmentsToImport.forEach((env: any) => {
+            if (env.name && !companyData.uiConfig.environments.some(e => e.name.toLowerCase().trim() === env.name.toLowerCase().trim())) {
+                companyData.uiConfig.environments.push({
+                    id: env.id || `env-${crypto.randomUUID()}`,
+                    name: env.name.trim(),
+                    color: env.color || '#3b82f6'
+                });
+            }
+        });
+
         developersToImport.forEach((dev: Partial<Person>) => {
             if (dev.name && !companyData.developers.some(d => d.name === dev.name)) {
                 companyData.developers.push({ id: `dev-${crypto.randomUUID()}`, ...dev } as Person);
@@ -675,10 +739,25 @@ export async function importWorkspaceData(
     const companyBase = `users/${userId}/companies/${data.activeCompanyId}`;
     
     // 1. Process Metadata & People (Single docs)
-    if (parsedJson.appName) {
-        const configRef = doc(db, companyBase, 'settings', 'uiConfig');
-        await setDoc(configRef, { appName: parsedJson.appName }, { merge: true });
-    }
+    const configUpdate: any = {};
+    if (parsedJson.appName) configUpdate.appName = parsedJson.appName;
+    
+    // Merge cloud environments uniquely
+    const existingEnvs = companyData.uiConfig.environments;
+    const finalEnvs = [...existingEnvs];
+    environmentsToImport.forEach((env: any) => {
+        if (env.name && !finalEnvs.some(e => e.name.toLowerCase().trim() === env.name.toLowerCase().trim())) {
+            finalEnvs.push({
+                id: env.id || `env-${crypto.randomUUID()}`,
+                name: env.name.trim(),
+                color: env.color || '#3b82f6'
+            });
+        }
+    });
+    configUpdate.environments = finalEnvs;
+
+    const configRef = doc(db, companyBase, 'settings', 'uiConfig');
+    await setDoc(configRef, configUpdate, { merge: true });
 
     // Process Developers
     const existingDevs = getDevelopers();
