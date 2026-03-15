@@ -215,7 +215,7 @@ export default function TaskPage() {
         });
     }
     
-    const valid strategies = strategies.map(s => s()).filter(s => s !== null) as { title: string, tasks: Task[] }[];
+    const validStrategies = strategies.map(s => s()).filter(s => s !== null) as { title: string, tasks: Task[] }[];
 
     if (validStrategies.length > 0) {
         const randomIndex = Math.floor(Math.random() * validStrategies.length);
