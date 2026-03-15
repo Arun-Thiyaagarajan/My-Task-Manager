@@ -708,8 +708,8 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit, onInvalid)}>
-        {/* MOBILE STICKY HEADER */}
-        <div className="lg:hidden sticky top-14 z-40 -mx-4 px-4 bg-background/95 backdrop-blur-md border-b h-14 flex items-center justify-between shadow-sm animate-in fade-in duration-300">
+        {/* MOBILE HEADER - Normal scroll behavior */}
+        <div className="lg:hidden -mx-4 px-4 bg-background border-b h-14 flex items-center justify-between mb-6 animate-in fade-in duration-300">
             <h2 className="text-lg font-bold tracking-tight truncate mr-4">{formTitle}</h2>
             <Button
                 type="button"
@@ -877,7 +877,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                 </aside>
 
             <div className="flex-1 space-y-6 max-w-full">
-                {/* Desktop-only Page Title (hidden on mobile since we have the sticky header) */}
+                {/* Desktop-only Page Title (hidden on mobile since we have the header component) */}
                 <h1 className="hidden lg:block text-xl font-bold tracking-tight mb-2 px-6">{formTitle}</h1>
 
                 {groupOrder.map(groupName => {
