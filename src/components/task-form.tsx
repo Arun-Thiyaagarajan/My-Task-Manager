@@ -709,14 +709,14 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit, onInvalid)}>
         {/* MOBILE STICKY HEADER */}
-        <div className="lg:hidden sticky top-14 z-[60] bg-background/95 backdrop-blur-md border-b px-4 h-14 flex items-center justify-between shadow-sm animate-in fade-in duration-300">
+        <div className="lg:hidden sticky top-14 z-[60] -mx-4 px-4 bg-background/95 backdrop-blur-md border-b h-14 flex items-center justify-between shadow-sm animate-in fade-in duration-300">
             <h2 className="text-lg font-bold tracking-tight truncate mr-4">{formTitle}</h2>
             <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 onClick={handleCancel}
-                className="h-9 px-3 font-bold hover:bg-primary/10 hover:text-primary transition-all rounded-full flex items-center gap-1.5"
+                className="h-9 px-3 font-bold hover:bg-primary/10 hover:text-primary transition-all rounded-full flex items-center gap-1.5 active:scale-95"
             >
                 <ArrowLeft className="h-4 w-4" />
                 <span>Back</span>
