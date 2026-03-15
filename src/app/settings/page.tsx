@@ -550,6 +550,7 @@ export default function SettingsPage() {
                 <CardContent>
                     <Button variant="outline" className="w-full h-9 text-xs" onClick={() => setPeopleManagerType('tester')}>Manage Testers</Button>
                 </CardContent>
+            </Card>
 
             {/* Data Management */}
             <Card className="border-destructive/20">
