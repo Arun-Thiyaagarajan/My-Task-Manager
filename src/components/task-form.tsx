@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2, AlertCircle, HelpCircle, Sparkles, Layout, Users, Calendar as CalendarIconLucide, Paperclip, Rocket, GitMerge, ChevronRight, PanelLeft, PanelRight, CircleDot } from 'lucide-react';
+import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2, AlertCircle, HelpCircle, Sparkles, Layout, Users, Calendar as CalendarIconLucide, Paperclip, Rocket, GitMerge, ChevronRight, PanelLeft, PanelRight, CircleDot, Save } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTransition, useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -706,20 +706,18 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit, onInvalid)}>
-        {/* ACTION BAR: Fixed at top on mobile, fixed at bottom on desktop */}
+        {/* DESKTOP ACTION BAR: Fixed at bottom */}
         <div className={cn(
-            "z-[45] bg-background/95 backdrop-blur-sm border-b transition-all duration-300",
-            "fixed top-14 left-0 right-0", // Mobile: just below header
-            "lg:top-auto lg:bottom-0 lg:border-b-0 lg:border-t lg:z-50" // Desktop: standard bottom bar
+            "hidden lg:block z-50 bg-background/95 backdrop-blur-sm border-t fixed bottom-0 left-0 right-0 transition-all duration-300"
         )}>
-            <div className="container mx-auto flex h-14 lg:h-20 items-center justify-center px-4 sm:px-6 lg:px-8">
+            <div className="container mx-auto flex h-20 items-center justify-center px-4 sm:px-6 lg:px-8">
                  <div className="flex items-center justify-center gap-3">
                     <Button
                         type="button"
                         variant="outline"
                         onClick={handleCancel}
                         disabled={isPending}
-                        className="h-9 lg:h-10 px-6 font-semibold"
+                        className="h-10 px-6 font-semibold"
                     >
                         Cancel
                     </Button>
@@ -727,42 +725,57 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                         type="submit" 
                         disabled={isPending} 
                         id="task-form-submit"
-                        className="h-9 lg:h-10 px-8 font-bold shadow-sm"
+                        className="h-10 px-8 font-bold shadow-sm"
                     >
                         {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {submitButtonText}
                     </Button>
                     
-                    <div className="hidden lg:block">
-                        <TooltipProvider>
-                          <Tooltip>
-                              <TooltipTrigger asChild>
-                                  <Button type="button" variant="ghost" size="icon" className="text-muted-foreground">
-                                      <HelpCircle className="h-5 w-5" />
-                                  </Button>
-                              </TooltipTrigger>
-                              <TooltipContent side="top">
-                                  <div className="text-sm p-1">
-                                    <div className="grid grid-cols-[auto_1fr] items-center gap-x-2">
-                                      <div className="text-right">Save:</div>
-                                      <div><kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">{commandKey}</kbd> + <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">S</kbd></div>
-                                    </div>
-                                    <div className="grid grid-cols-[auto_1fr] items-center gap-x-2 mt-1">
-                                      <div className="text-right">Cancel:</div>
-                                      <div><kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">Esc</kbd></div>
-                                    </div>
-                                  </div>
-                              </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                    </div>
+                    <TooltipProvider>
+                      <Tooltip>
+                          <TooltipTrigger asChild>
+                              <Button type="button" variant="ghost" size="icon" className="text-muted-foreground">
+                                  <HelpCircle className="h-5 w-5" />
+                              </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                              <div className="text-sm p-1">
+                                <div className="grid grid-cols-[auto_1fr] items-center gap-x-2">
+                                  <div className="text-right">Save:</div>
+                                  <div><kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">{commandKey}</kbd> + <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">S</kbd></div>
+                                </div>
+                                <div className="grid grid-cols-[auto_1fr] items-center gap-x-2 mt-1">
+                                  <div className="text-right">Cancel:</div>
+                                  <div><kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">Esc</kbd></div>
+                                </div>
+                              </div>
+                          </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                 </div>
             </div>
         </div>
 
-        {/* FORM CONTENT: pt-20 on mobile to clear the fixed top action bar */}
+        {/* MOBILE FAB: Floating Save Button */}
+        <div className="lg:hidden fixed bottom-20 right-6 z-40 animate-in fade-in zoom-in duration-500 pointer-events-auto">
+            <Button
+                type="submit"
+                size="icon"
+                disabled={isPending}
+                className={cn(
+                    "h-14 w-14 rounded-full shadow-2xl shadow-primary/40 transition-all active:scale-95",
+                    !isDirty && "opacity-60 scale-95 saturate-[0.5]"
+                )}
+                onClick={() => form.handleSubmit(handleFormSubmit, onInvalid)()}
+            >
+                {isPending ? <Loader2 className="h-6 w-6 animate-spin" /> : <Save className="h-6 w-6" />}
+                <span className="sr-only">Save Task</span>
+            </Button>
+        </div>
+
+        {/* FORM CONTENT */}
         <div className={cn(
-            "flex flex-col gap-8 pt-20 pb-10 lg:pt-0 lg:pb-32 relative",
+            "flex flex-col gap-8 pb-10 lg:pt-0 lg:pb-32 relative",
             sidebarPosition === 'left' ? "lg:flex-row" : "lg:flex-row-reverse"
         )}>
             {/* Desktop Navigation Sidebar */}
