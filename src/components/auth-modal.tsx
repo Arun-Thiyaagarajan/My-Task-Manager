@@ -23,6 +23,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Eye, EyeOff, Mail, Lock, User, Chrome, ShieldCheck } from 'lucide-react';
 import { useFirebase } from '@/firebase';
+import { useRouter } from 'next/navigation';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ interface AuthModalProps {
 export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
   const { auth } = useFirebase();
   const { toast } = useToast();
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [authStep, setAuthStep] = useState<'login' | 'register' | 'forgot'>('login');
@@ -70,8 +72,15 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
         setIsLoading(false);
         return;
       }
+      
+      // Execute success callbacks
       onSuccess();
       onOpenChange(false);
+      
+      // Trigger internal refresh and navigate home
+      window.dispatchEvent(new Event('company-changed'));
+      router.push('/');
+      
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Authentication Failed', description: error.message });
     } finally {
@@ -86,8 +95,15 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
       toast({ variant: 'success', title: 'Signed in with Google' });
+      
+      // Execute success callbacks
       onSuccess();
       onOpenChange(false);
+      
+      // Trigger internal refresh and navigate home
+      window.dispatchEvent(new Event('company-changed'));
+      router.push('/');
+      
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Google Sign-In Failed', description: error.message });
     } finally {
