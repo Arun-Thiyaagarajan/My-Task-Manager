@@ -309,7 +309,7 @@ export function Header() {
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button variant="ghost" size="icon" onClick={() => startTutorial()}>
-                                <graduationCap className="h-5 w-5" />
+                                <GraduationCap className="h-5 w-5" />
                                 <span className="sr-only">Show Tutorial</span>
                             </Button>
                         </TooltipTrigger>
