@@ -97,7 +97,7 @@ const HeaderLink = ({ href, children, className, onClick, id }: { href: string; 
 
 
 export function Header() {
-  const { auth, user, userProfile } = useFirebase();
+  const { auth, user, userProfile, isUserLoading, isProfileLoading } = useFirebase();
   const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
@@ -116,6 +116,7 @@ export function Header() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthModeState] = useState<'localStorage' | 'authenticate'>('localStorage');
   const [isSignOutDialogOpen, setIsSignOutDialogOpen] = useState(false);
+  const [isGlobalLoading, setIsGlobalLoading] = useState(false);
 
   const refreshAllData = () => {
     const config = getUiConfig();
@@ -128,11 +129,19 @@ export function Header() {
   useEffect(() => {
     refreshAllData();
     
+    const handleSyncStart = () => setIsGlobalLoading(true);
+    const handleSyncEnd = () => setIsGlobalLoading(false);
+
     window.addEventListener('company-changed', refreshAllData);
     window.addEventListener('storage', refreshAllData);
+    window.addEventListener('sync-start', handleSyncStart);
+    window.addEventListener('sync-end', handleSyncEnd);
+
     return () => {
         window.removeEventListener('company-changed', refreshAllData);
         window.removeEventListener('storage', refreshAllData);
+        window.removeEventListener('sync-start', handleSyncStart);
+        window.removeEventListener('sync-end', handleSyncEnd);
     };
 
   }, []);
@@ -181,10 +190,12 @@ export function Header() {
   const profileName = userProfile?.username || user?.displayName || user?.email || 'User';
   const profilePhoto = userProfile?.photoURL || user?.photoURL;
 
+  const showProgress = isUserLoading || isProfileLoading || isGlobalLoading;
+
   return (
     <>
       <header id="main-header" className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 max-w-screen-2xl items-center justify-between">
+        <div className="container flex h-14 max-w-screen-2xl items-center justify-between relative">
           <div className="flex items-center gap-4 md:gap-6">
             <div className="flex items-center space-x-2">
                 {uiConfig?.appIcon && isDataURI(uiConfig.appIcon) ? (
@@ -298,7 +309,7 @@ export function Header() {
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button variant="ghost" size="icon" onClick={() => startTutorial()}>
-                                <GraduationCap className="h-5 w-5" />
+                                <graduationCap className="h-5 w-5" />
                                 <span className="sr-only">Show Tutorial</span>
                             </Button>
                         </TooltipTrigger>
@@ -424,6 +435,13 @@ export function Header() {
               </DropdownMenu>
             </div>
           </div>
+          
+          {/* Navbar Bottom Progress Bar */}
+          {showProgress && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 overflow-hidden">
+              <div className="h-full bg-primary animate-timer w-full" />
+            </div>
+          )}
         </div>
       </header>
       

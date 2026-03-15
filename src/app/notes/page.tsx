@@ -245,6 +245,7 @@ export default function NotesPage() {
             const text = e.target?.result as string;
             const parsedJson = JSON.parse(text);
 
+            window.dispatchEvent(new Event('sync-start'));
             let importedNotesData: Partial<Note>[] = [];
             if (Array.isArray(parsedJson)) {
                 importedNotesData = parsedJson;
@@ -290,6 +291,7 @@ export default function NotesPage() {
             toast({ variant: 'destructive', title: 'Import Failed', description: error.message || 'There was an error processing your file.' });
         } finally {
             if (fileInputRef.current) { fileInputRef.current.value = ''; }
+            window.dispatchEvent(new Event('sync-end'));
         }
     };
     reader.readAsText(file);

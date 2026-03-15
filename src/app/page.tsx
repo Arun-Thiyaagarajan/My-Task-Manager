@@ -583,6 +583,7 @@ export default function Home() {
             const parsedJson = JSON.parse(text);
             const mode = getAuthMode();
 
+            window.dispatchEvent(new Event('sync-start'));
             if (mode === 'authenticate') {
                 // Large data handling for cloud import
                 setIsImporting(true);
@@ -622,6 +623,7 @@ export default function Home() {
             toast({ variant: 'destructive', title: 'Import Failed', description: error.message || 'There was an error processing your file.' });
         } finally {
             if(fileInputRef.current) { fileInputRef.current.value = ''; }
+            window.dispatchEvent(new Event('sync-end'));
         }
     };
     reader.readAsText(file);
