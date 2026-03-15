@@ -851,7 +851,7 @@ export default function Home() {
 
                 <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isImporting} className="w-full sm:w-auto h-11 font-bold">
                     <Download className="mr-2 h-4 w-4" />
-                    {mode === 'authenticate' ? 'Sync' : 'Import'}
+                    Import
                 </Button>
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />
                 
