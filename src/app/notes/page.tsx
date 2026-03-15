@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -6,7 +7,7 @@ import type { Note, UiConfig, NoteLayout } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { StickyNote, LayoutGrid, Plus, CheckSquare, X, Trash2, Upload, Download, Search, CalendarIcon, XCircle } from 'lucide-react';
+import { StickyNote, LayoutGrid, Plus, CheckSquare, X, Trash2, Upload, Download, Search, CalendarIcon, XCircle, Loader2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,6 +38,7 @@ import { Calendar } from '@/components/ui/calendar';
 import type { DateRange } from 'react-day-picker';
 import { FolderSearch } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useDebounce } from '@/hooks/use-debounce';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -75,6 +77,7 @@ export default function NotesPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [searchQuery, setSearchQuery] = useState(() => getInitialStateFromStorage(NOTES_FILTER_STORAGE_KEYS.search, ''));
+  const debouncedSearchQuery = useDebounce(searchQuery, 400);
   const [dateFilter, setDateFilter] = useState<DateRange | undefined>(() => {
     const savedDate = getInitialStateFromStorage<{from?: string; to?: string} | undefined>(NOTES_FILTER_STORAGE_KEYS.date, undefined);
     if (savedDate?.from) {
@@ -86,6 +89,8 @@ export default function NotesPage() {
     return undefined;
   });
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
+  const [isFiltering, setIsFiltering] = useState(false);
+  const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
 
   useEffect(() => { localStorage.setItem(NOTES_FILTER_STORAGE_KEYS.search, JSON.stringify(searchQuery)); }, [searchQuery]);
   useEffect(() => { localStorage.setItem(NOTES_FILTER_STORAGE_KEYS.date, JSON.stringify(dateFilter)); }, [dateFilter]);
@@ -130,6 +135,38 @@ export default function NotesPage() {
         window.removeEventListener('company-changed', refreshData);
     };
   }, [refreshData]);
+
+  // Background Filtering Logic
+  useEffect(() => {
+    setIsFiltering(true);
+    const performFilter = () => {
+        try {
+            const results = notes.filter(note => {
+                const searchMatch = debouncedSearchQuery.trim() === '' ||
+                    fuzzySearch(debouncedSearchQuery, note.title) ||
+                    fuzzySearch(debouncedSearchQuery, note.content);
+                
+                const dateMatch = (() => {
+                    if (!dateFilter?.from) return true;
+                    const noteDate = new Date(note.updatedAt);
+                    const from = startOfDay(dateFilter.from);
+                    const to = dateFilter.to ? endOfDay(dateFilter.to) : endOfDay(dateFilter.from);
+                    return noteDate >= from && noteDate <= to;
+                })();
+                
+                return searchMatch && dateMatch;
+            });
+            setFilteredNotes(results);
+        } catch (e) {
+            console.error("Notes filtering failed", e);
+        } finally {
+            setIsFiltering(false);
+        }
+    };
+
+    const rafId = requestAnimationFrame(performFilter);
+    return () => cancelAnimationFrame(rafId);
+  }, [notes, debouncedSearchQuery, dateFilter]);
 
   const handleCardClick = (note: Note) => {
     setNoteToView(note);
@@ -297,24 +334,6 @@ export default function NotesPage() {
     reader.readAsText(file);
   };
   
-  const filteredNotes = useMemo(() => {
-    return notes.filter(note => {
-        const searchMatch = searchQuery.trim() === '' ||
-            fuzzySearch(searchQuery, note.title) ||
-            fuzzySearch(searchQuery, note.content);
-        
-        const dateMatch = (() => {
-            if (!dateFilter?.from) return true;
-            const noteDate = new Date(note.updatedAt);
-            const from = startOfDay(dateFilter.from);
-            const to = dateFilter.to ? endOfDay(dateFilter.to) : endOfDay(dateFilter.from);
-            return noteDate >= from && noteDate <= to;
-        })();
-        
-        return searchMatch && dateMatch;
-    });
-  }, [notes, searchQuery, dateFilter]);
-  
   const areFiltersActive = useMemo(() => {
       return searchQuery.trim() !== '' || dateFilter !== undefined;
   }, [searchQuery, dateFilter]);
@@ -453,7 +472,14 @@ export default function NotesPage() {
                              <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setDateFilter(undefined); }}>
                                 <XCircle className="mr-2 h-4 w-4" /> Clear filters
                              </Button>
-                             <p className="text-sm text-muted-foreground">{filteredNotes.length} of {notes.length} notes shown.</p>
+                             {isFiltering ? (
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                    Filtering notes...
+                                </div>
+                             ) : (
+                                <p className="text-sm text-muted-foreground">{filteredNotes.length} of {notes.length} notes shown.</p>
+                             )}
                         </div>
                     )}
                 </CardContent>

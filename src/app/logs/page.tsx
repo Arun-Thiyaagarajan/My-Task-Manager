@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -9,13 +8,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { FileClock, Link as LinkIcon, Activity, Trash2, LayoutGrid, Search, StickyNote } from 'lucide-react';
+import { FileClock, Link as LinkIcon, Activity, Trash2, LayoutGrid, Search, StickyNote, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Input } from '@/components/ui/input';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { fuzzySearch, formatTimestamp } from '@/lib/utils';
+import { useDebounce } from '@/hooks/use-debounce';
 
 const parseLogMessage = (message: string) => {
     const parts = message.split(/(\*\*.*?\*\*|\*.*?\*)/g);
@@ -35,10 +35,13 @@ export default function LogsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const debouncedSearchQuery = useDebounce(searchQuery, 400);
     const [openMonths, setOpenMonths] = useState<string[]>([]);
     const isInitialLoad = useRef(true);
     const searchInputRef = useRef<HTMLInputElement>(null);
     const [commandKey, setCommandKey] = useState('Ctrl');
+    const [isFiltering, setIsFiltering] = useState(false);
+    const [filteredLogs, setFilteredLogs] = useState<Log[]>([]);
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -82,12 +85,25 @@ export default function LogsPage() {
         };
     }, []);
 
-    const filteredLogs = useMemo(() => {
-        if (!searchQuery) return logs;
-        return logs.filter(log =>
-            fuzzySearch(searchQuery, log.message)
-        );
-    }, [logs, searchQuery]);
+    // Background Filtering Logic
+    useEffect(() => {
+        setIsFiltering(true);
+        const performFilter = () => {
+            try {
+                const results = logs.filter(log =>
+                    fuzzySearch(debouncedSearchQuery, log.message)
+                );
+                setFilteredLogs(results);
+            } catch (e) {
+                console.error("Logs filtering failed", e);
+            } finally {
+                setIsFiltering(false);
+            }
+        };
+
+        const rafId = requestAnimationFrame(performFilter);
+        return () => cancelAnimationFrame(rafId);
+    }, [logs, debouncedSearchQuery]);
 
     const groupedLogs = useMemo(() => {
         return filteredLogs.reduce((acc, log) => {
@@ -142,7 +158,16 @@ export default function LogsPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>All Logs</CardTitle>
-                    <CardDescription>{filteredLogs.length} of {logs.length} log entries found. The last 2000 entries are kept.</CardDescription>
+                    <CardDescription>
+                        {isFiltering ? (
+                            <span className="flex items-center gap-2">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                Filtering logs...
+                            </span>
+                        ) : (
+                            `${filteredLogs.length} of ${logs.length} log entries found. The last 2000 entries are kept.`
+                        )}
+                    </CardDescription>
                      <div className="pt-4">
                         <div className="relative flex items-center w-full max-w-sm">
                             <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
@@ -194,7 +219,7 @@ export default function LogsPage() {
                                                                 {formatTimestamp(log.timestamp, uiConfig.timeFormat)}
                                                             </TableCell>
                                                             <TableCell className="font-medium">
-                                                                <p className="whitespace-pre-wrap">{parseLogMessage(log.message)}</p>
+                                                                <div className="whitespace-pre-wrap">{parseLogMessage(log.message)}</div>
                                                             </TableCell>
                                                             <TableCell className="text-right">
                                                                 {log.taskId && !isNoteLog ? (

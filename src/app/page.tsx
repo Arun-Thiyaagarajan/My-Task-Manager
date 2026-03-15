@@ -157,43 +157,16 @@ export default function Home() {
   const [searchError, setSearchError] = useState<string | null>(null);
   const debouncedSearchQuery = useDebounce(searchQuery, 400);
 
-  // Sync searching state with debounce
-  useEffect(() => {
-    const isKeystrokePending = searchQuery !== debouncedSearchQuery;
-    
-    if (isKeystrokePending) {
-        setIsSearching(true);
-        window.dispatchEvent(new Event('sync-start'));
-        setSearchError(null);
-    } else {
-        // Search logic has caught up with typing
-        const timer = setTimeout(() => {
-            setIsSearching(false);
-            window.dispatchEvent(new Event('sync-end'));
-        }, 300);
-        return () => clearTimeout(timer);
-    }
-  }, [searchQuery, debouncedSearchQuery]);
-
-  // Handle slow search messaging
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (isSearching) {
-        timer = setTimeout(() => setShowSlowSearchMessage(true), 3000);
-    } else {
-        setShowSlowSearchMessage(false);
-    }
-    return () => clearTimeout(timer);
-  }, [isSearching]);
-
   // New Import Progress States
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
+
+  // Background Filtering State
+  const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   
   useEffect(() => {
     const params = new URLSearchParams();
     
-    // We use debounced search query for URL synchronization to prevent jitter
     if (debouncedSearchQuery) params.set('search', debouncedSearchQuery);
     if (sortDescriptor) params.set('sort', sortDescriptor);
     if (viewMode) params.set('viewMode', viewMode);
@@ -272,6 +245,99 @@ export default function Home() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Sync searching state with debounce and input
+  useEffect(() => {
+    const isKeystrokePending = searchQuery !== debouncedSearchQuery;
+    
+    if (isKeystrokePending) {
+        setIsSearching(true);
+        window.dispatchEvent(new Event('sync-start'));
+        setSearchError(null);
+    } else {
+        const timer = setTimeout(() => {
+            setIsSearching(false);
+            window.dispatchEvent(new Event('sync-end'));
+        }, 300);
+        return () => clearTimeout(timer);
+    }
+  }, [searchQuery, debouncedSearchQuery]);
+
+  // Handle slow search messaging
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isSearching) {
+        timer = setTimeout(() => setShowSlowSearchMessage(true), 3000);
+    } else {
+        setShowSlowSearchMessage(false);
+    }
+    return () => clearTimeout(timer);
+  }, [isSearching]);
+
+  // Asynchronous Filtering Logic
+  useEffect(() => {
+    const filterWork = () => {
+        try {
+            const results = tasks.filter((task: Task) => {
+                if (favoritesOnly && !task.isFavorite) return false;
+
+                const statusMatch = statusFilter.length === 0 || statusFilter.includes(task.status);
+                const repoMatch = repoFilter.length === 0 || (Array.isArray(task.repositories) && task.repositories?.some(repo => repoFilter.includes(repo)) || false);
+                const tagsMatch = tagsFilter.length === 0 || (task.tags?.some(tag => tagsFilter.includes(tag)) ?? false);
+
+                const developersById = new Map(developers.map(d => [d.id, d.name]));
+                const testersById = new Map(testers.map(t => [t.id, t.name]));
+
+                const searchMatch =
+                debouncedSearchQuery.trim() === '' ||
+                fuzzySearch(debouncedSearchQuery, task.title) ||
+                fuzzySearch(debouncedSearchQuery, task.description) ||
+                fuzzySearch(debouncedSearchQuery, task.id) ||
+                (task.azureWorkItemId && fuzzySearch(debouncedSearchQuery, task.azureWorkItemId)) ||
+                task.developers?.some((devId) => fuzzySearch(debouncedSearchQuery, developersById.get(devId) || '')) ||
+                task.testers?.some((testerId) => fuzzySearch(debouncedSearchQuery, testersById.get(testerId) || '')) ||
+                (Array.isArray(task.repositories) && task.repositories?.some((repo) => fuzzySearch(debouncedSearchQuery, repo)));
+
+                const dateMatch = (() => {
+                if (dateView === 'all') return true;
+                if (dateView === 'monthly') {
+                    if (!task.devStartDate) return false;
+                    const taskDate = new Date(task.devStartDate);
+                    const start = startOfMonth(selectedDate);
+                    const end = endOfMonth(selectedDate);
+                    return taskDate >= start && taskDate <= end;
+                }
+                if (dateView === 'yearly') {
+                    if (!task.devStartDate) return false;
+                    const taskDate = new Date(task.devStartDate);
+                    const start = startOfYear(selectedDate);
+                    const end = endOfYear(selectedDate);
+                    return taskDate >= start && taskDate <= end;
+                }
+                return true;
+                })();
+                
+                const deploymentMatch = deploymentFilter.length === 0 || deploymentFilter.every(filter => {
+                const isNegative = filter.startsWith('not_');
+                const env = isNegative ? filter.substring(4) : filter;
+                const isDeployed = task.deploymentStatus?.[env] ?? false;
+                return isNegative ? !isDeployed : isDeployed;
+                });
+
+                return statusMatch && repoMatch && searchMatch && dateMatch && deploymentMatch && tagsMatch;
+            });
+            setFilteredTasks(results);
+            setSearchError(null);
+        } catch (e) {
+            console.error("Filtering logic failed:", e);
+            setSearchError("Filtering failed. Please try again.");
+        }
+    };
+
+    // Background calculation
+    const rafId = requestAnimationFrame(filterWork);
+    return () => cancelAnimationFrame(rafId);
+  }, [tasks, statusFilter, repoFilter, tagsFilter, developers, testers, debouncedSearchQuery, dateView, selectedDate, deploymentFilter, favoritesOnly]);
+
   const getDeploymentScore = (task: Task) => {
     const deploymentOrder = ['production', 'stage', 'dev'];
     for (let i = 0; i < deploymentOrder.length; i++) {
@@ -282,64 +348,6 @@ export default function Home() {
     }
     return 0;
   };
-
-  const filteredTasks = useMemo(() => {
-    try {
-        return tasks.filter((task: Task) => {
-            if (favoritesOnly && !task.isFavorite) return false;
-
-            const statusMatch = statusFilter.length === 0 || statusFilter.includes(task.status);
-            const repoMatch = repoFilter.length === 0 || (Array.isArray(task.repositories) && task.repositories?.some(repo => repoFilter.includes(repo)) || false);
-            const tagsMatch = tagsFilter.length === 0 || (task.tags?.some(tag => tagsFilter.includes(tag)) ?? false);
-
-            const developersById = new Map(developers.map(d => [d.id, d.name]));
-            const testersById = new Map(testers.map(t => [t.id, t.name]));
-
-            const searchMatch =
-            debouncedSearchQuery.trim() === '' ||
-            fuzzySearch(debouncedSearchQuery, task.title) ||
-            fuzzySearch(debouncedSearchQuery, task.description) ||
-            fuzzySearch(debouncedSearchQuery, task.id) ||
-            (task.azureWorkItemId && fuzzySearch(debouncedSearchQuery, task.azureWorkItemId)) ||
-            task.developers?.some((devId) => fuzzySearch(debouncedSearchQuery, developersById.get(devId) || '')) ||
-            task.testers?.some((testerId) => fuzzySearch(debouncedSearchQuery, testersById.get(testerId) || '')) ||
-            (Array.isArray(task.repositories) && task.repositories?.some((repo) => fuzzySearch(debouncedSearchQuery, repo)));
-
-            const dateMatch = (() => {
-            if (dateView === 'all') return true;
-            if (dateView === 'monthly') {
-                if (!task.devStartDate) return false;
-                const taskDate = new Date(task.devStartDate);
-                const start = startOfMonth(selectedDate);
-                const end = endOfMonth(selectedDate);
-                return taskDate >= start && taskDate <= end;
-            }
-            if (dateView === 'yearly') {
-                if (!task.devStartDate) return false;
-                const taskDate = new Date(task.devStartDate);
-                const start = startOfYear(selectedDate);
-                const end = endOfYear(selectedDate);
-                return taskDate >= start && taskDate <= end;
-            }
-            return true;
-            })();
-            
-            const deploymentMatch = deploymentFilter.length === 0 || deploymentFilter.every(filter => {
-            const isNegative = filter.startsWith('not_');
-            const env = isNegative ? filter.substring(4) : filter;
-            const isDeployed = task.deploymentStatus?.[env] ?? false;
-            return isNegative ? !isDeployed : isDeployed;
-            });
-
-            return statusMatch && repoMatch && searchMatch && dateMatch && deploymentMatch && tagsMatch;
-        });
-    } catch (e) {
-        console.error("Filtering logic failed:", e);
-        // We use a side effect to set the error UI state
-        setTimeout(() => setSearchError("Search temporarily unavailable. Please try again later."), 0);
-        return [];
-    }
-  }, [tasks, statusFilter, repoFilter, tagsFilter, developers, testers, debouncedSearchQuery, dateView, selectedDate, deploymentFilter, favoritesOnly]);
 
   const sortedTasks = useMemo(() => {
     return [...filteredTasks].sort((a, b) => {
@@ -632,7 +640,6 @@ export default function Home() {
 
             window.dispatchEvent(new Event('sync-start'));
             if (mode === 'authenticate') {
-                // Large data handling for cloud import
                 setIsImporting(true);
                 setImportProgress(0);
                 
@@ -659,7 +666,6 @@ export default function Home() {
                     setImportProgress(0);
                 }
             } else {
-                // Local Import
                 try {
                     await importWorkspaceData(parsedJson);
                     toast({ variant: 'success', title: 'Local Import Successful', description: 'Your browser storage has been updated.' });
@@ -750,7 +756,6 @@ export default function Home() {
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      {/* Import Progress Overlay */}
       {isImporting && (
           <div className="fixed inset-0 z-[200] bg-background/95 backdrop-blur-md flex items-center justify-center p-6 text-center">
               <Card className="w-full max-w-md shadow-2xl border-primary/20">
@@ -881,7 +886,7 @@ export default function Home() {
            {searchError && (
                 <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Search Failed</AlertTitle>
+                    <AlertTitle>Filtering failed</AlertTitle>
                     <AlertDescription>{searchError}</AlertDescription>
                 </Alert>
            )}
