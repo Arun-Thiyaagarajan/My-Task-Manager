@@ -145,10 +145,12 @@ export function MobileBottomNav() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem onSelect={() => handleNavigate('/profile')}>
-                <UserIcon className="mr-2 h-4 w-4" />
-                <span>My Profile</span>
-              </DropdownMenuItem>
+              {user && (
+                <DropdownMenuItem onSelect={() => handleNavigate('/profile')}>
+                  <UserIcon className="mr-2 h-4 w-4" />
+                  <span>My Profile</span>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onSelect={() => handleNavigate('/logs')}>
                 <FileClock className="mr-2 h-4 w-4" />
                 <span>Activity Logs</span>
