@@ -254,12 +254,17 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
   const handleDeleteCheck = (person: Person) => {
     const activeTasks = getTasks();
     const binnedTasks = getBinnedTasks();
+    
+    // Scan all tasks for references
     const allRelevantTasks = [...activeTasks, ...binnedTasks].filter(t => 
         t.developers?.includes(person.id) || t.testers?.includes(person.id)
     );
 
-    if (allRelevantTasks.length > 0) {
-        setInUseTasks(allRelevantTasks);
+    // CRITICAL: Ensure uniqueness by task ID to avoid duplicate keys in the list
+    const uniqueRelevantTasks = Array.from(new Map(allRelevantTasks.map(t => [t.id, t])).values());
+
+    if (uniqueRelevantTasks.length > 0) {
+        setInUseTasks(uniqueRelevantTasks);
         setPersonAttemptingDelete(person);
         return;
     }
