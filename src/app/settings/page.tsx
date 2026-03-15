@@ -48,7 +48,9 @@ import {
     Download,
     PlusCircle,
     Info,
-    X
+    X,
+    Maximize2,
+    Camera
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PeopleManagerDialog } from '@/components/people-manager-dialog';
@@ -71,6 +73,9 @@ import { ReleaseManagementCard } from '@/components/release-management-card';
 import { cn } from '@/lib/utils';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { AuthModal } from '@/components/auth-modal';
+import { ProfileImageCropper } from '@/components/profile-image-cropper';
+import { ImagePreviewDialog } from '@/components/image-preview-dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function SettingsPage() {
   const [uiConfig, setUiConfigState] = useState<UiConfig | null>(null);
@@ -92,6 +97,12 @@ export default function SettingsPage() {
   const [appName, setAppName] = useState('');
   const [appIcon, setAppIcon] = useState('');
   const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>('12h');
+
+  // App Icon Editor states
+  const [isCropperOpen, setIsCropperOpen] = useState(false);
+  const [pendingIconImage, setPendingIconImage] = useState<string | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [originalIconImage, setOriginalIconImage] = useState<string | null>(null);
 
   // Environment state
   const [newEnvName, setNewEnvName] = useState('');
@@ -160,13 +171,34 @@ export default function SettingsPage() {
     const reader = new FileReader();
     reader.onload = async (event) => {
       const rawDataUrl = event.target?.result as string;
-      // App icon optimization logic (separate from User Profile)
-      const compressed = await compressImage(rawDataUrl, 128, 0.8);
-      setAppIcon(compressed);
-      toast({ title: 'Icon optimized and ready', description: 'Click "Save Display Settings" to apply changes.' });
+      const workingOriginal = await compressImage(rawDataUrl, 1200, 0.85);
+      setOriginalIconImage(workingOriginal);
+      setPendingIconImage(workingOriginal);
+      setIsCropperOpen(true);
     };
     reader.readAsDataURL(file);
     if (e.target) e.target.value = '';
+  };
+
+  const handleCropComplete = (croppedImage: string) => {
+    setAppIcon(croppedImage);
+    toast({ title: 'Icon ready', description: 'Click "Save Display Settings" to apply changes.' });
+  };
+
+  const handleRemoveIcon = () => {
+    setAppIcon('');
+    setOriginalIconImage(null);
+    toast({ title: 'Icon removed', description: 'Click "Save Display Settings" to apply changes.' });
+    setIsPreviewOpen(false);
+  };
+
+  const handleEditExistingIcon = () => {
+    const imageToEdit = originalIconImage || (appIcon.startsWith('data:') ? appIcon : null);
+    if (imageToEdit) {
+        setPendingIconImage(imageToEdit);
+        setIsPreviewOpen(false);
+        setIsCropperOpen(true);
+    }
   };
 
   const handleFieldToggle = (key: string, property: 'isActive' | 'isRequired') => {
@@ -322,6 +354,7 @@ export default function SettingsPage() {
   }
 
   const authMode = getAuthMode();
+  const isDataURIIcon = appIcon && appIcon.startsWith('data:image');
 
   return (
     <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8 max-w-7xl">
@@ -481,22 +514,43 @@ export default function SettingsPage() {
                                 placeholder="Emoji or URL..." 
                                 className="h-9 flex-1" 
                             />
-                            <Button 
-                                variant="outline" 
-                                size="icon" 
-                                className="h-9 w-9 shrink-0" 
-                                onClick={() => iconFileInputRef.current?.click()}
-                                type="button"
-                            >
-                                <Upload className="h-4 w-4" />
-                            </Button>
-                            <div className="h-9 w-9 border rounded-md flex items-center justify-center bg-muted text-lg overflow-hidden shrink-0">
-                                {appIcon && appIcon.startsWith('data:image') ? (
-                                    <img src={appIcon} alt="Icon" className="h-full w-full object-contain" />
-                                ) : (
-                                    appIcon || '📋'
-                                )}
-                            </div>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button 
+                                            variant="outline" 
+                                            size="icon" 
+                                            className="h-9 w-9 shrink-0" 
+                                            onClick={() => iconFileInputRef.current?.click()}
+                                            type="button"
+                                        >
+                                            <Upload className="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Upload Brand Icon</TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <button 
+                                            type="button"
+                                            onClick={() => isDataURIIcon ? setIsPreviewOpen(true) : null}
+                                            className={cn(
+                                                "h-9 w-9 border rounded-md flex items-center justify-center bg-muted text-lg overflow-hidden shrink-0 transition-transform active:scale-95",
+                                                isDataURIIcon && "cursor-pointer hover:ring-2 hover:ring-primary/20"
+                                            )}
+                                        >
+                                            {isDataURIIcon ? (
+                                                <img src={appIcon} alt="Icon" className="h-full w-full object-contain" />
+                                            ) : (
+                                                appIcon || '📋'
+                                            )}
+                                        </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>{isDataURIIcon ? 'View / Edit Icon' : 'Current Icon'}</TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
                             <input type="file" ref={iconFileInputRef} onChange={handleIconUpload} className="hidden" accept="image/*" />
                         </div>
                     </div>
@@ -654,6 +708,24 @@ export default function SettingsPage() {
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ProfileImageCropper 
+        isOpen={isCropperOpen}
+        onOpenChange={setIsCropperOpen}
+        imageSrc={pendingIconImage}
+        onCropComplete={handleCropComplete}
+      />
+
+      <ImagePreviewDialog 
+        isOpen={isPreviewOpen}
+        onOpenChange={setIsPreviewOpen}
+        imageUrl={isDataURIIcon ? appIcon : null}
+        imageName="App Icon Preview"
+        isProfilePreview
+        onEdit={handleEditExistingIcon}
+        onChange={() => { setIsPreviewOpen(false); iconFileInputRef.current?.click(); }}
+        onRemove={handleRemoveIcon}
+      />
     </div>
   );
 }
