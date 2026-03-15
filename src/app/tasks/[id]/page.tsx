@@ -1135,16 +1135,6 @@ const handleCopyDescription = () => {
                 </CardContent>
               </Card>
             )}
-
-            {commentsField && !isBinned && (
-               <CommentsSection taskId={task.id} comments={task.comments || []} onCommentsUpdate={handleCommentsUpdate} readOnly={isBinned} />
-            )}
-            
-            {historyField && (
-                <div className="lg:col-span-2">
-                    <TaskHistory logs={taskLogs} uiConfig={uiConfig} isLoading={isLogsLoading} />
-                </div>
-            )}
           </div>
 
           <div className="space-y-6">
@@ -1371,6 +1361,16 @@ const handleCopyDescription = () => {
                          )}
                     </CardContent>
                 </Card>
+            )}
+          </div>
+
+          <div className="lg:col-span-2 space-y-6">
+            {commentsField && !isBinned && (
+               <CommentsSection taskId={task.id} comments={task.comments || []} onCommentsUpdate={handleCommentsUpdate} readOnly={isBinned} />
+            )}
+            
+            {historyField && (
+                <TaskHistory logs={taskLogs} uiConfig={uiConfig} isLoading={isLogsLoading} />
             )}
           </div>
         </div>
