@@ -730,7 +730,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                  <div className="flex items-center justify-center gap-3">
                     <Button
                         type="button"
-                        variant="outline"
+                        variant="ghost"
                         onClick={handleCancel}
                         disabled={isPending}
                         className="h-10 px-6 font-semibold"
@@ -780,7 +780,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                 size="icon"
                 className={cn(
                     "h-14 w-14 rounded-full shadow-2xl transition-all active:scale-90",
-                    !isDirty ? "opacity-60 saturate-[0.5]" : "opacity-100 shadow-primary/40"
+                    !isDirty ? "opacity-100" : "opacity-100 shadow-primary/40"
                 )}
             >
                 {isPending ? (
