@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { Badge } from '@/components/ui/badge';
@@ -54,7 +52,7 @@ export function EnvironmentStatus({
         };
 
         return (
-          <Tooltip key={env.name}>
+          <Tooltip key={env.id}>
             <TooltipTrigger asChild>
               <Badge
                 onClick={handleClick}

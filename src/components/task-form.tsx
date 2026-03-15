@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -111,7 +110,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
   const [activeId, setActiveId] = useState<string>('');
   const [sidebarPosition, setSidebarPosition] = useState<'left' | 'right'>('left');
   
-  // Use refs to handle jump-to behavior without interference from scroll spy
   const isJumpingRef = useRef(false);
   const jumpTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -243,7 +241,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                   });
                    toast({ variant: 'success', title: 'Smart title generated!' });
                 } catch(e) {
-                  console.error('Failed to generate smart title:', e);
+                  console.error('Failed to generate smart title', e);
                 }
               }
             } catch (_) {
@@ -632,10 +630,9 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
     if (!uiConfig || navigableSections.length === 0) return;
 
     const handleScroll = () => {
-        // If we are currently performing a manual jump scroll, do nothing
         if (isJumpingRef.current) return;
 
-        const scrollPosition = window.scrollY + SCROLL_THRESHOLD + 20; // Added extra buffer for reliability
+        const scrollPosition = window.scrollY + SCROLL_THRESHOLD + 20; 
         const isAtBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 100;
         
         if (isAtBottom && navigableSections.length > 0) {
@@ -651,7 +648,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
         navigableSections.forEach(section => {
             const sectionEl = document.getElementById(section.id);
             if (sectionEl) {
-                // Use getBoundingClientRect for more accurate absolute position
                 const rect = sectionEl.getBoundingClientRect();
                 allTargets.push({ id: section.id, top: rect.top + window.scrollY });
             }
@@ -664,7 +660,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
             });
         });
 
-        // Sorting is crucial for the "last match" logic
         allTargets.sort((a, b) => a.top - b.top);
 
         for (let i = 0; i < allTargets.length; i++) {
@@ -688,11 +683,9 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
   const scrollToId = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
-        // Prevent scroll spy from overriding during the smooth scroll
         isJumpingRef.current = true;
         if (jumpTimeoutRef.current) clearTimeout(jumpTimeoutRef.current);
         
-        // Optimistically set active ID for immediate feedback
         setActiveId(id);
 
         const bodyRect = document.body.getBoundingClientRect().top;
@@ -705,7 +698,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
             behavior: 'smooth'
         });
         
-        // Re-enable scroll spy after the smooth scroll is likely finished
         jumpTimeoutRef.current = setTimeout(() => {
             isJumpingRef.current = false;
         }, 800);
@@ -919,7 +911,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                             {relevantEnvsFieldConfig && relevantEnvsFieldConfig.isActive && renderField(relevantEnvsFieldConfig)}
 
                             {activeEnvs.length > 0 ? activeEnvs.map(env => (
-                                <div key={env.name} className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4 p-3 border rounded-md">
+                                <div key={env.id} className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4 p-3 border rounded-md">
                                     <FormField
                                         control={form.control}
                                         name={`deploymentStatus.${env.name}`}
@@ -929,11 +921,11 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                                                     <Checkbox
                                                         checked={field.value ?? false}
                                                         onCheckedChange={field.onChange}
-                                                        id={`deploy-check-${env.name}`}
+                                                        id={`deploy-check-${env.id}`}
                                                     />
                                                 </FormControl>
                                                 <FormLabel
-                                                    htmlFor={`deploy-check-${env.name}`}
+                                                    htmlFor={`deploy-check-${env.id}`}
                                                     className="font-normal capitalize cursor-pointer"
                                                 >
                                                     Deployed to {env.name}
@@ -993,7 +985,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                                             <div className="space-y-4 pt-4">
                                             {activeEnvs.length > 0 ? activeEnvs.map(env => (
                                                 <FormField
-                                                    key={`${repo}-${env.name}`}
+                                                    key={`${repo}-${env.id}`}
                                                     control={form.control}
                                                     name={`prLinks.${env.name}.${repo}`}
                                                     render={({ field }) => (
