@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -137,7 +138,7 @@ export function MultiSelect({
         <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
             <div 
-            className={cn("group flex items-center rounded-md border border-input h-auto min-h-11 w-full px-3 py-1 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 bg-background transition-colors hover:border-primary/50", className)}
+            className={cn("group flex items-center rounded-md border border-input h-auto min-h-11 w-full px-3 py-1 text-sm transition-colors hover:border-primary/50 focus-within:ring-1 focus-within:ring-primary focus-within:border-primary bg-background", className)}
             role="button"
             aria-expanded={isOpen}
             onClick={() => setIsOpen(true)}
@@ -152,7 +153,7 @@ export function MultiSelect({
                             {label}
                             {safeSelected.length === 1 && (
                                 <button
-                                    className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                    className="ml-1 rounded-full outline-none transition-colors"
                                     onKeyDown={(e) => { if (e.key === 'Enter') handleUnselect(e, value); }}
                                     onMouseDown={(e) => e.preventDefault()}
                                     onClick={(e) => handleUnselect(e, value)}
