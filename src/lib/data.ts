@@ -8,6 +8,7 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, setDoc, deleteDoc, updateDoc, collection, writeBatch, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { toast } from '@/hooks/use-toast';
 
 export const DATA_KEY = 'my_task_manager_data';
 const AUTH_MODE_KEY = 'taskflow_auth_mode';
@@ -58,7 +59,6 @@ const getInitialData = (): MyTaskManagerData => {
                 },
                 logs: [],
                 generalReminders: [],
-                // Start with empty releases locally; admin releases sync from cloud
                 releaseUpdates: [],
             },
         },
@@ -140,15 +140,24 @@ async function dispatchMutation(
     }
 
     try {
-        if (operation === 'delete') {
-            deleteDoc(docRef).catch(e => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'delete' })));
-        } else if (operation === 'update') {
-            updateDoc(docRef, payload).catch(e => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'update', requestResourceData: payload })));
-        } else {
-            setDoc(docRef, payload, { merge: operation === 'set' }).catch(e => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'write', requestResourceData: payload })));
-        }
+        const promise = operation === 'delete' ? deleteDoc(docRef) : 
+                        operation === 'update' ? updateDoc(docRef, payload) :
+                        setDoc(docRef, payload, { merge: operation === 'set' });
+
+        promise.catch(async (serverError) => {
+            const permissionError = new FirestorePermissionError({
+                path: docRef.path,
+                operation: operation === 'set' ? 'write' : operation as any,
+                requestResourceData: payload,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            
+            if (type === 'logs') {
+                toast({ variant: 'destructive', title: 'Logging Failed', description: 'Some changes could not be logged. Please try again.' });
+            }
+        });
     } catch (e) {
-        console.error("Mutation failed:", e);
+        console.error("Mutation dispatch error:", e);
     }
 }
 
@@ -185,6 +194,7 @@ export function addCompany(name: string) {
     };
     data.activeCompanyId = id;
     setAppData(data);
+    addLog({ message: `Created new company workspace: **${name}**` });
     if (getAuthMode() === 'authenticate') {
         dispatchMutation('companies', id, newCompany, 'create');
     }
@@ -194,8 +204,10 @@ export function updateCompany(id: string, name: string) {
     const data = getAppData();
     const company = data.companies.find(c => c.id === id);
     if (company) {
+        const oldName = company.name;
         company.name = name;
         setAppData(data);
+        addLog({ message: `Renamed company workspace from **${oldName}** to **${name}**` });
         if (getAuthMode() === 'authenticate') {
             dispatchMutation('companies', id, { name }, 'update');
         }
@@ -205,12 +217,14 @@ export function updateCompany(id: string, name: string) {
 export function deleteCompany(id: string): boolean {
     const data = getAppData();
     if (data.companies.length <= 1) return false;
+    const company = data.companies.find(c => c.id === id);
     data.companies = data.companies.filter(c => c.id !== id);
     delete data.companyData[id];
     if (data.activeCompanyId === id) {
         data.activeCompanyId = data.companies[0].id;
     }
     setAppData(data);
+    addLog({ message: `Deleted company workspace: **${company?.name || id}**` });
     if (getAuthMode() === 'authenticate') {
         dispatchMutation('companies', id, null, 'delete');
     }
@@ -234,133 +248,6 @@ export function setUiConfig(config: UiConfig) {
     }
 }
 
-// Task Statuses
-export function updateTaskStatuses(statuses: string[]) {
-    const config = getUiConfig();
-    config.taskStatuses = statuses;
-    const statusField = config.fields.find(f => f.key === 'status');
-    if (statusField) {
-        statusField.options = statuses.map(s => ({ id: s, value: s, label: s }));
-    }
-    setUiConfig(config);
-}
-
-// Environments
-export function addEnvironment(env: Omit<Environment, 'id'>) {
-    const config = getUiConfig();
-    const existing = config.environments.find(e => e.name.toLowerCase() === env.name.toLowerCase());
-    if (existing) return;
-    const newEnv = { ...env, id: `env_${crypto.randomUUID()}` };
-    config.environments.push(newEnv);
-    const relEnvsField = config.fields.find(f => f.key === 'relevantEnvironments');
-    if (relEnvsField) {
-        relEnvsField.options = config.environments.map(e => ({ id: e.id, value: e.name, label: e.name }));
-    }
-    setUiConfig(config);
-    addLog({ message: `Added new environment: **${env.name}**` });
-}
-
-export function updateEnvironment(id: string, updates: Partial<Environment>) {
-    const data = getAppData();
-    const companyId = getActiveCompanyId();
-    const config = data.companyData[companyId].uiConfig;
-    const index = config.environments.findIndex(e => e.id === id);
-    if (index === -1) return;
-
-    const oldName = config.environments[index].name;
-    const newName = updates.name || oldName;
-
-    if (newName !== oldName) {
-        // Migration logic for renaming
-        const tasks = data.companyData[companyId].tasks;
-        const trash = data.companyData[companyId].trash;
-
-        const migrateTask = (t: Task) => {
-            if (t.deploymentStatus && t.deploymentStatus[oldName] !== undefined) {
-                t.deploymentStatus[newName] = t.deploymentStatus[oldName];
-                delete t.deploymentStatus[oldName];
-            }
-            if (t.deploymentDates && t.deploymentDates[oldName] !== undefined) {
-                t.deploymentDates[newName] = t.deploymentDates[oldName];
-                delete t.deploymentDates[oldName];
-            }
-            if (t.prLinks && t.prLinks[oldName]) {
-                t.prLinks[newName] = t.prLinks[oldName];
-                delete t.prLinks[oldName];
-            }
-            if (t.relevantEnvironments) {
-                t.relevantEnvironments = t.relevantEnvironments.map(e => e === oldName ? newName : e);
-            }
-        };
-
-        tasks.forEach(migrateTask);
-        trash.forEach(migrateTask);
-
-        // Update MultiSelect options in field config
-        const relEnvsField = config.fields.find(f => f.key === 'relevantEnvironments');
-        if (relEnvsField && relEnvsField.options) {
-            relEnvsField.options = relEnvsField.options.map(opt => 
-                opt.value === oldName ? { ...opt, value: newName, label: newName } : opt
-            );
-        }
-    }
-
-    config.environments[index] = { ...config.environments[index], ...updates };
-    setAppData(data);
-    addLog({ message: `Updated environment: **${oldName}** ${newName !== oldName ? `to **${newName}**` : ''}` });
-    
-    if (getAuthMode() === 'authenticate') {
-        dispatchMutation('uiConfig', '', config, 'set');
-        // Task data updates are also synced via setAppData above locally, 
-        // but in authenticate mode, we'd ideally batch update tasks if many are affected.
-        // For MVP, the next cloud listener sync will reconcile.
-    }
-}
-
-export function deleteEnvironment(id: string): boolean {
-    const data = getAppData();
-    const companyId = getActiveCompanyId();
-    const config = data.companyData[companyId].uiConfig;
-    const env = config.environments.find(e => e.id === id);
-    
-    if (!env) return false;
-    
-    // Safety check for mandatory envs
-    const nameLower = env.name.toLowerCase();
-    if (env.isMandatory || nameLower === 'dev' || nameLower === 'production') {
-        return false;
-    }
-
-    const envName = env.name;
-    config.environments = config.environments.filter(e => e.id !== id);
-    
-    // Remove from MultiSelect options
-    const relEnvsField = config.fields.find(f => f.key === 'relevantEnvironments');
-    if (relEnvsField && relEnvsField.options) {
-        relEnvsField.options = relEnvsField.options.filter(opt => opt.value !== envName);
-    }
-
-    // Clean up tasks
-    const tasks = data.companyData[companyId].tasks;
-    const trash = data.companyData[companyId].trash;
-    const cleanupTask = (t: Task) => {
-        if (t.relevantEnvironments) t.relevantEnvironments = t.relevantEnvironments.filter(e => e !== envName);
-        if (t.deploymentStatus) delete t.deploymentStatus[envName];
-        if (t.deploymentDates) delete t.deploymentDates[envName];
-        if (t.prLinks) delete t.prLinks[envName];
-    };
-    tasks.forEach(cleanupTask);
-    trash.forEach(cleanupTask);
-
-    setAppData(data);
-    addLog({ message: `Deleted environment: **${envName}**` });
-    
-    if (getAuthMode() === 'authenticate') {
-        dispatchMutation('uiConfig', '', config, 'set');
-    }
-    return true;
-}
-
 // People management
 export function getDevelopers(): Person[] {
     return getAppData().companyData[getActiveCompanyId()]?.developers || [];
@@ -373,6 +260,7 @@ export function addDeveloper(person: Omit<Person, 'id'>): Person {
     const companyId = getActiveCompanyId();
     data.companyData[companyId].developers.push(newPerson);
     setAppData(data);
+    addLog({ message: `Added new developer: **${person.name}**` });
     if (getAuthMode() === 'authenticate') {
         dispatchMutation('developers', '', data.companyData[companyId].developers, 'set');
     }
@@ -384,8 +272,10 @@ export function updateDeveloper(id: string, updates: Partial<Person>) {
     const companyId = getActiveCompanyId();
     const index = data.companyData[companyId].developers.findIndex(p => p.id === id);
     if (index !== -1) {
+        const oldName = data.companyData[companyId].developers[index].name;
         data.companyData[companyId].developers[index] = { ...data.companyData[companyId].developers[index], ...updates };
         setAppData(data);
+        addLog({ message: `Updated developer details for **${oldName}**` });
         if (getAuthMode() === 'authenticate') {
             dispatchMutation('developers', '', data.companyData[companyId].developers, 'set');
         }
@@ -395,8 +285,10 @@ export function updateDeveloper(id: string, updates: Partial<Person>) {
 export function deleteDeveloper(id: string): boolean {
     const data = getAppData();
     const companyId = getActiveCompanyId();
+    const person = data.companyData[companyId].developers.find(p => p.id === id);
     data.companyData[companyId].developers = data.companyData[companyId].developers.filter(p => p.id !== id);
     setAppData(data);
+    addLog({ message: `Removed developer: **${person?.name || id}**` });
     if (getAuthMode() === 'authenticate') {
         dispatchMutation('developers', '', data.companyData[companyId].developers, 'set');
     }
@@ -414,6 +306,7 @@ export function addTester(person: Omit<Person, 'id'>): Person {
     const companyId = getActiveCompanyId();
     data.companyData[companyId].testers.push(newPerson);
     setAppData(data);
+    addLog({ message: `Added new tester: **${person.name}**` });
     if (getAuthMode() === 'authenticate') {
         dispatchMutation('testers', '', data.companyData[companyId].testers, 'set');
     }
@@ -425,8 +318,10 @@ export function updateTester(id: string, updates: Partial<Person>) {
     const companyId = getActiveCompanyId();
     const index = data.companyData[companyId].testers.findIndex(p => p.id === id);
     if (index !== -1) {
+        const oldName = data.companyData[companyId].testers[index].name;
         data.companyData[companyId].testers[index] = { ...data.companyData[companyId].testers[index], ...updates };
         setAppData(data);
+        addLog({ message: `Updated tester details for **${oldName}**` });
         if (getAuthMode() === 'authenticate') {
             dispatchMutation('testers', '', data.companyData[companyId].testers, 'set');
         }
@@ -436,12 +331,68 @@ export function updateTester(id: string, updates: Partial<Person>) {
 export function deleteTester(id: string): boolean {
     const data = getAppData();
     const companyId = getActiveCompanyId();
+    const person = data.companyData[companyId].testers.find(p => p.id === id);
     data.companyData[companyId].testers = data.companyData[companyId].testers.filter(p => p.id !== id);
     setAppData(data);
+    addLog({ message: `Removed tester: **${person?.name || id}**` });
     if (getAuthMode() === 'authenticate') {
         dispatchMutation('testers', '', data.companyData[companyId].testers, 'set');
     }
     return true;
+}
+
+// Logs
+export function getAggregatedLogs(): Log[] {
+    return getAppData().companyData[getActiveCompanyId()]?.logs || [];
+}
+
+export function getLogs(): Log[] {
+    return getAggregatedLogs();
+}
+
+export function getLogsForTask(taskId: string): Log[] {
+    return getAggregatedLogs().filter(l => l.taskId === taskId);
+}
+
+function _addLog(companyData: CompanyData, logData: Omit<Log, 'id' | 'timestamp'>) {
+    const newLog: Log = {
+        id: `log-${crypto.randomUUID()}`,
+        timestamp: new Date().toISOString(),
+        ...logData,
+    };
+    companyData.logs = [newLog, ...(companyData.logs || []).slice(0, 1999)];
+    dispatchMutation('logs', newLog.id, newLog, 'set');
+}
+
+export function addLog(log: Omit<Log, 'id' | 'timestamp'>) {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    if (!data.companyData[companyId]) return;
+    
+    let userId: string | undefined;
+    let userName: string | undefined;
+    
+    try {
+        const auth = getAuth();
+        const user = auth.currentUser;
+        if (user) {
+            userId = user.uid;
+            userName = user.displayName || user.email || 'Cloud User';
+        } else {
+            userName = 'Local User';
+        }
+    } catch (e) {
+        userName = 'System';
+    }
+
+    const logWithUser = {
+        ...log,
+        userId,
+        userName
+    };
+
+    _addLog(data.companyData[companyId]!, logWithUser);
+    setAppData(data);
 }
 
 // Tasks
@@ -475,6 +426,21 @@ export function addTask(task: Partial<Task>): Task {
     return newTask;
 }
 
+const formatLogVal = (val: any, key: string, uiConfig: UiConfig, peopleMap: Map<string, string>): string => {
+    if (val === null || val === undefined || val === '') return '*None*';
+    if (key === 'developers' || key === 'testers') {
+        const ids = Array.isArray(val) ? val : [val];
+        const names = ids.map(id => peopleMap.get(id) || id).filter(Boolean);
+        return names.length > 0 ? `*[${names.join(', ')}]*` : '*None*';
+    }
+    if (key.toLowerCase().includes('date') || key.toLowerCase().includes('time')) {
+        try { return `*${new Date(val).toLocaleDateString()}*`; } catch { return `*${val}*`; }
+    }
+    if (typeof val === 'boolean') return val ? '*Yes*' : '*No*';
+    if (Array.isArray(val)) return val.length > 0 ? `*[${val.join(', ')}]*` : '*Empty*';
+    return `*${val}*`;
+};
+
 export function updateTask(id: string, updates: Partial<Task>, silent = false): Task | null {
     const data = getAppData();
     const companyId = getActiveCompanyId();
@@ -487,11 +453,52 @@ export function updateTask(id: string, updates: Partial<Task>, silent = false): 
     setAppData(data);
 
     if (!silent) {
+        const config = getUiConfig();
+        const fieldLabels = new Map(config.fields.map(f => [f.key, f.label]));
+        const allPeople = [...data.companyData[companyId].developers, ...data.companyData[companyId].testers];
+        const peopleMap = new Map(allPeople.map(p => [p.id, p.name]));
+        
         const changes: string[] = [];
-        if (updates.title && updates.title !== oldTask.title) changes.push(`renamed to "**${updates.title}**"`);
-        if (updates.status && updates.status !== oldTask.status) changes.push(`changed status to "**${updates.status}**"`);
+        for (const key in updates) {
+            if (['updatedAt', 'createdAt', 'id', 'deletedAt', 'comments', 'summary'].includes(key)) continue;
+            
+            const newVal = (updates as any)[key];
+            const oldVal = (oldTask as any)[key];
+            if (JSON.stringify(newVal) === JSON.stringify(oldVal)) continue;
+
+            const label = fieldLabels.get(key) || key;
+
+            if (key === 'description') {
+                changes.push(`updated the **Description**`);
+            } else if (key === 'deploymentStatus') {
+                const statuses = newVal as Record<string, boolean>;
+                const oldStatuses = oldVal as Record<string, boolean> || {};
+                Object.keys(statuses).forEach(env => {
+                    if (statuses[env] !== oldStatuses[env]) {
+                        changes.push(`marked **${env}** as **${statuses[env] ? 'Deployed' : 'Pending'}**`);
+                    }
+                });
+            } else if (key === 'deploymentDates') {
+                changes.push(`updated **Deployment Dates**`);
+            } else if (key === 'customFields') {
+                const cfs = newVal as Record<string, any>;
+                const oldCfs = oldVal as Record<string, any> || {};
+                for (const cfKey in cfs) {
+                    if (JSON.stringify(cfs[cfKey]) !== JSON.stringify(oldCfs[cfKey])) {
+                        const cfConfig = config.fields.find(f => f.key === cfKey);
+                        const cfLabel = cfConfig?.label || cfKey;
+                        changes.push(`changed **${cfLabel}** from ${formatLogVal(oldCfs[cfKey], cfKey, config, peopleMap)} to ${formatLogVal(cfs[cfKey], cfKey, config, peopleMap)}`);
+                    }
+                }
+            } else if (key === 'prLinks' || key === 'attachments') {
+                changes.push(`updated **${label}**`);
+            } else {
+                changes.push(`changed **${label}** from ${formatLogVal(oldVal, key, config, peopleMap)} to ${formatLogVal(newVal, key, config, peopleMap)}`);
+            }
+        }
+
         if (changes.length > 0) {
-            addLog({ message: `Task "**${newTask.title}**" ${changes.join(' and ')}`, taskId: id });
+            addLog({ message: `Task "**${newTask.title}**": ${changes.join(', ')}`, taskId: id });
         }
     }
 
@@ -533,7 +540,6 @@ export function restoreTask(id: string) {
     }
 }
 
-// Bulk Task Operations
 export function moveMultipleTasksToBin(ids: string[]) {
     ids.forEach(id => moveTaskToBin(id));
 }
@@ -545,8 +551,10 @@ export function restoreMultipleTasks(ids: string[]) {
 export function permanentlyDeleteMultipleTasks(ids: string[]) {
     const data = getAppData();
     const companyId = getActiveCompanyId();
+    const deletedCount = ids.length;
     data.companyData[companyId].trash = data.companyData[companyId].trash.filter(t => !ids.includes(t.id));
     setAppData(data);
+    addLog({ message: `Permanently deleted **${deletedCount}** task(s) from the bin.` });
     if (getAuthMode() === 'authenticate') {
         ids.forEach(id => dispatchMutation('tasks', id, null, 'delete'));
     }
@@ -566,7 +574,7 @@ export function addTagsToMultipleTasks(taskIds: string[], tagsToAdd: string[]) {
             updateTask(id, { tags: newTags }, true);
         }
     });
-    addLog({ message: `Applied tags [${tagsToAdd.join(', ')}] to ${taskIds.length} task(s).` });
+    addLog({ message: `Applied tags [${tagsToAdd.join(', ')}] to **${taskIds.length}** task(s).` });
 }
 
 // Binned Tasks
@@ -594,6 +602,7 @@ export function addNote(note: Partial<Note>): Note {
     } as Note;
     data.companyData[companyId].notes.unshift(newNote);
     setAppData(data);
+    addLog({ message: `Created new note: "**${newNote.title || 'Untitled'}**"` });
     if (getAuthMode() === 'authenticate') {
         dispatchMutation('notes', id, newNote, 'create');
     }
@@ -605,8 +614,12 @@ export function updateNote(id: string, updates: Partial<Note>) {
     const companyId = getActiveCompanyId();
     const index = data.companyData[companyId].notes.findIndex(n => n.id === id);
     if (index !== -1) {
+        const oldTitle = data.companyData[companyId].notes[index].title;
         data.companyData[companyId].notes[index] = { ...data.companyData[companyId].notes[index], ...updates, updatedAt: new Date().toISOString() };
         setAppData(data);
+        if (updates.title && updates.title !== oldTitle) {
+            addLog({ message: `Renamed note from "**${oldTitle}**" to "**${updates.title}**"` });
+        }
         if (getAuthMode() === 'authenticate') {
             dispatchMutation('notes', id, data.companyData[companyId].notes[index], 'update');
         }
@@ -616,8 +629,10 @@ export function updateNote(id: string, updates: Partial<Note>) {
 export function deleteNote(id: string) {
     const data = getAppData();
     const companyId = getActiveCompanyId();
+    const note = data.companyData[companyId].notes.find(n => n.id === id);
     data.companyData[companyId].notes = data.companyData[companyId].notes.filter(n => n.id !== id);
     setAppData(data);
+    addLog({ message: `Deleted note: "**${note?.title || 'Untitled'}**"` });
     if (getAuthMode() === 'authenticate') {
         dispatchMutation('notes', id, null, 'delete');
     }
@@ -661,37 +676,6 @@ export function resetNotesLayout(): boolean {
     return true;
 }
 
-// Logs
-export function getAggregatedLogs(): Log[] {
-    return getAppData().companyData[getActiveCompanyId()]?.logs || [];
-}
-
-export function getLogs(): Log[] {
-    return getAggregatedLogs();
-}
-
-export function getLogsForTask(taskId: string): Log[] {
-    return getAggregatedLogs().filter(l => l.taskId === taskId);
-}
-
-function _addLog(companyData: CompanyData, logData: Omit<Log, 'id' | 'timestamp'>) {
-    const newLog: Log = {
-        id: `log-${crypto.randomUUID()}`,
-        timestamp: new Date().toISOString(),
-        ...logData,
-    };
-    companyData.logs = [newLog, ...(companyData.logs || []).slice(0, 1999)];
-    dispatchMutation('logs', newLog.id, newLog, 'set');
-}
-
-export function addLog(log: Omit<Log, 'id' | 'timestamp'>) {
-    const data = getAppData();
-    const companyId = getActiveCompanyId();
-    if (!data.companyData[companyId]) return;
-    _addLog(data.companyData[companyId]!, log);
-    setAppData(data);
-}
-
 // General Reminders
 export function getGeneralReminders(): GeneralReminder[] {
     return getAppData().companyData[getActiveCompanyId()]?.generalReminders || [];
@@ -705,6 +689,7 @@ export function addGeneralReminder(text: string) {
     const newRem = { id, text, createdAt: now };
     data.companyData[companyId].generalReminders.unshift(newRem);
     setAppData(data);
+    addLog({ message: `Added new general reminder.` });
     if (getAuthMode() === 'authenticate') {
         dispatchMutation('generalReminders', '', data.companyData[companyId].generalReminders, 'set');
     }
@@ -717,6 +702,7 @@ export function updateGeneralReminder(id: string, text: string) {
     if (index !== -1) {
         data.companyData[companyId].generalReminders[index].text = text;
         setAppData(data);
+        addLog({ message: `Updated a general reminder.` });
         if (getAuthMode() === 'authenticate') {
             dispatchMutation('generalReminders', '', data.companyData[companyId].generalReminders, 'set');
         }
@@ -728,6 +714,7 @@ export function deleteGeneralReminder(id: string): boolean {
     const companyId = getActiveCompanyId();
     data.companyData[companyId].generalReminders = data.companyData[companyId].generalReminders.filter(r => r.id !== id);
     setAppData(data);
+    addLog({ message: `Dismissed a general reminder.` });
     if (getAuthMode() === 'authenticate') {
         dispatchMutation('generalReminders', '', data.companyData[companyId].generalReminders, 'set');
     }
@@ -747,6 +734,7 @@ export function clearExpiredReminders(): { updatedTaskIds: string[], unpinnedTas
             t.reminderExpiresAt = null;
             updatedTaskIds.push(t.id);
             unpinnedTaskIds.push(t.id);
+            addLog({ message: `Reminder for task "**${t.title}**" expired and was automatically cleared.`, taskId: t.id });
             if (getAuthMode() === 'authenticate') {
                 dispatchMutation('tasks', t.id, t, 'update');
             }
@@ -772,6 +760,7 @@ export function addReleaseUpdate(release: Partial<ReleaseUpdate>) {
     const newRel = { id, version: '', title: '', items: [], date: new Date().toISOString(), isPublished: false, ...release } as ReleaseUpdate;
     data.companyData[companyId].releaseUpdates.unshift(newRel);
     setAppData(data);
+    addLog({ message: `Created new release draft: **v${newRel.version}**` });
     if (getAuthMode() === 'authenticate') {
         dispatchMutation('releaseUpdates', '', data.companyData[companyId].releaseUpdates, 'set');
     }
@@ -782,8 +771,12 @@ export function updateReleaseUpdate(id: string, updates: Partial<ReleaseUpdate>)
     const companyId = getActiveCompanyId();
     const index = data.companyData[companyId].releaseUpdates.findIndex(r => r.id === id);
     if (index !== -1) {
+        const oldRel = data.companyData[companyId].releaseUpdates[index];
         data.companyData[companyId].releaseUpdates[index] = { ...data.companyData[companyId].releaseUpdates[index], ...updates };
         setAppData(data);
+        if (updates.isPublished && !oldRel.isPublished) {
+            addLog({ message: `Published new application release: **v${oldRel.version}**` });
+        }
         if (getAuthMode() === 'authenticate') {
             dispatchMutation('releaseUpdates', '', data.companyData[companyId].releaseUpdates, 'set');
         }
@@ -793,8 +786,10 @@ export function updateReleaseUpdate(id: string, updates: Partial<ReleaseUpdate>)
 export function deleteReleaseUpdate(id: string): boolean {
     const data = getAppData();
     const companyId = getActiveCompanyId();
+    const rel = data.companyData[companyId].releaseUpdates.find(r => r.id === id);
     data.companyData[companyId].releaseUpdates = data.companyData[companyId].releaseUpdates.filter(r => r.id !== id);
     setAppData(data);
+    addLog({ message: `Deleted release: **v${rel?.version || id}**` });
     if (getAuthMode() === 'authenticate') {
         dispatchMutation('releaseUpdates', '', data.companyData[companyId].releaseUpdates, 'set');
     }
@@ -807,7 +802,11 @@ export function addComment(taskId: string, text: string): Task | null {
     const task = getTaskById(taskId);
     if (task) {
         const comments = [...(task.comments || []), comment];
-        return updateTask(taskId, { comments }, true);
+        const updated = updateTask(taskId, { comments }, true);
+        if (updated) {
+            addLog({ message: `Added a comment to task "**${updated.title}**"`, taskId });
+        }
+        return updated;
     }
     return null;
 }
@@ -817,7 +816,11 @@ export function updateComment(taskId: string, index: number, text: string): Task
     if (task && task.comments && task.comments[index]) {
         const comments = [...task.comments];
         comments[index] = { ...comments[index], text };
-        return updateTask(taskId, { comments }, true);
+        const updated = updateTask(taskId, { comments }, true);
+        if (updated) {
+            addLog({ message: `Updated a comment on task "**${updated.title}**"`, taskId });
+        }
+        return updated;
     }
     return null;
 }
@@ -826,22 +829,23 @@ export function deleteComment(taskId: string, index: number): Task | null {
     const task = getTaskById(taskId);
     if (task && task.comments && task.comments[index]) {
         const comments = task.comments.filter((_, i) => i !== index);
-        return updateTask(taskId, { comments }, true);
+        const updated = updateTask(taskId, { comments }, true);
+        if (updated) {
+            addLog({ message: `Removed a comment from task "**${updated.title}**"`, taskId });
+        }
+        return updated;
     }
     return null;
 }
 
 // Data Utility Functions
-/**
- * Processes the import of workspace data, handling both local and cloud storage.
- * Automatically resolves and creates Developers/Testers from task data.
- */
 export async function importWorkspaceData(parsedJson: any, onProgress?: (percent: number) => void) {
     const mode = getAuthMode();
     const companyId = getActiveCompanyId();
     const db = getFirestore();
     const auth = getAuth();
     const userId = auth.currentUser?.uid;
+    const userName = auth.currentUser?.displayName || auth.currentUser?.email || 'Importer';
     
     if (mode === 'authenticate' && !userId) throw new Error("You must be signed in to import data to the cloud.");
 
@@ -858,7 +862,6 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
         throw new Error("The imported file is invalid or corrupted. Please check the file format.");
     }
 
-    // 1. Resolve Global People Lists
     let currentDevs = [...getDevelopers()];
     let currentTesters = [...getTesters()];
 
@@ -869,8 +872,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
         if (!name || devMap.has(name.toLowerCase())) return devMap.get(name.toLowerCase())!;
         const id = `dev-${crypto.randomUUID()}`;
         currentDevs.push({ 
-            id, 
-            name, 
+            id, name, 
             email: details?.email || '', 
             phone: details?.phone || '', 
             additionalFields: details?.additionalFields || [] 
@@ -883,8 +885,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
         if (!name || testerMap.has(name.toLowerCase())) return testerMap.get(name.toLowerCase())!;
         const id = `tester-${crypto.randomUUID()}`;
         currentTesters.push({ 
-            id, 
-            name, 
+            id, name, 
             email: details?.email || '', 
             phone: details?.phone || '', 
             additionalFields: details?.additionalFields || [] 
@@ -911,8 +912,6 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
         });
     });
 
-    // 2. Prepare processed tasks (Mapping Names -> IDs)
-    // We treat imported tasks as NEW instances to avoid blocking by existing bin items.
     const taskIdMap = new Map<string, string>();
     const processedTasks = rawTasks.map((t: any) => {
         const devIds = (t.developers || []).map((val: any) => {
@@ -935,18 +934,17 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             testers: testerIds,
             createdAt: t.createdAt || new Date().toISOString(),
             updatedAt: t.updatedAt || new Date().toISOString(),
-            deletedAt: null // Imported tasks are always active instances
+            deletedAt: null 
         };
     });
 
-    // Update imported logs to point to new task IDs
     const processedLogs = jsonLogs.map((l: any) => ({
         ...l,
         id: `log-${crypto.randomUUID()}`,
-        taskId: l.taskId ? (taskIdMap.get(l.taskId) || l.taskId) : undefined
+        taskId: l.taskId ? (taskIdMap.get(l.taskId) || l.taskId) : undefined,
+        userName: l.userName || 'Imported User'
     }));
 
-    // 3. Execution
     const totalOperations = processedTasks.length + jsonNotes.length + processedLogs.length + 3;
     let completedOps = 0;
     const bumpProgress = () => {
@@ -989,18 +987,18 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
                         const id = item.id;
                         batch.set(doc(db, companyBase, collectionName, id), item);
                         
-                        // Add import log for tasks
                         if (collectionName === 'tasks') {
                             const logId = `log-${crypto.randomUUID()}`;
                             const logEntry = {
                                 id: logId,
                                 timestamp: new Date().toISOString(),
-                                message: `Imported task "**${item.title}**" via workspace import.`,
-                                taskId: id
+                                message: `Imported task "**${item.title}**" from external source.`,
+                                taskId: id,
+                                userId: userId,
+                                userName: userName
                             };
                             batch.set(doc(db, companyBase, 'logs', logId), logEntry);
                         }
-                        
                         bumpProgress();
                     });
                     await batch.commit();
@@ -1017,12 +1015,12 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             comp.developers = currentDevs;
             comp.testers = currentTesters;
             
-            // For local mode, we still treat them as new instances
             processedTasks.forEach(newTask => {
                 comp.tasks.unshift(newTask);
                 _addLog(comp, { 
-                    message: `Imported task "**${newTask.title}**" via workspace import.`, 
-                    taskId: newTask.id 
+                    message: `Imported task "**${newTask.title}**" from external source.`, 
+                    taskId: newTask.id,
+                    userName: 'Local User'
                 });
             });
             
@@ -1048,8 +1046,8 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             if (onProgress) onProgress(100);
         }
     } catch (error: any) {
-        console.error("Sync Failure:", error);
-        throw new Error("An error occurred while syncing. Please try again later.");
+        console.error("Import Sync Failure:", error);
+        throw new Error("An error occurred while importing. Please try again later.");
     }
     return true;
 }
@@ -1062,39 +1060,12 @@ export async function clearAllData() {
             const auth = getAuth();
             const db = getFirestore();
             const userId = auth.currentUser?.uid;
-            if (!userId) {
-                throw new Error("You must be signed in to clear cloud data.");
-            }
-            const companyBase = `users/${userId}/companies/${companyId}`;
+            if (!userId) throw new Error("You must be signed in to clear cloud data.");
             
+            const companyBase = `users/${userId}/companies/${companyId}`;
             const currentConfig = getUiConfig();
             const preservedEnvs = currentConfig.environments || [];
-            const preservedAppName = currentConfig.appName;
-            const preservedAppIcon = currentConfig.appIcon;
-            const resetFields = INITIAL_UI_CONFIG.map(f => {
-                if (f.key === 'status') {
-                    return { ...f, options: TASK_STATUSES.map(s => ({id: s, value: s, label: s})) };
-                }
-                if (f.key === 'relevantEnvironments') {
-                    return { ...f, options: preservedEnvs.map(e => ({id: e.id, value: e.name, label: e.name})) };
-                }
-                return f;
-            });
-            const defaultUiConfig: UiConfig = {
-                fields: resetFields,
-                environments: preservedEnvs,
-                repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
-                taskStatuses: [...TASK_STATUSES],
-                appName: preservedAppName || 'My Task Manager',
-                appIcon: preservedAppIcon,
-                remindersEnabled: true,
-                tutorialEnabled: true,
-                timeFormat: '12h',
-                autoBackupFrequency: 'weekly',
-                autoBackupTime: 6,
-                currentVersion: '1.1.0',
-                authenticationMode: 'authenticate',
-            };
+            
             const collectionsToClear = ['tasks', 'notes', 'logs'];
             for (const colName of collectionsToClear) {
                 const q = query(collection(db, companyBase, colName), limit(500));
@@ -1112,7 +1083,6 @@ export async function clearAllData() {
             batch.set(doc(db, companyBase, 'people', 'developers'), { list: [] });
             batch.set(doc(db, companyBase, 'people', 'testers'), { list: [] });
             batch.set(doc(db, companyBase, 'reminders', 'general'), { list: [] });
-            batch.set(doc(db, companyBase, 'settings', 'uiConfig'), defaultUiConfig);
             batch.set(doc(db, companyBase, 'releases', 'updates'), { list: [] });
             await batch.commit();
         } else {
@@ -1122,8 +1092,8 @@ export async function clearAllData() {
             localStorage.removeItem(DATA_KEY);
         }
     } catch (error: any) {
-        console.error("Clear Data Sync Error:", error);
-        throw new Error("An error occurred while syncing. Please try again later.");
+        console.error("Clear Data Error:", error);
+        throw new Error("An error occurred while clearing data. Please try again later.");
     }
 }
 

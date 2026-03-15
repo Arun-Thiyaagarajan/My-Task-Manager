@@ -60,9 +60,16 @@ export function TaskHistory({ logs, uiConfig, isLoading = false }: TaskHistoryPr
                                         <div className="text-sm text-foreground/80 leading-relaxed font-medium">
                                             {parseLogMessage(log.message)}
                                         </div>
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mt-1">
-                                            {formatTimestamp(log.timestamp, uiConfig.timeFormat)}
-                                        </p>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
+                                                {formatTimestamp(log.timestamp, uiConfig.timeFormat)}
+                                            </p>
+                                            {log.userName && (
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-primary/60">
+                                                    via {log.userName}
+                                                </p>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             ))}

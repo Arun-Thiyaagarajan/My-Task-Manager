@@ -47,6 +47,8 @@ export interface Log {
   timestamp: string;
   message: string;
   taskId?: string;
+  userId?: string;
+  userName?: string;
   details?: Record<string, any>;
 }
 

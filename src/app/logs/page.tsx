@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -7,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { FileClock, Link as LinkIcon, Activity, Trash2, LayoutGrid, Search, StickyNote, Loader2, CornerDownLeft, X } from 'lucide-react';
+import { FileClock, Link as LinkIcon, Activity, Trash2, LayoutGrid, Search, StickyNote, Loader2, CornerDownLeft, X, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Input } from '@/components/ui/input';
@@ -113,7 +114,8 @@ export default function LogsPage() {
         const performFilter = () => {
             try {
                 const results = logs.filter(log =>
-                    fuzzySearch(executedSearchQuery, log.message)
+                    fuzzySearch(executedSearchQuery, log.message) ||
+                    (log.userName && fuzzySearch(executedSearchQuery, log.userName))
                 );
                 setFilteredLogs(results);
             } catch (e) {
@@ -143,15 +145,12 @@ export default function LogsPage() {
         return Object.keys(groupedLogs).sort().reverse();
     }, [groupedLogs]);
     
-    // Save state to localStorage whenever it changes.
     useEffect(() => {
-        // Don't save on the very first render cycle.
         if (!isInitialLoad.current) {
             localStorage.setItem('taskflow_logs_open_months', JSON.stringify(openMonths));
         }
     }, [openMonths]);
 
-    // This effect runs once after initial data load to set a default open state if none exists.
     useEffect(() => {
         if (!isLoading && isInitialLoad.current) {
             const savedState = localStorage.getItem('taskflow_logs_open_months');
@@ -196,7 +195,7 @@ export default function LogsPage() {
                             <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
                             <Input 
                                 ref={searchInputRef}
-                                placeholder="Search logs..." 
+                                placeholder="Search logs or users..." 
                                 value={searchQuery} 
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 onKeyDown={handleSearchKeyDown}
@@ -251,6 +250,7 @@ export default function LogsPage() {
                                                 <TableHeader>
                                                     <TableRow>
                                                         <TableHead className="w-[150px]">Time</TableHead>
+                                                        <TableHead className="w-[150px]">User</TableHead>
                                                         <TableHead className="min-w-[300px]">Action</TableHead>
                                                         <TableHead className="w-[150px] text-right">Related Item</TableHead>
                                                     </TableRow>
@@ -264,7 +264,13 @@ export default function LogsPage() {
                                                             <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
                                                                 {formatTimestamp(log.timestamp, uiConfig.timeFormat)}
                                                             </TableCell>
-                                                            <TableCell className="font-medium">
+                                                            <TableCell>
+                                                                <div className="flex items-center gap-2 text-xs font-bold text-primary/80">
+                                                                    <User className="h-3 w-3" />
+                                                                    {log.userName || 'N/A'}
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell className="font-medium text-sm">
                                                                 <div className="whitespace-pre-wrap">{parseLogMessage(log.message)}</div>
                                                             </TableCell>
                                                             <TableCell className="text-right">
