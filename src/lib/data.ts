@@ -125,11 +125,16 @@ export async function updateUserPreferences(updates: Partial<UserPreferences>) {
         const userId = auth.currentUser?.uid;
         if (userId) {
             const prefRef = doc(db, 'users', userId, 'preferences', 'settings');
-            setDoc(prefRef, next, { merge: true }).catch(e => {
+            
+            // Firestore does not support 'undefined' as a value.
+            // We sanitize the object by stringifying and parsing it to remove undefined keys.
+            const sanitizedNext = JSON.parse(JSON.stringify(next));
+
+            setDoc(prefRef, sanitizedNext, { merge: true }).catch(e => {
                 errorEmitter.emit('permission-error', new FirestorePermissionError({
                     path: prefRef.path,
                     operation: 'write',
-                    requestResourceData: next
+                    requestResourceData: sanitizedNext
                 }));
             });
         }
@@ -177,15 +182,21 @@ async function dispatchMutation(
     }
 
     try {
+        // Firestore does not support 'undefined' as a value.
+        // We sanitize the payload by stringifying and parsing it to remove undefined keys.
+        const sanitizedPayload = (operation !== 'delete' && payload !== null) 
+            ? JSON.parse(JSON.stringify(payload)) 
+            : payload;
+
         const promise = operation === 'delete' ? deleteDoc(docRef) : 
-                        operation === 'update' ? updateDoc(docRef, payload) :
-                        setDoc(docRef, payload, { merge: operation === 'set' });
+                        operation === 'update' ? updateDoc(docRef, sanitizedPayload) :
+                        setDoc(docRef, sanitizedPayload, { merge: operation === 'set' });
 
         promise.catch(async (serverError) => {
             const permissionError = new FirestorePermissionError({
-                path: docRef.path,
+                path: docRef!.path,
                 operation: operation === 'set' ? 'write' : operation as any,
-                requestResourceData: payload,
+                requestResourceData: sanitizedPayload,
             });
             errorEmitter.emit('permission-error', permissionError);
             

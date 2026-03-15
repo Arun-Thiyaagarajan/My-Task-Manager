@@ -84,12 +84,21 @@ export default function NotesPage() {
 
   // Update preferences
   useEffect(() => {
+    // Avoid passing undefined properties which Firestore rejects
+    const noteFilters: any = {
+        search: executedSearchQuery,
+    };
+    
+    if (dateFilter?.from) {
+        noteFilters.dateFrom = dateFilter.from.toISOString();
+    }
+    
+    if (dateFilter?.to) {
+        noteFilters.dateTo = dateFilter.to.toISOString();
+    }
+
     updateUserPreferences({
-        noteFilters: {
-            search: executedSearchQuery,
-            dateFrom: dateFilter?.from?.toISOString(),
-            dateTo: dateFilter?.to?.toISOString(),
-        }
+        noteFilters
     });
   }, [executedSearchQuery, dateFilter]);
   
