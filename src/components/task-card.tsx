@@ -130,7 +130,7 @@ export function TaskCard({ task: initialTask, onTaskDelete, onTaskUpdate, uiConf
   const developersLabel = fieldLabels.get('developers') || 'Developers';
   const testersLabel = fieldLabels.get('testers') || 'Testers';
 
-  const azureFieldConfig = uiConfig?.fields.find(f => f.key === 'azureWorkItemId' && f.isActive);
+  const azureFieldConfig = (uiConfig?.fields || []).find(f => f.key === 'azureWorkItemId' && f.isActive);
   const azureWorkItemUrl = task.azureWorkItemId && azureFieldConfig?.baseUrl
     ? `${azureFieldConfig.baseUrl}${task.azureWorkItemId}`
     : null;

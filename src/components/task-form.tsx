@@ -300,13 +300,13 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
   };
   
   const onInvalid = (errors: any) => {
-      const fieldLabels = new Map(uiConfig?.fields.map(f => [f.key, f.label]));
+      const fieldLabels = new Map((uiConfig?.fields || []).map(f => [f.key, f.label]));
       const errorFields = Object.keys(errors);
 
       const getLabel = (fieldName: string) => {
           if (fieldName === 'customFields' && errors.customFields) {
               const customErrorKey = Object.keys(errors.customFields)[0];
-              const customFieldConfig = uiConfig?.fields.find(f => f.key === customErrorKey);
+              const customFieldConfig = (uiConfig?.fields || []).find(f => f.key === customErrorKey);
               return customFieldConfig?.label || customErrorKey;
           }
            if (fieldName === 'deploymentStatus') {
@@ -553,8 +553,8 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
   }
 
   const fieldLabels = useMemo(() => new Map((uiConfig?.fields || []).map(f => [f.key, f.label])), [uiConfig]);
-  const deploymentFieldConfig = uiConfig?.fields.find(f => f.key === 'deploymentStatus');
-  const relevantEnvsFieldConfig = uiConfig?.fields.find(f => f.key === 'relevantEnvironments');
+  const deploymentFieldConfig = (uiConfig?.fields || []).find(f => f.key === 'deploymentStatus');
+  const relevantEnvsFieldConfig = (uiConfig?.fields || []).find(f => f.key === 'relevantEnvironments');
 
   const groupedFields = useMemo(() => {
     return (uiConfig?.fields || [])
@@ -593,12 +593,12 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                 id: groupName.toLowerCase().replace(/\s+/g, '-'), 
                 label: groupName,
                 icon,
-                fields: groupedFields[groupName].map(f => ({ id: `field-container-${f.key}`, label: f.label }))
+                fields: (groupedFields[groupName] || []).map(f => ({ id: `field-container-${f.key}`, label: f.label }))
             });
         }
     });
 
-    if (uiConfig.fields.find(f => f.key === 'attachments' && f.isActive)) {
+    if ((uiConfig?.fields || []).find(f => f.key === 'attachments' && f.isActive)) {
         sections.push({ 
             id: 'attachments', 
             label: fieldLabels.get('attachments') || 'Attachments', 
@@ -614,7 +614,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
             fields: []
         });
     }
-    if (uiConfig.fields.find(f => f.key === 'prLinks' && f.isActive)) {
+    if ((uiConfig?.fields || []).find(f => f.key === 'prLinks' && f.isActive)) {
         sections.push({ 
             id: 'pull-requests', 
             label: fieldLabels.get('prLinks') || 'Pull Requests', 
@@ -819,13 +819,13 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className={cn("grid grid-cols-1 gap-6", gridColsClass)}>
-                                {groupedFields[groupName].map(field => <div key={field.id}>{renderField(field)}</div>)}
+                                {(groupedFields[groupName] || []).map(field => <div key={field.id}>{renderField(field)}</div>)}
                             </CardContent>
                         </Card>
                     )
                 })}
 
-                {uiConfig.fields.find(f => f.key === 'attachments' && f.isActive) && (
+                {(uiConfig?.fields || []).find(f => f.key === 'attachments' && f.isActive) && (
                     <Card id="attachments" className="scroll-mt-24 transition-all duration-300">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
@@ -962,7 +962,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                     </Card>
                 )}
 
-                {uiConfig.fields.find(f => f.key === 'prLinks' && f.isActive) && (
+                {(uiConfig?.fields || []).find(f => f.key === 'prLinks' && f.isActive) && (
                     <Card id="pull-requests" className="scroll-mt-24 transition-all duration-300">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">

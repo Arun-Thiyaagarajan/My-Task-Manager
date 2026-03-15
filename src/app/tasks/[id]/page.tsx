@@ -215,7 +215,7 @@ export default function TaskPage() {
         });
     }
     
-    const validStrategies = strategies.map(s => s()).filter(s => s !== null) as { title: string, tasks: Task[] }[];
+    const valid strategies = strategies.map(s => s()).filter(s => s !== null) as { title: string, tasks: Task[] }[];
 
     if (validStrategies.length > 0) {
         const randomIndex = Math.floor(Math.random() * validStrategies.length);
@@ -772,27 +772,27 @@ const handleCopyDescription = () => {
 
   const fieldLabels = new Map((uiConfig?.fields || []).map(f => [f.key, f.label]));
 
-  const allConfiguredEnvs = (task.relevantEnvironments || []).map(name => uiConfig?.environments.find(e => e.name === name)).filter((e): e is Environment => !!e);
+  const allConfiguredEnvs = (task.relevantEnvironments || []).map(name => (uiConfig?.environments || []).find(e => e.name === name)).filter((e): e is Environment => !!e);
   
-  const customFields = uiConfig.fields.filter(f => f.isCustom && f.isActive && task.customFields && typeof task.customFields[f.key] !== 'undefined' && task.customFields[f.key] !== null && task.customFields[f.key] !== '');
+  const customFields = (uiConfig?.fields || []).filter(f => f.isCustom && f.isActive && task.customFields && typeof task.customFields[f.key] !== 'undefined' && task.customFields[f.key] !== null && task.customFields[f.key] !== '');
   
   const assignedDevelopers = (task.developers || []).map(id => developers.find(p => p.id === id)).filter((p): p is Person => !!p);
   const assignedTesters = (task.testers || []).map(id => testers.find(p => p.id === id)).filter((p): p is Person => !!p);
 
-  const azureFieldConfig = uiConfig.fields.find(f => f.key === 'azureWorkItemId');
+  const azureFieldConfig = (uiConfig?.fields || []).find(f => f.key === 'azureWorkItemId');
   
-  const tagsField = uiConfig.fields.find(f => f.key === 'tags');
-  const repoField = uiConfig.fields.find(f => f.key === 'repositories');
+  const tagsField = (uiConfig?.fields || []).find(f => f.key === 'tags');
+  const repoField = (uiConfig?.fields || []).find(f => f.key === 'repositories');
   
   const tagsOptions = [...new Set([...(tagsField?.options?.map(opt => opt.value) || []), ...(allTasks.flatMap(t => t.tags || []))])].map(t => ({value: t, label: t}));
   const repoOptions = (repoField?.options || uiConfig.repositoryConfigs).map(opt => ({ value: (opt as any).value ?? (opt as any).label, label: (opt as any).label }));
   const developerOptions = developers.map(d => ({value: d.id, label: d.name}));
   const testerOptions = testers.map(t => ({value: t.id, label: t.name}));
 
-  const prField = uiConfig.fields.find(f => f.key === 'prLinks' && f.isActive);
-  const deploymentField = uiConfig.fields.find(f => f.key === 'deploymentStatus' && f.isActive);
-  const attachmentsField = uiConfig.fields.find(f => f.key === 'attachments' && f.isActive);
-  const commentsField = uiConfig.fields.find(f => f.key === 'comments' && f.isActive);
+  const prField = (uiConfig?.fields || []).find(f => f.key === 'prLinks' && f.isActive);
+  const deploymentField = (uiConfig?.fields || []).find(f => f.key === 'deploymentStatus' && f.isActive);
+  const attachmentsField = (uiConfig?.fields || []).find(f => f.key === 'attachments' && f.isActive);
+  const commentsField = (uiConfig?.fields || []).find(f => f.key === 'comments' && f.isActive);
   const historyField = !isBinned && taskLogs.length > 0;
 
   return (
@@ -1593,16 +1593,16 @@ function TimelineSection({
 
   const hasAnyDeploymentDate = Object.values(task.deploymentDates || {}).some(date => isValidDate(date));
 
-  const devStartConfig = uiConfig.fields.find(f => f.key === 'devStartDate' && f.isActive);
-  const devEndConfig = uiConfig.fields.find(f => f.key === 'devEndDate' && f.isActive);
-  const qaStartConfig = uiConfig.fields.find(f => f.key === 'qaStartDate' && f.isActive);
-  const qaEndConfig = uiConfig.fields.find(f => f.key === 'qaEndDate' && f.isActive);
+  const devStartConfig = (uiConfig?.fields || []).find(f => f.key === 'devStartDate' && f.isActive);
+  const devEndConfig = (uiConfig?.fields || []).find(f => f.key === 'devEndDate' && f.isActive);
+  const qaStartConfig = (uiConfig?.fields || []).find(f => f.key === 'qaStartDate' && f.isActive);
+  const qaEndConfig = (uiConfig?.fields || []).find(f => f.key === 'qaEndDate' && f.isActive);
 
   if (!devStartConfig && !devEndConfig && !qaStartConfig && !qaEndConfig && !hasAnyDeploymentDate) {
     return <p className="text-muted-foreground text-center text-xs py-2">No date fields are active.</p>
   }
   
-  const relevantEnvs = (task.relevantEnvironments || []).map(name => uiConfig?.environments.find(e => e.name === name)).filter((e): e is Environment => !!e);
+  const relevantEnvs = (task.relevantEnvironments || []).map(name => (uiConfig?.environments || []).find(e => e.name === name)).filter((e): e is Environment => !!e);
 
 
   return (
