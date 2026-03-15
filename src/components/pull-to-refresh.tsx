@@ -71,8 +71,6 @@ export function PullToRefresh({ children }: PullToRefreshProps) {
 
     try {
       // Simulate/Wait for data reconciliation
-      // In TaskFlow, listeners handle the heavy lifting, but we trigger events 
-      // to force UI components to re-check their data providers.
       await new Promise(resolve => setTimeout(resolve, 1200));
       
       window.dispatchEvent(new Event('company-changed'));
@@ -125,7 +123,7 @@ export function PullToRefresh({ children }: PullToRefreshProps) {
 
   return (
     <div className="relative w-full overflow-x-hidden min-h-[inherit]">
-      {/* Pull Indicator - Visualized as a floating circle with progress */}
+      {/* Pull Indicator */}
       <div 
         className={cn(
           "absolute top-0 left-0 right-0 flex justify-center items-center z-[60] pointer-events-none transition-all duration-300 ease-out",
@@ -186,13 +184,13 @@ export function PullToRefresh({ children }: PullToRefreshProps) {
         </div>
       )}
 
-      {/* Main Content with visual offset while refreshing */}
+      {/* Main Content wrapper */}
       <div 
         className={cn(
             "transition-transform duration-300 ease-out",
             isRefreshing && "translate-y-14"
         )}
-        style={!isRefreshing ? { transform: `translateY(${pullDistance * 0.4}px)` } : {}}
+        style={!isRefreshing ? { transform: pullDistance > 0 ? `translateY(${pullDistance * 0.4}px)` : 'none' } : {}}
       >
         {children}
       </div>

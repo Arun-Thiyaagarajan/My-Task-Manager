@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -708,7 +709,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit, onInvalid)}>
         {/* MOBILE STICKY HEADER */}
-        <div className="lg:hidden sticky top-14 z-40 bg-background/95 backdrop-blur-md border-b px-4 h-14 flex items-center justify-between shadow-sm animate-in fade-in duration-300">
+        <div className="lg:hidden sticky top-14 z-[60] bg-background/95 backdrop-blur-md border-b px-4 h-14 flex items-center justify-between shadow-sm animate-in fade-in duration-300">
             <h2 className="text-lg font-bold tracking-tight truncate mr-4">{formTitle}</h2>
             <Button
                 type="button"
@@ -724,7 +725,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
 
         {/* DESKTOP ACTION BAR - Fixed at bottom */}
         <div className={cn(
-            "hidden lg:block z-50 bg-background/95 backdrop-blur-sm border-t fixed bottom-0 left-0 right-0 transition-all duration-300"
+            "hidden lg:block z-[60] bg-background/95 backdrop-blur-md border-t fixed bottom-0 left-0 right-0 transition-all duration-300 shadow-[0_-4px_12px_-2px_rgba(0,0,0,0.05)]"
         )}>
             <div className="container mx-auto flex h-20 items-center justify-center px-4 sm:px-6 lg:px-8">
                  <div className="flex items-center justify-center gap-3">
@@ -773,14 +774,14 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
         </div>
 
         {/* MOBILE FLOATING SAVE BUTTON - Fixed above bottom navbar */}
-        <div className="lg:hidden fixed bottom-20 right-6 z-40 animate-in zoom-in-50 duration-500">
+        <div className="lg:hidden fixed bottom-24 right-6 z-[60] animate-in zoom-in-50 duration-500">
             <Button
                 type="submit"
                 disabled={isPending}
                 size="icon"
                 className={cn(
                     "h-14 w-14 rounded-full shadow-2xl transition-all active:scale-90",
-                    !isDirty ? "opacity-100" : "opacity-100 shadow-primary/40"
+                    isDirty ? "shadow-primary/40 bg-primary" : "shadow-black/20"
                 )}
             >
                 {isPending ? (
