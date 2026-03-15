@@ -751,10 +751,14 @@ export default function Home() {
             </Dialog>
             
             {uiConfig?.remindersEnabled && (pinnedReminders.length + generalReminders.length) > 0 && (
-              <Button variant="outline" className="h-10 border-amber-500/50 bg-amber-50 text-amber-900" onClick={() => setIsReminderStackOpen(true)}>
+              <Button 
+                variant="outline" 
+                className="h-10 border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 hover:text-amber-700 dark:hover:text-amber-300 transition-all" 
+                onClick={() => setIsReminderStackOpen(true)}
+              >
                 <BellRing className="mr-2 h-4 w-4" />
                  Important Reminders
-                <Badge variant="secondary" className="ml-2 bg-amber-200">{pinnedReminders.length + generalReminders.length}</Badge>
+                <Badge variant="secondary" className="ml-2 bg-amber-500/20 text-amber-700 dark:text-amber-300 border-none shadow-none">{pinnedReminders.length + generalReminders.length}</Badge>
               </Button>
             )}
             <DropdownMenu>
