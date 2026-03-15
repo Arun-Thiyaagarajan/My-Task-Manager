@@ -1,4 +1,3 @@
-
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/header';
@@ -45,7 +44,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="apple-touch-icon" href="/icon-180.png" />
+        <link rel="apple-touch-icon" href="https://placehold.co/180x180/4f46e5/white/png?text=TF" />
       </head>
       <body
         className={cn(
