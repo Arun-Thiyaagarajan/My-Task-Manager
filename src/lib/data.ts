@@ -119,7 +119,6 @@ async function dispatchMutation(
     } else if (type === 'uiConfig') {
         docRef = doc(db, 'users', userId, 'companies', activeCompanyId, 'settings', 'uiConfig');
     } else if (type === 'developers' || type === 'testers' || type === 'generalReminders' || type === 'releaseUpdates') {
-        // Correctly handle documents that store arrays/lists as objects
         const parentMap: Record<string, string> = {
             developers: 'people',
             testers: 'people',
@@ -729,85 +728,179 @@ export function deleteComment(taskId: string, index: number): Task | null {
 }
 
 // Data Utility Functions
+/**
+ * Processes the import of workspace data, handling both local and cloud storage.
+ * Automatically resolves and creates Developers/Testers from task data.
+ */
 export async function importWorkspaceData(parsedJson: any, onProgress?: (percent: number) => void) {
     const mode = getAuthMode();
     const companyId = getActiveCompanyId();
     const db = getFirestore();
     const auth = getAuth();
     const userId = auth.currentUser?.uid;
+    
     if (mode === 'authenticate' && !userId) throw new Error("User not authenticated.");
-    const tasks = Array.isArray(parsedJson.tasks) ? parsedJson.tasks : [];
-    const devs = Array.isArray(parsedJson.developers) ? parsedJson.developers : [];
-    const testers = Array.isArray(parsedJson.testers) ? parsedJson.testers : [];
-    const notes = Array.isArray(parsedJson.notes) ? parsedJson.notes : [];
+
+    const rawTasks = Array.isArray(parsedJson.tasks) ? parsedJson.tasks : [];
+    const jsonDevs = Array.isArray(parsedJson.developers) ? parsedJson.developers : [];
+    const jsonTesters = Array.isArray(parsedJson.testers) ? parsedJson.testers : [];
+    const jsonNotes = Array.isArray(parsedJson.notes) ? parsedJson.notes : [];
     const repoConfigs = Array.isArray(parsedJson.repositoryConfigs) ? parsedJson.repositoryConfigs : [];
     const envs = Array.isArray(parsedJson.environments) ? parsedJson.environments : [];
-    const total = tasks.length + devs.length + testers.length + notes.length;
-    let completed = 0;
-    const reportProgress = () => {
-        completed++;
-        if (onProgress) onProgress(Math.floor((completed / total) * 100));
+
+    // 1. Resolve Global People Lists
+    let currentDevs = [...getDevelopers()];
+    let currentTesters = [...getTesters()];
+
+    const devMap = new Map<string, string>(currentDevs.map(d => [d.name.toLowerCase(), d.id]));
+    const testerMap = new Map<string, string>(currentTesters.map(t => [t.name.toLowerCase(), t.id]));
+
+    const ensureDev = (name: string, details?: any) => {
+        if (!name || devMap.has(name.toLowerCase())) return devMap.get(name.toLowerCase())!;
+        const id = `dev-${crypto.randomUUID()}`;
+        currentDevs.push({ 
+            id, 
+            name, 
+            email: details?.email || '', 
+            phone: details?.phone || '', 
+            additionalFields: details?.additionalFields || [] 
+        });
+        devMap.set(name.toLowerCase(), id);
+        return id;
     };
+
+    const ensureTester = (name: string, details?: any) => {
+        if (!name || testerMap.has(name.toLowerCase())) return testerMap.get(name.toLowerCase())!;
+        const id = `tester-${crypto.randomUUID()}`;
+        currentTesters.push({ 
+            id, 
+            name, 
+            email: details?.email || '', 
+            phone: details?.phone || '', 
+            additionalFields: details?.additionalFields || [] 
+        });
+        testerMap.set(name.toLowerCase(), id);
+        return id;
+    };
+
+    jsonDevs.forEach((d: any) => {
+        const name = typeof d === 'string' ? d : d.name;
+        ensureDev(name, typeof d === 'object' ? d : undefined);
+    });
+    jsonTesters.forEach((t: any) => {
+        const name = typeof t === 'string' ? t : t.name;
+        ensureTester(name, typeof t === 'object' ? t : undefined);
+    });
+
+    rawTasks.forEach((t: any) => {
+        (t.developers || []).forEach((name: any) => {
+            if (typeof name === 'string') ensureDev(name);
+        });
+        (t.testers || []).forEach((name: any) => {
+            if (typeof name === 'string') ensureTester(name);
+        });
+    });
+
+    // 2. Prepare processed tasks (Mapping Names -> IDs)
+    const processedTasks = rawTasks.map((t: any) => {
+        const devIds = (t.developers || []).map((val: any) => {
+            if (typeof val !== 'string') return val;
+            return devMap.get(val.toLowerCase()) || val;
+        }).filter(Boolean);
+        
+        const testerIds = (t.testers || []).map((val: any) => {
+            if (typeof val !== 'string') return val;
+            return testerMap.get(val.toLowerCase()) || val;
+        }).filter(Boolean);
+
+        return {
+            ...t,
+            developers: devIds,
+            testers: testerIds,
+            createdAt: t.createdAt || new Date().toISOString(),
+            updatedAt: t.updatedAt || new Date().toISOString(),
+        };
+    });
+
+    // 3. Execution
+    const totalOperations = processedTasks.length + jsonNotes.length + 3;
+    let completedOps = 0;
+    const bumpProgress = () => {
+        completedOps++;
+        if (onProgress) onProgress(Math.floor((completedOps / totalOperations) * 100));
+    };
+
     if (mode === 'authenticate') {
         const companyBase = `users/${userId}/companies/${companyId}`;
-        if (devs.length > 0) {
-            const current = getDevelopers();
-            const merged = [...current];
-            devs.forEach(d => { if (!merged.some(m => m.name === d.name)) merged.push({ ...d, id: `dev-${crypto.randomUUID()}` }); });
-            await setDoc(doc(db, companyBase, 'people', 'developers'), { list: merged });
-        }
-        if (testers.length > 0) {
-            const current = getTesters();
-            const merged = [...current];
-            testers.forEach(t => { if (!merged.some(m => m.name === t.name)) merged.push({ ...t, id: `tester-${crypto.randomUUID()}` }); });
-            await setDoc(doc(db, companyBase, 'people', 'testers'), { list: merged });
-        }
+        
+        await setDoc(doc(db, companyBase, 'people', 'developers'), { list: currentDevs });
+        bumpProgress();
+        await setDoc(doc(db, companyBase, 'people', 'testers'), { list: currentTesters });
+        bumpProgress();
+
         const currentUi = getUiConfig();
         if (repoConfigs.length > 0) {
-            const mergedRepos = [...currentUi.repositoryConfigs];
-            repoConfigs.forEach(r => { if (!mergedRepos.some(mr => mr.name === r.name)) mergedRepos.push({ ...r, id: `repo_${crypto.randomUUID()}` }); });
-            currentUi.repositoryConfigs = mergedRepos;
+            repoConfigs.forEach((r: any) => {
+                if (!currentUi.repositoryConfigs.some(mr => mr.name === r.name)) {
+                    currentUi.repositoryConfigs.push({ ...r, id: r.id || `repo_${crypto.randomUUID()}` });
+                }
+            });
         }
         if (envs.length > 0) {
-            const mergedEnvs = [...currentUi.environments];
-            envs.forEach(e => { if (!mergedEnvs.some(me => me.name.toLowerCase() === e.name.toLowerCase())) mergedEnvs.push({ ...e, id: `env_${crypto.randomUUID()}` }); });
-            currentUi.environments = mergedEnvs;
+            envs.forEach((e: any) => {
+                if (!currentUi.environments.some(me => me.name.toLowerCase() === e.name.toLowerCase())) {
+                    currentUi.environments.push({ ...e, id: e.id || `env_${crypto.randomUUID()}` });
+                }
+            });
         }
         await setDoc(doc(db, companyBase, 'settings', 'uiConfig'), currentUi);
-        const processItems = async (items: any[], type: 'tasks' | 'notes') => {
+        bumpProgress();
+
+        const importInBatches = async (items: any[], collectionName: 'tasks' | 'notes') => {
             const chunks = chunkArray(items, 20);
             for (const chunk of chunks) {
                 const batch = writeBatch(db);
                 chunk.forEach(item => {
-                    const id = item.id || `${type.slice(0,-1)}-${crypto.randomUUID()}`;
-                    batch.set(doc(db, companyBase, type, id), { 
-                        ...item, id, 
-                        createdAt: item.createdAt || new Date().toISOString(), 
-                        updatedAt: item.updatedAt || new Date().toISOString() 
-                    }, { merge: true });
-                    reportProgress();
+                    const id = item.id || `${collectionName.slice(0, -1)}-${crypto.randomUUID()}`;
+                    batch.set(doc(db, companyBase, collectionName, id), { ...item, id }, { merge: true });
+                    bumpProgress();
                 });
                 await batch.commit();
             }
         };
-        await processItems(tasks, 'tasks');
-        await processItems(notes, 'notes');
+
+        await importInBatches(processedTasks, 'tasks');
+        await importInBatches(jsonNotes, 'notes');
     } else {
         const data = getAppData();
         const comp = data.companyData[companyId];
-        const uniqueTasks = tasks.filter(nt => !comp.tasks.some(et => et.title === nt.title));
+        
+        comp.developers = currentDevs;
+        comp.testers = currentTesters;
+        
+        const uniqueTasks = processedTasks.filter(nt => !comp.tasks.some(et => et.title === nt.title));
         comp.tasks = [...uniqueTasks, ...comp.tasks];
-        const uniqueNotes = notes.filter(nn => !comp.notes.some(en => en.title === nn.title && en.content === nn.content));
+        
+        const uniqueNotes = jsonNotes.filter(nn => !comp.notes.some(en => en.title === nn.title && en.content === nn.content));
         comp.notes = [...uniqueNotes, ...comp.notes];
-        devs.forEach(d => { if (!comp.developers.some(m => m.name === d.name)) comp.developers.push({ ...d, id: `dev-${crypto.randomUUID()}` }); });
-        testers.forEach(t => { if (!comp.testers.some(m => m.name === t.name)) comp.testers.push({ ...t, id: `tester-${crypto.randomUUID()}` }); });
+
         if (repoConfigs.length > 0) {
-            repoConfigs.forEach(r => { if (!comp.uiConfig.repositoryConfigs.some(mr => mr.name === r.name)) comp.uiConfig.repositoryConfigs.push({ ...r, id: `repo_${crypto.randomUUID()}` }); });
+            repoConfigs.forEach((r: any) => {
+                if (!comp.uiConfig.repositoryConfigs.some(mr => mr.name === r.name)) {
+                    comp.uiConfig.repositoryConfigs.push({ ...r, id: r.id || `repo_${crypto.randomUUID()}` });
+                }
+            });
         }
         if (envs.length > 0) {
-            envs.forEach(e => { if (!comp.uiConfig.environments.some(me => me.name.toLowerCase() === e.name.toLowerCase())) comp.uiConfig.environments.push({ ...e, id: `env_${crypto.randomUUID()}` }); });
+            envs.forEach((e: any) => {
+                if (!comp.uiConfig.environments.some(me => me.name.toLowerCase() === e.name.toLowerCase())) {
+                    comp.uiConfig.environments.push({ ...e, id: e.id || `env_${crypto.randomUUID()}` });
+                }
+            });
         }
+        
         setAppData(data);
+        if (onProgress) onProgress(100);
     }
     return true;
 }
