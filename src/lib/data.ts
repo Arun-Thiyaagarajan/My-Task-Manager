@@ -739,14 +739,19 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
     const auth = getAuth();
     const userId = auth.currentUser?.uid;
     
-    if (mode === 'authenticate' && !userId) throw new Error("User not authenticated.");
+    if (mode === 'authenticate' && !userId) throw new Error("You must be signed in to import data to the cloud.");
 
-    const rawTasks = Array.isArray(parsedJson.tasks) ? parsedJson.tasks : [];
-    const jsonDevs = Array.isArray(parsedJson.developers) ? parsedJson.developers : [];
-    const jsonTesters = Array.isArray(parsedJson.testers) ? parsedJson.testers : [];
-    const jsonNotes = Array.isArray(parsedJson.notes) ? parsedJson.notes : [];
-    const repoConfigs = Array.isArray(parsedJson.repositoryConfigs) ? parsedJson.repositoryConfigs : [];
-    const envs = Array.isArray(parsedJson.environments) ? parsedJson.environments : [];
+    let rawTasks, jsonDevs, jsonTesters, jsonNotes, repoConfigs, envs;
+    try {
+        rawTasks = Array.isArray(parsedJson.tasks) ? parsedJson.tasks : [];
+        jsonDevs = Array.isArray(parsedJson.developers) ? parsedJson.developers : [];
+        jsonTesters = Array.isArray(parsedJson.testers) ? parsedJson.testers : [];
+        jsonNotes = Array.isArray(parsedJson.notes) ? parsedJson.notes : [];
+        repoConfigs = Array.isArray(parsedJson.repositoryConfigs) ? parsedJson.repositoryConfigs : [];
+        envs = Array.isArray(parsedJson.environments) ? parsedJson.environments : [];
+    } catch (e) {
+        throw new Error("The imported file is invalid or corrupted. Please check the file format.");
+    }
 
     // 1. Resolve Global People Lists
     let currentDevs = [...getDevelopers()];
@@ -830,77 +835,82 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
         if (onProgress) onProgress(Math.floor((completedOps / totalOperations) * 100));
     };
 
-    if (mode === 'authenticate') {
-        const companyBase = `users/${userId}/companies/${companyId}`;
-        
-        await setDoc(doc(db, companyBase, 'people', 'developers'), { list: currentDevs });
-        bumpProgress();
-        await setDoc(doc(db, companyBase, 'people', 'testers'), { list: currentTesters });
-        bumpProgress();
+    try {
+        if (mode === 'authenticate') {
+            const companyBase = `users/${userId}/companies/${companyId}`;
+            
+            await setDoc(doc(db, companyBase, 'people', 'developers'), { list: currentDevs });
+            bumpProgress();
+            await setDoc(doc(db, companyBase, 'people', 'testers'), { list: currentTesters });
+            bumpProgress();
 
-        const currentUi = getUiConfig();
-        if (repoConfigs.length > 0) {
-            repoConfigs.forEach((r: any) => {
-                if (!currentUi.repositoryConfigs.some(mr => mr.name === r.name)) {
-                    currentUi.repositoryConfigs.push({ ...r, id: r.id || `repo_${crypto.randomUUID()}` });
-                }
-            });
-        }
-        if (envs.length > 0) {
-            envs.forEach((e: any) => {
-                if (!currentUi.environments.some(me => me.name.toLowerCase() === e.name.toLowerCase())) {
-                    currentUi.environments.push({ ...e, id: e.id || `env_${crypto.randomUUID()}` });
-                }
-            });
-        }
-        await setDoc(doc(db, companyBase, 'settings', 'uiConfig'), currentUi);
-        bumpProgress();
-
-        const importInBatches = async (items: any[], collectionName: 'tasks' | 'notes') => {
-            const chunks = chunkArray(items, 20);
-            for (const chunk of chunks) {
-                const batch = writeBatch(db);
-                chunk.forEach(item => {
-                    const id = item.id || `${collectionName.slice(0, -1)}-${crypto.randomUUID()}`;
-                    batch.set(doc(db, companyBase, collectionName, id), { ...item, id }, { merge: true });
-                    bumpProgress();
+            const currentUi = getUiConfig();
+            if (repoConfigs.length > 0) {
+                repoConfigs.forEach((r: any) => {
+                    if (!currentUi.repositoryConfigs.some(mr => mr.name === r.name)) {
+                        currentUi.repositoryConfigs.push({ ...r, id: r.id || `repo_${crypto.randomUUID()}` });
+                    }
                 });
-                await batch.commit();
             }
-        };
+            if (envs.length > 0) {
+                envs.forEach((e: any) => {
+                    if (!currentUi.environments.some(me => me.name.toLowerCase() === e.name.toLowerCase())) {
+                        currentUi.environments.push({ ...e, id: e.id || `env_${crypto.randomUUID()}` });
+                    }
+                });
+            }
+            await setDoc(doc(db, companyBase, 'settings', 'uiConfig'), currentUi);
+            bumpProgress();
 
-        await importInBatches(processedTasks, 'tasks');
-        await importInBatches(jsonNotes, 'notes');
-    } else {
-        const data = getAppData();
-        const comp = data.companyData[companyId];
-        
-        comp.developers = currentDevs;
-        comp.testers = currentTesters;
-        
-        const uniqueTasks = processedTasks.filter(nt => !comp.tasks.some(et => et.title === nt.title));
-        comp.tasks = [...uniqueTasks, ...comp.tasks];
-        
-        const uniqueNotes = jsonNotes.filter(nn => !comp.notes.some(en => en.title === nn.title && en.content === nn.content));
-        comp.notes = [...uniqueNotes, ...comp.notes];
+            const importInBatches = async (items: any[], collectionName: 'tasks' | 'notes') => {
+                const chunks = chunkArray(items, 20);
+                for (const chunk of chunks) {
+                    const batch = writeBatch(db);
+                    chunk.forEach(item => {
+                        const id = item.id || `${collectionName.slice(0, -1)}-${crypto.randomUUID()}`;
+                        batch.set(doc(db, companyBase, collectionName, id), { ...item, id }, { merge: true });
+                        bumpProgress();
+                    });
+                    await batch.commit();
+                }
+            };
 
-        if (repoConfigs.length > 0) {
-            repoConfigs.forEach((r: any) => {
-                if (!comp.uiConfig.repositoryConfigs.some(mr => mr.name === r.name)) {
-                    comp.uiConfig.repositoryConfigs.push({ ...r, id: r.id || `repo_${crypto.randomUUID()}` });
-                }
-            });
+            await importInBatches(processedTasks, 'tasks');
+            await importInBatches(jsonNotes, 'notes');
+        } else {
+            const data = getAppData();
+            const comp = data.companyData[companyId];
+            
+            comp.developers = currentDevs;
+            comp.testers = currentTesters;
+            
+            const uniqueTasks = processedTasks.filter(nt => !comp.tasks.some(et => et.title === nt.title));
+            comp.tasks = [...uniqueTasks, ...comp.tasks];
+            
+            const uniqueNotes = jsonNotes.filter(nn => !comp.notes.some(en => en.title === nn.title && en.content === nn.content));
+            comp.notes = [...uniqueNotes, ...comp.notes];
+
+            if (repoConfigs.length > 0) {
+                repoConfigs.forEach((r: any) => {
+                    if (!comp.uiConfig.repositoryConfigs.some(mr => mr.name === r.name)) {
+                        comp.uiConfig.repositoryConfigs.push({ ...r, id: r.id || `repo_${crypto.randomUUID()}` });
+                    }
+                });
+            }
+            if (envs.length > 0) {
+                envs.forEach((e: any) => {
+                    if (!comp.uiConfig.environments.some(me => me.name.toLowerCase() === e.name.toLowerCase())) {
+                        comp.uiConfig.environments.push({ ...e, id: e.id || `env_${crypto.randomUUID()}` });
+                    }
+                });
+            }
+            
+            setAppData(data);
+            if (onProgress) onProgress(100);
         }
-        if (envs.length > 0) {
-            envs.forEach((e: any) => {
-                if (!comp.uiConfig.environments.some(me => me.name.toLowerCase() === e.name.toLowerCase())) {
-                    comp.uiConfig.environments.push({ ...e, id: e.id || `env_${crypto.randomUUID()}` });
-                }
-            });
-        }
-        
-        setAppData(data);
-        if (onProgress) onProgress(100);
+    } catch (error: any) {
+        console.error("Sync Failure:", error);
+        throw new Error("An error occurred while syncing. Please try again later.");
     }
     return true;
 }
@@ -908,15 +918,16 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
 export async function clearAllData() {
     const mode = getAuthMode();
     const companyId = getActiveCompanyId();
-    if (mode === 'authenticate') {
-        const auth = getAuth();
-        const db = getFirestore();
-        const userId = auth.currentUser?.uid;
-        if (!userId) {
-            throw new Error("You must be signed in to clear cloud data.");
-        }
-        const companyBase = `users/${userId}/companies/${companyId}`;
-        try {
+    try {
+        if (mode === 'authenticate') {
+            const auth = getAuth();
+            const db = getFirestore();
+            const userId = auth.currentUser?.uid;
+            if (!userId) {
+                throw new Error("You must be signed in to clear cloud data.");
+            }
+            const companyBase = `users/${userId}/companies/${companyId}`;
+            
             const currentConfig = getUiConfig();
             const preservedEnvs = currentConfig.environments || [];
             const preservedAppName = currentConfig.appName;
@@ -965,19 +976,15 @@ export async function clearAllData() {
             batch.set(doc(db, companyBase, 'settings', 'uiConfig'), defaultUiConfig);
             batch.set(doc(db, companyBase, 'releases', 'updates'), { list: [...INITIAL_RELEASES] });
             await batch.commit();
-        } catch (error: any) {
-            console.error("Critical error during cloud data clearing:", error);
-            throw new Error(`Cloud data clearing failed: ${error.message || 'Check your internet connection and permissions.'}`);
-        }
-    } else {
-        try {
+        } else {
             Object.keys(localStorage).forEach(key => {
                 if (key.startsWith('taskflow_')) localStorage.removeItem(key);
             });
             localStorage.removeItem(DATA_KEY);
-        } catch (e: any) {
-            throw new Error(`Failed to clear local storage: ${e.message || 'Unknown error'}`);
         }
+    } catch (error: any) {
+        console.error("Clear Data Sync Error:", error);
+        throw new Error("An error occurred while syncing. Please try again later.");
     }
 }
 

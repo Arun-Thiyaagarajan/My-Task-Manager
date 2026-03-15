@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -606,7 +605,7 @@ export default function Home() {
                     toast({ 
                         variant: 'destructive', 
                         title: 'Sync Failed', 
-                        description: error.message || 'An error occurred during cloud synchronization.' 
+                        description: error.message || 'An error occurred while syncing. Please try again later.' 
                     });
                 } finally {
                     setIsImporting(false);
@@ -614,14 +613,22 @@ export default function Home() {
                 }
             } else {
                 // Local Import
-                await importWorkspaceData(parsedJson);
-                toast({ variant: 'success', title: 'Local Import Successful', description: 'Your browser storage has been updated.' });
+                try {
+                    await importWorkspaceData(parsedJson);
+                    toast({ variant: 'success', title: 'Local Import Successful', description: 'Your browser storage has been updated.' });
+                } catch (error: any) {
+                    toast({ 
+                        variant: 'destructive', 
+                        title: 'Import Failed', 
+                        description: error.message || 'An error occurred during import.' 
+                    });
+                }
             }
             refreshData();
             
         } catch (error: any) {
             console.error("Error importing file:", error);
-            toast({ variant: 'destructive', title: 'Import Failed', description: error.message || 'There was an error processing your file.' });
+            toast({ variant: 'destructive', title: 'Import Failed', description: "The imported file is invalid or corrupted. Please check the file and try again." });
         } finally {
             if(fileInputRef.current) { fileInputRef.current.value = ''; }
             window.dispatchEvent(new Event('sync-end'));

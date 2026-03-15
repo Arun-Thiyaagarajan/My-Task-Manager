@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -282,7 +281,7 @@ export default function SettingsPage() {
         toast({ 
             variant: 'destructive', 
             title: 'Import Failed', 
-            description: error.message || 'There was an error parsing the file.' 
+            description: error.message || 'An error occurred while syncing. Please try again later.' 
         });
       } finally {
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -306,7 +305,7 @@ export default function SettingsPage() {
       toast({ 
         variant: 'destructive', 
         title: 'Clear Data Failed', 
-        description: error.message || 'An unexpected error occurred.' 
+        description: error.message || 'An error occurred while syncing. Please try again later.' 
       });
       setIsClearing(false);
     }
