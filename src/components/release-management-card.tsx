@@ -11,7 +11,8 @@ import {
     getReleaseUpdates, 
     addReleaseUpdate, 
     updateReleaseUpdate, 
-    deleteReleaseUpdate 
+    deleteReleaseUpdate,
+    getAuthMode
 } from '@/lib/data';
 import type { ReleaseUpdate, ReleaseItem, ReleaseItemType } from '@/lib/types';
 import { 
@@ -26,7 +27,8 @@ import {
     Sparkles,
     Zap,
     Bug,
-    ExternalLink
+    ExternalLink,
+    Lock
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -41,18 +43,25 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { useFirebase } from '@/firebase';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export function ReleaseManagementCard() {
+    const { userProfile } = useFirebase();
     const [releases, setReleases] = useState<ReleaseUpdate[]>([]);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingRelease, setEditingRelease] = useState<Partial<ReleaseUpdate> | null>(null);
     const { toast } = useToast();
+
+    const authMode = getAuthMode();
+    const isAdmin = authMode === 'localStorage' || userProfile?.role === 'admin';
 
     useEffect(() => {
         setReleases(getReleaseUpdates(false));
     }, []);
 
     const handleOpenAdd = () => {
+        if (!isAdmin) return;
         setEditingRelease({
             version: '',
             title: '',
@@ -65,6 +74,7 @@ export function ReleaseManagementCard() {
     };
 
     const handleOpenEdit = (release: ReleaseUpdate) => {
+        if (!isAdmin) return;
         setEditingRelease(JSON.parse(JSON.stringify(release)));
         setIsDialogOpen(true);
     };
@@ -99,7 +109,7 @@ export function ReleaseManagementCard() {
     };
 
     const handleSave = () => {
-        if (!editingRelease || !editingRelease.version || !editingRelease.title) {
+        if (!isAdmin || !editingRelease || !editingRelease.version || !editingRelease.title) {
             toast({ variant: 'destructive', title: 'Missing Information', description: 'Version and Title are required.' });
             return;
         }
@@ -117,6 +127,7 @@ export function ReleaseManagementCard() {
     };
 
     const handleDelete = (id: string) => {
+        if (!isAdmin) return;
         if (deleteReleaseUpdate(id)) {
             toast({ variant: 'success', title: 'Release Deleted' });
             setReleases(getReleaseUpdates(false));
@@ -124,6 +135,7 @@ export function ReleaseManagementCard() {
     };
 
     const togglePublish = (release: ReleaseUpdate) => {
+        if (!isAdmin) return;
         const newState = !release.isPublished;
         updateReleaseUpdate(release.id, { isPublished: newState });
         setReleases(getReleaseUpdates(false));
@@ -139,9 +151,26 @@ export function ReleaseManagementCard() {
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                     <CardTitle className="flex items-center gap-2"><History className="h-5 w-5" />Release Management</CardTitle>
-                    <CardDescription>Draft and publish application updates for your users.</CardDescription>
+                    <CardDescription>
+                        {isAdmin ? 'Draft and publish application updates for your users.' : 'View workspace update history.'}
+                    </CardDescription>
                 </div>
-                <Button onClick={handleOpenAdd} size="sm"><Plus className="h-4 w-4 mr-2" />New Release</Button>
+                {isAdmin ? (
+                    <Button onClick={handleOpenAdd} size="sm"><Plus className="h-4 w-4 mr-2" />New Release</Button>
+                ) : (
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button size="sm" variant="outline" className="cursor-not-allowed opacity-50">
+                                    <Lock className="h-3 w-3 mr-2" />New Release
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Release management is restricted to Administrators.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                )}
             </CardHeader>
             <CardContent>
                 <div className="space-y-3">
@@ -165,13 +194,15 @@ export function ReleaseManagementCard() {
                                     <p className="text-xs text-muted-foreground">{format(new Date(release.date), 'PP')}</p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-1">
-                                <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(release)}><FileEdit className="h-4 w-4" /></Button>
-                                <Button variant="ghost" size="icon" onClick={() => togglePublish(release)}>
-                                    {release.isPublished ? <X className="h-4 w-4 text-amber-600" /> : <Check className="h-4 w-4 text-green-600" />}
-                                </Button>
-                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDelete(release.id)}><Trash2 className="h-4 w-4" /></Button>
-                            </div>
+                            {isAdmin && (
+                                <div className="flex items-center gap-1">
+                                    <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(release)}><FileEdit className="h-4 w-4" /></Button>
+                                    <Button variant="ghost" size="icon" onClick={() => togglePublish(release)}>
+                                        {release.isPublished ? <X className="h-4 w-4 text-amber-600" /> : <Check className="h-4 w-4 text-green-600" />}
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDelete(release.id)}><Trash2 className="h-4 w-4" /></Button>
+                                </div>
+                            )}
                         </div>
                     ))}
                     {releases.length === 0 && (

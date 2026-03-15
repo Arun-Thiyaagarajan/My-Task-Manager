@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -16,7 +17,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials, getAvatarGradient, cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { setAuthMode } from '@/lib/data';
+import { setAuthMode, getAuthMode } from '@/lib/data';
 import { 
   User as UserIcon, 
   Mail, 
@@ -31,7 +32,8 @@ import {
   EyeOff,
   Settings,
   Maximize2,
-  LogOut
+  LogOut,
+  UserCog
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
@@ -264,7 +266,9 @@ export default function ProfilePage() {
   if (isUserLoading || isProfileLoading) return <LoadingSpinner text="Loading profile..." />;
   if (!user) return null;
 
+  const authMode = getAuthMode();
   const profileName = displayName || user.email || 'User';
+  const displayRole = authMode === 'localStorage' ? 'admin' : (userProfile?.role || 'user');
 
   const authPhoto = user.photoURL === "" ? null : user.photoURL;
   const currentSavedPhoto = userProfile?.photoURL || authPhoto || null;
@@ -334,7 +338,15 @@ export default function ProfilePage() {
               
               <div className="mt-4 space-y-1 overflow-hidden">
                 <h2 className="text-xl font-bold tracking-tight text-foreground truncate px-4" title={profileName}>{profileName}</h2>
-                <p className="text-[11px] text-muted-foreground font-medium truncate px-4" title={user.email || ''}>{user.email}</p>
+                <div className="flex items-center justify-center gap-2">
+                    <p className="text-[11px] text-muted-foreground font-medium truncate" title={user.email || ''}>{user.email}</p>
+                    <Badge variant="outline" className={cn(
+                        "h-4 px-1.5 text-[8px] uppercase font-black tracking-widest",
+                        displayRole === 'admin' ? "bg-primary/10 text-primary border-primary/20" : "bg-muted text-muted-foreground"
+                    )}>
+                        {displayRole}
+                    </Badge>
+                </div>
               </div>
               
               <div className="mt-6 flex flex-col items-center gap-3">
@@ -422,17 +434,31 @@ export default function ProfilePage() {
                       </div>
                     </div>
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Email Address</Label>
-                        <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                            id="email" 
-                            className="pl-10 h-11 bg-muted/50 cursor-not-allowed border-dashed" 
-                            value={email} 
-                            readOnly
-                            disabled
-                            />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="grid gap-2">
+                            <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Email Address</Label>
+                            <div className="relative">
+                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input 
+                                id="email" 
+                                className="pl-10 h-11 bg-muted/50 cursor-not-allowed border-dashed" 
+                                value={email} 
+                                readOnly
+                                disabled
+                                />
+                            </div>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Access Role</Label>
+                            <div className="relative">
+                                <UserCog className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input 
+                                    className="pl-10 h-11 bg-muted/50 cursor-not-allowed border-dashed capitalize font-bold" 
+                                    value={displayRole} 
+                                    readOnly
+                                    disabled
+                                />
+                            </div>
                         </div>
                     </div>
                   </CardContent>

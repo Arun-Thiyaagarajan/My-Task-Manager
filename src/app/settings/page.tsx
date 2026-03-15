@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -51,7 +52,8 @@ import {
     X,
     Maximize2,
     Camera,
-    Loader2
+    Loader2,
+    Lock
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PeopleManagerDialog } from '@/components/people-manager-dialog';
@@ -77,8 +79,10 @@ import { AuthModal } from '@/components/auth-modal';
 import { ProfileImageCropper } from '@/components/profile-image-cropper';
 import { ImagePreviewDialog } from '@/components/image-preview-dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useFirebase } from '@/firebase';
 
 export default function SettingsPage() {
+  const { userProfile } = useFirebase();
   const [uiConfig, setUiConfigState] = useState<UiConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isClearing, setIsClearing] = useState(false);
@@ -362,6 +366,7 @@ export default function SettingsPage() {
   }
 
   const authMode = getAuthMode();
+  const isAdmin = authMode === 'localStorage' || userProfile?.role === 'admin';
   const isDataURIIcon = appIcon && appIcon.startsWith('data:image');
 
   return (
@@ -609,22 +614,7 @@ export default function SettingsPage() {
                 </CardContent>
             </Card>
 
-            <Card>
-                <CardHeader className="pb-3 flex-row items-center justify-between space-y-0">
-                    <div>
-                        <CardTitle className="text-base flex items-center gap-2">
-                            <History className="h-4 w-4 text-primary" />
-                            Release Management
-                        </CardTitle>
-                        <CardDescription>Application updates.</CardDescription>
-                    </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                    <Button asChild variant="outline" className="w-full h-9 text-xs">
-                        <a href="/releases">View Full History</a>
-                    </Button>
-                </CardContent>
-            </Card>
+            <ReleaseManagementCard />
 
             <Card>
                 <CardHeader className="pb-3">

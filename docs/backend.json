@@ -24,6 +24,11 @@
           "type": "string",
           "description": "The URL or Base64 data of the user's profile photo."
         },
+        "role": {
+          "type": "string",
+          "description": "The user's role within the system.",
+          "enum": ["admin", "user"]
+        },
         "createdAt": {
           "type": "string",
           "description": "Timestamp indicating when the user profile was created.",

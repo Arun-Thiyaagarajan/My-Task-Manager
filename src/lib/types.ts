@@ -143,6 +143,7 @@ export interface UserProfile {
   email?: string;
   username?: string;
   photoURL?: string | null;
+  role?: 'admin' | 'user';
   emailVerified: boolean;
   createdAt: string;
   updatedAt: string;
