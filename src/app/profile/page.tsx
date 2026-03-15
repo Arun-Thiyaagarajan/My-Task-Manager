@@ -1,10 +1,9 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useFirebase } from '@/firebase';
-import { updateProfile, updatePassword, sendEmailVerification } from 'firebase/auth';
+import { updateProfile, updatePassword, sendEmailVerification, signOut } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,6 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials, getAvatarGradient, cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import { setAuthMode } from '@/lib/data';
 import { 
   User as UserIcon, 
   Mail, 
@@ -51,7 +51,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 export default function ProfilePage() {
-  const { user, firestore, isUserLoading, userProfile, isProfileLoading } = useFirebase();
+  const { user, firestore, auth, isUserLoading, userProfile, isProfileLoading } = useFirebase();
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -75,6 +75,7 @@ export default function ProfilePage() {
   const [isCropperOpen, setIsCropperOpen] = useState(false);
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isSignOutDialogOpen, setIsSignOutDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -232,6 +233,21 @@ export default function ProfilePage() {
       toast({ variant: 'success', title: 'Verification Sent', description: 'Check your inbox for the link.' });
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error', description: error.message });
+    }
+  };
+
+  const handleSignOut = async () => {
+    if (!auth) return;
+    setIsPending(true);
+    try {
+      await signOut(auth);
+      setAuthMode('localStorage');
+      toast({ variant: 'success', title: 'Signed Out', description: 'You have been logged out successfully.' });
+      router.push('/');
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Sign Out Failed', description: error.message });
+    } finally {
+      setIsPending(false);
     }
   };
 
@@ -505,11 +521,27 @@ export default function ProfilePage() {
                     <div>
                       <p className="text-sm font-bold flex items-center gap-2">
                           <LogOut className="h-4 w-4 text-muted-foreground" />
-                          Sign out of all sessions
+                          Sign out of session
                       </p>
-                      <p className="text-[11px] text-muted-foreground">End all active sessions on other browsers and devices.</p>
+                      <p className="text-[11px] text-muted-foreground">End your current session on this device.</p>
                     </div>
-                    <Button variant="outline" size="sm" className="h-8 text-xs font-bold group-hover:bg-destructive group-hover:text-white transition-all cursor-pointer">Sign Out All</Button>
+                    <AlertDialog open={isSignOutDialogOpen} onOpenChange={setIsSignOutDialogOpen}>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-8 text-xs font-bold group-hover:bg-destructive group-hover:text-white transition-all cursor-pointer">Sign Out</Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Sign out of TaskFlow?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Are you sure you want to sign out? You will be redirected to the home page in Local Mode.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleSignOut} className="bg-destructive hover:bg-destructive/90">Sign Out</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </CardContent>
               </Card>

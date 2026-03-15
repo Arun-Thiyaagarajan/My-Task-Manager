@@ -115,6 +115,7 @@ export function Header() {
   
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthModeState] = useState<'localStorage' | 'authenticate'>('localStorage');
+  const [isSignOutDialogOpen, setIsSignOutDialogOpen] = useState(false);
 
   const refreshAllData = () => {
     const config = getUiConfig();
@@ -370,7 +371,7 @@ export function Header() {
                 </DropdownMenuGroup>
                 {authMode === 'authenticate' && (
                   <>
-                    <DropdownMenuItem onSelect={handleSignOut} className="text-destructive focus:text-destructive">
+                    <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setIsSignOutDialogOpen(true); }} className="text-destructive focus:text-destructive">
                       <LogOut className="mr-2 h-4 w-4" />
                       <span>Sign Out</span>
                     </DropdownMenuItem>
@@ -435,6 +436,21 @@ export function Header() {
           window.dispatchEvent(new Event('company-changed'));
         }} 
       />
+
+      <AlertDialog open={isSignOutDialogOpen} onOpenChange={setIsSignOutDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to sign out?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You will be returned to Local Mode. Your cloud data is safe and will sync back the next time you sign in.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSignOut} className="bg-destructive hover:bg-destructive/90">Sign Out</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <CompaniesManager 
         isOpen={isManagerOpen}
