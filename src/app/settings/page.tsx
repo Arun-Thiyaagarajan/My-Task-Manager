@@ -210,7 +210,7 @@ export default function SettingsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
             <h1 className="text-4xl font-extrabold tracking-tight text-foreground flex items-center gap-3">
-                <Cog className="h-9 w-9 text-primary animate-spin-slow" />
+                < Cog className="h-9 w-9 text-primary animate-spin-slow" />
                 Workspace Settings
             </h1>
             <p className="text-muted-foreground mt-1">Manage your application configuration and data.</p>
