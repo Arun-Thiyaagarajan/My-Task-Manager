@@ -795,8 +795,8 @@ export default function Home() {
           </div>
       )}
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-6">
-        <div className="flex flex-col gap-2">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-6">
+        <div className="flex flex-col gap-1">
             <div className="flex items-center gap-3">
                 <h1 className="text-4xl font-black tracking-tight text-foreground">Tasks</h1>
                 <Badge variant="outline" className={cn(mode === 'authenticate' ? "text-primary border-primary/20 bg-primary/5" : "text-muted-foreground", "h-6 px-3 text-[10px] font-bold uppercase tracking-wider")}>
@@ -867,7 +867,6 @@ export default function Home() {
       
       <div className="space-y-6">
           <div className="space-y-3">
-              {/* Filter Toggle for Mobile */}
               <Button 
                 variant="secondary" 
                 className="w-full flex lg:hidden items-center justify-between h-12 px-4 font-black shadow-sm border"
@@ -887,7 +886,7 @@ export default function Home() {
 
               <div className={cn(
                   "transition-all duration-300 overflow-hidden",
-                  "lg:block", // Always visible on desktop
+                  "lg:block", 
                   isFiltersOpen ? "block opacity-100 max-h-[1000px]" : "hidden lg:opacity-100 lg:max-h-none opacity-0 max-h-0"
               )}>
                 <Card id="task-filters" className="border-none shadow-lg lg:shadow-none bg-card lg:bg-transparent">

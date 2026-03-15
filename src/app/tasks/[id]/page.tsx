@@ -127,8 +127,6 @@ export default function TaskPage() {
             setTaskLogs([]);
             setIsLogsLoading(false);
         } else {
-            // Simulate slight async delay for smooth transitions if requested, 
-            // but usually this is near-instant from cache.
             setTimeout(() => {
                 setTaskLogs(getLogsForTask(taskId));
                 setIsLogsLoading(false);
@@ -233,9 +231,6 @@ export default function TaskPage() {
         const shuffled = selectedStrategy.tasks.sort(() => 0.5 - Math.random());
         setRelatedTasks(shuffled.slice(0, 4));
         setRelatedTasksTitle(selectedStrategy.title);
-    } else {
-        setRelatedTasks([]);
-        setRelatedTasksTitle('');
     }
   }, [task]);
   
@@ -495,7 +490,6 @@ export default function TaskPage() {
         toast({ variant: 'success', title: 'Smart title generated!'});
       } catch (e) {
         console.error('Could not generate smart title', e);
-        // Silently fail
       }
   }
 
@@ -505,14 +499,12 @@ export default function TaskPage() {
       const items = event.clipboardData?.items;
       if (!items) return;
 
-      let foundContent = false;
       for (let i = 0; i < items.length; i++) {
         if (items[i].type.indexOf('image') !== -1) {
           const file = items[i].getAsFile();
           if (file) {
             event.preventDefault();
             handleImageUpload(file);
-            foundContent = true;
             break;
           }
         }
@@ -546,10 +538,8 @@ export default function TaskPage() {
                         }
                     }
                 } catch (_) {
-                    // Not a valid URL, do nothing
                 }
             });
-            foundContent = true;
             break;
         }
       }
@@ -922,7 +912,7 @@ const handleCopyDescription = () => {
         )}
 
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
           <div className="lg:col-span-2 space-y-6">
             <Card className={cn("relative overflow-hidden group/card", cardClassName)}>
                 <Icon className={cn('absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none transition-transform duration-300 ease-in-out', iconColorClassName, task.status !== 'In Progress' && 'group-hover/card:scale-110 group-hover/card:-rotate-6')} />
@@ -1135,6 +1125,16 @@ const handleCopyDescription = () => {
                 </CardContent>
               </Card>
             )}
+
+            {/* Desktop Only Bottom Sections */}
+            <div className="hidden lg:block space-y-6">
+                {commentsField && !isBinned && (
+                    <CommentsSection taskId={task.id} comments={task.comments || []} onCommentsUpdate={handleCommentsUpdate} readOnly={isBinned} />
+                )}
+                {historyField && (
+                    <TaskHistory logs={taskLogs} uiConfig={uiConfig} isLoading={isLogsLoading} />
+                )}
+            </div>
           </div>
 
           <div className="space-y-6">
@@ -1364,11 +1364,11 @@ const handleCopyDescription = () => {
             )}
           </div>
 
-          <div className="lg:col-span-2 space-y-6">
+          {/* Mobile Only Bottom Section */}
+          <div className="lg:hidden space-y-6">
             {commentsField && !isBinned && (
                <CommentsSection taskId={task.id} comments={task.comments || []} onCommentsUpdate={handleCommentsUpdate} readOnly={isBinned} />
             )}
-            
             {historyField && (
                 <TaskHistory logs={taskLogs} uiConfig={uiConfig} isLoading={isLogsLoading} />
             )}
