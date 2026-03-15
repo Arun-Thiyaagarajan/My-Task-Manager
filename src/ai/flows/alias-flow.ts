@@ -46,7 +46,7 @@ const generateAliasFlow = ai.defineFlow(
       prompt: `Generate a short, human-readable alias for the following URL. The alias should be concise and reflect the content of the page. For example, for a URL like "https://github.com/firebase/genkit/pull/123", a good alias would be "Genkit PR #123".
 
 URL: ${url}`,
-      model: 'googleai/gemini-1.5-flash-latest',
+      model: 'googleai/gemini-1.5-flash',
       output: {
         schema: AliasOutputSchema,
       },

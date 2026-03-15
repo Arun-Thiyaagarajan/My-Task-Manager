@@ -80,8 +80,11 @@ export default function TaskPage() {
   const [personInView, setPersonInView] = useState<{person: Person, isDeveloper: boolean} | null>(null);
   const [isEditingPrLinks, setIsEditingPrLinks] = useState(false);
   const [previewImage, setPreviewImage] = useState<{url: string; name: string} | null>(null);
+  
   const [isEditingAttachments, setIsEditingAttachments] = useState(false);
+  const isEditingAttachmentsRef = useRef(false);
   const [localAttachments, setLocalAttachments] = useState<Attachment[]>([]);
+  
   const [isAddLinkPopoverOpen, setIsAddLinkPopoverOpen] = useState(false);
   const [newLink, setNewLink] = useState({ name: '', url: '' });
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -110,7 +113,9 @@ export default function TaskPage() {
       const config = getUiConfig();
       
       setTask(foundTask || null);
-      setLocalAttachments(foundTask?.attachments || []);
+      if (!isEditingAttachmentsRef.current) {
+          setLocalAttachments(foundTask?.attachments || []);
+      }
       setUiConfig(config);
       setDevelopers(allDevs);
       setTesters(allTesters);
@@ -402,6 +407,7 @@ export default function TaskPage() {
         const oldAtts = task.attachments || [];
         if (JSON.stringify(oldAtts) === JSON.stringify(localAttachments)) {
             setIsEditingAttachments(false);
+            isEditingAttachmentsRef.current = false;
             return;
         }
 
@@ -426,6 +432,7 @@ export default function TaskPage() {
             });
         }
         setIsEditingAttachments(false);
+        isEditingAttachmentsRef.current = false;
     };
 
   const handleDeleteAttachment = (index: number) => {
@@ -435,8 +442,8 @@ export default function TaskPage() {
   };
 
   const handleImageUpload = (file: File) => {
-    if (file.size > 2 * 1024 * 1024) { // 2MB limit
-        toast({ variant: 'destructive', title: 'Image too large', description: 'Please upload an image smaller than 2MB.' });
+    if (file.size > 1024 * 1024) { // 1MB limit for Firestore document safety
+        toast({ variant: 'destructive', title: 'Image too large', description: 'Please upload an image smaller than 1MB for reliable cloud synchronization.' });
         return;
     }
     const reader = new FileReader();
@@ -466,12 +473,16 @@ export default function TaskPage() {
       
       try {
         const alias = await getLinkAlias({ url: newAttachment.url });
-        const updatedAttachments = [...localAttachments];
-        updatedAttachments[newAttachmentIndex] = {
-          ...newAttachment,
-          name: alias.name || newAttachment.name,
-        };
-        setLocalAttachments(updatedAttachments);
+        setLocalAttachments(current => {
+            const updated = [...current];
+            if (updated[newAttachmentIndex]) {
+                updated[newAttachmentIndex] = {
+                    ...updated[newAttachmentIndex],
+                    name: alias.name || updated[newAttachmentIndex].name,
+                };
+            }
+            return updated;
+        });
         toast({ variant: 'success', title: 'Smart title generated!'});
       } catch (e) {
         console.error('Could not generate smart title', e);
@@ -480,7 +491,7 @@ export default function TaskPage() {
 
   useEffect(() => {
     const handlePaste = (event: ClipboardEvent) => {
-      if (!isEditingAttachments) return;
+      if (!isEditingAttachmentsRef.current) return;
       const items = event.clipboardData?.items;
       if (!items) return;
 
@@ -511,12 +522,16 @@ export default function TaskPage() {
 
                         try {
                           const alias = await getLinkAlias({ url: pastedText });
-                          const currentAttachments = [...localAttachments, newAttachment];
-                          currentAttachments[newAttachmentIndex] = {
-                            ...newAttachment,
-                            name: alias.name || pastedText,
-                          };
-                          setLocalAttachments(currentAttachments);
+                          setLocalAttachments(current => {
+                              const updated = [...current];
+                              if (updated[newAttachmentIndex]) {
+                                updated[newAttachmentIndex] = {
+                                    ...updated[newAttachmentIndex],
+                                    name: alias.name || pastedText,
+                                };
+                              }
+                              return updated;
+                          });
                           toast({ variant: 'success', title: 'Smart title generated!'});
                         } catch(e) {
                            console.error('Failed to generate smart title', e);
@@ -534,7 +549,7 @@ export default function TaskPage() {
     return () => {
       window.removeEventListener('paste', handlePaste);
     };
-  }, [isEditingAttachments, toast, localAttachments]);
+  }, [toast, localAttachments.length]);
   
   const handleRestore = () => {
     if (task && task.deletedAt) {
@@ -1246,6 +1261,7 @@ const handleCopyDescription = () => {
                                     handleSaveAttachments();
                                 } else {
                                     setIsEditingAttachments(true);
+                                    isEditingAttachmentsRef.current = true;
                                     setLocalAttachments(task.attachments || []);
                                 }
                             }}>

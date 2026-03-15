@@ -44,7 +44,7 @@ const generateSummaryFlow = ai.defineFlow(
       prompt: `Generate a one-sentence summary of the following text:
 
 ${text}`,
-      model: 'googleai/gemini-1.5-flash-latest',
+      model: 'googleai/gemini-1.5-flash',
       output: {
         schema: SummaryOutputSchema,
       },
