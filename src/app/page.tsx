@@ -343,7 +343,7 @@ export default function Home() {
             setSearchError(null);
         } catch (e) {
             console.error("Filtering logic failed:", e);
-            setSearchError("Search temporarily unavailable. Please try again.");
+            setSearchError("Search temporarily unavailable. Please try again later.");
         } finally {
             setIsSearching(false);
             window.dispatchEvent(new Event('sync-end'));
@@ -892,7 +892,7 @@ export default function Home() {
                 <Card id="task-filters" className="border-none shadow-lg lg:shadow-none bg-card lg:bg-transparent">
                     <CardContent className="p-4 lg:p-0">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                            <div className="relative flex flex-col w-full col-span-1 sm:col-span-2 lg:col-span-1 gap-1">
+                            <div className="relative flex flex-col w-full col-span-1 sm:col-span-2 lg:col-span-1">
                                 <div className="relative flex items-center w-full">
                                     <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
                                     <Input
@@ -914,14 +914,22 @@ export default function Home() {
                                                 <X className="h-4 w-4" />
                                             </Button>
                                         )}
-                                        <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
-                                            <span className="text-xs">{commandKey}</span>K
-                                        </kbd>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground cursor-help">
+                                                        <span className="text-xs">{commandKey}</span>K
+                                                    </kbd>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="top">
+                                                    <div className="flex items-center gap-2">
+                                                        <CornerDownLeft className="h-3 w-3" />
+                                                        <span>Press Enter to search</span>
+                                                    </div>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
                                     </div>
-                                </div>
-                                <div className="flex items-center gap-1.5 px-1 text-[10px] italic font-medium text-muted-foreground/60 uppercase tracking-tight">
-                                    <CornerDownLeft className="h-2.5 w-2.5" />
-                                    <span>Press Enter to search</span>
                                 </div>
                             </div>
                             <MultiSelect selected={statusFilter} onChange={setStatusFilter} options={(TASK_STATUSES || []).map(s => ({ value: s, label: s }))} placeholder="Status..." />

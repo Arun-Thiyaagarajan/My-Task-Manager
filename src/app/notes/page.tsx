@@ -444,30 +444,41 @@ export default function NotesPage() {
              <Card>
                 <CardContent className="p-3">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="relative flex flex-col gap-1 w-full">
-                            <div className="relative flex items-center w-full">
-                                <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Search notes..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    onKeyDown={handleSearchKeyDown}
-                                    className="w-full pl-10 h-11"
-                                />
+                        <div className="relative flex items-center w-full">
+                            <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search notes..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onKeyDown={handleSearchKeyDown}
+                                className="w-full pl-10 h-11"
+                            />
+                            <div className="absolute right-1 flex items-center h-full gap-1">
                                 {searchQuery && (
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="absolute right-1 h-7 w-7 text-muted-foreground"
+                                        className="h-7 w-7 text-muted-foreground"
                                         onClick={clearSearch}
                                     >
                                         <X className="h-4 w-4" />
                                     </Button>
                                 )}
-                            </div>
-                            <div className="flex items-center gap-1.5 px-1 text-[10px] italic font-medium text-muted-foreground/60 uppercase tracking-tight">
-                                <CornerDownLeft className="h-2.5 w-2.5" />
-                                <span>Press Enter to search</span>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground cursor-help">
+                                                <span className="text-xs">{commandKey}</span>K
+                                            </kbd>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">
+                                            <div className="flex items-center gap-2">
+                                                <CornerDownLeft className="h-3 w-3" />
+                                                <span>Press Enter to search</span>
+                                            </div>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                             </div>
                         </div>
                          <Popover open={isDatePopoverOpen} onOpenChange={setIsDatePopoverOpen}>
