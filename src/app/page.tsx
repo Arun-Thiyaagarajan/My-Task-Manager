@@ -926,8 +926,22 @@ export default function Home() {
             </div>
           ) : (
             <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg flex flex-col items-center justify-center">
-                <FolderSearch className="h-16 w-16 mb-4 opacity-50"/><p className="text-lg font-semibold">No tasks found.</p>
-                <Button asChild className="mt-4" size="sm"><Link href="/tasks/new"><Plus className="mr-2 h-4 w-4" /> Create Task</Link></Button>
+                {favoritesOnly ? (
+                    <>
+                        <Heart className="h-16 w-16 mb-4 opacity-20 text-red-500" />
+                        <p className="text-lg font-semibold">No favorite tasks found.</p>
+                        <p className="text-sm mt-1 max-w-xs mx-auto">Tap the heart icon on any task card to add it to your personal favorites list.</p>
+                        <div className="flex gap-2 mt-6">
+                            <Button variant="outline" size="sm" onClick={() => setFavoritesOnly(false)}>View All Tasks</Button>
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <FolderSearch className="h-16 w-16 mb-4 opacity-50"/>
+                        <p className="text-lg font-semibold">No tasks found.</p>
+                        <Button asChild className="mt-4" size="sm"><Link href="/tasks/new"><Plus className="mr-2 h-4 w-4" /> Create Task</Link></Button>
+                    </>
+                )}
             </div>
           )}
       </div>
