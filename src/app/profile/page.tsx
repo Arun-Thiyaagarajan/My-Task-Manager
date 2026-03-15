@@ -434,31 +434,30 @@ export default function ProfilePage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <div className="grid gap-2">
-                            <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Email Address</Label>
-                            <div className="relative">
-                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input 
-                                id="email" 
-                                className="pl-10 h-11 bg-muted/50 cursor-not-allowed border-dashed" 
-                                value={email} 
+                    <div className="grid gap-2">
+                        <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Email Address</Label>
+                        <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                            id="email" 
+                            className="pl-10 h-11 bg-muted/50 cursor-not-allowed border-dashed" 
+                            value={email} 
+                            readOnly
+                            disabled
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Access Role</Label>
+                        <div className="relative">
+                            <UserCog className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                                className="pl-10 h-11 bg-muted/50 cursor-not-allowed border-dashed capitalize font-bold" 
+                                value={displayRole} 
                                 readOnly
                                 disabled
-                                />
-                            </div>
-                        </div>
-                        <div className="grid gap-2">
-                            <Label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Access Role</Label>
-                            <div className="relative">
-                                <UserCog className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input 
-                                    className="pl-10 h-11 bg-muted/50 cursor-not-allowed border-dashed capitalize font-bold" 
-                                    value={displayRole} 
-                                    readOnly
-                                    disabled
-                                />
-                            </div>
+                            />
                         </div>
                     </div>
                   </CardContent>
