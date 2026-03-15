@@ -428,17 +428,31 @@ export default function TaskPage() {
     const handleSaveAttachments = () => {
         if (!task) return;
         
-        if (JSON.stringify(task.attachments || []) === JSON.stringify(localAttachments)) {
+        const oldAtts = task.attachments || [];
+        if (JSON.stringify(oldAtts) === JSON.stringify(localAttachments)) {
             setIsEditingAttachments(false);
             return;
         }
+
+        const addedCount = localAttachments.filter(na => !oldAtts.some(oa => na.url === oa.url)).length;
+        const removedCount = oldAtts.filter(oa => !localAttachments.some(na => na.url === oa.url)).length;
 
         const updatedTask = updateTask(task.id, { attachments: localAttachments });
         if (updatedTask) {
             setTask(updatedTask);
             setLocalAttachments(updatedTask.attachments || []);
             setTaskLogs(getLogsForTask(task.id));
-            toast({ variant: 'success', title: 'Attachments Updated' });
+            
+            let desc = 'Your changes have been saved.';
+            if (addedCount > 0 && removedCount > 0) desc = `Added ${addedCount} and removed ${removedCount} attachment(s).`;
+            else if (addedCount > 0) desc = `Added ${addedCount} new attachment(s).`;
+            else if (removedCount > 0) desc = `Removed ${removedCount} attachment(s).`;
+
+            toast({ 
+                variant: 'success', 
+                title: 'Attachments Updated',
+                description: desc
+            });
         }
         setIsEditingAttachments(false);
     };

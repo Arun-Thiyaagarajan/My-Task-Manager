@@ -513,7 +513,13 @@ export function addTask(task: Partial<Task>): Task {
     } as Task;
     data.companyData[companyId].tasks.unshift(newTask);
     setAppData(data);
-    addLog({ message: `Created task "**${newTask.title}**"`, taskId: id });
+    
+    let logMsg = `Created task "**${newTask.title}**"`;
+    if (newTask.attachments && newTask.attachments.length > 0) {
+        logMsg += ` with **${newTask.attachments.length}** attachment(s)`;
+    }
+    addLog({ message: logMsg, taskId: id });
+
     if (getAuthMode() === 'authenticate') {
         dispatchMutation('tasks', id, newTask, 'create');
     }
@@ -574,6 +580,21 @@ export function updateTask(id: string, updates: Partial<Task>, silent = false): 
                 });
             } else if (key === 'deploymentDates') {
                 changes.push(`updated **Deployment Dates**`);
+            } else if (key === 'attachments') {
+                const oldAtts = (oldVal || []) as Attachment[];
+                const newAtts = (newVal || []) as Attachment[];
+                const added = newAtts.filter(na => !oldAtts.some(oa => na.url === oa.url));
+                const removed = oldAtts.filter(oa => !newAtts.some(na => na.url === oa.url));
+                
+                const attChanges = [];
+                if (added.length > 0) attChanges.push(`added **${added.length}** attachment(s) (${added.map(a => `*${a.name}*`).join(', ')})`);
+                if (removed.length > 0) attChanges.push(`removed **${removed.length}** attachment(s) (${removed.map(a => `*${a.name}*`).join(', ')})`);
+                
+                if (attChanges.length > 0) {
+                    changes.push(attChanges.join(' and '));
+                } else {
+                    changes.push(`updated attachment details`);
+                }
             } else if (key === 'customFields') {
                 const cfs = newVal as Record<string, any>;
                 const oldCfs = oldVal as Record<string, any> || {};
@@ -584,7 +605,7 @@ export function updateTask(id: string, updates: Partial<Task>, silent = false): 
                         changes.push(`changed **${cfLabel}** from ${formatLogVal(oldCfs[cfKey], cfKey, config, peopleMap)} to ${formatLogVal(cfs[cfKey], cfKey, config, peopleMap)}`);
                     }
                 }
-            } else if (key === 'prLinks' || key === 'attachments') {
+            } else if (key === 'prLinks') {
                 changes.push(`updated **${label}**`);
             } else {
                 changes.push(`changed **${label}** from ${formatLogVal(oldVal, key, config, peopleMap)} to ${formatLogVal(newVal, key, config, peopleMap)}`);
