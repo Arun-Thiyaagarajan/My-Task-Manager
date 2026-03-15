@@ -9,15 +9,17 @@ import {
     doc, 
     query, 
     orderBy,
-    setDoc
+    setDoc,
+    getDoc
 } from 'firebase/firestore';
 import { 
     getAppData, 
     setCloudCache, 
     getActiveCompanyId,
-    getAuthMode
+    getAuthMode,
+    updateUserPreferences
 } from '@/lib/data';
-import type { Task, Note, Log, Company, MyTaskManagerData, CompanyData } from '@/lib/types';
+import type { Task, Note, Log, Company, MyTaskManagerData, CompanyData, UserPreferences } from '@/lib/types';
 import { INITIAL_RELEASES, INITIAL_UI_CONFIG, TASK_STATUSES, INITIAL_REPOSITORY_CONFIGS, ENVIRONMENTS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -48,6 +50,16 @@ export function useTaskFlowData() {
             // Cleanup existing listeners before re-establishing
             unsubscribers.current.forEach(unsub => unsub());
             unsubscribers.current = [];
+
+            // 0. User Preferences Fetch (Initial only, then local-first write-back)
+            const prefRef = doc(db, 'users', userId, 'preferences', 'settings');
+            getDoc(prefRef).then(snap => {
+                if (snap.exists()) {
+                    updateUserPreferences(snap.data() as UserPreferences);
+                }
+            }).catch(e => {
+                // Ignore initial pref fetch error
+            });
 
             // 1. Companies Metadata Listener
             const companiesRef = collection(db, 'users', userId, 'companies');

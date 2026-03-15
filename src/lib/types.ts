@@ -101,6 +101,25 @@ export interface ReleaseUpdate {
     isPublished: boolean;
 }
 
+export interface UserPreferences {
+  viewMode?: 'grid' | 'table';
+  sortDescriptor?: string;
+  dateView?: 'all' | 'monthly' | 'yearly';
+  taskFilters?: {
+    status?: string[];
+    repo?: string[];
+    deployment?: string[];
+    tags?: string[];
+  };
+  noteFilters?: {
+    search?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  };
+  sidebarPosition?: 'left' | 'right';
+  favoritesOnly?: boolean;
+}
+
 export interface Task {
   id: string;
   title: string;

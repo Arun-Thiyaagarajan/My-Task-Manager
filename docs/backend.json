@@ -46,6 +46,19 @@
         "updatedAt"
       ]
     },
+    "UserPreferences": {
+      "title": "UserPreferences",
+      "type": "object",
+      "properties": {
+        "viewMode": { "type": "string", "enum": ["grid", "table"] },
+        "sortDescriptor": { "type": "string" },
+        "dateView": { "type": "string", "enum": ["all", "monthly", "yearly"] },
+        "taskFilters": { "type": "object" },
+        "noteFilters": { "type": "object" },
+        "sidebarPosition": { "type": "string", "enum": ["left", "right"] },
+        "favoritesOnly": { "type": "boolean" }
+      }
+    },
     "CompanyMetadata": {
       "title": "CompanyMetadata",
       "type": "object",
@@ -99,6 +112,13 @@
             "$ref": "#/backend/entities/UserProfile"
           },
           "description": "User profile data."
+        }
+      },
+      {
+        "path": "/users/{userId}/preferences/settings",
+        "definition": {
+          "entityName": "UserPreferences",
+          "description": "User-specific application settings and preferences."
         }
       },
       {

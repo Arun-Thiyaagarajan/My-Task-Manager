@@ -2,8 +2,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { addNote, getNotes, updateNote, deleteNote, getUiConfig, updateNoteLayouts, resetNotesLayout, deleteMultipleNotes, importNotes, addLog, getAuthMode } from '@/lib/data';
-import type { Note, UiConfig, NoteLayout } from '@/lib/types';
+import { addNote, getNotes, updateNote, deleteNote, getUiConfig, updateNoteLayouts, resetNotesLayout, deleteMultipleNotes, importNotes, addLog, getAuthMode, getUserPreferences, updateUserPreferences } from '@/lib/data';
+import type { Note, UiConfig, NoteLayout, UserPreferences } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -41,24 +41,6 @@ import { Badge } from '@/components/ui/badge';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
-const NOTES_FILTER_STORAGE_KEYS = {
-    search: 'taskflow_notes_filter_searchQuery',
-    date: 'taskflow_notes_filter_date',
-};
-
-const getInitialStateFromStorage = <T>(key: string, defaultValue: T): T => {
-    if (typeof window === 'undefined') {
-        return defaultValue;
-    }
-    try {
-        const savedValue = localStorage.getItem(key);
-        return savedValue && savedValue !== 'undefined' ? JSON.parse(savedValue) : defaultValue;
-    } catch (e) {
-        console.error(`Failed to parse ${key} from localStorage`, e);
-        return defaultValue;
-    }
-};
-
 export default function NotesPage() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -76,26 +58,40 @@ export default function NotesPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Search state
-  const [searchQuery, setSearchQuery] = useState(() => getInitialStateFromStorage(NOTES_FILTER_STORAGE_KEYS.search, ''));
+  const [searchQuery, setSearchQuery] = useState('');
   const [executedSearchQuery, setExecutedSearchQuery] = useState('');
+  const [dateFilter, setDateFilter] = useState<DateRange | undefined>(undefined);
   
-  const [dateFilter, setDateFilter] = useState<DateRange | undefined>(() => {
-    const savedDate = getInitialStateFromStorage<{from?: string; to?: string} | undefined>(NOTES_FILTER_STORAGE_KEYS.date, undefined);
-    if (savedDate?.from) {
-        return {
-            from: new Date(savedDate.from),
-            to: savedDate.to ? new Date(savedDate.to) : undefined,
-        };
-    }
-    return undefined;
-  });
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
   const [isFiltering, setIsFiltering] = useState(false);
   const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
-  useEffect(() => { localStorage.setItem(NOTES_FILTER_STORAGE_KEYS.search, JSON.stringify(searchQuery)); }, [searchQuery]);
-  useEffect(() => { localStorage.setItem(NOTES_FILTER_STORAGE_KEYS.date, JSON.stringify(dateFilter)); }, [dateFilter]);
+  // Hydrate preferences
+  useEffect(() => {
+    const prefs = getUserPreferences();
+    if (prefs.noteFilters) {
+        setSearchQuery(prefs.noteFilters.search || '');
+        setExecutedSearchQuery(prefs.noteFilters.search || '');
+        if (prefs.noteFilters.dateFrom) {
+            setDateFilter({
+                from: new Date(prefs.noteFilters.dateFrom),
+                to: prefs.noteFilters.dateTo ? new Date(prefs.noteFilters.dateTo) : undefined
+            });
+        }
+    }
+  }, []);
+
+  // Update preferences
+  useEffect(() => {
+    updateUserPreferences({
+        noteFilters: {
+            search: executedSearchQuery,
+            dateFrom: dateFilter?.from?.toISOString(),
+            dateTo: dateFilter?.to?.toISOString(),
+        }
+    });
+  }, [executedSearchQuery, dateFilter]);
   
   const handleOpenNewNoteDialog = useCallback(() => {
     setNoteToEdit(null);

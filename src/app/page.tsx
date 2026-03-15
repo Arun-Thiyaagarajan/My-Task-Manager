@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
-import { getTasks, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addTagsToMultipleTasks, addEnvironment, DATA_KEY, getAuthMode, importWorkspaceData } from '@/lib/data';
+import { getTasks, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addTagsToMultipleTasks, addEnvironment, DATA_KEY, getAuthMode, importWorkspaceData, getUserPreferences, updateUserPreferences } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -49,7 +49,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { cn, fuzzySearch } from '@/lib/utils';
-import type { Task, Person, UiConfig, RepositoryConfig, Log, GeneralReminder, BackupFrequency, Environment } from '@/lib/types';
+import type { Task, Person, UiConfig, RepositoryConfig, Log, GeneralReminder, BackupFrequency, Environment, UserPreferences } from '@/lib/types';
 import {
   Popover,
   PopoverContent,
@@ -102,6 +102,7 @@ import { useTutorial } from '@/hooks/use-tutorial';
 import { MultiSelect, type SelectOption } from '@/components/ui/multi-select';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useDebounce } from '@/hooks/use-debounce';
 
 
 type ViewMode = 'grid' | 'table';
@@ -127,22 +128,22 @@ export default function Home() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // Preference States
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [dateView, setDateView] = useState<DateView>('all');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  
-  // Search State
-  const [searchQuery, setSearchQuery] = useState('');
-  const [executedSearchQuery, setExecutedSearchQuery] = useState('');
-  
+  const [sortDescriptor, setSortDescriptor] = useState('status-asc');
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [repoFilter, setRepoFilter] = useState<string[]>([]);
   const [deploymentFilter, setDeploymentFilter] = useState<string[]>([]);
   const [tagsFilter, setTagsFilter] = useState<string[]>([]);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
-  const [sortDescriptor, setSortDescriptor] = useState('status-asc');
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+
+  // Search State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [executedSearchQuery, setExecutedSearchQuery] = useState('');
   
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [openGroups, setOpenGroups] = useState<string[]>(['priority', 'completed', 'other', 'hold']);
@@ -169,6 +170,44 @@ export default function Home() {
   // Background Filtering State
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   
+  // Hydrate preferences
+  useEffect(() => {
+    const prefs = getUserPreferences();
+    
+    // 1. Check URL first (highest priority)
+    const urlViewMode = searchParams.get('viewMode') as ViewMode;
+    const urlDateView = searchParams.get('dateView') as DateView;
+    const urlSort = searchParams.get('sort');
+    const urlFavs = searchParams.get('favorites') === 'true';
+    const urlSearch = searchParams.get('search') || '';
+    
+    // 2. Fallback to Preferences
+    setViewMode(urlViewMode || prefs.viewMode || 'grid');
+    setDateView(urlDateView || prefs.dateView || 'all');
+    setSortDescriptor(urlSort || prefs.sortDescriptor || 'status-asc');
+    setFavoritesOnly(urlFavs || prefs.favoritesOnly || false);
+    setSearchQuery(urlSearch);
+    setExecutedSearchQuery(urlSearch);
+
+    // Filter arrays
+    const urlStatus = searchParams.getAll('status');
+    setStatusFilter(urlStatus.length > 0 ? urlStatus : (prefs.taskFilters?.status || []));
+    
+    const urlRepo = searchParams.getAll('repo');
+    setRepoFilter(urlRepo.length > 0 ? urlRepo : (prefs.taskFilters?.repo || []));
+    
+    const urlDeployment = searchParams.getAll('deployment');
+    setDeploymentFilter(urlDeployment.length > 0 ? urlDeployment : (prefs.taskFilters?.deployment || []));
+    
+    const urlTags = searchParams.getAll('tags');
+    setTagsFilter(urlTags.length > 0 ? urlTags : (prefs.taskFilters?.tags || []));
+
+    const dateStr = searchParams.get('date');
+    const date = dateStr ? new Date(dateStr) : new Date();
+    setSelectedDate(isValid(date) ? date : new Date());
+  }, []);
+
+  // Update preferences and URL
   useEffect(() => {
     const params = new URLSearchParams();
     
@@ -190,24 +229,21 @@ export default function Home() {
     if (currentQuery !== newQuery) {
         router.replace(`${pathname}?${newQuery}`, { scroll: false });
     }
-  }, [executedSearchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, statusFilter, repoFilter, deploymentFilter, tagsFilter, router, pathname, searchParams]);
 
-  useEffect(() => {
-    setViewMode((searchParams.get('viewMode') as ViewMode) || 'grid');
-    setDateView((searchParams.get('dateView') as DateView) || 'all');
-    const dateStr = searchParams.get('date');
-    const date = dateStr ? new Date(dateStr) : new Date();
-    setSelectedDate(isValid(date) ? date : new Date());
-    const queryParam = searchParams.get('search') || '';
-    setSearchQuery(queryParam);
-    setExecutedSearchQuery(queryParam);
-    setStatusFilter(searchParams.getAll('status') || []);
-    setRepoFilter(searchParams.getAll('repo') || []);
-    setDeploymentFilter(searchParams.getAll('deployment') || []);
-    setTagsFilter(searchParams.getAll('tags') || []);
-    setFavoritesOnly(searchParams.get('favorites') === 'true');
-    setSortDescriptor(searchParams.get('sort') || 'status-asc');
-  }, []);
+    // Save to preferences (debounced inside the data utility)
+    updateUserPreferences({
+        viewMode,
+        sortDescriptor,
+        dateView,
+        favoritesOnly,
+        taskFilters: {
+            status: statusFilter,
+            repo: repoFilter,
+            deployment: deploymentFilter,
+            tags: tagsFilter
+        }
+    });
+  }, [executedSearchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, statusFilter, repoFilter, deploymentFilter, tagsFilter, router, pathname, searchParams]);
 
   const handlePreviousDate = useCallback(() => {
       if (dateView === 'monthly') {

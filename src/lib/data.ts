@@ -2,16 +2,17 @@
 'use client';
 
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES, INITIAL_RELEASES } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode } from './types'; 
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences } from './types'; 
 import cloneDeep from 'lodash/cloneDeep';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, setDoc, deleteDoc, updateDoc, collection, writeBatch, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, deleteDoc, updateDoc, collection, writeBatch, getDocs, query, orderBy, limit, getDoc } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { toast } from '@/hooks/use-toast';
 
 export const DATA_KEY = 'my_task_manager_data';
 const AUTH_MODE_KEY = 'taskflow_auth_mode';
+const PREFERENCES_KEY = 'taskflow_user_preferences';
 
 // Central In-Memory Cache for Real-time Cloud Data
 let _cloudCache: MyTaskManagerData | null = null;
@@ -98,6 +99,42 @@ export function setAuthMode(mode: AuthMode) {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(AUTH_MODE_KEY, mode);
     window.dispatchEvent(new Event('company-changed'));
+}
+
+// User Preferences Management
+export function getUserPreferences(): UserPreferences {
+    if (typeof window === 'undefined') return {};
+    const stored = window.localStorage.getItem(PREFERENCES_KEY);
+    if (!stored) return {};
+    try {
+        return JSON.parse(stored);
+    } catch (e) {
+        return {};
+    }
+}
+
+export async function updateUserPreferences(updates: Partial<UserPreferences>) {
+    if (typeof window === 'undefined') return;
+    const current = getUserPreferences();
+    const next = { ...current, ...updates };
+    window.localStorage.setItem(PREFERENCES_KEY, JSON.stringify(next));
+    
+    if (getAuthMode() === 'authenticate') {
+        const auth = getAuth();
+        const db = getFirestore();
+        const userId = auth.currentUser?.uid;
+        if (userId) {
+            const prefRef = doc(db, 'users', userId, 'preferences', 'settings');
+            setDoc(prefRef, next, { merge: true }).catch(e => {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({
+                    path: prefRef.path,
+                    operation: 'write',
+                    requestResourceData: next
+                }));
+            });
+        }
+    }
+    window.dispatchEvent(new Event('preferences-changed'));
 }
 
 async function dispatchMutation(
