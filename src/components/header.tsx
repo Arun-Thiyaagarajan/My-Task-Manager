@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -131,17 +132,20 @@ export function Header() {
     
     const handleSyncStart = () => setIsGlobalLoading(true);
     const handleSyncEnd = () => setIsGlobalLoading(false);
+    const handleOpenAuth = () => setIsAuthModalOpen(true);
 
     window.addEventListener('company-changed', refreshAllData);
     window.addEventListener('storage', refreshAllData);
     window.addEventListener('sync-start', handleSyncStart);
     window.addEventListener('sync-end', handleSyncEnd);
+    window.addEventListener('open-auth-modal', handleOpenAuth);
 
     return () => {
         window.removeEventListener('company-changed', refreshAllData);
         window.removeEventListener('storage', refreshAllData);
         window.removeEventListener('sync-start', handleSyncStart);
         window.removeEventListener('sync-end', handleSyncEnd);
+        window.removeEventListener('open-auth-modal', handleOpenAuth);
     };
 
   }, []);
@@ -330,110 +334,70 @@ export function Header() {
                 <span className="sr-only">General Reminders</span>
             </Button>
             
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative h-10 w-10 rounded-full group">
-                  <div className={cn(
-                    "flex h-full w-full items-center justify-center rounded-full border-2 transition-all group-hover:scale-105",
-                    authMode === 'authenticate' && user ? "border-primary p-0.5" : "border-muted-foreground/20"
-                  )}>
-                    {authMode === 'authenticate' && user ? (
-                      <Avatar className="h-full w-full">
-                        <AvatarImage src={profilePhoto || undefined} className="object-cover" />
-                        <AvatarFallback 
-                          className="text-white text-[10px] font-bold"
-                          style={{ background: getAvatarGradient(profileName) }}
-                        >
-                          {getInitials(profileName)}
-                        </AvatarFallback>
-                      </Avatar>
-                    ) : (
-                      <UserIcon className="h-5 w-5 text-muted-foreground" />
-                    )}
-                  </div>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none truncate">
-                      {authMode === 'authenticate' && user ? (profileName) : 'Local Mode'}
-                    </p>
-                    <p className="text-[10px] leading-none text-muted-foreground truncate">
-                      {authMode === 'authenticate' && user ? (user.email || user.phoneNumber) : 'Data stored in browser'}
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  {authMode === 'authenticate' && user ? (
-                    <>
-                      <DropdownMenuItem onSelect={() => prompt(() => router.push('/profile'))}>
-                        <UserIcon className="mr-2 h-4 w-4" />
-                        <span>My Profile</span>
-                      </DropdownMenuItem>
-                    </>
-                  ) : (
-                    <DropdownMenuItem onSelect={() => setIsAuthModalOpen(true)}>
-                      <ShieldCheck className="mr-2 h-4 w-4" />
-                      <span>Sign In</span>
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuGroup>
-                {authMode === 'authenticate' && (
-                  <>
-                    <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setIsSignOutDialogOpen(true); }} className="text-destructive focus:text-destructive">
-                      <LogOut className="mr-2 h-4 w-4" />
-                      <span>Sign Out</span>
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <ThemeToggle />
-            <div className="lg:hidden">
+            <div className="hidden lg:block">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <Menu className="h-5 w-5" />
-                    <span className="sr-only">Open menu</span>
+                  <Button variant="ghost" size="icon" className="relative h-10 w-10 rounded-full group">
+                    <div className={cn(
+                      "flex h-full w-full items-center justify-center rounded-full border-2 transition-all group-hover:scale-105",
+                      authMode === 'authenticate' && user ? "border-primary p-0.5" : "border-muted-foreground/20"
+                    )}>
+                      {authMode === 'authenticate' && user ? (
+                        <Avatar className="h-full w-full">
+                          <AvatarImage src={profilePhoto || undefined} className="object-cover" />
+                          <AvatarFallback 
+                            className="text-white text-[10px] font-bold"
+                            style={{ background: getAvatarGradient(profileName) }}
+                          >
+                            {getInitials(profileName)}
+                          </AvatarFallback>
+                        </Avatar>
+                      ) : (
+                        <UserIcon className="h-5 w-5 text-muted-foreground" />
+                      )}
+                    </div>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem asChild>
-                    <HeaderLink href="/" className="w-full flex items-center gap-2">
-                       <Home className="h-4 w-4" /> Tasks
-                    </HeaderLink>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <HeaderLink href="/dashboard" className="w-full flex items-center gap-2">
-                      <LayoutDashboard className="h-4 w-4" /> Dashboard
-                    </HeaderLink>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <HeaderLink href="/settings" className="w-full flex items-center gap-2">
-                       <Cog className="h-4 w-4" /> Settings
-                    </HeaderLink>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <HeaderLink href="/releases" className="w-full flex items-center gap-2">
-                       <History className="mr-2 h-4 w-4" /> Releases
-                    </HeaderLink>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <HeaderLink href="/logs" className="w-full flex items-center gap-2">
-                       <FileClock className="mr-2 h-4 w-4" /> Logs
-                    </HeaderLink>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <HeaderLink href="/bin" className="w-full flex items-center gap-2">
-                       <Trash2 className="mr-2 h-4 w-4" /> Bin
-                    </HeaderLink>
-                  </DropdownMenuItem>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none truncate">
+                        {authMode === 'authenticate' && user ? (profileName) : 'Local Mode'}
+                      </p>
+                      <p className="text-[10px] leading-none text-muted-foreground truncate">
+                        {authMode === 'authenticate' && user ? (user.email || user.phoneNumber) : 'Data stored in browser'}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    {authMode === 'authenticate' && user ? (
+                      <>
+                        <DropdownMenuItem onSelect={() => prompt(() => router.push('/profile'))}>
+                          <UserIcon className="mr-2 h-4 w-4" />
+                          <span>My Profile</span>
+                        </DropdownMenuItem>
+                      </>
+                    ) : (
+                      <DropdownMenuItem onSelect={() => setIsAuthModalOpen(true)}>
+                        <ShieldCheck className="mr-2 h-4 w-4" />
+                        <span>Sign In</span>
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuGroup>
+                  {authMode === 'authenticate' && (
+                    <>
+                      <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setIsSignOutDialogOpen(true); }} className="text-destructive focus:text-destructive">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Sign Out</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+
+            <ThemeToggle />
           </div>
           
           {/* Navbar Bottom Progress Bar */}

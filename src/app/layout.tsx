@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { Providers } from '@/components/providers';
 import { Inter } from 'next/font/google';
 import { FloatingNotes } from '@/components/floating-notes';
+import { MobileBottomNav } from '@/components/mobile-bottom-nav';
 
 
 const inter = Inter({
@@ -30,8 +31,9 @@ export default function RootLayout({
         <Providers>
             <div className="relative flex min-h-screen flex-col">
             <Header />
-            <main className="flex-1">{children}</main>
+            <main className="flex-1 pb-20 lg:pb-0">{children}</main>
             <FloatingNotes />
+            <MobileBottomNav />
             </div>
             <Toaster />
         </Providers>

@@ -77,7 +77,7 @@ export function FloatingNotes() {
     return (
         <>
             <div
-                className="fixed bottom-6 right-6 z-40 group"
+                className="fixed bottom-20 lg:bottom-6 right-6 z-40 group"
                 onMouseEnter={() => setIsOpen(true)}
                 onMouseLeave={() => setIsOpen(false)}
             >
