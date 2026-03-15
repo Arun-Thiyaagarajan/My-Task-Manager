@@ -6,8 +6,7 @@ service cloud.firestore {
     /**
      * TASKFLOW SECURITY RULES
      * 
-     * Enforces strict user-ownership. Users can only access their own data
-     * stored under /users/{userId}/.
+     * Enforces strict user-ownership and role-based access control.
      */
 
     function isSignedIn() {
@@ -18,16 +17,31 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    match /users/{userId} {
-      // Allow access to the user profile document itself
-      allow get, list, create, update, delete: if isOwner(userId);
+    // Helper to check if the current user is an admin
+    function isAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
 
-      // Allow access to the companies collection and all nested documents/subcollections
+    match /users/{userId} {
+      // Allow read/list if it's the owner or an admin
+      allow get, list: if isOwner(userId) || isAdmin();
+      
+      // Allow creation only if the role is set to 'user' (prevents self-promotion on signup)
+      allow create: if isOwner(userId) && request.resource.data.role == 'user';
+
+      // Allow updates to own profile, but FORBID changing the 'role' field unless the requester is an admin
+      allow update: if isOwner(userId) 
+                    && (request.resource.data.role == resource.data.role || isAdmin());
+
+      // Only admins can delete user profiles
+      allow delete: if isAdmin();
+
+      // Access to subcollections (companies, tasks, etc.)
       match /companies/{companyId} {
-        allow get, list, create, update, delete: if isOwner(userId);
+        allow get, list, create, update, delete: if isOwner(userId) || isAdmin();
         
         match /{allPaths=**} {
-          allow get, list, create, update, delete: if isOwner(userId);
+          allow get, list, create, update, delete: if isOwner(userId) || isAdmin();
         }
       }
     }
