@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -128,7 +129,7 @@ export default function EditTaskPage() {
   }
   
   return (
-    <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <div className="container mx-auto py-4 lg:py-8 px-4 sm:px-6 lg:px-8">
       <Card className="border-none lg:border lg:shadow-sm">
         <CardContent className="p-0 lg:p-6">
           <TaskForm

@@ -709,7 +709,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit, onInvalid)}>
         {/* MOBILE STICKY HEADER */}
-        <div className="lg:hidden sticky top-14 z-[60] -mx-4 px-4 bg-background/95 backdrop-blur-md border-b h-14 flex items-center justify-between shadow-sm animate-in fade-in duration-300">
+        <div className="lg:hidden sticky top-14 z-40 -mx-4 px-4 bg-background/95 backdrop-blur-md border-b h-14 flex items-center justify-between shadow-sm animate-in fade-in duration-300">
             <h2 className="text-lg font-bold tracking-tight truncate mr-4">{formTitle}</h2>
             <Button
                 type="button"
