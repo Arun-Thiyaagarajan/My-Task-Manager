@@ -693,21 +693,21 @@ export default function SettingsPage() {
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
                             <Button variant="destructive" className="w-full h-10 text-xs font-black justify-start px-4 rounded-xl bg-destructive hover:bg-destructive/90 shadow-lg">
-                                <Trash2 className="h-4 w-4 mr-3" /> Purge Workspace Data
+                                <Trash2 className="h-4 w-4 mr-3" /> Clear All Data
                             </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent className="rounded-3xl">
                             <AlertDialogHeader>
-                                <AlertDialogTitle className="text-2xl font-black tracking-tight">Clear all workspace data?</AlertDialogTitle>
+                                <AlertDialogTitle className="text-2xl font-black tracking-tight">Clear all data?</AlertDialogTitle>
                                 <AlertDialogDescription className="text-base">
-                                    This action cannot be undone. All tasks, notes, people, and settings will be permanently removed from your current storage.
+                                    This will permanently delete all your tasks, notes, and settings. This action cannot be undone.
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter className="gap-3 mt-4">
-                                <AlertDialogCancel className="rounded-xl font-bold" disabled={isClearing}>Abort Operation</AlertDialogCancel>
+                                <AlertDialogCancel className="rounded-xl font-bold" disabled={isClearing}>Cancel</AlertDialogCancel>
                                 <AlertDialogAction onClick={handleClearData} className="bg-destructive hover:bg-destructive/90 rounded-xl font-black px-6" disabled={isClearing}>
                                     {isClearing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                                    Confirm Purge
+                                    Clear Data
                                 </AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
