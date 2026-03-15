@@ -310,8 +310,15 @@ export default function SettingsPage() {
 
   const handleInitiateModeChange = (mode: AuthMode) => {
     if (getAuthMode() === mode) return;
-    setPendingModeChange(mode);
-    setIsModeConfirmOpen(true);
+    
+    if (mode === 'authenticate') {
+        // Suppress confirmation popup when switching FROM local TO authenticate mode
+        setIsAuthModalOpen(true);
+    } else {
+        // Keep confirmation popup when switching BACK to local mode
+        setPendingModeChange(mode);
+        setIsModeConfirmOpen(true);
+    }
   };
 
   const handleConfirmModeChange = () => {

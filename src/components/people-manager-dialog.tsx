@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -44,10 +43,12 @@ import {
   updateTester,
   deleteTester,
   addDeveloper,
-  addTester
+  addTester,
+  getTasks,
+  getBinnedTasks
 } from '@/lib/data';
-import type { Person, PersonFieldType } from '@/lib/types';
-import { Loader2, PlusCircle, Trash2, Edit, Users, ClipboardCheck, Check } from 'lucide-react';
+import type { Person, PersonFieldType, Task } from '@/lib/types';
+import { Loader2, PlusCircle, Trash2, Edit, Users, ClipboardCheck, Check, AlertCircle } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './ui/form';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select';
 import { Textarea } from './ui/textarea';
@@ -215,6 +216,11 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
   const [personToEdit, setPersonToEdit] = useState<Person | null>(null);
   const [isAdding, setIsAdding] = useState(false);
 
+  // Assignment check states
+  const [inUseTasks, setInUseTasks] = useState<Task[]>([]);
+  const [personAttemptingDelete, setPersonAttemptingDelete] = useState<Person | null>(null);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+
   const title = type === 'developer' ? 'Developer' : 'Tester';
   const Icon = type === 'developer' ? Users : ClipboardCheck;
 
@@ -241,6 +247,23 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
   const handleCancelEdit = () => {
     setPersonToEdit(null);
     setIsAdding(false);
+  };
+
+  const handleDeleteCheck = (person: Person) => {
+    const activeTasks = getTasks();
+    const binnedTasks = getBinnedTasks();
+    const allRelevantTasks = [...activeTasks, ...binnedTasks].filter(t => 
+        (type === 'developer' ? t.developers : t.testers)?.includes(person.id)
+    );
+
+    if (allRelevantTasks.length > 0) {
+        setInUseTasks(allRelevantTasks);
+        setPersonAttemptingDelete(person);
+        return;
+    }
+
+    setPersonAttemptingDelete(person);
+    setIsDeleteConfirmOpen(true);
   };
 
   const handleSave = (data: PersonFormData) => {
@@ -304,94 +327,127 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
     } else {
       toast({ variant: 'destructive', title: 'Error', description: `Could not remove ${title}.` });
     }
+    setIsDeleteConfirmOpen(false);
+    setPersonAttemptingDelete(null);
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl h-[90vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Icon className="h-5 w-5" />
-            Manage {title}s
-          </DialogTitle>
-          <DialogDescription>
-            Add, edit, or remove {title}s from your organization.
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={isOpen} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Icon className="h-5 w-5" />
+              Manage {title}s
+            </DialogTitle>
+            <DialogDescription>
+              Add, edit, or remove {title}s from your organization.
+            </DialogDescription>
+          </DialogHeader>
 
-        {personToEdit || isAdding ? (
-            <ScrollArea className="flex-1 -mx-6">
-                <div className="px-6 py-4">
-                    <h3 className="text-lg font-medium mb-4">{personToEdit ? `Edit ${personToEdit.name}` : `Add New ${title}`}</h3>
-                    <EditPersonForm 
-                        personToEdit={personToEdit}
-                        onSave={handleSave}
-                        onCancel={handleCancelEdit}
-                        isPending={isPending}
-                    />
+          {personToEdit || isAdding ? (
+              <ScrollArea className="flex-1 -mx-6">
+                  <div className="px-6 py-4">
+                      <h3 className="text-lg font-medium mb-4">{personToEdit ? `Edit ${personToEdit.name}` : `Add New ${title}`}</h3>
+                      <EditPersonForm 
+                          personToEdit={personToEdit}
+                          onSave={handleSave}
+                          onCancel={handleCancelEdit}
+                          isPending={isPending}
+                      />
+                  </div>
+              </ScrollArea>
+          ) : (
+              <>
+                  <div className="py-4 flex-1 min-h-0">
+                    <ScrollArea className="h-full">
+                        <Table>
+                            <TableHeader>
+                            <TableRow>
+                                <TableHead>Name</TableHead>
+                                <TableHead>Email</TableHead>
+                                <TableHead>Phone</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                            {people.map((person) => (
+                                <TableRow key={person.id}>
+                                    <TableCell className="font-medium">{person.name}</TableCell>
+                                    <TableCell>{person.email || '-'}</TableCell>
+                                    <TableCell>{person.phone || '-'}</TableCell>
+                                    <TableCell className="text-right">
+                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEdit(person)}>
+                                            <Edit className="h-4 w-4" />
+                                        </Button>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteCheck(person)}>
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                            </TableBody>
+                        </Table>
+                        {people.length === 0 && <p className="text-center text-muted-foreground py-8">No {title}s found.</p>}
+                    </ScrollArea>
+                  </div>
+                  <DialogFooter className="flex-shrink-0 mt-4 border-t-0 pt-0">
+                      <Button onClick={handleOpenAdd}>
+                          <PlusCircle className="mr-2 h-4 w-4" /> Add New {title}
+                      </Button>
+                      <DialogClose asChild>
+                          <Button variant="outline">Close</Button>
+                      </DialogClose>
+                  </DialogFooter>
+              </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* In-Use Tasks Alert */}
+      <AlertDialog open={inUseTasks.length > 0} onOpenChange={(open) => !open && setInUseTasks([])}>
+        <AlertDialogContent className="sm:max-w-md">
+            <AlertDialogHeader>
+                <div className="mx-auto w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mb-2">
+                    <AlertCircle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
                 </div>
-            </ScrollArea>
-        ) : (
-            <>
-                <div className="py-4 flex-1 min-h-0">
-                  <ScrollArea className="h-full">
-                      <Table>
-                          <TableHeader>
-                          <TableRow>
-                              <TableHead>Name</TableHead>
-                              <TableHead>Email</TableHead>
-                              <TableHead>Phone</TableHead>
-                              <TableHead className="text-right">Actions</TableHead>
-                          </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                          {people.map((person) => (
-                              <TableRow key={person.id}>
-                                  <TableCell className="font-medium">{person.name}</TableCell>
-                                  <TableCell>{person.email || '-'}</TableCell>
-                                  <TableCell>{person.phone || '-'}</TableCell>
-                                  <TableCell className="text-right">
-                                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEdit(person)}>
-                                          <Edit className="h-4 w-4" />
-                                      </Button>
-                                      <AlertDialog>
-                                          <AlertDialogTrigger asChild>
-                                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                                              <Trash2 className="h-4 w-4" />
-                                          </Button>
-                                          </AlertDialogTrigger>
-                                          <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                              <AlertDialogTitle>Delete {person.name}?</AlertDialogTitle>
-                                              <AlertDialogDescription>
-                                              This will permanently remove {person.name} from the system and unassign them from all tasks. This action cannot be undone.
-                                              </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                              <AlertDialogAction onClick={() => handleDelete(person.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                          </AlertDialogFooter>
-                                          </AlertDialogContent>
-                                      </AlertDialog>
-                                  </TableCell>
-                              </TableRow>
-                          ))}
-                          </TableBody>
-                      </Table>
-                      {people.length === 0 && <p className="text-center text-muted-foreground py-8">No {title}s found.</p>}
-                  </ScrollArea>
-                </div>
-                <DialogFooter className="flex-shrink-0 mt-4 border-t-0 pt-0">
-                    <Button onClick={handleOpenAdd}>
-                        <PlusCircle className="mr-2 h-4 w-4" /> Add New {title}
-                    </Button>
-                    <DialogClose asChild>
-                        <Button variant="outline">Close</Button>
-                    </DialogClose>
-                </DialogFooter>
-            </>
-        )}
-      </DialogContent>
-    </Dialog>
+                <AlertDialogTitle className="text-center">Cannot Delete {title}</AlertDialogTitle>
+                <AlertDialogDescription className="text-center">
+                    <strong>{personAttemptingDelete?.name}</strong> is currently assigned to the following tasks. Please reassign or remove them from these tasks before deleting.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="max-h-48 overflow-y-auto border rounded-md p-2 bg-muted/20">
+                <ul className="space-y-1.5">
+                    {inUseTasks.map(task => (
+                        <li key={task.id} className="text-sm py-1 px-2 border-b last:border-0 truncate flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                            {task.title}
+                            {task.deletedAt && <Badge variant="outline" className="ml-auto text-[10px] h-4">In Bin</Badge>}
+                        </li>
+                    ))}
+                </ul>
+            </div>
+            <AlertDialogFooter>
+                <AlertDialogAction onClick={() => setInUseTasks([])} className="w-full">Got it</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Standard Confirm Delete */}
+      <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Delete {personAttemptingDelete?.name}?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This will permanently remove this {title.toLowerCase()} from your list. This action cannot be undone.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => { setIsDeleteConfirmOpen(false); setPersonAttemptingDelete(null); }}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => personAttemptingDelete && handleDelete(personAttemptingDelete.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
