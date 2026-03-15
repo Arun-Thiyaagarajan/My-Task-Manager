@@ -582,15 +582,27 @@ export function updateTask(id: string, updates: Partial<Task>, silent = false): 
             } else if (key === 'attachments') {
                 const oldAtts = (oldVal || []) as Attachment[];
                 const newAtts = (newVal || []) as Attachment[];
+                
                 const added = newAtts.filter(na => !oldAtts.some(oa => na.url === oa.url));
                 const removed = oldAtts.filter(oa => !newAtts.some(na => na.url === oa.url));
+                const renamed = newAtts.filter(na => {
+                    const old = oldAtts.find(oa => oa.url === na.url);
+                    return old && old.name !== na.name;
+                });
                 
                 const attChanges = [];
                 if (added.length > 0) attChanges.push(`added **${added.length}** attachment(s) (${added.map(a => `*${a.name}*`).join(', ')})`);
                 if (removed.length > 0) attChanges.push(`removed **${removed.length}** attachment(s) (${removed.map(a => `*${a.name}*`).join(', ')})`);
+                if (renamed.length > 0) {
+                    const renameDetails = renamed.map(na => {
+                        const old = oldAtts.find(oa => oa.url === na.url);
+                        return `*${old?.name}* to *${na.name}*`;
+                    }).join(', ');
+                    attChanges.push(`renamed **${renamed.length}** attachment(s) (${renameDetails})`);
+                }
                 
                 if (attChanges.length > 0) {
-                    changes.push(attChanges.join(' and '));
+                    changes.push(attChanges.join(', '));
                 } else {
                     changes.push(`updated attachment details`);
                 }

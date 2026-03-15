@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -412,6 +413,10 @@ export default function TaskPage() {
 
         const addedCount = localAttachments.filter(na => !oldAtts.some(oa => na.url === oa.url)).length;
         const removedCount = oldAtts.filter(oa => !localAttachments.some(na => na.url === oa.url)).length;
+        const renamedCount = localAttachments.filter(na => {
+            const old = oldAtts.find(oa => oa.url === na.url);
+            return old && old.name !== na.name;
+        }).length;
 
         const updatedTask = updateTask(task.id, { attachments: localAttachments });
         if (updatedTask) {
@@ -419,10 +424,16 @@ export default function TaskPage() {
             setLocalAttachments(updatedTask.attachments || []);
             setTaskLogs(getLogsForTask(task.id));
             
+            const parts = [];
+            if (addedCount > 0) parts.push(`added ${addedCount}`);
+            if (removedCount > 0) parts.push(`removed ${removedCount}`);
+            if (renamedCount > 0) parts.push(`renamed ${renamedCount}`);
+            
             let desc = 'Your changes have been saved.';
-            if (addedCount > 0 && removedCount > 0) desc = `Added ${addedCount} and removed ${removedCount} attachment(s).`;
-            else if (addedCount > 0) desc = `Added ${addedCount} new attachment(s).`;
-            else if (removedCount > 0) desc = `Removed ${removedCount} attachment(s).`;
+            if (parts.length > 0) {
+                desc = parts.join(', ') + ' attachment(s) updated.';
+                desc = desc.charAt(0).toUpperCase() + desc.slice(1);
+            }
 
             toast({ 
                 variant: 'success', 
