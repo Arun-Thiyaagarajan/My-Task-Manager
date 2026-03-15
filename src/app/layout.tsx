@@ -1,3 +1,4 @@
+
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/header';
@@ -6,6 +7,7 @@ import { Providers } from '@/components/providers';
 import { Inter } from 'next/font/google';
 import { FloatingNotes } from '@/components/floating-notes';
 import { MobileBottomNav } from '@/components/mobile-bottom-nav';
+import { PullToRefresh } from '@/components/pull-to-refresh';
 import type { Metadata, Viewport } from 'next';
 
 const inter = Inter({
@@ -55,7 +57,9 @@ export default function RootLayout({
         <Providers>
             <div className="relative flex min-h-screen flex-col">
             <Header />
-            <main className="flex-1 pb-20 lg:pb-0">{children}</main>
+            <PullToRefresh>
+              <main className="flex-1 pb-20 lg:pb-0">{children}</main>
+            </PullToRefresh>
             <FloatingNotes />
             <MobileBottomNav />
             </div>
