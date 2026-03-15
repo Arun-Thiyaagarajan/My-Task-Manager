@@ -38,6 +38,11 @@ service cloud.firestore {
       // Only admins can delete user profiles
       allow delete: if isAdmin();
 
+      // Allow access to user preferences
+      match /preferences/{any=**} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+
       // Access to subcollections (companies, tasks, etc.)
       match /companies/{companyId} {
         // Ownership check is prioritized to avoid unnecessary lookups
