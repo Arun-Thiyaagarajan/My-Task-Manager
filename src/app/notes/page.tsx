@@ -7,7 +7,7 @@ import type { Note, UiConfig, NoteLayout } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { StickyNote, LayoutGrid, Plus, CheckSquare, X, Trash2, Upload, Download, Search, CalendarIcon, XCircle, Loader2 } from 'lucide-react';
+import { StickyNote, LayoutGrid, Plus, CheckSquare, X, Trash2, Upload, Download, Search, CalendarIcon, XCircle, Loader2, CornerDownLeft } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,7 +38,6 @@ import { Calendar } from '@/components/ui/calendar';
 import type { DateRange } from 'react-day-picker';
 import { FolderSearch } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { useDebounce } from '@/hooks/use-debounce';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -76,8 +75,10 @@ export default function NotesPage() {
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // Search state
   const [searchQuery, setSearchQuery] = useState(() => getInitialStateFromStorage(NOTES_FILTER_STORAGE_KEYS.search, ''));
-  const debouncedSearchQuery = useDebounce(searchQuery, 400);
+  const [executedSearchQuery, setExecutedSearchQuery] = useState('');
+  
   const [dateFilter, setDateFilter] = useState<DateRange | undefined>(() => {
     const savedDate = getInitialStateFromStorage<{from?: string; to?: string} | undefined>(NOTES_FILTER_STORAGE_KEYS.date, undefined);
     if (savedDate?.from) {
@@ -136,15 +137,35 @@ export default function NotesPage() {
     };
   }, [refreshData]);
 
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        triggerSearch();
+    }
+  };
+
+  const triggerSearch = () => {
+    setIsFiltering(true);
+    window.dispatchEvent(new Event('sync-start'));
+    setTimeout(() => {
+        setExecutedSearchQuery(searchQuery);
+    }, 50);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setExecutedSearchQuery('');
+    setIsFiltering(false);
+  };
+
   // Background Filtering Logic
   useEffect(() => {
-    setIsFiltering(true);
     const performFilter = () => {
         try {
             const results = notes.filter(note => {
-                const searchMatch = debouncedSearchQuery.trim() === '' ||
-                    fuzzySearch(debouncedSearchQuery, note.title) ||
-                    fuzzySearch(debouncedSearchQuery, note.content);
+                const searchMatch = executedSearchQuery.trim() === '' ||
+                    fuzzySearch(executedSearchQuery, note.title) ||
+                    fuzzySearch(executedSearchQuery, note.content);
                 
                 const dateMatch = (() => {
                     if (!dateFilter?.from) return true;
@@ -161,12 +182,13 @@ export default function NotesPage() {
             console.error("Notes filtering failed", e);
         } finally {
             setIsFiltering(false);
+            window.dispatchEvent(new Event('sync-end'));
         }
     };
 
     const rafId = requestAnimationFrame(performFilter);
     return () => cancelAnimationFrame(rafId);
-  }, [notes, debouncedSearchQuery, dateFilter]);
+  }, [notes, executedSearchQuery, dateFilter]);
 
   const handleCardClick = (note: Note) => {
     setNoteToView(note);
@@ -335,8 +357,8 @@ export default function NotesPage() {
   };
   
   const areFiltersActive = useMemo(() => {
-      return searchQuery.trim() !== '' || dateFilter !== undefined;
-  }, [searchQuery, dateFilter]);
+      return executedSearchQuery.trim() !== '' || dateFilter !== undefined;
+  }, [executedSearchQuery, dateFilter]);
 
   const layouts = useMemo(() => {
     const generateCompactLayout = (notesToLayout: Note[]) => {
@@ -423,14 +445,31 @@ export default function NotesPage() {
              <Card>
                 <CardContent className="p-3">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="relative flex items-center w-full">
-                            <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Search notes..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10"
-                            />
+                        <div className="relative flex flex-col gap-1.5 w-full">
+                            <div className="relative flex items-center w-full">
+                                <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Search notes..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onKeyDown={handleSearchKeyDown}
+                                    className="w-full pl-10"
+                                />
+                                {searchQuery && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="absolute right-1 h-7 w-7 text-muted-foreground"
+                                        onClick={clearSearch}
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-1.5 px-1 text-[9px] font-bold text-muted-foreground/60 uppercase tracking-widest">
+                                <CornerDownLeft className="h-2.5 w-2.5" />
+                                <span>Press Enter to search</span>
+                            </div>
                         </div>
                          <Popover open={isDatePopoverOpen} onOpenChange={setIsDatePopoverOpen}>
                             <PopoverTrigger asChild>
@@ -469,7 +508,7 @@ export default function NotesPage() {
                     </div>
                      {(searchQuery || dateFilter) && (
                         <div className="flex items-center gap-2 pt-3">
-                             <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setDateFilter(undefined); }}>
+                             <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setExecutedSearchQuery(''); setDateFilter(undefined); }}>
                                 <XCircle className="mr-2 h-4 w-4" /> Clear filters
                              </Button>
                              {isFiltering ? (

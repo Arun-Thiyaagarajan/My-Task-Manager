@@ -8,14 +8,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { FileClock, Link as LinkIcon, Activity, Trash2, LayoutGrid, Search, StickyNote, Loader2 } from 'lucide-react';
+import { FileClock, Link as LinkIcon, Activity, Trash2, LayoutGrid, Search, StickyNote, Loader2, CornerDownLeft, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Input } from '@/components/ui/input';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { fuzzySearch, formatTimestamp } from '@/lib/utils';
-import { useDebounce } from '@/hooks/use-debounce';
 
 const parseLogMessage = (message: string) => {
     const parts = message.split(/(\*\*.*?\*\*|\*.*?\*)/g);
@@ -34,8 +33,11 @@ export default function LogsPage() {
     const [logs, setLogs] = useState<Log[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
+    
+    // Search state
     const [searchQuery, setSearchQuery] = useState('');
-    const debouncedSearchQuery = useDebounce(searchQuery, 400);
+    const [executedSearchQuery, setExecutedSearchQuery] = useState('');
+    
     const [openMonths, setOpenMonths] = useState<string[]>([]);
     const isInitialLoad = useRef(true);
     const searchInputRef = useRef<HTMLInputElement>(null);
@@ -85,25 +87,46 @@ export default function LogsPage() {
         };
     }, []);
 
+    const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            triggerSearch();
+        }
+    };
+
+    const triggerSearch = () => {
+        setIsFiltering(true);
+        window.dispatchEvent(new Event('sync-start'));
+        setTimeout(() => {
+            setExecutedSearchQuery(searchQuery);
+        }, 50);
+    };
+
+    const clearSearch = () => {
+        setSearchQuery('');
+        setExecutedSearchQuery('');
+        setIsFiltering(false);
+    };
+
     // Background Filtering Logic
     useEffect(() => {
-        setIsFiltering(true);
         const performFilter = () => {
             try {
                 const results = logs.filter(log =>
-                    fuzzySearch(debouncedSearchQuery, log.message)
+                    fuzzySearch(executedSearchQuery, log.message)
                 );
                 setFilteredLogs(results);
             } catch (e) {
                 console.error("Logs filtering failed", e);
             } finally {
                 setIsFiltering(false);
+                window.dispatchEvent(new Event('sync-end'));
             }
         };
 
         const rafId = requestAnimationFrame(performFilter);
         return () => cancelAnimationFrame(rafId);
-    }, [logs, debouncedSearchQuery]);
+    }, [logs, executedSearchQuery]);
 
     const groupedLogs = useMemo(() => {
         return filteredLogs.reduce((acc, log) => {
@@ -169,19 +192,36 @@ export default function LogsPage() {
                         )}
                     </CardDescription>
                      <div className="pt-4">
-                        <div className="relative flex items-center w-full max-w-sm">
-                            <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                                ref={searchInputRef}
-                                placeholder="Search logs..." 
-                                value={searchQuery} 
-                                onChange={(e) => setSearchQuery(e.target.value)} 
-                                className="w-full pl-10 pr-20"
-                            />
-                            <div className="absolute right-0 flex items-center h-full pr-1.5">
-                                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                                    <span className="text-xs">{commandKey}</span>K
-                                </kbd>
+                        <div className="relative flex flex-col gap-1.5 w-full max-w-sm">
+                            <div className="relative flex items-center w-full">
+                                <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
+                                <Input 
+                                    ref={searchInputRef}
+                                    placeholder="Search logs..." 
+                                    value={searchQuery} 
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onKeyDown={handleSearchKeyDown}
+                                    className="w-full pl-10 pr-20"
+                                />
+                                <div className="absolute right-0 flex items-center h-full pr-1.5 gap-1">
+                                    {searchQuery && (
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 text-muted-foreground"
+                                            onClick={clearSearch}
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    )}
+                                    <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                                        <span className="text-xs">{commandKey}</span>K
+                                    </kbd>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 px-1 text-[9px] font-bold text-muted-foreground/60 uppercase tracking-widest">
+                                <CornerDownLeft className="h-2.5 w-2.5" />
+                                <span>Press Enter to search</span>
                             </div>
                         </div>
                     </div>

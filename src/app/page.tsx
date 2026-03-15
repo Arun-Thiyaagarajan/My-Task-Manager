@@ -44,6 +44,7 @@ import {
   Tag,
   Loader2,
   AlertCircle,
+  CornerDownLeft,
 } from 'lucide-react';
 import { cn, fuzzySearch } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig, Log, GeneralReminder, BackupFrequency, Environment } from '@/lib/types';
@@ -98,7 +99,6 @@ import { Badge } from '@/components/ui/badge';
 import { useTutorial } from '@/hooks/use-tutorial';
 import { MultiSelect, type SelectOption } from '@/components/ui/multi-select';
 import { Progress } from '@/components/ui/progress';
-import { useDebounce } from '@/hooks/use-debounce';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
@@ -129,7 +129,11 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [dateView, setDateView] = useState<DateView>('all');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  
+  // Search State
   const [searchQuery, setSearchQuery] = useState('');
+  const [executedSearchQuery, setExecutedSearchQuery] = useState('');
+  
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [repoFilter, setRepoFilter] = useState<string[]>([]);
   const [deploymentFilter, setDeploymentFilter] = useState<string[]>([]);
@@ -155,7 +159,6 @@ export default function Home() {
   const [isSearching, setIsSearching] = useState(false);
   const [showSlowSearchMessage, setShowSlowSearchMessage] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
-  const debouncedSearchQuery = useDebounce(searchQuery, 400);
 
   // New Import Progress States
   const [isImporting, setIsImporting] = useState(false);
@@ -167,7 +170,7 @@ export default function Home() {
   useEffect(() => {
     const params = new URLSearchParams();
     
-    if (debouncedSearchQuery) params.set('search', debouncedSearchQuery);
+    if (executedSearchQuery) params.set('search', executedSearchQuery);
     if (sortDescriptor) params.set('sort', sortDescriptor);
     if (viewMode) params.set('viewMode', viewMode);
     if (dateView) params.set('dateView', dateView);
@@ -185,7 +188,7 @@ export default function Home() {
     if (currentQuery !== newQuery) {
         router.replace(`${pathname}?${newQuery}`, { scroll: false });
     }
-  }, [debouncedSearchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, statusFilter, repoFilter, deploymentFilter, tagsFilter, router, pathname, searchParams]);
+  }, [executedSearchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, statusFilter, repoFilter, deploymentFilter, tagsFilter, router, pathname, searchParams]);
 
   useEffect(() => {
     setViewMode((searchParams.get('viewMode') as ViewMode) || 'grid');
@@ -193,7 +196,9 @@ export default function Home() {
     const dateStr = searchParams.get('date');
     const date = dateStr ? new Date(dateStr) : new Date();
     setSelectedDate(isValid(date) ? date : new Date());
-    setSearchQuery(searchParams.get('search') || '');
+    const queryParam = searchParams.get('search') || '';
+    setSearchQuery(queryParam);
+    setExecutedSearchQuery(queryParam);
     setStatusFilter(searchParams.getAll('status') || []);
     setRepoFilter(searchParams.getAll('repo') || []);
     setDeploymentFilter(searchParams.getAll('deployment') || []);
@@ -245,23 +250,6 @@ export default function Home() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Sync searching state with debounce and input
-  useEffect(() => {
-    const isKeystrokePending = searchQuery !== debouncedSearchQuery;
-    
-    if (isKeystrokePending) {
-        setIsSearching(true);
-        window.dispatchEvent(new Event('sync-start'));
-        setSearchError(null);
-    } else {
-        const timer = setTimeout(() => {
-            setIsSearching(false);
-            window.dispatchEvent(new Event('sync-end'));
-        }, 300);
-        return () => clearTimeout(timer);
-    }
-  }, [searchQuery, debouncedSearchQuery]);
-
   // Handle slow search messaging
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -272,6 +260,31 @@ export default function Home() {
     }
     return () => clearTimeout(timer);
   }, [isSearching]);
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        triggerSearch();
+    }
+  };
+
+  const triggerSearch = () => {
+    setIsSearching(true);
+    setSearchError(null);
+    window.dispatchEvent(new Event('sync-start'));
+    
+    // Use a small timeout to allow UI to show loader before heavy filter logic
+    setTimeout(() => {
+        setExecutedSearchQuery(searchQuery);
+    }, 50);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setExecutedSearchQuery('');
+    setIsSearching(false);
+    searchInputRef.current?.focus();
+  };
 
   // Asynchronous Filtering Logic
   useEffect(() => {
@@ -288,14 +301,14 @@ export default function Home() {
                 const testersById = new Map(testers.map(t => [t.id, t.name]));
 
                 const searchMatch =
-                debouncedSearchQuery.trim() === '' ||
-                fuzzySearch(debouncedSearchQuery, task.title) ||
-                fuzzySearch(debouncedSearchQuery, task.description) ||
-                fuzzySearch(debouncedSearchQuery, task.id) ||
-                (task.azureWorkItemId && fuzzySearch(debouncedSearchQuery, task.azureWorkItemId)) ||
-                task.developers?.some((devId) => fuzzySearch(debouncedSearchQuery, developersById.get(devId) || '')) ||
-                task.testers?.some((testerId) => fuzzySearch(debouncedSearchQuery, testersById.get(testerId) || '')) ||
-                (Array.isArray(task.repositories) && task.repositories?.some((repo) => fuzzySearch(debouncedSearchQuery, repo)));
+                executedSearchQuery.trim() === '' ||
+                fuzzySearch(executedSearchQuery, task.title) ||
+                fuzzySearch(executedSearchQuery, task.description) ||
+                fuzzySearch(executedSearchQuery, task.id) ||
+                (task.azureWorkItemId && fuzzySearch(executedSearchQuery, task.azureWorkItemId)) ||
+                task.developers?.some((devId) => fuzzySearch(executedSearchQuery, developersById.get(devId) || '')) ||
+                task.testers?.some((testerId) => fuzzySearch(executedSearchQuery, testersById.get(testerId) || '')) ||
+                (Array.isArray(task.repositories) && task.repositories?.some((repo) => fuzzySearch(executedSearchQuery, repo)));
 
                 const dateMatch = (() => {
                 if (dateView === 'all') return true;
@@ -329,14 +342,17 @@ export default function Home() {
             setSearchError(null);
         } catch (e) {
             console.error("Filtering logic failed:", e);
-            setSearchError("Filtering failed. Please try again.");
+            setSearchError("Search temporarily unavailable. Please try again.");
+        } finally {
+            setIsSearching(false);
+            window.dispatchEvent(new Event('sync-end'));
         }
     };
 
     // Background calculation
     const rafId = requestAnimationFrame(filterWork);
     return () => cancelAnimationFrame(rafId);
-  }, [tasks, statusFilter, repoFilter, tagsFilter, developers, testers, debouncedSearchQuery, dateView, selectedDate, deploymentFilter, favoritesOnly]);
+  }, [tasks, statusFilter, repoFilter, tagsFilter, developers, testers, executedSearchQuery, dateView, selectedDate, deploymentFilter, favoritesOnly]);
 
   const getDeploymentScore = (task: Task) => {
     const deploymentOrder = ['production', 'stage', 'dev'];
@@ -845,32 +861,36 @@ export default function Home() {
           <Card id="task-filters">
             <CardContent className="p-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                    <div className="relative flex items-center w-full col-span-1 sm:col-span-2 lg:col-span-1">
-                        <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            ref={searchInputRef}
-                            placeholder="Search tasks..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-24 h-10"
-                        />
-                        <div className="absolute right-0 flex items-center h-full pr-1.5 gap-1">
-                            {searchQuery && (
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                                    onClick={() => {
-                                        setSearchQuery('');
-                                        searchInputRef.current?.focus();
-                                    }}
-                                >
-                                    <X className="h-4 w-4" />
-                                </Button>
-                            )}
-                            <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
-                                <span className="text-xs">{commandKey}</span>K
-                            </kbd>
+                    <div className="relative flex flex-col w-full col-span-1 sm:col-span-2 lg:col-span-1 gap-1.5">
+                        <div className="relative flex items-center w-full">
+                            <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                ref={searchInputRef}
+                                placeholder="Search tasks..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onKeyDown={handleSearchKeyDown}
+                                className="w-full pl-10 pr-24 h-10"
+                            />
+                            <div className="absolute right-0 flex items-center h-full pr-1.5 gap-1">
+                                {searchQuery && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                        onClick={clearSearch}
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                )}
+                                <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+                                    <span className="text-xs">{commandKey}</span>K
+                                </kbd>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 px-1 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">
+                            <CornerDownLeft className="h-2.5 w-2.5" />
+                            <span>Press Enter to search</span>
                         </div>
                     </div>
                     <MultiSelect selected={statusFilter} onChange={setStatusFilter} options={(TASK_STATUSES || []).map(s => ({ value: s, label: s }))} placeholder="Status..." />
@@ -886,7 +906,7 @@ export default function Home() {
            {searchError && (
                 <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Filtering failed</AlertTitle>
+                    <AlertTitle>Search failed</AlertTitle>
                     <AlertDescription>{searchError}</AlertDescription>
                 </Alert>
            )}
