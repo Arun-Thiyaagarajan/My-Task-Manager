@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2, AlertCircle, HelpCircle, Sparkles, Layout, Users, Calendar as CalendarIconLucide, Paperclip, Rocket, GitMerge, ChevronRight, PanelLeft, PanelRight, CircleDot, Save } from 'lucide-react';
+import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2, HelpCircle, Sparkles, Layout, Users, Calendar as CalendarIconLucide, Paperclip, Rocket, GitMerge, ChevronRight, PanelLeft, PanelRight, CircleDot, Save } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTransition, useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -766,7 +766,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                     "h-14 w-14 rounded-full shadow-2xl shadow-primary/40 transition-all active:scale-95",
                     !isDirty && "opacity-60 scale-95 saturate-[0.5]"
                 )}
-                onClick={() => form.handleSubmit(handleFormSubmit, onInvalid)()}
             >
                 {isPending ? <Loader2 className="h-6 w-6 animate-spin" /> : <Save className="h-6 w-6" />}
                 <span className="sr-only">Save Task</span>
