@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -42,6 +43,7 @@ import {
   GraduationCap,
   Tag,
   Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { cn, fuzzySearch } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig, FieldConfig, Log, GeneralReminder, BackupFrequency, Environment } from '@/lib/types';
@@ -96,6 +98,8 @@ import { Badge } from '@/components/ui/badge';
 import { useTutorial } from '@/hooks/use-tutorial';
 import { MultiSelect, type SelectOption } from '@/components/ui/multi-select';
 import { Progress } from '@/components/ui/progress';
+import { useDebounce } from '@/hooks/use-debounce';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
 type ViewMode = 'grid' | 'table';
@@ -147,39 +151,50 @@ export default function Home() {
   const [isTagsDialogOpen, setIsTagsDialogOpen] = useState(false);
   const [tagsToApply, setTagsToApply] = useState<string[]>([]);
 
-  // Search Loading States
+  // Search Loading & Error States
   const [isSearching, setIsSearching] = useState(false);
   const [showSlowSearchMessage, setShowSlowSearchMessage] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const debouncedSearchQuery = useDebounce(searchQuery, 400);
+
+  // Sync searching state with debounce
+  useEffect(() => {
+    const isKeystrokePending = searchQuery !== debouncedSearchQuery;
+    
+    if (isKeystrokePending) {
+        setIsSearching(true);
+        window.dispatchEvent(new Event('sync-start'));
+        setSearchError(null);
+    } else {
+        // Search logic has caught up with typing
+        const timer = setTimeout(() => {
+            setIsSearching(false);
+            window.dispatchEvent(new Event('sync-end'));
+        }, 300);
+        return () => clearTimeout(timer);
+    }
+  }, [searchQuery, debouncedSearchQuery]);
+
+  // Handle slow search messaging
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isSearching) {
+        timer = setTimeout(() => setShowSlowSearchMessage(true), 3000);
+    } else {
+        setShowSlowSearchMessage(false);
+    }
+    return () => clearTimeout(timer);
+  }, [isSearching]);
 
   // New Import Progress States
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   
-  // Search/Filter Loading Effect
-  useEffect(() => {
-    setIsSearching(true);
-    window.dispatchEvent(new Event('sync-start'));
-    
-    const slowTimer = setTimeout(() => {
-        setShowSlowSearchMessage(true);
-    }, 3000);
-
-    const finishTimer = setTimeout(() => {
-        setIsSearching(false);
-        setShowSlowSearchMessage(false);
-        window.dispatchEvent(new Event('sync-end'));
-    }, 500);
-
-    return () => {
-        clearTimeout(slowTimer);
-        clearTimeout(finishTimer);
-    };
-  }, [searchQuery, statusFilter, repoFilter, deploymentFilter, tagsFilter, favoritesOnly, dateView, selectedDate]);
-
   useEffect(() => {
     const params = new URLSearchParams();
     
-    if (searchQuery) params.set('search', searchQuery);
+    // We use debounced search query for URL synchronization to prevent jitter
+    if (debouncedSearchQuery) params.set('search', debouncedSearchQuery);
     if (sortDescriptor) params.set('sort', sortDescriptor);
     if (viewMode) params.set('viewMode', viewMode);
     if (dateView) params.set('dateView', dateView);
@@ -197,7 +212,7 @@ export default function Home() {
     if (currentQuery !== newQuery) {
         router.replace(`${pathname}?${newQuery}`, { scroll: false });
     }
-  }, [searchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, statusFilter, repoFilter, deploymentFilter, tagsFilter, router, pathname, searchParams]);
+  }, [debouncedSearchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, statusFilter, repoFilter, deploymentFilter, tagsFilter, router, pathname, searchParams]);
 
   useEffect(() => {
     setViewMode((searchParams.get('viewMode') as ViewMode) || 'grid');
@@ -269,55 +284,62 @@ export default function Home() {
   };
 
   const filteredTasks = useMemo(() => {
-    return tasks.filter((task: Task) => {
-        if (favoritesOnly && !task.isFavorite) return false;
+    try {
+        return tasks.filter((task: Task) => {
+            if (favoritesOnly && !task.isFavorite) return false;
 
-        const statusMatch = statusFilter.length === 0 || statusFilter.includes(task.status);
-        const repoMatch = repoFilter.length === 0 || (Array.isArray(task.repositories) && task.repositories?.some(repo => repoFilter.includes(repo)) || false);
-        const tagsMatch = tagsFilter.length === 0 || (task.tags?.some(tag => tagsFilter.includes(tag)) ?? false);
+            const statusMatch = statusFilter.length === 0 || statusFilter.includes(task.status);
+            const repoMatch = repoFilter.length === 0 || (Array.isArray(task.repositories) && task.repositories?.some(repo => repoFilter.includes(repo)) || false);
+            const tagsMatch = tagsFilter.length === 0 || (task.tags?.some(tag => tagsFilter.includes(tag)) ?? false);
 
-        const developersById = new Map(developers.map(d => [d.id, d.name]));
-        const testersById = new Map(testers.map(t => [t.id, t.name]));
+            const developersById = new Map(developers.map(d => [d.id, d.name]));
+            const testersById = new Map(testers.map(t => [t.id, t.name]));
 
-        const searchMatch =
-        searchQuery.trim() === '' ||
-        fuzzySearch(searchQuery, task.title) ||
-        fuzzySearch(searchQuery, task.description) ||
-        fuzzySearch(searchQuery, task.id) ||
-        (task.azureWorkItemId && fuzzySearch(searchQuery, task.azureWorkItemId)) ||
-        task.developers?.some((devId) => fuzzySearch(searchQuery, developersById.get(devId) || '')) ||
-        task.testers?.some((testerId) => fuzzySearch(searchQuery, testersById.get(testerId) || '')) ||
-        (Array.isArray(task.repositories) && task.repositories?.some((repo) => fuzzySearch(searchQuery, repo)));
+            const searchMatch =
+            debouncedSearchQuery.trim() === '' ||
+            fuzzySearch(debouncedSearchQuery, task.title) ||
+            fuzzySearch(debouncedSearchQuery, task.description) ||
+            fuzzySearch(debouncedSearchQuery, task.id) ||
+            (task.azureWorkItemId && fuzzySearch(debouncedSearchQuery, task.azureWorkItemId)) ||
+            task.developers?.some((devId) => fuzzySearch(debouncedSearchQuery, developersById.get(devId) || '')) ||
+            task.testers?.some((testerId) => fuzzySearch(debouncedSearchQuery, testersById.get(testerId) || '')) ||
+            (Array.isArray(task.repositories) && task.repositories?.some((repo) => fuzzySearch(debouncedSearchQuery, repo)));
 
-        const dateMatch = (() => {
-        if (dateView === 'all') return true;
-        if (dateView === 'monthly') {
-            if (!task.devStartDate) return false;
-            const taskDate = new Date(task.devStartDate);
-            const start = startOfMonth(selectedDate);
-            const end = endOfMonth(selectedDate);
-            return taskDate >= start && taskDate <= end;
-        }
-        if (dateView === 'yearly') {
-            if (!task.devStartDate) return false;
-            const taskDate = new Date(task.devStartDate);
-            const start = startOfYear(selectedDate);
-            const end = endOfYear(selectedDate);
-            return taskDate >= start && taskDate <= end;
-        }
-        return true;
-        })();
-        
-        const deploymentMatch = deploymentFilter.length === 0 || deploymentFilter.every(filter => {
-        const isNegative = filter.startsWith('not_');
-        const env = isNegative ? filter.substring(4) : filter;
-        const isDeployed = task.deploymentStatus?.[env] ?? false;
-        return isNegative ? !isDeployed : isDeployed;
+            const dateMatch = (() => {
+            if (dateView === 'all') return true;
+            if (dateView === 'monthly') {
+                if (!task.devStartDate) return false;
+                const taskDate = new Date(task.devStartDate);
+                const start = startOfMonth(selectedDate);
+                const end = endOfMonth(selectedDate);
+                return taskDate >= start && taskDate <= end;
+            }
+            if (dateView === 'yearly') {
+                if (!task.devStartDate) return false;
+                const taskDate = new Date(task.devStartDate);
+                const start = startOfYear(selectedDate);
+                const end = endOfYear(selectedDate);
+                return taskDate >= start && taskDate <= end;
+            }
+            return true;
+            })();
+            
+            const deploymentMatch = deploymentFilter.length === 0 || deploymentFilter.every(filter => {
+            const isNegative = filter.startsWith('not_');
+            const env = isNegative ? filter.substring(4) : filter;
+            const isDeployed = task.deploymentStatus?.[env] ?? false;
+            return isNegative ? !isDeployed : isDeployed;
+            });
+
+            return statusMatch && repoMatch && searchMatch && dateMatch && deploymentMatch && tagsMatch;
         });
-
-        return statusMatch && repoMatch && searchMatch && dateMatch && deploymentMatch && tagsMatch;
-    });
-  }, [tasks, statusFilter, repoFilter, tagsFilter, developers, testers, searchQuery, dateView, selectedDate, deploymentFilter, favoritesOnly]);
+    } catch (e) {
+        console.error("Filtering logic failed:", e);
+        // We use a side effect to set the error UI state
+        setTimeout(() => setSearchError("Search temporarily unavailable. Please try again later."), 0);
+        return [];
+    }
+  }, [tasks, statusFilter, repoFilter, tagsFilter, developers, testers, debouncedSearchQuery, dateView, selectedDate, deploymentFilter, favoritesOnly]);
 
   const sortedTasks = useMemo(() => {
     return [...filteredTasks].sort((a, b) => {
@@ -825,10 +847,23 @@ export default function Home() {
                             placeholder="Search tasks..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-20 h-10"
+                            className="w-full pl-10 pr-24 h-10"
                         />
-                        <div className="absolute right-0 flex items-center h-full pr-1.5">
-                            <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+                        <div className="absolute right-0 flex items-center h-full pr-1.5 gap-1">
+                            {searchQuery && (
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                    onClick={() => {
+                                        setSearchQuery('');
+                                        searchInputRef.current?.focus();
+                                    }}
+                                >
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            )}
+                            <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
                                 <span className="text-xs">{commandKey}</span>K
                             </kbd>
                         </div>
@@ -843,6 +878,14 @@ export default function Home() {
             </CardContent>
           </Card>
           
+           {searchError && (
+                <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Search Failed</AlertTitle>
+                    <AlertDescription>{searchError}</AlertDescription>
+                </Alert>
+           )}
+
            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-6">
                 <div className="flex items-center gap-4">
                     {(dateView === 'monthly' || dateView === 'yearly') && !favoritesOnly && (
