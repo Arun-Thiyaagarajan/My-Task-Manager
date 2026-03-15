@@ -71,6 +71,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { ReleaseManagementCard } from '@/components/release-management-card';
 import { cn } from '@/lib/utils';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { AuthModal } from '@/components/auth-modal';
 
 export default function SettingsPage() {
   const [uiConfig, setUiConfigState] = useState<UiConfig | null>(null);
@@ -81,6 +82,7 @@ export default function SettingsPage() {
   const [peopleManagerType, setPeopleManagerType] = useState<'developer' | 'tester' | null>(null);
   const [fieldToEdit, setFieldToEdit] = useState<FieldConfig | null>(null);
   const [isFieldDialogOpen, setIsFieldDialogOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // Form states for Display Settings
   const [appName, setAppName] = useState('');
@@ -375,7 +377,11 @@ export default function SettingsPage() {
                         </div>
                     </button>
                     <button 
-                        onClick={() => setAuthMode('authenticate')}
+                        onClick={() => {
+                            if (authMode !== 'authenticate') {
+                                setIsAuthModalOpen(true);
+                            }
+                        }}
                         className={cn(
                             "w-full text-left p-3 border rounded-xl transition-all",
                             authMode === 'authenticate' ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:border-primary/50"
@@ -655,6 +661,17 @@ export default function SettingsPage() {
         field={fieldToEdit}
         repositoryConfigs={uiConfig.repositoryConfigs || []}
         onSave={handleSaveField}
+      />
+
+      <AuthModal 
+        isOpen={isAuthModalOpen}
+        onOpenChange={setIsAuthModalOpen}
+        onSuccess={() => {
+            setAuthMode('authenticate');
+            setAuthModeState('authenticate');
+            window.dispatchEvent(new Event('company-changed'));
+            toast({ variant: 'success', title: 'Switched to Authenticate Mode', description: 'Your data will now sync with the cloud.' });
+        }}
       />
     </div>
   );
