@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -54,7 +53,7 @@ export function ReleaseManagementCard() {
     const { toast } = useToast();
 
     const authMode = getAuthMode();
-    // Restriction: Only Cloud Admins can manage releases. Local mode is now read-only.
+    // Restriction: Only Cloud Admins can manage releases. Local mode is strictly read-only.
     const isAdmin = authMode === 'authenticate' && userProfile?.role === 'admin';
 
     useEffect(() => {
@@ -149,7 +148,7 @@ export function ReleaseManagementCard() {
 
     return (
         <Card id="release-management-card" className="border-none shadow-lg">
-            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4">
+            <CardHeader className="flex flex-row items-center justify-between gap-4 pb-4">
                 <div className="min-w-0 flex-1">
                     <CardTitle className="text-lg font-black flex items-center gap-2 tracking-tight uppercase tracking-wider">
                         <History className="h-5 w-5 text-primary shrink-0" />
@@ -175,20 +174,19 @@ export function ReleaseManagementCard() {
                         <div key={release.id} className="flex items-center justify-between p-3 border rounded-2xl hover:bg-muted/30 transition-all group overflow-hidden">
                             <div className="flex items-center gap-4 min-w-0">
                                 <div className={cn(
-                                    "h-10 w-10 rounded-xl flex items-center justify-center border shrink-0",
+                                    "h-9 w-9 rounded-xl flex items-center justify-center border shrink-0",
                                     release.isPublished ? "bg-primary/10 border-primary/20 text-primary" : "bg-muted border-muted-foreground/10 text-muted-foreground"
                                 )}>
-                                    <Rocket className="h-5 w-5" />
+                                    <Rocket className="h-4 w-4" />
                                 </div>
                                 <div className="min-w-0">
                                     <div className="flex items-center gap-2 mb-0.5">
-                                        <span className="font-black text-sm tracking-tight truncate">v{release.version}</span>
+                                        <span className="font-black text-xs tracking-tight truncate">v{release.version}</span>
                                         <Badge variant={release.isPublished ? 'default' : 'outline'} className="text-[8px] uppercase font-black tracking-widest px-1.5 h-4">
                                             {release.isPublished ? 'Live' : 'Draft'}
                                         </Badge>
                                     </div>
-                                    <p className="text-xs font-bold leading-tight truncate text-foreground/80">{release.title}</p>
-                                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">{format(new Date(release.date), 'MMM d, yyyy')}</p>
+                                    <p className="text-[10px] font-bold leading-tight truncate text-foreground/80">{release.title}</p>
                                 </div>
                             </div>
                             {isAdmin && (

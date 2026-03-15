@@ -57,7 +57,8 @@ const getInitialData = (): MyTaskManagerData => {
                 },
                 logs: [],
                 generalReminders: [],
-                releaseUpdates: [...INITIAL_RELEASES],
+                // Start with empty releases locally; admin releases sync from cloud
+                releaseUpdates: [],
             },
         },
     };
@@ -179,7 +180,7 @@ export function addCompany(name: string) {
         uiConfig: getInitialData().companyData['company-default'].uiConfig,
         logs: [],
         generalReminders: [],
-        releaseUpdates: [...INITIAL_RELEASES],
+        releaseUpdates: [],
     };
     data.activeCompanyId = id;
     setAppData(data);
@@ -598,7 +599,8 @@ export function addGeneralReminder(text: string) {
     const data = getAppData();
     const companyId = getActiveCompanyId();
     const id = `rem-${crypto.randomUUID()}`;
-    const newRem = { id, text, createdAt: new Date().toISOString() };
+    const now = new Date().toISOString();
+    const newRem = { id, text, createdAt: now };
     data.companyData[companyId].generalReminders.unshift(newRem);
     setAppData(data);
     if (getAuthMode() === 'authenticate') {
@@ -974,7 +976,7 @@ export async function clearAllData() {
             batch.set(doc(db, companyBase, 'people', 'testers'), { list: [] });
             batch.set(doc(db, companyBase, 'reminders', 'general'), { list: [] });
             batch.set(doc(db, companyBase, 'settings', 'uiConfig'), defaultUiConfig);
-            batch.set(doc(db, companyBase, 'releases', 'updates'), { list: [...INITIAL_RELEASES] });
+            batch.set(doc(db, companyBase, 'releases', 'updates'), { list: [] });
             await batch.commit();
         } else {
             Object.keys(localStorage).forEach(key => {
