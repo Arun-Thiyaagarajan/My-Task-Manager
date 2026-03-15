@@ -113,7 +113,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
   const isJumpingRef = useRef(false);
   const jumpTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const SCROLL_THRESHOLD = 120; 
+  const SCROLL_THRESHOLD = 140; 
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -706,8 +706,63 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit, onInvalid)}>
+        {/* ACTION BAR: Fixed at top on mobile, fixed at bottom on desktop */}
         <div className={cn(
-            "flex flex-col gap-8 pb-32 relative",
+            "z-[45] bg-background/95 backdrop-blur-sm border-b transition-all duration-300",
+            "fixed top-14 left-0 right-0", // Mobile: just below header
+            "lg:top-auto lg:bottom-0 lg:border-b-0 lg:border-t lg:z-50" // Desktop: standard bottom bar
+        )}>
+            <div className="container mx-auto flex h-14 lg:h-20 items-center justify-center px-4 sm:px-6 lg:px-8">
+                 <div className="flex items-center justify-center gap-3">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleCancel}
+                        disabled={isPending}
+                        className="h-9 lg:h-10 px-6 font-semibold"
+                    >
+                        Cancel
+                    </Button>
+                    <Button 
+                        type="submit" 
+                        disabled={isPending} 
+                        id="task-form-submit"
+                        className="h-9 lg:h-10 px-8 font-bold shadow-sm"
+                    >
+                        {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {submitButtonText}
+                    </Button>
+                    
+                    <div className="hidden lg:block">
+                        <TooltipProvider>
+                          <Tooltip>
+                              <TooltipTrigger asChild>
+                                  <Button type="button" variant="ghost" size="icon" className="text-muted-foreground">
+                                      <HelpCircle className="h-5 w-5" />
+                                  </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                  <div className="text-sm p-1">
+                                    <div className="grid grid-cols-[auto_1fr] items-center gap-x-2">
+                                      <div className="text-right">Save:</div>
+                                      <div><kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">{commandKey}</kbd> + <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">S</kbd></div>
+                                    </div>
+                                    <div className="grid grid-cols-[auto_1fr] items-center gap-x-2 mt-1">
+                                      <div className="text-right">Cancel:</div>
+                                      <div><kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">Esc</kbd></div>
+                                    </div>
+                                  </div>
+                              </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {/* FORM CONTENT: pt-20 on mobile to clear the fixed top action bar */}
+        <div className={cn(
+            "flex flex-col gap-8 pt-20 pb-10 lg:pt-0 lg:pb-32 relative",
             sidebarPosition === 'left' ? "lg:flex-row" : "lg:flex-row-reverse"
         )}>
             {/* Desktop Navigation Sidebar */}
@@ -803,7 +858,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                     const sectionId = groupName.toLowerCase().replace(/\s+/g, '-');
 
                     return (
-                        <Card key={groupName} id={sectionId} className="scroll-mt-24 transition-all duration-300 max-w-full overflow-hidden">
+                        <Card key={groupName} id={sectionId} className="scroll-mt-32 transition-all duration-300 max-w-full overflow-hidden">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2 text-lg font-bold">
                                     {groupName === 'Core Details' && <Layout className="h-5 w-5 text-primary" />}
@@ -820,7 +875,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                 })}
 
                 {(uiConfig?.fields || []).find(f => f.key === 'attachments' && f.isActive) && (
-                    <Card id="attachments" className="scroll-mt-24 transition-all duration-300">
+                    <Card id="attachments" className="scroll-mt-32 transition-all duration-300">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-lg font-bold">
                                 <Paperclip className="h-5 w-5 text-primary" />
@@ -893,7 +948,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                 )}
 
                 {deploymentFieldConfig && deploymentFieldConfig.isActive && (
-                    <Card id="deployment" className="scroll-mt-24 transition-all duration-300">
+                    <Card id="deployment" className="scroll-mt-32 transition-all duration-300">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-lg font-bold">
                                 <Rocket className="h-5 w-5 text-primary" />
@@ -957,7 +1012,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                 )}
 
                 {(uiConfig?.fields || []).find(f => f.key === 'prLinks' && f.isActive) && (
-                    <Card id="pull-requests" className="scroll-mt-24 transition-all duration-300">
+                    <Card id="pull-requests" className="scroll-mt-32 transition-all duration-300">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-lg font-bold">
                                 <GitMerge className="h-5 w-5 text-primary" />
@@ -1000,46 +1055,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                         </CardContent>
                     </Card>
                 )}
-            </div>
-        </div>
-
-        <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur-sm">
-            <div className="container mx-auto flex h-20 items-center justify-center px-4 sm:px-6 lg:px-8">
-                 <div className="flex items-center justify-center gap-2">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleCancel}
-                        disabled={isPending}
-                    >
-                        Cancel
-                    </Button>
-                    <Button type="submit" disabled={isPending} id="task-form-submit">
-                        {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {submitButtonText}
-                    </Button>
-                    <TooltipProvider>
-                      <Tooltip>
-                          <TooltipTrigger asChild>
-                              <Button type="button" variant="ghost" size="icon" className="text-muted-foreground">
-                                  <HelpCircle className="h-5 w-5" />
-                              </Button>
-                          </TooltipTrigger>
-                          <TooltipContent side="top">
-                              <div className="text-sm p-1">
-                                <div className="grid grid-cols-[auto_1fr] items-center gap-x-2">
-                                  <div className="text-right">Save:</div>
-                                  <div><kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">{commandKey}</kbd> + <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">S</kbd></div>
-                                </div>
-                                <div className="grid grid-cols-[auto_1fr] items-center gap-x-2 mt-1">
-                                  <div className="text-right">Cancel:</div>
-                                  <div><kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">Esc</kbd></div>
-                                </div>
-                              </div>
-                          </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                </div>
             </div>
         </div>
       </form>
