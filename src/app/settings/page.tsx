@@ -35,6 +35,7 @@ import {
     Search,
     ChevronUp,
     ChevronDown,
+    ChevronRight,
     Save,
     Pencil,
     Rocket,
