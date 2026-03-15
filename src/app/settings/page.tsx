@@ -160,17 +160,13 @@ export default function SettingsPage() {
     const reader = new FileReader();
     reader.onload = async (event) => {
       const rawDataUrl = event.target?.result as string;
+      // App icon optimization logic (separate from User Profile)
       const compressed = await compressImage(rawDataUrl, 128, 0.8);
       setAppIcon(compressed);
-      toast({ title: 'Icon uploaded', description: 'Click "Save Display Settings" to apply.' });
+      toast({ title: 'Icon optimized and ready', description: 'Click "Save Display Settings" to apply changes.' });
     };
     reader.readAsDataURL(file);
     if (e.target) e.target.value = '';
-  };
-
-  const handleSaveFeatureSettings = (updates: Partial<UiConfig>) => {
-    handleUpdateConfig(updates);
-    toast({ variant: 'success', title: 'Features updated.' });
   };
 
   const handleFieldToggle = (key: string, property: 'isActive' | 'isRequired') => {
@@ -204,16 +200,6 @@ export default function SettingsPage() {
     toast({ variant: 'success', title: 'Field configuration saved.' });
   };
 
-  const handleDeleteField = (id: string) => {
-      if (!uiConfig || !uiConfig.fields) return;
-      const fieldToDelete = uiConfig.fields.find(f => f.id === id);
-      if (!fieldToDelete) return;
-      const newFields = uiConfig.fields.filter(f => f.id !== id);
-      handleUpdateConfig({ fields: newFields });
-      addLog({ message: `Deleted custom field: **${fieldToDelete.label}**` });
-      toast({ variant: 'success', title: 'Field deleted.' });
-  };
-
   const handleAddEnv = () => {
     if (!newEnvName.trim()) return;
     addEnvironment({ name: newEnvName.trim(), color: '#3b82f6' });
@@ -243,7 +229,7 @@ export default function SettingsPage() {
         const importedConfig = JSON.parse(text);
         
         if (typeof importedConfig !== 'object' || importedConfig === null || !Array.isArray(importedConfig.fields)) {
-            throw new Error("Invalid settings file format. Please provide a valid TaskFlow settings JSON.");
+            throw new Error("Invalid settings file format.");
         }
 
         setUiConfigState(importedConfig);
@@ -283,7 +269,7 @@ export default function SettingsPage() {
       toast({ 
         variant: 'destructive', 
         title: 'Clear Data Failed', 
-        description: error.message || 'An unexpected error occurred while clearing your data. Please try again.' 
+        description: error.message || 'An unexpected error occurred.' 
       });
       setIsClearing(false);
     }
@@ -355,12 +341,12 @@ export default function SettingsPage() {
             <Card id="settings-field-config-card">
                 <CardHeader>
                     <CardTitle className="text-2xl">Field Configuration</CardTitle>
-                    <CardDescription>Drag active fields to reorder them. Edit, activate, or deactivate fields as needed.</CardDescription>
+                    <CardDescription>Edit, activate, or deactivate fields as needed.</CardDescription>
                     <div className="pt-4">
                         <div className="relative">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input 
-                                placeholder="Search fields by label or group..." 
+                                placeholder="Search fields..." 
                                 className="pl-9"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -431,14 +417,13 @@ export default function SettingsPage() {
 
         {/* Right Column: Sidebar Cards */}
         <div className="space-y-6">
-            {/* Authentication Mode */}
             <Card>
                 <CardHeader className="pb-3">
                     <CardTitle className="text-base flex items-center gap-2">
                         <ShieldCheck className="h-4 w-4 text-primary" />
                         Authentication Mode
                     </CardTitle>
-                    <CardDescription>Select how your data is managed and stored.</CardDescription>
+                    <CardDescription>Select how your data is managed.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                     <button 
@@ -452,7 +437,7 @@ export default function SettingsPage() {
                             <Smartphone className={cn("h-5 w-5 mt-0.5", authMode === 'localStorage' ? "text-primary" : "text-muted-foreground")} />
                             <div>
                                 <p className="text-sm font-bold">Local Storage</p>
-                                <p className="text-[11px] text-muted-foreground">Data is stored only in your browser. Fastest mode, no login required.</p>
+                                <p className="text-[11px] text-muted-foreground">Data is stored in your browser.</p>
                             </div>
                         </div>
                     </button>
@@ -467,21 +452,20 @@ export default function SettingsPage() {
                             <Database className={cn("h-5 w-5 mt-0.5", authMode === 'authenticate' ? "text-primary" : "text-muted-foreground")} />
                             <div>
                                 <p className="text-sm font-bold">Authenticate Mode</p>
-                                <p className="text-[11px] text-muted-foreground">Securely sync your data across devices using cloud authentication.</p>
+                                <p className="text-[11px] text-muted-foreground">Sync data across devices.</p>
                             </div>
                         </div>
                     </button>
                 </CardContent>
             </Card>
 
-            {/* Display Settings */}
             <Card>
                 <CardHeader className="pb-3">
                     <CardTitle className="text-base flex items-center gap-2">
                         <Globe className="h-4 w-4 text-primary" />
                         Display Settings
                     </CardTitle>
-                    <CardDescription>Customize your application's appearance and formatting.</CardDescription>
+                    <CardDescription>Appearance and formatting.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
@@ -494,7 +478,7 @@ export default function SettingsPage() {
                             <Input 
                                 value={appIcon.startsWith('data:image') ? '[Image Data]' : appIcon} 
                                 onChange={e => setAppIcon(e.target.value)} 
-                                placeholder="Paste emoji or URL..." 
+                                placeholder="Emoji or URL..." 
                                 className="h-9 flex-1" 
                             />
                             <Button 
@@ -519,27 +503,11 @@ export default function SettingsPage() {
                     <div className="space-y-2">
                         <Label className="text-xs">Time Format</Label>
                         <div className="grid grid-cols-2 gap-2">
-                            <button 
-                                onClick={() => setTimeFormat('12h')}
-                                className={cn(
-                                    "flex flex-col items-center justify-center p-2 border rounded-lg text-center gap-1 transition-all",
-                                    timeFormat === '12h' ? "bg-primary/10 border-primary text-primary" : "hover:bg-muted"
-                                )}
-                            >
-                                <Clock className="h-4 w-4" />
-                                <span className="text-[10px] font-bold">12-hour</span>
-                                <span className="text-[8px] opacity-60">(e.g. 4:30 PM)</span>
+                            <button onClick={() => setTimeFormat('12h')} className={cn("flex flex-col items-center justify-center p-2 border rounded-lg gap-1", timeFormat === '12h' ? "bg-primary/10 border-primary text-primary" : "hover:bg-muted")}>
+                                <Clock className="h-4 w-4" /><span className="text-[10px] font-bold">12-hour</span>
                             </button>
-                            <button 
-                                onClick={() => setTimeFormat('24h')}
-                                className={cn(
-                                    "flex flex-col items-center justify-center p-2 border rounded-lg text-center gap-1 transition-all",
-                                    timeFormat === '24h' ? "bg-primary/10 border-primary text-primary" : "hover:bg-muted"
-                                )}
-                            >
-                                <RotateCcw className="h-4 w-4" />
-                                <span className="text-[10px] font-bold">24-hour</span>
-                                <span className="text-[8px] opacity-60">(e.g. 16:30)</span>
+                            <button onClick={() => setTimeFormat('24h')} className={cn("flex flex-col items-center justify-center p-2 border rounded-lg gap-1", timeFormat === '24h' ? "bg-primary/10 border-primary text-primary" : "hover:bg-muted")}>
+                                <RotateCcw className="h-4 w-4" /><span className="text-[10px] font-bold">24-hour</span>
                             </button>
                         </div>
                     </div>
@@ -547,7 +515,6 @@ export default function SettingsPage() {
                 </CardContent>
             </Card>
 
-            {/* Release Management */}
             <Card>
                 <CardHeader className="pb-3 flex-row items-center justify-between space-y-0">
                     <div>
@@ -555,96 +522,23 @@ export default function SettingsPage() {
                             <History className="h-4 w-4 text-primary" />
                             Release Management
                         </CardTitle>
-                        <CardDescription>Manage application updates.</CardDescription>
+                        <CardDescription>Application updates.</CardDescription>
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                    <div className="space-y-2">
-                        {uiConfig.currentVersion && (
-                            <div className="flex items-center justify-between p-2 border rounded-lg bg-muted/30">
-                                <div className="flex items-center gap-3">
-                                    <Rocket className="h-4 w-4 text-primary" />
-                                    <div>
-                                        <p className="text-xs font-bold">v{uiConfig.currentVersion}</p>
-                                        <p className="text-[10px] text-muted-foreground">Productivity Boost</p>
-                                    </div>
-                                </div>
-                                <Badge variant="secondary" className="text-[8px] bg-primary/10 text-primary">Published</Badge>
-                            </div>
-                        )}
-                    </div>
                     <Button asChild variant="outline" className="w-full h-9 text-xs">
                         <a href="/releases">View Full History</a>
                     </Button>
                 </CardContent>
             </Card>
 
-            {/* Feature Management */}
             <Card>
-                <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                        <Cog className="h-4 w-4 text-primary" />
-                        Feature Management
-                    </CardTitle>
-                    <CardDescription>Enable or disable optional features.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                            <Label className="text-xs">Task Reminders</Label>
-                            <p className="text-[10px] text-muted-foreground">Allow users to set pin-able notes.</p>
-                        </div>
-                        <Switch 
-                            checked={uiConfig.remindersEnabled} 
-                            onCheckedChange={v => handleSaveFeatureSettings({ remindersEnabled: v })} 
-                        />
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                            <Label className="text-xs">Show Tutorial</Label>
-                            <p className="text-[10px] text-muted-foreground">Enable the guided tour feature.</p>
-                        </div>
-                        <Switch 
-                            checked={uiConfig.tutorialEnabled} 
-                            onCheckedChange={v => handleSaveFeatureSettings({ tutorialEnabled: v })} 
-                        />
-                    </div>
-                    <div className="space-y-2 border-t pt-3">
-                        <div className="flex items-center gap-2">
-                            <RotateCcw className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Automatic Backup</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                            <Select value={uiConfig.autoBackupFrequency} onValueChange={v => handleSaveFeatureSettings({ autoBackupFrequency: v as BackupFrequency })}>
-                                <SelectTrigger className="h-8 text-[10px]"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="off">Off</SelectItem>
-                                    <SelectItem value="daily">Daily</SelectItem>
-                                    <SelectItem value="weekly">Weekly</SelectItem>
-                                    <SelectItem value="monthly">Monthly</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <Select value={String(uiConfig.autoBackupTime)} onValueChange={v => handleSaveFeatureSettings({ autoBackupTime: parseInt(v) })}>
-                                <SelectTrigger className="h-8 text-[10px]"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    {Array.from({ length: 24 }).map((_, i) => (
-                                        <SelectItem key={i} value={String(i)}>{i}:00</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Environment Management */}
-            <Card id="settings-environment-card">
                 <CardHeader className="pb-3">
                     <CardTitle className="text-base flex items-center gap-2">
                         <Rocket className="h-4 w-4 text-primary" />
                         Environment Management
                     </CardTitle>
-                    <CardDescription>Add or rename deployment environments.</CardDescription>
+                    <CardDescription>Deployment environments.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                     <div className="space-y-2">
@@ -656,58 +550,33 @@ export default function SettingsPage() {
                         ))}
                     </div>
                     <div className="flex gap-2">
-                        <Input 
-                            placeholder="New environment name..." 
-                            className="h-9 text-xs" 
-                            value={newEnvName}
-                            onChange={e => setNewEnvName(e.target.value)}
-                        />
+                        <Input placeholder="New environment..." className="h-9 text-xs" value={newEnvName} onChange={e => setNewEnvName(e.target.value)} />
                         <Button size="sm" className="h-9" onClick={handleAddEnv}>Add</Button>
                     </div>
                 </CardContent>
             </Card>
 
-            {/* People Management */}
-            <Card id="settings-people-management-dev">
+            <Card>
                 <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                        <CardTitle className="text-base flex items-center gap-2">
-                            <Users className="h-4 w-4 text-primary" />
-                            Developer Management
-                        </CardTitle>
-                        <span className="text-xs font-bold text-muted-foreground">{getDevelopers().length}</span>
-                    </div>
-                    <CardDescription>Manage your list of developers.</CardDescription>
+                    <CardTitle className="text-base flex items-center gap-2">
+                        <Users className="h-4 w-4 text-primary" />
+                        People Management
+                    </CardTitle>
+                    <CardDescription>Manage devs and testers.</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-2">
                     <Button variant="outline" className="w-full h-9 text-xs" onClick={() => setPeopleManagerType('developer')}>Manage Developers</Button>
-                </CardContent>
-            </Card>
-
-            <Card id="settings-people-management-tester">
-                <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                        <CardTitle className="text-base flex items-center gap-2">
-                            <ClipboardCheck className="h-4 w-4 text-primary" />
-                            Tester Management
-                        </CardTitle>
-                        <span className="text-xs font-bold text-muted-foreground">{getTesters().length}</span>
-                    </div>
-                    <CardDescription>Manage your list of testers.</CardDescription>
-                </CardHeader>
-                <CardContent>
                     <Button variant="outline" className="w-full h-9 text-xs" onClick={() => setPeopleManagerType('tester')}>Manage Testers</Button>
                 </CardContent>
             </Card>
 
-            {/* Data Management */}
             <Card className="border-destructive/20">
                 <CardHeader className="pb-3">
                     <CardTitle className="text-base flex items-center gap-2 text-destructive">
                         <Database className="h-4 w-4" />
                         Data Management
                     </CardTitle>
-                    <CardDescription>Export, import, or clear workspace data.</CardDescription>
+                    <CardDescription>Export, import, or clear data.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2">
                     <Button variant="outline" className="w-full h-9 text-xs justify-start px-3" onClick={handleExportSettings}>
@@ -720,16 +589,14 @@ export default function SettingsPage() {
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
                             <Button variant="destructive" className="w-full h-9 text-xs justify-start px-3 bg-destructive hover:bg-destructive/90">
-                                <Trash2 className="h-3.5 w-3.5 mr-3" /> Clear All {authMode === 'authenticate' ? 'Cloud' : 'Local'} Data
+                                <Trash2 className="h-3.5 w-3.5 mr-3" /> Clear All Data
                             </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                             <AlertDialogHeader>
                                 <AlertDialogTitle>Clear all workspace data?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                    {authMode === 'authenticate' 
-                                        ? "This will permanently delete all Tasks, Notes, People, and Settings from your cloud workspace. This action cannot be undone."
-                                        : "This will wipe all Tasks, Notes, People, and Settings from this browser's local storage. This action cannot be undone."}
+                                    This action cannot be undone. All tasks, notes, people, and settings will be permanently removed from your current storage.
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -767,26 +634,23 @@ export default function SettingsPage() {
         onSuccess={() => {
             setAuthMode('authenticate');
             window.dispatchEvent(new Event('company-changed'));
-            toast({ variant: 'success', title: 'Switched to Authenticate Mode', description: 'Your data will now sync with the cloud.' });
+            toast({ variant: 'success', title: 'Switched to Authenticate Mode' });
         }}
       />
 
-      {/* Mode Change Confirmation Dialog */}
       <AlertDialog open={isModeConfirmOpen} onOpenChange={setIsModeConfirmOpen}>
         <AlertDialogContent>
             <AlertDialogHeader>
                 <AlertDialogTitle>Change Storage Mode?</AlertDialogTitle>
                 <AlertDialogDescription>
                     {pendingModeChange === 'authenticate' 
-                        ? "You are about to switch to Authenticate Mode. This will enable cloud synchronization, but you will need to sign in to access your data."
-                        : "You are about to switch to Local Storage. Cloud synchronization will be disabled, and data will only be stored in this browser."}
+                        ? "Switch to Cloud synchronization? You will need to sign in."
+                        : "Switch to Local Storage? Cloud synchronization will be disabled."}
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => setPendingModeChange(null)}>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleConfirmModeChange} className="bg-primary">
-                    Confirm Switch
-                </AlertDialogAction>
+                <AlertDialogAction onClick={handleConfirmModeChange}>Confirm</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
