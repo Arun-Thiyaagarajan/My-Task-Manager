@@ -103,9 +103,7 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
       window.dispatchEvent(new Event('company-changed'));
       router.push('/');
       
-    } catch (error: any) {
-      console.error("Google Auth Error:", error.code, error.message);
-      
+    } catch (error: any) {      
       let friendlyMessage = "Google sign-in is temporarily unavailable.";
       
       if (error.code === 'auth/popup-blocked') {

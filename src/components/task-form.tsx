@@ -735,7 +735,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                             </Tooltip>
                         </TooltipProvider>
                     </div>
-                    <ScrollArea className="h-[calc(100vh-220px)] pr-4">
+                    <ScrollArea className="h-[calc(100vh-180px)] pr-4">
                         <nav className="flex flex-col gap-1 pb-10">
                             {navigableSections.map((section) => {
                                 const Icon = section.icon;

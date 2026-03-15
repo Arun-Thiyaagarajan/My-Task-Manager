@@ -1138,7 +1138,7 @@ const handleCopyDescription = () => {
             )}
 
             {/* Discussion & History - Responsive placement logic occurs in parent wrapper/styles */}
-            <div className="lg:block space-y-6">
+            <div className="hidden lg:block space-y-6">
                 {commentsField && !isBinned && (
                     <CommentsSection taskId={task.id} comments={task.comments || []} onCommentsUpdate={handleCommentsUpdate} readOnly={isBinned} />
                 )}
@@ -1377,6 +1377,16 @@ const handleCopyDescription = () => {
           </div>
         </div>
         
+        {/* Mobile-only view for Discussion & History at bottom */}
+        <div className="lg:hidden mt-8 space-y-6">
+            {commentsField && !isBinned && (
+                <CommentsSection taskId={task.id} comments={task.comments || []} onCommentsUpdate={handleCommentsUpdate} readOnly={isBinned} />
+            )}
+            {historyField && (
+                <TaskHistory logs={taskLogs} uiConfig={uiConfig} isLoading={isLogsLoading} />
+            )}
+        </div>
+
         {!isBinned && relatedTasks.length > 0 && (
           <div className="mt-8 lg:col-span-3">
             <RelatedTasksSection
