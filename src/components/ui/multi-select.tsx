@@ -1,8 +1,7 @@
-
 'use client';
 
 import * as React from 'react';
-import { X, PlusCircle } from 'lucide-react';
+import { X, PlusCircle, ListFilter } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import {
@@ -16,6 +15,14 @@ import { Command as CommandPrimitive } from 'cmdk';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from './popover';
 import { Button } from './button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { ScrollArea } from './scroll-area';
 
 export type SelectOption = {
   value: string;
@@ -30,6 +37,7 @@ interface MultiSelectProps {
   placeholder?: string;
   className?: string;
   creatable?: boolean;
+  maxVisible?: number;
 }
 
 export function MultiSelect({
@@ -40,13 +48,14 @@ export function MultiSelect({
   placeholder = 'Select...',
   className,
   creatable = false,
+  maxVisible = 1,
 }: MultiSelectProps) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   
   const [isOpen, setIsOpen] = React.useState(false);
+  const [isListOpen, setIsListOpen] = React.useState(false);
   const [query, setQuery] = React.useState('');
   
-  // Ensure 'selected' is always an array to prevent crashes.
   const safeSelected = Array.isArray(selected) ? selected : [];
 
   const handleUnselect = React.useCallback(
@@ -55,9 +64,6 @@ export function MultiSelect({
       e.stopPropagation();
       const newSelected = safeSelected.filter((s) => s !== value);
       onChange(newSelected);
-      if (newSelected.length <= 1) {
-        setIsOpen(false);
-      }
     },
     [onChange, safeSelected]
   );
@@ -67,7 +73,7 @@ export function MultiSelect({
       const input = inputRef.current;
       if (input) {
         if (e.key === 'Delete' || e.key === 'Backspace') {
-          if (input.value === '') {
+          if (input.value === '' && safeSelected.length > 0) {
             handleUnselect(e, safeSelected[safeSelected.length - 1]);
           }
         }
@@ -79,22 +85,24 @@ export function MultiSelect({
     [handleUnselect, safeSelected]
   );
 
-  const allOptions = [...options];
+  const allOptions = React.useMemo(() => {
+    const opts = [...options];
+    safeSelected.forEach(value => {
+        if (!options.some(o => o.value === value)) {
+            opts.push({ value, label: value });
+        }
+    });
+    return opts;
+  }, [options, safeSelected]);
   
-  const selectedMap = new Map<string, string>();
-  safeSelected.forEach(value => {
-    const option = allOptions.find(o => o.value === value);
-    selectedMap.set(value, option ? option.label : value);
-  });
-
-  // Also add any selected values that are not in the predefined options (for creatable)
-  safeSelected.forEach(value => {
-      if (!options.some(o => o.value === value)) {
-          if (!allOptions.some(o => o.value === value)) {
-              allOptions.push({ value, label: value });
-          }
-      }
-  });
+  const selectedMap = React.useMemo(() => {
+    const map = new Map<string, string>();
+    safeSelected.forEach(value => {
+      const option = allOptions.find(o => o.value === value);
+      map.set(value, option ? option.label : value);
+    });
+    return map;
+  }, [safeSelected, allOptions]);
 
   const filteredOptions = allOptions.filter(
     (option) => !safeSelected.includes(option.value)
@@ -121,123 +129,197 @@ export function MultiSelect({
     setQuery('');
   }, [showCreatable, query, onCreate, onChange, safeSelected]);
 
+  const visibleItems = safeSelected.slice(0, maxVisible);
+  const hiddenCount = safeSelected.length - maxVisible;
+
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
-        <div 
-          className={cn("group flex items-center rounded-md border border-input h-auto min-h-10 w-full px-3 py-1 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2", className)}
-          role="button"
-          aria-expanded={isOpen}
-          onClick={() => setIsOpen(true)}
-        >
-          <div className="flex flex-wrap gap-1 items-center flex-grow">
-            {safeSelected.length === 0 && <span className="text-muted-foreground">{placeholder}</span>}
-            {safeSelected.map(value => {
-                const label = selectedMap.get(value);
-                return (
-                    <Badge key={value} variant="secondary" className="whitespace-nowrap">
-                        {label}
-                        <button
-                          className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                          onKeyDown={(e) => { if (e.key === 'Enter') handleUnselect(e, value); }}
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={(e) => handleUnselect(e, value)}
-                        >
-                          <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                        </button>
-                    </Badge>
-                );
-            })}
-          </div>
-        </div>
-      </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-          <Command onKeyDown={handleKeyDown} className={cn('overflow-visible bg-transparent', className)}>
-            <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
-                <CommandPrimitive.Input
-                    ref={inputRef}
-                    value={query}
-                    onValueChange={setQuery}
-                    onBlur={() => setIsOpen(false)}
-                    onFocus={() => setIsOpen(true)}
-                    placeholder={placeholder}
-                    className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                />
-            </div>
-            <CommandList>
-              <div className="max-h-60 overflow-y-auto">
-                <CommandEmpty>No results found.</CommandEmpty>
-                <CommandGroup>
-                    {filteredOptions.map((option) => (
-                    <CommandItem
-                        key={option.value}
-                        value={option.label}
-                        onMouseDown={(e) => e.preventDefault()}
-                        onSelect={() => {
-                          onChange([...safeSelected, option.value]);
-                          setQuery('');
-                        }}
-                        className="cursor-pointer"
-                    >
-                        {option.label}
-                    </CommandItem>
-                    ))}
-                </CommandGroup>
-                {showCreatable && (
-                <CommandGroup>
-                    <CommandItem
-                        key={query}
-                        value={query}
-                        onMouseDown={(e) => e.preventDefault()}
-                        onSelect={handleSelectCreatable}
-                        className="cursor-pointer text-primary"
-                    >
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Create "{query.trim()}"
-                    </CommandItem>
-                </CommandGroup>
-                )}
-                {safeSelected.length > 0 && (
-                    <CommandGroup>
-                        <div className="space-y-1 p-2">
-                            <div className="flex items-center justify-between px-2">
-                                <p className="text-xs font-medium text-muted-foreground">Selected</p>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="p-0 h-auto text-xs text-muted-foreground hover:text-foreground"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        onChange([]);
-                                        setIsOpen(false);
-                                    }}
+    <>
+        <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+            <div 
+            className={cn("group flex items-center rounded-md border border-input h-auto min-h-10 w-full px-3 py-1 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 bg-background transition-colors hover:border-primary/50", className)}
+            role="button"
+            aria-expanded={isOpen}
+            onClick={() => setIsOpen(true)}
+            >
+            <div className="flex flex-wrap gap-1 items-center flex-grow overflow-hidden py-0.5">
+                {safeSelected.length === 0 && <span className="text-muted-foreground">{placeholder}</span>}
+                
+                {visibleItems.map((value) => {
+                    const label = selectedMap.get(value);
+                    return (
+                        <Badge key={value} variant="secondary" className="whitespace-nowrap max-w-[120px] truncate">
+                            {label}
+                            {safeSelected.length === 1 && (
+                                <button
+                                    className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                    onKeyDown={(e) => { if (e.key === 'Enter') handleUnselect(e, value); }}
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={(e) => handleUnselect(e, value)}
                                 >
-                                    Clear all
-                                </Button>
+                                    <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                                </button>
+                            )}
+                        </Badge>
+                    );
+                })}
+
+                {hiddenCount > 0 && (
+                    <Button 
+                        variant="secondary" 
+                        size="sm" 
+                        className="h-6 px-2 text-[10px] font-bold text-primary hover:bg-primary/10 border-primary/20 bg-primary/5"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setIsListOpen(true);
+                        }}
+                    >
+                        +{hiddenCount} more
+                    </Button>
+                )}
+            </div>
+            </div>
+        </PopoverTrigger>
+        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+            <Command onKeyDown={handleKeyDown} className={cn('overflow-visible bg-transparent', className)}>
+                <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
+                    <CommandPrimitive.Input
+                        ref={inputRef}
+                        value={query}
+                        onValueChange={setQuery}
+                        onBlur={() => setIsOpen(false)}
+                        onFocus={() => setIsOpen(true)}
+                        placeholder={placeholder}
+                        className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                    />
+                </div>
+                <CommandList>
+                <div className="max-h-60 overflow-y-auto">
+                    <CommandEmpty>No results found.</CommandEmpty>
+                    <CommandGroup>
+                        {filteredOptions.map((option) => (
+                        <CommandItem
+                            key={option.value}
+                            value={option.label}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onSelect={() => {
+                            onChange([...safeSelected, option.value]);
+                            setQuery('');
+                            }}
+                            className="cursor-pointer"
+                        >
+                            {option.label}
+                        </CommandItem>
+                        ))}
+                    </CommandGroup>
+                    {showCreatable && (
+                    <CommandGroup>
+                        <CommandItem
+                            key={query}
+                            value={query}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onSelect={handleSelectCreatable}
+                            className="cursor-pointer text-primary"
+                        >
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Create "{query.trim()}"
+                        </CommandItem>
+                    </CommandGroup>
+                    )}
+                    {safeSelected.length > 0 && (
+                        <CommandGroup>
+                            <div className="space-y-1 p-2 border-t mt-2 pt-2">
+                                <div className="flex items-center justify-between px-2 mb-1">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Selected ({safeSelected.length})</p>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="p-0 h-auto text-[10px] font-bold text-muted-foreground hover:text-destructive"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            onChange([]);
+                                            setIsOpen(false);
+                                        }}
+                                    >
+                                        Clear all
+                                    </Button>
+                                </div>
+                                {safeSelected.slice(0, 5).map(value => (
+                                    <div key={value} className="flex items-center justify-between rounded-md hover:bg-accent group/item">
+                                        <span className="text-xs truncate px-2 py-1">{selectedMap.get(value)}</span>
+                                        <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        className="h-6 w-6 opacity-0 group-hover/item:opacity-100 transition-opacity" 
+                                        onClick={(e) => handleUnselect(e, value)}
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </Button>
+                                    </div>
+                                ))}
+                                {safeSelected.length > 5 && (
+                                    <p className="text-[10px] text-center text-muted-foreground pt-1 italic">And {safeSelected.length - 5} more...</p>
+                                )}
                             </div>
-                            {safeSelected.map(value => {
-                                return (
-                                <div key={value} className="flex items-center justify-between rounded-md hover:bg-accent">
-                                    <span className="text-sm truncate px-2 py-1.5">{selectedMap.get(value)}</span>
-                                    <Button 
-                                      variant="ghost" 
-                                      size="icon" 
-                                      className="h-7 w-7" 
-                                      onClick={(e) => handleUnselect(e, value)}
+                        </CommandGroup>
+                    )}
+                </div>
+                </CommandList>
+            </Command>
+        </PopoverContent>
+        </Popover>
+
+        <Dialog open={isListOpen} onOpenChange={setIsListOpen}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <div className="flex items-center gap-2 mb-1">
+                        <div className="p-2 bg-primary/10 rounded-full">
+                            <ListFilter className="h-4 w-4 text-primary" />
+                        </div>
+                        <DialogTitle>Selected Items</DialogTitle>
+                    </div>
+                    <p className="text-sm text-muted-foreground">You have {safeSelected.length} items selected for this filter.</p>
+                </DialogHeader>
+                
+                <div className="py-4">
+                    <ScrollArea className="max-h-[40vh] pr-4">
+                        <div className="flex flex-wrap gap-2">
+                            {safeSelected.map(value => (
+                                <Badge key={value} variant="secondary" className="pl-3 pr-1 py-1 h-8 text-sm gap-2 border-primary/10 transition-all hover:border-primary/30">
+                                    <span className="truncate max-w-[200px]">{selectedMap.get(value)}</span>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 rounded-full hover:bg-destructive hover:text-white"
+                                        onClick={(e) => handleUnselect(e, value)}
                                     >
                                         <X className="h-3 w-3" />
                                     </Button>
-                                </div>
-                                );
-                            })}
+                                </Badge>
+                            ))}
                         </div>
-                    </CommandGroup>
-                )}
-              </div>
-            </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+                    </ScrollArea>
+                </div>
+
+                <div className="flex items-center justify-between pt-4 border-t">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs text-destructive hover:bg-destructive/10"
+                        onClick={() => {
+                            onChange([]);
+                            setIsListOpen(false);
+                        }}
+                    >
+                        Clear All
+                    </Button>
+                    <DialogClose asChild>
+                        <Button size="sm">Done</Button>
+                    </DialogClose>
+                </div>
+            </DialogContent>
+        </Dialog>
+    </>
   );
 }

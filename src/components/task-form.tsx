@@ -503,6 +503,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                         onChange={field.onChange}
                         options={getFieldOptions(fieldConfig)}
                         placeholder={`Select ${label}...`}
+                        maxVisible={Infinity}
                     />
                 );
             case 'tags':
@@ -516,6 +517,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                         options={getFieldOptions(fieldConfig)}
                         placeholder={`Add ${label}...`}
                         creatable
+                        maxVisible={Infinity}
                         {...(isDeveloperField && { onCreate: handleCreateDeveloper })}
                         {...(isTesterField && { onCreate: handleCreateTester })}
                         {...(isGeneralTagField && { onCreate: (value) => value })}
