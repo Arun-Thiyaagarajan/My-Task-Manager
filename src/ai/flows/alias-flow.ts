@@ -6,20 +6,23 @@
  *
  * This file exports:
  * - getLinkAlias: An asynchronous function that takes a URL and returns a suggested alias.
- * - AliasInputSchema: The Zod schema for the input to the alias generation flow.
- * - AliasOutputSchema: The Zod schema for the output of the alias generation flow.
+ * - AliasInput: The input type for the alias generation flow.
+ * - AliasOutput: The output type for the alias generation flow.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
-export const AliasInputSchema = z.object({
+const AliasInputSchema = z.object({
   url: z.string().url(),
 });
 
-export const AliasOutputSchema = z.object({
+const AliasOutputSchema = z.object({
   name: z.string().describe('A short, descriptive alias for the URL.'),
 });
+
+export type AliasInput = z.infer<typeof AliasInputSchema>;
+export type AliasOutput = z.infer<typeof AliasOutputSchema>;
 
 /**
  * Generates a concise, human-readable alias for a given URL.
@@ -27,8 +30,8 @@ export const AliasOutputSchema = z.object({
  * @returns A promise that resolves to an object containing the generated alias.
  */
 export async function getLinkAlias(
-  input: z.infer<typeof AliasInputSchema>
-): Promise<z.infer<typeof AliasOutputSchema>> {
+  input: AliasInput
+): Promise<AliasOutput> {
   return generateAliasFlow(input);
 }
 

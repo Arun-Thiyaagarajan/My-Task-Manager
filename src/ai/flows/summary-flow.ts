@@ -5,19 +5,22 @@
  *
  * This file exports:
  * - generateSummary: An asynchronous function that takes a text block and returns a summary.
- * - SummaryInputSchema: The Zod schema for the input to the summary generation flow.
- * - SummaryOutputSchema: The Zod schema for the output of the summary generation flow.
+ * - SummaryInput: The input type for the summary generation flow.
+ * - SummaryOutput: The output type for the summary generation flow.
  */
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
-export const SummaryInputSchema = z.object({
+const SummaryInputSchema = z.object({
   text: z.string(),
 });
 
-export const SummaryOutputSchema = z.object({
+const SummaryOutputSchema = z.object({
   summary: z.string().describe('A one-sentence summary of the text.'),
 });
+
+export type SummaryInput = z.infer<typeof SummaryInputSchema>;
+export type SummaryOutput = z.infer<typeof SummaryOutputSchema>;
 
 /**
  * Generates a one-sentence summary for a given block of text.
@@ -25,8 +28,8 @@ export const SummaryOutputSchema = z.object({
  * @returns A promise that resolves to an object containing the generated summary.
  */
 export async function generateSummary(
-  input: z.infer<typeof SummaryInputSchema>
-): Promise<z.infer<typeof SummaryOutputSchema>> {
+  input: SummaryInput
+): Promise<SummaryOutput> {
   return generateSummaryFlow(input);
 }
 
