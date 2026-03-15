@@ -722,7 +722,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
             </Button>
         </div>
 
-        {/* DESKTOP ACTION BAR */}
+        {/* DESKTOP ACTION BAR - Fixed at bottom */}
         <div className={cn(
             "hidden lg:block z-50 bg-background/95 backdrop-blur-sm border-t fixed bottom-0 left-0 right-0 transition-all duration-300"
         )}>
@@ -772,18 +772,23 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
             </div>
         </div>
 
-        {/* MOBILE FIXED BOTTOM SAVE BAR (sitting above bottom navbar) */}
-        <div className="lg:hidden fixed bottom-16 left-0 right-0 z-40 bg-background/95 backdrop-blur-md border-t px-4 h-16 flex items-center justify-center shadow-[0_-4px_10px_rgba(0,0,0,0.05)] animate-in slide-in-from-bottom-2 duration-500">
+        {/* MOBILE FLOATING SAVE BUTTON - Fixed above bottom navbar */}
+        <div className="lg:hidden fixed bottom-20 right-6 z-40 animate-in zoom-in-50 duration-500">
             <Button
                 type="submit"
                 disabled={isPending}
+                size="icon"
                 className={cn(
-                    "w-full h-11 font-black shadow-lg shadow-primary/20 transition-all active:scale-[0.98]",
-                    !isDirty && "opacity-80 saturate-[0.8]"
+                    "h-14 w-14 rounded-full shadow-2xl transition-all active:scale-90",
+                    !isDirty ? "opacity-60 saturate-[0.5]" : "opacity-100 shadow-primary/40"
                 )}
             >
-                {isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
-                {submitButtonText}
+                {isPending ? (
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                ) : (
+                    <Save className="h-6 w-6" />
+                )}
+                <span className="sr-only">Save Task</span>
             </Button>
         </div>
 
