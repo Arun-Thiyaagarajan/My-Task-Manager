@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -710,6 +711,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
             "flex flex-col gap-8 pb-32 relative",
             sidebarPosition === 'left' ? "lg:flex-row" : "lg:flex-row-reverse"
         )}>
+            {/* Desktop Navigation Sidebar */}
             <aside className="hidden lg:block w-72 shrink-0 animate-in fade-in slide-in-from-top-1 duration-300">
                 <div className="sticky top-24 space-y-1">
                     <div className="flex items-center justify-between px-3 mb-4">
@@ -719,15 +721,13 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <Button 
+                                    <button 
                                         type="button" 
-                                        variant="outline" 
-                                        size="icon" 
-                                        className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors"
+                                        className="h-8 w-8 rounded-md border bg-background text-muted-foreground hover:text-primary transition-all flex items-center justify-center"
                                         onClick={toggleSidebarPosition}
                                     >
                                         {sidebarPosition === 'left' ? <PanelRight className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
-                                    </Button>
+                                    </button>
                                 </TooltipTrigger>
                                 <TooltipContent side="top">
                                     <p>Move to {sidebarPosition === 'left' ? 'right' : 'left'}</p>
@@ -735,8 +735,8 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                             </Tooltip>
                         </TooltipProvider>
                     </div>
-                    <ScrollArea className="h-[calc(100vh-160px)] pr-4">
-                        <nav className="flex flex-col gap-1 pb-20">
+                    <ScrollArea className="h-[calc(100vh-220px)] pr-4">
+                        <nav className="flex flex-col gap-1 pb-10">
                             {navigableSections.map((section) => {
                                 const Icon = section.icon;
                                 const isSectionActive = activeId === section.id || section.fields.some(f => f.id === activeId);

@@ -21,7 +21,7 @@ import {
   sendEmailVerification,
 } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Eye, EyeOff, Mail, Lock, User, Chrome, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Loader2, Eye, EyeOff, Mail, Lock, User, Chrome, ShieldCheck, AlertCircle, Copy, Check } from 'lucide-react';
 import { useFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
 
@@ -39,6 +39,7 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [authStep, setAuthStep] = useState<'login' | 'register' | 'forgot'>('login');
   const [googleError, setGoogleError] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
   
   // Form States
   const [email, setEmail] = useState('');
@@ -92,7 +93,6 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
     setGoogleError(null);
     try {
       const provider = new GoogleAuthProvider();
-      // Ensure the user is prompted to select an account
       provider.setCustomParameters({ prompt: 'select_account' });
       
       await signInWithPopup(auth, provider);
@@ -113,8 +113,7 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
       } else if (error.code === 'auth/operation-not-allowed') {
         friendlyMessage = "Google sign-in is not enabled in the Firebase Console. Please use email/password.";
       } else if (error.code === 'auth/popup-closed-by-user') {
-        setIsLoading(false);
-        return; // User just closed the window, no need for error
+        friendlyMessage = "The sign-in window was closed before finishing. If this keeps happening, ensure the current domain is authorized in Firebase.";
       } else if (error.code === 'auth/cancelled-popup-request') {
         setIsLoading(false);
         return;
@@ -131,10 +130,17 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
     }
   };
 
+  const copyDomain = () => {
+    const domain = window.location.hostname;
+    navigator.clipboard.writeText(domain);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[400px]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[400px] overflow-hidden max-h-[95vh] flex flex-col">
+        <DialogHeader className="shrink-0">
           <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-2">
             <ShieldCheck className="h-6 w-6 text-primary" />
           </div>
@@ -146,7 +152,7 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="flex-1 overflow-y-auto px-1 py-4 custom-scrollbar">
           <form onSubmit={handleEmailAuth} className="space-y-4">
             {authStep === 'register' && (
               <div className="space-y-2">
@@ -219,7 +225,7 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
             </Button>
           </form>
 
-          <div className="relative my-6">
+          <div className="relative my-6 shrink-0">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
             </div>
@@ -228,21 +234,33 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-3 shrink-0">
             <Button variant="outline" className="w-full font-bold h-11" onClick={handleGoogleSignIn} disabled={isLoading}>
               {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Chrome className="mr-2 h-4 w-4" />}
               Google
             </Button>
             
             {googleError && (
-              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-start gap-2 text-destructive animate-in fade-in slide-in-from-top-1">
-                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                <p className="text-[11px] font-medium leading-tight">{googleError}</p>
+              <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 space-y-2 animate-in fade-in slide-in-from-top-1">
+                <div className="flex items-start gap-2 text-destructive">
+                    <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <p className="text-[11px] font-bold leading-tight uppercase tracking-wider">Troubleshoot Google Sign-In</p>
+                </div>
+                <p className="text-[11px] text-foreground/80 leading-relaxed pl-6">{googleError}</p>
+                <div className="pl-6 pt-1">
+                    <button 
+                        onClick={copyDomain}
+                        className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary hover:underline group"
+                    >
+                        {isCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                        {isCopied ? 'Domain Copied' : 'Copy Domain for Whitelist'}
+                    </button>
+                </div>
               </div>
             )}
           </div>
 
-          <div className="mt-6 text-center text-sm">
+          <div className="mt-6 text-center text-sm shrink-0">
             {authStep === 'login' ? (
               <p className="text-muted-foreground">
                 Don't have an account?{' '}

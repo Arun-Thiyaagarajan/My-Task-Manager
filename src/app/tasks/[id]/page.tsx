@@ -113,6 +113,7 @@ export default function TaskPage() {
       const config = getUiConfig();
       
       setTask(foundTask || null);
+      // PREVENT overwriting local attachments if currently editing to avoid clobbering names/additions
       if (!isEditingAttachmentsRef.current) {
           setLocalAttachments(foundTask?.attachments || []);
       }
@@ -405,6 +406,7 @@ export default function TaskPage() {
         if (!task) return;
         
         const oldAtts = task.attachments || [];
+        // Important: Use JSON compare to identify if anything really changed
         if (JSON.stringify(oldAtts) === JSON.stringify(localAttachments)) {
             setIsEditingAttachments(false);
             isEditingAttachmentsRef.current = false;
@@ -418,6 +420,7 @@ export default function TaskPage() {
             return old && old.name !== na.name;
         }).length;
 
+        // Perform the actual data update
         const updatedTask = updateTask(task.id, { attachments: localAttachments });
         if (updatedTask) {
             setTask(updatedTask);
@@ -455,6 +458,7 @@ export default function TaskPage() {
     const reader = new FileReader();
     reader.onload = async (e) => {
         const rawDataUri = e.target?.result as string;
+        // Optimization happens automatically here
         const optimizedUri = await compressImage(rawDataUri);
         const newAttachment: Attachment = { name: file.name, url: optimizedUri, type: 'image' };
         setLocalAttachments(prev => [...prev, newAttachment]);
@@ -1133,8 +1137,8 @@ const handleCopyDescription = () => {
               </Card>
             )}
 
-            {/* Desktop Only Bottom Sections */}
-            <div className="hidden lg:block space-y-6">
+            {/* Discussion & History - Responsive placement logic occurs in parent wrapper/styles */}
+            <div className="lg:block space-y-6">
                 {commentsField && !isBinned && (
                     <CommentsSection taskId={task.id} comments={task.comments || []} onCommentsUpdate={handleCommentsUpdate} readOnly={isBinned} />
                 )}
@@ -1369,16 +1373,6 @@ const handleCopyDescription = () => {
                          )}
                     </CardContent>
                 </Card>
-            )}
-          </div>
-
-          {/* Mobile Only Bottom Section */}
-          <div className="lg:hidden space-y-6">
-            {commentsField && !isBinned && (
-               <CommentsSection taskId={task.id} comments={task.comments || []} onCommentsUpdate={handleCommentsUpdate} readOnly={isBinned} />
-            )}
-            {historyField && (
-                <TaskHistory logs={taskLogs} uiConfig={uiConfig} isLoading={isLogsLoading} />
             )}
           </div>
         </div>
