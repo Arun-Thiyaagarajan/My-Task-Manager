@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck, Server, Globe, Image as ImageIcon, BellRing, Settings2, GraduationCap, Download, DatabaseZap, Upload, History, Database, Laptop, ShieldCheck } from 'lucide-react';
+import { Search, PlusCircle, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, Check, X, Code2, ClipboardCheck, Server, Globe, Image as ImageIcon, BellRing, Settings2, GraduationCap, Download, DatabaseZap, Upload, History, Database, Laptop, ShieldCheck, LogOut } from 'lucide-react';
 import { EditFieldDialog } from '@/components/edit-field-dialog';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -125,6 +125,7 @@ export default function SettingsPage() {
   const [authMode, setAuthModeState] = useState<AuthMode>('localStorage');
   
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isConfirmLocalDialogOpen, setIsConfirmLocalDialogOpen] = useState(false);
 
   const iconInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -496,8 +497,8 @@ export default function SettingsPage() {
 
     if (newMode === 'authenticate') {
       setIsAuthModalOpen(true);
-    } else {
-      // confirm return to local
+    } else if (newMode === 'localStorage' && authMode === 'authenticate') {
+      setIsConfirmLocalDialogOpen(true);
     }
   };
 
@@ -518,6 +519,7 @@ export default function SettingsPage() {
       await signOut(auth);
       setAuthMode('localStorage');
       setAuthModeState('localStorage');
+      setIsConfirmLocalDialogOpen(false);
       toast({ 
         variant: 'success', 
         title: 'Logged Out', 
@@ -778,6 +780,21 @@ export default function SettingsPage() {
                     </div>
                   </RadioGroup>
 
+                  <AlertDialog open={isConfirmLocalDialogOpen} onOpenChange={setIsConfirmLocalDialogOpen}>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Return to Local Mode?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Switching to Local Storage mode will log you out from your authenticated session. Your cloud data is safe and will sync back the next time you sign in.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleConfirmLocalMode}>Continue</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+
                   {authMode === 'authenticate' && user && (
                     <div className="mt-4 p-3 bg-muted rounded-md flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -786,18 +803,18 @@ export default function SettingsPage() {
                       </div>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="sm" className="text-xs text-destructive h-7">Switch to Local</Button>
+                          <Button variant="ghost" size="sm" className="text-xs text-destructive h-7">Sign Out</Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Return to Local Mode?</AlertDialogTitle>
+                            <AlertDialogTitle>Sign Out of TaskFlow?</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Switching to Local Storage mode will log you out from authenticated mode. Continue?
+                              You will be returned to Local Mode. Your cloud data is safe and will sync back the next time you sign in.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleConfirmLocalMode}>Continue</AlertDialogAction>
+                            <AlertDialogAction onClick={handleConfirmLocalMode}>Sign Out</AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
