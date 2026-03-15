@@ -151,20 +151,20 @@ export function ReleaseManagementCard() {
         <Card id="release-management-card" className="border-none shadow-lg">
             <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4">
                 <div className="min-w-0 flex-1">
-                    <CardTitle className="text-xl font-black flex items-center gap-2 tracking-tight">
+                    <CardTitle className="text-lg font-black flex items-center gap-2 tracking-tight uppercase tracking-wider">
                         <History className="h-5 w-5 text-primary shrink-0" />
-                        Release Management
+                        Releases
                     </CardTitle>
                     <CardDescription className="text-xs mt-0.5 line-clamp-1">
-                        {isAdmin ? 'Draft and publish updates for your users.' : 'Application update history.'}
+                        {isAdmin ? 'Draft and publish updates.' : 'Application update history.'}
                     </CardDescription>
                 </div>
                 {isAdmin ? (
-                    <Button onClick={handleOpenAdd} size="sm" className="h-9 px-4 font-bold shrink-0">
-                        <Plus className="h-4 w-4 mr-1.5" />New Release
+                    <Button onClick={handleOpenAdd} size="sm" className="h-8 px-3 text-xs font-bold shrink-0">
+                        <Plus className="h-3.5 w-3.5 mr-1" />New
                     </Button>
                 ) : (
-                    <Badge variant="secondary" className="h-6 text-[9px] font-black uppercase tracking-widest bg-muted/50 text-muted-foreground shrink-0">
+                    <Badge variant="secondary" className="h-5 text-[8px] font-black uppercase tracking-widest bg-muted/50 text-muted-foreground shrink-0">
                         Read Only
                     </Badge>
                 )}
@@ -184,7 +184,7 @@ export function ReleaseManagementCard() {
                                     <div className="flex items-center gap-2 mb-0.5">
                                         <span className="font-black text-sm tracking-tight truncate">v{release.version}</span>
                                         <Badge variant={release.isPublished ? 'default' : 'outline'} className="text-[8px] uppercase font-black tracking-widest px-1.5 h-4">
-                                            {release.isPublished ? 'Published' : 'Draft'}
+                                            {release.isPublished ? 'Live' : 'Draft'}
                                         </Badge>
                                     </div>
                                     <p className="text-xs font-bold leading-tight truncate text-foreground/80">{release.title}</p>

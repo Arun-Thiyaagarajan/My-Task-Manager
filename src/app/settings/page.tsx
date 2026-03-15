@@ -306,7 +306,7 @@ export default function SettingsPage() {
     reader.readAsText(file);
   };
 
-  const handleClearData = async () => {
+  const handleClearAllData = async () => {
     setIsClearing(true);
     const mode = getAuthMode();
     try {
@@ -391,7 +391,7 @@ export default function SettingsPage() {
             <h1 className="text-5xl font-black tracking-tight text-foreground">Application Settings</h1>
             <p className="text-lg text-muted-foreground mt-2">Manage and customize fields and environments across your application.</p>
         </div>
-        <Button size="lg" className="h-12 px-6 font-bold" onClick={() => { setFieldToEdit(null); setIsFieldDialogOpen(true); }}>
+        <Button id="add-field-button" size="lg" className="h-12 px-6 font-bold" onClick={() => { setFieldToEdit(null); setIsFieldDialogOpen(true); }}>
             <PlusCircle className="h-5 w-5 mr-2" /> Add Field
         </Button>
       </div>
@@ -433,10 +433,10 @@ export default function SettingsPage() {
                                             <div key={field.id} className="flex items-center justify-between p-4 bg-muted/20 border rounded-xl hover:bg-muted/40 transition-all group border-transparent hover:border-border">
                                                 <div className="flex items-center gap-4">
                                                     <GripVertical className="h-5 w-5 text-muted-foreground/30 cursor-grab active:cursor-grabbing" />
-                                                    <div>
+                                                    <div className="min-w-0">
                                                         <div className="flex items-center gap-2 mb-0.5">
-                                                            <span className="font-bold text-base tracking-tight">{field.label} {field.isRequired && <span className="text-destructive">*</span>}</span>
-                                                            <Badge variant="outline" className="text-[9px] uppercase font-black px-1.5 h-4 bg-background">{field.type}</Badge>
+                                                            <span className="font-bold text-base tracking-tight truncate">{field.label} {field.isRequired && <span className="text-destructive">*</span>}</span>
+                                                            <Badge variant="outline" className="text-[9px] uppercase font-black px-1.5 h-4 bg-background shrink-0">{field.type}</Badge>
                                                         </div>
                                                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{field.group}</p>
                                                     </div>
@@ -470,8 +470,8 @@ export default function SettingsPage() {
                             <div className="grid gap-2">
                                 {filteredAndGroupedFields.inactiveFields.map(field => (
                                     <div key={field.id} className="flex items-center justify-between p-4 bg-muted/5 border border-dashed rounded-xl opacity-60 hover:opacity-100 transition-opacity">
-                                        <span className="text-base font-bold tracking-tight">{field.label}</span>
-                                        <Button variant="outline" size="sm" className="h-9 px-4 font-bold" onClick={() => handleFieldToggle(field.key, 'isActive')}>
+                                        <span className="text-base font-bold tracking-tight truncate pr-4">{field.label}</span>
+                                        <Button variant="outline" size="sm" className="h-9 px-4 font-bold shrink-0" onClick={() => handleFieldToggle(field.key, 'isActive')}>
                                             <Check className="h-4 w-4 mr-2" /> Activate
                                         </Button>
                                     </div>
@@ -509,8 +509,8 @@ export default function SettingsPage() {
                             <div className={cn("p-2 rounded-xl", authMode === 'localStorage' ? "bg-primary text-white" : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors")}>
                                 <Smartphone className="h-5 w-5" />
                             </div>
-                            <div>
-                                <p className="text-sm font-black tracking-tight">Local Storage</p>
+                            <div className="min-w-0">
+                                <p className="text-sm font-black tracking-tight truncate">Local Storage</p>
                                 <p className="text-[11px] text-muted-foreground font-medium mt-0.5">Browser-based data. Fast & Offline.</p>
                             </div>
                         </div>
@@ -526,8 +526,8 @@ export default function SettingsPage() {
                             <div className={cn("p-2 rounded-xl", authMode === 'authenticate' ? "bg-primary text-white" : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors")}>
                                 <Database className="h-5 w-5" />
                             </div>
-                            <div>
-                                <p className="text-sm font-black tracking-tight">Cloud Sync</p>
+                            <div className="min-w-0">
+                                <p className="text-sm font-black tracking-tight truncate">Cloud Sync</p>
                                 <p className="text-[11px] text-muted-foreground font-medium mt-0.5">Real-time sync across all devices.</p>
                             </div>
                         </div>
@@ -646,7 +646,7 @@ export default function SettingsPage() {
 
             <ReleaseManagementCard />
 
-            <Card className="border-none shadow-lg">
+            <Card id="settings-environment-card" className="border-none shadow-lg">
                 <CardHeader className="pb-4">
                     <CardTitle className="text-lg font-black flex items-center gap-2 uppercase tracking-wider">
                         <Rocket className="h-5 w-5 text-primary" />
@@ -658,24 +658,24 @@ export default function SettingsPage() {
                     <div className="grid gap-2">
                         {(uiConfig.environments || []).map(env => (
                             <div key={env.id} className="flex items-center gap-3 p-2.5 border rounded-xl bg-muted/20 font-bold text-sm">
-                                <div className="h-3 w-3 rounded-full shadow-sm" style={{ backgroundColor: env.color }} />
-                                <span className="capitalize flex-1">{env.name}</span>
+                                <div className="h-3 w-3 rounded-full shadow-sm shrink-0" style={{ backgroundColor: env.color }} />
+                                <span className="capitalize flex-1 truncate">{env.name}</span>
                             </div>
                         ))}
                     </div>
                     <div className="flex gap-2">
                         <Input placeholder="New environment..." className="h-10 text-xs font-bold" value={newEnvName} onChange={e => setNewEnvName(e.target.value)} />
-                        <Button size="sm" className="h-10 px-4 font-bold" onClick={handleAddEnv}>Add</Button>
+                        <Button size="sm" className="h-10 px-4 font-bold shrink-0" onClick={handleAddEnv}>Add</Button>
                     </div>
                 </CardContent>
             </Card>
 
-            <Card className="border-none shadow-lg">
+            <Card id="settings-people-management" className="border-none shadow-lg">
                 <CardHeader className="pb-4">
                     <CardTitle className="text-lg font-black flex items-center gap-2 uppercase tracking-wider">
                         <Users className="h-5 w-5 text-primary" />
                         Team
-                    </Label>
+                    </CardTitle>
                     <CardDescription className="text-xs">Manage developers and QA staff.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2">
@@ -719,7 +719,7 @@ export default function SettingsPage() {
                             </AlertDialogHeader>
                             <AlertDialogFooter className="gap-3 mt-4">
                                 <AlertDialogCancel className="rounded-xl font-bold" disabled={isClearing}>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleClearData} className="bg-destructive hover:bg-destructive/90 rounded-xl font-black px-6" disabled={isClearing}>
+                                <AlertDialogAction onClick={handleClearAllData} className="bg-destructive hover:bg-destructive/90 rounded-xl font-black px-6" disabled={isClearing}>
                                     {isClearing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                                     Clear Data
                                 </AlertDialogAction>
