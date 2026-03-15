@@ -112,16 +112,21 @@ async function dispatchMutation(
     if (!userId) return;
 
     let docRef;
+    let payload = data;
+
     if (type === 'companies') {
         docRef = doc(db, 'users', userId, 'companies', id);
     } else if (type === 'uiConfig') {
         docRef = doc(db, 'users', userId, 'companies', activeCompanyId, 'settings', 'uiConfig');
     } else if (type === 'developers' || type === 'testers') {
         docRef = doc(db, 'users', userId, 'companies', activeCompanyId, 'people', type);
+        payload = { list: data };
     } else if (type === 'generalReminders') {
         docRef = doc(db, 'users', userId, 'companies', activeCompanyId, 'reminders', 'general');
+        payload = { list: data };
     } else if (type === 'releaseUpdates') {
         docRef = doc(db, 'users', userId, 'companies', activeCompanyId, 'releases', 'updates');
+        payload = { list: data };
     } else {
         docRef = doc(db, 'users', userId, 'companies', activeCompanyId, type, id);
     }
@@ -130,9 +135,9 @@ async function dispatchMutation(
         if (operation === 'delete') {
             deleteDoc(docRef).catch(e => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'delete' })));
         } else if (operation === 'update') {
-            updateDoc(docRef, data).catch(e => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'update', requestResourceData: data })));
+            updateDoc(docRef, payload).catch(e => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'update', requestResourceData: payload })));
         } else {
-            setDoc(docRef, data, { merge: operation === 'set' }).catch(e => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'write', requestResourceData: data })));
+            setDoc(docRef, payload, { merge: operation === 'set' }).catch(e => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'write', requestResourceData: payload })));
         }
     } catch (e) {
         console.error("Mutation failed:", e);
@@ -209,22 +214,6 @@ export function getUiConfig(): UiConfig {
     const data = getAppData();
     const config = data.companyData[getActiveCompanyId()]?.uiConfig;
     if (!config) return getInitialData().companyData['company-default'].uiConfig;
-    
-    // Deduplicate environments by name
-    if (config.environments) {
-        const seen = new Set();
-        const uniqueEnvs = config.environments.filter(env => {
-            if (!env || !env.name) return false;
-            const name = env.name.toLowerCase();
-            if (seen.has(name)) return false;
-            seen.add(name);
-            return true;
-        });
-        if (uniqueEnvs.length !== config.environments.length) {
-            config.environments = uniqueEnvs;
-            setUiConfig(config);
-        }
-    }
     return config;
 }
 
@@ -241,13 +230,10 @@ export function setUiConfig(config: UiConfig) {
 export function updateTaskStatuses(statuses: string[]) {
     const config = getUiConfig();
     config.taskStatuses = statuses;
-    
-    // Update the status field options too
     const statusField = config.fields.find(f => f.key === 'status');
     if (statusField) {
         statusField.options = statuses.map(s => ({ id: s, value: s, label: s }));
     }
-    
     setUiConfig(config);
 }
 
@@ -255,17 +241,13 @@ export function updateTaskStatuses(statuses: string[]) {
 export function addEnvironment(env: Omit<Environment, 'id'>) {
     const config = getUiConfig();
     const existing = config.environments.find(e => e.name.toLowerCase() === env.name.toLowerCase());
-    if (existing) return; // Prevent duplicates
-
+    if (existing) return;
     const newEnv = { ...env, id: `env_${crypto.randomUUID()}` };
     config.environments.push(newEnv);
-    
-    // Update the relevantEnvironments field options
     const relEnvsField = config.fields.find(f => f.key === 'relevantEnvironments');
     if (relEnvsField) {
         relEnvsField.options = config.environments.map(e => ({ id: e.id, value: e.name, label: e.name }));
     }
-    
     setUiConfig(config);
     addLog({ message: `Added new environment: **${env.name}**` });
 }
@@ -560,7 +542,6 @@ export function resetNotesLayout(): boolean {
     const companyId = getActiveCompanyId();
     const notes = data.companyData[companyId].notes;
     if (notes.length === 0) return false;
-    
     notes.forEach((note, idx) => {
         note.layout = { i: note.id, x: (idx * 4) % 12, y: Math.floor(idx / 3) * 4, w: 4, h: 4 };
         if (getAuthMode() === 'authenticate') {
@@ -650,7 +631,6 @@ export function clearExpiredReminders(): { updatedTaskIds: string[], unpinnedTas
     const now = new Date();
     const updatedTaskIds: string[] = [];
     const unpinnedTaskIds: string[] = [];
-
     tasks.forEach(t => {
         if (t.reminderExpiresAt && new Date(t.reminderExpiresAt) <= now) {
             t.reminder = null;
@@ -662,7 +642,6 @@ export function clearExpiredReminders(): { updatedTaskIds: string[], unpinnedTas
             }
         }
     });
-
     if (updatedTaskIds.length > 0) {
         setAppData(data);
     }
@@ -749,28 +728,21 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
     const db = getFirestore();
     const auth = getAuth();
     const userId = auth.currentUser?.uid;
-
     if (mode === 'authenticate' && !userId) throw new Error("User not authenticated.");
-
     const tasks = Array.isArray(parsedJson.tasks) ? parsedJson.tasks : [];
     const devs = Array.isArray(parsedJson.developers) ? parsedJson.developers : [];
     const testers = Array.isArray(parsedJson.testers) ? parsedJson.testers : [];
     const notes = Array.isArray(parsedJson.notes) ? parsedJson.notes : [];
     const repoConfigs = Array.isArray(parsedJson.repositoryConfigs) ? parsedJson.repositoryConfigs : [];
     const envs = Array.isArray(parsedJson.environments) ? parsedJson.environments : [];
-
     const total = tasks.length + devs.length + testers.length + notes.length;
     let completed = 0;
-
     const reportProgress = () => {
         completed++;
         if (onProgress) onProgress(Math.floor((completed / total) * 100));
     };
-
     if (mode === 'authenticate') {
         const companyBase = `users/${userId}/companies/${companyId}`;
-        
-        // 1. Batch create/update people
         if (devs.length > 0) {
             const current = getDevelopers();
             const merged = [...current];
@@ -783,8 +755,6 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             testers.forEach(t => { if (!merged.some(m => m.name === t.name)) merged.push({ ...t, id: `tester-${crypto.randomUUID()}` }); });
             await setDoc(doc(db, companyBase, 'people', 'testers'), { list: merged });
         }
-
-        // 2. Batch update UI Config (repos and envs)
         const currentUi = getUiConfig();
         if (repoConfigs.length > 0) {
             const mergedRepos = [...currentUi.repositoryConfigs];
@@ -797,8 +767,6 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             currentUi.environments = mergedEnvs;
         }
         await setDoc(doc(db, companyBase, 'settings', 'uiConfig'), currentUi);
-
-        // 3. Chunker for large items
         const processItems = async (items: any[], type: 'tasks' | 'notes') => {
             const chunks = chunkArray(items, 20);
             for (const chunk of chunks) {
@@ -815,32 +783,23 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
                 await batch.commit();
             }
         };
-
         await processItems(tasks, 'tasks');
         await processItems(notes, 'notes');
-
     } else {
-        // Local Mode
         const data = getAppData();
         const comp = data.companyData[companyId];
-        
-        // Simple local merge
         const uniqueTasks = tasks.filter(nt => !comp.tasks.some(et => et.title === nt.title));
         comp.tasks = [...uniqueTasks, ...comp.tasks];
-        
         const uniqueNotes = notes.filter(nn => !comp.notes.some(en => en.title === nn.title && en.content === nn.content));
         comp.notes = [...uniqueNotes, ...comp.notes];
-
         devs.forEach(d => { if (!comp.developers.some(m => m.name === d.name)) comp.developers.push({ ...d, id: `dev-${crypto.randomUUID()}` }); });
         testers.forEach(t => { if (!comp.testers.some(m => m.name === t.name)) comp.testers.push({ ...t, id: `tester-${crypto.randomUUID()}` }); });
-
         if (repoConfigs.length > 0) {
             repoConfigs.forEach(r => { if (!comp.uiConfig.repositoryConfigs.some(mr => mr.name === r.name)) comp.uiConfig.repositoryConfigs.push({ ...r, id: `repo_${crypto.randomUUID()}` }); });
         }
         if (envs.length > 0) {
             envs.forEach(e => { if (!comp.uiConfig.environments.some(me => me.name.toLowerCase() === e.name.toLowerCase())) comp.uiConfig.environments.push({ ...e, id: `env_${crypto.randomUUID()}` }); });
         }
-
         setAppData(data);
     }
     return true;
@@ -849,21 +808,17 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
 export async function clearAllData() {
     const mode = getAuthMode();
     const companyId = getActiveCompanyId();
-
     if (mode === 'authenticate') {
         const auth = getAuth();
         const db = getFirestore();
         const userId = auth.currentUser?.uid;
         if (!userId) return;
-
         const companyBase = `users/${userId}/companies/${companyId}`;
-        
         try {
             const currentConfig = getUiConfig();
             const preservedEnvs = currentConfig.environments || [];
             const preservedAppName = currentConfig.appName;
             const preservedAppIcon = currentConfig.appIcon;
-
             const resetFields = INITIAL_UI_CONFIG.map(f => {
                 if (f.key === 'status') {
                     return { ...f, options: TASK_STATUSES.map(s => ({id: s, value: s, label: s})) };
@@ -873,7 +828,6 @@ export async function clearAllData() {
                 }
                 return f;
             });
-
             const defaultUiConfig: UiConfig = {
                 fields: resetFields,
                 environments: preservedEnvs,
@@ -889,7 +843,6 @@ export async function clearAllData() {
                 currentVersion: '1.1.0',
                 authenticationMode: 'authenticate',
             };
-
             const collectionsToClear = ['tasks', 'notes', 'logs'];
             for (const colName of collectionsToClear) {
                 const q = query(collection(db, companyBase, colName), limit(500));
@@ -903,7 +856,6 @@ export async function clearAllData() {
                     }
                 }
             }
-
             const batch = writeBatch(db);
             batch.set(doc(db, companyBase, 'people', 'developers'), { list: [] });
             batch.set(doc(db, companyBase, 'people', 'testers'), { list: [] });
@@ -911,7 +863,6 @@ export async function clearAllData() {
             batch.set(doc(db, companyBase, 'settings', 'uiConfig'), defaultUiConfig);
             batch.set(doc(db, companyBase, 'releases', 'updates'), { list: [...INITIAL_RELEASES] });
             await batch.commit();
-
         } catch (error: any) {
             console.error("Critical error during cloud data clearing:", error);
             throw new Error(`Data clearing failed: ${error.message}`);
