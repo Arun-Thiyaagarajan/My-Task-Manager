@@ -113,7 +113,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
   const isJumpingRef = useRef(false);
   const jumpTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const SCROLL_THRESHOLD = 120; 
+  const SCROLL_THRESHOLD = 140; 
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -432,7 +432,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                     if (fieldName === 'devEndDate' && devStartDate) {
                         return { before: devStartDate };
                     }
-                    if (fieldName === 'qaEndDate' && qaStartDate) {
+                    if (fieldName === 'qaStartDate' && qaStartDate) {
                         return { before: qaStartDate };
                     }
                     return undefined;
@@ -707,11 +707,11 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit, onInvalid)}>
         <div className={cn(
-            "flex flex-col gap-8 pb-24 relative",
+            "flex flex-col gap-8 pb-32 relative",
             sidebarPosition === 'left' ? "lg:flex-row" : "lg:flex-row-reverse"
         )}>
             <aside className="hidden lg:block w-72 shrink-0">
-                <div className="sticky top-20 space-y-1">
+                <div className="sticky top-24 space-y-1">
                     <div className="flex items-center justify-between px-3 mb-4">
                         <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                             Jump to Section
@@ -735,8 +735,8 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                             </Tooltip>
                         </TooltipProvider>
                     </div>
-                    <ScrollArea className="h-[calc(100vh-200px)] pr-2">
-                        <nav className="flex flex-col gap-1">
+                    <ScrollArea className="h-fit max-h-[calc(100vh-240px)] pr-2">
+                        <nav className="flex flex-col gap-1 pb-10">
                             {navigableSections.map((section) => {
                                 const Icon = section.icon;
                                 const isSectionActive = activeId === section.id || section.fields.some(f => f.id === activeId);
