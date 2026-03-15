@@ -691,7 +691,7 @@ export default function Home() {
   }
 
   const mode = getAuthMode();
-  const TASK_STATUSES = uiConfig.taskStatuses;
+  const TASK_STATUSES = uiConfig.taskStatuses || [];
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -796,7 +796,7 @@ export default function Home() {
                             </kbd>
                         </div>
                     </div>
-                    <MultiSelect selected={statusFilter} onChange={setStatusFilter} options={TASK_STATUSES.map(s => ({ value: s, label: s }))} placeholder="Status..." />
+                    <MultiSelect selected={statusFilter} onChange={setStatusFilter} options={(TASK_STATUSES || []).map(s => ({ value: s, label: s }))} placeholder="Status..." />
                     <MultiSelect selected={repoFilter} onChange={setRepoFilter} options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} placeholder="Repository..." />
                     {uiConfig?.fields.find(f => f.key === 'tags')?.isActive && (
                         <MultiSelect selected={tagsFilter} onChange={setTagsFilter} options={[...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({value: t, label: t}))} placeholder="Tags..." />
