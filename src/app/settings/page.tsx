@@ -85,6 +85,10 @@ export default function SettingsPage() {
   const [isFieldDialogOpen, setIsFieldDialogOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
+  // Mode change states
+  const [isModeConfirmOpen, setIsModeConfirmOpen] = useState(false);
+  const [pendingModeChange, setPendingModeChange] = useState<AuthMode | null>(null);
+
   // Form states for Display Settings
   const [appName, setAppName] = useState('');
   const [appIcon, setAppIcon] = useState('');
@@ -236,6 +240,27 @@ export default function SettingsPage() {
     }
   };
 
+  const handleInitiateModeChange = (mode: AuthMode) => {
+    if (getAuthMode() === mode) return;
+    setPendingModeChange(mode);
+    setIsModeConfirmOpen(true);
+  };
+
+  const handleConfirmModeChange = () => {
+    if (!pendingModeChange) return;
+    
+    if (pendingModeChange === 'authenticate') {
+        setIsAuthModalOpen(true);
+    } else {
+        setAuthMode('localStorage');
+        window.dispatchEvent(new Event('company-changed'));
+        toast({ variant: 'success', title: 'Switched to Local Storage', description: 'Cloud synchronization has been disabled.' });
+    }
+    
+    setIsModeConfirmOpen(false);
+    setPendingModeChange(null);
+  };
+
   const filteredAndGroupedFields = useMemo(() => {
     if (!uiConfig || !uiConfig.fields) return { activeGroups: {}, inactiveFields: [] };
     
@@ -278,7 +303,7 @@ export default function SettingsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         {/* Left Column: Field Configuration */}
         <div className="lg:col-span-2 space-y-8">
-            <Card>
+            <Card id="settings-field-config-card">
                 <CardHeader>
                     <CardTitle className="text-2xl">Field Configuration</CardTitle>
                     <CardDescription>Drag active fields to reorder them. Edit, activate, or deactivate fields as needed.</CardDescription>
@@ -368,7 +393,7 @@ export default function SettingsPage() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                     <button 
-                        onClick={() => setAuthMode('localStorage')}
+                        onClick={() => handleInitiateModeChange('localStorage')}
                         className={cn(
                             "w-full text-left p-3 border rounded-xl transition-all",
                             authMode === 'localStorage' ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:border-primary/50"
@@ -383,11 +408,7 @@ export default function SettingsPage() {
                         </div>
                     </button>
                     <button 
-                        onClick={() => {
-                            if (authMode !== 'authenticate') {
-                                setIsAuthModalOpen(true);
-                            }
-                        }}
+                        onClick={() => handleInitiateModeChange('authenticate')}
                         className={cn(
                             "w-full text-left p-3 border rounded-xl transition-all",
                             authMode === 'authenticate' ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:border-primary/50"
@@ -549,7 +570,7 @@ export default function SettingsPage() {
             </Card>
 
             {/* Environment Management */}
-            <Card>
+            <Card id="settings-environment-card">
                 <CardHeader className="pb-3">
                     <CardTitle className="text-base flex items-center gap-2">
                         <Rocket className="h-4 w-4 text-primary" />
@@ -579,7 +600,7 @@ export default function SettingsPage() {
             </Card>
 
             {/* People Management */}
-            <Card>
+            <Card id="settings-people-management-dev">
                 <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                         <CardTitle className="text-base flex items-center gap-2">
@@ -595,7 +616,7 @@ export default function SettingsPage() {
                 </CardContent>
             </Card>
 
-            <Card>
+            <Card id="settings-people-management-tester">
                 <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                         <CardTitle className="text-base flex items-center gap-2">
@@ -681,6 +702,26 @@ export default function SettingsPage() {
             toast({ variant: 'success', title: 'Switched to Authenticate Mode', description: 'Your data will now sync with the cloud.' });
         }}
       />
+
+      {/* Mode Change Confirmation Dialog */}
+      <AlertDialog open={isModeConfirmOpen} onOpenChange={setIsModeConfirmOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Change Storage Mode?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    {pendingModeChange === 'authenticate' 
+                        ? "You are about to switch to Authenticate Mode. This will enable cloud synchronization, but you will need to sign in to access your data."
+                        : "You are about to switch to Local Storage. Cloud synchronization will be disabled, and data will only be stored in this browser."}
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setPendingModeChange(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleConfirmModeChange} className="bg-primary">
+                    Confirm Switch
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
