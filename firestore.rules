@@ -19,11 +19,16 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
+      // Allow access to the user profile document itself
       allow get, list, create, update, delete: if isOwner(userId);
 
-      // Recursive match for all company data
-      match /companies/{companyId}/{document=**} {
+      // Allow access to the companies collection and all nested documents/subcollections
+      match /companies/{companyId} {
         allow get, list, create, update, delete: if isOwner(userId);
+        
+        match /{allPaths=**} {
+          allow get, list, create, update, delete: if isOwner(userId);
+        }
       }
     }
   }

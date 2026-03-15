@@ -4,7 +4,6 @@
 import { useEffect, useRef } from 'react';
 import { useFirebase } from '@/firebase';
 import { 
-    getFirestore, 
     collection, 
     onSnapshot, 
     doc, 
@@ -16,12 +15,17 @@ import {
     getAppData, 
     setCloudCache, 
     getActiveCompanyId,
-    setActiveCompanyId,
     getAuthMode
 } from '@/lib/data';
 import type { Task, Note, Log, Company, MyTaskManagerData, CompanyData } from '@/lib/types';
 import { INITIAL_RELEASES, INITIAL_UI_CONFIG, TASK_STATUSES, INITIAL_REPOSITORY_CONFIGS, ENVIRONMENTS } from '@/lib/constants';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
+/**
+ * Hook to manage real-time data synchronization between Firestore and the application cache.
+ * Only active in 'authenticate' mode.
+ */
 export function useTaskFlowData() {
     const { user, firestore } = useFirebase();
     const activeCompanyId = getActiveCompanyId();
@@ -30,6 +34,9 @@ export function useTaskFlowData() {
     useEffect(() => {
         const authMode = getAuthMode();
         if (authMode !== 'authenticate' || !user || !firestore) {
+            // Clear cloud cache and stop listeners if not in sync mode
+            unsubscribers.current.forEach(unsub => unsub());
+            unsubscribers.current = [];
             setCloudCache(null);
             return;
         }
@@ -38,7 +45,7 @@ export function useTaskFlowData() {
         const db = firestore;
 
         const setupListeners = () => {
-            // Cleanup existing listeners
+            // Cleanup existing listeners before re-establishing
             unsubscribers.current.forEach(unsub => unsub());
             unsubscribers.current = [];
 
@@ -48,10 +55,18 @@ export function useTaskFlowData() {
                 const companies: Company[] = snapshot.docs.map(d => d.data() as Company);
                 
                 if (companies.length === 0) {
-                    // Bootstrap default company if none exists in cloud
+                    // Bootstrap default company if none exists in cloud for this user
                     const defaultId = 'company-default';
                     const defaultCompany = { id: defaultId, name: 'My Cloud Workspace' };
-                    setDoc(doc(db, 'users', userId, 'companies', defaultId), defaultCompany);
+                    const docRef = doc(db, 'users', userId, 'companies', defaultId);
+                    
+                    setDoc(docRef, defaultCompany).catch(e => {
+                        errorEmitter.emit('permission-error', new FirestorePermissionError({
+                            path: docRef.path,
+                            operation: 'create',
+                            requestResourceData: defaultCompany
+                        }));
+                    });
                     return;
                 }
 
@@ -62,7 +77,7 @@ export function useTaskFlowData() {
                     activeCompanyId: companies.some(c => c.id === activeCompanyId) ? activeCompanyId : companies[0].id
                 };
 
-                // Initialize empty data containers for each company if not present
+                // Initialize data containers for new companies
                 companies.forEach(company => {
                     if (!updatedData.companyData[company.id]) {
                         updatedData.companyData[company.id] = _getEmptyCompanyData();
@@ -71,6 +86,11 @@ export function useTaskFlowData() {
 
                 setCloudCache(updatedData);
                 window.dispatchEvent(new Event('company-changed'));
+            }, (error) => {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({
+                    path: companiesRef.path,
+                    operation: 'list',
+                }));
             });
             unsubscribers.current.push(unsubCompanies);
 
@@ -78,53 +98,100 @@ export function useTaskFlowData() {
             if (activeCompanyId) {
                 const companyBase = `users/${userId}/companies/${activeCompanyId}`;
 
-                // Tasks
-                const unsubTasks = onSnapshot(collection(db, companyBase, 'tasks'), (snap) => {
+                // Tasks Listener
+                const tasksRef = collection(db, companyBase, 'tasks');
+                const unsubTasks = onSnapshot(tasksRef, (snap) => {
                     _updateCloudCachePart(activeCompanyId, 'tasks', snap.docs.map(d => d.data() as Task));
+                }, (error) => {
+                    errorEmitter.emit('permission-error', new FirestorePermissionError({
+                        path: tasksRef.path,
+                        operation: 'list',
+                    }));
                 });
                 unsubscribers.current.push(unsubTasks);
 
-                // Notes
-                const unsubNotes = onSnapshot(collection(db, companyBase, 'notes'), (snap) => {
+                // Notes Listener
+                const notesRef = collection(db, companyBase, 'notes');
+                const unsubNotes = onSnapshot(notesRef, (snap) => {
                     _updateCloudCachePart(activeCompanyId, 'notes', snap.docs.map(d => d.data() as Note));
+                }, (error) => {
+                    errorEmitter.emit('permission-error', new FirestorePermissionError({
+                        path: notesRef.path,
+                        operation: 'list',
+                    }));
                 });
                 unsubscribers.current.push(unsubNotes);
 
-                // Logs
-                const unsubLogs = onSnapshot(query(collection(db, companyBase, 'logs'), orderBy('timestamp', 'desc')), (snap) => {
+                // Logs Listener
+                const logsQuery = query(collection(db, companyBase, 'logs'), orderBy('timestamp', 'desc'));
+                const unsubLogs = onSnapshot(logsQuery, (snap) => {
                     _updateCloudCachePart(activeCompanyId, 'logs', snap.docs.map(d => d.data() as Log));
+                }, (error) => {
+                    errorEmitter.emit('permission-error', new FirestorePermissionError({
+                        path: `${companyBase}/logs`,
+                        operation: 'list',
+                    }));
                 });
                 unsubscribers.current.push(unsubLogs);
 
-                // UI Config (Single Document)
-                const unsubConfig = onSnapshot(doc(db, companyBase, 'settings', 'uiConfig'), (snap) => {
+                // UI Config Listener
+                const configRef = doc(db, companyBase, 'settings', 'uiConfig');
+                const unsubConfig = onSnapshot(configRef, (snap) => {
                     if (snap.exists()) {
                         _updateCloudCachePart(activeCompanyId, 'uiConfig', snap.data());
                     }
+                }, (error) => {
+                    errorEmitter.emit('permission-error', new FirestorePermissionError({
+                        path: configRef.path,
+                        operation: 'get',
+                    }));
                 });
                 unsubscribers.current.push(unsubConfig);
 
-                // Developers (Array in Document)
-                const unsubDevs = onSnapshot(doc(db, companyBase, 'people', 'developers'), (snap) => {
+                // People Listeners (Developers & Testers)
+                const devsRef = doc(db, companyBase, 'people', 'developers');
+                const unsubDevs = onSnapshot(devsRef, (snap) => {
                     if (snap.exists()) _updateCloudCachePart(activeCompanyId, 'developers', snap.data().list || []);
+                }, (error) => {
+                    errorEmitter.emit('permission-error', new FirestorePermissionError({
+                        path: devsRef.path,
+                        operation: 'get',
+                    }));
                 });
                 unsubscribers.current.push(unsubDevs);
 
-                // Testers
-                const unsubTesters = onSnapshot(doc(db, companyBase, 'people', 'testers'), (snap) => {
+                const testersRef = doc(db, companyBase, 'people', 'testers');
+                const unsubTesters = onSnapshot(testersRef, (snap) => {
                     if (snap.exists()) _updateCloudCachePart(activeCompanyId, 'testers', snap.data().list || []);
+                }, (error) => {
+                    errorEmitter.emit('permission-error', new FirestorePermissionError({
+                        path: testersRef.path,
+                        operation: 'get',
+                    }));
                 });
                 unsubscribers.current.push(unsubTesters);
 
-                // General Reminders
-                const unsubReminders = onSnapshot(doc(db, companyBase, 'reminders', 'general'), (snap) => {
+                // General Reminders Listener
+                const remindersRef = doc(db, companyBase, 'reminders', 'general');
+                const unsubReminders = onSnapshot(remindersRef, (snap) => {
                     if (snap.exists()) _updateCloudCachePart(activeCompanyId, 'generalReminders', snap.data().list || []);
+                }, (error) => {
+                    errorEmitter.emit('permission-error', new FirestorePermissionError({
+                        path: remindersRef.path,
+                        operation: 'get',
+                    }));
                 });
                 unsubscribers.current.push(unsubReminders);
 
-                // Release Updates
-                const unsubReleases = onSnapshot(doc(db, companyBase, 'releases', 'updates'), (snap) => {
+                // Release Updates Listener
+                const releasesRef = doc(db, companyBase, 'releases', 'updates');
+                const unsubReleases = onSnapshot(releasesRef, (snap) => {
                     if (snap.exists()) _updateCloudCachePart(activeCompanyId, 'releaseUpdates', snap.data().list || []);
+                }, (error) => {
+                    errorEmitter.emit('permission-error', new FirestorePermissionError({
+                        path: releasesRef.path,
+                        operation: 'get',
+                    }));
                 });
                 unsubscribers.current.push(unsubReleases);
             }
@@ -144,7 +211,7 @@ function _updateCloudCachePart(companyId: string, part: keyof CompanyData, data:
         current.companyData[companyId] = _getEmptyCompanyData();
     }
 
-    // Separate tasks into active and trash based on deletedAt
+    // Separate tasks into active and trash based on deletedAt presence
     if (part === 'tasks') {
         const allTasks = data as Task[];
         current.companyData[companyId].tasks = allTasks.filter(t => !t.deletedAt);
