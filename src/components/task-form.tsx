@@ -410,9 +410,9 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
         switch (fieldType) {
             case 'text':
                 return (
-                    <div>
+                    <div className="w-full">
                         <Input type="text" placeholder={label} {...field} value={field.value ?? ''} />
-                        {baseUrl && <p className="text-[0.8rem] text-muted-foreground mt-1">The value will be appended to: {baseUrl}</p>}
+                        {baseUrl && <p className="text-[0.8rem] text-muted-foreground mt-1 break-all leading-tight">The value will be appended to: {baseUrl}</p>}
                     </div>
                 );
             case 'number':
@@ -421,7 +421,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
             case 'textarea': {
                  const ref = key === 'description' ? descriptionRef : undefined;
                  return (
-                    <div className="relative">
+                    <div className="relative w-full">
                         <Textarea {...field} value={field.value ?? ''} ref={ref} className="pb-12" enableHotkeys/>
                         <TextareaToolbar onFormatClick={(type) => handleFormat(ref, type)} />
                     </div>
@@ -536,9 +536,9 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
             control={form.control}
             name={fieldName as any}
             render={({ field }) => (
-                <FormItem id={`field-container-${key}`} className="scroll-mt-32">
+                <FormItem id={`field-container-${key}`} className="scroll-mt-32 max-w-full">
                     <FormLabel error={hasError}>{label} {isRequired && '*'}</FormLabel>
-                    <FormControl>
+                    <FormControl className="w-full">
                         {renderInput(type, field)}
                     </FormControl>
                 </FormItem>
@@ -788,7 +788,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                     </div>
                 </aside>
 
-            <div className="flex-1 space-y-6">
+            <div className="flex-1 space-y-6 max-w-full">
                 {groupOrder.map(groupName => {
                     if (['Attachments', 'Deployment', 'Pull Requests'].includes(groupName)) {
                         return null;
@@ -803,7 +803,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                     const sectionId = groupName.toLowerCase().replace(/\s+/g, '-');
 
                     return (
-                        <Card key={groupName} id={sectionId} className="scroll-mt-24 transition-all duration-300">
+                        <Card key={groupName} id={sectionId} className="scroll-mt-24 transition-all duration-300 max-w-full overflow-hidden">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2 text-lg font-bold">
                                     {groupName === 'Core Details' && <Layout className="h-5 w-5 text-primary" />}
@@ -813,7 +813,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, developer
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className={cn("grid grid-cols-1 gap-6", gridColsClass)}>
-                                {(groupedFields[groupName] || []).map(field => <div key={field.id}>{renderField(field)}</div>)}
+                                {(groupedFields[groupName] || []).map(field => <div key={field.id} className="max-w-full overflow-hidden">{renderField(field)}</div>)}
                             </CardContent>
                         </Card>
                     )
