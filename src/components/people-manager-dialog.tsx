@@ -48,7 +48,7 @@ import {
   getBinnedTasks
 } from '@/lib/data';
 import type { Person, PersonFieldType, Task } from '@/lib/types';
-import { Loader2, PlusCircle, Trash2, Edit, Users, ClipboardCheck, Check, AlertCircle } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, Edit, Users, ClipboardCheck, Check, AlertCircle, Search } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './ui/form';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select';
 import { Textarea } from './ui/textarea';
@@ -216,6 +216,7 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
   const [isPending, setIsPending] = useState(false);
   const [personToEdit, setPersonToEdit] = useState<Person | null>(null);
   const [isAdding, setIsAdding] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Assignment check states
   const [inUseTasks, setInUseTasks] = useState<Task[]>([]);
@@ -254,7 +255,7 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
     const activeTasks = getTasks();
     const binnedTasks = getBinnedTasks();
     const allRelevantTasks = [...activeTasks, ...binnedTasks].filter(t => 
-        (type === 'developer' ? t.developers : t.testers)?.includes(person.id)
+        t.developers?.includes(person.id) || t.testers?.includes(person.id)
     );
 
     if (allRelevantTasks.length > 0) {
@@ -332,24 +333,41 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
     setPersonAttemptingDelete(null);
   };
 
+  const filteredPeople = people.filter(p => 
+    p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    p.email?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Icon className="h-5 w-5" />
-              Manage {title}s
-            </DialogTitle>
-            <DialogDescription>
-              Add, edit, or remove {title}s from your organization.
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="max-w-3xl h-[90vh] flex flex-col p-0 overflow-hidden">
+          <div className="p-6 border-b shrink-0">
+            <DialogHeader>
+                <div className="flex items-center justify-between mb-2">
+                    <DialogTitle className="flex items-center gap-2 text-2xl">
+                        <Icon className="h-6 w-6 text-primary" />
+                        Manage {title}s
+                    </DialogTitle>
+                    {!personToEdit && !isAdding && (
+                        <Button onClick={handleOpenAdd} size="sm">
+                            <PlusCircle className="mr-2 h-4 w-4" /> Add New {title}
+                        </Button>
+                    )}
+                </div>
+                <DialogDescription>
+                Add, edit, or remove {title}s from your organization.
+                </DialogDescription>
+            </DialogHeader>
+          </div>
 
           {personToEdit || isAdding ? (
-              <ScrollArea className="flex-1 -mx-6">
-                  <div className="px-6 py-4">
-                      <h3 className="text-lg font-medium mb-4">{personToEdit ? `Edit ${personToEdit.name}` : `Add New ${title}`}</h3>
+              <ScrollArea className="flex-1">
+                  <div className="px-8 py-6">
+                      <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+                          {personToEdit ? <Edit className="h-5 w-5 text-primary" /> : <PlusCircle className="h-5 w-5 text-primary" />}
+                          {personToEdit ? `Edit ${personToEdit.name}` : `Add New ${title}`}
+                      </h3>
                       <EditPersonForm 
                           personToEdit={personToEdit}
                           onSave={handleSave}
@@ -360,46 +378,60 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
               </ScrollArea>
           ) : (
               <>
-                  <div className="py-4 flex-1 min-h-0">
+                  <div className="px-6 py-4 bg-muted/20 border-b shrink-0">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                            placeholder={`Search ${title.toLowerCase()}s...`} 
+                            className="pl-10 h-10 bg-background"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                  </div>
+                  <div className="flex-1 min-h-0">
                     <ScrollArea className="h-full">
                         <Table>
-                            <TableHeader>
+                            <TableHeader className="bg-muted/10 sticky top-0 z-10">
                             <TableRow>
                                 <TableHead>Name</TableHead>
                                 <TableHead>Email</TableHead>
-                                <TableHead>Phone</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                             </TableHeader>
                             <TableBody>
-                            {people.map((person) => (
-                                <TableRow key={person.id}>
-                                    <TableCell className="font-medium">{person.name}</TableCell>
-                                    <TableCell>{person.email || '-'}</TableCell>
-                                    <TableCell>{person.phone || '-'}</TableCell>
+                            {filteredPeople.map((person) => (
+                                <TableRow key={person.id} className="hover:bg-muted/5 group">
+                                    <TableCell className="font-bold text-sm">{person.name}</TableCell>
+                                    <TableCell className="text-xs text-muted-foreground">{person.email || '-'}</TableCell>
                                     <TableCell className="text-right">
-                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEdit(person)}>
-                                            <Edit className="h-4 w-4" />
-                                        </Button>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteCheck(person)}>
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
+                                        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEdit(person)}>
+                                                <Edit className="h-4 w-4" />
+                                            </Button>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDeleteCheck(person)}>
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             ))}
                             </TableBody>
                         </Table>
-                        {people.length === 0 && <p className="text-center text-muted-foreground py-8">No {title}s found.</p>}
+                        {filteredPeople.length === 0 && (
+                            <div className="text-center py-20 text-muted-foreground">
+                                <Users className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                                <p className="text-lg font-medium">No {title.toLowerCase()}s found.</p>
+                                <p className="text-sm">Try a different search or add a new person.</p>
+                            </div>
+                        )}
                     </ScrollArea>
                   </div>
-                  <DialogFooter className="flex-shrink-0 mt-4 border-t-0 pt-0">
-                      <Button onClick={handleOpenAdd}>
-                          <PlusCircle className="mr-2 h-4 w-4" /> Add New {title}
-                      </Button>
+                  <div className="p-4 border-t bg-muted/10 flex justify-end shrink-0">
                       <DialogClose asChild>
                           <Button variant="outline">Close</Button>
                       </DialogClose>
-                  </DialogFooter>
+                  </div>
               </>
           )}
         </DialogContent>
@@ -407,30 +439,54 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
 
       {/* In-Use Tasks Alert */}
       <AlertDialog open={inUseTasks.length > 0} onOpenChange={(open) => !open && setInUseTasks([])}>
-        <AlertDialogContent className="sm:max-w-md">
-            <AlertDialogHeader>
-                <div className="mx-auto w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mb-2">
-                    <AlertCircle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+        <AlertDialogContent className="sm:max-w-lg p-0 overflow-hidden">
+            <div className="p-6">
+                <AlertDialogHeader>
+                    <div className="mx-auto w-14 h-14 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mb-4">
+                        <AlertCircle className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <AlertDialogTitle className="text-center text-xl">Deletion Blocked</AlertDialogTitle>
+                    <AlertDialogDescription className="text-center text-base">
+                        <strong>{personAttemptingDelete?.name}</strong> is currently assigned to <strong>{inUseTasks.length}</strong> task(s). Please reassign them before deleting.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                
+                <div className="mt-6 border rounded-xl bg-muted/20 overflow-hidden">
+                    <div className="p-2 border-b bg-muted/30 text-[10px] font-black uppercase tracking-widest text-muted-foreground flex justify-between px-4">
+                        <span>Affected Tasks</span>
+                        <span>Assignment Role</span>
+                    </div>
+                    <ScrollArea className="max-h-64">
+                        <ul className="divide-y divide-border/50">
+                            {inUseTasks.map(task => {
+                                const roles = [];
+                                if (task.developers?.includes(personAttemptingDelete?.id || '')) roles.push('Developer');
+                                if (task.testers?.includes(personAttemptingDelete?.id || '')) roles.push('Tester');
+                                
+                                return (
+                                    <li key={task.id} className="text-sm py-3 px-4 flex items-center justify-between gap-4 bg-background/50 hover:bg-background transition-colors group">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="h-2 w-2 rounded-full bg-primary shrink-0 group-hover:scale-125 transition-transform" />
+                                            <span className="truncate font-semibold">{task.title}</span>
+                                        </div>
+                                        <div className="shrink-0 flex items-center gap-2">
+                                            {roles.map(r => (
+                                                <Badge key={r} variant="outline" className="text-[10px] uppercase h-5 font-bold">{r}</Badge>
+                                            ))}
+                                            {task.deletedAt && (
+                                                <Badge variant="secondary" className="text-[10px] uppercase h-5 bg-amber-50 text-amber-700 border-amber-200 font-black">In Bin</Badge>
+                                            )}
+                                        </div>
+                                    </li>
+                                )
+                            })}
+                        </ul>
+                    </ScrollArea>
                 </div>
-                <AlertDialogTitle className="text-center">Cannot Delete {title}</AlertDialogTitle>
-                <AlertDialogDescription className="text-center">
-                    <strong>{personAttemptingDelete?.name}</strong> is currently assigned to the following tasks. Please reassign or remove them from these tasks before deleting.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <div className="max-h-48 overflow-y-auto border rounded-md p-2 bg-muted/20">
-                <ul className="space-y-1.5">
-                    {inUseTasks.map(task => (
-                        <li key={task.id} className="text-sm py-1 px-2 border-b last:border-0 truncate flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                            {task.title}
-                            {task.deletedAt && <Badge variant="outline" className="ml-auto text-[10px] h-4">In Bin</Badge>}
-                        </li>
-                    ))}
-                </ul>
             </div>
-            <AlertDialogFooter>
-                <AlertDialogAction onClick={() => setInUseTasks([])} className="w-full">Got it</AlertDialogAction>
-            </AlertDialogFooter>
+            <div className="p-4 bg-muted/10 border-t flex justify-center">
+                <AlertDialogAction onClick={() => setInUseTasks([])} className="w-full sm:w-32">Got it</AlertDialogAction>
+            </div>
         </AlertDialogContent>
       </AlertDialog>
 
@@ -438,14 +494,14 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
         <AlertDialogContent>
             <AlertDialogHeader>
-                <AlertDialogTitle>Delete {personAttemptingDelete?.name}?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    This will permanently remove this {title.toLowerCase()} from your list. This action cannot be undone.
+                <AlertDialogTitle className="text-xl">Delete {personAttemptingDelete?.name}?</AlertDialogTitle>
+                <AlertDialogDescription className="text-base">
+                    This will permanently remove this {title.toLowerCase()} from your workspace. This action cannot be undone.
                 </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter>
+            <AlertDialogFooter className="mt-4">
                 <AlertDialogCancel onClick={() => { setIsDeleteConfirmOpen(false); setPersonAttemptingDelete(null); }}>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => personAttemptingDelete && handleDelete(personAttemptingDelete.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                <AlertDialogAction onClick={() => personAttemptingDelete && handleDelete(personAttemptingDelete.id)} className="bg-destructive hover:bg-destructive/90 text-white font-bold">Delete Permanentally</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
