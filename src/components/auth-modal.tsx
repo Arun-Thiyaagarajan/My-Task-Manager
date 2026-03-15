@@ -89,7 +89,23 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
       router.push('/');
       
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Authentication Failed', description: error.message });
+      let title = 'Authentication Failed';
+      let description = error.message;
+
+      // Handle specific invalid credential errors with a neat message
+      if (
+        error.code === 'auth/invalid-credential' || 
+        error.code === 'auth/user-not-found' || 
+        error.code === 'auth/wrong-password'
+      ) {
+        title = 'Invalid Credentials';
+        description = 'The email or password you entered is incorrect. Please try again.';
+      } else if (error.code === 'auth/invalid-email') {
+        title = 'Invalid Email';
+        description = 'Please enter a valid email address.';
+      }
+
+      toast({ variant: 'destructive', title, description });
     } finally {
       setIsLoading(false);
     }
