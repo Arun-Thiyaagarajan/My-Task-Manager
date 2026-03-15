@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { 
     getUiConfig, 
     setUiConfig, 
@@ -89,6 +90,9 @@ export default function SettingsPage() {
   // Environment state
   const [newEnvName, setNewEnvName] = useState('');
 
+  // Refs
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     const config = getUiConfig();
     setUiConfigState(config);
@@ -163,6 +167,53 @@ export default function SettingsPage() {
     addEnvironment({ name: newEnvName.trim(), color: '#3b82f6' });
     setNewEnvName('');
     toast({ variant: 'success', title: 'Environment added.' });
+  };
+
+  const handleExportSettings = () => {
+    if (!uiConfig) return;
+    const fileName = `${uiConfig.appName?.replace(/\s+/g, '_') || 'TaskFlow'}_Settings_${new Date().toISOString().split('T')[0]}.json`;
+    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(uiConfig, null, 2))}`;
+    const link = document.createElement("a");
+    link.href = jsonString;
+    link.download = fileName;
+    link.click();
+    toast({ variant: 'success', title: 'Settings Exported' });
+  };
+
+  const handleImportSettings = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        const importedConfig = JSON.parse(text);
+        
+        if (typeof importedConfig !== 'object' || importedConfig === null || !Array.isArray(importedConfig.fields)) {
+            throw new Error("Invalid settings file format. Please provide a valid TaskFlow settings JSON.");
+        }
+
+        setUiConfigState(importedConfig);
+        setUiConfig(importedConfig);
+        window.dispatchEvent(new Event('config-changed'));
+        
+        toast({ 
+            variant: 'success', 
+            title: 'Settings Imported', 
+            description: 'Your application configuration has been updated.' 
+        });
+      } catch (error: any) {
+        toast({ 
+            variant: 'destructive', 
+            title: 'Import Failed', 
+            description: error.message || 'There was an error parsing the file.' 
+        });
+      } finally {
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsText(file);
   };
 
   const handleClearData = async () => {
@@ -562,12 +613,13 @@ export default function SettingsPage() {
                     <CardDescription>Export, import, or delete local data.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                    <Button variant="outline" className="w-full h-9 text-xs justify-start px-3">
+                    <Button variant="outline" className="w-full h-9 text-xs justify-start px-3" onClick={handleExportSettings}>
                         <Download className="h-3.5 w-3.5 mr-3" /> Export Settings
                     </Button>
-                    <Button variant="outline" className="w-full h-9 text-xs justify-start px-3">
+                    <Button variant="outline" className="w-full h-9 text-xs justify-start px-3" onClick={() => fileInputRef.current?.click()}>
                         <Upload className="h-3.5 w-3.5 mr-3" /> Import Settings
                     </Button>
+                    <input type="file" ref={fileInputRef} onChange={handleImportSettings} className="hidden" accept=".json" />
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
                             <Button variant="destructive" className="w-full h-9 text-xs justify-start px-3 bg-destructive hover:bg-destructive/90">
