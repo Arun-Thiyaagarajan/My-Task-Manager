@@ -177,7 +177,7 @@ function TasksTableRow({
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Set Status</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {uiConfig.taskStatuses.map((s) => {
+            {(uiConfig?.taskStatuses || []).map((s) => {
               const currentStatusConfig = getStatusConfig(s);
               const { Icon } = currentStatusConfig;
               return (
@@ -340,7 +340,7 @@ export function TasksTable({
   const testersLabel = fieldLabels.get('testers') || 'Testers';
 
   const developersById = new Map(developers.map((d) => [d.id, d]));
-  const testersById = new Map(testers.map((t) => [t.id, t]));
+  const testersById = new Map(testers.map((t) => [t.id, t.name]).map(([id, name]) => [id, { id, name } as Person]));
 
   const handleAvatarClick = (person: Person, isDeveloper: boolean) => {
     setPersonInView({ person, isDeveloper });

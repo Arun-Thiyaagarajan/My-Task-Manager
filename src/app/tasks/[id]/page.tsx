@@ -785,7 +785,7 @@ const handleCopyDescription = () => {
   const repoField = (uiConfig?.fields || []).find(f => f.key === 'repositories');
   
   const tagsOptions = [...new Set([...(tagsField?.options?.map(opt => opt.value) || []), ...(allTasks.flatMap(t => t.tags || []))])].map(t => ({value: t, label: t}));
-  const repoOptions = (repoField?.options || uiConfig.repositoryConfigs).map(opt => ({ value: (opt as any).value ?? (opt as any).label, label: (opt as any).label }));
+  const repoOptions = (repoField?.options || uiConfig?.repositoryConfigs || []).map(opt => ({ value: (opt as any).value ?? (opt as any).label, label: (opt as any).label }));
   const developerOptions = developers.map(d => ({value: d.id, label: d.name}));
   const testerOptions = testers.map(t => ({value: t.id, label: t.name}));
 
@@ -944,7 +944,7 @@ const handleCopyDescription = () => {
                             )}
                           </Tooltip>
                         )}
-                        {uiConfig.remindersEnabled && !isBinned && (
+                        {uiConfig?.remindersEnabled && !isBinned && (
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsReminderOpen(true)}>
@@ -966,7 +966,7 @@ const handleCopyDescription = () => {
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Set Status</DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            {uiConfig.taskStatuses.map(s => {
+                            {(uiConfig?.taskStatuses || []).map(s => {
                               const currentStatusConfig = getStatusConfig(s);
                               const { Icon } = currentStatusConfig;
                               return (
@@ -1394,7 +1394,7 @@ const handleCopyDescription = () => {
         imageUrl={previewImage?.url ?? null}
         imageName={previewImage?.name ?? null}
       />
-      {uiConfig.remindersEnabled && task && (
+      {uiConfig?.remindersEnabled && task && (
         <ReminderDialog 
           isOpen={isReminderOpen}
           onOpenChange={setIsReminderOpen}
