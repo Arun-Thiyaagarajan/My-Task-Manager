@@ -362,24 +362,6 @@ export default function ProfilePage() {
               </div>
             </div>
           </Card>
-
-          <Card className="shadow-sm">
-            <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Quick Shortcuts</CardTitle>
-            </CardHeader>
-            <CardContent className="p-2 pt-0">
-              <nav className="flex flex-col gap-1">
-                <Button variant="ghost" className="justify-start gap-3 h-10 text-sm font-medium cursor-pointer" onClick={() => router.push('/')}>
-                  <AlertCircle className="h-4 w-4 text-primary" />
-                  Active Tasks
-                </Button>
-                <Button variant="ghost" className="justify-start gap-3 h-10 text-sm font-medium cursor-pointer" onClick={() => router.push('/settings')}>
-                  <Settings className="h-4 w-4 text-primary" />
-                  Workspace Settings
-                </Button>
-              </nav>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Main Content Area */}
