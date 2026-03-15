@@ -76,6 +76,7 @@ import { AuthModal } from '@/components/auth-modal';
 export default function SettingsPage() {
   const [uiConfig, setUiConfigState] = useState<UiConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isClearing, setIsClearing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
   
@@ -98,11 +99,11 @@ export default function SettingsPage() {
   useEffect(() => {
     const config = getUiConfig();
     setUiConfigState(config);
-    setAppName(config.appName || '');
-    setAppIcon(config.appIcon || '');
-    setTimeFormat(config.timeFormat || '12h');
+    setAppName(config?.appName || '');
+    setAppIcon(config?.appIcon || '');
+    setTimeFormat(config?.timeFormat || '12h');
     setIsLoading(false);
-    document.title = `Settings | ${config.appName || 'Task Manager'}`;
+    document.title = `Settings | ${config?.appName || 'Task Manager'}`;
   }, []);
 
   const handleUpdateConfig = (updates: Partial<UiConfig>) => {
@@ -219,37 +220,42 @@ export default function SettingsPage() {
   };
 
   const handleClearData = async () => {
+    setIsClearing(true);
+    const mode = getAuthMode();
     try {
       await clearAllData();
-      toast({ variant: 'success', title: 'Data Cleared', description: 'Workspace reset successfully.' });
-      setTimeout(() => window.location.reload(), 1000);
+      toast({ 
+        variant: 'success', 
+        title: mode === 'authenticate' ? 'Cloud Data Cleared' : 'Local Data Cleared', 
+        description: 'Your workspace has been successfully reset.' 
+      });
+      setTimeout(() => window.location.reload(), 1500);
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error Clearing Data', description: error?.message });
+      setIsClearing(false);
     }
   };
 
-  const filteredFields = useMemo(() => {
-    if (!uiConfig || !uiConfig.fields) return [];
+  const filteredAndGroupedFields = useMemo(() => {
+    if (!uiConfig || !uiConfig.fields) return { activeGroups: {}, inactiveFields: [] };
+    
     const queryStr = searchQuery.toLowerCase();
-    return uiConfig.fields.filter(f => 
+    const allFields = uiConfig.fields.filter(f => 
         f.label.toLowerCase().includes(queryStr) || 
         (f.group && f.group.toLowerCase().includes(queryStr))
     );
-  }, [uiConfig, searchQuery]);
 
-  const activeFieldsByGroup = useMemo(() => {
-    const groups: Record<string, FieldConfig[]> = {};
-    filteredFields.filter(f => f.isActive).forEach(f => {
+    const activeGroups: Record<string, FieldConfig[]> = {};
+    allFields.filter(f => f.isActive).forEach(f => {
         const g = f.group || 'Other';
-        if (!groups[g]) groups[g] = [];
-        groups[g].push(f);
+        if (!activeGroups[g]) activeGroups[g] = [];
+        activeGroups[g].push(f);
     });
-    return groups;
-  }, [filteredFields]);
 
-  const inactiveFields = useMemo(() => {
-    return filteredFields.filter(f => !f.isActive);
-  }, [filteredFields]);
+    const inactiveFields = allFields.filter(f => !f.isActive);
+
+    return { activeGroups, inactiveFields };
+  }, [uiConfig, searchQuery]);
 
   if (isLoading || !uiConfig) {
     return <LoadingSpinner text="Loading settings..." />;
@@ -292,7 +298,7 @@ export default function SettingsPage() {
                     <div>
                         <h3 className="text-lg font-bold mb-4">Active Fields</h3>
                         <div className="space-y-6">
-                            {Object.entries(activeFieldsByGroup).map(([groupName, fields]) => (
+                            {Object.entries(filteredAndGroupedFields.activeGroups).map(([groupName, fields]) => (
                                 <div key={groupName} className="space-y-2">
                                     <h4 className="text-xs font-black uppercase tracking-wider text-muted-foreground">{groupName}</h4>
                                     <div className="space-y-2">
@@ -330,9 +336,9 @@ export default function SettingsPage() {
 
                     <div className="pt-4 border-t">
                         <h3 className="text-lg font-bold mb-4">Inactive Fields</h3>
-                        {inactiveFields.length > 0 ? (
+                        {filteredAndGroupedFields.inactiveFields.length > 0 ? (
                             <div className="space-y-2">
-                                {inactiveFields.map(field => (
+                                {filteredAndGroupedFields.inactiveFields.map(field => (
                                     <div key={field.id} className="flex items-center justify-between p-3 bg-muted/10 border border-dashed rounded-lg opacity-60">
                                         <span className="text-sm font-medium">{field.label}</span>
                                         <Button variant="ghost" size="sm" className="h-8" onClick={() => handleFieldToggle(field.key, 'isActive')}>
@@ -342,7 +348,7 @@ export default function SettingsPage() {
                                 ))}
                             </div>
                         ) : (
-                            <p className="text-center text-sm text-muted-foreground py-4">No fields match your search in this section.</p>
+                            <p className="text-center text-sm text-muted-foreground py-4">No inactive fields match your search.</p>
                         )}
                     </div>
                 </CardContent>
@@ -420,9 +426,6 @@ export default function SettingsPage() {
                                 {appIcon || '📋'}
                             </div>
                         </div>
-                        <Button variant="outline" size="sm" className="w-full text-[10px] h-7" disabled>
-                            <Upload className="h-3 w-3 mr-2" /> Upload Image
-                        </Button>
                     </div>
                     <div className="space-y-2">
                         <Label className="text-xs">Time Format</Label>
@@ -542,7 +545,6 @@ export default function SettingsPage() {
                             </Select>
                         </div>
                     </div>
-                    <Button variant="secondary" className="w-full h-9 text-xs" disabled>Save Features</Button>
                 </CardContent>
             </Card>
 
@@ -616,7 +618,7 @@ export default function SettingsPage() {
                         <Database className="h-4 w-4" />
                         Data Management
                     </CardTitle>
-                    <CardDescription>Export, import, or delete local data.</CardDescription>
+                    <CardDescription>Export, import, or clear workspace data.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2">
                     <Button variant="outline" className="w-full h-9 text-xs justify-start px-3" onClick={handleExportSettings}>
@@ -629,17 +631,24 @@ export default function SettingsPage() {
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
                             <Button variant="destructive" className="w-full h-9 text-xs justify-start px-3 bg-destructive hover:bg-destructive/90">
-                                <Trash2 className="h-3.5 w-3.5 mr-3" /> Clear All Local Data
+                                <Trash2 className="h-3.5 w-3.5 mr-3" /> Clear All {authMode === 'authenticate' ? 'Cloud' : 'Local'} Data
                             </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                             <AlertDialogHeader>
-                                <AlertDialogTitle>Clear everything?</AlertDialogTitle>
-                                <AlertDialogDescription>This will wipe all tasks, notes, people, and settings from this browser. This cannot be undone.</AlertDialogDescription>
+                                <AlertDialogTitle>Clear all workspace data?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    {authMode === 'authenticate' 
+                                        ? "This will permanently delete all Tasks, Notes, People, and Settings from your cloud workspace. This action cannot be undone."
+                                        : "This will wipe all Tasks, Notes, People, and Settings from this browser's local storage. This action cannot be undone."}
+                                </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleClearData} className="bg-destructive hover:bg-destructive/90">Clear Data</AlertDialogAction>
+                                <AlertDialogCancel disabled={isClearing}>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleClearData} className="bg-destructive hover:bg-destructive/90" disabled={isClearing}>
+                                    {isClearing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                                    Clear Data
+                                </AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
@@ -668,7 +677,6 @@ export default function SettingsPage() {
         onOpenChange={setIsAuthModalOpen}
         onSuccess={() => {
             setAuthMode('authenticate');
-            setAuthModeState('authenticate');
             window.dispatchEvent(new Event('company-changed'));
             toast({ variant: 'success', title: 'Switched to Authenticate Mode', description: 'Your data will now sync with the cloud.' });
         }}
