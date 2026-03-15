@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -11,6 +12,8 @@ import {
     setAuthMode,
     addLog,
     addEnvironment,
+    updateEnvironment,
+    deleteEnvironment,
     updateCompany
 } from '@/lib/data';
 import type { UiConfig, FieldConfig, Person, RepositoryConfig, Environment, BackupFrequency, AuthMode } from '@/lib/types';
@@ -58,6 +61,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { PeopleManagerDialog } from '@/components/people-manager-dialog';
 import { EditFieldDialog } from '@/components/edit-field-dialog';
+import { EditEnvironmentDialog } from '@/components/edit-environment-dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -94,6 +98,11 @@ export default function SettingsPage() {
   const [isFieldDialogOpen, setIsFieldDialogOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
+  // Environment Management States
+  const [isEnvDialogOpen, setIsEnvDialogOpen] = useState(false);
+  const [envToEdit, setEnvToEdit] = useState<Environment | null>(null);
+  const [newEnvName, setNewEnvName] = useState('');
+
   // Mode change states
   const [isModeConfirmOpen, setIsModeConfirmOpen] = useState(false);
   const [pendingModeChange, setPendingModeChange] = useState<AuthMode | null>(null);
@@ -109,14 +118,11 @@ export default function SettingsPage() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [originalIconImage, setOriginalIconImage] = useState<string | null>(null);
 
-  // Environment state
-  const [newEnvName, setNewEnvName] = useState('');
-
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
   const iconFileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
+  const loadConfig = () => {
     const config = getUiConfig();
     setUiConfigState(config);
     setAppName(config?.appName || '');
@@ -124,6 +130,12 @@ export default function SettingsPage() {
     setTimeFormat(config?.timeFormat || '12h');
     setIsLoading(false);
     document.title = `Settings | ${config?.appName || 'Task Manager'}`;
+  };
+
+  useEffect(() => {
+    loadConfig();
+    window.addEventListener('company-changed', loadConfig);
+    return () => window.removeEventListener('company-changed', loadConfig);
   }, []);
 
   const handleUpdateConfig = (updates: Partial<UiConfig>) => {
@@ -251,11 +263,32 @@ export default function SettingsPage() {
     toast({ variant: 'success', title: 'Field configuration saved.' });
   };
 
+  // Environment Management Actions
   const handleAddEnv = () => {
     if (!newEnvName.trim()) return;
     addEnvironment({ name: newEnvName.trim(), color: '#3b82f6' });
     setNewEnvName('');
     toast({ variant: 'success', title: 'Environment added.' });
+    loadConfig();
+  };
+
+  const handleSaveEnv = (id: string, data: { name: string, color: string }) => {
+    try {
+        updateEnvironment(id, data);
+        toast({ variant: 'success', title: 'Environment Updated' });
+        loadConfig();
+    } catch (e) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Environment changes could not be saved. Please try again.' });
+    }
+  };
+
+  const handleDeleteEnv = (id: string) => {
+    if (deleteEnvironment(id)) {
+        toast({ variant: 'success', title: 'Environment Deleted' });
+        loadConfig();
+    } else {
+        toast({ variant: 'destructive', title: 'Deletion Blocked', description: 'Mandatory environments cannot be removed.' });
+    }
   };
 
   const handleExportSettings = () => {
@@ -330,10 +363,8 @@ export default function SettingsPage() {
     if (getAuthMode() === mode) return;
     
     if (mode === 'authenticate') {
-        // Suppress confirmation popup when switching FROM local TO authenticate mode
         setIsAuthModalOpen(true);
     } else {
-        // Keep confirmation popup when switching BACK to local mode
         setPendingModeChange(mode);
         setIsModeConfirmOpen(true);
     }
@@ -380,7 +411,6 @@ export default function SettingsPage() {
   }
 
   const authMode = getAuthMode();
-  const isAdmin = authMode === 'localStorage' || userProfile?.role === 'admin';
   const isDataURIIcon = appIcon && appIcon.startsWith('data:image');
 
   return (
@@ -396,7 +426,6 @@ export default function SettingsPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start pb-20">
-        {/* Left Column: Field Configuration */}
         <div className="lg:col-span-2 space-y-8">
             <Card id="settings-field-config-card" className="border-none shadow-xl bg-card">
                 <CardHeader className="pb-6">
@@ -486,7 +515,6 @@ export default function SettingsPage() {
             </Card>
         </div>
 
-        {/* Right Column: Sidebar Cards */}
         <div className="space-y-6">
             <Card className="border-none shadow-lg">
                 <CardHeader className="pb-4">
@@ -655,12 +683,49 @@ export default function SettingsPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid gap-2">
-                        {(uiConfig.environments || []).map(env => (
-                            <div key={env.id} className="flex items-center gap-3 p-2.5 border rounded-xl bg-muted/20 font-bold text-sm">
-                                <div className="h-3 w-3 rounded-full shadow-sm shrink-0" style={{ backgroundColor: env.color }} />
-                                <span className="capitalize flex-1 truncate">{env.name}</span>
-                            </div>
-                        ))}
+                        {(uiConfig.environments || []).map(env => {
+                            const isMandatory = env.isMandatory || ['dev', 'production'].includes(env.name.toLowerCase());
+                            return (
+                                <div key={env.id} className="flex items-center justify-between p-2.5 border rounded-xl bg-muted/20 group hover:bg-muted/40 transition-colors">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="h-3 w-3 rounded-full shadow-sm shrink-0" style={{ backgroundColor: env.color }} />
+                                        <span className="capitalize font-bold text-sm truncate">{env.name}</span>
+                                        {isMandatory && <Lock className="h-3 w-3 text-muted-foreground/50 shrink-0" />}
+                                    </div>
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="h-7 w-7"
+                                            onClick={() => { setEnvToEdit(env); setIsEnvDialogOpen(true); }}
+                                        >
+                                            <Pencil className="h-3.5 w-3.5" />
+                                        </Button>
+                                        {!isMandatory && (
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10">
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Delete Environment?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            This will permanently remove the "**${env.name}**" environment and all associated deployment data from tasks. This cannot be undone.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDeleteEnv(env.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        )}
+                                    </div>
+                                </div>
+                            )
+                        })}
                     </div>
                     <div className="flex gap-2">
                         <Input placeholder="New environment..." className="h-10 text-xs font-bold" value={newEnvName} onChange={e => setNewEnvName(e.target.value)} />
@@ -743,6 +808,13 @@ export default function SettingsPage() {
         field={fieldToEdit}
         repositoryConfigs={uiConfig.repositoryConfigs || []}
         onSave={handleSaveField}
+      />
+
+      <EditEnvironmentDialog
+        isOpen={isEnvDialogOpen}
+        onOpenChange={setIsEnvDialogOpen}
+        environment={envToEdit}
+        onSave={handleSaveEnv}
       />
 
       <AuthModal 

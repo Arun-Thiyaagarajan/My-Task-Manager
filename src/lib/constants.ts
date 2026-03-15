@@ -3,9 +3,9 @@ import type { FieldConfig, FieldType, RepositoryConfig, Environment, ReleaseUpda
 
 export const TASK_STATUSES = ['To Do', 'In Progress', 'Code Review', 'QA', 'Hold', 'Done'] as const;
 export const ENVIRONMENTS: Environment[] = [
-    { id: 'env_1', name: 'dev', color: '#3b82f6' },
+    { id: 'env_1', name: 'dev', color: '#3b82f6', isMandatory: true },
     { id: 'env_2', name: 'stage', color: '#f59e0b' },
-    { id: 'env_3', name: 'production', color: '#22c55e' },
+    { id: 'env_3', name: 'production', color: '#22c55e', isMandatory: true },
 ];
 
 export const INITIAL_REPOSITORY_CONFIGS: RepositoryConfig[] = [

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES, INITIAL_RELEASES } from './constants';
@@ -257,6 +258,107 @@ export function addEnvironment(env: Omit<Environment, 'id'>) {
     }
     setUiConfig(config);
     addLog({ message: `Added new environment: **${env.name}**` });
+}
+
+export function updateEnvironment(id: string, updates: Partial<Environment>) {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    const config = data.companyData[companyId].uiConfig;
+    const index = config.environments.findIndex(e => e.id === id);
+    if (index === -1) return;
+
+    const oldName = config.environments[index].name;
+    const newName = updates.name || oldName;
+
+    if (newName !== oldName) {
+        // Migration logic for renaming
+        const tasks = data.companyData[companyId].tasks;
+        const trash = data.companyData[companyId].trash;
+
+        const migrateTask = (t: Task) => {
+            if (t.deploymentStatus && t.deploymentStatus[oldName] !== undefined) {
+                t.deploymentStatus[newName] = t.deploymentStatus[oldName];
+                delete t.deploymentStatus[oldName];
+            }
+            if (t.deploymentDates && t.deploymentDates[oldName] !== undefined) {
+                t.deploymentDates[newName] = t.deploymentDates[oldName];
+                delete t.deploymentDates[oldName];
+            }
+            if (t.prLinks && t.prLinks[oldName]) {
+                t.prLinks[newName] = t.prLinks[oldName];
+                delete t.prLinks[oldName];
+            }
+            if (t.relevantEnvironments) {
+                t.relevantEnvironments = t.relevantEnvironments.map(e => e === oldName ? newName : e);
+            }
+        };
+
+        tasks.forEach(migrateTask);
+        trash.forEach(migrateTask);
+
+        // Update MultiSelect options in field config
+        const relEnvsField = config.fields.find(f => f.key === 'relevantEnvironments');
+        if (relEnvsField && relEnvsField.options) {
+            relEnvsField.options = relEnvsField.options.map(opt => 
+                opt.value === oldName ? { ...opt, value: newName, label: newName } : opt
+            );
+        }
+    }
+
+    config.environments[index] = { ...config.environments[index], ...updates };
+    setAppData(data);
+    addLog({ message: `Updated environment: **${oldName}** ${newName !== oldName ? `to **${newName}**` : ''}` });
+    
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('uiConfig', '', config, 'set');
+        // Task data updates are also synced via setAppData above locally, 
+        // but in authenticate mode, we'd ideally batch update tasks if many are affected.
+        // For MVP, the next cloud listener sync will reconcile.
+    }
+}
+
+export function deleteEnvironment(id: string): boolean {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    const config = data.companyData[companyId].uiConfig;
+    const env = config.environments.find(e => e.id === id);
+    
+    if (!env) return false;
+    
+    // Safety check for mandatory envs
+    const nameLower = env.name.toLowerCase();
+    if (env.isMandatory || nameLower === 'dev' || nameLower === 'production') {
+        return false;
+    }
+
+    const envName = env.name;
+    config.environments = config.environments.filter(e => e.id !== id);
+    
+    // Remove from MultiSelect options
+    const relEnvsField = config.fields.find(f => f.key === 'relevantEnvironments');
+    if (relEnvsField && relEnvsField.options) {
+        relEnvsField.options = relEnvsField.options.filter(opt => opt.value !== envName);
+    }
+
+    // Clean up tasks
+    const tasks = data.companyData[companyId].tasks;
+    const trash = data.companyData[companyId].trash;
+    const cleanupTask = (t: Task) => {
+        if (t.relevantEnvironments) t.relevantEnvironments = t.relevantEnvironments.filter(e => e !== envName);
+        if (t.deploymentStatus) delete t.deploymentStatus[envName];
+        if (t.deploymentDates) delete t.deploymentDates[envName];
+        if (t.prLinks) delete t.prLinks[envName];
+    };
+    tasks.forEach(cleanupTask);
+    trash.forEach(cleanupTask);
+
+    setAppData(data);
+    addLog({ message: `Deleted environment: **${envName}**` });
+    
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('uiConfig', '', config, 'set');
+    }
+    return true;
 }
 
 // People management
