@@ -4,7 +4,7 @@ import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATU
 import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode } from './types';
 import cloneDeep from 'lodash/cloneDeep';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, setDoc, deleteDoc, updateDoc, collection } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, deleteDoc, updateDoc, collection, writeBatch, getDocs, query } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -545,6 +545,96 @@ export function deleteReleaseUpdate(id: string) {
     companyData.releaseUpdates = companyData.releaseUpdates.filter(x => x.id !== id);
     dispatchMutation('releaseUpdates', 'updates', { list: companyData.releaseUpdates }, 'set');
     setAppData(data);
+    return true;
+}
+
+// --- BULK OPERATIONS & MODE-AWARE CLEARING ---
+
+/**
+ * Clears data according to the current storage mode.
+ */
+export async function clearAllData() {
+    const mode = getAuthMode();
+    const companyId = getActiveCompanyId();
+
+    if (mode === 'authenticate') {
+        const auth = getAuth();
+        const db = getFirestore();
+        const userId = auth.currentUser?.uid;
+        if (!userId) return;
+
+        const companyBase = `users/${userId}/companies/${companyId}`;
+        
+        // Use recursive deletion for cloud data
+        const collections = ['tasks', 'notes', 'logs'];
+        for (const colName of collections) {
+            const snap = await getDocs(query(collection(db, companyBase, colName)));
+            const batch = writeBatch(db);
+            snap.docs.forEach(d => batch.delete(d.ref));
+            await batch.commit();
+        }
+
+        // Clear singleton documents
+        const singletons = [
+            doc(db, companyBase, 'people', 'developers'),
+            doc(db, companyBase, 'people', 'testers'),
+            doc(db, companyBase, 'reminders', 'general'),
+            doc(db, companyBase, 'releases', 'updates'),
+            doc(db, companyBase, 'settings', 'uiConfig')
+        ];
+        
+        const batch = writeBatch(db);
+        singletons.forEach(ref => batch.delete(ref));
+        await batch.commit();
+
+    } else {
+        // Clear local storage data
+        Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('taskflow_')) {
+                localStorage.removeItem(key);
+            }
+        });
+        localStorage.removeItem(DATA_KEY);
+    }
+}
+
+/**
+ * Centralized logic for importing entire workspace data.
+ * Correctly routes to Cloud or Local storage.
+ */
+export async function importWorkspaceData(parsedJson: any) {
+    const mode = getAuthMode();
+    
+    // In local mode, we use the complex in-page logic but wrapped in a setAppData call.
+    // For cloud mode, we must iterate and dispatch mutations.
+    
+    if (mode === 'localStorage') {
+        // This is handled by passing the logic back or using a helper.
+        // For simplicity, we ensure setAppData is called which handles localStorage.
+        return false; // UI should handle local merge for now or we refactor it here.
+    }
+
+    // Cloud Import Logic (Iterative dispatch)
+    // 1. Environments
+    if (parsedJson.environments) {
+        parsedJson.environments.forEach((env: Environment) => addEnvironment(env.name));
+    }
+    // 2. People
+    if (parsedJson.developers) {
+        parsedJson.developers.forEach((p: Partial<Person>) => addDeveloper(p));
+    }
+    if (parsedJson.testers) {
+        parsedJson.testers.forEach((p: Partial<Person>) => addTester(p));
+    }
+    // 3. Tasks
+    if (parsedJson.tasks) {
+        parsedJson.tasks.forEach((t: Partial<Task>) => addTask(t));
+    }
+    // 4. Notes
+    if (parsedJson.notes) {
+        parsedJson.notes.forEach((n: Partial<Note>) => addNote(n));
+    }
+    
     return true;
 }
 

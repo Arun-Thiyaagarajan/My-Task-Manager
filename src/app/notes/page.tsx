@@ -1,8 +1,7 @@
-
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { addNote, getNotes, updateNote, deleteNote, getUiConfig, updateNoteLayouts, resetNotesLayout, deleteMultipleNotes, importNotes, addLog } from '@/lib/data';
+import { addNote, getNotes, updateNote, deleteNote, getUiConfig, updateNoteLayouts, resetNotesLayout, deleteMultipleNotes, importNotes, addLog, getAuthMode } from '@/lib/data';
 import type { Note, UiConfig, NoteLayout } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -51,7 +50,6 @@ const getInitialStateFromStorage = <T>(key: string, defaultValue: T): T => {
     }
     try {
         const savedValue = localStorage.getItem(key);
-        // Add a check to prevent parsing "undefined" string
         return savedValue && savedValue !== 'undefined' ? JSON.parse(savedValue) : defaultValue;
     } catch (e) {
         console.error(`Failed to parse ${key} from localStorage`, e);
@@ -124,9 +122,11 @@ export default function NotesPage() {
     refreshData();
     window.addEventListener('storage', refreshData);
     window.addEventListener('notes-updated', refreshData);
+    window.addEventListener('company-changed', refreshData);
     return () => {
         window.removeEventListener('storage', refreshData);
         window.removeEventListener('notes-updated', refreshData);
+        window.removeEventListener('company-changed', refreshData);
     };
   }, [refreshData]);
 
@@ -178,7 +178,7 @@ export default function NotesPage() {
   };
 
   const onLayoutChange = (layout: any, layouts: any) => {
-    if (areFiltersActive) return; // Don't save layout changes while filtering
+    if (areFiltersActive) return;
     updateNoteLayouts(layouts.lg);
   };
   
@@ -245,7 +245,7 @@ export default function NotesPage() {
             const parsedJson = JSON.parse(text);
 
             let importedNotesData: Partial<Note>[] = [];
-            if (Array.isArray(parsedJson)) { // Legacy format: array of notes
+            if (Array.isArray(parsedJson)) {
                 importedNotesData = parsedJson;
             } else if (parsedJson && typeof parsedJson === 'object' && Array.isArray(parsedJson.notes)) {
                 importedNotesData = parsedJson.notes;
@@ -266,16 +266,16 @@ export default function NotesPage() {
             const duplicateCount = validNotes.length - uniqueNotesToImport.length;
             
             if (uniqueNotesToImport.length > 0) {
-                const newNotes = importNotes(uniqueNotesToImport);
-                addLog({ message: `Imported ${newNotes.length} notes.` });
-                toast({ variant: 'success', title: 'Import Complete', description: `${newNotes.length} notes were successfully imported.` });
+                importNotes(uniqueNotesToImport);
+                addLog({ message: `Imported ${uniqueNotesToImport.length} notes.` });
+                toast({ variant: 'success', title: 'Import Complete', description: `${uniqueNotesToImport.length} notes were successfully imported.` });
             }
 
             if (failedCount > 0) {
                 toast({ variant: 'warning', title: 'Import Warning', description: `${failedCount} notes failed validation and were not imported.` });
             }
             if (duplicateCount > 0) {
-                toast({ variant: 'default', title: 'Duplicates Skipped', description: `${duplicateCount} duplicate notes were not imported.` });
+                toast({ variant: 'default', title: 'Duplicates Skipped', description: `${duplicateCount} duplicate notes were already present.` });
             }
 
             if(uniqueNotesToImport.length === 0 && failedCount === 0) {
@@ -317,7 +317,6 @@ export default function NotesPage() {
   }, [searchQuery, dateFilter]);
 
   const layouts = useMemo(() => {
-    // This is a compact, read-only layout for when filters are active
     const generateCompactLayout = (notesToLayout: Note[]) => {
         let colHeights: { [key: string]: number } = { lg: 0, md: 0, sm: 0, xs: 0, xxs: 0 };
         const cols: { [key: string]: number } = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 };
@@ -327,7 +326,6 @@ export default function NotesPage() {
         notesToLayout.forEach(note => {
             Object.keys(cols).forEach(bp => {
                 const colWidth = cols[bp];
-                
                 const layoutItem = {
                     ...note.layout,
                     i: note.id,
@@ -349,10 +347,7 @@ export default function NotesPage() {
         return generateCompactLayout(filteredNotes);
     }
     
-    // Return the original saved layouts otherwise
-    return {
-        lg: filteredNotes.map(n => n.layout),
-    };
+    return { lg: filteredNotes.map(n => n.layout) };
 }, [areFiltersActive, filteredNotes]);
 
 
@@ -360,12 +355,19 @@ export default function NotesPage() {
     return <LoadingSpinner text="Loading notes..." />;
   }
 
+  const mode = getAuthMode();
+
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <div className="flex items-start sm:items-center justify-between mb-6 flex-col sm:flex-row gap-4">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <StickyNote className="h-7 w-7"/> Notes
-        </h1>
+        <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
+                <StickyNote className="h-7 w-7"/> Notes
+            </h1>
+            <Badge variant="outline" className={cn("hidden sm:flex", mode === 'authenticate' ? "text-primary border-primary/20 bg-primary/5" : "text-muted-foreground")}>
+                {mode === 'authenticate' ? 'Cloud Sync' : 'Local Only'}
+            </Badge>
+        </div>
          <div className="flex items-center gap-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={handleExportNotes}><Upload className="mr-2 h-4 w-4"/>Export Notes</Button>
             <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}><Download className="mr-2 h-4 w-4"/>Import Notes</Button>
@@ -586,5 +588,3 @@ export default function NotesPage() {
     </div>
   );
 }
-
-    

@@ -1,8 +1,7 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { getUiConfig, updateUiConfig, addEnvironment, updateEnvironment, deleteEnvironment, getDevelopers, getTesters, DATA_KEY, getAuthMode, setAuthMode } from '@/lib/data';
+import { getUiConfig, updateUiConfig, addEnvironment, updateEnvironment, deleteEnvironment, getDevelopers, getTesters, DATA_KEY, getAuthMode, setAuthMode, clearAllData } from '@/lib/data';
 import type { UiConfig, FieldConfig, RepositoryConfig, Person, BackupFrequency, Environment, AuthMode } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -132,21 +131,6 @@ export default function SettingsPage() {
   const [commandKey, setCommandKey] = useState('Ctrl');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-        setCommandKey(navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? '⌘' : 'Ctrl');
-    }
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-            e.preventDefault();
-            searchInputRef.current?.focus();
-        }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
   const refreshData = React.useCallback(() => {
     const loadedConfig = getUiConfig();
     setConfig(loadedConfig);
@@ -513,7 +497,7 @@ export default function SettingsPage() {
     if (newMode === 'authenticate') {
       setIsAuthModalOpen(true);
     } else {
-      // confirmed via dialog
+      // confirm return to local
     }
   };
 
@@ -537,7 +521,7 @@ export default function SettingsPage() {
       toast({ 
         variant: 'success', 
         title: 'Logged Out', 
-        description: 'Returned to Local Storage mode. Your previous local data has been restored.' 
+        description: 'Returned to Local Storage mode. Your local data is active.' 
       });
       refreshData();
     } catch (error: any) {
@@ -545,17 +529,12 @@ export default function SettingsPage() {
     }
   };
 
-  const handleClearData = () => {
-    Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('taskflow_')) {
-            localStorage.removeItem(key);
-        }
-    });
-    localStorage.removeItem(DATA_KEY);
+  const handleClearData = async () => {
+    await clearAllData();
     toast({
         variant: 'success',
         title: 'Data Cleared',
-        description: 'All local application data has been removed. The page will now reload.',
+        description: 'Data has been successfully removed. The page will now reload.',
         duration: 5000,
     });
     setTimeout(() => {
@@ -629,8 +608,8 @@ export default function SettingsPage() {
   const filteredAndGroupedFields = useMemo(() => {
     if (!config) return { active: {}, inactive: {} };
     
-    const query = searchQuery.toLowerCase();
-    const allFields = config.fields.filter(f => f.label.toLowerCase().includes(query) || f.group.toLowerCase().includes(query));
+    const queryStr = searchQuery.toLowerCase();
+    const allFields = config.fields.filter(f => f.label.toLowerCase().includes(queryStr) || f.group.toLowerCase().includes(queryStr));
 
     const activeFields = allFields.filter(f => f.isActive).sort((a,b) => a.order - b.order)
         .reduce((acc, field) => {
@@ -1066,7 +1045,7 @@ export default function SettingsPage() {
                  <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-destructive"><DatabaseZap className="h-5 w-5" />Data Management</CardTitle>
-                        <CardDescription>Export, import, or delete local data.</CardDescription>
+                        <CardDescription>Export, import, or delete data based on your storage mode.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-2">
                         <Button variant="outline" className="w-full justify-start gap-2" onClick={handleExportSettings}>
@@ -1089,14 +1068,14 @@ export default function SettingsPage() {
                             <AlertDialogTrigger asChild>
                                 <Button variant="destructive" className="w-full justify-start gap-2">
                                     <Trash2 className="mr-2 h-4 w-4" />
-                                    Clear All Local Data
+                                    Clear All {authMode === 'authenticate' ? 'Cloud' : 'Local'} Data
                                 </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                                 <AlertDialogHeader>
                                     <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                        This will permanently delete all tasks, notes, settings, and releases.
+                                        This will permanently delete all tasks, notes, and settings from your {authMode === 'authenticate' ? 'cloud workspace' : 'browser storage'}.
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
