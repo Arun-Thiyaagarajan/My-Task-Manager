@@ -21,7 +21,7 @@ import {
   sendEmailVerification,
 } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Eye, EyeOff, Mail, Lock, User, Chrome, ShieldCheck } from 'lucide-react';
+import { Loader2, Eye, EyeOff, Mail, Lock, User, Chrome, ShieldCheck, AlertCircle } from 'lucide-react';
 import { useFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
 
@@ -38,6 +38,7 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [authStep, setAuthStep] = useState<'login' | 'register' | 'forgot'>('login');
+  const [googleError, setGoogleError] = useState<string | null>(null);
   
   // Form States
   const [email, setEmail] = useState('');
@@ -73,11 +74,8 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
         return;
       }
       
-      // Execute success callbacks
       onSuccess();
       onOpenChange(false);
-      
-      // Trigger internal refresh and navigate home
       window.dispatchEvent(new Event('company-changed'));
       router.push('/');
       
@@ -91,21 +89,43 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
   const handleGoogleSignIn = async () => {
     if (!auth) return;
     setIsLoading(true);
+    setGoogleError(null);
     try {
       const provider = new GoogleAuthProvider();
+      // Ensure the user is prompted to select an account
+      provider.setCustomParameters({ prompt: 'select_account' });
+      
       await signInWithPopup(auth, provider);
       toast({ variant: 'success', title: 'Signed in with Google' });
       
-      // Execute success callbacks
       onSuccess();
       onOpenChange(false);
-      
-      // Trigger internal refresh and navigate home
       window.dispatchEvent(new Event('company-changed'));
       router.push('/');
       
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Google Sign-In Failed', description: error.message });
+      console.error("Google Auth Error:", error.code, error.message);
+      
+      let friendlyMessage = "Google sign-in is temporarily unavailable.";
+      
+      if (error.code === 'auth/popup-blocked') {
+        friendlyMessage = "Sign-in popup was blocked by your browser. Please allow popups for this site.";
+      } else if (error.code === 'auth/operation-not-allowed') {
+        friendlyMessage = "Google sign-in is not enabled in the Firebase Console. Please use email/password.";
+      } else if (error.code === 'auth/popup-closed-by-user') {
+        setIsLoading(false);
+        return; // User just closed the window, no need for error
+      } else if (error.code === 'auth/cancelled-popup-request') {
+        setIsLoading(false);
+        return;
+      }
+
+      setGoogleError(friendlyMessage);
+      toast({ 
+        variant: 'destructive', 
+        title: 'Google Sign-In Failed', 
+        description: friendlyMessage 
+      });
     } finally {
       setIsLoading(false);
     }
@@ -165,8 +185,7 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
                   <Label htmlFor="password">Password</Label>
                   {authStep === 'login' && (
                     <button 
-                      variant="link" 
-                      className="h-auto p-0 text-xs text-primary hover:underline" 
+                      className="h-auto p-0 text-xs text-primary hover:underline bg-transparent border-none cursor-pointer" 
                       onClick={() => setAuthStep('forgot')}
                       type="button"
                     >
@@ -187,14 +206,14 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+                    className="absolute right-3 top-3 text-muted-foreground hover:text-foreground bg-transparent border-none cursor-pointer"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
             )}
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full font-bold" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {authStep === 'login' ? 'Sign In' : authStep === 'register' ? 'Create Account' : 'Send Reset Link'}
             </Button>
@@ -205,31 +224,40 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+              <span className="bg-background px-2 text-muted-foreground font-bold">Or continue with</span>
             </div>
           </div>
 
-          <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading}>
-            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Chrome className="mr-2 h-4 w-4" />}
-            Google
-          </Button>
+          <div className="space-y-3">
+            <Button variant="outline" className="w-full font-bold h-11" onClick={handleGoogleSignIn} disabled={isLoading}>
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Chrome className="mr-2 h-4 w-4" />}
+              Google
+            </Button>
+            
+            {googleError && (
+              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-start gap-2 text-destructive animate-in fade-in slide-in-from-top-1">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                <p className="text-[11px] font-medium leading-tight">{googleError}</p>
+              </div>
+            )}
+          </div>
 
           <div className="mt-6 text-center text-sm">
             {authStep === 'login' ? (
-              <p>
+              <p className="text-muted-foreground">
                 Don't have an account?{' '}
                 <button 
-                  className="text-primary hover:underline font-medium" 
+                  className="text-primary hover:underline font-bold bg-transparent border-none cursor-pointer" 
                   onClick={() => setAuthStep('register')}
                 >
                   Register
                 </button>
               </p>
             ) : (
-              <p>
+              <p className="text-muted-foreground">
                 Already have an account?{' '}
                 <button 
-                  className="text-primary hover:underline font-medium" 
+                  className="text-primary hover:underline font-bold bg-transparent border-none cursor-pointer" 
                   onClick={() => setAuthStep('login')}
                 >
                   Sign In
