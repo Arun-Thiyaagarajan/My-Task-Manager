@@ -54,7 +54,8 @@ export function ReleaseManagementCard() {
     const { toast } = useToast();
 
     const authMode = getAuthMode();
-    const isAdmin = authMode === 'localStorage' || userProfile?.role === 'admin';
+    // Restriction: Only Cloud Admins can manage releases. Local mode is now read-only.
+    const isAdmin = authMode === 'authenticate' && userProfile?.role === 'admin';
 
     useEffect(() => {
         setReleases(getReleaseUpdates(false));
@@ -147,68 +148,64 @@ export function ReleaseManagementCard() {
     };
 
     return (
-        <Card id="release-management-card">
-            <CardHeader className="flex flex-row items-center justify-between pb-6">
-                <div>
-                    <CardTitle className="text-3xl font-bold flex items-center gap-3"><History className="h-7 w-7 text-primary" />Release Management</CardTitle>
-                    <CardDescription className="text-base mt-1">
-                        {isAdmin ? 'Draft and publish application updates for your users.' : 'View workspace update history.'}
+        <Card id="release-management-card" className="border-none shadow-lg">
+            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4">
+                <div className="min-w-0 flex-1">
+                    <CardTitle className="text-xl font-black flex items-center gap-2 tracking-tight">
+                        <History className="h-5 w-5 text-primary shrink-0" />
+                        Release Management
+                    </CardTitle>
+                    <CardDescription className="text-xs mt-0.5 line-clamp-1">
+                        {isAdmin ? 'Draft and publish updates for your users.' : 'Application update history.'}
                     </CardDescription>
                 </div>
                 {isAdmin ? (
-                    <Button onClick={handleOpenAdd} size="lg" className="h-11 px-6 font-bold"><Plus className="h-5 w-5 mr-2" />New Release</Button>
+                    <Button onClick={handleOpenAdd} size="sm" className="h-9 px-4 font-bold shrink-0">
+                        <Plus className="h-4 w-4 mr-1.5" />New Release
+                    </Button>
                 ) : (
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button size="lg" variant="outline" className="cursor-not-allowed opacity-50 h-11 px-6">
-                                    <Lock className="h-4 w-4 mr-2" />New Release
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>Release management is restricted to Administrators.</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
+                    <Badge variant="secondary" className="h-6 text-[9px] font-black uppercase tracking-widest bg-muted/50 text-muted-foreground shrink-0">
+                        Read Only
+                    </Badge>
                 )}
             </CardHeader>
             <CardContent>
-                <div className="space-y-4">
+                <div className="space-y-3">
                     {releases.map(release => (
-                        <div key={release.id} className="flex items-center justify-between p-4 border rounded-xl hover:bg-muted/50 transition-colors">
-                            <div className="flex items-center gap-5">
+                        <div key={release.id} className="flex items-center justify-between p-3 border rounded-2xl hover:bg-muted/30 transition-all group overflow-hidden">
+                            <div className="flex items-center gap-4 min-w-0">
                                 <div className={cn(
-                                    "h-12 w-12 rounded-full flex items-center justify-center border-2",
-                                    release.isPublished ? "bg-primary/10 border-primary text-primary" : "bg-muted border-muted-foreground/20 text-muted-foreground"
+                                    "h-10 w-10 rounded-xl flex items-center justify-center border shrink-0",
+                                    release.isPublished ? "bg-primary/10 border-primary/20 text-primary" : "bg-muted border-muted-foreground/10 text-muted-foreground"
                                 )}>
-                                    <Rocket className="h-6 w-6" />
+                                    <Rocket className="h-5 w-5" />
                                 </div>
-                                <div>
+                                <div className="min-w-0">
                                     <div className="flex items-center gap-2 mb-0.5">
-                                        <span className="font-black text-lg tracking-tight">v{release.version}</span>
-                                        <Badge variant={release.isPublished ? 'default' : 'outline'} className="text-[10px] uppercase font-black tracking-widest px-1.5 h-5">
+                                        <span className="font-black text-sm tracking-tight truncate">v{release.version}</span>
+                                        <Badge variant={release.isPublished ? 'default' : 'outline'} className="text-[8px] uppercase font-black tracking-widest px-1.5 h-4">
                                             {release.isPublished ? 'Published' : 'Draft'}
                                         </Badge>
                                     </div>
-                                    <p className="text-base font-bold leading-tight">{release.title}</p>
-                                    <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mt-1">{format(new Date(release.date), 'PPP')}</p>
+                                    <p className="text-xs font-bold leading-tight truncate text-foreground/80">{release.title}</p>
+                                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">{format(new Date(release.date), 'MMM d, yyyy')}</p>
                                 </div>
                             </div>
                             {isAdmin && (
-                                <div className="flex items-center gap-1">
-                                    <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => handleOpenEdit(release)}><FileEdit className="h-4 w-4" /></Button>
-                                    <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => togglePublish(release)}>
-                                        {release.isPublished ? <X className="h-4 w-4 text-amber-600" /> : <Check className="h-4 w-4 text-green-600" />}
+                                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEdit(release)}><FileEdit className="h-3.5 w-3.5" /></Button>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => togglePublish(release)}>
+                                        {release.isPublished ? <X className="h-3.5 w-3.5 text-amber-600" /> : <Check className="h-3.5 w-3.5 text-green-600" />}
                                     </Button>
-                                    <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive hover:text-destructive" onClick={() => handleDelete(release.id)}><Trash2 className="h-4 w-4" /></Button>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(release.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                                 </div>
                             )}
                         </div>
                     ))}
                     {releases.length === 0 && (
-                        <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-xl bg-muted/10">
-                            <History className="h-10 w-10 mx-auto mb-3 opacity-20" />
-                            <p className="text-base font-medium">No releases managed yet.</p>
+                        <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-2xl bg-muted/5">
+                            <History className="h-8 w-8 mx-auto mb-2 opacity-20" />
+                            <p className="text-xs font-bold uppercase tracking-widest">No history found</p>
                         </div>
                     )}
                 </div>
@@ -222,7 +219,7 @@ export function ReleaseManagementCard() {
                     </DialogHeader>
                     
                     {editingRelease && (
-                        <div className="flex-1 overflow-y-auto space-y-6 pr-2">
+                        <div className="flex-1 overflow-y-auto space-y-6 pr-2 custom-scrollbar">
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Version Number</Label>

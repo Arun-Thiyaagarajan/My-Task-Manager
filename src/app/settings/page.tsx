@@ -209,15 +209,29 @@ export default function SettingsPage() {
 
   const handleFieldToggle = (key: string, property: 'isActive' | 'isRequired') => {
     if (!uiConfig) return;
+    const field = uiConfig.fields.find(f => f.key === key);
+    if (!field) return;
+
+    const newValue = !field[property];
     const newFields = (uiConfig.fields || []).map(f => {
         if (f.key === key) {
-            const updated = { ...f, [property]: !f[property] };
+            const updated = { ...f, [property]: newValue };
             if (property === 'isRequired' && updated.isRequired) updated.isActive = true;
             return updated;
         }
         return f;
     });
+    
     handleUpdateConfig({ fields: newFields });
+
+    if (property === 'isActive') {
+        toast({ 
+            title: newValue ? 'Field Activated' : 'Field Deactivated', 
+            description: newValue 
+                ? `The "${field.label}" field is now visible in task forms.` 
+                : `The "${field.label}" field has been hidden and removed from task forms.`
+        });
+    }
   };
 
   const handleSaveField = (updatedField: FieldConfig, repoConfigs?: RepositoryConfig[]) => {
@@ -661,7 +675,7 @@ export default function SettingsPage() {
                     <CardTitle className="text-lg font-black flex items-center gap-2 uppercase tracking-wider">
                         <Users className="h-5 w-5 text-primary" />
                         Team
-                    </CardTitle>
+                    </Label>
                     <CardDescription className="text-xs">Manage developers and QA staff.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2">
