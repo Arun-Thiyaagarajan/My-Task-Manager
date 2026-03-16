@@ -10,8 +10,9 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { ZoomIn, ZoomOut, RotateCcw, X, Pencil, Camera, Trash2 } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, X, Pencil, Camera, Trash2, History } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ImagePreviewDialogProps {
   isOpen: boolean;
@@ -21,7 +22,9 @@ interface ImagePreviewDialogProps {
   onEdit?: () => void;
   onChange?: () => void;
   onRemove?: () => void;
+  onRestore?: () => void;
   isProfilePreview?: boolean;
+  previousImageUrl?: string | null;
 }
 
 const isActualImage = (url: string | null) => {
@@ -37,7 +40,9 @@ export function ImagePreviewDialog({
   onEdit,
   onChange,
   onRemove,
-  isProfilePreview = false
+  onRestore,
+  isProfilePreview = false,
+  previousImageUrl
 }: ImagePreviewDialogProps) {
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -107,7 +112,7 @@ export function ImagePreviewDialog({
     }
   };
 
-  if (!imageUrl || !imageName) {
+  if (!imageUrl && !imageName) {
     return null;
   }
 
@@ -161,32 +166,64 @@ export function ImagePreviewDialog({
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={imageUrl}
-                  alt={imageName}
+                  src={imageUrl!}
+                  alt={imageName || ''}
                   className="max-w-full max-h-full object-contain select-none shadow-2xl"
                   style={{ pointerEvents: 'none' }}
                 />
               </div>
           ) : (
               <div className="text-[12rem] sm:text-[16rem] select-none drop-shadow-2xl animate-in zoom-in duration-300">
-                  {imageUrl}
+                  {imageUrl || '📋'}
               </div>
           )}
         </div>
 
-        {isProfilePreview && (
-            <div className="p-4 bg-background/50 border-t flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2 sm:gap-3 shrink-0">
-                <Button variant="secondary" size="sm" onClick={onChange} className="cursor-pointer justify-start sm:justify-center">
-                    <Camera className="h-4 w-4 mr-2" /> Change Image
-                </Button>
-                {isImg && (
-                    <Button variant="secondary" size="sm" onClick={onEdit} className="cursor-pointer justify-start sm:justify-center">
-                        <Pencil className="h-4 w-4 mr-2" /> Edit Crop
-                    </Button>
+        {(isProfilePreview || previousImageUrl) && (
+            <div className="bg-background/50 border-t shrink-0">
+                {previousImageUrl && (
+                    <div className="flex flex-col items-center gap-2 p-4 border-b border-white/5">
+                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">
+                            <History className="h-3 w-3" /> Restore Previous
+                        </div>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button 
+                                        onClick={() => onRestore?.()}
+                                        className="group relative h-16 w-16 rounded-full border-2 border-border/50 overflow-hidden transition-all hover:border-primary active:scale-95 shadow-lg bg-card flex items-center justify-center text-3xl"
+                                    >
+                                        {isActualImage(previousImageUrl) ? (
+                                            <img src={previousImageUrl} alt="Previous" className="h-full w-full object-cover grayscale group-hover:grayscale-0 transition-all" />
+                                        ) : (
+                                            previousImageUrl
+                                        )}
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                            <RotateCcw className="h-5 w-5 text-white" />
+                                        </div>
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">Restore this version</TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </div>
                 )}
-                <Button variant="destructive" size="sm" onClick={onRemove} className="cursor-pointer justify-start sm:justify-center">
-                    <Trash2 className="h-4 w-4 mr-2" /> Remove Image
-                </Button>
+                
+                {isProfilePreview && (
+                    <div className="p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2 sm:gap-3">
+                        <Button variant="secondary" size="sm" onClick={onChange} className="cursor-pointer justify-start sm:justify-center rounded-full px-6 font-bold h-10">
+                            <Camera className="h-4 w-4 mr-2" /> Change
+                        </Button>
+                        {isImg && (
+                            <Button variant="secondary" size="sm" onClick={onEdit} className="cursor-pointer justify-start sm:justify-center rounded-full px-6 font-bold h-10">
+                                <Pencil className="h-4 w-4 mr-2" /> Crop
+                            </Button>
+                        )}
+                        <Button variant="destructive" size="sm" onClick={onRemove} className="cursor-pointer justify-start sm:justify-center rounded-full px-6 font-bold h-10">
+                            <Trash2 className="h-4 w-4 mr-2" /> Remove
+                        </Button>
+                    </div>
+                )}
             </div>
         )}
       </DialogContent>

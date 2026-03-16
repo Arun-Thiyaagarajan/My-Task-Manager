@@ -12,12 +12,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials, getAvatarGradient, cn, compressImage } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { setAuthMode, getAuthMode } from '@/lib/data';
+import { setAuthMode, getAuthMode, getLocalProfile, setLocalProfile } from '@/lib/data';
 import { 
   User as UserIcon, 
   Mail, 
@@ -30,7 +29,6 @@ import {
   KeyRound,
   Eye,
   EyeOff,
-  Settings,
   Maximize2,
   LogOut,
   UserCog,
@@ -61,13 +59,18 @@ export default function ProfilePage() {
   const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const authMode = getAuthMode();
+  const isLocal = authMode === 'localStorage';
+
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'general');
   const [isUpdating, setIsPending] = useState(false);
+  const [isPageLoading, setIsPageLoading] = useState(true);
   
   // Form states
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [photoURL, setPhotoURL] = useState<string | null>(null);
+  const [previousPhotoURL, setPreviousPhotoURL] = useState<string | null>(null);
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   
   // Password states
@@ -82,66 +85,79 @@ export default function ProfilePage() {
   const [isSignOutDialogOpen, setIsSignOutDialogOpen] = useState(false);
 
   useEffect(() => {
-    if (!isUserLoading && !user) {
+    if (!isLocal && !isUserLoading && !user) {
       router.push('/');
       return;
     }
 
-    if (user) {
+    if (isLocal) {
+        const local = getLocalProfile();
+        setDisplayName(local.username || 'Guest User');
+        setEmail('Local Storage Mode');
+        setPhotoURL(local.photoURL || null);
+        setPreviousPhotoURL(local.previousPhotoURL || null);
+        setIsPageLoading(false);
+        window.dispatchEvent(new Event('navigation-end'));
+    } else if (user) {
       setDisplayName(user.displayName || '');
       setEmail(user.email || '');
-      
-      const authPhoto = user.photoURL === "" ? null : user.photoURL;
-      const avatar = userProfile?.photoURL || authPhoto;
+      const avatar = userProfile?.photoURL || (user.photoURL === "" ? null : user.photoURL);
       setPhotoURL(avatar);
+      setPreviousPhotoURL(userProfile?.previousPhotoURL || null);
+      if (!isProfileLoading) {
+          setIsPageLoading(false);
+          window.dispatchEvent(new Event('navigation-end'));
+      }
     }
-
-    if (!isUserLoading && !isProfileLoading && user) {
-        window.dispatchEvent(new Event('navigation-end'));
-    }
-  }, [user, isUserLoading, userProfile, router, isProfileLoading]);
+  }, [user, isUserLoading, userProfile, router, isProfileLoading, isLocal]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !firestore) return;
     setIsPending(true);
 
     try {
-      const isDataURI = (url: string | null) => url?.startsWith('data:');
-
-      const authUpdates: { displayName: string; photoURL: string | null } = { 
-        displayName,
-        photoURL: null 
-      };
-
-      if (photoURL && !isDataURI(photoURL)) {
-          authUpdates.photoURL = photoURL;
-      } else if (photoURL && isDataURI(photoURL)) {
-          authUpdates.photoURL = "";
+      if (isLocal) {
+          const current = getLocalProfile();
+          setLocalProfile({
+              username: displayName,
+              photoURL: photoURL,
+              previousPhotoURL: photoURL !== current.photoURL ? current.photoURL : current.previousPhotoURL
+          });
+          toast({ variant: 'success', title: 'Profile Updated', description: 'Local changes saved.' });
       } else {
-          authUpdates.photoURL = null;
+          if (!user || !firestore) return;
+          const isDataURI = (url: string | null) => url?.startsWith('data:');
+          const authUpdates: { displayName: string; photoURL: string | null } = { 
+            displayName,
+            photoURL: null 
+          };
+
+          if (photoURL && !isDataURI(photoURL)) {
+              authUpdates.photoURL = photoURL;
+          } else if (photoURL && isDataURI(photoURL)) {
+              authUpdates.photoURL = "";
+          } else {
+              authUpdates.photoURL = null;
+          }
+
+          await updateProfile(user, authUpdates);
+          
+          const userRef = doc(firestore, 'users', user.uid);
+          const updates: any = {
+            id: user.uid,
+            username: displayName,
+            email: email,
+            photoURL: photoURL,
+            updatedAt: new Date().toISOString()
+          };
+
+          if (photoURL !== userProfile?.photoURL && userProfile?.photoURL) {
+              updates.previousPhotoURL = userProfile.photoURL;
+          }
+
+          await setDoc(userRef, updates, { merge: true });
+          toast({ variant: 'success', title: 'Profile Updated', description: 'Cloud changes synced successfully.' });
       }
-
-      await updateProfile(user, authUpdates);
-      
-      const userRef = doc(firestore, 'users', user.uid);
-      
-      // Determine if we should update history
-      const updates: any = {
-        id: user.uid,
-        username: displayName,
-        email: email,
-        photoURL: photoURL,
-        updatedAt: new Date().toISOString()
-      };
-
-      if (photoURL !== userProfile?.photoURL && userProfile?.photoURL) {
-          updates.previousPhotoURL = userProfile.photoURL;
-      }
-
-      await setDoc(userRef, updates, { merge: true });
-
-      toast({ variant: 'success', title: 'Profile Updated', description: 'Your information has been saved successfully.' });
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Update Failed', description: error.message });
     } finally {
@@ -192,9 +208,11 @@ export default function ProfilePage() {
   };
 
   const handleRestorePrevious = () => {
-      if (userProfile?.previousPhotoURL) {
-          setPhotoURL(userProfile.previousPhotoURL);
+      const prev = isLocal ? getLocalProfile().previousPhotoURL : userProfile?.previousPhotoURL;
+      if (prev) {
+          setPhotoURL(prev);
           toast({ title: 'Photo restored', description: 'Don\'t forget to click "Save Changes" to apply.' });
+          setIsPreviewOpen(false);
       }
   };
 
@@ -241,7 +259,7 @@ export default function ProfilePage() {
       toast({ 
         variant: 'success', 
         title: 'Verification Sent', 
-        description: 'A verification email has been sent to your inbox. Please check your email to verify your account. If you don’t see it, please check your spam/junk folder.' 
+        description: 'A verification email has been sent to your inbox. Check your email to verify your account.' 
       });
     } catch (error: any) {
       toast({ 
@@ -277,16 +295,14 @@ export default function ProfilePage() {
     return strength;
   };
 
-  if (isUserLoading || isProfileLoading) return null;
-  if (!user) return null;
+  if (isPageLoading) return null;
 
-  const authMode = getAuthMode();
-  const profileName = displayName || user.email || 'User';
-  const displayRole = authMode === 'localStorage' ? 'admin' : (userProfile?.role || 'user');
+  const profileName = displayName || (isLocal ? 'Guest User' : user?.email) || 'User';
+  const displayRole = isLocal ? 'admin' : (userProfile?.role || 'user');
+  const isVerified = isLocal ? true : user?.emailVerified;
 
-  const authPhoto = user.photoURL === "" ? null : user.photoURL;
-  const currentSavedPhoto = userProfile?.photoURL || authPhoto || null;
-  const currentSavedName = user.displayName || '';
+  const currentSavedPhoto = isLocal ? getLocalProfile().photoURL : (userProfile?.photoURL || (user?.photoURL === "" ? null : user?.photoURL));
+  const currentSavedName = isLocal ? getLocalProfile().username : (user?.displayName || '');
 
   const hasChanges = 
     displayName !== currentSavedName || 
@@ -295,7 +311,6 @@ export default function ProfilePage() {
   return (
     <div className="container max-w-4xl mx-auto py-10 px-4">
       <div className="flex flex-col md:flex-row gap-8">
-        {/* Left Sidebar Info */}
         <div className="w-full md:w-1/3 space-y-6">
           <Card className="overflow-hidden shadow-xl border-none bg-card rounded-3xl">
             <div className="h-20 bg-gradient-to-br from-primary/20 via-primary/5 to-transparent w-full" />
@@ -353,7 +368,7 @@ export default function ProfilePage() {
               <div className="mt-4 space-y-1 overflow-hidden">
                 <h2 className="text-xl font-semibold tracking-tight text-foreground truncate px-4" title={profileName}>{profileName}</h2>
                 <div className="flex items-center justify-center gap-2">
-                    <p className="text-[11px] text-muted-foreground font-normal truncate" title={user.email || ''}>{user.email}</p>
+                    <p className="text-[11px] text-muted-foreground font-normal truncate" title={email}>{email}</p>
                     <Badge variant="outline" className={cn(
                         "h-4 px-1.5 text-[8px] uppercase font-semibold tracking-widest",
                         displayRole === 'admin' ? "bg-primary/10 text-primary border-primary/20" : "bg-muted text-muted-foreground"
@@ -368,25 +383,25 @@ export default function ProfilePage() {
                   variant="outline" 
                   className={cn(
                     "flex items-center gap-1.5 py-1 px-3 text-[10px] font-semibold uppercase tracking-wider border-none rounded-full",
-                    user.emailVerified 
+                    isVerified 
                       ? "bg-green-500/10 text-green-600 dark:text-green-400" 
                       : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
                   )}
                 >
-                  {user.emailVerified ? <ShieldCheck className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
-                  {user.emailVerified ? 'Verified Account' : 'Action Required'}
+                  {isVerified ? <ShieldCheck className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                  {isVerified ? (isLocal ? 'Local Identity' : 'Verified Account') : 'Action Required'}
                 </Badge>
                 
                 <div className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground/40 uppercase tracking-widest">
                   <Calendar className="h-3 w-3" />
-                  Joined {user.metadata.creationTime ? format(new Date(user.metadata.creationTime), 'MMM d, yyyy') : 'N/A'}
+                  {isLocal ? 'Local Storage Active' : `Joined ${user?.metadata.creationTime ? format(new Date(user.metadata.creationTime), 'MMM d, yyyy') : 'N/A'}`}
                 </div>
               </div>
             </div>
           </Card>
 
-          {userProfile?.previousPhotoURL && (
-              <Card className="p-4 border-dashed border-2 bg-muted/5">
+          {previousPhotoURL && (
+              <Card className="p-4 border-dashed border-2 bg-muted/5 rounded-3xl">
                   <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-widest">
                           <History className="h-3.5 w-3.5" />
@@ -409,7 +424,7 @@ export default function ProfilePage() {
                         className="relative group/restore cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full"
                       >
                         <Avatar className="h-16 w-16 border-2 border-border transition-all group-hover/restore:border-primary/50 group-hover/restore:scale-105">
-                            <AvatarImage src={userProfile.previousPhotoURL} className="object-cover" />
+                            <AvatarImage src={previousPhotoURL} className="object-cover" />
                             <AvatarFallback className="text-xs">Old</AvatarFallback>
                         </Avatar>
                         <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover/restore:opacity-100 transition-opacity">
@@ -421,32 +436,31 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Main Content Area */}
         <div className="flex-1">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted/50 p-1">
-              <TabsTrigger value="general" className="data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer font-medium">General Info</TabsTrigger>
-              <TabsTrigger value="security" className="data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer font-medium">Security</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted/50 p-1 rounded-xl">
+              <TabsTrigger value="general" className="data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer font-medium rounded-lg">General Info</TabsTrigger>
+              <TabsTrigger value="security" className="data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer font-medium rounded-lg">Security</TabsTrigger>
             </TabsList>
 
             <TabsContent value="general" className="space-y-6">
               <form onSubmit={handleUpdateProfile}>
-                <Card className="shadow-sm">
+                <Card className="shadow-sm border-none lg:border">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-lg font-semibold">
                       <UserIcon className="h-5 w-5 text-primary" />
                       Personal Information
                     </CardTitle>
-                    <CardDescription className="text-sm font-normal">Update your public-facing profile details.</CardDescription>
+                    <CardDescription className="text-sm font-normal">Update your profile details displayed in the workspace.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    {!user.emailVerified && (
+                    {!isLocal && !user?.emailVerified && (
                       <Alert variant="destructive" className="bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/50 text-amber-900 dark:text-amber-200">
                         <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                         <AlertTitle className="font-semibold">Verification Required</AlertTitle>
                         <AlertDescription className="flex items-center justify-between gap-2 mt-1">
                           <div className="flex-1">
-                            <p className="font-normal text-sm">A verification email has been sent to your inbox. Please check your email to verify your account. If you don’t see it, please check your spam/junk folder.</p>
+                            <p className="font-normal text-sm">Verify your email to secure your account and enable full features.</p>
                             <Button variant="link" onClick={handleVerifyEmail} type="button" className="h-auto p-0 text-xs font-semibold underline cursor-pointer mt-2">Resend verification email</Button>
                           </div>
                         </AlertDescription>
@@ -505,106 +519,120 @@ export default function ProfilePage() {
             </TabsContent>
 
             <TabsContent value="security" className="space-y-6">
-              <form onSubmit={handlePasswordChange}>
-                <Card className="shadow-sm">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-                      <KeyRound className="h-5 w-5 text-primary" />
-                      Security Settings
-                    </CardTitle>
-                    <CardDescription className="text-sm font-normal">Keep your account secure with a strong password.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="grid gap-2">
-                      <Label htmlFor="new-pass" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">New Password</Label>
-                      <div className="relative group">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                        <Input 
-                          id="new-pass" 
-                          type={showPass ? 'text' : 'password'}
-                          className="pl-10 pr-10 h-11 font-normal" 
-                          value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                          placeholder="••••••••"
-                        />
-                        <button 
-                          type="button" 
-                          onClick={() => setShowPass(!showPass)} 
-                          onMouseDown={(e) => e.preventDefault()}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer z-10"
-                        >
-                          {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                      <div className="space-y-1.5 pt-1">
-                        <div className="flex items-center justify-between text-[10px] uppercase font-semibold tracking-widest text-muted-foreground">
-                          <span>Password Strength</span>
-                          <span className={cn(
-                              "font-semibold",
-                              getPasswordStrength() === 100 ? "text-green-600" : getPasswordStrength() >= 50 ? "text-amber-600" : "text-red-600"
-                          )}>
-                              {getPasswordStrength() === 100 ? 'Strong' : getPasswordStrength() >= 50 ? 'Medium' : 'Weak'}
-                          </span>
+              {isLocal ? (
+                  <Alert className="bg-primary/5 border-primary/20">
+                      <ShieldCheck className="h-4 w-4 text-primary" />
+                      <AlertTitle className="font-bold">Local Security</AlertTitle>
+                      <AlertDescription className="text-sm font-normal">
+                          You are currently using Local Storage. Security settings like password management are handled by your browser. Sign in to enable cloud security and synchronization.
+                      </AlertDescription>
+                  </Alert>
+              ) : (
+                <form onSubmit={handlePasswordChange}>
+                    <Card className="shadow-sm border-none lg:border">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                        <KeyRound className="h-5 w-5 text-primary" />
+                        Security Settings
+                        </CardTitle>
+                        <CardDescription className="text-sm font-normal">Keep your cloud account secure with a strong password.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="grid gap-2">
+                        <Label htmlFor="new-pass" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">New Password</Label>
+                        <div className="relative group">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                            <Input 
+                            id="new-pass" 
+                            type={showPass ? 'text' : 'password'}
+                            className="pl-10 pr-10 h-11 font-normal" 
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            placeholder="••••••••"
+                            />
+                            <button 
+                            type="button" 
+                            onClick={() => setShowPass(!showPass)} 
+                            onMouseDown={(e) => e.preventDefault()}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer z-10"
+                            >
+                            {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
                         </div>
-                        <Progress value={getPasswordStrength()} className="h-1.5" />
-                      </div>
-                    </div>
+                        <div className="space-y-1.5 pt-1">
+                            <div className="flex items-center justify-between text-[10px] uppercase font-semibold tracking-widest text-muted-foreground">
+                            <span>Password Strength</span>
+                            <span className={cn(
+                                "font-semibold",
+                                getPasswordStrength() === 100 ? "text-green-600" : getPasswordStrength() >= 50 ? "text-amber-600" : "text-red-600"
+                            )}>
+                                {getPasswordStrength() === 100 ? 'Strong' : getPasswordStrength() >= 50 ? 'Medium' : 'Weak'}
+                            </span>
+                            </div>
+                            <Progress value={getPasswordStrength()} className="h-1.5" />
+                        </div>
+                        </div>
 
-                    <div className="grid gap-2">
-                      <Label htmlFor="confirm-pass" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Confirm New Password</Label>
-                      <div className="relative group">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                        <Input 
-                          id="confirm-pass" 
-                          type="password"
-                          className="pl-10 h-11 font-normal" 
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          placeholder="••••••••"
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="bg-muted/30 border-t flex justify-end px-6 py-4">
-                    <Button type="submit" disabled={isUpdating || !newPassword} className="px-8 cursor-pointer font-medium">
-                      {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Update Password
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </form>
+                        <div className="grid gap-2">
+                        <Label htmlFor="confirm-pass" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Confirm New Password</Label>
+                        <div className="relative group">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                            <Input 
+                            id="confirm-pass" 
+                            type="password"
+                            className="pl-10 h-11 font-normal" 
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            placeholder="••••••••"
+                            />
+                        </div>
+                        </div>
+                    </CardContent>
+                    <CardFooter className="bg-muted/30 border-t flex justify-end px-6 py-4">
+                        <Button type="submit" disabled={isUpdating || !newPassword} className="px-8 cursor-pointer font-medium">
+                        {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Update Password
+                        </Button>
+                    </CardFooter>
+                    </Card>
+                </form>
+              )}
 
-              <Card className="border-destructive/20 bg-destructive/5 shadow-sm">
+              <Card className="border-destructive/20 bg-destructive/5 shadow-sm rounded-3xl">
                 <CardHeader>
                   <CardTitle className="text-destructive text-base font-semibold">Advanced Account Actions</CardTitle>
-                  <CardDescription className="text-sm font-normal">Critical actions related to your account sessions and data.</CardDescription>
+                  <CardDescription className="text-sm font-normal">Manage your session and access mode.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between p-4 border rounded-xl bg-background shadow-sm group hover:border-destructive/20 transition-colors">
+                  <div className="flex items-center justify-between p-4 border rounded-2xl bg-background shadow-sm group hover:border-destructive/20 transition-colors">
                     <div>
                       <p className="text-sm font-semibold flex items-center gap-2">
                           <LogOut className="h-4 w-4 text-muted-foreground" />
-                          Sign out of session
+                          {isLocal ? 'Return Home' : 'Sign out of session'}
                       </p>
-                      <p className="text-[11px] text-muted-foreground font-normal">End your current session on this device.</p>
+                      <p className="text-[11px] text-muted-foreground font-normal">{isLocal ? 'Go back to your workspace.' : 'End your current cloud session.'}</p>
                     </div>
-                    <AlertDialog open={isSignOutDialogOpen} onOpenChange={setIsSignOutDialogOpen}>
-                        <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-8 text-xs font-semibold group-hover:bg-destructive group-hover:text-white transition-all cursor-pointer">Sign Out</Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle className="font-semibold">Sign out of TaskFlow?</AlertDialogTitle>
-                                <AlertDialogDescription className="font-normal text-sm">
-                                    Are you sure you want to sign out? You will be redirected to the home page in Local Mode.
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel className="font-medium">Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleSignOut} className="bg-destructive hover:bg-destructive/90 font-semibold">Sign Out</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
+                    {isLocal ? (
+                        <Button variant="outline" size="sm" onClick={() => router.push('/')} className="h-8 text-xs font-semibold px-4">Workspace</Button>
+                    ) : (
+                        <AlertDialog open={isSignOutDialogOpen} onOpenChange={setIsSignOutDialogOpen}>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="outline" size="sm" className="h-8 text-xs font-semibold group-hover:bg-destructive group-hover:text-white transition-all cursor-pointer">Sign Out</Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent className="rounded-3xl">
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle className="font-semibold">Sign out of TaskFlow?</AlertDialogTitle>
+                                    <AlertDialogDescription className="font-normal text-sm">
+                                        Are you sure you want to sign out? You will be redirected to the home page in Local Mode.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel className="font-medium">Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleSignOut} className="bg-destructive hover:bg-destructive/90 font-semibold">Sign Out</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -629,6 +657,8 @@ export default function ProfilePage() {
         onEdit={handleEditExisting}
         onChange={() => { setIsPreviewOpen(false); fileInputRef.current?.click(); }}
         onRemove={handleRemovePhoto}
+        previousImageUrl={previousPhotoURL}
+        onRestore={handleRestorePrevious}
       />
     </div>
   );

@@ -2,7 +2,7 @@
 'use client';
 
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES, INITIAL_RELEASES } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences } from './types'; 
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile } from './types'; 
 import cloneDeep from 'lodash/cloneDeep';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, setDoc, deleteDoc, updateDoc, collection, writeBatch, getDocs, query, orderBy, limit, getDoc } from 'firebase/firestore';
@@ -63,6 +63,7 @@ const getInitialData = (): MyTaskManagerData => {
                 releaseUpdates: [],
             },
         },
+        localProfile: { username: 'Guest User', photoURL: null, previousPhotoURL: null },
     };
 };
 
@@ -99,6 +100,17 @@ export function setAuthMode(mode: AuthMode) {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(AUTH_MODE_KEY, mode);
     window.dispatchEvent(new Event('company-changed'));
+}
+
+// Local Profile Management
+export function getLocalProfile(): LocalProfile {
+    return getAppData().localProfile || { username: 'Guest User', photoURL: null, previousPhotoURL: null };
+}
+
+export function setLocalProfile(profile: LocalProfile) {
+    const data = getAppData();
+    data.localProfile = profile;
+    setAppData(data);
 }
 
 // User Preferences Management
@@ -520,7 +532,8 @@ export function addLog(log: Omit<Log, 'id' | 'timestamp'>) {
             userId = user.uid;
             userName = user.displayName || user.email || 'Cloud User';
         } else {
-            userName = 'Local User';
+            const local = getLocalProfile();
+            userName = local.username || 'Local User';
         }
     } catch (e) {
         userName = 'System';

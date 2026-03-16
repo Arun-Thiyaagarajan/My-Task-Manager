@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -28,7 +29,7 @@ import {
   DropdownMenuGroup,
 } from '@/components/ui/dropdown-menu';
 import { signOut } from 'firebase/auth';
-import { setAuthMode } from '@/lib/data';
+import { setAuthMode, getAuthMode, getLocalProfile } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from './ui/button';
 
@@ -64,8 +65,16 @@ export function MobileBottomNav() {
     }
   };
 
-  const profileName = userProfile?.username || user?.displayName || user?.email || 'User';
-  const profilePhoto = userProfile?.photoURL || user?.photoURL;
+  const authMode = getAuthMode();
+  const localProfile = getLocalProfile();
+  
+  const profileName = (authMode === 'authenticate' && user)
+    ? (userProfile?.username || user?.displayName || user?.email || 'Cloud User')
+    : (localProfile.username || 'Guest User');
+    
+  const profilePhoto = (authMode === 'authenticate' && user)
+    ? (userProfile?.photoURL || user?.photoURL)
+    : localProfile.photoURL;
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border flex items-center justify-around h-16 px-2 safe-area-pb">
@@ -119,11 +128,11 @@ export function MobileBottomNav() {
             <button className="flex flex-col items-center justify-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-md p-1">
               <div className={cn(
                 "h-7 w-7 rounded-full border-2 flex items-center justify-center overflow-hidden transition-transform active:scale-90",
-                user ? "border-primary" : "border-muted-foreground/20"
+                (authMode === 'authenticate' && user) ? "border-primary" : "border-muted-foreground/20"
               )}>
-                {user ? (
+                {profilePhoto ? (
                   <Avatar className="h-full w-full">
-                    <AvatarImage src={profilePhoto || undefined} className="object-cover" />
+                    <AvatarImage src={profilePhoto} className="object-cover" />
                     <AvatarFallback 
                       className="text-white text-[8px] font-bold"
                       style={{ background: getAvatarGradient(profileName) }}
@@ -132,7 +141,9 @@ export function MobileBottomNav() {
                     </AvatarFallback>
                   </Avatar>
                 ) : (
-                  <UserIcon className="h-4 w-4 text-muted-foreground" />
+                  <div className="flex items-center justify-center h-full w-full bg-muted">
+                    <UserIcon className="h-4 w-4 text-muted-foreground" />
+                  </div>
                 )}
               </div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Me</span>
@@ -142,17 +153,15 @@ export function MobileBottomNav() {
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
                 <p className="text-sm font-bold truncate">{profileName}</p>
-                <p className="text-[10px] text-muted-foreground truncate">{user?.email || 'Local Storage Mode'}</p>
+                <p className="text-[10px] text-muted-foreground truncate">{ (authMode === 'authenticate' && user) ? (user.email || user.phoneNumber) : 'Local Storage Mode'}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              {user && (
-                <DropdownMenuItem onSelect={() => handleNavigate('/profile')}>
-                  <UserIcon className="mr-2 h-4 w-4 opacity-70" />
-                  <span>My Profile</span>
-                </DropdownMenuItem>
-              )}
+              <DropdownMenuItem onSelect={() => handleNavigate('/profile')}>
+                <UserIcon className="mr-2 h-4 w-4 opacity-70" />
+                <span>My Profile</span>
+              </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => handleNavigate('/logs')}>
                 <FileClock className="mr-2 h-4 w-4" />
                 <span>Activity Logs</span>
@@ -167,7 +176,7 @@ export function MobileBottomNav() {
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            {user ? (
+            {(authMode === 'authenticate' && user) ? (
               <DropdownMenuItem onSelect={handleSignOut} className="text-destructive focus:text-destructive">
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Sign Out</span>

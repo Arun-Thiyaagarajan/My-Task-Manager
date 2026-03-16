@@ -203,6 +203,7 @@ export default function SettingsPage() {
       if (uiConfig?.previousAppIcon) {
           setAppIcon(uiConfig.previousAppIcon);
           toast({ title: 'Icon restored', description: 'Click "Save Display Settings" to apply.' });
+          setIsPreviewOpen(false);
       }
   };
 
@@ -859,6 +860,8 @@ export default function SettingsPage() {
         onEdit={handleEditExistingIcon}
         onChange={() => { setIsPreviewOpen(false); iconFileInputRef.current?.click(); }}
         onRemove={handleRemoveIcon}
+        previousImageUrl={uiConfig.previousAppIcon}
+        onRestore={handleRestorePreviousIcon}
       />
 
       <AlertDialog open={isModeConfirmOpen} onOpenChange={setIsModeConfirmOpen}>

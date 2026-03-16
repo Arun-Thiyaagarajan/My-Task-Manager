@@ -179,6 +179,12 @@ export interface FieldOption {
 
 export type AuthMode = 'localStorage' | 'authenticate';
 
+export interface LocalProfile {
+  username?: string;
+  photoURL?: string | null;
+  previousPhotoURL?: string | null;
+}
+
 export interface UiConfig {
   fields: FieldConfig[];
   environments: Environment[];
@@ -216,6 +222,7 @@ export interface MyTaskManagerData {
     companyData: {
         [companyId: string]: CompanyData;
     };
+    localProfile?: LocalProfile;
 }
 
 export interface FieldConfig {
