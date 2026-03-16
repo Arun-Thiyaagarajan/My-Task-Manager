@@ -1198,7 +1198,7 @@ export default function Home() {
             {isSelectMode && (
               <div className="sticky top-[68px] z-30 mb-4">
                 <Card className="border-primary/50 bg-background/90 backdrop-blur-sm shadow-lg overflow-hidden">
-                  <CardContent className="p-4 flex flex-col gap-4">
+                  <CardContent className="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div className="flex items-center gap-3">
                       <Checkbox 
                         id="select-all-tasks" 
@@ -1212,7 +1212,7 @@ export default function Home() {
                     </div>
 
                     <div className={cn(
-                        'grid grid-cols-2 sm:flex sm:flex-row sm:items-center items-stretch justify-center gap-2 w-full md:w-auto transition-opacity duration-300', 
+                        'grid grid-cols-2 md:flex md:flex-row md:items-center items-stretch justify-center gap-2 w-full md:w-auto transition-opacity duration-300', 
                         selectedTaskIds.length > 0 ? 'opacity-100' : 'opacity-40 pointer-events-none'
                     )}>
                       <Button variant="outline" size="sm" onClick={() => setIsTagsDialogOpen(true)} className="font-medium h-10 px-3">
