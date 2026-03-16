@@ -680,7 +680,7 @@ export default function Home() {
   const handleDownloadTemplate = useCallback(() => {
       const currentUiConfig = getUiConfig();
       const appNamePrefix = currentUiConfig.appName?.replace(/\s+/g, '_') || 'MyTaskManager';
-      const fileName = `${appNamePrefix}_Import_Template.json`;
+      fileName = `${appNamePrefix}_Import_Template.json`;
 
       const templateData = {
           appName: "My Awesome Project",
@@ -1082,7 +1082,7 @@ export default function Home() {
                         <button
                             onClick={() => handleDateViewChange('all')}
                             className={cn(
-                                "hidden md:inline-flex items-center justify-center h-8 px-4 rounded-md text-sm font-medium transition-all",
+                                "inline-flex items-center justify-center h-8 px-4 rounded-md text-sm font-medium transition-all flex-1 md:flex-none",
                                 dateView === 'all' 
                                     ? "bg-background text-foreground shadow-sm ring-1 ring-black/5" 
                                     : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
@@ -1130,24 +1130,51 @@ export default function Home() {
 
             {isSelectMode && (
               <div className="sticky top-[68px] z-30 mb-4">
-                <Card className="border-primary/50 bg-background/90 backdrop-blur-sm shadow-lg">
-                  <CardContent className="p-3 flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div className="flex items-center gap-2">
-                      <Checkbox id="select-all-tasks" checked={filteredTasks.length > 0 && selectedTaskIds.length === filteredTasks.length} onCheckedChange={handleToggleSelectAll} />
-                      <Label htmlFor="select-all-tasks" className="text-sm font-medium">{selectedTaskIds.length > 0 ? `${selectedTaskIds.length} selected` : `Select all`}</Label>
+                <Card className="border-primary/50 bg-background/90 backdrop-blur-sm shadow-lg overflow-hidden">
+                  <CardContent className="p-3 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 w-full md:w-auto">
+                      <Checkbox 
+                        id="select-all-tasks" 
+                        checked={filteredTasks.length > 0 && selectedTaskIds.length === filteredTasks.length} 
+                        onCheckedChange={handleToggleSelectAll}
+                        className="h-5 w-5"
+                      />
+                      <Label htmlFor="select-all-tasks" className="text-sm font-semibold whitespace-nowrap cursor-pointer">
+                        {selectedTaskIds.length > 0 ? `${selectedTaskIds.length} Selected` : `Select All`}
+                      </Label>
                     </div>
 
-                    <div className={cn('flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto', selectedTaskIds.length > 0 ? 'opacity-100' : 'opacity-0 pointer-events-none')}>
-                      <Button variant="outline" size="sm" onClick={() => setIsTagsDialogOpen(true)} className="font-medium"><Tag className="mr-2 h-4 w-4" /> Tags</Button>
-                      <Button variant="outline" size="sm" onClick={handleBulkCopyText} className="font-medium"><Copy className="mr-2 h-4 w-4" /> Copy</Button>
-                      <Button variant="outline" size="sm" onClick={handleBulkExportPdf} className="font-medium"><Download className="mr-2 h-4 w-4" /> PDF</Button>
+                    <div className={cn(
+                        'flex flex-row flex-wrap items-center justify-center gap-2 w-full md:w-auto transition-opacity duration-300', 
+                        selectedTaskIds.length > 0 ? 'opacity-100' : 'opacity-40 pointer-events-none'
+                    )}>
+                      <Button variant="outline" size="sm" onClick={() => setIsTagsDialogOpen(true)} className="font-medium h-9 px-3">
+                        <Tag className="mr-2 h-4 w-4" /> Tags
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleBulkCopyText} className="font-medium h-9 px-3">
+                        <Copy className="mr-2 h-4 w-4" /> Copy
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleBulkExportPdf} className="font-medium h-9 px-3">
+                        <Download className="mr-2 h-4 w-4" /> PDF
+                      </Button>
                       <AlertDialog>
-                        <AlertDialogTrigger asChild><Button variant="destructive" size="sm" className="font-medium"><Trash2 className="mr-2 h-4 w-4" /> Delete</Button></AlertDialogTrigger>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="sm" className="font-semibold h-9 px-3">
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                            </Button>
+                        </AlertDialogTrigger>
                         <AlertDialogContent>
-                          <AlertDialogHeader><AlertDialogTitle className="font-semibold">Move to Bin?</AlertDialogTitle><AlertDialogDescription className="font-normal">Move {selectedTaskIds.length} tasks to the bin?</AlertDialogDescription></AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel className="font-normal">Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive font-medium">Delete</AlertDialogAction>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="font-semibold">Move to Bin?</AlertDialogTitle>
+                            <AlertDialogDescription className="font-normal text-sm leading-relaxed">
+                                You are about to move {selectedTaskIds.length} task(s) to the bin. You can restore them for up to 30 days.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter className="gap-2 pt-4">
+                            <AlertDialogCancel className="font-medium rounded-lg">Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90 font-bold rounded-lg px-6">
+                                Delete Tasks
+                            </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
