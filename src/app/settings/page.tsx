@@ -417,58 +417,71 @@ export default function SettingsPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start pb-20">
-        {/* Storage Mode - Top on mobile, right sidebar top on desktop */}
+        {/* Storage Mode - Top on mobile, right sidebar on desktop */}
         <div className="order-1 lg:order-none lg:col-start-3 lg:row-start-1">
             <Card className="border-none shadow-lg">
                 <CardHeader className="pb-4">
                     <CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider">
                         <ShieldCheck className="h-5 w-5 text-primary" />
-                        Storage Mode
+                        STORAGE MODE
                     </CardTitle>
                     <CardDescription className="text-xs font-normal">Select how your workspace data is managed.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <Tabs value={authMode} onValueChange={(val) => handleInitiateModeChange(val as AuthMode)} className="w-full">
-                        <TabsList className="grid w-full grid-cols-2 bg-muted/50 p-1 rounded-xl h-12">
-                            <TabsTrigger 
-                                value="localStorage" 
-                                className="flex items-center gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm h-full transition-all text-[10px] font-bold uppercase tracking-tight"
-                            >
-                                <Smartphone className="h-4 w-4" />
-                                <span>Local Storage</span>
-                            </TabsTrigger>
-                            <TabsTrigger 
-                                value="authenticate" 
-                                className="flex items-center gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm h-full transition-all text-[10px] font-bold uppercase tracking-tight"
-                            >
-                                <Database className="h-4 w-4" />
-                                <span>Cloud Sync</span>
-                            </TabsTrigger>
-                        </TabsList>
-                    </Tabs>
+                    <div className="grid gap-3">
+                        <button 
+                            onClick={() => handleInitiateModeChange('localStorage')}
+                            className={cn(
+                                "flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all",
+                                authMode === 'localStorage' 
+                                    ? "bg-primary/[0.03] border-primary shadow-[0_0_15px_-3px_rgba(61,90,254,0.2)]" 
+                                    : "bg-background border-border hover:border-border/80"
+                            )}
+                        >
+                            <div className={cn(
+                                "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
+                                authMode === 'localStorage' ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                            )}>
+                                <Smartphone className="h-5 w-5" />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="font-bold text-sm tracking-tight">Local Storage</p>
+                                <p className="text-[10px] text-muted-foreground font-medium leading-tight mt-0.5">Browser-based data. Fast & Offline.</p>
+                            </div>
+                        </button>
+
+                        <button 
+                            onClick={() => handleInitiateModeChange('authenticate')}
+                            className={cn(
+                                "flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all",
+                                authMode === 'authenticate' 
+                                    ? "bg-primary/[0.03] border-primary shadow-[0_0_15px_-3px_rgba(61,90,254,0.2)]" 
+                                    : "bg-background border-border hover:border-border/80"
+                            )}
+                        >
+                            <div className={cn(
+                                "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
+                                authMode === 'authenticate' ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                            )}>
+                                <Database className="h-5 w-5" />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="font-bold text-sm tracking-tight">Cloud Sync</p>
+                                <p className="text-[10px] text-muted-foreground font-medium leading-tight mt-0.5">Real-time sync across all devices.</p>
+                            </div>
+                        </button>
+                    </div>
                     
-                    <div className="bg-muted/30 rounded-xl p-3 border border-transparent hover:border-border transition-all">
-                        {authMode === 'localStorage' ? (
-                            <div className="space-y-1">
-                                <p className="text-sm font-semibold flex items-center gap-2">
-                                    <Smartphone className="h-3.5 w-3.5 text-primary" />
-                                    Offline Only
-                                </p>
-                                <p className="text-[11px] text-muted-foreground font-normal leading-tight">
-                                    Your data stays in this browser. It's extremely fast and works 100% offline, but won't sync to other devices.
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="space-y-1">
-                                <p className="text-sm font-semibold flex items-center gap-2">
-                                    <Database className="h-3.5 w-3.5 text-primary" />
-                                    Cloud Sync Active
-                                </p>
-                                <p className="text-[11px] text-muted-foreground font-normal leading-tight">
-                                    Your data is securely synced to the cloud. Access your tasks from any device with real-time updates.
-                                </p>
-                            </div>
-                        )}
+                    <div className="mt-4 pt-4 border-t border-dashed">
+                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            <Info className="h-3 w-3" />
+                            Active Status
+                        </div>
+                        <p className="text-[11px] text-foreground/70 font-medium leading-relaxed mt-2">
+                            {authMode === 'localStorage' 
+                                ? "You are currently working offline. Data is stored strictly in this browser." 
+                                : "Your data is currently syncing with the cloud. All changes are saved automatically."}
+                        </p>
                     </div>
                 </CardContent>
             </Card>
@@ -602,27 +615,6 @@ export default function SettingsPage() {
                                         </Button>
                                     </TooltipTrigger>
                                     <TooltipContent>Upload Brand Icon</TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <button 
-                                            type="button"
-                                            onClick={() => appIcon ? setIsPreviewOpen(true) : null}
-                                            className={cn(
-                                                "h-10 w-10 border rounded-xl flex items-center justify-center bg-muted text-xl overflow-hidden shrink-0 transition-transform active:scale-95",
-                                                appIcon && "cursor-pointer hover:ring-4 hover:ring-primary/10"
-                                            )}
-                                        >
-                                            {isDataURIIcon ? (
-                                                <img src={appIcon} alt="Icon" className="h-full w-full object-contain" />
-                                            ) : (
-                                                appIcon || '📋'
-                                            )}
-                                        </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>{appIcon ? 'View / Edit Icon' : 'Current Icon'}</TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
                             <input type="file" ref={iconFileInputRef} onChange={handleIconUpload} className="hidden" accept="image/*" />
