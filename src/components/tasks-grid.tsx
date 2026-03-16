@@ -4,6 +4,7 @@ import { TaskCardSkeleton } from '@/components/task-card-skeleton';
 import type { Task, UiConfig, Person } from '@/lib/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { Badge } from './ui/badge';
+import { Skeleton } from './ui/skeleton';
 
 interface TasksGridProps {
   tasks: Task[];
