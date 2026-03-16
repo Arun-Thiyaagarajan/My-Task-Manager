@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -49,6 +48,8 @@ export default function NewTaskPage() {
     }
 
     setIsLoading(false);
+    // Notify global loader that navigation and initial data loading is complete
+    window.dispatchEvent(new Event('navigation-end'));
   }, [toast]);
 
   const handleCreateTask = async (data: any) => {
