@@ -797,7 +797,10 @@ const handleCopyDescription = () => {
   const assignedDevelopers = (task.developers || []).map(id => developers.find(p => p.id === id)).filter((p): p is Person => !!p);
   const assignedTesters = (task.testers || []).map(id => testers.find(p => p.id === id)).filter((p): p is Person => !!p);
 
-  const azureFieldConfig = (uiConfig?.fields || []).find(f => f.key === 'azureWorkItemId');
+  const azureWorkItemIdFieldConfig = (uiConfig?.fields || []).find(f => f.key === 'azureWorkItemId');
+  const azureWorkItemUrl = task.azureWorkItemId && azureWorkItemIdFieldConfig?.baseUrl
+    ? `${azureWorkItemIdFieldConfig.baseUrl}${task.azureWorkItemId}`
+    : null;
   
   const tagsField = (uiConfig?.fields || []).find(f => f.key === 'tags');
   const repoField = (uiConfig?.fields || []).find(f => f.key === 'repositories');
