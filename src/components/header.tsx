@@ -220,8 +220,8 @@ export function Header() {
     <>
       <header id="main-header" className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-14 max-w-screen-2xl items-center justify-between relative px-4 sm:px-6">
-          <div className="flex items-center gap-4 md:gap-8">
-            <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2 md:gap-4 lg:gap-8">
+            <div className="flex items-center space-x-2 shrink-0">
                 {uiConfig?.appIcon && isDataURI(uiConfig.appIcon) ? (
                     <button onClick={() => setIsImagePreviewOpen(true)} className="flex-shrink-0 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-transform active:scale-95">
                         <img src={uiConfig.appIcon} alt="App Icon" className="h-6 w-6 object-contain rounded-md shadow-sm" />
@@ -234,44 +234,44 @@ export function Header() {
                 )}
 
               <HeaderLink href="/" className="hidden sm:inline-block">
-                <span className="font-semibold tracking-tight text-lg">{uiConfig?.appName || 'Task Manager'}</span>
+                <span className="font-semibold tracking-tight text-lg whitespace-nowrap">{uiConfig?.appName || 'Task Manager'}</span>
               </HeaderLink>
             </div>
 
-            <nav className="hidden md:flex items-center gap-6">
-               <HeaderLink href="/" id="header-nav-home" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
+            <nav className="hidden lg:flex items-center gap-4 xl:gap-6">
+               <HeaderLink href="/" id="header-nav-home" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap">
                   <Home className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   Tasks
                </HeaderLink>
-               <HeaderLink href="/dashboard" id="header-nav-dashboard" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
+               <HeaderLink href="/dashboard" id="header-nav-dashboard" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap">
                   <LayoutDashboard className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   Dashboard
                </HeaderLink>
-               <HeaderLink href="/settings" id="header-nav-settings" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
+               <HeaderLink href="/settings" id="header-nav-settings" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap">
                   <Cog className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   Settings
                </HeaderLink>
-               <HeaderLink href="/releases" id="header-nav-releases" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
+               <HeaderLink href="/releases" id="header-nav-releases" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap">
                   <History className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   Releases
                </HeaderLink>
-               <HeaderLink href="/logs" id="header-nav-logs" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
+               <HeaderLink href="/logs" id="header-nav-logs" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap">
                   <FileClock className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   Logs
                </HeaderLink>
-               <HeaderLink href="/bin" id="header-nav-bin" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
+               <HeaderLink href="/bin" id="header-nav-bin" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap">
                   <Trash2 className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   Bin
                </HeaderLink>
             </nav>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {activeCompany && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="px-3 sm:px-4 font-medium shadow-sm border-primary/10 bg-primary/5 hover:bg-primary/10 h-9 rounded-full transition-all">
-                      <Building className="h-4 w-4 sm:mr-2 text-primary" />
-                      <span className="hidden sm:inline tracking-tight">{activeCompany.name}</span>
+                      <Building className="h-4 w-4 md:mr-2 text-primary" />
+                      <span className="hidden md:inline tracking-tight truncate max-w-[100px] lg:max-w-none">{activeCompany.name}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-64 p-2 rounded-xl shadow-xl">
@@ -354,10 +354,10 @@ export function Header() {
                 <span className="sr-only">General Reminders</span>
             </Button>
             
-            <div className="hidden md:block">
+            <div className="hidden sm:block">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="relative h-10 w-10 rounded-full group ring-offset-background transition-all hover:ring-2 hover:ring-primary/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                  <button className="relative h-9 w-9 rounded-full group ring-offset-background transition-all hover:ring-2 hover:ring-primary/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                     <div className={cn(
                       "flex h-full w-full items-center justify-center rounded-full border-2 transition-all overflow-hidden",
                       authMode === 'authenticate' && user ? "border-primary p-0.5" : "border-muted-foreground/20"
