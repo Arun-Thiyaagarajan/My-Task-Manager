@@ -8,6 +8,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Download, Share2, Copy, FileJson } from 'lucide-react';
@@ -27,9 +30,10 @@ interface ShareMenuProps {
   developers: Person[];
   testers: Person[];
   children: React.ReactNode;
+  asSubmenu?: boolean;
 }
 
-export function ShareMenu({ task, uiConfig, developers, testers, children }: ShareMenuProps) {
+export function ShareMenu({ task, uiConfig, developers, testers, children, asSubmenu = false }: ShareMenuProps) {
   const { toast } = useToast();
   const [canSharePdf, setCanSharePdf] = React.useState(false);
 
@@ -129,31 +133,50 @@ export function ShareMenu({ task, uiConfig, developers, testers, children }: Sha
       });
   };
 
+  const menuItems = (
+    <>
+      <DropdownMenuItem onSelect={handleDownloadPdf}>
+        <Download className="mr-2 h-4 w-4" />
+        <span>Download as PDF</span>
+      </DropdownMenuItem>
+       <DropdownMenuItem onSelect={handleExportJson}>
+        <FileJson className="mr-2 h-4 w-4" />
+        <span>Export as JSON</span>
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={handleCopyToClipboard}>
+          <Copy className="mr-2 h-4 w-4" />
+          <span>Copy as Text</span>
+      </DropdownMenuItem>
+      {canSharePdf && (
+        <>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={handleSharePdf}>
+            <Share2 className="mr-2 h-4 w-4" />
+            <span>Share PDF...</span>
+          </DropdownMenuItem>
+        </>
+      )}
+    </>
+  );
+
+  if (asSubmenu) {
+    return (
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger className="flex items-center w-full">
+          {children}
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent className="w-56">
+          {menuItems}
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+    );
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56" onClick={e => e.stopPropagation()}>
-        <DropdownMenuItem onSelect={handleDownloadPdf}>
-          <Download className="mr-2 h-4 w-4" />
-          <span>Download as PDF</span>
-        </DropdownMenuItem>
-         <DropdownMenuItem onSelect={handleExportJson}>
-          <FileJson className="mr-2 h-4 w-4" />
-          <span>Export as JSON</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={handleCopyToClipboard}>
-            <Copy className="mr-2 h-4 w-4" />
-            <span>Copy as Text</span>
-        </DropdownMenuItem>
-        {canSharePdf && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={handleSharePdf}>
-              <Share2 className="mr-2 h-4 w-4" />
-              <span>Share PDF...</span>
-            </DropdownMenuItem>
-          </>
-        )}
+        {menuItems}
       </DropdownMenuContent>
     </DropdownMenu>
   );

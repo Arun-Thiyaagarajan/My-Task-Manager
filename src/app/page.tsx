@@ -879,9 +879,11 @@ export default function Home() {
                         Export
                     </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuItem onSelect={() => handleExport('current_view')}>Export Current View</DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => handleExport('all_tasks')}>Export All Tasks</DropdownMenuItem>
-                    <DropdownMenuItem onSelect={handleDownloadTemplate}>Download Import Template</DropdownMenuItem>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem onSelect={() => handleExport('current_view')}>Export Current View</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => handleExport('all_tasks')}>Export All Tasks</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={handleDownloadTemplate}>Download Import Template</DropdownMenuItem>
+                    </DropdownMenuContent>
                 </DropdownMenu>
 
                 <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isImporting} className="w-full sm:w-auto h-11 font-medium">

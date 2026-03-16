@@ -137,7 +137,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
     : null;
     
   const developersById = new Map(developers.map(d => [d.id, d]));
-  const testersById = new Map(testers.map(t => [t.id, t]));
+  const testersById = new Map(testers.map(t => [t.id, t.name]).map(([id, name]) => [id, { id, name } as Person]));
 
   const assignedDevelopers = (task.developers || []).map(id => developersById.get(id)).filter((d): d is Person => !!d);
   const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter((t): t is Person => !!t);
@@ -459,14 +459,16 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" onClick={e => e.stopPropagation()}>
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                      <ShareMenu task={task} uiConfig={uiConfig!} developers={developers} testers={testers}>
-                        <div className="flex items-center w-full">
-                          <Share2 className="mr-2 h-4 w-4" />
-                          <span>Share...</span>
-                        </div>
-                      </ShareMenu>
-                    </DropdownMenuItem>
+                    <ShareMenu 
+                      task={task} 
+                      uiConfig={uiConfig!} 
+                      developers={developers} 
+                      testers={testers}
+                      asSubmenu
+                    >
+                      <Share2 className="mr-2 h-4 w-4" />
+                      <span>Share</span>
+                    </ShareMenu>
                     <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive focus:text-destructive focus:bg-destructive/10">
                       <DeleteTaskButton
                         taskId={task.id}
