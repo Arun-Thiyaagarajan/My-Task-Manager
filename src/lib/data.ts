@@ -15,9 +15,23 @@ const PREFERENCES_KEY = 'taskflow_user_preferences';
 
 // Central In-Memory Cache for Real-time Cloud Data
 let _cloudCache: MyTaskManagerData | null = null;
+let _initialSyncStatus: Record<string, boolean> = {}; // companyId -> status
 
 export function setCloudCache(data: MyTaskManagerData | null) {
     _cloudCache = data;
+}
+
+export function isInitialSyncComplete(companyId: string): boolean {
+    if (typeof window === 'undefined') return false;
+    if (getAuthMode() !== 'authenticate') return true;
+    if (!companyId) return false;
+    return _initialSyncStatus[companyId] || false;
+}
+
+export function markInitialSyncComplete(companyId: string) {
+    if (typeof window === 'undefined') return;
+    _initialSyncStatus[companyId] = true;
+    window.dispatchEvent(new Event('sync-complete'));
 }
 
 const getEmptyAppData = (): MyTaskManagerData => ({

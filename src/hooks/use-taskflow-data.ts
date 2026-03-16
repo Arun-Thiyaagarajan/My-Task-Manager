@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useRef } from 'react';
@@ -17,7 +16,8 @@ import {
     setCloudCache, 
     getActiveCompanyId,
     getAuthMode,
-    updateUserPreferences
+    updateUserPreferences,
+    markInitialSyncComplete
 } from '@/lib/data';
 import type { Task, Note, Log, Company, MyTaskManagerData, CompanyData, UserPreferences } from '@/lib/types';
 import { INITIAL_RELEASES, INITIAL_UI_CONFIG, TASK_STATUSES, INITIAL_REPOSITORY_CONFIGS, ENVIRONMENTS } from '@/lib/constants';
@@ -114,6 +114,8 @@ export function useTaskFlowData() {
                 const tasksRef = collection(db, companyBase, 'tasks');
                 const unsubTasks = onSnapshot(tasksRef, (snap) => {
                     _updateCloudCachePart(activeCompanyId, 'tasks', snap.docs.map(d => d.data() as Task));
+                    // Mark sync as complete once we get the initial tasks snapshot
+                    markInitialSyncComplete(activeCompanyId);
                 }, (error) => {
                     errorEmitter.emit('permission-error', new FirestorePermissionError({
                         path: tasksRef.path,

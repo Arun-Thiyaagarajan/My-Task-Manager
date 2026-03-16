@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
-import { getTasks, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addTagsToMultipleTasks, addEnvironment, DATA_KEY, getAuthMode, importWorkspaceData, getUserPreferences, updateUserPreferences } from '@/lib/data';
+import { getTasks, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addTagsToMultipleTasks, addEnvironment, DATA_KEY, getAuthMode, importWorkspaceData, getUserPreferences, updateUserPreferences, isInitialSyncComplete } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -45,6 +45,7 @@ import {
   CornerDownLeft,
   Filter,
   ChevronDown,
+  Save,
 } from 'lucide-react';
 import { cn, fuzzySearch } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig, Log, GeneralReminder, BackupFrequency, Environment, UserPreferences, AuthMode } from '@/lib/types';
@@ -68,7 +69,7 @@ import {
 } from 'date-fns';
 import { useActiveCompany } from '@/hooks/use-active-company';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Card, CardContent } from '@/components/ui/card';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
@@ -115,7 +116,7 @@ export default function Home() {
   const activeCompanyId = useActiveCompany();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const pathname = '/';
+  const pathname = usePathname();
   
   const [tasks, setTasks] = useState<Task[]>([]);
   const [developers, setDevelopers] = useState<Person[]>([]);
@@ -268,6 +269,13 @@ export default function Home() {
         setUiConfig(config);
         document.title = config.appName || 'My Task Manager';
         setSelectedTaskIds([]);
+        
+        // In authenticate mode, we only stop internal loading state when the sync is confirmed
+        const syncComplete = isInitialSyncComplete(activeCompanyId);
+        if (getAuthMode() === 'authenticate' && !syncComplete) {
+            return;
+        }
+        
         setIsLoading(false);
         window.dispatchEvent(new Event('navigation-end'));
     }
@@ -411,6 +419,15 @@ export default function Home() {
 
             setFilteredTasks(sorted);
             setSearchError(null);
+            
+            // Only consider initialized if cloud sync status is known
+            const mode = getAuthMode();
+            if (mode === 'authenticate') {
+                if (isUserLoading || !activeCompanyId || !isInitialSyncComplete(activeCompanyId)) {
+                    return;
+                }
+            }
+            
             setHasInitialized(true);
         } catch (e) {
             console.error("Filtering logic failed:", e);
@@ -422,7 +439,7 @@ export default function Home() {
 
     const rafId = requestAnimationFrame(filterAndProcess);
     return () => cancelAnimationFrame(rafId);
-  }, [tasks, statusFilter, repoFilter, tagsFilter, developers, testers, executedSearchQuery, dateView, selectedDate, deploymentFilter, favoritesOnly, sortDescriptor, uiConfig, viewMode]);
+  }, [tasks, statusFilter, repoFilter, tagsFilter, developers, testers, executedSearchQuery, dateView, selectedDate, deploymentFilter, favoritesOnly, sortDescriptor, uiConfig, viewMode, isUserLoading, activeCompanyId]);
 
   const handleExport = useCallback((exportType: 'current_view' | 'all_tasks') => {
     const allDevelopers = getDevelopers();
@@ -552,11 +569,13 @@ export default function Home() {
     window.addEventListener('storage', storageHandler);
     window.addEventListener('config-changed', refreshData);
     window.addEventListener('company-changed', refreshData);
+    window.addEventListener('sync-complete', refreshData);
     
     return () => {
       window.removeEventListener('storage', storageHandler);
       window.removeEventListener('config-changed', refreshData);
       window.removeEventListener('company-changed', refreshData);
+      window.removeEventListener('sync-complete', refreshData);
     };
   }, [activeCompanyId, toast, refreshData]);
   
@@ -818,7 +837,7 @@ export default function Home() {
   };
   
   const authMode = currentAuthMode;
-  const isVerifyingCloud = authMode === 'authenticate' && isUserLoading;
+  const isVerifyingCloud = authMode === 'authenticate' && (isUserLoading || !activeCompanyId || !isInitialSyncComplete(activeCompanyId));
   const activeSkeletons = isLoading || isSearching || isVerifyingCloud || !hasInitialized;
 
   return (
