@@ -119,6 +119,10 @@
     0% { left: -30%; width: 30%; }
     100% { left: 100%; width: 30%; }
   }
+  @keyframes logo-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+  }
 }
 
 @layer utilities {
@@ -154,6 +158,9 @@
     .animate-loading-bar {
       position: absolute;
       animation: loading-bar 1.5s infinite linear;
+    }
+    .animate-logo-pulse {
+      animation: logo-pulse 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
     }
 }
 
