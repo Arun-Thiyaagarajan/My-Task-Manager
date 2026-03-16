@@ -4,17 +4,10 @@ import { cn } from '@/lib/utils';
 import { Header } from '@/components/header';
 import { Toaster } from '@/components/ui/toaster';
 import { Providers } from '@/components/providers';
-import { Inter } from 'next/font/google';
 import { FloatingNotes } from '@/components/floating-notes';
 import { MobileBottomNav } from '@/components/mobile-bottom-nav';
 import { PullToRefresh } from '@/components/pull-to-refresh';
 import type { Metadata, Viewport } from 'next';
-
-const inter = Inter({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-inter',
-});
 
 export const metadata: Metadata = {
   title: 'TaskFlow',
@@ -44,13 +37,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={inter.variable}>
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="apple-touch-icon" href="https://placehold.co/180x180/4f46e5/white/png?text=TF" />
       </head>
       <body
         className={cn(
-          'min-h-screen bg-background font-sans antialiased',
+          'min-h-screen bg-background antialiased',
         )}
         suppressHydrationWarning={true}
       >
