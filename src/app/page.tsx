@@ -1051,9 +1051,9 @@ export default function Home() {
            )}
 
            <div className="flex flex-col gap-6">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:gap-6">
+                <div className="flex flex-col md:flex-row md:flex-wrap lg:flex-nowrap md:items-center md:justify-between gap-4 md:gap-6">
                     {/* LEFT GROUP: Date Nav & Count */}
-                    <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
+                    <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-4 md:gap-6">
                         {(dateView === 'monthly' || dateView === 'yearly') && !favoritesOnly && (
                             <div className="flex items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
                                 <Button variant="outline" size="icon" onClick={handlePreviousDate} className="h-11 w-11 shrink-0 shadow-sm rounded-xl active:scale-95 transition-transform"><ChevronLeft className="h-5 w-5" /></Button>
@@ -1084,8 +1084,8 @@ export default function Home() {
                     </div>
 
                     {/* RIGHT GROUP: Controls */}
-                    <div id="view-mode-toggle" className="flex flex-col md:flex-row items-center gap-4">
-                        <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 no-scrollbar md:pb-0">
+                    <div id="view-mode-toggle" className="flex flex-col md:flex-row md:flex-wrap items-center gap-4">
+                        <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto md:overflow-visible md:flex-wrap pb-1 no-scrollbar md:pb-0">
                             <Select value={sortDescriptor} onValueChange={handleSortChange}>
                                 <SelectTrigger className="flex-1 min-w-[140px] sm:w-[180px] h-11 font-bold rounded-xl shadow-sm"><SelectValue placeholder="Sort by" /></SelectTrigger>
                                 <SelectContent>
