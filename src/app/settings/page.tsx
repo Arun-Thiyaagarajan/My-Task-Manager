@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -21,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
     Cog, 
     ShieldAlert, 
@@ -415,7 +417,65 @@ export default function SettingsPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start pb-20">
-        <div className="lg:col-span-2 space-y-8">
+        {/* Storage Mode - Top on mobile, right sidebar top on desktop */}
+        <div className="order-1 lg:order-none lg:col-start-3 lg:row-start-1">
+            <Card className="border-none shadow-lg">
+                <CardHeader className="pb-4">
+                    <CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider">
+                        <ShieldCheck className="h-5 w-5 text-primary" />
+                        Storage Mode
+                    </CardTitle>
+                    <CardDescription className="text-xs font-normal">Select how your workspace data is managed.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <Tabs value={authMode} onValueChange={(val) => handleInitiateModeChange(val as AuthMode)} className="w-full">
+                        <TabsList className="grid w-full grid-cols-2 bg-muted/50 p-1 rounded-xl h-12">
+                            <TabsTrigger 
+                                value="localStorage" 
+                                className="flex items-center gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm h-full transition-all text-[10px] font-bold uppercase tracking-tight"
+                            >
+                                <Smartphone className="h-4 w-4" />
+                                <span>Local Storage</span>
+                            </TabsTrigger>
+                            <TabsTrigger 
+                                value="authenticate" 
+                                className="flex items-center gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm h-full transition-all text-[10px] font-bold uppercase tracking-tight"
+                            >
+                                <Database className="h-4 w-4" />
+                                <span>Cloud Sync</span>
+                            </TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+                    
+                    <div className="bg-muted/30 rounded-xl p-3 border border-transparent hover:border-border transition-all">
+                        {authMode === 'localStorage' ? (
+                            <div className="space-y-1">
+                                <p className="text-sm font-semibold flex items-center gap-2">
+                                    <Smartphone className="h-3.5 w-3.5 text-primary" />
+                                    Offline Only
+                                </p>
+                                <p className="text-[11px] text-muted-foreground font-normal leading-tight">
+                                    Your data stays in this browser. It's extremely fast and works 100% offline, but won't sync to other devices.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="space-y-1">
+                                <p className="text-sm font-semibold flex items-center gap-2">
+                                    <Database className="h-3.5 w-3.5 text-primary" />
+                                    Cloud Sync Active
+                                </p>
+                                <p className="text-[11px] text-muted-foreground font-normal leading-tight">
+                                    Your data is securely synced to the cloud. Access your tasks from any device with real-time updates.
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+
+        {/* Main Content - Second on mobile, col 1-2 on desktop */}
+        <div className="order-2 lg:order-none lg:col-span-2 lg:row-start-1 lg:row-span-10 space-y-8">
             <Card id="settings-field-config-card" className="border-none shadow-xl bg-card">
                 <CardHeader className="pb-6">
                     <CardTitle className="text-xl font-semibold tracking-tight">Field Configuration</CardTitle>
@@ -504,53 +564,8 @@ export default function SettingsPage() {
             </Card>
         </div>
 
-        <div className="space-y-6">
-            <Card className="border-none shadow-lg">
-                <CardHeader className="pb-4">
-                    <CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider">
-                        <ShieldCheck className="h-5 w-5 text-primary" />
-                        Storage Mode
-                    </CardTitle>
-                    <CardDescription className="text-xs font-normal">Select how your workspace data is managed.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                    <button 
-                        onClick={() => handleInitiateModeChange('localStorage')}
-                        className={cn(
-                            "w-full text-left p-4 border rounded-2xl transition-all relative overflow-hidden group",
-                            authMode === 'localStorage' ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "hover:border-primary/50"
-                        )}
-                    >
-                        <div className="flex items-start gap-4">
-                            <div className={cn("p-2 rounded-xl", authMode === 'localStorage' ? "bg-primary text-white" : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors")}>
-                                <Smartphone className="h-5 w-5" />
-                            </div>
-                            <div className="min-w-0">
-                                <p className="text-sm font-semibold tracking-tight truncate">Local Storage</p>
-                                <p className="text-[11px] text-muted-foreground font-normal mt-0.5">Browser-based data. Fast & Offline.</p>
-                            </div>
-                        </div>
-                    </button>
-                    <button 
-                        onClick={() => handleInitiateModeChange('authenticate')}
-                        className={cn(
-                            "w-full text-left p-4 border rounded-2xl transition-all relative overflow-hidden group",
-                            authMode === 'authenticate' ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "hover:border-primary/50"
-                        )}
-                    >
-                        <div className="flex items-start gap-4">
-                            <div className={cn("p-2 rounded-xl", authMode === 'authenticate' ? "bg-primary text-white" : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors")}>
-                                <Database className="h-5 w-5" />
-                            </div>
-                            <div className="min-w-0">
-                                <p className="text-sm font-semibold tracking-tight truncate">Cloud Sync</p>
-                                <p className="text-[11px] text-muted-foreground font-normal mt-0.5">Real-time sync across all devices.</p>
-                            </div>
-                        </div>
-                    </button>
-                </CardContent>
-            </Card>
-
+        {/* Remaining Sidebar - Third on mobile, below Storage Mode on desktop */}
+        <div className="order-3 lg:order-none lg:col-start-3 lg:row-start-2 space-y-6">
             <Card className="border-none shadow-lg">
                 <CardHeader className="pb-4">
                     <CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider">
