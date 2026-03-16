@@ -238,40 +238,40 @@ export function Header() {
               </HeaderLink>
             </div>
 
-            <nav className="hidden lg:flex items-center gap-4 xl:gap-6">
-               <HeaderLink href="/" id="header-nav-home" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap">
-                  <Home className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
-                  Tasks
+            <nav className="hidden md:flex items-center gap-2 lg:gap-4 xl:gap-6">
+               <HeaderLink href="/" id="header-nav-home" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap px-2 py-1">
+                  <Home className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
+                  <span className="hidden lg:inline">Tasks</span>
                </HeaderLink>
-               <HeaderLink href="/dashboard" id="header-nav-dashboard" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap">
-                  <LayoutDashboard className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
-                  Dashboard
+               <HeaderLink href="/dashboard" id="header-nav-dashboard" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap px-2 py-1">
+                  <LayoutDashboard className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
+                  <span className="hidden lg:inline">Dashboard</span>
                </HeaderLink>
-               <HeaderLink href="/settings" id="header-nav-settings" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap">
-                  <Cog className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
-                  Settings
+               <HeaderLink href="/settings" id="header-nav-settings" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap px-2 py-1">
+                  <Cog className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
+                  <span className="hidden lg:inline">Settings</span>
                </HeaderLink>
-               <HeaderLink href="/releases" id="header-nav-releases" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap">
-                  <History className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
-                  Releases
+               <HeaderLink href="/releases" id="header-nav-releases" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap px-2 py-1">
+                  <History className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
+                  <span className="hidden lg:inline">Releases</span>
                </HeaderLink>
-               <HeaderLink href="/logs" id="header-nav-logs" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap">
-                  <FileClock className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
-                  Logs
+               <HeaderLink href="/logs" id="header-nav-logs" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap px-2 py-1">
+                  <FileClock className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
+                  <span className="hidden lg:inline">Logs</span>
                </HeaderLink>
-               <HeaderLink href="/bin" id="header-nav-bin" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap">
-                  <Trash2 className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
-                  Bin
+               <HeaderLink href="/bin" id="header-nav-bin" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap px-2 py-1">
+                  <Trash2 className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
+                  <span className="hidden lg:inline">Bin</span>
                </HeaderLink>
             </nav>
           </div>
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1 sm:gap-3">
             {activeCompany && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="px-3 sm:px-4 font-medium shadow-sm border-primary/10 bg-primary/5 hover:bg-primary/10 h-9 rounded-full transition-all">
-                      <Building className="h-4 w-4 md:mr-2 text-primary" />
-                      <span className="hidden md:inline tracking-tight truncate max-w-[100px] lg:max-w-none">{activeCompany.name}</span>
+                  <Button variant="outline" className="px-2 sm:px-4 font-medium shadow-sm border-primary/10 bg-primary/5 hover:bg-primary/10 h-9 rounded-full transition-all">
+                      <Building className="h-4 w-4 lg:mr-2 text-primary" />
+                      <span className="hidden lg:inline tracking-tight truncate max-w-[100px] xl:max-w-none">{activeCompany.name}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-64 p-2 rounded-xl shadow-xl">

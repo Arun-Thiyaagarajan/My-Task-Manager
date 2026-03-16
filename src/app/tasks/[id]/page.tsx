@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask, clearExpiredReminders, addTagsToMultipleTasks, addDeveloper, addTester, addEnvironment } from '@/lib/data';
+import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask, clearExpiredReminders, addTagsToMultipleTasks, addDeveloper, addTester, addEnvironment, getAuthMode, isInitialSyncComplete, getActiveCompanyId } from '@/lib/data';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -106,6 +106,14 @@ export default function TaskPage() {
   
   const loadData = () => {
     if (taskId) {
+      const activeCompanyId = getActiveCompanyId();
+      const authMode = getAuthMode();
+      
+      // In authenticate mode, we stay in loading state until sync is definitive
+      if (authMode === 'authenticate' && !isInitialSyncComplete(activeCompanyId)) {
+          return;
+      }
+
       const allDevs = getDevelopers();
       const allTesters = getTesters();
       const allTasksData = getTasks();
@@ -137,9 +145,11 @@ export default function TaskPage() {
     loadData();
     window.addEventListener('storage', loadData);
     window.addEventListener('company-changed', loadData);
+    window.addEventListener('sync-complete', loadData);
     return () => {
         window.removeEventListener('storage', loadData);
         window.removeEventListener('company-changed', loadData);
+        window.removeEventListener('sync-complete', loadData);
     };
   }, [taskId]);
 
