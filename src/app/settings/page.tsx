@@ -593,10 +593,10 @@ export default function SettingsPage() {
                                     <TooltipTrigger asChild>
                                         <button 
                                             type="button"
-                                            onClick={() => isDataURIIcon ? setIsPreviewOpen(true) : null}
+                                            onClick={() => appIcon ? setIsPreviewOpen(true) : null}
                                             className={cn(
                                                 "h-10 w-10 border rounded-xl flex items-center justify-center bg-muted text-xl overflow-hidden shrink-0 transition-transform active:scale-95",
-                                                isDataURIIcon && "cursor-pointer hover:ring-4 hover:ring-primary/10"
+                                                appIcon && "cursor-pointer hover:ring-4 hover:ring-primary/10"
                                             )}
                                         >
                                             {isDataURIIcon ? (
@@ -606,7 +606,7 @@ export default function SettingsPage() {
                                             )}
                                         </button>
                                     </TooltipTrigger>
-                                    <TooltipContent>{isDataURIIcon ? 'View / Edit Icon' : 'Current Icon'}</TooltipContent>
+                                    <TooltipContent>{appIcon ? 'View / Edit Icon' : 'Current Icon'}</TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
                             <input type="file" ref={iconFileInputRef} onChange={handleIconUpload} className="hidden" accept="image/*" />
@@ -843,6 +843,24 @@ export default function SettingsPage() {
         }}
       />
 
+      <ProfileImageCropper 
+        isOpen={isCropperOpen}
+        onOpenChange={setIsCropperOpen}
+        imageSrc={pendingIconImage}
+        onCropComplete={handleCropComplete}
+      />
+
+      <ImagePreviewDialog 
+        isOpen={isPreviewOpen}
+        onOpenChange={setIsPreviewOpen}
+        imageUrl={appIcon}
+        imageName="App Icon Preview"
+        isProfilePreview
+        onEdit={handleEditExistingIcon}
+        onChange={() => { setIsPreviewOpen(false); iconFileInputRef.current?.click(); }}
+        onRemove={handleRemoveIcon}
+      />
+
       <AlertDialog open={isModeConfirmOpen} onOpenChange={setIsModeConfirmOpen}>
         <AlertDialogContent className="rounded-3xl">
             <AlertDialogHeader>
@@ -859,24 +877,6 @@ export default function SettingsPage() {
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <ProfileImageCropper 
-        isOpen={isCropperOpen}
-        onOpenChange={setIsCropperOpen}
-        imageSrc={pendingIconImage}
-        onCropComplete={handleCropComplete}
-      />
-
-      <ImagePreviewDialog 
-        isOpen={isPreviewOpen}
-        onOpenChange={setIsPreviewOpen}
-        imageUrl={isDataURIIcon ? appIcon : null}
-        imageName="App Icon Preview"
-        isProfilePreview
-        onEdit={handleEditExistingIcon}
-        onChange={() => { setIsPreviewOpen(false); iconFileInputRef.current?.click(); }}
-        onRemove={handleRemoveIcon}
-      />
     </div>
   );
 }

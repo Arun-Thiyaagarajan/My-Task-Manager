@@ -24,6 +24,11 @@ interface ImagePreviewDialogProps {
   isProfilePreview?: boolean;
 }
 
+const isActualImage = (url: string | null) => {
+    if (!url) return false;
+    return url.startsWith('data:image') || url.startsWith('http') || url.startsWith('/');
+};
+
 export function ImagePreviewDialog({
   isOpen,
   onOpenChange,
@@ -60,12 +65,13 @@ export function ImagePreviewDialog({
   };
 
   const handleWheel = (e: WheelEvent<HTMLDivElement>) => {
+    if (!isActualImage(imageUrl)) return;
     e.preventDefault();
     handleZoom(e.deltaY < 0 ? 'in' : 'out');
   };
 
   const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
-    if (scale > 1) {
+    if (scale > 1 && isActualImage(imageUrl)) {
       e.preventDefault();
       setIsDragging(true);
       startPos.current = {
@@ -105,6 +111,8 @@ export function ImagePreviewDialog({
     return null;
   }
 
+  const isImg = isActualImage(imageUrl);
+
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent 
@@ -114,15 +122,19 @@ export function ImagePreviewDialog({
         <DialogHeader className="p-3 sm:p-4 border-b flex-row items-center justify-between space-y-0 text-card-foreground shrink-0">
           <DialogTitle className="truncate pr-2 text-sm sm:text-base">{imageName}</DialogTitle>
           <div className="flex items-center gap-0.5 sm:gap-1">
-            <Button variant="ghost" size="icon" onClick={() => handleZoom('in')} className="h-8 w-8 cursor-pointer">
-              <ZoomIn className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => handleZoom('out')} className="h-8 w-8 cursor-pointer">
-              <ZoomOut className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={resetTransform} className="h-8 w-8 cursor-pointer">
-              <RotateCcw className="h-4 w-4" />
-            </Button>
+            {isImg && (
+                <>
+                    <Button variant="ghost" size="icon" onClick={() => handleZoom('in')} className="h-8 w-8 cursor-pointer">
+                    <ZoomIn className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleZoom('out')} className="h-8 w-8 cursor-pointer">
+                    <ZoomOut className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={resetTransform} className="h-8 w-8 cursor-pointer">
+                    <RotateCcw className="h-4 w-4" />
+                    </Button>
+                </>
+            )}
             <DialogClose asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8 cursor-pointer">
                     <X className="h-4 w-4" />
@@ -132,28 +144,34 @@ export function ImagePreviewDialog({
         </DialogHeader>
         
         <div 
-          className="flex-1 overflow-hidden relative bg-black/5"
+          className="flex-1 overflow-hidden relative bg-black/5 flex items-center justify-center"
           onWheel={handleWheel}
         >
-          <div
-            ref={imageRef}
-            className={cn('absolute inset-0 flex items-center justify-center transition-transform duration-100 ease-linear', scale > 1 && 'cursor-grab')}
-            style={{
-              transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
-            }}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseLeave}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={imageUrl}
-              alt={imageName}
-              className="max-w-full max-h-full object-contain select-none shadow-2xl"
-              style={{ pointerEvents: 'none' }}
-            />
-          </div>
+          {isImg ? (
+              <div
+                ref={imageRef}
+                className={cn('absolute inset-0 flex items-center justify-center transition-transform duration-100 ease-linear', scale > 1 && 'cursor-grab')}
+                style={{
+                  transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+                }}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseLeave}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imageUrl}
+                  alt={imageName}
+                  className="max-w-full max-h-full object-contain select-none shadow-2xl"
+                  style={{ pointerEvents: 'none' }}
+                />
+              </div>
+          ) : (
+              <div className="text-[12rem] sm:text-[16rem] select-none drop-shadow-2xl animate-in zoom-in duration-300">
+                  {imageUrl}
+              </div>
+          )}
         </div>
 
         {isProfilePreview && (
@@ -161,9 +179,11 @@ export function ImagePreviewDialog({
                 <Button variant="secondary" size="sm" onClick={onChange} className="cursor-pointer justify-start sm:justify-center">
                     <Camera className="h-4 w-4 mr-2" /> Change Image
                 </Button>
-                <Button variant="secondary" size="sm" onClick={onEdit} className="cursor-pointer justify-start sm:justify-center">
-                    <Pencil className="h-4 w-4 mr-2" /> Edit Crop
-                </Button>
+                {isImg && (
+                    <Button variant="secondary" size="sm" onClick={onEdit} className="cursor-pointer justify-start sm:justify-center">
+                        <Pencil className="h-4 w-4 mr-2" /> Edit Crop
+                    </Button>
+                )}
                 <Button variant="destructive" size="sm" onClick={onRemove} className="cursor-pointer justify-start sm:justify-center">
                     <Trash2 className="h-4 w-4 mr-2" /> Remove Image
                 </Button>

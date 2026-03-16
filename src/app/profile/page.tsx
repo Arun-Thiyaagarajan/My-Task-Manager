@@ -571,8 +571,7 @@ export default function ProfilePage() {
                       Update Password
                     </Button>
                   </CardFooter>
-                </Card>
-              </form>
+                </form>
 
               <Card className="border-destructive/20 bg-destructive/5 shadow-sm">
                 <CardHeader>
@@ -623,6 +622,7 @@ export default function ProfilePage() {
       <ImagePreviewDialog 
         isOpen={isPreviewOpen}
         onOpenChange={setIsPreviewOpen}
+        imageUrl={photoURL}
         imageName="Profile Photo"
         isProfilePreview
         onEdit={handleEditExisting}
