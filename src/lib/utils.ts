@@ -173,9 +173,10 @@ export function getEnvInfo(envName: string, isDeployed: boolean) {
 
 /**
  * Resizes and compresses an image from a data URL.
- * Target: ~1200px max width, WebP format, high quality.
+ * Target: ~800px max width, WebP format, high quality.
+ * Aggressive compression to satisfy database storage limits.
  */
-export const compressImage = (dataUrl: string, maxWidth = 1200, quality = 0.85): Promise<string> => {
+export const compressImage = (dataUrl: string, maxWidth = 800, quality = 0.75): Promise<string> => {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {

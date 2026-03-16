@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -169,7 +168,8 @@ export default function SettingsPage() {
     const reader = new FileReader();
     reader.onload = async (event) => {
       const rawDataUrl = event.target?.result as string;
-      const workingOriginal = await compressImage(rawDataUrl, 1200, 0.85);
+      // Aggressive pre-compression for app icon
+      const workingOriginal = await compressImage(rawDataUrl, 800, 0.75);
       setOriginalIconImage(workingOriginal);
       setPendingIconImage(workingOriginal);
       setIsCropperOpen(true);

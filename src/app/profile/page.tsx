@@ -130,19 +130,13 @@ export default function ProfilePage() {
           toast({ variant: 'success', title: 'Profile Updated', description: 'Local changes saved.' });
       } else {
           if (!user || !firestore) return;
+          
+          // Firebase Auth's updateProfile photoURL has a very strict length limit (approx 2KB).
+          // We must NOT store Base64 data here. Instead, we keep the profile photo in Firestore only.
           const authUpdates: { displayName: string; photoURL: string | null } = { 
             displayName,
-            photoURL: null 
+            photoURL: null // Clear Auth URL to avoid "URL too long" errors
           };
-
-          if (photoURL && !isActualImage(photoURL)) {
-              // It's an emoji, auth doesn't support it, store in profile only
-              authUpdates.photoURL = "";
-          } else if (photoURL) {
-              authUpdates.photoURL = photoURL;
-          } else {
-              authUpdates.photoURL = null;
-          }
 
           await updateProfile(user, authUpdates);
           
@@ -152,6 +146,7 @@ export default function ProfilePage() {
             username: displayName,
             email: email,
             photoURL: photoURL,
+            role: userProfile?.role || 'user', // Ensure role is present to satisfy security rules
             updatedAt: new Date().toISOString()
           };
 
@@ -181,7 +176,8 @@ export default function ProfilePage() {
     const reader = new FileReader();
     reader.onload = async (event) => {
       const rawDataUrl = event.target?.result as string;
-      const workingOriginal = await compressImage(rawDataUrl, 1200, 0.85);
+      // Aggressive pre-compression before cropping
+      const workingOriginal = await compressImage(rawDataUrl, 800, 0.75);
       setOriginalImage(workingOriginal);
       setPendingImage(workingOriginal);
       setIsCropperOpen(true);
