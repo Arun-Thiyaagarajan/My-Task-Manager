@@ -199,100 +199,100 @@ export function Header() {
   return (
     <>
       <header id="main-header" className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 max-w-screen-2xl items-center justify-between relative">
-          <div className="flex items-center gap-4 md:gap-6">
+        <div className="container flex h-14 max-w-screen-2xl items-center justify-between relative px-4 sm:px-6">
+          <div className="flex items-center gap-4 md:gap-8">
             <div className="flex items-center space-x-2">
                 {uiConfig?.appIcon && isDataURI(uiConfig.appIcon) ? (
                     <button onClick={() => setIsImagePreviewOpen(true)} className="flex-shrink-0 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                        <img src={uiConfig.appIcon} alt="App Icon" className="h-6 w-6 object-contain rounded-md" />
+                        <img src={uiConfig.appIcon} alt="App Icon" className="h-6 w-6 object-contain rounded-md shadow-sm" />
                         <span className="sr-only">Show app icon preview</span>
                     </button>
                 ) : uiConfig?.appIcon ? (
-                     <span className="text-2xl h-6 w-6 flex items-center justify-center">{uiConfig.appIcon}</span>
+                     <span className="text-2xl h-6 w-6 flex items-center justify-center drop-shadow-sm">{uiConfig.appIcon}</span>
                 ) : (
-                    <Icons.logo className="h-6 w-6 text-primary" />
+                    <Icons.logo className="h-6 w-6 text-primary drop-shadow-sm" />
                 )}
 
               <HeaderLink href="/" className="hidden sm:inline-block">
-                <span className="font-bold">{uiConfig?.appName || 'Task Manager'}</span>
+                <span className="font-bold tracking-tight text-lg">{uiConfig?.appName || 'Task Manager'}</span>
               </HeaderLink>
             </div>
 
-            <nav className="hidden lg:flex items-center gap-4">
-               <HeaderLink href="/" id="header-nav-home" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                  <Home className="mr-2 h-4 w-4" />
+            <nav className="hidden lg:flex items-center gap-6">
+               <HeaderLink href="/" id="header-nav-home" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
+                  <Home className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   Tasks
                </HeaderLink>
-               <HeaderLink href="/dashboard" id="header-nav-dashboard" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                  <LayoutDashboard className="mr-2 h-4 w-4" />
+               <HeaderLink href="/dashboard" id="header-nav-dashboard" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
+                  <LayoutDashboard className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   Dashboard
                </HeaderLink>
-               <HeaderLink href="/settings" id="header-nav-settings" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                  <Cog className="mr-2 h-4 w-4" />
+               <HeaderLink href="/settings" id="header-nav-settings" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
+                  <Cog className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   Settings
                </HeaderLink>
-               <HeaderLink href="/releases" id="header-nav-releases" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                  <History className="mr-2 h-4 w-4" />
+               <HeaderLink href="/releases" id="header-nav-releases" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
+                  <History className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   Releases
                </HeaderLink>
-               <HeaderLink href="/bin" id="header-nav-bin" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                  <Trash2 className="mr-2 h-4 w-4" />
+               <HeaderLink href="/bin" id="header-nav-bin" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
+                  <Trash2 className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   Bin
                </HeaderLink>
             </nav>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {activeCompany && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="px-2 sm:px-4 font-medium">
-                      <Building className="h-4 w-4 sm:mr-2" />
-                      <span className="hidden sm:inline">{activeCompany.name}</span>
+                  <Button variant="outline" className="px-3 sm:px-4 font-semibold shadow-sm border-primary/10 bg-primary/5 hover:bg-primary/10 h-9 rounded-full transition-all">
+                      <Building className="h-4 w-4 sm:mr-2 text-primary" />
+                      <span className="hidden sm:inline tracking-tight">{activeCompany.name}</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-60">
-                  <DropdownMenuLabel>Switch Company</DropdownMenuLabel>
+                <DropdownMenuContent align="end" className="w-64 p-2 rounded-xl shadow-xl">
+                  <DropdownMenuLabel className="px-2 py-1.5 text-xs font-bold uppercase tracking-widest text-muted-foreground/60">Switch Company</DropdownMenuLabel>
                   <DropdownMenuRadioGroup value={activeCompanyId} onValueChange={handleCompanyChange}>
                       {companies.map((company) => (
-                          <DropdownMenuRadioItem key={company.id} value={company.id}>
+                          <DropdownMenuRadioItem key={company.id} value={company.id} className="rounded-lg font-semibold py-2">
                               {company.name}
                           </DropdownMenuRadioItem>
                       ))}
                   </DropdownMenuRadioGroup>
 
-                  <DropdownMenuSeparator />
+                  <DropdownMenuSeparator className="my-2" />
                   
-                  <DropdownMenuGroup>
-                      <DropdownMenuItem onSelect={handleAddCompany}>
+                  <DropdownMenuGroup className="space-y-1">
+                      <DropdownMenuItem onSelect={handleAddCompany} className="rounded-lg font-bold text-primary focus:bg-primary/5 focus:text-primary">
                           <PlusCircle className="mr-2 h-4 w-4" />
                           <span>Add New Company</span>
                       </DropdownMenuItem>
-                      <DropdownMenuLabel className="pt-2">Manage Companies</DropdownMenuLabel>
+                      <DropdownMenuLabel className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 mt-2">Manage</DropdownMenuLabel>
                       {companies.map((company) => (
-                          <DropdownMenuItem key={company.id} onSelect={e => e.preventDefault()} className="flex justify-between items-center pr-1">
-                              <span className="flex-1 truncate pr-2">{company.name}</span>
-                              <div className="flex items-center">
-                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleEditCompany(company); }}>
-                                      <Edit className="h-4 w-4" />
+                          <DropdownMenuItem key={company.id} onSelect={e => e.preventDefault()} className="flex justify-between items-center pr-1 rounded-lg">
+                              <span className="flex-1 truncate pr-2 font-medium">{company.name}</span>
+                              <div className="flex items-center gap-0.5">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" onClick={(e) => { e.stopPropagation(); handleEditCompany(company); }}>
+                                      <Edit className="h-3.5 w-3.5 text-muted-foreground" />
                                   </Button>
                                   
                                   <AlertDialog>
                                       <AlertDialogTrigger asChild>
-                                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={e => e.stopPropagation()}>
-                                              <Trash2 className="h-4 w-4" />
+                                          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md text-destructive hover:bg-destructive/10" onClick={e => e.stopPropagation()}>
+                                              <Trash2 className="h-3.5 w-3.5" />
                                           </Button>
                                       </AlertDialogTrigger>
-                                      <AlertDialogContent>
+                                      <AlertDialogContent className="rounded-2xl">
                                           <AlertDialogHeader>
-                                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                              <AlertDialogDescription>
+                                              <AlertDialogTitle className="font-bold tracking-tight">Are you sure?</AlertDialogTitle>
+                                              <AlertDialogDescription className="font-medium">
                                                   This action cannot be undone. This will permanently delete the company and all its tasks.
                                               </AlertDialogDescription>
                                           </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                              <AlertDialogAction onClick={() => handleDeleteCompany(company.id)} className="bg-destructive hover:bg-destructive/90">
-                                                  Delete
+                                          <AlertDialogFooter className="pt-4 gap-2">
+                                              <AlertDialogCancel className="rounded-xl font-semibold">Cancel</AlertDialogCancel>
+                                              <AlertDialogAction onClick={() => handleDeleteCompany(company.id)} className="bg-destructive hover:bg-destructive/90 rounded-xl font-bold px-6">
+                                                  Delete Company
                                               </AlertDialogAction>
                                           </AlertDialogFooter>
                                       </AlertDialogContent>
@@ -308,21 +308,21 @@ export function Header() {
                 <div id="tutorial-trigger-wrapper">
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" onClick={() => startTutorial()}>
-                                <GraduationCap className="h-5 w-5" />
+                            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={() => startTutorial()}>
+                                <GraduationCap className="h-5 w-5 text-muted-foreground" />
                                 <span className="sr-only">Show Tutorial</span>
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                            <p>Show Tutorial</p>
+                            <p className="font-medium">Start Tutorial</p>
                         </TooltipContent>
                     </Tooltip>
                 </div>
             )}
-            <Button variant="ghost" size="icon" onClick={() => setIsRemindersOpen(true)} className="relative">
-                <Bell className="h-5 w-5" />
+            <Button variant="ghost" size="icon" onClick={() => setIsRemindersOpen(true)} className="relative h-9 w-9 rounded-full group">
+                <Bell className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
                 {generalRemindersCount > 0 && (
-                    <div className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
+                    <div className="absolute top-1 right-1 flex h-2.5 w-2.5">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/75" />
                         <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary" />
                     </div>
@@ -333,16 +333,16 @@ export function Header() {
             <div className="hidden lg:block">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="relative h-10 w-10 rounded-full group">
+                  <Button variant="ghost" size="icon" className="relative h-10 w-10 rounded-full group ring-offset-background transition-all hover:ring-2 hover:ring-primary/20">
                     <div className={cn(
-                      "flex h-full w-full items-center justify-center rounded-full border-2 transition-all group-hover:scale-105",
+                      "flex h-full w-full items-center justify-center rounded-full border-2 transition-all",
                       authMode === 'authenticate' && user ? "border-primary p-0.5" : "border-muted-foreground/20"
                     )}>
                       {authMode === 'authenticate' && user ? (
                         <Avatar className="h-full w-full">
                           <AvatarImage src={profilePhoto || undefined} className="object-cover" />
                           <AvatarFallback 
-                            className="text-white text-[10px] font-semibold"
+                            className="text-white text-[10px] font-bold"
                             style={{ background: getAvatarGradient(profileName) }}
                           >
                             {getInitials(profileName)}
@@ -354,40 +354,39 @@ export function Header() {
                     </div>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
-                  <DropdownMenuLabel className="font-normal">
+                <DropdownMenuContent className="w-60 p-2 rounded-xl shadow-xl" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal p-2">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-semibold leading-none truncate">
-                        {authMode === 'authenticate' && user ? (profileName) : 'Local Mode'}
+                      <p className="text-sm font-bold leading-none truncate tracking-tight">
+                        {authMode === 'authenticate' && user ? (profileName) : 'Guest User'}
                       </p>
-                      <p className="text-[10px] leading-none text-muted-foreground truncate">
-                        {authMode === 'authenticate' && user ? (user.email || user.phoneNumber) : 'Data stored in browser'}
+                      <p className="text-[10px] leading-none text-muted-foreground truncate font-medium uppercase tracking-wider">
+                        {authMode === 'authenticate' && user ? (user.email || user.phoneNumber) : 'Local Mode: Data in Browser'}
                       </p>
                     </div>
                   </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuGroup>
+                  <DropdownMenuSeparator className="my-2" />
+                  <DropdownMenuGroup className="space-y-1">
                     {authMode === 'authenticate' && user ? (
-                      <>
-                        <DropdownMenuItem onSelect={() => prompt(() => router.push('/profile'))}>
-                          <UserIcon className="mr-2 h-4 w-4" />
-                          <span>My Profile</span>
-                        </DropdownMenuItem>
-                      </>
+                      <DropdownMenuItem onSelect={() => prompt(() => router.push('/profile'))} className="rounded-lg font-semibold py-2">
+                        <UserIcon className="mr-2 h-4 w-4 opacity-70" />
+                        <span>My Profile</span>
+                      </DropdownMenuItem>
                     ) : (
-                      <DropdownMenuItem onSelect={() => setIsAuthModalOpen(true)}>
+                      <DropdownMenuItem onSelect={() => setIsAuthModalOpen(true)} className="rounded-lg font-bold text-primary focus:bg-primary/5 focus:text-primary py-2">
                         <ShieldCheck className="mr-2 h-4 w-4" />
-                        <span>Sign In</span>
+                        <span>Sign In / Cloud Sync</span>
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem onSelect={() => prompt(() => router.push('/logs'))}>
-                      <FileClock className="mr-2 h-4 w-4" />
+                    <DropdownMenuItem onSelect={() => prompt(() => router.push('/logs'))} className="rounded-lg font-semibold py-2">
+                      <FileClock className="mr-2 h-4 w-4 opacity-70" />
                       <span>Activity Logs</span>
                     </DropdownMenuItem>
                   </DropdownMenuGroup>
                   {authMode === 'authenticate' && (
                     <>
-                      <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setIsSignOutDialogOpen(true); }} className="text-destructive focus:text-destructive">
+                      <DropdownMenuSeparator className="my-2" />
+                      <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setIsSignOutDialogOpen(true); }} className="text-destructive focus:text-destructive focus:bg-destructive/5 rounded-lg font-bold py-2">
                         <LogOut className="mr-2 h-4 w-4" />
                         <span>Sign Out</span>
                       </DropdownMenuItem>
@@ -420,16 +419,18 @@ export function Header() {
       />
 
       <AlertDialog open={isSignOutDialogOpen} onOpenChange={setIsSignOutDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure you want to sign out?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="font-bold tracking-tight">Sign Out Confirmation</AlertDialogTitle>
+            <AlertDialogDescription className="font-medium">
               You will be returned to Local Mode. Your cloud data is safe and will sync back the next time you sign in.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleSignOut} className="bg-destructive hover:bg-destructive/90">Sign Out</AlertDialogAction>
+          <AlertDialogFooter className="pt-4 gap-2">
+            <AlertDialogCancel className="rounded-xl font-semibold">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSignOut} className="bg-destructive hover:bg-destructive/90 rounded-xl font-bold px-6">
+                Sign Out
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

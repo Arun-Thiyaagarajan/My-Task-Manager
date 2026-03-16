@@ -391,9 +391,9 @@ export default function SettingsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10">
         <div>
             <h1 className="text-4xl font-bold tracking-tight text-foreground">Application Settings</h1>
-            <p className="text-lg text-muted-foreground mt-2">Manage and customize fields and environments across your application.</p>
+            <p className="text-lg text-muted-foreground mt-2 font-medium">Manage and customize fields and environments across your application.</p>
         </div>
-        <Button id="add-field-button" size="lg" className="h-12 px-6 font-semibold" onClick={() => { setFieldToEdit(null); setIsFieldDialogOpen(true); }}>
+        <Button id="add-field-button" size="lg" className="h-12 px-6 font-semibold shadow-sm" onClick={() => { setFieldToEdit(null); setIsFieldDialogOpen(true); }}>
             <PlusCircle className="h-5 w-5 mr-2" /> Add Field
         </Button>
       </div>
@@ -402,8 +402,8 @@ export default function SettingsPage() {
         <div className="lg:col-span-2 space-y-8">
             <Card id="settings-field-config-card" className="border-none shadow-xl bg-card">
                 <CardHeader className="pb-6">
-                    <CardTitle className="text-2xl font-bold">Field Configuration</CardTitle>
-                    <CardDescription className="text-base">Edit, activate, or deactivate fields as needed.</CardDescription>
+                    <CardTitle className="text-2xl font-bold tracking-tight">Field Configuration</CardTitle>
+                    <CardDescription className="text-base font-medium">Edit, activate, or deactivate fields as needed.</CardDescription>
                     <div className="pt-6">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -436,7 +436,7 @@ export default function SettingsPage() {
                                                     <GripVertical className="h-5 w-5 text-muted-foreground/30 cursor-grab active:cursor-grabbing" />
                                                     <div className="min-w-0">
                                                         <div className="flex items-center gap-2 mb-0.5">
-                                                            <span className="font-semibold text-base tracking-tight truncate">{field.label} {field.isRequired && <span className="text-destructive">*</span>}</span>
+                                                            <span className="font-semibold text-base tracking-tight truncate">{field.label} {field.isRequired && <span className="text-destructive font-bold">*</span>}</span>
                                                             <Badge variant="outline" className="text-[9px] uppercase font-semibold px-1.5 h-4 bg-background shrink-0">{field.type}</Badge>
                                                         </div>
                                                         <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{field.group}</p>
@@ -444,7 +444,7 @@ export default function SettingsPage() {
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => { setFieldToEdit(field); setIsFieldDialogOpen(true); }}>
+                                                        <Button variant="outline" size="icon" className="h-9 w-9 shadow-sm" onClick={() => { setFieldToEdit(field); setIsFieldDialogOpen(true); }}>
                                                             <Pencil className="h-4 w-4" />
                                                         </Button>
                                                         {!['title', 'description', 'status', 'repositories'].includes(field.key) && (
@@ -472,7 +472,7 @@ export default function SettingsPage() {
                                 {filteredAndGroupedFields.inactiveFields.map(field => (
                                     <div key={field.id} className="flex items-center justify-between p-4 bg-muted/5 border border-dashed rounded-xl opacity-60 hover:opacity-100 transition-opacity">
                                         <span className="text-base font-semibold tracking-tight truncate pr-4">{field.label}</span>
-                                        <Button variant="outline" size="sm" className="h-9 px-4 font-semibold shrink-0" onClick={() => handleFieldToggle(field.key, 'isActive')}>
+                                        <Button variant="outline" size="sm" className="h-9 px-4 font-semibold shrink-0 shadow-sm" onClick={() => handleFieldToggle(field.key, 'isActive')}>
                                             <Check className="h-4 w-4 mr-2" /> Activate
                                         </Button>
                                     </div>
@@ -495,7 +495,7 @@ export default function SettingsPage() {
                         <ShieldCheck className="h-5 w-5 text-primary" />
                         Storage Mode
                     </CardTitle>
-                    <CardDescription className="text-xs">Select how your workspace data is managed.</CardDescription>
+                    <CardDescription className="text-xs font-medium">Select how your workspace data is managed.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                     <button 
@@ -541,7 +541,7 @@ export default function SettingsPage() {
                         <Globe className="h-5 w-5 text-primary" />
                         Appearance
                     </CardTitle>
-                    <CardDescription className="text-xs">Custom branding and date formatting.</CardDescription>
+                    <CardDescription className="text-xs font-medium">Custom branding and date formatting.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-5">
                     <div className="space-y-2">
@@ -563,7 +563,7 @@ export default function SettingsPage() {
                                         <Button 
                                             variant="outline" 
                                             size="icon" 
-                                            className="h-10 w-10 shrink-0 border-dashed" 
+                                            className="h-10 w-10 shrink-0 border-dashed shadow-sm" 
                                             onClick={() => iconFileInputRef.current?.click()}
                                             type="button"
                                         >
@@ -600,10 +600,10 @@ export default function SettingsPage() {
                     <div className="space-y-2">
                         <Label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Time Display</Label>
                         <div className="grid grid-cols-2 gap-2">
-                            <button onClick={() => setTimeFormat('12h')} className={cn("flex items-center justify-center p-2.5 border rounded-xl gap-2 transition-all", timeFormat === '12h' ? "bg-primary/10 border-primary text-primary font-semibold shadow-sm" : "hover:bg-muted text-muted-foreground")}>
+                            <button onClick={() => setTimeFormat('12h')} className={cn("flex items-center justify-center p-2.5 border rounded-xl gap-2 transition-all", timeFormat === '12h' ? "bg-primary/10 border-primary text-primary font-semibold shadow-sm" : "hover:bg-muted text-muted-foreground font-medium")}>
                                 <Clock className="h-4 w-4" /><span className="text-xs">12-hour</span>
                             </button>
-                            <button onClick={() => setTimeFormat('24h')} className={cn("flex items-center justify-center p-2.5 border rounded-xl gap-2 transition-all", timeFormat === '24h' ? "bg-primary/10 border-primary text-primary font-semibold shadow-sm" : "hover:bg-muted text-muted-foreground")}>
+                            <button onClick={() => setTimeFormat('24h')} className={cn("flex items-center justify-center p-2.5 border rounded-xl gap-2 transition-all", timeFormat === '24h' ? "bg-primary/10 border-primary text-primary font-semibold shadow-sm" : "hover:bg-muted text-muted-foreground font-medium")}>
                                 <RotateCcw className="h-4 w-4" /><span className="text-xs">24-hour</span>
                             </button>
                         </div>
@@ -618,13 +618,13 @@ export default function SettingsPage() {
                         <Bell className="h-5 w-5 text-primary" />
                         Features
                     </CardTitle>
-                    <CardDescription className="text-xs">Toggle optional workspace modules.</CardDescription>
+                    <CardDescription className="text-xs font-medium">Toggle optional workspace modules.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-transparent hover:border-border transition-colors">
                         <div className="space-y-0.5">
                             <Label className="text-sm font-semibold tracking-tight">Task Reminders</Label>
-                            <p className="text-[10px] font-medium text-muted-foreground">Contextual notes on tasks.</p>
+                            <p className="text-[10px] font-medium text-muted-foreground uppercase">Contextual notes on tasks.</p>
                         </div>
                         <Switch 
                             checked={uiConfig.remindersEnabled} 
@@ -634,7 +634,7 @@ export default function SettingsPage() {
                     <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-transparent hover:border-border transition-colors">
                         <div className="space-y-0.5">
                             <Label className="text-sm font-semibold tracking-tight">Guided Tour</Label>
-                            <p className="text-[10px] font-medium text-muted-foreground">Interactive tutorial mode.</p>
+                            <p className="text-[10px] font-medium text-muted-foreground uppercase">Interactive tutorial mode.</p>
                         </div>
                         <Switch 
                             checked={uiConfig.tutorialEnabled} 
@@ -652,12 +652,13 @@ export default function SettingsPage() {
                         <Rocket className="h-5 w-5 text-primary" />
                         Environments
                     </CardTitle>
-                    <CardDescription className="text-xs">Manage your deployment pipeline.</CardDescription>
+                    <CardDescription className="text-xs font-medium">Manage your deployment pipeline.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid gap-2">
                         {(uiConfig.environments || []).map(env => {
-                            const isMandatory = env.isMandatory || ['dev', 'production'].includes(env.name?.toLowerCase() || '');
+                            if (!env || !env.name) return null;
+                            const isMandatory = env.isMandatory || ['dev', 'production'].includes(env.name.toLowerCase());
                             return (
                                 <div key={env.id} className="flex items-center justify-between p-2.5 border rounded-xl bg-muted/20 group hover:bg-muted/40 transition-colors">
                                     <div className="flex items-center gap-3 min-w-0">
@@ -684,13 +685,13 @@ export default function SettingsPage() {
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader>
                                                         <AlertDialogTitle>Delete Environment?</AlertDialogTitle>
-                                                        <AlertDialogDescription>
+                                                        <AlertDialogDescription className="font-medium">
                                                             This will permanently remove the "**${env.name}**" environment and all associated deployment data from tasks. This cannot be undone.
                                                         </AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleDeleteEnv(env.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                                        <AlertDialogCancel className="font-semibold">Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDeleteEnv(env.id)} className="bg-destructive hover:bg-destructive/90 font-bold">Delete</AlertDialogAction>
                                                     </AlertDialogFooter>
                                                 </AlertDialogContent>
                                             </AlertDialog>
@@ -702,7 +703,7 @@ export default function SettingsPage() {
                     </div>
                     <div className="flex gap-2">
                         <Input placeholder="New environment..." className="h-10 text-xs font-semibold" value={newEnvName} onChange={e => setNewEnvName(e.target.value)} />
-                        <Button size="sm" className="h-10 px-4 font-semibold shrink-0" onClick={handleAddEnv}>Add</Button>
+                        <Button size="sm" className="h-10 px-4 font-semibold shrink-0 shadow-sm" onClick={handleAddEnv}>Add</Button>
                     </div>
                 </CardContent>
             </Card>
@@ -713,13 +714,13 @@ export default function SettingsPage() {
                         <Users className="h-5 w-5 text-primary" />
                         Team
                     </CardTitle>
-                    <CardDescription className="text-xs">Manage developers and QA staff.</CardDescription>
+                    <CardDescription className="text-xs font-medium">Manage developers and QA staff.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                    <Button variant="outline" className="w-full h-10 text-xs font-semibold justify-between px-4 rounded-xl" onClick={() => setPeopleManagerType('developer')}>
+                    <Button variant="outline" className="w-full h-10 text-xs font-semibold justify-between px-4 rounded-xl shadow-sm" onClick={() => setPeopleManagerType('developer')}>
                         Manage Developers <ChevronRight className="h-3 w-3 text-muted-foreground" />
                     </Button>
-                    <Button variant="outline" className="w-full h-10 text-xs font-semibold justify-between px-4 rounded-xl" onClick={() => setPeopleManagerType('tester')}>
+                    <Button variant="outline" className="w-full h-10 text-xs font-semibold justify-between px-4 rounded-xl shadow-sm" onClick={() => setPeopleManagerType('tester')}>
                         Manage Testers <ChevronRight className="h-3 w-3 text-muted-foreground" />
                     </Button>
                 </CardContent>
@@ -731,13 +732,13 @@ export default function SettingsPage() {
                         <Database className="h-5 w-5" />
                         Danger Zone
                     </CardTitle>
-                    <CardDescription className="text-xs">Irreversible workspace operations.</CardDescription>
+                    <CardDescription className="text-xs font-medium">Irreversible workspace operations.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                    <Button variant="outline" className="w-full h-10 text-xs font-semibold justify-start px-4 rounded-xl" onClick={handleExportSettings}>
+                    <Button variant="outline" className="w-full h-10 text-xs font-semibold justify-start px-4 rounded-xl shadow-sm" onClick={handleExportSettings}>
                         <Download className="h-4 w-4 mr-3 text-muted-foreground" /> Export All Settings
                     </Button>
-                    <Button variant="outline" className="w-full h-10 text-xs font-semibold justify-start px-4 rounded-xl" onClick={() => fileInputRef.current?.click()}>
+                    <Button variant="outline" className="w-full h-10 text-xs font-semibold justify-start px-4 rounded-xl shadow-sm" onClick={() => fileInputRef.current?.click()}>
                         <Upload className="h-4 w-4 mr-3 text-muted-foreground" /> Import Configuration
                     </Button>
                     <input type="file" ref={fileInputRef} onChange={handleImportSettings} className="hidden" accept=".json" />
@@ -750,7 +751,7 @@ export default function SettingsPage() {
                         <AlertDialogContent className="rounded-3xl">
                             <AlertDialogHeader>
                                 <AlertDialogTitle className="text-2xl font-bold tracking-tight">Clear all data?</AlertDialogTitle>
-                                <AlertDialogDescription className="text-base">
+                                <AlertDialogDescription className="text-base font-medium">
                                     This will permanently delete all your tasks, notes, and settings. This action cannot be undone.
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
@@ -803,8 +804,8 @@ export default function SettingsPage() {
       <AlertDialog open={isModeConfirmOpen} onOpenChange={setIsModeConfirmOpen}>
         <AlertDialogContent className="rounded-3xl">
             <AlertDialogHeader>
-                <AlertDialogTitle className="text-2xl font-bold">Change Storage Mode?</AlertDialogTitle>
-                <AlertDialogDescription className="text-base">
+                <AlertDialogTitle className="text-2xl font-bold tracking-tight">Change Storage Mode?</AlertDialogTitle>
+                <AlertDialogDescription className="text-base font-medium">
                     {pendingModeChange === 'authenticate' 
                         ? "Switch to Cloud synchronization? You will need to sign in."
                         : "Switch to Local Storage? Cloud synchronization will be disabled."}

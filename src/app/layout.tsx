@@ -1,3 +1,4 @@
+
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/header';
@@ -11,6 +12,7 @@ import type { Metadata, Viewport } from 'next';
 
 const inter = Inter({
   subsets: ['latin'],
+  display: 'swap',
   variable: '--font-inter',
 });
 
@@ -42,14 +44,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className={inter.variable}>
       <head>
         <link rel="apple-touch-icon" href="https://placehold.co/180x180/4f46e5/white/png?text=TF" />
       </head>
       <body
         className={cn(
           'min-h-screen bg-background font-sans antialiased',
-          inter.variable
         )}
         suppressHydrationWarning={true}
       >

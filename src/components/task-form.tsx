@@ -265,7 +265,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
             if (prev.some(d => d.id === newDev.id)) return prev;
             return [...prev, newDev];
         });
-        return newDev.id;
+        return newId = newDev.id;
     } catch (error: any) {
         toast({
             variant: 'destructive',
@@ -319,8 +319,8 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
             title: 'Missing Required Fields',
             description: () => (
                 <div className="flex flex-col gap-1">
-                    <p>Please fill out the following fields:</p>
-                    <ul className="list-disc list-inside mt-1">
+                    <p className="font-medium text-sm">Please fill out the following fields:</p>
+                    <ul className="list-disc list-inside mt-1 font-semibold text-xs">
                         {errorMessages.map((msg, i) => <li key={i}>{msg}</li>)}
                     </ul>
                 </div>
@@ -413,18 +413,18 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
             case 'text':
                 return (
                     <div className="w-full">
-                        <Input type="text" placeholder={label} {...field} value={field.value ?? ''} />
-                        {baseUrl && <p className="text-[0.8rem] text-muted-foreground mt-1 break-all leading-tight">The value will be appended to: {baseUrl}</p>}
+                        <Input type="text" placeholder={label} {...field} value={field.value ?? ''} className="font-medium" />
+                        {baseUrl && <p className="text-[0.7rem] text-muted-foreground mt-1 break-all leading-tight font-semibold uppercase tracking-wider">The value will be appended to: {baseUrl}</p>}
                     </div>
                 );
             case 'number':
             case 'url':
-                return <Input type={fieldType === 'text' ? 'text' : fieldType} placeholder={label} {...field} value={field.value ?? ''} />;
+                return <Input type={fieldType === 'text' ? 'text' : fieldType} placeholder={label} {...field} value={field.value ?? ''} className="font-medium" />;
             case 'textarea': {
                  const ref = key === 'description' ? descriptionRef : undefined;
                  return (
                     <div className="relative w-full">
-                        <Textarea {...field} value={field.value ?? ''} ref={ref} className="pb-12" enableHotkeys/>
+                        <Textarea {...field} value={field.value ?? ''} ref={ref} className="pb-12 font-medium" enableHotkeys/>
                         <TextareaToolbar onFormatClick={(type) => handleFormat(ref, type)} />
                     </div>
                  )
@@ -444,7 +444,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                     <Popover>
                         <PopoverTrigger asChild>
                             <FormControl>
-                                <Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                <Button variant={"outline"} className={cn("w-full pl-3 text-left font-medium shadow-sm", !field.value && "text-muted-foreground")}>
                                     {field.value && field.value instanceof Date && !isNaN(field.value.getTime()) ? format(field.value, "PPP") : <span>Pick a date</span>}
                                     <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                 </Button>
@@ -480,13 +480,13 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                 return (
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className="font-medium shadow-sm">
                                 <SelectValue placeholder={`Select ${label}`} />
                             </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                             {getFieldOptions(fieldConfig).map(opt => (
-                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                <SelectItem key={opt.value} value={opt.value} className="font-medium">{opt.label}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
@@ -499,6 +499,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                         options={getFieldOptions(fieldConfig)}
                         placeholder={`Select ${label}...`}
                         maxVisible={Infinity}
+                        className="font-medium"
                     />
                 );
             case 'tags':
@@ -513,6 +514,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                         placeholder={`Add ${label}...`}
                         creatable
                         maxVisible={Infinity}
+                        className="font-medium"
                         {...(isDeveloperField && { onCreate: handleCreateDeveloper })}
                         {...(isTesterField && { onCreate: handleCreateTester })}
                         {...(isGeneralTagField && { onCreate: (value) => value })}
@@ -522,13 +524,13 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                 return (
                     <div className="flex items-center space-x-2 h-10">
                         <Checkbox checked={field.value} onCheckedChange={field.onChange} id={fieldName} />
-                        <label htmlFor={fieldName} className="text-sm font-normal text-muted-foreground">
+                        <label htmlFor={fieldName} className="text-sm font-medium text-muted-foreground cursor-pointer">
                             Enable {label}
                         </label>
                     </div>
                 );
             default:
-                return <Input placeholder={label} {...field} value={field.value ?? ''} />;
+                return <Input placeholder={label} {...field} value={field.value ?? ''} className="font-medium" />;
         }
     }
 
@@ -539,7 +541,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
             name={fieldName as any}
             render={({ field }) => (
                 <FormItem id={`field-container-${key}`} className="scroll-mt-32 max-w-full">
-                    <FormLabel error={hasError}>{label} {isRequired && '*'}</FormLabel>
+                    <FormLabel error={hasError} className="font-semibold">{label} {isRequired && <span className="text-destructive font-bold">*</span>}</FormLabel>
                     <FormControl className="w-full">
                         {renderInput(type, field)}
                     </FormControl>
@@ -802,7 +804,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
             <aside className="hidden lg:block w-72 shrink-0 animate-in fade-in slide-in-from-top-1 duration-300">
                 <div className="sticky top-24 space-y-1">
                     <div className="flex items-center justify-between px-3 mb-4">
-                        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground/60">
                             Jump to Section
                         </h3>
                         <TooltipProvider>
@@ -810,14 +812,14 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                 <TooltipTrigger asChild>
                                     <button 
                                         type="button" 
-                                        className="h-8 w-8 rounded-md border bg-background text-muted-foreground hover:text-primary transition-all flex items-center justify-center"
+                                        className="h-8 w-8 rounded-md border bg-background text-muted-foreground hover:text-primary transition-all flex items-center justify-center shadow-sm"
                                         onClick={toggleSidebarPosition}
                                     >
                                         {sidebarPosition === 'left' ? <PanelRight className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
                                     </button>
                                 </TooltipTrigger>
                                 <TooltipContent side="top">
-                                    <p>Move to {sidebarPosition === 'left' ? 'right' : 'left'}</p>
+                                    <p className="font-medium">Move to {sidebarPosition === 'left' ? 'right' : 'left'}</p>
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
@@ -836,7 +838,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                             className={cn(
                                                 "flex items-center gap-3 w-full px-3 py-2 rounded-md text-sm font-semibold transition-all group",
                                                 isSectionActive 
-                                                    ? "bg-primary/10 text-primary" 
+                                                    ? "bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20" 
                                                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                                             )}
                                         >
@@ -857,8 +859,8 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                                             className={cn(
                                                                 "flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors text-left",
                                                                 isFieldActive 
-                                                                    ? "text-primary font-semibold bg-primary/5" 
-                                                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                                                    ? "text-primary font-bold bg-primary/5" 
+                                                                    : "text-muted-foreground font-medium hover:text-foreground hover:bg-muted/50"
                                                                 )}
                                                             >
                                                                 <CircleDot className={cn("h-2.5 w-2.5 shrink-0", isFieldActive ? "text-primary" : "text-transparent")} />
@@ -878,7 +880,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
 
             <div className="flex-1 space-y-6 max-w-full">
                 {/* Desktop-only Page Title (hidden on mobile since we have the header component) */}
-                <h1 className="hidden lg:block text-xl font-bold tracking-tight mb-2 px-6">{formTitle}</h1>
+                <h1 className="hidden lg:block text-2xl font-bold tracking-tight mb-2 px-6">{formTitle}</h1>
 
                 {groupOrder.map(groupName => {
                     if (['Attachments', 'Deployment', 'Pull Requests'].includes(groupName)) {
@@ -894,9 +896,9 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                     const sectionId = groupName.toLowerCase().replace(/\s+/g, '-');
 
                     return (
-                        <Card key={groupName} id={sectionId} className="scroll-mt-32 transition-all duration-300 max-w-full overflow-hidden">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2 text-lg font-bold">
+                        <Card key={groupName} id={sectionId} className="scroll-mt-32 transition-all duration-300 max-w-full overflow-hidden border-none lg:border shadow-xl lg:shadow-md bg-card">
+                            <CardHeader className="pb-4">
+                                <CardTitle className="flex items-center gap-2 text-lg font-bold tracking-tight uppercase tracking-wide">
                                     {groupName === 'Core Details' && <Layout className="h-5 w-5 text-primary" />}
                                     {groupName === 'Assignment & Tracking' && <Users className="h-5 w-5 text-primary" />}
                                     {groupName === 'Dates' && <CalendarIconLucide className="h-5 w-5 text-primary" />}
@@ -911,9 +913,9 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                 })}
 
                 {(uiConfig?.fields || []).find(f => f.key === 'attachments' && f.isActive) && (
-                    <Card id="attachments" className="scroll-mt-32 transition-all duration-300">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-lg font-bold">
+                    <Card id="attachments" className="scroll-mt-32 transition-all duration-300 border-none lg:border shadow-xl lg:shadow-md bg-card">
+                        <CardHeader className="pb-4">
+                            <CardTitle className="flex items-center gap-2 text-lg font-bold tracking-tight uppercase tracking-wide">
                                 <Paperclip className="h-5 w-5 text-primary" />
                                 {fieldLabels.get('attachments') || 'Attachments'}
                             </CardTitle>
@@ -921,11 +923,11 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                         <CardContent className="space-y-4">
                             <div className="space-y-3">
                                 {attachments.map((item, index) => (
-                                    <div key={item.id} className="flex items-center gap-4 p-3 border rounded-md bg-muted/50">
+                                    <div key={item.id} className="flex items-center gap-4 p-3 border rounded-xl bg-muted/20 shadow-sm transition-colors hover:bg-muted/30">
                                         {item.type === 'image' ? (
-                                            <img src={item.url} alt={item.name} className="h-20 w-20 rounded-md object-cover flex-shrink-0" />
+                                            <img src={item.url} alt={item.name} className="h-20 w-20 rounded-lg object-cover flex-shrink-0 border shadow-sm" />
                                         ) : (
-                                            <div className="h-20 w-20 flex-shrink-0 flex items-center justify-center bg-secondary rounded-md">
+                                            <div className="h-20 w-20 flex-shrink-0 flex items-center justify-center bg-secondary rounded-lg border shadow-sm">
                                                 <Link2 className="h-8 w-8 text-muted-foreground" />
                                             </div>
                                         )}
@@ -935,8 +937,8 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                                 name={`attachments.${index}.name`}
                                                 render={({ field }) => (
                                                     <FormItem>
-                                                        <FormLabel className="text-xs font-normal">Name</FormLabel>
-                                                        <FormControl><Input {...field} placeholder="Attachment name" /></FormControl>
+                                                        <FormLabel className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Name</FormLabel>
+                                                        <FormControl><Input {...field} placeholder="Attachment name" className="h-9 font-medium" /></FormControl>
                                                     </FormItem>
                                                 )}
                                             />
@@ -946,28 +948,29 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                                     name={`attachments.${index}.url`}
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel className="text-xs font-normal">URL</FormLabel>
-                                                            <FormControl><Input {...field} placeholder="https://example.com/file" /></FormControl>
+                                                            <FormLabel className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">URL</FormLabel>
+                                                            <FormControl><Input {...field} placeholder="https://example.com/file" className="h-9 font-medium" /></FormControl>
                                                         </FormItem>
                                                     )}
                                                 />
                                             )}
                                         </div>
-                                        <Button type="button" variant="destructive" size="icon" onClick={() => removeAttachment(index)} className="shrink-0"><Trash2 className="h-4 w-4" /></Button>
+                                        <Button type="button" variant="destructive" size="icon" onClick={() => removeAttachment(index)} className="shrink-0 rounded-full shadow-sm"><Trash2 className="h-4 w-4" /></Button>
                                     </div>
                                 ))}
                                 {(attachments.length || 0) === 0 && (
-                                     <div className="border-2 border-dashed rounded-lg p-4 text-center text-sm text-muted-foreground">
-                                        <p>Drop files, or paste an image/link</p>
+                                     <div className="border-2 border-dashed rounded-2xl p-8 text-center bg-muted/10">
+                                        <Paperclip className="h-8 w-8 mx-auto mb-2 text-muted-foreground/30" />
+                                        <p className="text-sm font-medium text-muted-foreground">Drop files, or paste an image/link</p>
                                      </div>
                                 )}
                             </div>
                             
-                            <div className="flex gap-2 pt-2 border-t">
-                                <Button type="button" variant="outline" size="sm" onClick={() => appendAttachment({ name: '', url: '', type: 'link' })}>
+                            <div className="flex gap-2 pt-2 border-t mt-4">
+                                <Button type="button" variant="outline" size="sm" onClick={() => appendAttachment({ name: '', url: '', type: 'link' })} className="font-semibold shadow-sm rounded-lg h-9">
                                     <Link2 className="h-4 w-4 mr-2" /> Add Link
                                 </Button>
-                                <Button type="button" variant="outline" size="sm" onClick={() => imageInputRef.current?.click()}>
+                                <Button type="button" variant="outline" size="sm" onClick={() => imageInputRef.current?.click()} className="font-semibold shadow-sm rounded-lg h-9">
                                     <Image className="h-4 w-4 mr-2" /> Add Image
                                 </Button>
                             </div>
@@ -984,73 +987,75 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                 )}
 
                 {deploymentFieldConfig && deploymentFieldConfig.isActive && (
-                    <Card id="deployment" className="scroll-mt-32 transition-all duration-300">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-lg font-bold">
+                    <Card id="deployment" className="scroll-mt-32 transition-all duration-300 border-none lg:border shadow-xl lg:shadow-md bg-card">
+                        <CardHeader className="pb-4">
+                            <CardTitle className="flex items-center gap-2 text-lg font-bold tracking-tight uppercase tracking-wide">
                                 <Rocket className="h-5 w-5 text-primary" />
                                 {fieldLabels.get('deploymentStatus') || 'Deployment'}
-                                {deploymentFieldConfig.isRequired && <span className="text-destructive ml-1">*</span>}
+                                {deploymentFieldConfig.isRequired && <span className="text-destructive font-bold ml-1">*</span>}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             {relevantEnvsFieldConfig && relevantEnvsFieldConfig.isActive && renderField(relevantEnvsFieldConfig)}
 
-                            {activeEnvs.length > 0 ? activeEnvs.map(env => (
-                                <div key={env.id} className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4 p-3 border rounded-md">
-                                    <FormField
-                                        control={form.control}
-                                        name={`deploymentStatus.${env.name}`}
-                                        render={({ field }) => (
-                                            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                                                <FormControl>
-                                                    <Checkbox
-                                                        checked={field.value ?? false}
-                                                        onCheckedChange={field.onChange}
-                                                        id={`deploy-check-${env.id}`}
-                                                    />
-                                                </FormControl>
-                                                <FormLabel
-                                                    htmlFor={`deploy-check-${env.id}`}
-                                                    className="font-normal capitalize cursor-pointer"
-                                                >
-                                                    Deployed to {env.name}
-                                                </FormLabel>
-                                            </FormItem>
-                                        )}
-                                    />
-                                    {form.watch(`deploymentStatus.${env.name}`) && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                                {activeEnvs.length > 0 ? activeEnvs.map(env => (
+                                    <div key={env.id} className="flex flex-col gap-3 p-4 border rounded-2xl bg-muted/5 shadow-sm transition-all hover:border-primary/20">
                                         <FormField
                                             control={form.control}
-                                            name={`deploymentDates.${env.name}`}
+                                            name={`deploymentStatus.${env.name}`}
                                             render={({ field }) => (
-                                                <FormItem className="w-full sm:w-auto sm:min-w-[250px]">
-                                                    <Popover>
-                                                        <PopoverTrigger asChild>
-                                                            <FormControl>
-                                                                <Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                                    {field.value && field.value instanceof Date && !isNaN(field.value.getTime()) ? format(field.value, "PPP") : <span>Deployment Date</span>}
-                                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                                </Button>
-                                                            </FormControl>
-                                                        </PopoverTrigger>
-                                                        <PopoverContent className="w-auto p-0" align="start">
-                                                            <Calendar mode="single" selected={field.value instanceof Date && !isNaN(field.value.getTime()) ? field.value : undefined} onSelect={field.onChange} defaultMonth={field.value ?? new Date()} initialFocus />
-                                                        </PopoverContent>
-                                                    </Popover>
+                                                <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                                                    <FormControl>
+                                                        <Checkbox
+                                                            checked={field.value ?? false}
+                                                            onCheckedChange={field.onChange}
+                                                            id={`deploy-check-${env.id}`}
+                                                        />
+                                                    </FormControl>
+                                                    <FormLabel
+                                                        htmlFor={`deploy-check-${env.id}`}
+                                                        className="font-bold text-sm capitalize cursor-pointer tracking-tight"
+                                                    >
+                                                        Deployed to {env.name}
+                                                    </FormLabel>
                                                 </FormItem>
                                             )}
                                         />
-                                    )}
-                                </div>
-                            )) : <p className="text-sm text-muted-foreground text-center py-4">Select relevant environments to see deployment options.</p>}
+                                        {form.watch(`deploymentStatus.${env.name}`) && (
+                                            <FormField
+                                                control={form.control}
+                                                name={`deploymentDates.${env.name}`}
+                                                render={({ field }) => (
+                                                    <FormItem className="w-full">
+                                                        <Popover>
+                                                            <PopoverTrigger asChild>
+                                                                <FormControl>
+                                                                    <Button variant={"outline"} className={cn("w-full h-10 pl-3 text-left font-semibold shadow-sm", !field.value && "text-muted-foreground")}>
+                                                                        {field.value && field.value instanceof Date && !isNaN(field.value.getTime()) ? format(field.value, "PPP") : <span>Deployment Date</span>}
+                                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                                    </Button>
+                                                                </FormControl>
+                                                            </PopoverTrigger>
+                                                            <PopoverContent className="w-auto p-0" align="start">
+                                                                <Calendar mode="single" selected={field.value instanceof Date && !isNaN(field.value.getTime()) ? field.value : undefined} onSelect={field.onChange} defaultMonth={field.value ?? new Date()} initialFocus />
+                                                            </PopoverContent>
+                                                        </Popover>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        )}
+                                    </div>
+                                )) : <p className="text-sm font-medium text-muted-foreground text-center py-8 bg-muted/10 rounded-2xl border-2 border-dashed">Select relevant environments to see deployment options.</p>}
+                            </div>
                         </CardContent>
                     </Card>
                 )}
 
                 {(uiConfig?.fields || []).find(f => f.key === 'prLinks' && f.isActive) && (
-                    <Card id="pull-requests" className="scroll-mt-32 transition-all duration-300">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-lg font-bold">
+                    <Card id="pull-requests" className="scroll-mt-32 transition-all duration-300 border-none lg:border shadow-xl lg:shadow-md bg-card">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="flex items-center gap-2 text-lg font-bold tracking-tight uppercase tracking-wide">
                                 <GitMerge className="h-5 w-5 text-primary" />
                                 {fieldLabels.get('prLinks') || 'Pull Requests'}
                             </CardTitle>
@@ -1058,16 +1063,24 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                         <CardContent>
                             {watchedRepositories && watchedRepositories.length > 0 ? (
                                 <Tabs defaultValue={watchedRepositories[0]} className="w-full">
-                                    <ScrollArea className="w-full whitespace-nowrap">
-                                        <TabsList>
-                                            {watchedRepositories.map(repo => <TabsTrigger key={repo} value={repo}>{repo}</TabsTrigger>)}
+                                    <ScrollArea className="w-full whitespace-nowrap border-b">
+                                        <TabsList className="bg-transparent h-12 p-0 gap-6">
+                                            {watchedRepositories.map(repo => (
+                                                <TabsTrigger 
+                                                    key={repo} 
+                                                    value={repo} 
+                                                    className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-12 px-1 font-bold text-sm transition-all"
+                                                >
+                                                    {repo}
+                                                </TabsTrigger>
+                                            ))}
                                         </TabsList>
                                         <ScrollBar orientation="horizontal" />
                                     </ScrollArea>
 
                                     {watchedRepositories.map(repo => (
                                         <TabsContent key={repo} value={repo}>
-                                            <div className="space-y-4 pt-4">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6">
                                             {activeEnvs.length > 0 ? activeEnvs.map(env => (
                                                 <FormField
                                                     key={`${repo}-${env.id}`}
@@ -1075,19 +1088,19 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                                     name={`prLinks.${env.name}.${repo}`}
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel className="capitalize">PR IDs for {env.name}</FormLabel>
+                                                            <FormLabel className="capitalize font-semibold text-xs tracking-wide">{env.name} PR IDs</FormLabel>
                                                             <FormControl>
-                                                                <Input {...field} value={field.value ?? ''} placeholder="e.g. 12345, 67890" />
+                                                                <Input {...field} value={field.value ?? ''} placeholder="e.g. 12345, 67890" className="font-medium shadow-sm" />
                                                             </FormControl>
                                                         </FormItem>
                                                     )}
                                                 />
-                                            )) : <p className="text-sm text-muted-foreground text-center py-4">Select relevant environments to add PR links.</p>}
+                                            )) : <p className="col-span-full text-sm font-medium text-muted-foreground text-center py-8 bg-muted/10 rounded-2xl border-2 border-dashed">Select relevant environments to add PR links.</p>}
                                             </div>
                                         </TabsContent>
                                     ))}
                                 </Tabs>
-                            ) : ( <p className="text-sm text-muted-foreground text-center py-4">Assign a repository to add PR links.</p> )}
+                            ) : ( <p className="text-sm font-medium text-muted-foreground text-center py-12 bg-muted/10 rounded-2xl border-2 border-dashed">Assign a repository to add PR links.</p> )}
                         </CardContent>
                     </Card>
                 )}

@@ -191,7 +191,7 @@ export default function DashboardPage() {
       {tasks.length === 0 ? (
          <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg">
           <p className="text-lg font-semibold">No data to display.</p>
-          <p className="mt-1">
+          <p className="mt-1 font-medium">
             Create some tasks to see your dashboard metrics.
           </p>
         </div>
@@ -202,11 +202,11 @@ export default function DashboardPage() {
                 {summaryStats.map((stat, index) => (
                     <Card key={index} className={cn("border-t-4 transition-all hover:shadow-xl hover:-translate-y-1", stat.borderColor)}>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+                            <CardTitle className="text-sm font-semibold tracking-wide uppercase">{stat.title}</CardTitle>
                              <stat.icon className={cn("h-5 w-5", stat.color)} />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-bold">{stat.value}</div>
+                            <div className="text-3xl font-bold tracking-tight">{stat.value}</div>
                         </CardContent>
                     </Card>
                 ))}
@@ -216,11 +216,11 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
+                        <CardTitle className="flex items-center gap-2 text-xl font-bold tracking-tight">
                             <BarChart className="h-5 w-5 text-chart-1" />
                             Tasks by {fieldLabels.get('status') || 'Status'}
                         </CardTitle>
-                        <CardDescription>Distribution of tasks across all statuses.</CardDescription>
+                        <CardDescription className="font-medium">Distribution of tasks across all statuses.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={tasksByStatusConfig} className="h-[300px] w-full">
@@ -230,9 +230,9 @@ export default function DashboardPage() {
                                     tickLine={false}
                                     axisLine={false}
                                     tickMargin={8}
-                                    
+                                    className="font-medium text-[10px]"
                                  />
-                                 <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} />
+                                 <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} className="font-medium text-[10px]" />
                                  <ChartTooltip content={<ChartTooltipContent />} />
                                  <Bar dataKey="count" radius={4}>
                                      {tasksByStatusData.map((entry) => (
@@ -246,19 +246,19 @@ export default function DashboardPage() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
+                        <CardTitle className="flex items-center gap-2 text-xl font-bold tracking-tight">
                             <LineChart className="h-5 w-5 text-chart-3" />
                             Monthly Task Trends
                         </CardTitle>
-                         <CardDescription>Tasks created vs. completed over the last 6 months.</CardDescription>
+                         <CardDescription className="font-medium">Tasks created vs. completed over the last 6 months.</CardDescription>
                     </CardHeader>
                     <CardContent className="h-[300px]">
                        <ChartContainer config={monthlyChartConfig} className="h-full w-full">
                             <RechartsLineChart data={monthlyData} accessibilityLayer>
-                                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
-                                <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} />
+                                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} className="font-medium text-[10px]" />
+                                <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} className="font-medium text-[10px]" />
                                 <ChartTooltip content={<ChartTooltipContent />} />
-                                <Legend />
+                                <Legend wrapperStyle={{ paddingTop: '20px', fontWeight: 600, fontSize: '12px' }} />
                                 <Line type="monotone" dataKey="created" stroke="var(--color-created)" strokeWidth={2} dot={false} />
                                 <Line type="monotone" dataKey="completed" stroke="var(--color-completed)" strokeWidth={2} dot={false} />
                             </RechartsLineChart>
@@ -268,11 +268,11 @@ export default function DashboardPage() {
                 
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
+                        <CardTitle className="flex items-center gap-2 text-xl font-bold tracking-tight">
                             <Code2 className="h-5 w-5 text-chart-5" />
                             Tasks per {fieldLabels.get('developers') || 'Developers'}
                         </CardTitle>
-                         <CardDescription>Breakdown of task assignments to Developers.</CardDescription>
+                         <CardDescription className="font-medium">Breakdown of task assignments to Developers.</CardDescription>
                     </CardHeader>
                     <CardContent>
                        <ChartContainer config={tasksByDeveloperConfig} className="h-[300px] w-full">
@@ -283,7 +283,7 @@ export default function DashboardPage() {
                                     tickLine={false}
                                     axisLine={false}
                                     tickMargin={8}
-                                    
+                                    className="font-medium text-[10px]"
                                  />
                                  <XAxis type="number" hide />
                                  <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" nameKey="tasks" />} />
@@ -299,11 +299,11 @@ export default function DashboardPage() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
+                        <CardTitle className="flex items-center gap-2 text-xl font-bold tracking-tight">
                             <Server className="h-5 w-5 text-chart-2" />
                             {fieldLabels.get('deploymentStatus') || 'Deployments'} by Environment
                         </CardTitle>
-                        <CardDescription>Count of completed deployments per environment.</CardDescription>
+                        <CardDescription className="font-medium">Count of completed deployments per environment.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={deploymentsByEnvConfig} className="h-[300px] w-full">
@@ -314,8 +314,9 @@ export default function DashboardPage() {
                                     axisLine={false}
                                     tickMargin={8}
                                     tickFormatter={(value) => value.charAt(0).toUpperCase() + value.slice(1)}
+                                    className="font-medium text-[10px]"
                                  />
-                                 <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} />
+                                 <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} className="font-medium text-[10px]" />
                                  <ChartTooltip content={<ChartTooltipContent />} />
                                  <Bar dataKey="count" radius={4}>
                                     {deploymentsByEnvData.map((entry, index) => (
@@ -329,11 +330,11 @@ export default function DashboardPage() {
 
                  <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
+                        <CardTitle className="flex items-center gap-2 text-xl font-bold tracking-tight">
                             <Tag className="h-5 w-5 text-chart-4" />
                             Tasks by Tag
                         </CardTitle>
-                         <CardDescription>Distribution of tasks across different tags.</CardDescription>
+                         <CardDescription className="font-medium">Distribution of tasks across different tags.</CardDescription>
                     </CardHeader>
                     <CardContent>
                        <ChartContainer config={tasksByTagConfig} className="h-[300px] w-full">
@@ -343,9 +344,9 @@ export default function DashboardPage() {
                                     tickLine={false}
                                     axisLine={false}
                                     tickMargin={8}
-                                    
+                                    className="font-medium text-[10px]"
                                  />
-                                 <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} />
+                                 <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} className="font-medium text-[10px]" />
                                  <ChartTooltip content={<ChartTooltipContent />} />
                                  <Bar dataKey="tasks" radius={4}>
                                      {tasksByTagData.map((entry) => (
@@ -359,11 +360,11 @@ export default function DashboardPage() {
 
                  <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
+                        <CardTitle className="flex items-center gap-2 text-xl font-bold tracking-tight">
                             <GitBranch className="h-5 w-5 text-chart-1" />
                             Tasks by Repository
                         </CardTitle>
-                         <CardDescription>Distribution of tasks across different repositories.</CardDescription>
+                         <CardDescription className="font-medium">Distribution of tasks across different repositories.</CardDescription>
                     </CardHeader>
                     <CardContent>
                        <ChartContainer config={tasksByRepoConfig} className="h-[300px] w-full">
@@ -373,9 +374,9 @@ export default function DashboardPage() {
                                     tickLine={false}
                                     axisLine={false}
                                     tickMargin={8}
-                                    
+                                    className="font-medium text-[10px]"
                                  />
-                                 <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} />
+                                 <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} className="font-medium text-[10px]" />
                                  <ChartTooltip content={<ChartTooltipContent />} />
                                  <Bar dataKey="tasks" radius={4}>
                                      {tasksByRepoData.map((entry) => (
