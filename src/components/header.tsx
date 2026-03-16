@@ -134,12 +134,16 @@ export function Header() {
     
     const handleSyncStart = () => setIsGlobalLoading(true);
     const handleSyncEnd = () => setIsGlobalLoading(false);
+    const handleNavStart = () => setIsGlobalLoading(true);
+    const handleNavEnd = () => setIsGlobalLoading(false);
     const handleOpenAuth = () => setIsAuthModalOpen(true);
 
     window.addEventListener('company-changed', refreshAllData);
     window.addEventListener('storage', refreshAllData);
     window.addEventListener('sync-start', handleSyncStart);
     window.addEventListener('sync-end', handleSyncEnd);
+    window.addEventListener('navigation-start', handleNavStart);
+    window.addEventListener('navigation-end', handleNavEnd);
     window.addEventListener('open-auth-modal', handleOpenAuth);
 
     return () => {
@@ -147,6 +151,8 @@ export function Header() {
         window.removeEventListener('storage', refreshAllData);
         window.removeEventListener('sync-start', handleSyncStart);
         window.removeEventListener('sync-end', handleSyncEnd);
+        window.removeEventListener('navigation-start', handleNavStart);
+        window.removeEventListener('navigation-end', handleNavEnd);
         window.removeEventListener('open-auth-modal', handleOpenAuth);
     };
 

@@ -71,6 +71,7 @@ const TasksTableRow = memo(function TasksTableRow({
 }: TasksTableRowProps) {
   const [task, setTask] = useState(initialTask);
   const [justUpdatedEnv, setJustUpdatedEnv] = useState<string | null>(null);
+  const [isOpening, setIsOpening] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -121,6 +122,8 @@ const TasksTableRow = memo(function TasksTableRow({
   };
 
   const handleRowClick = (e: React.MouseEvent) => {
+    if (isOpening) return;
+
     if (isSelectMode) {
       onToggleSelection(task.id, !isSelected);
       return;
@@ -136,6 +139,7 @@ const TasksTableRow = memo(function TasksTableRow({
     if (e.metaKey || e.ctrlKey || e.button === 1) return;
 
     e.preventDefault();
+    setIsOpening(true);
     window.dispatchEvent(new Event('navigation-start'));
     router.push(`/tasks/${task.id}?${currentQueryString}`);
   };
@@ -155,10 +159,15 @@ const TasksTableRow = memo(function TasksTableRow({
   return (
     <TableRow 
         key={task.id} 
-        className="group/row relative" 
+        className={cn("group/row relative", isOpening && "opacity-70")} 
         data-state={isSelected ? 'selected' : undefined}
         onClick={handleRowClick}
     >
+       {isOpening && (
+         <div className="absolute inset-0 z-50 bg-background/40 backdrop-blur-[1px] flex items-center justify-center animate-in fade-in duration-200">
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+         </div>
+       )}
        {isSelectMode && (
          <TableCell>
             <Checkbox
@@ -175,17 +184,17 @@ const TasksTableRow = memo(function TasksTableRow({
           task.status !== 'In Progress' && 'group-hover/row:scale-110 group-hover/row:rotate-6'
         )} />
         <div className="relative z-10">
-            <Link
+            <a
               href={`/tasks/${task.id}?${currentQueryString}`}
               className="font-semibold block truncate group/title"
               onClick={(e) => {
-                if (isSelectMode) {
+                if (isSelectMode || isOpening) {
                   e.preventDefault();
                 }
               }}
             >
               <span className="group-hover/title:text-primary transition-colors">{task.title}</span>
-            </Link>
+            </a>
             <p className="text-muted-foreground text-sm truncate mt-1 font-normal">
               {task.summary || task.description}
             </p>
@@ -196,6 +205,7 @@ const TasksTableRow = memo(function TasksTableRow({
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
+              disabled={isOpening}
               className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
             >
               <TaskStatusBadge status={task.status} />
@@ -227,7 +237,8 @@ const TasksTableRow = memo(function TasksTableRow({
               <TooltipTrigger asChild>
                 <button
                   onClick={(e) => { e.stopPropagation(); onAvatarClick(dev, true); }}
-                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
+                  disabled={isOpening}
+                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full disabled:cursor-not-allowed"
                 >
                   <Avatar className="h-8 w-8 border-2 border-background cursor-pointer">
                     <AvatarFallback
@@ -255,7 +266,8 @@ const TasksTableRow = memo(function TasksTableRow({
               <TooltipTrigger asChild>
                 <button
                   onClick={(e) => { e.stopPropagation(); onAvatarClick(tester, false); }}
-                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
+                  disabled={isOpening}
+                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full disabled:cursor-not-allowed"
                 >
                   <Avatar className="h-8 w-8 border-2 border-background cursor-pointer">
                     <AvatarFallback
@@ -296,7 +308,7 @@ const TasksTableRow = memo(function TasksTableRow({
           deploymentDates={task.deploymentDates}
           configuredEnvs={allRelevantEnvs}
           size="sm"
-          interactive={true}
+          interactive={!isOpening}
           onToggle={handleToggleDeployment}
           justUpdatedEnv={justUpdatedEnv}
           onAnimationEnd={() => setJustUpdatedEnv(null)}
@@ -304,11 +316,11 @@ const TasksTableRow = memo(function TasksTableRow({
       </TableCell>
       <TableCell className="align-top text-right">
         <div className="flex items-center justify-end gap-2">
-            <Button asChild variant="ghost" size="sm" className="font-medium">
-                <Link href={`/tasks/${task.id}?${currentQueryString}`} onClick={handleRowClick}>
+            <Button asChild variant="ghost" size="sm" disabled={isOpening} className="font-medium">
+                <a href={`/tasks/${task.id}?${currentQueryString}`} onClick={handleRowClick}>
                 View
                 <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
+                </a>
             </Button>
             <DeleteTaskButton taskId={task.id} taskTitle={task.title} onSuccess={onTaskUpdate} iconOnly className="h-8 w-8" />
         </div>

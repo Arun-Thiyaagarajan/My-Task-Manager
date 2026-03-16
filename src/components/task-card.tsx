@@ -60,6 +60,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
   const [personInView, setPersonInView] = useState<{person: Person, isDeveloper: boolean} | null>(null);
   const [justUpdatedEnv, setJustUpdatedEnv] = useState<string | null>(null);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
+  const [isOpening, setIsOpening] = useState(false);
   
   const isSelectable = selectedTaskIds !== undefined && setSelectedTaskIds !== undefined;
   const isSelected = isSelectable && (selectedTaskIds || []).includes(task.id);
@@ -129,6 +130,8 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
   };
 
   const handleOpenTask = (e: React.MouseEvent) => {
+    if (isOpening) return;
+
     // Selection mode logic
     if (isSelectMode) {
       handleSelectionChange();
@@ -145,6 +148,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
     if (e.metaKey || e.ctrlKey || e.button === 1) return;
 
     e.preventDefault();
+    setIsOpening(true);
     window.dispatchEvent(new Event('navigation-start'));
     router.push(`/tasks/${task.id}?${currentQueryString}`);
   };
@@ -195,10 +199,20 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
           className={cn(
             "flex flex-col h-full transition-all duration-300 relative overflow-hidden group/card rounded-lg",
             cardClassName,
-            !isSelectMode && "hover:shadow-xl hover:-translate-y-1",
-            isSelected && "selected-card"
+            !isSelectMode && !isOpening && "hover:shadow-xl hover:-translate-y-1",
+            isSelected && "selected-card",
+            isOpening && "opacity-80"
           )}
         >
+          {isOpening && (
+            <div className="absolute inset-0 z-50 bg-background/60 backdrop-blur-[2px] flex items-center justify-center rounded-lg animate-in fade-in duration-200">
+                <div className="flex flex-col items-center gap-2">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-primary/80">Opening</span>
+                </div>
+            </div>
+          )}
+
           {isSelectable && isSelectMode && (
             <Checkbox
               checked={isSelected}
@@ -221,7 +235,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                           href={`/tasks/${task.id}?${currentQueryString}`}
                           className="flex-grow min-w-0 group/title"
                           onClick={(e) => {
-                            if (isSelectMode) {
+                            if (isSelectMode || isOpening) {
                               e.preventDefault();
                             }
                           }}
@@ -238,6 +252,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                                       <Button
                                           variant="ghost"
                                           size="icon"
+                                          disabled={isOpening}
                                           className="h-7 w-7"
                                           onClick={(e) => {
                                               e.stopPropagation();
@@ -258,7 +273,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                     <div className="flex-shrink-0 flex items-center">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0" onClick={e => e.stopPropagation()}>
+                            <Button variant="ghost" disabled={isOpening} className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0" onClick={e => e.stopPropagation()}>
                               <TaskStatusBadge status={task.status} />
                             </Button>
                           </DropdownMenuTrigger>
@@ -341,7 +356,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                   deploymentDates={task.deploymentDates}
                   configuredEnvs={allRelevantEnvs}
                   size="sm"
-                  interactive={true}
+                  interactive={!isOpening}
                   onToggle={handleToggleDeployment}
                   justUpdatedEnv={justUpdatedEnv}
                   onAnimationEnd={() => setJustUpdatedEnv(null)}
@@ -368,7 +383,8 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                                         e.preventDefault();
                                         setPersonInView({ person: dev, isDeveloper: true });
                                     }}
-                                    className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
+                                    disabled={isOpening}
+                                    className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full disabled:cursor-not-allowed"
                                 >
                                   <Avatar className="h-7 w-7 border-2 border-background cursor-pointer">
                                     <AvatarFallback 
@@ -416,10 +432,11 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                               <TooltipTrigger asChild>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); e.preventDefault(); setPersonInView({ person: tester, isDeveloper: false }); }}
-                                    className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
+                                    disabled={isOpening}
+                                    className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full disabled:cursor-not-allowed"
                                 >
                                   <Avatar className="h-7 w-7 border-2 border-background cursor-pointer">
-                                    <AvatarFallback 
+                                    <AvatarFallback
                                       className="text-[10px] font-medium text-white"
                                       style={{ backgroundColor: `#${getAvatarColor(tester.name)}` }}
                                     >
@@ -462,7 +479,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
               {showMoreOptions ? (
                  <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Button variant="ghost" size="icon" disabled={isOpening} className="h-8 w-8">
                       <MoreVertical className="h-4 w-4" />
                       <span className="sr-only">More options</span>
                     </Button>
@@ -496,7 +513,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
               ) : (
                 <>
                   <ShareMenu task={task} uiConfig={uiConfig!} developers={developers} testers={testers}>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => e.stopPropagation()}>
+                    <Button variant="ghost" size="icon" disabled={isOpening} className="h-8 w-8" onClick={e => e.stopPropagation()}>
                       <Share2 className="h-4 w-4" />
                       <span className="sr-only">Share Task</span>
                     </Button>
