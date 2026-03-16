@@ -1069,7 +1069,7 @@ export default function Home() {
                         <button
                             onClick={() => handleDateViewChange('all')}
                             className={cn(
-                                "hidden md:inline-flex h-8 px-4 rounded-md text-sm font-medium transition-all",
+                                "hidden md:inline-flex items-center justify-center h-8 px-4 rounded-md text-sm font-medium transition-all",
                                 dateView === 'all' 
                                     ? "bg-background text-foreground shadow-sm ring-1 ring-black/5" 
                                     : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
@@ -1080,7 +1080,7 @@ export default function Home() {
                         <button
                             onClick={() => handleDateViewChange('monthly')}
                             className={cn(
-                                "h-8 px-4 rounded-md text-sm font-medium transition-all flex-1 md:flex-none justify-center",
+                                "inline-flex items-center justify-center h-8 px-4 rounded-md text-sm font-medium transition-all flex-1 md:flex-none",
                                 dateView === 'monthly' 
                                     ? "bg-background text-foreground shadow-sm ring-1 ring-black/5" 
                                     : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
