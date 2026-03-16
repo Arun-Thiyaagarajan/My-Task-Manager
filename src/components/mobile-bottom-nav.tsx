@@ -116,7 +116,7 @@ export function MobileBottomNav() {
       <div className="flex flex-col items-center justify-center flex-1 h-full">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex flex-col items-center justify-center gap-1 focus:outline-none">
+            <button className="flex flex-col items-center justify-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-md p-1">
               <div className={cn(
                 "h-7 w-7 rounded-full border-2 flex items-center justify-center overflow-hidden transition-transform active:scale-90",
                 user ? "border-primary" : "border-muted-foreground/20"
@@ -138,7 +138,7 @@ export function MobileBottomNav() {
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Me</span>
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" side="top" className="w-56 mb-2">
+          <DropdownMenuContent align="end" side="top" className="w-56 mb-2" sideOffset={12}>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
                 <p className="text-sm font-bold truncate">{profileName}</p>

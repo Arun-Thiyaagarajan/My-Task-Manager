@@ -211,7 +211,7 @@ export function Header() {
           <div className="flex items-center gap-4 md:gap-8">
             <div className="flex items-center space-x-2">
                 {uiConfig?.appIcon && isDataURI(uiConfig.appIcon) ? (
-                    <button onClick={() => setIsImagePreviewOpen(true)} className="flex-shrink-0 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                    <button onClick={() => setIsImagePreviewOpen(true)} className="flex-shrink-0 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-transform active:scale-95">
                         <img src={uiConfig.appIcon} alt="App Icon" className="h-6 w-6 object-contain rounded-md shadow-sm" />
                         <span className="sr-only">Show app icon preview</span>
                     </button>
@@ -345,9 +345,9 @@ export function Header() {
             <div className="hidden md:block">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="relative h-10 w-10 rounded-full group ring-offset-background transition-all hover:ring-2 hover:ring-primary/20">
+                  <button className="relative h-10 w-10 rounded-full group ring-offset-background transition-all hover:ring-2 hover:ring-primary/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                     <div className={cn(
-                      "flex h-full w-full items-center justify-center rounded-full border-2 transition-all",
+                      "flex h-full w-full items-center justify-center rounded-full border-2 transition-all overflow-hidden",
                       authMode === 'authenticate' && user ? "border-primary p-0.5" : "border-muted-foreground/20"
                     )}>
                       {authMode === 'authenticate' && user ? (
@@ -364,9 +364,9 @@ export function Header() {
                         <UserIcon className="h-5 w-5 text-muted-foreground" />
                       )}
                     </div>
-                  </Button>
+                  </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-60 p-2 rounded-xl shadow-xl" align="end" forceMount>
+                <DropdownMenuContent className="w-60 p-2 rounded-xl shadow-xl" align="end" sideOffset={8}>
                   <DropdownMenuLabel className="font-normal p-2">
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-semibold leading-none truncate tracking-tight">

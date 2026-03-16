@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import {
@@ -12,7 +10,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Mail, Phone, Briefcase, UserCheck, Link as LinkIcon, ExternalLink } from 'lucide-react';
 import type { Person, PersonField } from '@/lib/types';
-import { getInitials, getAvatarColor } from '@/lib/utils';
+import { getInitials, getAvatarColor, cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import type { CSSProperties } from 'react';
 import { Separator } from './ui/separator';
@@ -59,9 +57,9 @@ export function PersonProfileCard({ person, typeLabel, isDeveloper, isOpen, onOp
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader className="items-center text-center space-y-4 pt-4">
-           <Avatar className="h-24 w-24 border-4 border-background ring-2 ring-primary">
+      <DialogContent className="sm:max-w-sm p-0 overflow-hidden">
+        <DialogHeader className="items-center text-center space-y-4 pt-10 px-6">
+           <Avatar className="h-24 w-24 border-4 border-background shadow-xl ring-2 ring-primary/20">
                 <AvatarFallback
                     className="text-4xl font-semibold text-white"
                     style={{
@@ -72,54 +70,65 @@ export function PersonProfileCard({ person, typeLabel, isDeveloper, isOpen, onOp
                 </AvatarFallback>
             </Avatar>
             <div className="flex flex-col items-center">
-              <DialogTitle className="text-2xl font-bold">{person.name}</DialogTitle>
-              {/* The DialogDescription is for accessibility. The Badge provides the visual cue. */}
+              <DialogTitle className="text-2xl font-bold tracking-tight">{person.name}</DialogTitle>
               <DialogDescription className="sr-only">
-                {typeLabel}
+                Profile information for {person.name}, {typeLabel}
               </DialogDescription>
-              <Badge variant="outline" className="mt-1 border" aria-hidden="true" style={badgeStyle}>
+              <Badge variant="outline" className="mt-1.5 border font-semibold px-3 py-0.5" style={badgeStyle}>
                 <TypeIcon className="h-3 w-3 mr-1.5"/>
                 {typeLabel}
               </Badge>
             </div>
         </DialogHeader>
-        <div className="py-4 space-y-4">
+        <div className="py-6 px-6 space-y-6">
             {hasContactInfo && (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {person.email && (
                     <div className="flex items-start gap-4">
-                        <Mail className="h-5 w-5 text-muted-foreground mt-1 shrink-0" />
-                        <a href={`mailto:${person.email}`} className="text-sm text-foreground hover:underline break-all">
-                            {person.email}
-                        </a>
+                        <div className="p-2 rounded-lg bg-muted/50">
+                            <Mail className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-0.5">Email</p>
+                            <a href={`mailto:${person.email}`} className="text-sm font-medium text-foreground hover:text-primary hover:underline break-all transition-colors">
+                                {person.email}
+                            </a>
+                        </div>
                     </div>
                 )}
                  {person.phone && (
                     <div className="flex items-start gap-4">
-                        <Phone className="h-5 w-5 text-muted-foreground mt-1 shrink-0" />
-                        <a href={`tel:${person.phone}`} className="text-sm text-foreground hover:underline break-all">
-                            {person.phone}
-                        </a>
+                        <div className="p-2 rounded-lg bg-muted/50">
+                            <Phone className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-0.5">Phone</p>
+                            <a href={`tel:${person.phone}`} className="text-sm font-medium text-foreground hover:text-primary hover:underline break-all transition-colors">
+                                {person.phone}
+                            </a>
+                        </div>
                     </div>
                 )}
               </div>
             )}
             
-            {hasContactInfo && hasAdditionalFields && <Separator />}
+            {hasContactInfo && hasAdditionalFields && <Separator className="opacity-50" />}
 
             {hasAdditionalFields && (
-                <div className="space-y-4">
+                <div className="space-y-5">
                     {person.additionalFields?.map(field => (
                         <div key={field.id} className="text-sm">
-                            <p className="font-semibold text-muted-foreground mb-1">{field.label}</p>
-                            <div className="text-foreground break-words">{renderFieldValue(field)}</div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">{field.label}</p>
+                            <div className="text-foreground font-medium break-words leading-relaxed">{renderFieldValue(field)}</div>
                         </div>
                     ))}
                 </div>
             )}
 
             {!hasContactInfo && !hasAdditionalFields && (
-              <p className="text-sm text-muted-foreground text-center pt-2">No contact information available.</p>
+              <div className="text-center py-4 bg-muted/20 rounded-xl border border-dashed">
+                <p className="text-sm text-muted-foreground font-medium">No contact information available.</p>
+              </div>
             )}
         </div>
       </DialogContent>
