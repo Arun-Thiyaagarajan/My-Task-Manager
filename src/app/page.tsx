@@ -1038,76 +1038,115 @@ export default function Home() {
            )}
 
            <div className="flex flex-col gap-6">
-                {/* Date Navigation & Results Count Group */}
-                <div className="flex flex-col gap-4">
-                    {(dateView === 'monthly' || dateView === 'yearly') && !favoritesOnly && (
-                        <div className="flex items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
-                            <Button variant="outline" size="icon" onClick={handlePreviousDate} className="h-11 w-11 shrink-0 shadow-sm rounded-xl active:scale-95 transition-transform"><ChevronLeft className="h-5 w-5" /></Button>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant="outline" className="text-base font-bold flex-1 sm:w-48 whitespace-nowrap h-11 shadow-sm rounded-xl tracking-tight">
-                                        {dateView === 'monthly' ? format(selectedDate, 'MMMM yyyy') : format(selectedDate, 'yyyy')}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar mode="single" selected={selectedDate} onSelect={(day) => { if(day) { setIsSearching(true); setSelectedDate(day); } }} initialFocus />
-                                </PopoverContent>
-                            </Popover>
-                            <Button variant="outline" size="icon" onClick={handleNextDate} className="h-11 w-11 shrink-0 shadow-sm rounded-xl active:scale-95 transition-transform"><ChevronRight className="h-5 w-5" /></Button>
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:gap-6">
+                    {/* LEFT GROUP: Date Nav & Count */}
+                    <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
+                        {(dateView === 'monthly' || dateView === 'yearly') && !favoritesOnly && (
+                            <div className="flex items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
+                                <Button variant="outline" size="icon" onClick={handlePreviousDate} className="h-11 w-11 shrink-0 shadow-sm rounded-xl active:scale-95 transition-transform"><ChevronLeft className="h-5 w-5" /></Button>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" className="text-base font-bold flex-1 sm:w-48 whitespace-nowrap h-11 shadow-sm rounded-xl tracking-tight">
+                                            {dateView === 'monthly' ? format(selectedDate, 'MMMM yyyy') : format(selectedDate, 'yyyy')}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar mode="single" selected={selectedDate} onSelect={(day) => { if(day) { setIsSearching(true); setSelectedDate(day); } }} initialFocus />
+                                    </PopoverContent>
+                                </Popover>
+                                <Button variant="outline" size="icon" onClick={handleNextDate} className="h-11 w-11 shrink-0 shadow-sm rounded-xl active:scale-95 transition-transform"><ChevronRight className="h-5 w-5" /></Button>
+                            </div>
+                        )}
+                        
+                        <div className="px-1 md:px-0">
+                            <h2 className="text-xl font-bold tracking-tight text-foreground/90 leading-tight">
+                                {favoritesOnly ? 'Favorite Tasks' : `${filteredTasks.length} Results`}
+                            </h2>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mt-0.5 whitespace-nowrap">
+                                {favoritesOnly 
+                                    ? `Showing ${filteredTasks.length} favorited items.` 
+                                    : (dateView === 'all' ? 'Based on active filters.' : dateView === 'monthly' ? `Start date in ${format(selectedDate, 'MMM yyyy')}` : `Start date in ${format(selectedDate, 'yyyy')}`)}
+                            </p>
                         </div>
-                    )}
-                    
-                    <div className="px-1">
-                        <h2 className="text-xl font-bold tracking-tight text-foreground/90">
-                            {favoritesOnly ? 'Favorite Tasks' : `${filteredTasks.length} Results`}
-                        </h2>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mt-0.5">
-                            {favoritesOnly 
-                                ? `Showing ${filteredTasks.length} favorited items.` 
-                                : (dateView === 'all' ? 'Based on active filters.' : dateView === 'monthly' ? `Start date in ${format(selectedDate, 'MMM yyyy')}` : `Start date in ${format(selectedDate, 'yyyy')}`)}
-                        </p>
                     </div>
-                </div>
 
-                {/* Filter & View Mode Row */}
-                <div id="view-mode-toggle" className="flex flex-col gap-4">
-                    <div className="flex items-center gap-2 w-full overflow-x-auto pb-1 no-scrollbar">
-                        <Select value={sortDescriptor} onValueChange={handleSortChange}>
-                            <SelectTrigger className="flex-1 min-w-[140px] sm:w-[180px] h-11 font-bold rounded-xl shadow-sm"><SelectValue placeholder="Sort by" /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="status-asc" className="font-bold">Status (Asc)</SelectItem>
-                                <SelectItem value="status-desc" className="font-bold">Status (Desc)</SelectItem>
-                                <SelectItem value="title-asc" className="font-bold">Title (A-Z)</SelectItem>
-                                <SelectItem value="title-desc" className="font-bold">Title (Z-A)</SelectItem>
-                            </SelectContent>
-                        </Select>
+                    {/* RIGHT GROUP: Controls */}
+                    <div id="view-mode-toggle" className="flex flex-col md:flex-row items-center gap-4">
+                        <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 no-scrollbar md:pb-0">
+                            <Select value={sortDescriptor} onValueChange={handleSortChange}>
+                                <SelectTrigger className="flex-1 min-w-[140px] sm:w-[180px] h-11 font-bold rounded-xl shadow-sm"><SelectValue placeholder="Sort by" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="status-asc" className="font-bold">Status (Asc)</SelectItem>
+                                    <SelectItem value="status-desc" className="font-bold">Status (Desc)</SelectItem>
+                                    <SelectItem value="title-asc" className="font-bold">Title (A-Z)</SelectItem>
+                                    <SelectItem value="title-desc" className="font-bold">Title (Z-A)</SelectItem>
+                                </SelectContent>
+                            </Select>
 
-                        <div className="flex h-11 items-center justify-center rounded-xl bg-muted/50 p-1 border shadow-sm shrink-0">
-                            <button
-                                onClick={() => handleDateViewChange('all')}
-                                className={cn(
-                                    "inline-flex items-center justify-center h-9 px-4 rounded-lg text-xs font-black uppercase tracking-widest transition-all",
-                                    dateView === 'all' 
-                                        ? "bg-background text-primary shadow-sm ring-1 ring-black/5" 
-                                        : "text-muted-foreground hover:bg-background/50"
-                                )}
-                            >
-                                All
-                            </button>
-                            <button
-                                onClick={() => handleDateViewChange('monthly')}
-                                className={cn(
-                                    "inline-flex items-center justify-center h-9 px-4 rounded-lg text-xs font-black uppercase tracking-widest transition-all",
-                                    dateView === 'monthly' 
-                                        ? "bg-background text-primary shadow-sm ring-1 ring-black/5" 
-                                        : "text-muted-foreground hover:bg-background/50"
-                                )}
-                            >
-                                Monthly
-                            </button>
+                            <div className="flex h-11 items-center justify-center rounded-xl bg-muted/50 p-1 border shadow-sm shrink-0">
+                                <button
+                                    onClick={() => handleDateViewChange('all')}
+                                    className={cn(
+                                        "flex-1 md:flex-none inline-flex items-center justify-center h-9 px-4 rounded-lg text-xs font-black uppercase tracking-widest transition-all",
+                                        dateView === 'all' 
+                                            ? "bg-background text-primary shadow-sm ring-1 ring-black/5" 
+                                            : "text-muted-foreground hover:bg-background/50"
+                                    )}
+                                >
+                                    All
+                                </button>
+                                <button
+                                    onClick={() => handleDateViewChange('monthly')}
+                                    className={cn(
+                                        "flex-1 md:flex-none inline-flex items-center justify-center h-9 px-4 rounded-lg text-xs font-black uppercase tracking-widest transition-all",
+                                        dateView === 'monthly' 
+                                            ? "bg-background text-primary shadow-sm ring-1 ring-black/5" 
+                                            : "text-muted-foreground hover:bg-background/50"
+                                    )}
+                                >
+                                    Monthly
+                                </button>
+                            </div>
+
+                            <div className="hidden md:flex h-11 items-center justify-center rounded-xl bg-muted p-1 border shadow-sm">
+                                <Button variant="ghost" size="icon" className={cn("h-9 w-9 rounded-lg", viewMode === 'grid' && 'bg-card text-foreground shadow-sm')} onClick={() => handleViewModeChange('grid')}><LayoutGrid className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className={cn("h-9 w-9 rounded-lg", viewMode === 'table' && 'bg-card text-foreground shadow-sm')} onClick={() => handleViewModeChange('table')}><List className="h-4 w-4" /></Button>
+                            </div>
+                            
+                            {/* Icons integrated into Desktop Row */}
+                            <div className="hidden md:flex items-center gap-2">
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button 
+                                                variant={favoritesOnly ? 'secondary' : 'outline'} 
+                                                size="icon" 
+                                                onClick={handleFavoritesToggle} 
+                                                className="h-11 w-11 rounded-xl shadow-sm"
+                                            >
+                                                <Heart className={cn("h-5 w-5", favoritesOnly && "fill-red-500 text-red-500")} />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent className="font-bold"><p>{favoritesOnly ? 'All tasks' : 'Favorites only'}</p></TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+
+                                <Button 
+                                    variant={isSelectMode ? 'secondary' : 'outline'} 
+                                    size="icon"
+                                    onClick={handleToggleSelectMode} 
+                                    className={cn(
+                                        "h-11 w-11 rounded-xl shadow-sm transition-all active:scale-95",
+                                        isSelectMode ? "bg-primary/10 text-primary border-primary/20" : "text-muted-foreground"
+                                    )}
+                                >
+                                    {isSelectMode ? <X className="h-5 w-5" /> : <CheckSquare className="h-5 w-5" />}
+                                </Button>
+                            </div>
                         </div>
 
-                        <div className="flex items-center gap-2 shrink-0">
+                        {/* Separate row for Select Mode toggle on mobile ONLY */}
+                        <div className="flex items-center gap-2 px-1 md:hidden w-full">
                             <TooltipProvider>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
@@ -1115,7 +1154,7 @@ export default function Home() {
                                             variant={favoritesOnly ? 'secondary' : 'outline'} 
                                             size="icon" 
                                             onClick={handleFavoritesToggle} 
-                                            className="hidden md:inline-flex h-11 w-11 rounded-xl shadow-sm"
+                                            className="h-11 w-11 rounded-xl shadow-sm shrink-0"
                                         >
                                             <Heart className={cn("h-5 w-5", favoritesOnly && "fill-red-500 text-red-500")} />
                                         </Button>
@@ -1124,45 +1163,21 @@ export default function Home() {
                                 </Tooltip>
                             </TooltipProvider>
 
-                            <div className="hidden md:flex h-11 items-center justify-center rounded-xl bg-muted p-1 border shadow-sm">
-                                <Button variant="ghost" size="icon" className={cn("h-9 w-9 rounded-lg", viewMode === 'grid' && 'bg-card text-foreground shadow-sm')} onClick={() => handleViewModeChange('grid')}><LayoutGrid className="h-4 w-4" /></Button>
-                                <Button variant="ghost" size="icon" className={cn("h-9 w-9 rounded-lg", viewMode === 'table' && 'bg-card text-foreground shadow-sm')} onClick={() => handleViewModeChange('table')}><List className="h-4 w-4" /></Button>
-                            </div>
+                            <Button 
+                                variant={isSelectMode ? 'secondary' : 'outline'} 
+                                onClick={handleToggleSelectMode} 
+                                className={cn(
+                                    "h-11 px-4 rounded-xl shadow-sm font-bold flex items-center gap-2 transition-all active:scale-95 flex-1",
+                                    isSelectMode ? "bg-primary/10 text-primary border-primary/20" : "text-muted-foreground"
+                                )}
+                            >
+                                <div className="relative h-5 w-5 flex items-center justify-center overflow-hidden">
+                                    <CheckSquare className={cn("h-5 w-5 transition-all duration-300 absolute", isSelectMode ? "opacity-0 scale-50" : "opacity-100 scale-100")} />
+                                    <X className={cn("h-5 w-5 transition-all duration-300 absolute", isSelectMode ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
+                                </div>
+                                <span className="text-xs uppercase tracking-widest">{isSelectMode ? 'Cancel Selection' : 'Select Multiple'}</span>
+                            </Button>
                         </div>
-                    </div>
-
-                    {/* Separate row for Select Mode toggle on mobile */}
-                    <div className="flex items-center gap-2 px-1">
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button 
-                                        variant={favoritesOnly ? 'secondary' : 'outline'} 
-                                        size="icon" 
-                                        onClick={handleFavoritesToggle} 
-                                        className="md:hidden h-11 w-11 rounded-xl shadow-sm shrink-0"
-                                    >
-                                        <Heart className={cn("h-5 w-5", favoritesOnly && "fill-red-500 text-red-500")} />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent className="font-bold"><p>{favoritesOnly ? 'All tasks' : 'Favorites only'}</p></TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-
-                        <Button 
-                            variant={isSelectMode ? 'secondary' : 'outline'} 
-                            onClick={handleToggleSelectMode} 
-                            className={cn(
-                                "h-11 px-4 rounded-xl shadow-sm font-bold flex items-center gap-2 transition-all active:scale-95 flex-1 md:flex-none",
-                                isSelectMode ? "bg-primary/10 text-primary border-primary/20" : "text-muted-foreground"
-                            )}
-                        >
-                            <div className="relative h-5 w-5 flex items-center justify-center overflow-hidden">
-                                <CheckSquare className={cn("h-5 w-5 transition-all duration-300 absolute", isSelectMode ? "opacity-0 scale-50" : "opacity-100 scale-100")} />
-                                <X className={cn("h-5 w-5 transition-all duration-300 absolute", isSelectMode ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
-                            </div>
-                            <span className="text-xs uppercase tracking-widest">{isSelectMode ? 'Cancel Selection' : 'Select Multiple'}</span>
-                        </Button>
                     </div>
                 </div>
             </div>
