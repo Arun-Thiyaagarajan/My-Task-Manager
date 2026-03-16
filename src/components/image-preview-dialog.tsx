@@ -10,7 +10,7 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { ZoomIn, ZoomOut, RotateCcw, X, Pencil, Camera, Trash2, History } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, X, Pencil, Camera, Trash2, History, Move } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -112,7 +112,7 @@ export function ImagePreviewDialog({
     }
   };
 
-  if (!imageUrl && !imageName) {
+  if (!imageUrl && !imageName && !previousImageUrl) {
     return null;
   }
 
@@ -152,29 +152,41 @@ export function ImagePreviewDialog({
           className="flex-1 overflow-hidden relative bg-black/5 flex items-center justify-center"
           onWheel={handleWheel}
         >
-          {isImg ? (
-              <div
-                ref={imageRef}
-                className={cn('absolute inset-0 flex items-center justify-center transition-transform duration-100 ease-linear', scale > 1 && 'cursor-grab')}
-                style={{
-                  transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
-                }}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseLeave}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={imageUrl!}
-                  alt={imageName || ''}
-                  className="max-w-full max-h-full object-contain select-none shadow-2xl"
-                  style={{ pointerEvents: 'none' }}
-                />
-              </div>
+          {imageUrl ? (
+              isImg ? (
+                  <div
+                    ref={imageRef}
+                    className={cn('absolute inset-0 flex items-center justify-center transition-transform duration-100 ease-linear', scale > 1 && 'cursor-grab')}
+                    style={{
+                      transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+                    }}
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseLeave}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={imageUrl!}
+                      alt={imageName || ''}
+                      className="max-w-full max-h-full object-contain select-none shadow-2xl"
+                      style={{ pointerEvents: 'none' }}
+                    />
+                  </div>
+              ) : (
+                  <div className="text-[12rem] sm:text-[16rem] select-none drop-shadow-2xl animate-in zoom-in duration-300">
+                      {imageUrl}
+                  </div>
+              )
           ) : (
-              <div className="text-[12rem] sm:text-[16rem] select-none drop-shadow-2xl animate-in zoom-in duration-300">
-                  {imageUrl || '📋'}
+              <div className="flex flex-col items-center gap-4 text-muted-foreground/40 text-center px-6 animate-in fade-in duration-500">
+                  <div className="p-8 rounded-full bg-muted/50 border-2 border-dashed border-muted-foreground/20">
+                    <Camera className="h-24 w-24" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold uppercase tracking-[0.2em]">No Profile Active</p>
+                    <p className="text-[10px] font-medium uppercase tracking-widest max-w-[200px]">Upload a photo or choose from your history below</p>
+                  </div>
               </div>
           )}
         </div>
@@ -184,7 +196,7 @@ export function ImagePreviewDialog({
                 {previousImageUrl && (
                     <div className="flex flex-col items-center gap-2 p-4 border-b border-white/5">
                         <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">
-                            <History className="h-3 w-3" /> Restore Previous
+                            <History className="h-3 w-3" /> Previously Used
                         </div>
                         <TooltipProvider>
                             <Tooltip>
@@ -211,17 +223,25 @@ export function ImagePreviewDialog({
                 
                 {isProfilePreview && (
                     <div className="p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2 sm:gap-3">
-                        <Button variant="secondary" size="sm" onClick={onChange} className="cursor-pointer justify-start sm:justify-center rounded-full px-6 font-bold h-10">
-                            <Camera className="h-4 w-4 mr-2" /> Change
-                        </Button>
-                        {isImg && (
-                            <Button variant="secondary" size="sm" onClick={onEdit} className="cursor-pointer justify-start sm:justify-center rounded-full px-6 font-bold h-10">
-                                <Pencil className="h-4 w-4 mr-2" /> Crop
+                        {!imageUrl ? (
+                            <Button variant="secondary" size="sm" onClick={onChange} className="cursor-pointer justify-start sm:justify-center rounded-full px-8 font-bold h-11 shadow-sm transition-all hover:scale-105 active:scale-95">
+                                <Camera className="h-4 w-4 mr-2" /> Upload Image
                             </Button>
+                        ) : (
+                            <>
+                                <Button variant="secondary" size="sm" onClick={onChange} className="cursor-pointer justify-start sm:justify-center rounded-full px-6 font-bold h-10">
+                                    <Camera className="h-4 w-4 mr-2" /> Change
+                                </Button>
+                                {isImg && (
+                                    <Button variant="secondary" size="sm" onClick={onEdit} className="cursor-pointer justify-start sm:justify-center rounded-full px-6 font-bold h-10">
+                                        <Pencil className="h-4 w-4 mr-2" /> Crop
+                                    </Button>
+                                )}
+                                <Button variant="destructive" size="sm" onClick={onRemove} className="cursor-pointer justify-start sm:justify-center rounded-full px-6 font-bold h-10">
+                                    <Trash2 className="h-4 w-4 mr-2" /> Remove
+                                </Button>
+                            </>
                         )}
-                        <Button variant="destructive" size="sm" onClick={onRemove} className="cursor-pointer justify-start sm:justify-center rounded-full px-6 font-bold h-10">
-                            <Trash2 className="h-4 w-4 mr-2" /> Remove
-                        </Button>
                     </div>
                 )}
             </div>
