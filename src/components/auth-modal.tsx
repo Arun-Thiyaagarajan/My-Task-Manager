@@ -18,7 +18,9 @@ import {
   signInWithPopup,
   sendPasswordResetEmail,
   sendEmailVerification,
+  updateProfile,
 } from 'firebase/auth';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Eye, EyeOff, Mail, Lock, User, Chrome, ShieldCheck, AlertCircle, Copy, Check } from 'lucide-react';
 import { useFirebase } from '@/firebase';
@@ -31,7 +33,7 @@ interface AuthModalProps {
 }
 
 export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
-  const { auth } = useFirebase();
+  const { auth, firestore } = useFirebase();
   const { toast } = useToast();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -47,7 +49,7 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) return;
+    if (!auth || !firestore) return;
     setIsLoading(true);
 
     try {
@@ -56,20 +58,32 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
         toast({ variant: 'success', title: 'Welcome back!' });
       } else if (authStep === 'register') {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        // 1. Update Auth Profile (displayName)
+        await updateProfile(user, { displayName: username });
+
+        // 2. Create Firestore User Profile Document
+        const userRef = doc(firestore, 'users', user.uid);
+        await setDoc(userRef, {
+            id: user.uid,
+            email: email,
+            username: username,
+            role: 'user', // Default role
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            photoURL: null,
+        });
         
         try {
-            await sendEmailVerification(userCredential.user);
+            await sendEmailVerification(user);
             toast({ 
               variant: 'success', 
               title: 'Account created', 
-              description: 'A verification email has been sent to your inbox. Please check your email to verify your account. If you don’t see it, please check your spam/junk folder.' 
+              description: 'Verification email sent. Please check your inbox.' 
             });
         } catch (emailError) {
-            toast({
-                variant: 'destructive',
-                title: 'Verification Error',
-                description: 'Verification email could not be sent. Please try again later.'
-            });
+            console.error("Verification email failed", emailError);
         }
       } else if (authStep === 'forgot') {
         await sendPasswordResetEmail(auth, email);
@@ -92,17 +106,13 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
       let title = 'Authentication Failed';
       let description = error.message;
 
-      // Handle specific invalid credential errors with a neat message
       if (
         error.code === 'auth/invalid-credential' || 
         error.code === 'auth/user-not-found' || 
         error.code === 'auth/wrong-password'
       ) {
         title = 'Invalid Credentials';
-        description = 'The email or password you entered is incorrect. Please try again.';
-      } else if (error.code === 'auth/invalid-email') {
-        title = 'Invalid Email';
-        description = 'Please enter a valid email address.';
+        description = 'The email or password you entered is incorrect.';
       }
 
       toast({ variant: 'destructive', title, description });
@@ -112,41 +122,44 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
   };
 
   const handleGoogleSignIn = async () => {
-    if (!auth) return;
+    if (!auth || !firestore) return;
     setIsLoading(true);
     setGoogleError(null);
     try {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
       
-      await signInWithPopup(auth, provider);
-      toast({ variant: 'success', title: 'Signed in with Google' });
+      const userCredential = await signInWithPopup(auth, provider);
+      const user = userCredential.user;
+
+      // Ensure Firestore profile exists for Google users
+      const userRef = doc(firestore, 'users', user.uid);
+      const userSnap = await getDoc(userRef);
       
+      if (!userSnap.exists()) {
+          await setDoc(userRef, {
+              id: user.uid,
+              email: user.email,
+              username: user.displayName || user.email?.split('@')[0] || 'User',
+              role: 'user',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              photoURL: user.photoURL,
+          });
+      }
+      
+      toast({ variant: 'success', title: 'Signed in with Google' });
       onSuccess();
       onOpenChange(false);
       window.dispatchEvent(new Event('company-changed'));
       router.push('/');
       
     } catch (error: any) {      
-      let friendlyMessage = "Google sign-in is temporarily unavailable.";
-      
-      if (error.code === 'auth/popup-blocked') {
-        friendlyMessage = "Sign-in popup was blocked by your browser. Please allow popups for this site.";
-      } else if (error.code === 'auth/operation-not-allowed') {
-        friendlyMessage = "Google sign-in is not enabled in the Firebase Console. Please use email/password.";
-      } else if (error.code === 'auth/popup-closed-by-user') {
-        friendlyMessage = "The sign-in window was closed before finishing. If this keeps happening, ensure the current domain is authorized in Firebase.";
-      } else if (error.code === 'auth/cancelled-popup-request') {
+      if (error.code === 'auth/cancelled-popup-request') {
         setIsLoading(false);
         return;
       }
-
-      setGoogleError(friendlyMessage);
-      toast({ 
-        variant: 'destructive', 
-        title: 'Google Sign-In Failed', 
-        description: friendlyMessage 
-      });
+      toast({ variant: 'destructive', title: 'Google Sign-In Failed', description: error.message });
     } finally {
       setIsLoading(false);
     }

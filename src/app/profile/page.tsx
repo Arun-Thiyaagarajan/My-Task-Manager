@@ -103,7 +103,7 @@ export default function ProfilePage() {
         setIsPageLoading(false);
         window.dispatchEvent(new Event('navigation-end'));
     } else if (user) {
-      setDisplayName(user.displayName || '');
+      setDisplayName(user.displayName || userProfile?.username || '');
       setEmail(user.email || '');
       const avatar = userProfile?.photoURL || (user.photoURL === "" ? null : user.photoURL);
       setPhotoURL(avatar);
@@ -131,24 +131,27 @@ export default function ProfilePage() {
       } else {
           if (!user || !firestore) return;
           
-          // Firebase Auth's updateProfile photoURL has a very strict length limit (approx 2KB).
-          // We must NOT store Base64 data here. Instead, we keep the profile photo in Firestore only.
-          const authUpdates: { displayName: string; photoURL: string | null } = { 
+          // 1. Update Firebase Auth Profile (DisplayName only)
+          await updateProfile(user, { 
             displayName,
-            photoURL: null // Clear Auth URL to avoid "URL too long" errors
-          };
-
-          await updateProfile(user, authUpdates);
+            photoURL: null // Ensure Base64 isn't sent to Auth photoURL
+          });
           
+          // 2. Update Firestore Document
           const userRef = doc(firestore, 'users', user.uid);
           const updates: any = {
             id: user.uid,
             username: displayName,
             email: email,
             photoURL: photoURL,
-            role: userProfile?.role || 'user', // Ensure role is present to satisfy security rules
             updatedAt: new Date().toISOString()
           };
+
+          // ONLY include role if the profile doesn't exist yet (satisfies rule: allow create)
+          // For updates, excluding 'role' satisfies rule: allow update (implicit match)
+          if (!userProfile) {
+              updates.role = 'user';
+          }
 
           if (photoURL !== userProfile?.photoURL && userProfile?.photoURL) {
               updates.previousPhotoURL = userProfile.photoURL;
@@ -176,7 +179,6 @@ export default function ProfilePage() {
     const reader = new FileReader();
     reader.onload = async (event) => {
       const rawDataUrl = event.target?.result as string;
-      // Aggressive pre-compression before cropping
       const workingOriginal = await compressImage(rawDataUrl, 800, 0.75);
       setOriginalImage(workingOriginal);
       setPendingImage(workingOriginal);
@@ -188,13 +190,13 @@ export default function ProfilePage() {
 
   const handleCropComplete = (croppedImage: string) => {
     setPhotoURL(croppedImage);
-    toast({ title: 'Photo ready', description: 'Click "Save Changes" to apply your updated profile photo.' });
+    toast({ title: 'Photo ready', description: 'Click "Save Changes" to apply.' });
   };
 
   const handleRemovePhoto = () => {
     setPhotoURL(null);
     setOriginalImage(null);
-    toast({ title: 'Photo removed', description: 'Click "Save Changes" to update your profile.' });
+    toast({ title: 'Photo removed', description: 'Click "Save Changes" to update.' });
     setIsPreviewOpen(false);
   };
 
@@ -210,7 +212,7 @@ export default function ProfilePage() {
   const handleRestorePrevious = () => {
       if (previousPhotoURL) {
           setPhotoURL(previousPhotoURL);
-          toast({ title: 'Photo restored', description: 'Don\'t forget to click "Save Changes" to apply.' });
+          toast({ title: 'Photo restored', description: 'Click "Save Changes" to apply.' });
           setIsPreviewOpen(false);
       }
   };
@@ -237,15 +239,7 @@ export default function ProfilePage() {
       setConfirmPassword('');
       setShowPass(false);
     } catch (error: any) {
-      if (error.code === 'auth/requires-recent-login') {
-        toast({ 
-          variant: 'destructive', 
-          title: 'Security Action Required', 
-          description: 'This operation is sensitive and requires a recent login. Please sign out and sign back in to change your password.' 
-        });
-      } else {
-        toast({ variant: 'destructive', title: 'Failed', description: error.message });
-      }
+      toast({ variant: 'destructive', title: 'Failed', description: error.message });
     } finally {
       setIsPending(false);
     }
@@ -258,13 +252,13 @@ export default function ProfilePage() {
       toast({ 
         variant: 'success', 
         title: 'Verification Sent', 
-        description: 'A verification email has been sent to your inbox. Check your email to verify your account.' 
+        description: 'Check your email to verify your account.' 
       });
     } catch (error: any) {
       toast({ 
         variant: 'destructive', 
         title: 'Error', 
-        description: 'Verification email could not be sent. Please try again later.' 
+        description: 'Verification email could not be sent.' 
       });
     }
   };
@@ -275,7 +269,7 @@ export default function ProfilePage() {
     try {
       await signOut(auth);
       setAuthMode('localStorage');
-      toast({ variant: 'success', title: 'Signed Out', description: 'You have been logged out successfully.' });
+      toast({ variant: 'success', title: 'Signed Out', description: 'Logged out successfully.' });
       router.push('/');
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Sign Out Failed', description: error.message });
@@ -301,7 +295,7 @@ export default function ProfilePage() {
   const isVerified = isLocal ? true : user?.emailVerified;
 
   const hasChanges = 
-    displayName !== (isLocal ? getLocalProfile().username : (user?.displayName || '')) || 
+    displayName !== (isLocal ? getLocalProfile().username : (user?.displayName || userProfile?.username || '')) || 
     photoURL !== (isLocal ? getLocalProfile().photoURL : (userProfile?.photoURL || (user?.photoURL === "" ? null : user?.photoURL)));
 
   return (
@@ -522,7 +516,7 @@ export default function ProfilePage() {
                       <ShieldCheck className="h-4 w-4 text-primary" />
                       <AlertTitle className="font-bold">Local Security</AlertTitle>
                       <AlertDescription className="text-sm font-normal">
-                          You are currently using Local Storage. Security settings like password management are handled by your browser. Sign in to enable cloud security and synchronization.
+                          You are currently using Local Storage. Security settings like password management are handled by your browser. Sign in to enable cloud synchronization.
                       </AlertDescription>
                   </Alert>
               ) : (
