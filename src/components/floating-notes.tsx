@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { StickyNote, Plus, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ export function FloatingNotes() {
     const router = useRouter();
     const pathname = usePathname();
     const [isOpen, setIsOpen] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     const [isNoteEditorOpen, setIsNoteEditorOpen] = useState(false);
     const [noteToEdit, setNoteToEdit] = useState<Partial<Note> | null>(null);
@@ -26,6 +27,7 @@ export function FloatingNotes() {
     const handleOpenNewNoteDialog = useCallback(() => {
         setNoteToEdit(null);
         setIsNoteEditorOpen(true);
+        setIsOpen(false);
     }, []);
     
     useEffect(() => {
@@ -48,8 +50,28 @@ export function FloatingNotes() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [handleOpenNewNoteDialog, pathname]);
 
+    // Handle auto-close on outside click (Mobile usability)
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+
+        if (isOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        } else {
+            document.removeEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isOpen]);
+
     const handleViewNotesClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
         e.preventDefault();
+        setIsOpen(false);
         prompt(() => router.push('/notes'));
     };
     
@@ -79,7 +101,8 @@ export function FloatingNotes() {
     return (
         <>
             <div
-                className="fixed bottom-20 lg:bottom-6 right-6 z-40 group"
+                ref={containerRef}
+                className="fixed bottom-24 lg:bottom-6 right-6 z-40 group"
                 onMouseEnter={() => setIsOpen(true)}
                 onMouseLeave={() => setIsOpen(false)}
             >
@@ -133,10 +156,12 @@ export function FloatingNotes() {
                      <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                 <Button asChild size="icon" className="h-14 w-14 rounded-full shadow-lg">
-                                    <a href="/notes" onClick={handleViewNotesClick}>
-                                        <StickyNote className="h-6 w-6" />
-                                    </a>
+                                 <Button 
+                                    size="icon" 
+                                    className="h-14 w-14 rounded-full shadow-lg"
+                                    onClick={() => setIsOpen(!isOpen)}
+                                 >
+                                    <StickyNote className="h-6 w-6" />
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent side="left">
