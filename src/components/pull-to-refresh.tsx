@@ -122,7 +122,7 @@ export function PullToRefresh({ children }: PullToRefreshProps) {
   }, []);
 
   return (
-    <div className="relative w-full overflow-x-hidden min-h-[inherit]">
+    <div className="relative w-full overflow-x-hidden flex-1 flex flex-col">
       {/* Pull Indicator */}
       <div 
         className={cn(
@@ -187,7 +187,7 @@ export function PullToRefresh({ children }: PullToRefreshProps) {
       {/* Main Content wrapper */}
       <div 
         className={cn(
-            "transition-transform duration-300 ease-out",
+            "transition-transform duration-300 ease-out flex-1 flex flex-col",
             isRefreshing && "translate-y-14"
         )}
         style={!isRefreshing ? { transform: pullDistance > 0 ? `translateY(${pullDistance * 0.4}px)` : 'none' } : {}}
