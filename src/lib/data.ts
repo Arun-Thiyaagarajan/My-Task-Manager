@@ -364,7 +364,7 @@ export function deleteEnvironment(id: string): boolean {
     
     if (!env) return false;
     // Safeguard mandatory environments
-    if (env.isMandatory || ['dev', 'production'].includes(env.name.toLowerCase())) return false;
+    if (env.isMandatory || ['dev', 'production'].includes(env.name?.toLowerCase() || '')) return false;
 
     data.companyData[companyId].uiConfig.environments = envs.filter(e => e.id !== id);
     

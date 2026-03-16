@@ -68,7 +68,7 @@ export default function DashboardPage() {
   const tasksByStatusData = TASK_STATUSES.map(status => ({
     name: status,
     count: tasks.filter(task => task.status === status).length,
-    fill: `var(--color-${status.toLowerCase().replace(' ', '-')})`,
+    fill: `var(--color-${status?.toLowerCase().replace(' ', '-') || 'unknown'})`,
   }));
 
   const tasksByStatusConfig = TASK_STATUSES.reduce((acc, status) => {

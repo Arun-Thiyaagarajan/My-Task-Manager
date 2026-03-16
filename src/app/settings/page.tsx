@@ -657,7 +657,7 @@ export default function SettingsPage() {
                 <CardContent className="space-y-4">
                     <div className="grid gap-2">
                         {(uiConfig.environments || []).map(env => {
-                            const isMandatory = env.isMandatory || ['dev', 'production'].includes(env.name.toLowerCase());
+                            const isMandatory = env.isMandatory || ['dev', 'production'].includes(env.name?.toLowerCase() || '');
                             return (
                                 <div key={env.id} className="flex items-center justify-between p-2.5 border rounded-xl bg-muted/20 group hover:bg-muted/40 transition-colors">
                                     <div className="flex items-center gap-3 min-w-0">
