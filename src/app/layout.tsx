@@ -1,4 +1,3 @@
-
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/header';
@@ -7,6 +6,7 @@ import { Providers } from '@/components/providers';
 import { FloatingNotes } from '@/components/floating-notes';
 import { MobileBottomNav } from '@/components/mobile-bottom-nav';
 import { PullToRefresh } from '@/components/pull-to-refresh';
+import { NavigationLoader } from '@/components/navigation-loader';
 import type { Metadata, Viewport } from 'next';
 
 export const metadata: Metadata = {
@@ -50,6 +50,7 @@ export default function RootLayout({
         <Providers>
             <div className="relative flex min-h-screen flex-col">
             <Header />
+            <NavigationLoader />
             <PullToRefresh>
               <main className="flex-1 pb-20 md:pb-0">{children}</main>
             </PullToRefresh>

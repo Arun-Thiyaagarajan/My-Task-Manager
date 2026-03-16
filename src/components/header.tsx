@@ -89,7 +89,10 @@ const HeaderLink = ({ href, children, className, onClick, id }: { href: string; 
             return;
         }
         e.preventDefault();
-        prompt(() => router.push(href));
+        prompt(() => {
+            window.dispatchEvent(new Event('navigation-start'));
+            router.push(href);
+        });
     };
 
     return <a href={href} onClick={handleClick} className={className} id={id}>{children}</a>;
@@ -371,7 +374,7 @@ export function Header() {
                   <DropdownMenuSeparator className="my-2" />
                   <DropdownMenuGroup className="space-y-1">
                     {authMode === 'authenticate' && user ? (
-                      <DropdownMenuItem onSelect={() => prompt(() => router.push('/profile'))} className="rounded-lg font-medium py-2">
+                      <DropdownMenuItem onSelect={() => prompt(() => { window.dispatchEvent(new Event('navigation-start')); router.push('/profile'); })} className="rounded-lg font-medium py-2">
                         <UserIcon className="mr-2 h-4 w-4 opacity-70" />
                         <span>My Profile</span>
                       </DropdownMenuItem>

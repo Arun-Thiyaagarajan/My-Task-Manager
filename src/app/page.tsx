@@ -127,7 +127,6 @@ export default function Home() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Preference States
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [dateView, setDateView] = useState<DateView>('all');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -138,7 +137,6 @@ export default function Home() {
   const [tagsFilter, setTagsFilter] = useState<string[]>([]);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
 
-  // Search State
   const [searchQuery, setSearchQuery] = useState('');
   const [executedSearchQuery, setExecutedSearchQuery] = useState('');
   
@@ -157,30 +155,24 @@ export default function Home() {
   const [isTagsDialogOpen, setIsTagsDialogOpen] = useState(false);
   const [tagsToApply, setTagsToApply] = useState<string[]>([]);
 
-  // Search Loading & Error States
   const [isSearching, setIsSearching] = useState(false);
   const [showSlowSearchMessage, setShowSlowSearchMessage] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
-  // Import Progress States
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
 
-  // Background Filtering State
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   
-  // Hydrate preferences
   useEffect(() => {
     const prefs = getUserPreferences();
     
-    // 1. Check URL first (highest priority)
     const urlViewMode = searchParams.get('viewMode') as ViewMode;
     const urlDateView = searchParams.get('dateView') as DateView;
     const urlSort = searchParams.get('sort');
     const urlFavs = searchParams.get('favorites') === 'true';
     const urlSearch = searchParams.get('search') || '';
     
-    // 2. Fallback to Preferences
     setViewMode(urlViewMode || prefs.viewMode || 'grid');
     setDateView(urlDateView || prefs.dateView || 'all');
     setSortDescriptor(urlSort || prefs.sortDescriptor || 'status-asc');
@@ -188,7 +180,6 @@ export default function Home() {
     setSearchQuery(urlSearch);
     setExecutedSearchQuery(urlSearch);
 
-    // Filter arrays
     const urlStatus = searchParams.getAll('status');
     setStatusFilter(urlStatus.length > 0 ? urlStatus : (prefs.taskFilters?.status || []));
     
@@ -206,7 +197,6 @@ export default function Home() {
     setSelectedDate(isValid(date) ? date : new Date());
   }, []);
 
-  // Update preferences and URL
   useEffect(() => {
     const params = new URLSearchParams();
     
@@ -229,7 +219,6 @@ export default function Home() {
         router.replace(`${pathname}?${newQuery}`, { scroll: false });
     }
 
-    // Save to preferences (debounced inside the data utility)
     updateUserPreferences({
         viewMode,
         sortDescriptor,
@@ -288,7 +277,6 @@ export default function Home() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Handle slow search messaging
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isSearching) {
@@ -323,7 +311,6 @@ export default function Home() {
     searchInputRef.current?.focus();
   }, []);
 
-  // Asynchronous Filtering Logic
   useEffect(() => {
     const filterWork = () => {
         try {
@@ -798,6 +785,12 @@ export default function Home() {
     await generateTaskPdf(selectedTasks, uiConfig, developers, testers, 'save');
     toast({ variant: 'success', title: 'PDF Exported' });
   }, [selectedTaskIds, tasks, uiConfig, developers, testers, toast]);
+
+  const handleNavigateNewTask = (e: React.MouseEvent) => {
+    e.preventDefault();
+    window.dispatchEvent(new Event('navigation-start'));
+    router.push('/tasks/new');
+  };
   
   if (isLoading || !uiConfig) {
     return <LoadingSpinner text="Loading tasks..." />;
@@ -891,10 +884,8 @@ export default function Home() {
                 </Button>
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />
                 
-                <Button asChild id="new-task-btn" disabled={isImporting} className="hidden md:flex w-full sm:w-auto h-11 shadow-lg font-medium">
-                    <Link href="/tasks/new">
-                        <Plus className="mr-2 h-5 w-5" /> New Task
-                    </Link>
+                <Button onClick={handleNavigateNewTask} id="new-task-btn" disabled={isImporting} className="hidden md:flex w-full sm:w-auto h-11 shadow-lg font-medium active:scale-95 transition-transform">
+                    <Plus className="mr-2 h-5 w-5" /> New Task
                 </Button>
             </div>
         </div>
@@ -1028,9 +1019,29 @@ export default function Home() {
                       </SelectContent>
                   </Select>
 
-                   <div className="flex h-10 items-center justify-center rounded-md bg-muted p-1">
-                        <Button variant={dateView === 'all' ? 'default' : 'ghost'} onClick={() => setDateView('all')} className={cn("h-8 shadow-sm px-3 font-medium", dateView === 'all' && 'bg-card text-foreground')}>All</Button>
-                        <Button variant={dateView === 'monthly' ? 'default' : 'ghost'} onClick={() => setDateView('monthly')} className={cn("h-8 shadow-sm px-3 font-medium", dateView === 'monthly' && 'bg-card text-foreground')}>Monthly</Button>
+                   <div className="flex h-10 items-center justify-center rounded-lg bg-muted/50 p-1 border">
+                        <button
+                            onClick={() => setDateView('all')}
+                            className={cn(
+                                "h-8 px-4 rounded-md text-sm font-medium transition-all",
+                                dateView === 'all' 
+                                    ? "bg-background text-foreground shadow-sm ring-1 ring-black/5" 
+                                    : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+                            )}
+                        >
+                            All
+                        </button>
+                        <button
+                            onClick={() => setDateView('monthly')}
+                            className={cn(
+                                "h-8 px-4 rounded-md text-sm font-medium transition-all",
+                                dateView === 'monthly' 
+                                    ? "bg-background text-foreground shadow-sm ring-1 ring-black/5" 
+                                    : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+                            )}
+                        >
+                            Monthly
+                        </button>
                    </div>
 
                   <div className="flex items-center gap-2">

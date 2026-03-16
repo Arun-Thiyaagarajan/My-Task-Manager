@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -47,7 +46,10 @@ export function MobileBottomNav() {
 
   const handleNavigate = (href: string) => {
     if (pathname === href) return;
-    prompt(() => router.push(href));
+    prompt(() => {
+        window.dispatchEvent(new Event('navigation-start'));
+        router.push(href);
+    });
   };
 
   const handleSignOut = async () => {
@@ -75,7 +77,7 @@ export function MobileBottomNav() {
             key={item.href}
             onClick={() => handleNavigate(item.href)}
             className={cn(
-              "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors",
+              "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors relative",
               isActive ? "text-primary" : "text-muted-foreground"
             )}
           >
@@ -90,7 +92,7 @@ export function MobileBottomNav() {
       <div className="flex-1 flex flex-col items-center justify-center">
         <Button 
           size="icon" 
-          className="h-12 w-12 rounded-full shadow-lg shadow-primary/30 -mt-8 border-4 border-background"
+          className="h-12 w-12 rounded-full shadow-lg shadow-primary/30 -mt-8 border-4 border-background active:scale-95 transition-transform"
           onClick={() => handleNavigate('/tasks/new')}
         >
           <Plus className="h-6 w-6" />
@@ -102,7 +104,7 @@ export function MobileBottomNav() {
       <button
         onClick={() => handleNavigate('/bin')}
         className={cn(
-          "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors",
+          "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors relative",
           pathname === '/bin' ? "text-primary" : "text-muted-foreground"
         )}
       >

@@ -112,7 +112,6 @@ export default function TaskPage() {
       const config = getUiConfig();
       
       setTask(foundTask || null);
-      // PREVENT overwriting local attachments if currently editing to avoid clobbering names/additions
       if (!isEditingAttachmentsRef.current) {
           setLocalAttachments(foundTask?.attachments || []);
       }
@@ -129,7 +128,6 @@ export default function TaskPage() {
       }
       
       setIsLoading(false);
-      // Ensure global loading bar is cleared when page data is ready
       window.dispatchEvent(new Event('sync-end'));
     }
   }
@@ -317,7 +315,7 @@ export default function TaskPage() {
         toast({
             title: newPinnedIds.includes(taskIdToToggle) ? 'Reminder Pinned' : 'Reminder Unpinned',
             description: `This reminder will ${newPinnedIds.includes(taskIdToToggle) ? 'now' : 'no longer'} appear on the main page.`,
-            duration: 3000,
+            duration: 2000,
         });
     }
   };
@@ -408,7 +406,6 @@ export default function TaskPage() {
         if (!task) return;
         
         const oldAtts = task.attachments || [];
-        // Important: Use JSON compare to identify if anything really changed
         if (JSON.stringify(oldAtts) === JSON.stringify(localAttachments)) {
             setIsEditingAttachments(false);
             isEditingAttachmentsRef.current = false;
@@ -422,7 +419,6 @@ export default function TaskPage() {
             return old && old.name !== na.name;
         }).length;
 
-        // Perform the actual data update
         const updatedTask = updateTask(task.id, { attachments: localAttachments });
         if (updatedTask) {
             setTask(updatedTask);
@@ -460,7 +456,6 @@ export default function TaskPage() {
     const reader = new FileReader();
     reader.onload = async (e) => {
         const rawDataUri = e.target?.result as string;
-        // Optimization happens automatically here
         const optimizedUri = await compressImage(rawDataUri);
         const newAttachment: Attachment = { name: file.name, url: optimizedUri, type: 'image' };
         setLocalAttachments(prev => [...prev, newAttachment]);
@@ -757,6 +752,16 @@ const handleCopyDescription = () => {
       }
   };
 
+  const handleNavigateEdit = () => {
+    window.dispatchEvent(new Event('navigation-start'));
+    router.push(`/tasks/${task?.id}/edit`);
+  };
+
+  const handleNavigateBack = () => {
+    window.dispatchEvent(new Event('navigation-start'));
+    router.push(backLink);
+  };
+
   if (isLoading || !uiConfig) {
     return <LoadingSpinner text="Loading task details..." />;
   }
@@ -811,11 +816,9 @@ const handleCopyDescription = () => {
     <>
       <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          <Button asChild variant="ghost" className="pl-1">
-            <Link href={backLink}>
+          <Button onClick={handleNavigateBack} variant="ghost" className="pl-1 active:scale-95 transition-transform">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
-            </Link>
           </Button>
           {isBinned ? (
             <AlertDialog>
@@ -860,11 +863,9 @@ const handleCopyDescription = () => {
                     </DropdownMenuContent>
                 </DropdownMenu>
 
-                <Button asChild variant="outline" size="sm">
-                  <Link href={`/tasks/${task.id}/edit`}>
+                <Button onClick={handleNavigateEdit} variant="outline" size="sm" className="active:scale-95 transition-transform">
                     <Pencil className="mr-2 h-4 w-4" />
                     Edit
-                  </Link>
                 </Button>
                 <DeleteTaskButton taskId={task.id} taskTitle={task.title} onSuccess={() => router.push('/')} />
             </div>
@@ -1139,7 +1140,6 @@ const handleCopyDescription = () => {
               </Card>
             )}
 
-            {/* Discussion & History - Responsive placement logic occurs in parent wrapper/styles */}
             <div className="hidden lg:block space-y-6">
                 {commentsField && !isBinned && (
                     <CommentsSection taskId={task.id} comments={task.comments || []} onCommentsUpdate={handleCommentsUpdate} readOnly={isBinned} />
@@ -1379,7 +1379,6 @@ const handleCopyDescription = () => {
           </div>
         </div>
         
-        {/* Mobile-only view for Discussion & History at bottom */}
         <div className="lg:hidden mt-8 space-y-6">
             {commentsField && !isBinned && (
                 <CommentsSection taskId={task.id} comments={task.comments || []} onCommentsUpdate={handleCommentsUpdate} readOnly={isBinned} />
