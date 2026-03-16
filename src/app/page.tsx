@@ -102,6 +102,7 @@ import { MultiSelect, type SelectOption } from '@/components/ui/multi-select';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useDebounce } from '@/hooks/use-debounce';
+import { useFirebase } from '@/firebase';
 
 
 type ViewMode = 'grid' | 'table';
@@ -112,6 +113,7 @@ const TUTORIAL_PROMPTED_KEY = 'taskflow_tutorial_prompted';
 const LAST_BACKUP_KEY = 'taskflow_last_auto_backup';
 
 export default function Home() {
+  const { user, isUserLoading } = useFirebase();
   const activeCompanyId = useActiveCompany();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -261,6 +263,8 @@ export default function Home() {
         setUiConfig(config);
         document.title = config.appName || 'My Task Manager';
         setSelectedTaskIds([]);
+        setIsLoading(false);
+        window.dispatchEvent(new Event('navigation-end'));
     }
   }, [activeCompanyId]);
 
@@ -532,8 +536,6 @@ export default function Home() {
     }
 
     refreshData();
-    setIsLoading(false);
-    window.dispatchEvent(new Event('navigation-end'));
     
     const storageHandler = (event: StorageEvent) => {
         if (event.key === DATA_KEY) {
@@ -809,13 +811,9 @@ export default function Home() {
     router.push('/tasks/new');
   };
   
-  if (isLoading || !uiConfig) {
-    return null;
-  }
-
-  const mode = getAuthMode();
-  const TASK_STATUSES = uiConfig?.taskStatuses || [];
-  const activeSkeletons = isLoading || isSearching;
+  const authMode = getAuthMode();
+  const isVerifyingCloud = authMode === 'authenticate' && isUserLoading;
+  const activeSkeletons = isLoading || isSearching || isVerifyingCloud;
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -846,7 +844,7 @@ export default function Home() {
             <div className="flex items-center gap-3">
                 <h1 className="text-3xl font-semibold tracking-tight text-foreground">Tasks</h1>
                 <Badge variant="outline" className={cn(mode === 'authenticate' ? "text-primary border-primary/20 bg-primary/5" : "text-muted-foreground", "h-6 px-3 text-[10px] font-medium uppercase tracking-wider")}>
-                    {mode === 'authenticate' ? 'Cloud Sync' : 'Local Storage'}
+                    {authMode === 'authenticate' ? 'Cloud Sync' : 'Local Storage'}
                 </Badge>
             </div>
             {uiConfig?.appName && <p className="text-muted-foreground text-sm font-medium">{uiConfig.appName}</p>}
@@ -1126,7 +1124,7 @@ export default function Home() {
                     "transition-all duration-500",
                     isSearching && showSlowSearchMessage ? "opacity-40 grayscale-[0.5] blur-[0.5px]" : "opacity-100"
                 )}>
-                    {filteredTasks.length > 0 || activeSkeletons ? (
+                    {(filteredTasks.length > 0 || activeSkeletons) ? (
                         <div>
                         {viewMode === 'grid' ? (
                             <TasksGrid tasks={filteredTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handlePinToggle} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} isLoading={activeSkeletons} />

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES, INITIAL_RELEASES } from './constants';
@@ -20,6 +19,13 @@ let _cloudCache: MyTaskManagerData | null = null;
 export function setCloudCache(data: MyTaskManagerData | null) {
     _cloudCache = data;
 }
+
+const getEmptyAppData = (): MyTaskManagerData => ({
+    companies: [],
+    activeCompanyId: '',
+    companyData: {},
+    localProfile: { username: 'Guest User', photoURL: null, previousPhotoURL: null },
+});
 
 const getInitialData = (): MyTaskManagerData => {
     const defaultCompanyId = `company-default`;
@@ -68,9 +74,17 @@ const getInitialData = (): MyTaskManagerData => {
 };
 
 export const getAppData = (): MyTaskManagerData => {
-    if (getAuthMode() === 'authenticate' && _cloudCache) {
-        return _cloudCache;
+    const authMode = getAuthMode();
+    if (authMode === 'authenticate') {
+        if (_cloudCache) {
+            return _cloudCache;
+        }
+        // In authenticate mode, if we don't have the cloud cache yet,
+        // we return an empty structure to prevent falling back to local storage
+        // which causes the "local -> cloud" jump.
+        return getEmptyAppData();
     }
+    
     if (typeof window === 'undefined') return getInitialData();
     const stored = window.localStorage.getItem(DATA_KEY);
     if (!stored) return getInitialData();
@@ -294,7 +308,8 @@ export function deleteCompany(id: string): boolean {
 // UI Config
 export function getUiConfig(): UiConfig {
     const data = getAppData();
-    const config = data.companyData[getActiveCompanyId()]?.uiConfig;
+    const companyId = getActiveCompanyId();
+    const config = data.companyData[companyId]?.uiConfig;
     if (!config) return getInitialData().companyData['company-default'].uiConfig;
     return config;
 }
@@ -403,7 +418,10 @@ export function deleteEnvironment(id: string): boolean {
 
 // People management
 export function getDevelopers(): Person[] {
-    return getAppData().companyData[getActiveCompanyId()]?.developers || [];
+    const appData = getAppData();
+    const companyId = getActiveCompanyId();
+    if (!companyId || !appData.companyData[companyId]) return [];
+    return appData.companyData[companyId].developers || [];
 }
 
 export function addDeveloper(person: Omit<Person, 'id'>): Person {
@@ -449,7 +467,10 @@ export function deleteDeveloper(id: string): boolean {
 }
 
 export function getTesters(): Person[] {
-    return getAppData().companyData[getActiveCompanyId()]?.testers || [];
+    const appData = getAppData();
+    const companyId = getActiveCompanyId();
+    if (!companyId || !appData.companyData[companyId]) return [];
+    return appData.companyData[companyId].testers || [];
 }
 
 export function addTester(person: Omit<Person, 'id'>): Person {
@@ -496,7 +517,10 @@ export function deleteTester(id: string): boolean {
 
 // Logs
 export function getAggregatedLogs(): Log[] {
-    return getAppData().companyData[getActiveCompanyId()]?.logs || [];
+    const appData = getAppData();
+    const companyId = getActiveCompanyId();
+    if (!companyId || !appData.companyData[companyId]) return [];
+    return appData.companyData[companyId].logs || [];
 }
 
 export function getLogs(): Log[] {
@@ -551,14 +575,18 @@ export function addLog(log: Omit<Log, 'id' | 'timestamp'>) {
 
 // Tasks
 export function getTasks(): Task[] {
-    return getAppData().companyData[getActiveCompanyId()]?.tasks || [];
+    const appData = getAppData();
+    const companyId = getActiveCompanyId();
+    if (!companyId || !appData.companyData[companyId]) return [];
+    return appData.companyData[companyId].tasks || [];
 }
 
 export function getTaskById(id: string): Task | undefined {
-    const data = getAppData();
+    const appData = getAppData();
     const companyId = getActiveCompanyId();
-    return data.companyData[companyId]?.tasks.find(t => t.id === id) || 
-           data.companyData[companyId]?.trash.find(t => t.id === id);
+    if (!companyId || !appData.companyData[companyId]) return undefined;
+    return appData.companyData[companyId].tasks.find(t => t.id === id) || 
+           appData.companyData[companyId].trash.find(t => t.id === id);
 }
 
 export function addTask(task: Partial<Task>): Task {
@@ -766,14 +794,18 @@ export function addTagsToMultipleTasks(taskIds: string[], tagsToAdd: string[]) {
 
 // Binned Tasks
 export function getBinnedTasks(): Task[] {
-    const data = getAppData();
+    const appData = getAppData();
     const companyId = getActiveCompanyId();
-    return data.companyData[companyId]?.trash || [];
+    if (!companyId || !appData.companyData[companyId]) return [];
+    return appData.companyData[companyId].trash || [];
 }
 
 // Notes
 export function getNotes(): Note[] {
-    return getAppData().companyData[getActiveCompanyId()]?.notes || [];
+    const appData = getAppData();
+    const companyId = getActiveCompanyId();
+    if (!companyId || !appData.companyData[companyId]) return [];
+    return appData.companyData[companyId].notes || [];
 }
 
 export function addNote(note: Partial<Note>): Note {
@@ -865,7 +897,10 @@ export function resetNotesLayout(): boolean {
 
 // General Reminders
 export function getGeneralReminders(): GeneralReminder[] {
-    return getAppData().companyData[getActiveCompanyId()]?.generalReminders || [];
+    const appData = getAppData();
+    const companyId = getActiveCompanyId();
+    if (!companyId || !appData.companyData[companyId]) return [];
+    return appData.companyData[companyId].generalReminders || [];
 }
 
 export function addGeneralReminder(text: string) {
@@ -935,7 +970,10 @@ export function clearExpiredReminders(): { updatedTaskIds: string[], unpinnedTas
 
 // Release Updates
 export function getReleaseUpdates(publishedOnly = true): ReleaseUpdate[] {
-    const all = getAppData().companyData[getActiveCompanyId()]?.releaseUpdates || [];
+    const appData = getAppData();
+    const companyId = getActiveCompanyId();
+    if (!companyId || !appData.companyData[companyId]) return [];
+    const all = appData.companyData[companyId].releaseUpdates || [];
     if (publishedOnly) return all.filter(r => r.isPublished).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     return [...all].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }

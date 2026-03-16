@@ -365,10 +365,6 @@ export const TasksTable = memo(function TasksTable({
     isDeveloper: boolean;
   } | null>(null);
 
-  if (!uiConfig) {
-    return null;
-  }
-  
   const priorityStatuses = ['To Do', 'In Progress', 'Code Review', 'QA'];
   
   const priorityTasks = tasks.filter(task => priorityStatuses.includes(task.status));
@@ -418,6 +414,7 @@ export const TasksTable = memo(function TasksTable({
             <TaskTableRowSkeleton key={`skeleton-row-${i}`} isSelectMode={isSelectMode} />
         ));
     }
+    if (!uiConfig) return null;
     return tasksToRender.map((task) => (
       <TasksTableRow
         key={task.id}
@@ -467,6 +464,10 @@ export const TasksTable = memo(function TasksTable({
             </Table>
         </div>
       );
+  }
+
+  if (!uiConfig) {
+    return null;
   }
 
   if (priorityTasks.length > 0) groups.push({ key: 'priority', title: priorityTitle!, tasks: priorityTasks });
