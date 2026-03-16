@@ -51,6 +51,7 @@ import { TextareaToolbar, applyFormat } from '@/components/ui/textarea-toolbar';
 import { Calendar } from '@/components/ui/calendar';
 import { getLinkAlias } from '@/ai/flows/alias-flow';
 import { generateSummary } from '@/ai/flows/summary-flow';
+import { TaskDetailSkeleton } from '@/components/task-detail-skeleton';
 
 
 const isImageUrl = (url: string): boolean => {
@@ -763,7 +764,7 @@ const handleCopyDescription = () => {
   };
 
   if (isLoading || !uiConfig) {
-    return null;
+    return <TaskDetailSkeleton />;
   }
 
   if (!task) {
@@ -864,7 +865,7 @@ const handleCopyDescription = () => {
                 </DropdownMenu>
 
                 <Button onClick={handleNavigateEdit} variant="outline" size="sm" className="active:scale-95 transition-transform font-medium">
-                    <Pencil className="mr-2 h-4 w-4" />
+                    < Pencil className="mr-2 h-4 w-4" />
                     Edit
                 </Button>
                 <DeleteTaskButton taskId={task.id} taskTitle={task.title} onSuccess={() => router.push('/')} />
@@ -1178,9 +1179,9 @@ const handleCopyDescription = () => {
                             <Label className="font-semibold">{fieldLabels.get('repositories') || 'Repositories'}</Label>
                             <MultiSelect selected={Array.isArray(task.repositories) ? task.repositories : (task.repositories ? [task.repositories] : [])} onChange={val => handleSaveEditing('repositories', false, val)} options={repoOptions} />
                         </div>
-                        {azureFieldConfig?.isActive && (
+                        {azureWorkItemIdFieldConfig?.isActive && (
                             <div>
-                                <Label className="font-semibold">{azureFieldConfig.label || 'Azure DevOps'}</Label>
+                                <Label className="font-semibold">{azureWorkItemIdFieldConfig.label || 'Azure DevOps'}</Label>
                                 <Input defaultValue={task.azureWorkItemId} onBlur={(e) => handleSaveEditing('azureWorkItemId', false, e.target.value)} placeholder="Enter ID..." className="font-normal"/>
                             </div>
                         )}
@@ -1200,12 +1201,12 @@ const handleCopyDescription = () => {
                           )) : (<p className="text-sm text-muted-foreground font-normal">No repositories assigned.</p>)}
                         </div>
                       </div>
-                      {azureFieldConfig && azureFieldConfig.isActive && task.azureWorkItemId && (<>
+                      {azureWorkItemIdFieldConfig && azureWorkItemIdFieldConfig.isActive && task.azureWorkItemId && (<>
                         <Separator />
                         <div>
-                          <h4 className="text-sm font-semibold text-muted-foreground mb-2">{azureFieldConfig.label || 'Azure DevOps'}</h4>
-                          {azureFieldConfig.baseUrl ? (
-                            <a href={`${azureFieldConfig.baseUrl}${task.azureWorkItemId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline text-sm font-normal">
+                          <h4 className="text-sm font-semibold text-muted-foreground mb-2">{azureWorkItemIdFieldConfig.label || 'Azure DevOps'}</h4>
+                          {azureWorkItemIdFieldConfig.baseUrl ? (
+                            <a href={`${azureWorkItemIdFieldConfig.baseUrl}${task.azureWorkItemId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline text-sm font-normal">
                               <ExternalLink className="h-4 w-4" />
                               <span>Work Item #{task.azureWorkItemId}</span>
                             </a>
