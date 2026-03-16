@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, memo } from 'react';
@@ -270,7 +271,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
             </CardHeader>
             <CardContent className="flex-grow flex flex-col p-4 pt-2">
               <div className="relative mb-3 text-sm text-muted-foreground min-h-[40px]">
-                <p className="line-clamp-2">
+                <p className="line-clamp-2 leading-relaxed">
                   {task.summary || task.description}
                 </p>
               </div>
@@ -282,7 +283,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                       <Badge 
                         variant="repo" 
                         key={repo} 
-                        className="text-xs"
+                        className="text-[10px] font-semibold uppercase tracking-wider"
                         style={getRepoBadgeStyle(repo)}
                       >
                         {repo}
@@ -318,7 +319,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
               </div>
               
               <div className="mt-4">
-                <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
                   Deployments
                 </p>
                 <EnvironmentStatus
@@ -357,7 +358,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                                 >
                                   <Avatar className="h-7 w-7 border-2 border-background cursor-pointer">
                                     <AvatarFallback 
-                                      className="text-xs font-semibold text-white"
+                                      className="text-[10px] font-semibold text-white"
                                       style={{ backgroundColor: `#${getAvatarColor(dev.name)}` }}
                                     >
                                       {getInitials(dev.name)}
@@ -372,7 +373,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Avatar className="h-7 w-7 border-2 border-background relative z-[2]">
-                                  <AvatarFallback className="bg-muted text-xs font-medium text-muted-foreground">+{hiddenDevelopersCount}</AvatarFallback>
+                                  <AvatarFallback className="bg-muted text-[10px] font-semibold text-muted-foreground">+{hiddenDevelopersCount}</AvatarFallback>
                                 </Avatar>
                               </TooltipTrigger>
                               <TooltipContent>
@@ -409,7 +410,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                                 >
                                   <Avatar className="h-7 w-7 border-2 border-background cursor-pointer">
                                     <AvatarFallback 
-                                      className="text-xs font-semibold text-white"
+                                      className="text-[10px] font-semibold text-white"
                                       style={{ backgroundColor: `#${getAvatarColor(tester.name)}` }}
                                     >
                                       {getInitials(tester.name)}
@@ -424,7 +425,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Avatar className="h-7 w-7 border-2 border-background relative z-[2]">
-                                  <AvatarFallback className="bg-muted text-xs font-medium text-muted-foreground">+{hiddenTestersCount}</AvatarFallback>
+                                  <AvatarFallback className="bg-muted text-[10px] font-semibold text-muted-foreground">+{hiddenTestersCount}</AvatarFallback>
                                 </Avatar>
                               </TooltipTrigger>
                               <TooltipContent>

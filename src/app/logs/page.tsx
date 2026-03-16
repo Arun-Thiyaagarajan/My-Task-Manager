@@ -265,7 +265,7 @@ export default function LogsPage() {
                                                                 {formatTimestamp(log.timestamp, uiConfig.timeFormat)}
                                                             </TableCell>
                                                             <TableCell>
-                                                                <div className="flex items-center gap-2 text-xs font-bold text-primary/80">
+                                                                <div className="flex items-center gap-2 text-xs font-semibold text-primary/80">
                                                                     <User className="h-3 w-3" />
                                                                     {log.userName || 'N/A'}
                                                                 </div>

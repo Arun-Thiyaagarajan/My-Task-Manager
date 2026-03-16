@@ -245,7 +245,7 @@ export function Header() {
             {activeCompany && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="px-2 sm:px-4">
+                  <Button variant="outline" className="px-2 sm:px-4 font-medium">
                       <Building className="h-4 w-4 sm:mr-2" />
                       <span className="hidden sm:inline">{activeCompany.name}</span>
                   </Button>
@@ -342,7 +342,7 @@ export function Header() {
                         <Avatar className="h-full w-full">
                           <AvatarImage src={profilePhoto || undefined} className="object-cover" />
                           <AvatarFallback 
-                            className="text-white text-[10px] font-bold"
+                            className="text-white text-[10px] font-semibold"
                             style={{ background: getAvatarGradient(profileName) }}
                           >
                             {getInitials(profileName)}
@@ -357,7 +357,7 @@ export function Header() {
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none truncate">
+                      <p className="text-sm font-semibold leading-none truncate">
                         {authMode === 'authenticate' && user ? (profileName) : 'Local Mode'}
                       </p>
                       <p className="text-[10px] leading-none text-muted-foreground truncate">

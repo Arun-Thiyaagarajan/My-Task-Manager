@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -181,7 +182,7 @@ export default function DashboardPage() {
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <h1 className="text-4xl font-extrabold tracking-tight text-foreground mb-2">
+      <h1 className="text-4xl font-bold tracking-tight text-foreground mb-2">
         Dashboard
       </h1>
       <p className="text-lg text-muted-foreground mb-8">

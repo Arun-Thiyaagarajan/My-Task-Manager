@@ -716,7 +716,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                 variant="ghost"
                 size="sm"
                 onClick={handleCancel}
-                className="h-9 px-3 font-bold hover:bg-primary/10 hover:text-primary transition-all rounded-full flex items-center gap-1.5 active:scale-95"
+                className="h-9 px-3 font-semibold hover:bg-primary/10 hover:text-primary transition-all rounded-full flex items-center gap-1.5 active:scale-95"
             >
                 <ArrowLeft className="h-4 w-4" />
                 <span>Back</span>
@@ -734,7 +734,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                         variant="ghost"
                         onClick={handleCancel}
                         disabled={isPending}
-                        className="h-10 px-6 font-semibold"
+                        className="h-10 px-6 font-medium"
                     >
                         Cancel
                     </Button>
@@ -742,7 +742,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                         type="submit" 
                         disabled={isPending} 
                         id="task-form-submit"
-                        className="h-10 px-8 font-bold shadow-sm"
+                        className="h-10 px-8 font-semibold shadow-sm"
                     >
                         {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {submitButtonText}
@@ -756,7 +756,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                               </Button>
                           </TooltipTrigger>
                           <TooltipContent side="top">
-                              <div className="text-sm p-1">
+                              <div className="text-sm p-1 font-medium">
                                 <div className="grid grid-cols-[auto_1fr] items-center gap-x-2">
                                   <div className="text-right">Save:</div>
                                   <div><kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">{commandKey}</kbd> + <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">S</kbd></div>
@@ -802,7 +802,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
             <aside className="hidden lg:block w-72 shrink-0 animate-in fade-in slide-in-from-top-1 duration-300">
                 <div className="sticky top-24 space-y-1">
                     <div className="flex items-center justify-between px-3 mb-4">
-                        <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                             Jump to Section
                         </h3>
                         <TooltipProvider>
@@ -834,7 +834,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                             type="button"
                                             onClick={() => scrollToId(section.id)}
                                             className={cn(
-                                                "flex items-center gap-3 w-full px-3 py-2 rounded-md text-sm font-bold transition-all group",
+                                                "flex items-center gap-3 w-full px-3 py-2 rounded-md text-sm font-semibold transition-all group",
                                                 isSectionActive 
                                                     ? "bg-primary/10 text-primary" 
                                                     : "text-muted-foreground hover:bg-muted hover:text-foreground"

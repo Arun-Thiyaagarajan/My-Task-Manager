@@ -815,7 +815,7 @@ export default function Home() {
                   <CardContent className="pt-8 pb-10 flex flex-col items-center gap-6">
                       <div className="relative">
                         <Loader2 className="h-16 w-16 text-primary animate-spin" />
-                        <span className="absolute inset-0 flex items-center justify-center text-[10px] font-black uppercase">{importProgress}%</span>
+                        <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold uppercase">{importProgress}%</span>
                       </div>
                       <div className="space-y-2">
                         <h2 className="text-xl font-bold tracking-tight">Importing to Cloud</h2>
@@ -834,8 +834,8 @@ export default function Home() {
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-6">
         <div className="flex flex-col gap-1">
             <div className="flex items-center gap-3">
-                <h1 className="text-4xl font-black tracking-tight text-foreground">Tasks</h1>
-                <Badge variant="outline" className={cn(mode === 'authenticate' ? "text-primary border-primary/20 bg-primary/5" : "text-muted-foreground", "h-6 px-3 text-[10px] font-bold uppercase tracking-wider")}>
+                <h1 className="text-4xl font-bold tracking-tight text-foreground">Tasks</h1>
+                <Badge variant="outline" className={cn(mode === 'authenticate' ? "text-primary border-primary/20 bg-primary/5" : "text-muted-foreground", "h-6 px-3 text-[10px] font-semibold uppercase tracking-wider")}>
                     {mode === 'authenticate' ? 'Cloud Sync' : 'Local Storage'}
                 </Badge>
             </div>
@@ -862,7 +862,7 @@ export default function Home() {
             {uiConfig?.remindersEnabled && (pinnedReminders.length + generalReminders.length) > 0 && (
               <Button 
                 variant="outline" 
-                className="h-11 border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 hover:text-amber-700 dark:hover:text-amber-300 transition-all w-full sm:w-auto font-bold" 
+                className="h-11 border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 hover:text-amber-700 dark:hover:text-amber-300 transition-all w-full sm:w-auto font-medium" 
                 onClick={() => setIsReminderStackOpen(true)}
               >
                 <BellRing className="mr-2 h-4 w-4 shrink-0" />
@@ -874,26 +874,23 @@ export default function Home() {
             <div className="grid grid-cols-2 sm:flex items-center gap-2">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" disabled={isImporting} className="w-full sm:w-auto h-11 font-bold">
+                    <Button variant="outline" size="sm" disabled={isImporting} className="w-full sm:w-auto h-11 font-medium">
                         <Upload className="mr-2 h-4 w-4" />
                         Export
                     </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent>
                     <DropdownMenuItem onSelect={() => handleExport('current_view')}>Export Current View</DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => handleExport('all_tasks')}>Export All Tasks</DropdownMenuItem>
                     <DropdownMenuItem onSelect={handleDownloadTemplate}>Download Import Template</DropdownMenuItem>
-                    </DropdownMenuContent>
                 </DropdownMenu>
 
-                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isImporting} className="w-full sm:w-auto h-11 font-bold">
+                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isImporting} className="w-full sm:w-auto h-11 font-medium">
                     <Download className="mr-2 h-4 w-4" />
                     Import
                 </Button>
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />
                 
-                {/* Hide New Task button on small screens because it's in the bottom FAB */}
-                <Button asChild id="new-task-btn" disabled={isImporting} className="hidden lg:flex w-full sm:w-auto h-11 shadow-lg font-bold">
+                <Button asChild id="new-task-btn" disabled={isImporting} className="hidden lg:flex w-full sm:w-auto h-11 shadow-lg font-medium">
                     <Link href="/tasks/new">
                         <Plus className="mr-2 h-5 w-5" /> New Task
                     </Link>
@@ -906,7 +903,7 @@ export default function Home() {
           <div className="space-y-3">
               <Button 
                 variant="secondary" 
-                className="w-full flex lg:hidden items-center justify-between h-12 px-4 font-black shadow-sm border"
+                className="w-full flex lg:hidden items-center justify-between h-12 px-4 font-semibold shadow-sm border"
                 onClick={() => setIsFiltersOpen(!isFiltersOpen)}
               >
                 <span className="flex items-center gap-2">
@@ -1008,10 +1005,10 @@ export default function Home() {
                       </div>
                   )}
                     <div>
-                      <h2 className="text-lg font-black tracking-tight">
+                      <h2 className="text-lg font-bold tracking-tight">
                         {favoritesOnly ? 'Favorite Tasks' : `${sortedTasks.length} Results`}
                       </h2>
-                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         {favoritesOnly 
                           ? `Showing ${sortedTasks.length} favorited items.` 
                           : (dateView === 'all' ? 'Based on active filters.' : dateView === 'monthly' ? `Start date in ${format(selectedDate, 'MMM yyyy')}` : `Start date in ${format(selectedDate, 'yyyy')}`)}
@@ -1031,8 +1028,8 @@ export default function Home() {
                   </Select>
 
                    <div className="flex h-10 items-center justify-center rounded-md bg-muted p-1">
-                        <Button variant={dateView === 'all' ? 'default' : 'ghost'} onClick={() => setDateView('all')} className={cn("h-8 shadow-sm px-3 font-bold", dateView === 'all' && 'bg-card text-foreground')}>All</Button>
-                        <Button variant={dateView === 'monthly' ? 'default' : 'ghost'} onClick={() => setDateView('monthly')} className={cn("h-8 shadow-sm px-3 font-bold", dateView === 'monthly' && 'bg-card text-foreground')}>Monthly</Button>
+                        <Button variant={dateView === 'all' ? 'default' : 'ghost'} onClick={() => setDateView('all')} className={cn("h-8 shadow-sm px-3 font-semibold", dateView === 'all' && 'bg-card text-foreground')}>All</Button>
+                        <Button variant={dateView === 'monthly' ? 'default' : 'ghost'} onClick={() => setDateView('monthly')} className={cn("h-8 shadow-sm px-3 font-semibold", dateView === 'monthly' && 'bg-card text-foreground')}>Monthly</Button>
                    </div>
 
                   <div className="flex items-center gap-2">
@@ -1126,14 +1123,14 @@ export default function Home() {
                                     <p className="text-lg font-semibold">No favorite tasks found.</p>
                                     <p className="text-sm mt-1 max-w-xs mx-auto text-center font-medium">Tap the heart icon on any task card to add it to your personal favorites list.</p>
                                     <div className="flex gap-2 mt-6">
-                                        <Button variant="outline" size="sm" onClick={() => setFavoritesOnly(false)} className="font-bold">View All Tasks</Button>
+                                        <Button variant="outline" size="sm" onClick={() => setFavoritesOnly(false)} className="font-medium">View All Tasks</Button>
                                     </div>
                                 </>
                             ) : (
                                 <>
                                     <FolderSearch className="h-16 w-16 mb-4 opacity-50"/>
                                     <p className="text-lg font-semibold">No tasks found.</p>
-                                    <Button asChild className="mt-4 font-bold" size="sm"><Link href="/tasks/new"><Plus className="mr-2 h-4 w-4" /> Create Task</Link></Button>
+                                    <Button asChild className="mt-4 font-medium" size="sm"><Link href="/tasks/new"><Plus className="mr-2 h-4 w-4" /> Create Task</Link></Button>
                                 </>
                             )}
                         </div>
