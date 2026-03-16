@@ -299,7 +299,6 @@ export default function Home() {
   const triggerSearch = useCallback(() => {
     setIsSearching(true);
     setSearchError(null);
-    window.dispatchEvent(new Event('sync-start'));
     
     setTimeout(() => {
         setExecutedSearchQuery(searchQuery);
@@ -313,8 +312,19 @@ export default function Home() {
     searchInputRef.current?.focus();
   }, []);
 
+  const getDeploymentScore = (task: Task) => {
+    const deploymentOrder = ['production', 'stage', 'dev'];
+    for (let i = 0; i < deploymentOrder.length; i++) {
+      const env = deploymentOrder[i];
+      if (task.deploymentStatus?.[env]) {
+        return deploymentOrder.length - i;
+      }
+    }
+    return 0;
+  };
+
   useEffect(() => {
-    const filterWork = () => {
+    const filterAndProcess = () => {
         try {
             const results = tasks.filter((task: Task) => {
                 if (favoritesOnly && !task.isFavorite) return false;
@@ -364,57 +374,45 @@ export default function Home() {
 
                 return statusMatch && repoMatch && searchMatch && dateMatch && deploymentMatch && tagsMatch;
             });
-            setFilteredTasks(results);
+
+            // Sorting
+            const sorted = [...results].sort((a, b) => {
+                const [sortBy, sortDirection] = sortDescriptor.split('-');
+                const taskStatuses = uiConfig?.taskStatuses || [];
+
+                if (sortBy === 'title') {
+                    if (sortDirection === 'asc') return a.title.localeCompare(b.title);
+                    return b.title.localeCompare(a.title);
+                }
+
+                if (sortBy === 'status') {
+                    const aIndex = taskStatuses.indexOf(a.status);
+                    const bIndex = taskStatuses.indexOf(b.status);
+                    return sortDirection === 'asc' ? aIndex - bIndex : bIndex - aIndex;
+                }
+
+                if (sortBy === 'deployment') {
+                    const scoreA = getDeploymentScore(a);
+                    const scoreB = getDeploymentScore(b);
+                    return sortDirection === 'asc' ? scoreA - scoreB : scoreB - scoreA;
+                }
+
+                return 0;
+            });
+
+            setFilteredTasks(sorted);
             setSearchError(null);
         } catch (e) {
             console.error("Filtering logic failed:", e);
             setSearchError("Search temporarily unavailable. Please try again later.");
         } finally {
             setIsSearching(false);
-            window.dispatchEvent(new Event('sync-end'));
         }
     };
 
-    const rafId = requestAnimationFrame(filterWork);
+    const rafId = requestAnimationFrame(filterAndProcess);
     return () => cancelAnimationFrame(rafId);
-  }, [tasks, statusFilter, repoFilter, tagsFilter, developers, testers, executedSearchQuery, dateView, selectedDate, deploymentFilter, favoritesOnly]);
-
-  const getDeploymentScore = (task: Task) => {
-    const deploymentOrder = ['production', 'stage', 'dev'];
-    for (let i = 0; i < deploymentOrder.length; i++) {
-      const env = deploymentOrder[i];
-      if (task.deploymentStatus?.[env]) {
-        return deploymentOrder.length - i;
-      }
-    }
-    return 0;
-  };
-
-  const sortedTasks = useMemo(() => {
-    return [...filteredTasks].sort((a, b) => {
-        const [sortBy, sortDirection] = sortDescriptor.split('-');
-        const taskStatuses = uiConfig?.taskStatuses || [];
-
-        if (sortBy === 'title') {
-        if (sortDirection === 'asc') return a.title.localeCompare(b.title);
-        return b.title.localeCompare(a.title);
-        }
-
-        if (sortBy === 'status') {
-        const aIndex = taskStatuses.indexOf(a.status);
-        const bIndex = taskStatuses.indexOf(b.status);
-        return sortDirection === 'asc' ? aIndex - bIndex : bIndex - aIndex;
-        }
-
-        if (sortBy === 'deployment') {
-        const scoreA = getDeploymentScore(a);
-        const scoreB = getDeploymentScore(b);
-        return sortDirection === 'asc' ? scoreA - scoreB : scoreB - scoreA;
-        }
-
-        return 0;
-    });
-  }, [filteredTasks, sortDescriptor, uiConfig]);
+  }, [tasks, statusFilter, repoFilter, tagsFilter, developers, testers, executedSearchQuery, dateView, selectedDate, deploymentFilter, favoritesOnly, sortDescriptor, uiConfig, viewMode]);
 
   const handleExport = useCallback((exportType: 'current_view' | 'all_tasks') => {
     const allDevelopers = getDevelopers();
@@ -436,7 +434,7 @@ export default function Home() {
     } else {
         activeTasksToExport = isSelectMode && selectedTaskIds.length > 0
             ? getTasks().filter(t => selectedTaskIds.includes(t.id))
-            : sortedTasks;
+            : filteredTasks;
         
         const taskIdsInView = new Set(activeTasksToExport.map(t => t.id));
         const allLogs = getLogs();
@@ -506,7 +504,7 @@ export default function Home() {
     if (exportType === 'all_tasks') {
         localStorage.setItem(LAST_BACKUP_KEY, new Date().toISOString());
     }
-  }, [isSelectMode, selectedTaskIds, sortedTasks, toast]);
+  }, [isSelectMode, selectedTaskIds, filteredTasks, toast]);
 
   useEffect(() => {
     if (!activeCompanyId) return;
@@ -629,6 +627,16 @@ export default function Home() {
       setDateView(mode);
   }, []);
 
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
+      setIsSearching(true);
+      setViewMode(mode);
+  }, []);
+
+  const handleSortChange = useCallback((val: string) => {
+      setIsSearching(true);
+      setSortDescriptor(val);
+  }, []);
+
   useEffect(() => {
     localStorage.setItem('taskflow_open_groups', JSON.stringify(openGroups));
   }, [openGroups]);
@@ -638,8 +646,8 @@ export default function Home() {
     .sort((a, b) => pinnedTaskIds.indexOf(a.id) - pinnedTaskIds.indexOf(b.id));
 
   const handleToggleSelectAll = useCallback((checked: boolean | 'indeterminate') => {
-    setSelectedTaskIds(checked === true ? sortedTasks.map(t => t.id) : []);
-  }, [sortedTasks]);
+    setSelectedTaskIds(checked === true ? filteredTasks.map(t => t.id) : []);
+  }, [filteredTasks]);
 
   const handleDownloadTemplate = useCallback(() => {
       const currentUiConfig = getUiConfig();
@@ -807,6 +815,7 @@ export default function Home() {
 
   const mode = getAuthMode();
   const TASK_STATUSES = uiConfig?.taskStatuses || [];
+  const activeSkeletons = isLoading || isSearching;
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -1012,18 +1021,18 @@ export default function Home() {
                   )}
                     <div>
                       <h2 className="text-lg font-medium tracking-tight">
-                        {favoritesOnly ? 'Favorite Tasks' : `${sortedTasks.length} Results`}
+                        {favoritesOnly ? 'Favorite Tasks' : `${filteredTasks.length} Results`}
                       </h2>
                       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                         {favoritesOnly 
-                          ? `Showing ${sortedTasks.length} favorited items.` 
+                          ? `Showing ${filteredTasks.length} favorited items.` 
                           : (dateView === 'all' ? 'Based on active filters.' : dateView === 'monthly' ? `Start date in ${format(selectedDate, 'MMM yyyy')}` : `Start date in ${format(selectedDate, 'yyyy')}`)}
                       </p>
                     </div>
                 </div>
 
                 <div id="view-mode-toggle" className="flex items-center gap-x-2 gap-y-2 flex-wrap justify-start sm:justify-end">
-                  <Select value={sortDescriptor} onValueChange={(val) => { setIsSearching(true); setSortDescriptor(val); }}>
+                  <Select value={sortDescriptor} onValueChange={handleSortChange}>
                       <SelectTrigger className="w-auto sm:w-[180px] h-10 font-medium"><SelectValue placeholder="Sort by" /></SelectTrigger>
                       <SelectContent>
                           <SelectItem value="status-asc" className="font-medium">Status (Asc)</SelectItem>
@@ -1060,8 +1069,8 @@ export default function Home() {
 
                   <div className="flex items-center gap-2">
                     <div className="flex h-10 items-center justify-center rounded-md bg-muted p-1">
-                      <Button variant="ghost" size="icon" className={cn("h-8 w-8", viewMode === 'grid' && 'bg-card text-foreground shadow-sm')} onClick={() => setViewMode('grid')}><LayoutGrid className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" className={cn("h-8 w-8", viewMode === 'table' && 'bg-card text-foreground shadow-sm')} onClick={() => setViewMode('table')}><List className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" className={cn("h-8 w-8", viewMode === 'grid' && 'bg-card text-foreground shadow-sm')} onClick={() => handleViewModeChange('grid')}><LayoutGrid className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" className={cn("h-8 w-8", viewMode === 'table' && 'bg-card text-foreground shadow-sm')} onClick={() => handleViewModeChange('table')}><List className="h-4 w-4" /></Button>
                     </div>
                   </div>
                   <TooltipProvider>
@@ -1088,7 +1097,7 @@ export default function Home() {
                 <Card className="border-primary/50 bg-background/90 backdrop-blur-sm shadow-lg">
                   <CardContent className="p-3 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-2">
-                      <Checkbox id="select-all-tasks" checked={sortedTasks.length > 0 && selectedTaskIds.length === sortedTasks.length} onCheckedChange={handleToggleSelectAll} />
+                      <Checkbox id="select-all-tasks" checked={filteredTasks.length > 0 && selectedTaskIds.length === filteredTasks.length} onCheckedChange={handleToggleSelectAll} />
                       <Label htmlFor="select-all-tasks" className="text-sm font-medium">{selectedTaskIds.length > 0 ? `${selectedTaskIds.length} selected` : `Select all`}</Label>
                     </div>
 
@@ -1113,29 +1122,16 @@ export default function Home() {
             )}
             
             <div className="relative">
-                {isSearching && !showSlowSearchMessage && (
-                    <div className="absolute inset-x-0 -top-12 flex flex-col items-center justify-center z-20 pointer-events-none">
-                        <div className="bg-background/95 backdrop-blur-sm px-5 py-2 rounded-full border shadow-lg flex items-center gap-3 animate-in fade-in zoom-in duration-300">
-                            <Loader2 className="h-4 w-4 text-primary animate-spin" />
-                            <div className="flex flex-col leading-none">
-                                <span className="text-xs font-semibold tracking-tight">
-                                    Updating list...
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
                 <div className={cn(
                     "transition-all duration-500",
                     isSearching && showSlowSearchMessage ? "opacity-40 grayscale-[0.5] blur-[0.5px]" : "opacity-100"
                 )}>
-                    {sortedTasks.length > 0 || isSearching ? (
+                    {filteredTasks.length > 0 || activeSkeletons ? (
                         <div>
                         {viewMode === 'grid' ? (
-                            <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handlePinToggle} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} isLoading={isSearching} />
+                            <TasksGrid tasks={filteredTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handlePinToggle} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} isLoading={activeSkeletons} />
                         ) : (
-                            <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} isLoading={isSearching} />
+                            <TasksTable tasks={filteredTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} isLoading={activeSkeletons} />
                         )}
                         </div>
                     ) : (

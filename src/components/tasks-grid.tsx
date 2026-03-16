@@ -55,11 +55,10 @@ export const TasksGrid = memo(function TasksGrid({
   );
 
   const getPriorityTitle = () => {
-    if (priorityTasks.length === 0 && !isLoading) return null;
     const allStatuses = new Set(priorityTasks.map(t => t.status));
     let baseTitle = "Active Tasks";
     
-    if (allStatuses.size === 1) {
+    if (allStatuses.size === 1 && !isLoading) {
       baseTitle = `${[...allStatuses][0]} Tasks`;
     }
     
@@ -102,10 +101,10 @@ export const TasksGrid = memo(function TasksGrid({
   if (isLoading) {
       return (
         <div className="space-y-4 px-4 py-3">
-            <h2 className="text-xl font-semibold tracking-tight mb-4 flex items-center gap-3">
-                {priorityTitle}
+            <div className="flex items-center gap-3 mb-6">
+                <h2 className="text-xl font-semibold tracking-tight">{priorityTitle}</h2>
                 <Skeleton className="h-5 w-8 rounded-full" />
-            </h2>
+            </div>
             {renderGrid([])}
         </div>
       );

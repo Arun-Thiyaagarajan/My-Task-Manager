@@ -401,11 +401,10 @@ export const TasksTable = memo(function TasksTable({
   const colSpan = isSelectMode ? 8 : 7;
   
   const getPriorityTitle = () => {
-    if (priorityTasks.length === 0 && !isLoading) return null;
     const allStatuses = new Set(priorityTasks.map(t => t.status));
     let baseTitle = "Active Tasks";
     
-    if (allStatuses.size === 1) {
+    if (allStatuses.size === 1 && !isLoading) {
       baseTitle = `${[...allStatuses][0]} Tasks`;
     }
     
