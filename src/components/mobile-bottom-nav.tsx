@@ -81,7 +81,7 @@ export function MobileBottomNav() {
     : localProfile.photoURL;
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border flex items-center justify-around h-16 px-2 safe-area-pb">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border flex items-center justify-around h-20 px-2 pb-4 safe-area-pb">
       {navItems.map((item) => {
         const Icon = item.icon;
         const isActive = pathname === item.href;
@@ -105,7 +105,7 @@ export function MobileBottomNav() {
       <div className="flex-1 flex flex-col items-center justify-center">
         <Button 
           size="icon" 
-          className="h-12 w-12 rounded-full shadow-lg shadow-primary/30 -mt-8 border-4 border-background active:scale-95 transition-transform"
+          className="h-12 w-12 rounded-full shadow-lg shadow-primary/30 -mt-10 border-4 border-background active:scale-95 transition-transform"
           onClick={() => handleNavigate('/tasks/new')}
         >
           <Plus className="h-6 w-6" />

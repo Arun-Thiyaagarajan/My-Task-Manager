@@ -291,7 +291,7 @@ export default function ProfilePage() {
   if (isPageLoading) return null;
 
   const profileName = displayName || (isLocal ? 'Guest User' : user?.email) || 'User';
-  const displayRole = isLocal ? 'admin' : (userProfile?.role || 'user');
+  const displayRole = isLocal ? 'guest' : (userProfile?.role || 'user');
   const isVerified = isLocal ? true : user?.emailVerified;
 
   const hasChanges = 
@@ -326,7 +326,7 @@ export default function ProfilePage() {
                         </Avatar>
                         
                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                          {photoURL ? (
+                          {(photoURL || previousPhotoURL) ? (
                             <>
                                 <Maximize2 className="h-6 w-6 text-white mb-1" />
                                 <span className="text-[10px] text-white font-medium uppercase tracking-tight">View / Edit</span>
@@ -341,7 +341,7 @@ export default function ProfilePage() {
                       </button>
                     </TooltipTrigger>
                     <TooltipContent side="bottom">
-                      <p>{photoURL ? 'View profile photo' : 'Upload profile photo'}</p>
+                      <p>{(photoURL || previousPhotoURL) ? 'View profile photo' : 'Upload profile photo'}</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
