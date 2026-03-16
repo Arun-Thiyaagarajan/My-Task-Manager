@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -39,6 +38,7 @@ export default function EditTaskPage() {
       setDevelopersList(devs);
       setTestersList(testers);
       setIsLoading(false);
+      window.dispatchEvent(new Event('navigation-end'));
       
       if (foundTask) {
         document.title = `Edit: ${foundTask.title} | ${config.appName || 'My Task Manager'}`;
@@ -110,7 +110,7 @@ export default function EditTaskPage() {
   };
 
   if (isLoading) {
-    return <LoadingSpinner text="Loading task..." />;
+    return null;
   }
 
   if (!task) {

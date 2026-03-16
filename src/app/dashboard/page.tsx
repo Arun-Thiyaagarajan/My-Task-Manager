@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -29,6 +28,7 @@ export default function DashboardPage() {
         setUiConfig(config);
         document.title = `Dashboard | ${config.appName || 'My Task Manager'}`;
         setIsLoading(false);
+        window.dispatchEvent(new Event('navigation-end'));
     };
     
     refreshData();
@@ -43,7 +43,7 @@ export default function DashboardPage() {
   }, []);
 
   if (isLoading || !uiConfig) {
-    return <LoadingSpinner text="Loading dashboard..." />;
+    return null;
   }
 
   const fieldLabels = new Map((uiConfig?.fields || []).map(f => [f.key, f.label]));

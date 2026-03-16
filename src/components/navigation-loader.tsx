@@ -8,16 +8,12 @@ import { cn } from '@/lib/utils';
 /**
  * A global, immediate navigation loader that provides instant visual feedback
  * when switching pages or performing high-latency actions.
+ * 
+ * It remains visible across route changes until explicitly ended by a page
+ * or until standard browser events (like popstate) occur.
  */
 export function NavigationLoader() {
     const [isLoading, setIsLoading] = useState(false);
-    const pathname = usePathname();
-    const searchParams = useSearchParams();
-
-    useEffect(() => {
-        // Reset loader whenever the path or search params change successfully
-        setIsLoading(false);
-    }, [pathname, searchParams]);
 
     useEffect(() => {
         const start = () => setIsLoading(true);
@@ -40,7 +36,7 @@ export function NavigationLoader() {
     if (!isLoading) return null;
 
     return (
-        <div className="fixed inset-0 z-[9999] bg-background/60 backdrop-blur-[2px] flex flex-col items-center justify-center animate-in fade-in duration-300 cursor-wait">
+        <div className="fixed inset-0 z-[9999] bg-background/90 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in duration-300 cursor-wait">
             <div className="flex flex-col items-center gap-4 text-center">
                 <div className="relative">
                     <Loader2 className="h-12 w-12 animate-spin text-primary" />

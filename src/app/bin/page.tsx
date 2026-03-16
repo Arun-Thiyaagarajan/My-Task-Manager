@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -39,7 +37,7 @@ function NoteViewerDialog({ isOpen, onOpenChange, note }: { isOpen: boolean, onO
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-xl max-h-[80vh] flex flex-col">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
+                    <DialogTitle className="flex items-center gap-2 font-semibold">
                         <StickyNote className="h-5 w-5" /> Deleted Note
                     </DialogTitle>
                     <DialogDescription>{note.title.replace('Note: ', '')}</DialogDescription>
@@ -70,13 +68,14 @@ export default function BinPage() {
         const config = getUiConfig();
         setUiConfig(config);
         document.title = `Bin | ${config.appName || 'My Task Manager'}`;
+        setIsLoading(false);
+        window.dispatchEvent(new Event('navigation-end'));
     }
   };
 
   useEffect(() => {
     if(activeCompanyId) {
       refreshData();
-      setIsLoading(false);
     }
     window.addEventListener('storage', refreshData);
     return () => window.removeEventListener('storage', refreshData);
@@ -87,6 +86,7 @@ export default function BinPage() {
         setNoteToView(task);
         setIsNoteViewerOpen(true);
     } else {
+        window.dispatchEvent(new Event('navigation-start'));
         router.push(`/tasks/${task.id}`);
     }
   };
@@ -135,7 +135,7 @@ export default function BinPage() {
   };
 
   if (isLoading || !uiConfig) {
-    return <LoadingSpinner text="Loading bin..." />;
+    return null;
   }
 
   const developers = getDevelopers();
@@ -147,13 +147,13 @@ export default function BinPage() {
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            <h1 className="text-3xl font-semibold tracking-tight text-foreground flex items-center gap-2">
                 <Trash2 className="h-7 w-7"/> Bin
             </h1>
-            <p className="text-muted-foreground mt-1">Items deleted in the last 30 days. They will be permanently deleted after this period.</p>
+            <p className="text-muted-foreground mt-1 font-normal">Items deleted in the last 30 days. They will be permanently deleted after this period.</p>
         </div>
-        <Button asChild variant="ghost">
-            <Link href="/">
+        <Button asChild variant="ghost" className="font-medium">
+            <Link href="/" onClick={() => window.dispatchEvent(new Event('navigation-start'))}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to tasks
             </Link>
@@ -163,20 +163,20 @@ export default function BinPage() {
       <Card>
         <CardHeader>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                <CardTitle>Deleted Items</CardTitle>
+                <CardTitle className="text-lg font-semibold">Deleted Items</CardTitle>
                  {binnedTasks.length > 0 && (
                   <AlertDialog>
                       <AlertDialogTrigger asChild>
-                          <Button variant="destructive" size="sm"><Recycle className="mr-2 h-4 w-4"/> Empty Bin</Button>
+                          <Button variant="destructive" size="sm" className="font-medium"><Recycle className="mr-2 h-4 w-4"/> Empty Bin</Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                           <AlertDialogHeader>
-                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                              <AlertDialogDescription>This action cannot be undone. All {binnedTasks.length} items in the bin will be permanently deleted.</AlertDialogDescription>
+                              <AlertDialogTitle className="font-semibold">Are you absolutely sure?</AlertDialogTitle>
+                              <AlertDialogDescription className="font-normal">This action cannot be undone. All {binnedTasks.length} items in the bin will be permanently deleted.</AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={handleEmptyBin} className="bg-destructive hover:bg-destructive/90">Empty Bin</AlertDialogAction>
+                              <AlertDialogCancel className="font-medium">Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={handleEmptyBin} className="bg-destructive hover:bg-destructive/90 font-semibold">Empty Bin</AlertDialogAction>
                           </AlertDialogFooter>
                       </AlertDialogContent>
                   </AlertDialog>
@@ -186,19 +186,19 @@ export default function BinPage() {
                 <div className="mt-4 p-3 bg-muted rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4">
                     <span className="text-sm font-medium self-start sm:self-center">{selectedTaskIds.length} item(s) selected</span>
                     <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                        <Button size="sm" onClick={handleRestore}><History className="mr-2 h-4 w-4"/> Restore</Button>
+                        <Button size="sm" onClick={handleRestore} className="font-medium"><History className="mr-2 h-4 w-4"/> Restore</Button>
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
-                                <Button size="sm" variant="destructive"><Trash2 className="mr-2 h-4 w-4"/> Delete Permanently</Button>
+                                <Button size="sm" variant="destructive" className="font-medium"><Trash2 className="mr-2 h-4 w-4"/> Delete Permanently</Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                                 <AlertDialogHeader>
-                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                    <AlertDialogDescription>This will permanently delete the selected {selectedTaskIds.length} item(s). This action cannot be undone.</AlertDialogDescription>
+                                    <AlertDialogTitle className="font-semibold">Are you sure?</AlertDialogTitle>
+                                    <AlertDialogDescription className="font-normal">This will permanently delete the selected {selectedTaskIds.length} item(s). This action cannot be undone.</AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handlePermanentDelete} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                    <AlertDialogCancel className="font-medium">Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handlePermanentDelete} className="bg-destructive hover:bg-destructive/90 font-semibold">Delete</AlertDialogAction>
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
@@ -210,7 +210,7 @@ export default function BinPage() {
           {binnedTasks.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
               <p className="text-lg font-semibold">The bin is empty.</p>
-              <p className="mt-1">Deleted items will appear here.</p>
+              <p className="mt-1 font-normal">Deleted items will appear here.</p>
             </div>
           ) : (
             <div className="border rounded-lg overflow-x-auto">
@@ -224,10 +224,10 @@ export default function BinPage() {
                         aria-label="Select all"
                         />
                     </TableHead>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Assignees</TableHead>
-                    <TableHead className="text-right">Deleted</TableHead>
+                    <TableHead className="font-semibold">Title</TableHead>
+                    <TableHead className="font-semibold">Status</TableHead>
+                    <TableHead className="font-semibold">Assignees</TableHead>
+                    <TableHead className="text-right font-semibold">Deleted</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -262,8 +262,8 @@ export default function BinPage() {
                                     ) : task.title}
                                 </TableCell>
                                 <TableCell><TaskStatusBadge status={task.status} /></TableCell>
-                                <TableCell className="text-muted-foreground text-xs truncate max-w-xs">{assignees.join(', ') || 'N/A'}</TableCell>
-                                <TableCell className="text-right text-muted-foreground text-xs whitespace-nowrap">
+                                <TableCell className="text-muted-foreground text-xs truncate max-w-xs font-normal">{assignees.join(', ') || 'N/A'}</TableCell>
+                                <TableCell className="text-right text-muted-foreground text-xs whitespace-nowrap font-normal">
                                     {task.deletedAt ? formatTimestamp(task.deletedAt, uiConfig.timeFormat) : 'Recently'}
                                 </TableCell>
                             </TableRow>

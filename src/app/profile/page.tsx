@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -93,7 +92,11 @@ export default function ProfilePage() {
       const avatar = userProfile?.photoURL || authPhoto;
       setPhotoURL(avatar);
     }
-  }, [user, isUserLoading, userProfile, router]);
+
+    if (!isUserLoading && !isProfileLoading && user) {
+        window.dispatchEvent(new Event('navigation-end'));
+    }
+  }, [user, isUserLoading, userProfile, router, isProfileLoading]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -256,7 +259,7 @@ export default function ProfilePage() {
     return strength;
   };
 
-  if (isUserLoading || isProfileLoading) return <LoadingSpinner text="Loading profile..." />;
+  if (isUserLoading || isProfileLoading) return null;
   if (!user) return null;
 
   const authMode = getAuthMode();
@@ -567,7 +570,6 @@ export default function ProfilePage() {
       <ImagePreviewDialog 
         isOpen={isPreviewOpen}
         onOpenChange={setIsPreviewOpen}
-        imageUrl={photoURL}
         imageName="Profile Photo"
         isProfilePreview
         onEdit={handleEditExisting}

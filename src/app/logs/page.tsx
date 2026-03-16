@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -69,6 +68,7 @@ export default function LogsPage() {
             setUiConfig(config);
             document.title = `Logs | ${config.appName || 'My Task Manager'}`;
             setIsLoading(false);
+            window.dispatchEvent(new Event('navigation-end'));
         };
         refreshData();
         
@@ -163,7 +163,7 @@ export default function LogsPage() {
 
 
     if (isLoading || !uiConfig) {
-        return <LoadingSpinner text="Loading logs..." />;
+        return null;
     }
     
     return (
@@ -191,7 +191,7 @@ export default function LogsPage() {
                         )}
                     </CardDescription>
                      <div className="pt-4">
-                        <div className="relative flex items-center w-full max-w-sm">
+                        <div className="relative flex items-center w-full max-sm:max-w-none max-w-sm">
                             <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
                             <Input 
                                 ref={searchInputRef}

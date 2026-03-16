@@ -128,7 +128,7 @@ export default function TaskPage() {
       }
       
       setIsLoading(false);
-      window.dispatchEvent(new Event('sync-end'));
+      window.dispatchEvent(new Event('navigation-end'));
     }
   }
 
@@ -763,7 +763,7 @@ const handleCopyDescription = () => {
   };
 
   if (isLoading || !uiConfig) {
-    return <LoadingSpinner text="Loading task details..." />;
+    return null;
   }
 
   if (!task) {
@@ -816,28 +816,28 @@ const handleCopyDescription = () => {
     <>
       <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          <Button onClick={handleNavigateBack} variant="ghost" className="pl-1 active:scale-95 transition-transform">
+          <Button onClick={handleNavigateBack} variant="ghost" className="pl-1 active:scale-95 transition-transform font-medium">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
           </Button>
           {isBinned ? (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="font-medium">
                   <History className="mr-2 h-4 w-4" />
                   Restore Task
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Restore this task?</AlertDialogTitle>
-                  <AlertDialogDescription>
+                  <AlertDialogTitle className="font-semibold">Restore this task?</AlertDialogTitle>
+                  <AlertDialogDescription className="font-normal">
                     This will move the task "{task.title}" back to your active tasks list.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleRestore}>Restore</AlertDialogAction>
+                  <AlertDialogCancel className="font-medium">Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleRestore} className="font-semibold">Restore</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -845,25 +845,25 @@ const handleCopyDescription = () => {
             <div className="flex gap-2">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" className="font-medium">
                             <Share2 className="mr-2 h-4 w-4" />
                             Share
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => generateTaskPdf([task], uiConfig, developers, testers, 'save')}>
+                        <DropdownMenuItem onSelect={() => generateTaskPdf([task], uiConfig, developers, testers, 'save')} className="font-normal">
                            <Download className="mr-2 h-4 w-4" /> Download as PDF
                         </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={handleExportJson}>
+                        <DropdownMenuItem onSelect={handleExportJson} className="font-normal">
                             <FileJson className="mr-2 h-4 w-4" /> Export as JSON
                         </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => generateTasksText([task], uiConfig, developers, testers)}>
+                        <DropdownMenuItem onSelect={() => generateTasksText([task], uiConfig, developers, testers)} className="font-normal">
                            <Copy className="mr-2 h-4 w-4" /> Copy as Text
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
 
-                <Button onClick={handleNavigateEdit} variant="outline" size="sm" className="active:scale-95 transition-transform">
+                <Button onClick={handleNavigateEdit} variant="outline" size="sm" className="active:scale-95 transition-transform font-medium">
                     <Pencil className="mr-2 h-4 w-4" />
                     Edit
                 </Button>
@@ -875,8 +875,8 @@ const handleCopyDescription = () => {
         {isBinned && (
           <Alert variant="destructive" className="mb-6 border-yellow-500/50 text-yellow-600 dark:border-yellow-500 [&>svg]:text-yellow-600">
             <Ban className="h-4 w-4" />
-            <AlertTitle>This task is in the Bin</AlertTitle>
-            <AlertDescription>
+            <AlertTitle className="font-semibold">This task is in the Bin</AlertTitle>
+            <AlertDescription className="font-normal">
               You are viewing a deleted task. To make changes, you must first restore it.
             </AlertDescription>
           </Alert>
@@ -888,11 +888,11 @@ const handleCopyDescription = () => {
               <div className="flex items-center gap-4 flex-1 min-w-0">
                 <BellRing className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
                 <div className="flex-1">
-                  <AlertTitle className="text-amber-800 dark:text-amber-200">Reminder Note</AlertTitle>
-                  <AlertDescription className="text-amber-700 dark:text-amber-300">
+                  <AlertTitle className="text-amber-800 dark:text-amber-200 font-semibold">Reminder Note</AlertTitle>
+                  <AlertDescription className="text-amber-700 dark:text-amber-300 font-normal">
                     <RichTextViewer text={task.reminder} />
                     {task.reminderExpiresAt && (
-                      <span className="block text-xs italic mt-1 text-amber-600 dark:text-amber-400">
+                      <span className="block text-xs italic mt-1 text-amber-600 dark:text-amber-400 font-medium">
                         (Expires {formatTimestamp(task.reminderExpiresAt, uiConfig.timeFormat)})
                       </span>
                     )}
@@ -909,14 +909,14 @@ const handleCopyDescription = () => {
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitle>Remove Reminder?</AlertDialogTitle>
-                            <AlertDialogDescription>
+                            <AlertDialogTitle className="font-semibold">Remove Reminder?</AlertDialogTitle>
+                            <AlertDialogDescription className="font-normal">
                                 This will permanently remove the reminder note from this task.
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleRemoveReminder}>Remove</AlertDialogAction>
+                            <AlertDialogCancel className="font-medium">Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleRemoveReminder} className="font-semibold bg-destructive hover:bg-destructive/90">Remove</AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
@@ -941,18 +941,18 @@ const handleCopyDescription = () => {
                                 onChange={e => setEditingValue(e.target.value)} 
                                 onBlur={() => handleSaveEditing('title', false)}
                                 onKeyDown={e => e.key === 'Enter' && handleSaveEditing('title', false)}
-                                className="text-3xl font-bold h-auto p-0 border-0 focus-visible:ring-0"
+                                className="text-3xl font-semibold h-auto p-0 border-0 focus-visible:ring-0"
                             />
                         ) : (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <CardTitle className="text-3xl font-bold cursor-pointer">
+                              <CardTitle className="text-3xl font-semibold cursor-pointer tracking-tight">
                                   {task.title}
                               </CardTitle>
                             </TooltipTrigger>
                             {!isBinned && (
                               <TooltipContent>
-                                <p>Double-click to edit</p>
+                                <p className="font-normal">Double-click to edit</p>
                               </TooltipContent>
                             )}
                           </Tooltip>
@@ -964,7 +964,7 @@ const handleCopyDescription = () => {
                                 <BellRing className={cn("h-5 w-5 text-muted-foreground", task.reminder && "text-amber-600 dark:text-amber-400")} />
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent>{task.reminder ? 'Edit Reminder' : 'Set Reminder'}</TooltipContent>
+                            <TooltipContent><p className="font-normal">{task.reminder ? 'Edit Reminder' : 'Set Reminder'}</p></TooltipContent>
                           </Tooltip>
                         )}
                       </div>
@@ -977,13 +977,13 @@ const handleCopyDescription = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Set Status</DropdownMenuLabel>
+                            <DropdownMenuLabel className="font-medium">Set Status</DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             {(uiConfig?.taskStatuses || []).map(s => {
                               const currentStatusConfig = getStatusConfig(s);
                               const { Icon } = currentStatusConfig;
                               return (
-                                <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)}>
+                                <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)} className="font-normal">
                                   <div className="flex items-center gap-2">
                                     <Icon className={cn("h-3 w-3", s === 'In Progress' && 'animate-spin')} />
                                     <span>{s}</span>
@@ -998,12 +998,12 @@ const handleCopyDescription = () => {
                     </div>
                   </CardHeader>
                   <CardContent className="pt-2 flex-grow group/description" onDoubleClick={() => !isBinned && editingSection !== 'description' && handleStartEditing('description', task.description)}>
-                    <CardDescription className="mb-4">
+                    <CardDescription className="mb-4 font-normal">
                         Last updated {formatTimestamp(task.updatedAt, uiConfig.timeFormat)}
                     </CardDescription>
                      {task.summary && (
                       <div className="mb-4 p-3 rounded-md bg-background/50 border border-border/50">
-                          <p className="text-sm italic text-muted-foreground leading-relaxed">{task.summary}</p>
+                          <p className="text-sm italic text-muted-foreground leading-relaxed font-normal">{task.summary}</p>
                       </div>
                     )}
                      <div className={cn("relative", !isBinned && "cursor-pointer")}>
@@ -1029,15 +1029,15 @@ const handleCopyDescription = () => {
                                   ref={descriptionEditorRef}
                                   value={editingValue}
                                   onChange={e => setEditingValue(e.target.value)}
-                                  className="min-h-[150px] pb-12"
+                                  className="min-h-[150px] pb-12 font-normal"
                                   placeholder="Enter a description..."
                                   enableHotkeys
                                />
                                <TextareaToolbar onFormatClick={(type) => descriptionEditorRef.current && applyFormat(type, descriptionEditorRef.current)} />
                              </div>
                             <div className="flex justify-end gap-2">
-                                <Button variant="ghost" size="sm" onClick={handleCancelEditing}>Cancel</Button>
-                                <Button size="sm" onClick={() => handleSaveEditing('description', false)} disabled={isGeneratingSummary}>
+                                <Button variant="ghost" size="sm" onClick={handleCancelEditing} className="font-medium">Cancel</Button>
+                                <Button size="sm" onClick={() => handleSaveEditing('description', false)} disabled={isGeneratingSummary} className="font-semibold">
                                   {isGeneratingSummary && <Sparkles className="h-4 w-4 mr-2 animate-pulse" />}
                                   Save
                                 </Button>
@@ -1046,13 +1046,13 @@ const handleCopyDescription = () => {
                         ) : (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <div>
+                              <div className="font-normal text-foreground/90 leading-relaxed">
                                 <RichTextViewer text={task.description} />
                               </div>
                             </TooltipTrigger>
                             {!isBinned && (
                               <TooltipContent>
-                                <p>Double-click to edit</p>
+                                <p className="font-normal">Double-click to edit</p>
                               </TooltipContent>
                             )}
                           </Tooltip>
@@ -1066,7 +1066,7 @@ const handleCopyDescription = () => {
                 {deploymentField && (
                   <Card>
                     <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-xl"><CheckCircle2 className="h-5 w-5" />{fieldLabels.get('deploymentStatus') || 'Deployments'}</CardTitle>
+                      <CardTitle className="flex items-center gap-2 text-xl font-semibold"><CheckCircle2 className="h-5 w-5" />{fieldLabels.get('deploymentStatus') || 'Deployments'}</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-1 text-sm">
@@ -1083,7 +1083,7 @@ const handleCopyDescription = () => {
                               </div>
                             );
                           })
-                        ) : (<p className="text-muted-foreground text-center text-xs pt-2">No relevant environments selected for this task.</p>)}
+                        ) : (<p className="text-muted-foreground text-center text-xs pt-2 font-normal">No relevant environments selected for this task.</p>)}
                       </div>
                     </CardContent>
                   </Card>
@@ -1091,9 +1091,9 @@ const handleCopyDescription = () => {
                 {prField && (
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
-                      <CardTitle className="flex items-center gap-2 text-xl"><GitMerge className="h-5 w-5" />{fieldLabels.get('prLinks') || 'Pull Requests'}</CardTitle>
+                      <CardTitle className="flex items-center gap-2 text-xl font-semibold"><GitMerge className="h-5 w-5" />{fieldLabels.get('prLinks') || 'Pull Requests'}</CardTitle>
                       {!isBinned && Array.isArray(task.repositories) && task.repositories.length > 0 && allConfiguredEnvs.length > 0 && (
-                        <Button variant="ghost" size="sm" onClick={() => setIsEditingPrLinks(!isEditingPrLinks)}>
+                        <Button variant="ghost" size="sm" onClick={() => setIsEditingPrLinks(!isEditingPrLinks)} className="font-medium">
                           {isEditingPrLinks ? 'Done' : (<><Pencil className="h-3 w-3 mr-1.5" /> Edit</>)}
                         </Button>
                       )}
@@ -1108,7 +1108,7 @@ const handleCopyDescription = () => {
             {customFields.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-xl"><Box className="h-5 w-5" />Other Details</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-xl font-semibold"><Box className="h-5 w-5" />Other Details</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {customFields.map(field => (
@@ -1121,7 +1121,7 @@ const handleCopyDescription = () => {
                           </Button>
                         )}
                       </div>
-                      <div className="text-sm text-foreground min-w-0">
+                      <div className="text-sm text-foreground min-w-0 font-normal">
                         {editingSection === `customFields.${field.key}` ? (
                             <Input
                                 value={editingValue}
@@ -1129,6 +1129,7 @@ const handleCopyDescription = () => {
                                 onBlur={() => handleSaveEditing(field.key, true)}
                                 onKeyDown={e => e.key === 'Enter' && handleSaveEditing(field.key, true)}
                                 autoFocus
+                                className="font-normal"
                             />
                         ) : (
                             renderCustomFieldValue(field, task.customFields?.[field.key])
@@ -1153,10 +1154,10 @@ const handleCopyDescription = () => {
           <div className="space-y-6">
             <Card className="h-fit">
                 <CardHeader>
-                  <CardTitle className="flex items-center justify-between text-xl">
+                  <CardTitle className="flex items-center justify-between text-xl font-semibold">
                     <span className="flex items-center gap-2"><ListChecks className="h-5 w-5" />Task Details</span>
                     {!isBinned && editingSection !== 'details' && (
-                        <Button variant="ghost" size="sm" onClick={() => handleStartEditing('details', {})}>
+                        <Button variant="ghost" size="sm" onClick={() => handleStartEditing('details', {})} className="font-medium">
                             <Pencil className="h-3 w-3 mr-1.5" /> Edit
                         </Button>
                     )}
@@ -1166,24 +1167,24 @@ const handleCopyDescription = () => {
                   {editingSection === 'details' ? (
                      <div className="space-y-4">
                          <div>
-                            <Label>{fieldLabels.get('developers') || 'Developers'}</Label>
+                            <Label className="font-semibold">{fieldLabels.get('developers') || 'Developers'}</Label>
                             <MultiSelect selected={task.developers || []} onChange={val => handleSaveEditing('developers', false, val)} options={developerOptions} creatable onCreate={handleCreateDeveloper}/>
                         </div>
                         <div>
-                            <Label>{fieldLabels.get('testers') || 'Testers'}</Label>
+                            <Label className="font-semibold">{fieldLabels.get('testers') || 'Testers'}</Label>
                             <MultiSelect selected={task.testers || []} onChange={val => handleSaveEditing('testers', false, val)} options={testerOptions} creatable onCreate={handleCreateTester}/>
                         </div>
                         <div>
-                            <Label>{fieldLabels.get('repositories') || 'Repositories'}</Label>
+                            <Label className="font-semibold">{fieldLabels.get('repositories') || 'Repositories'}</Label>
                             <MultiSelect selected={Array.isArray(task.repositories) ? task.repositories : (task.repositories ? [task.repositories] : [])} onChange={val => handleSaveEditing('repositories', false, val)} options={repoOptions} />
                         </div>
                         {azureFieldConfig?.isActive && (
                             <div>
-                                <Label>{azureFieldConfig.label || 'Azure DevOps'}</Label>
-                                <Input defaultValue={task.azureWorkItemId} onBlur={(e) => handleSaveEditing('azureWorkItemId', false, e.target.value)} placeholder="Enter ID..."/>
+                                <Label className="font-semibold">{azureFieldConfig.label || 'Azure DevOps'}</Label>
+                                <Input defaultValue={task.azureWorkItemId} onBlur={(e) => handleSaveEditing('azureWorkItemId', false, e.target.value)} placeholder="Enter ID..." className="font-normal"/>
                             </div>
                         )}
-                        <Button onClick={() => setEditingSection(null)} className="w-full">Done</Button>
+                        <Button onClick={() => setEditingSection(null)} className="w-full font-semibold">Done</Button>
                      </div>
                   ) : (
                     <>
@@ -1195,8 +1196,8 @@ const handleCopyDescription = () => {
                         <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('repositories') || 'Repositories'}</h4>
                         <div className="flex flex-wrap gap-1">
                           {(Array.isArray(task.repositories) && task.repositories.length > 0) ? (task.repositories || []).map(repo => (
-                            <Badge key={repo} variant="repo" style={getRepoBadgeStyle(repo)}>{repo}</Badge>
-                          )) : (<p className="text-sm text-muted-foreground">No repositories assigned.</p>)}
+                            <Badge key={repo} variant="repo" style={getRepoBadgeStyle(repo)} className="font-medium">{repo}</Badge>
+                          )) : (<p className="text-sm text-muted-foreground font-normal">No repositories assigned.</p>)}
                         </div>
                       </div>
                       {azureFieldConfig && azureFieldConfig.isActive && task.azureWorkItemId && (<>
@@ -1204,11 +1205,11 @@ const handleCopyDescription = () => {
                         <div>
                           <h4 className="text-sm font-semibold text-muted-foreground mb-2">{azureFieldConfig.label || 'Azure DevOps'}</h4>
                           {azureFieldConfig.baseUrl ? (
-                            <a href={`${azureFieldConfig.baseUrl}${task.azureWorkItemId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline text-sm">
+                            <a href={`${azureFieldConfig.baseUrl}${task.azureWorkItemId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline text-sm font-normal">
                               <ExternalLink className="h-4 w-4" />
                               <span>Work Item #{task.azureWorkItemId}</span>
                             </a>
-                          ) : (<span className="text-sm text-foreground">{task.azureWorkItemId}</span>)}
+                          ) : (<span className="text-sm text-foreground font-normal">{task.azureWorkItemId}</span>)}
                         </div>
                       </>)}
                     </>
@@ -1221,7 +1222,7 @@ const handleCopyDescription = () => {
                             <div className="flex items-center justify-between mb-2">
                                 <h4 className="text-sm font-semibold text-muted-foreground">{tagsField.label || 'Tags'}</h4>
                                 {!isBinned && editingSection !== 'tags' && (
-                                    <Button variant="ghost" size="sm" onClick={() => handleStartEditing('tags', task.tags || [])}>
+                                    <Button variant="ghost" size="sm" onClick={() => handleStartEditing('tags', task.tags || [])} className="font-medium">
                                         <Pencil className="h-3 w-3 mr-1.5" /> Edit
                                     </Button>
                                 )}
@@ -1236,18 +1237,18 @@ const handleCopyDescription = () => {
                                       creatable
                                   />
                                   <div className="flex justify-end gap-2 mt-2">
-                                    <Button variant="ghost" size="sm" onClick={handleCancelEditing}>Cancel</Button>
-                                    <Button size="sm" onClick={() => handleSaveEditing('tags', false)}>Save</Button>
+                                    <Button variant="ghost" size="sm" onClick={handleCancelEditing} className="font-medium">Cancel</Button>
+                                    <Button size="sm" onClick={() => handleSaveEditing('tags', false)} className="font-semibold">Save</Button>
                                   </div>
                                 </>
                             ) : (
                                 <div className="flex flex-wrap gap-1">
                                     {(task.tags && task.tags.length > 0) ? (
                                         task.tags.map(tag => (
-                                            <Badge key={tag} variant="secondary">{tag}</Badge>
+                                            <Badge key={tag} variant="secondary" className="font-medium">{tag}</Badge>
                                         ))
                                     ) : (
-                                        <p className="text-sm text-muted-foreground">No tags assigned.</p>
+                                        <p className="text-sm text-muted-foreground font-normal">No tags assigned.</p>
                                     )}
                                 </div>
                             )}
@@ -1265,7 +1266,7 @@ const handleCopyDescription = () => {
             {attachmentsField && (
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle className="flex items-center gap-2 text-xl">
+                        <CardTitle className="flex items-center gap-2 text-xl font-semibold">
                             <Paperclip className="h-5 w-5" />{fieldLabels.get('attachments') || 'Attachments'}
                         </CardTitle>
                         {!isBinned && (
@@ -1277,7 +1278,7 @@ const handleCopyDescription = () => {
                                     isEditingAttachmentsRef.current = true;
                                     setLocalAttachments(task.attachments || []);
                                 }
-                            }}>
+                            }} className="font-medium">
                                 {isEditingAttachments ? 'Save' : <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>}
                             </Button>
                         )}
@@ -1297,7 +1298,7 @@ const handleCopyDescription = () => {
                                                 setLocalAttachments(newAtts);
                                             }}
                                             placeholder="Attachment name"
-                                            className="h-8"
+                                            className="h-8 font-normal"
                                           />
                                           {att.type === 'link' && (
                                             <Input 
@@ -1308,7 +1309,7 @@ const handleCopyDescription = () => {
                                                     setLocalAttachments(newAtts);
                                                 }}
                                                 placeholder="https://example.com"
-                                                className="h-8"
+                                                className="h-8 font-normal"
                                             />
                                           )}
                                         </div>
@@ -1319,30 +1320,30 @@ const handleCopyDescription = () => {
                                 ))}
                                 </div>
 
-                                <div className="border-2 border-dashed rounded-lg p-4 text-center text-sm text-muted-foreground">
+                                <div className="border-2 border-dashed rounded-lg p-4 text-center text-sm text-muted-foreground font-normal">
                                     <p>Drop files, or paste an image/link</p>
                                     <div className="flex items-center justify-center gap-2 mt-2">
                                         <Popover open={isAddLinkPopoverOpen} onOpenChange={setIsAddLinkPopoverOpen}>
                                             <PopoverTrigger asChild>
-                                                <Button type="button" variant="outline" size="sm"><Link2 className="h-4 w-4 mr-2" /> Add Link</Button>
+                                                <Button type="button" variant="outline" size="sm" className="font-medium"><Link2 className="h-4 w-4 mr-2" /> Add Link</Button>
                                             </PopoverTrigger>
                                             <PopoverContent className="w-80">
                                                 <div className="grid gap-4">
                                                     <div className="space-y-2">
-                                                        <h4 className="font-medium leading-none">Add Link</h4>
-                                                        <p className="text-sm text-muted-foreground">Enter a name and a valid URL.</p>
+                                                        <h4 className="font-semibold leading-none">Add Link</h4>
+                                                        <p className="text-sm text-muted-foreground font-normal">Enter a name and a valid URL.</p>
                                                     </div>
                                                     <div className="grid gap-2">
-                                                        <Input placeholder="Link Name" value={newLink.name} onChange={(e) => setNewLink(p => ({...p, name: e.target.value}))} />
-                                                        <Input placeholder="https://..." value={newLink.url} onChange={(e) => setNewLink(p => ({...p, url: e.target.value}))} />
+                                                        <Input placeholder="Link Name" value={newLink.name} onChange={(e) => setNewLink(p => ({...p, name: e.target.value}))} className="font-normal"/>
+                                                        <Input placeholder="https://..." value={newLink.url} onChange={(e) => setNewLink(p => ({...p, url: e.target.value}))} className="font-normal" />
                                                     </div>
-                                                    <Button onClick={handleAddLink}>Add</Button>
+                                                    <Button onClick={handleAddLink} className="font-semibold">Add</Button>
                                                 </div>
                                             </PopoverContent>
                                         </Popover>
-                                        <Button type="button" variant="outline" size="sm" onClick={() => imageInputRef.current?.click()}><Image className="h-4 w-4 mr-2" /> Add Image</Button>
+                                        <Button type="button" variant="outline" size="sm" onClick={() => imageInputRef.current?.click()} className="font-medium"><Image className="h-4 w-4 mr-2" /> Add Image</Button>
                                     </div>
-                                    <input type="file" ref={imageInputRef} onChange={(e) => e.target.files && handleImageUpload(e.target.files[0])} className="hidden" accept="image/*" />
+                                    <input type="file" id="task-attachment-upload" ref={imageInputRef} onChange={(e) => e.target.files && handleImageUpload(e.target.files[0])} className="hidden" accept="image/*" />
                                 </div>
                             </div>
                          ) : (!task.attachments || task.attachments.length === 0) ? (
@@ -1366,7 +1367,7 @@ const handleCopyDescription = () => {
                                                 className="flex items-center gap-2 min-w-0 text-left"
                                             >
                                                 {isImage ? <Image className="h-4 w-4 text-muted-foreground shrink-0" /> : <Link2 className="h-4 w-4 text-muted-foreground shrink-0" />}
-                                                <span className="text-sm text-foreground truncate hover:text-primary hover:underline">{att.name}</span>
+                                                <span className="text-sm text-foreground truncate hover:text-primary hover:underline font-normal">{att.name}</span>
                                             </button>
                                         </div>
                                     );
@@ -1471,13 +1472,13 @@ function TaskDetailSection({ title, people, setPersonInView, isDeveloper }: {
                     </TooltipTrigger>
                     {!canOpenPopup(person) && (
                         <TooltipContent>
-                            <p>No contact details available.</p>
+                            <p className="font-normal">No contact details available.</p>
                         </TooltipContent>
                     )}
                   </Tooltip>
                 ))
             ) : (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground font-normal">
                 No {title.toLowerCase()} assigned.
             </p>
             )}
@@ -1519,13 +1520,13 @@ function TimelineSection({
 
     return (
       <div className="flex justify-between items-center group">
-        <span className="text-muted-foreground">{label}</span>
+        <span className="text-muted-foreground font-normal">{label}</span>
         <Popover open={isOpen} onOpenChange={isBinned ? undefined : setIsOpen}>
           <PopoverTrigger asChild disabled={isBinned}>
             <Button
               variant="ghost"
               size="sm"
-              className={cn("h-7 px-2", !dateValue && "text-muted-foreground hover:text-foreground")}
+              className={cn("h-7 px-2 font-normal", !dateValue && "text-muted-foreground hover:text-foreground")}
             >
               {dateValue ? format(dateValue, 'PPP') : 'Set Date'}
               <Pencil className="ml-2 h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -1547,7 +1548,7 @@ function TimelineSection({
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full"
+                className="w-full font-medium"
                 onClick={() => {
                   onDateUpdate(fieldKey, null);
                   setIsOpen(false);
@@ -1571,13 +1572,13 @@ function TimelineSection({
 
       return (
         <div className="flex justify-between items-center group">
-            <span className="text-muted-foreground capitalize">{env} Deployed</span>
+            <span className="text-muted-foreground capitalize font-normal">{env} Deployed</span>
             <Popover open={isOpen} onOpenChange={isBinned ? undefined : setIsOpen}>
                 <PopoverTrigger asChild disabled={isBinned}>
                     <Button
                         variant="ghost"
                         size="sm"
-                        className={cn("h-7 px-2", !dateValue && "text-muted-foreground hover:text-foreground")}
+                        className={cn("h-7 px-2 font-normal", !dateValue && "text-muted-foreground hover:text-foreground")}
                     >
                         {dateValue ? format(dateValue, 'PPP') : 'Set Date'}
                         <Pencil className="ml-2 h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -1598,7 +1599,7 @@ function TimelineSection({
                         <Button
                             variant="ghost"
                             size="sm"
-                            className="w-full"
+                            className="w-full font-medium"
                             onClick={() => {
                                 onDeploymentDateUpdate(env, null);
                                 setIsOpen(false);
@@ -1621,7 +1622,7 @@ function TimelineSection({
   const qaEndConfig = (uiConfig?.fields || []).find(f => f.key === 'qaEndDate' && f.isActive);
 
   if (!devStartConfig && !devEndConfig && !qaStartConfig && !qaEndConfig && !hasAnyDeploymentDate) {
-    return <p className="text-muted-foreground text-center text-xs py-2">No date fields are active.</p>
+    return <p className="text-muted-foreground text-center text-xs py-2 font-normal">No date fields are active.</p>
   }
   
   const relevantEnvs = (task.relevantEnvironments || []).map(name => (uiConfig?.environments || []).find(e => e.name === name)).filter((e): e is Environment => !!e);

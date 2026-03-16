@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -129,6 +128,7 @@ export default function NotesPage() {
     setUiConfig(config);
     document.title = `Notes | ${config.appName || 'My Task Manager'}`;
     setIsLoading(false);
+    window.dispatchEvent(new Event('navigation-end'));
   }, []);
 
   useEffect(() => {
@@ -402,7 +402,7 @@ export default function NotesPage() {
 
 
   if (isLoading || !uiConfig) {
-    return <LoadingSpinner text="Loading notes..." />;
+    return null;
   }
 
   const mode = getAuthMode();
@@ -419,18 +419,19 @@ export default function NotesPage() {
             </Badge>
         </div>
          <div className="hidden lg:flex items-center gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={handleExportNotes}><Upload className="mr-2 h-4 w-4"/>Export Notes</Button>
-            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}><Download className="mr-2 h-4 w-4"/>Import Notes</Button>
+            <Button variant="outline" size="sm" onClick={handleExportNotes} className="font-medium"><Upload className="mr-2 h-4 w-4"/>Export Notes</Button>
+            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="font-medium"><Download className="mr-2 h-4 w-4"/>Import Notes</Button>
             <input type="file" ref={fileInputRef} onChange={handleImportNotes} className="hidden" accept=".json" />
             <Button
                 variant={isSelectMode ? 'secondary' : 'outline'}
                 size="sm"
                 onClick={handleToggleSelectMode}
+                className="font-medium"
             >
               {isSelectMode ? <X className="h-4 w-4 mr-2" /> : <CheckSquare className="h-4 w-4 mr-2" />}
               {isSelectMode ? 'Cancel' : 'Select'}
             </Button>
-            <Button variant="outline" size="sm" onClick={handleResetLayout}>
+            <Button variant="outline" size="sm" onClick={handleResetLayout} className="font-medium">
                 <LayoutGrid className="mr-2 h-4 w-4"/>
                 Reset Layout
             </Button>
@@ -442,24 +443,24 @@ export default function NotesPage() {
                 onClick={handleOpenNewNoteDialog}
                 className="w-full text-left p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors text-muted-foreground shadow-sm flex justify-between items-center h-11"
             >
-                <span>Take a note...</span>
+                <span className="font-normal">Take a note...</span>
                 <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
                     <span className="text-xs">{commandKey}</span>/
                 </kbd>
             </button>
 
             <div className="lg:hidden grid grid-cols-2 gap-2 mb-4">
-                <Button variant="outline" className="font-bold h-11" onClick={handleExportNotes}><Upload className="mr-2 h-4 w-4"/>Export</Button>
-                <Button variant="outline" className="font-bold h-11" onClick={() => fileInputRef.current?.click()}><Download className="mr-2 h-4 w-4"/>Import</Button>
+                <Button variant="outline" className="font-medium h-11" onClick={handleExportNotes}><Upload className="mr-2 h-4 w-4"/>Export</Button>
+                <Button variant="outline" className="font-medium h-11" onClick={() => fileInputRef.current?.click()}><Download className="mr-2 h-4 w-4"/>Import</Button>
                 <Button
                     variant={isSelectMode ? 'secondary' : 'outline'}
-                    className="font-bold h-11"
+                    className="font-medium h-11"
                     onClick={handleToggleSelectMode}
                 >
                   {isSelectMode ? <X className="h-4 w-4 mr-2" /> : <CheckSquare className="h-4 w-4 mr-2" />}
                   {isSelectMode ? 'Cancel' : 'Select'}
                 </Button>
-                <Button variant="outline" className="font-bold h-11" onClick={handleResetLayout}>
+                <Button variant="outline" className="font-medium h-11" onClick={handleResetLayout}>
                     <LayoutGrid className="mr-2 h-4 w-4"/>
                     Reset
                 </Button>
@@ -467,7 +468,7 @@ export default function NotesPage() {
 
             <Button 
                 variant="secondary" 
-                className="w-full flex lg:hidden items-center justify-between h-12 px-4 font-black shadow-sm border"
+                className="w-full flex lg:hidden items-center justify-between h-12 px-4 font-medium shadow-sm border"
                 onClick={() => setIsFiltersOpen(!isFiltersOpen)}
             >
                 <span className="flex items-center gap-2">
@@ -497,7 +498,7 @@ export default function NotesPage() {
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     onKeyDown={handleSearchKeyDown}
-                                    className="w-full pl-10 h-11"
+                                    className="w-full pl-10 h-11 font-normal"
                                 />
                                 <div className="absolute right-1 flex items-center h-full gap-1">
                                     {searchQuery && (
@@ -532,7 +533,7 @@ export default function NotesPage() {
                                     <Button
                                         variant={"outline"}
                                         className={cn(
-                                            "justify-start text-left font-normal h-11",
+                                            "justify-start text-left h-11 font-normal",
                                             !dateFilter && "text-muted-foreground"
                                         )}
                                     >
@@ -564,7 +565,7 @@ export default function NotesPage() {
                         </div>
                         {(searchQuery || dateFilter) && (
                             <div className="flex items-center gap-2 pt-3">
-                                <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setExecutedSearchQuery(''); setDateFilter(undefined); }}>
+                                <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setExecutedSearchQuery(''); setDateFilter(undefined); }} className="font-medium">
                                     <XCircle className="mr-2 h-4 w-4" /> Clear filters
                                 </Button>
                                 {isFiltering ? (
@@ -573,7 +574,7 @@ export default function NotesPage() {
                                         Filtering notes...
                                     </div>
                                 ) : (
-                                    <p className="text-sm text-muted-foreground">{filteredNotes.length} of {notes.length} notes shown.</p>
+                                    <p className="text-sm text-muted-foreground font-normal">{filteredNotes.length} of {notes.length} notes shown.</p>
                                 )}
                             </div>
                         )}
@@ -615,24 +616,24 @@ export default function NotesPage() {
                 </div>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm" disabled={selectedNoteIds.length === 0}>
+                    <Button variant="destructive" size="sm" disabled={selectedNoteIds.length === 0} className="font-semibold">
                       <Trash2 className="mr-2 h-4 w-4" /> Move to Bin
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Move to Bin?</AlertDialogTitle>
-                      <AlertDialogDescription>
+                      <AlertDialogTitle className="font-semibold">Move to Bin?</AlertDialogTitle>
+                      <AlertDialogDescription className="font-normal">
                         Are you sure you want to move the selected{' '}
                         {selectedNoteIds.length} note(s) to the bin? You
                         can restore them later.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogCancel className="font-medium">Cancel</AlertDialogCancel>
                       <AlertDialogAction
                         onClick={handleBulkDelete}
-                        className="bg-destructive hover:bg-destructive/90"
+                        className="bg-destructive hover:bg-destructive/90 font-semibold"
                       >
                         Move to Bin
                       </AlertDialogAction>
@@ -649,7 +650,7 @@ export default function NotesPage() {
           <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg mt-8">
               <FolderSearch className="h-16 w-16 mb-4 text-muted-foreground/50 mx-auto"/>
               <p className="text-lg font-semibold">{notes.length > 0 ? 'No notes match your filters.' : 'No notes yet.'}</p>
-              <p className="mt-1">{notes.length > 0 ? 'Try adjusting your search or date filters.' : 'Use the bar above to create your first note.'}</p>
+              <p className="mt-1 font-normal">{notes.length > 0 ? 'Try adjusting your search or date filters.' : 'Use the bar above to create your first note.'}</p>
           </div>
         ) : (
           <ResponsiveGridLayout

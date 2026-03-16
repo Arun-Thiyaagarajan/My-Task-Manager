@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -130,6 +129,7 @@ export default function SettingsPage() {
     setTimeFormat(config?.timeFormat || '12h');
     setIsLoading(false);
     document.title = `Settings | ${config?.appName || 'Task Manager'}`;
+    window.dispatchEvent(new Event('navigation-end'));
   };
 
   useEffect(() => {
@@ -380,7 +380,7 @@ export default function SettingsPage() {
   }, [uiConfig, searchQuery]);
 
   if (isLoading || !uiConfig) {
-    return <LoadingSpinner text="Loading settings..." />;
+    return null;
   }
 
   const authMode = getAuthMode();

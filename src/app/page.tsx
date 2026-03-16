@@ -533,6 +533,7 @@ export default function Home() {
 
     refreshData();
     setIsLoading(false);
+    window.dispatchEvent(new Event('navigation-end'));
     
     const storageHandler = (event: StorageEvent) => {
         if (event.key === DATA_KEY) {
@@ -793,7 +794,7 @@ export default function Home() {
   };
   
   if (isLoading || !uiConfig) {
-    return <LoadingSpinner text="Loading tasks..." />;
+    return null;
   }
 
   const mode = getAuthMode();

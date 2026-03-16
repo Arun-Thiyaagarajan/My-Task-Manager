@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, memo } from 'react';
-import Link from 'next/link';
+import Link from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import {
   Table,
@@ -71,7 +71,6 @@ const TasksTableRow = memo(function TasksTableRow({
 }: TasksTableRowProps) {
   const [task, setTask] = useState(initialTask);
   const [justUpdatedEnv, setJustUpdatedEnv] = useState<string | null>(null);
-  const [isOpening, setIsOpening] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -80,7 +79,6 @@ const TasksTableRow = memo(function TasksTableRow({
   }, [initialTask]);
 
   const handleStatusChange = (newStatus: TaskStatus) => {
-    if (isOpening) return;
     const updatedTask = updateTask(task.id, { status: newStatus });
     if (updatedTask) {
       setTask(updatedTask);
@@ -100,7 +98,6 @@ const TasksTableRow = memo(function TasksTableRow({
   };
 
   const handleToggleDeployment = (env: string) => {
-    if (isOpening) return;
     const newStatus = !(task.deploymentStatus?.[env] ?? false);
   
     const updatedTaskData = {
@@ -124,8 +121,6 @@ const TasksTableRow = memo(function TasksTableRow({
   };
 
   const handleRowClick = (e: React.MouseEvent) => {
-    if (isOpening) return;
-
     if (isSelectMode) {
       onToggleSelection(task.id, !isSelected);
       return;
@@ -141,8 +136,7 @@ const TasksTableRow = memo(function TasksTableRow({
     if (e.metaKey || e.ctrlKey || e.button === 1) return;
 
     e.preventDefault();
-    setIsOpening(true);
-    window.dispatchEvent(new Event('sync-start'));
+    window.dispatchEvent(new Event('navigation-start'));
     router.push(`/tasks/${task.id}?${currentQueryString}`);
   };
 
@@ -161,7 +155,7 @@ const TasksTableRow = memo(function TasksTableRow({
   return (
     <TableRow 
         key={task.id} 
-        className={cn("group/row relative", isOpening && "opacity-60")} 
+        className="group/row relative" 
         data-state={isSelected ? 'selected' : undefined}
         onClick={handleRowClick}
     >
@@ -185,14 +179,14 @@ const TasksTableRow = memo(function TasksTableRow({
               href={`/tasks/${task.id}?${currentQueryString}`}
               className="font-semibold block truncate group/title"
               onClick={(e) => {
-                if (isSelectMode || isOpening) {
+                if (isSelectMode) {
                   e.preventDefault();
                 }
               }}
             >
               <span className="group-hover/title:text-primary transition-colors">{task.title}</span>
             </Link>
-            <p className="text-muted-foreground text-sm truncate mt-1">
+            <p className="text-muted-foreground text-sm truncate mt-1 font-normal">
               {task.summary || task.description}
             </p>
         </div>
@@ -202,20 +196,19 @@ const TasksTableRow = memo(function TasksTableRow({
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              disabled={isOpening}
               className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
             >
               <TaskStatusBadge status={task.status} />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Set Status</DropdownMenuLabel>
+            <DropdownMenuLabel className="font-medium">Set Status</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {(uiConfig?.taskStatuses || []).map((s) => {
               const currentStatusConfig = getStatusConfig(s);
               const { Icon } = currentStatusConfig;
               return (
-                <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)}>
+                <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)} className="font-normal">
                   <div className="flex items-center gap-2">
                     <Icon className={cn("h-3 w-3", s === 'In Progress' && 'animate-spin')} />
                     <span>{s}</span>
@@ -234,8 +227,7 @@ const TasksTableRow = memo(function TasksTableRow({
               <TooltipTrigger asChild>
                 <button
                   onClick={(e) => { e.stopPropagation(); onAvatarClick(dev, true); }}
-                  disabled={isOpening}
-                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full disabled:cursor-not-allowed"
+                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
                 >
                   <Avatar className="h-8 w-8 border-2 border-background cursor-pointer">
                     <AvatarFallback
@@ -250,7 +242,7 @@ const TasksTableRow = memo(function TasksTableRow({
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>{dev.name}</p>
+                <p className="font-normal">{dev.name}</p>
               </TooltipContent>
             </Tooltip>
           ))}
@@ -263,8 +255,7 @@ const TasksTableRow = memo(function TasksTableRow({
               <TooltipTrigger asChild>
                 <button
                   onClick={(e) => { e.stopPropagation(); onAvatarClick(tester, false); }}
-                  disabled={isOpening}
-                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full disabled:cursor-not-allowed"
+                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full"
                 >
                   <Avatar className="h-8 w-8 border-2 border-background cursor-pointer">
                     <AvatarFallback
@@ -279,7 +270,7 @@ const TasksTableRow = memo(function TasksTableRow({
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>{tester.name}</p>
+                <p className="font-normal">{tester.name}</p>
               </TooltipContent>
             </Tooltip>
           ))}
@@ -291,7 +282,7 @@ const TasksTableRow = memo(function TasksTableRow({
             <Badge
               variant="repo"
               key={repo}
-              className="text-xs font-normal"
+              className="text-xs font-medium"
               style={getRepoBadgeStyle(repo)}
             >
               {repo}
@@ -305,30 +296,21 @@ const TasksTableRow = memo(function TasksTableRow({
           deploymentDates={task.deploymentDates}
           configuredEnvs={allRelevantEnvs}
           size="sm"
-          interactive={!isOpening}
+          interactive={true}
           onToggle={handleToggleDeployment}
           justUpdatedEnv={justUpdatedEnv}
           onAnimationEnd={() => setJustUpdatedEnv(null)}
         />
       </TableCell>
-      <TableCell className="align-top">
+      <TableCell className="align-top text-right">
         <div className="flex items-center justify-end gap-2">
-          {isOpening ? (
-            <div className="flex items-center gap-2 pr-4 text-xs font-semibold text-primary animate-pulse">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Opening...
-            </div>
-          ) : (
-            <>
-                <Button asChild variant="ghost" size="sm">
-                    <Link href={`/tasks/${task.id}?${currentQueryString}`} onClick={handleRowClick}>
-                    View
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                    </Link>
-                </Button>
-                <DeleteTaskButton taskId={task.id} taskTitle={task.title} onSuccess={onTaskUpdate} iconOnly className="h-8 w-8" />
-            </>
-          )}
+            <Button asChild variant="ghost" size="sm" className="font-medium">
+                <Link href={`/tasks/${task.id}?${currentQueryString}`} onClick={handleRowClick}>
+                View
+                <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+            </Button>
+            <DeleteTaskButton taskId={task.id} taskTitle={task.title} onSuccess={onTaskUpdate} iconOnly className="h-8 w-8" />
         </div>
       </TableCell>
     </TableRow>
@@ -448,17 +430,17 @@ export const TasksTable = memo(function TasksTable({
              {isSelectMode && (
                 <TableHead className="w-[50px]"></TableHead>
              )}
-            <TableHead>{fieldLabels.get('title') || 'Title'}</TableHead>
-            <TableHead>{fieldLabels.get('status') || 'Status'}</TableHead>
-            <TableHead>{developersLabel}</TableHead>
-            <TableHead>{testersLabel}</TableHead>
-            <TableHead>
+            <TableHead className="font-semibold">{fieldLabels.get('title') || 'Title'}</TableHead>
+            <TableHead className="font-semibold">{fieldLabels.get('status') || 'Status'}</TableHead>
+            <TableHead className="font-semibold">{developersLabel}</TableHead>
+            <TableHead className="font-semibold">{testersLabel}</TableHead>
+            <TableHead className="font-semibold">
               {fieldLabels.get('repositories') || 'Repositories'}
             </TableHead>
-            <TableHead>
+            <TableHead className="font-semibold">
               {fieldLabels.get('deploymentStatus') || 'Deployments'}
             </TableHead>
-            <TableHead className="text-right">Actions</TableHead>
+            <TableHead className="text-right font-semibold">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -475,9 +457,9 @@ export const TasksTable = memo(function TasksTable({
                 >
                   <TableCell colSpan={colSpan} className="py-3 px-4">
                       <div className="flex items-center justify-between">
-                          <span className="flex items-center gap-3 font-semibold text-foreground">
+                          <span className="flex items-center gap-3 font-semibold text-foreground tracking-tight">
                               {title}
-                              <Badge className="shrink-0 bg-border text-foreground">{tasksInGroup.length}</Badge>
+                              <Badge className="shrink-0 bg-border text-foreground font-semibold">{tasksInGroup.length}</Badge>
                           </span>
                           <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform duration-300 ease-in-out", isOpen && "rotate-180")} />
                       </div>
