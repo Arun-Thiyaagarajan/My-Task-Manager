@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -100,6 +99,10 @@ const HeaderLink = ({ href, children, className, onClick, id }: { href: string; 
     return <a href={href} onClick={handleClick} className={className} id={id}>{children}</a>;
 }
 
+const isActualImage = (url: string | null | undefined) => {
+    if (!url) return false;
+    return url.startsWith('data:image') || url.startsWith('http') || url.startsWith('/');
+};
 
 export function Header() {
   const { auth, user, userProfile, isUserLoading, isProfileLoading } = useFirebase();
@@ -208,7 +211,7 @@ export function Header() {
     : (localProfile.username || 'Guest User');
     
   const profilePhoto = (authMode === 'authenticate' && user)
-    ? (userProfile?.photoURL || user?.photoURL)
+    ? (userProfile?.photoURL || (user?.photoURL === "" ? null : user?.photoURL))
     : localProfile.photoURL;
 
   const showProgress = isUserLoading || isProfileLoading || isGlobalLoading;
@@ -359,21 +362,15 @@ export function Header() {
                       "flex h-full w-full items-center justify-center rounded-full border-2 transition-all overflow-hidden",
                       authMode === 'authenticate' && user ? "border-primary p-0.5" : "border-muted-foreground/20"
                     )}>
-                      {profilePhoto ? (
-                        <Avatar className="h-full w-full">
-                          <AvatarImage src={profilePhoto} className="object-cover" />
-                          <AvatarFallback 
-                            className="text-white text-[10px] font-semibold"
-                            style={{ background: getAvatarGradient(profileName) }}
-                          >
-                            {getInitials(profileName)}
-                          </AvatarFallback>
-                        </Avatar>
-                      ) : (
-                        <div className="flex items-center justify-center h-full w-full bg-muted">
-                            <UserIcon className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                      )}
+                      <Avatar className="h-full w-full">
+                        <AvatarImage src={isActualImage(profilePhoto) ? profilePhoto : undefined} className="object-cover" />
+                        <AvatarFallback 
+                          className="text-white text-[10px] font-semibold"
+                          style={{ background: getAvatarGradient(profileName) }}
+                        >
+                          {isActualImage(profilePhoto) ? getInitials(profileName) : (profilePhoto || getInitials(profileName))}
+                        </AvatarFallback>
+                      </Avatar>
                     </div>
                   </button>
                 </DropdownMenuTrigger>
@@ -414,7 +411,7 @@ export function Header() {
               </DropdownMenu>
             </div>
 
-            <ThemeToggle />
+            < ThemeToggle />
           </div>
           
           {/* Navbar Bottom Progress Bar */}

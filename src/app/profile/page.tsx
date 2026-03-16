@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -51,6 +50,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+
+const isActualImage = (url: string | null | undefined) => {
+    if (!url) return false;
+    return url.startsWith('data:image') || url.startsWith('http') || url.startsWith('/');
+};
 
 export default function ProfilePage() {
   const { user, firestore, auth, isUserLoading, userProfile, isProfileLoading } = useFirebase();
@@ -126,16 +130,16 @@ export default function ProfilePage() {
           toast({ variant: 'success', title: 'Profile Updated', description: 'Local changes saved.' });
       } else {
           if (!user || !firestore) return;
-          const isDataURI = (url: string | null) => url?.startsWith('data:');
           const authUpdates: { displayName: string; photoURL: string | null } = { 
             displayName,
             photoURL: null 
           };
 
-          if (photoURL && !isDataURI(photoURL)) {
-              authUpdates.photoURL = photoURL;
-          } else if (photoURL && isDataURI(photoURL)) {
+          if (photoURL && !isActualImage(photoURL)) {
+              // It's an emoji, auth doesn't support it, store in profile only
               authUpdates.photoURL = "";
+          } else if (photoURL) {
+              authUpdates.photoURL = photoURL;
           } else {
               authUpdates.photoURL = null;
           }
@@ -200,7 +204,7 @@ export default function ProfilePage() {
 
   const handleEditExisting = () => {
     const imageToEdit = originalImage || photoURL;
-    if (imageToEdit) {
+    if (isActualImage(imageToEdit)) {
         setPendingImage(imageToEdit);
         setIsPreviewOpen(false);
         setIsCropperOpen(true);
@@ -208,9 +212,8 @@ export default function ProfilePage() {
   };
 
   const handleRestorePrevious = () => {
-      const prev = isLocal ? getLocalProfile().previousPhotoURL : userProfile?.previousPhotoURL;
-      if (prev) {
-          setPhotoURL(prev);
+      if (previousPhotoURL) {
+          setPhotoURL(previousPhotoURL);
           toast({ title: 'Photo restored', description: 'Don\'t forget to click "Save Changes" to apply.' });
           setIsPreviewOpen(false);
       }
@@ -301,12 +304,9 @@ export default function ProfilePage() {
   const displayRole = isLocal ? 'admin' : (userProfile?.role || 'user');
   const isVerified = isLocal ? true : user?.emailVerified;
 
-  const currentSavedPhoto = isLocal ? getLocalProfile().photoURL : (userProfile?.photoURL || (user?.photoURL === "" ? null : user?.photoURL));
-  const currentSavedName = isLocal ? getLocalProfile().username : (user?.displayName || '');
-
   const hasChanges = 
-    displayName !== currentSavedName || 
-    photoURL !== currentSavedPhoto;
+    displayName !== (isLocal ? getLocalProfile().username : (user?.displayName || '')) || 
+    photoURL !== (isLocal ? getLocalProfile().photoURL : (userProfile?.photoURL || (user?.photoURL === "" ? null : user?.photoURL)));
 
   return (
     <div className="container max-w-4xl mx-auto py-10 px-4">
@@ -322,16 +322,16 @@ export default function ProfilePage() {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button 
-                        onClick={() => photoURL ? setIsPreviewOpen(true) : fileInputRef.current?.click()}
+                        onClick={() => (photoURL || previousPhotoURL) ? setIsPreviewOpen(true) : fileInputRef.current?.click()}
                         className="relative block cursor-pointer transition-transform duration-300 active:scale-95"
                       >
                         <Avatar className="h-24 w-24 border-[6px] border-background shadow-2xl transition-all duration-300 group-hover:border-primary/20">
-                          <AvatarImage src={photoURL || undefined} className="object-cover" />
+                          <AvatarImage src={isActualImage(photoURL) ? photoURL : undefined} className="object-cover" />
                           <AvatarFallback 
                             className="text-2xl font-semibold text-white" 
                             style={{ background: getAvatarGradient(profileName) }}
                           >
-                            {getInitials(profileName)}
+                            {isActualImage(photoURL) ? getInitials(profileName) : (photoURL || getInitials(profileName))}
                           </AvatarFallback>
                         </Avatar>
                         
@@ -424,8 +424,10 @@ export default function ProfilePage() {
                         className="relative group/restore cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full"
                       >
                         <Avatar className="h-16 w-16 border-2 border-border transition-all group-hover/restore:border-primary/50 group-hover/restore:scale-105">
-                            <AvatarImage src={previousPhotoURL} className="object-cover" />
-                            <AvatarFallback className="text-xs">Old</AvatarFallback>
+                            <AvatarImage src={isActualImage(previousPhotoURL) ? previousPhotoURL : undefined} className="object-cover" />
+                            <AvatarFallback className="text-sm">
+                                {isActualImage(previousPhotoURL) ? 'Old' : previousPhotoURL}
+                            </AvatarFallback>
                         </Avatar>
                         <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover/restore:opacity-100 transition-opacity">
                             <RotateCcw className="h-5 w-5 text-white" />

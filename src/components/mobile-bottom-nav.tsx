@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -32,6 +31,11 @@ import { signOut } from 'firebase/auth';
 import { setAuthMode, getAuthMode, getLocalProfile } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from './ui/button';
+
+const isActualImage = (url: string | null | undefined) => {
+    if (!url) return false;
+    return url.startsWith('data:image') || url.startsWith('http') || url.startsWith('/');
+};
 
 export function MobileBottomNav() {
   const pathname = usePathname();
@@ -73,7 +77,7 @@ export function MobileBottomNav() {
     : (localProfile.username || 'Guest User');
     
   const profilePhoto = (authMode === 'authenticate' && user)
-    ? (userProfile?.photoURL || user?.photoURL)
+    ? (userProfile?.photoURL || (user?.photoURL === "" ? null : user?.photoURL))
     : localProfile.photoURL;
 
   return (
@@ -130,21 +134,15 @@ export function MobileBottomNav() {
                 "h-7 w-7 rounded-full border-2 flex items-center justify-center overflow-hidden transition-transform active:scale-90",
                 (authMode === 'authenticate' && user) ? "border-primary" : "border-muted-foreground/20"
               )}>
-                {profilePhoto ? (
-                  <Avatar className="h-full w-full">
-                    <AvatarImage src={profilePhoto} className="object-cover" />
-                    <AvatarFallback 
-                      className="text-white text-[8px] font-bold"
-                      style={{ background: getAvatarGradient(profileName) }}
-                    >
-                      {getInitials(profileName)}
-                    </AvatarFallback>
-                  </Avatar>
-                ) : (
-                  <div className="flex items-center justify-center h-full w-full bg-muted">
-                    <UserIcon className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                )}
+                <Avatar className="h-full w-full">
+                  <AvatarImage src={isActualImage(profilePhoto) ? profilePhoto : undefined} className="object-cover" />
+                  <AvatarFallback 
+                    className="text-white text-[8px] font-bold"
+                    style={{ background: getAvatarGradient(profileName) }}
+                  >
+                    {isActualImage(profilePhoto) ? getInitials(profileName) : (profilePhoto || getInitials(profileName))}
+                  </AvatarFallback>
+                </Avatar>
               </div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Me</span>
             </button>
