@@ -16,11 +16,11 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   icons: {
     icon: [
-      { url: 'https://placehold.co/32x32/4f46e5/white/png?text=TF', sizes: '32x32', type: 'image/png' },
-      { url: 'https://placehold.co/16x16/4f46e5/white/png?text=TF', sizes: '16x16', type: 'image/png' },
+      { url: 'https://placehold.co/32x32/4f46e5/white/png?text=%F0%9F%93%8B', sizes: '32x32', type: 'image/png' },
+      { url: 'https://placehold.co/16x16/4f46e5/white/png?text=%F0%9F%93%8B', sizes: '16x16', type: 'image/png' },
     ],
     apple: [
-      { url: 'https://placehold.co/180x180/4f46e5/white/png?text=TF', sizes: '180x180', type: 'image/png' },
+      { url: 'https://placehold.co/180x180/4f46e5/white/png?text=%F0%9F%93%8B', sizes: '180x180', type: 'image/png' },
     ],
   },
   appleWebApp: {

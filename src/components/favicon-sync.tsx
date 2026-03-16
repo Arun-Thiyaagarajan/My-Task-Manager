@@ -6,6 +6,7 @@ import { getUiConfig } from '@/lib/data';
 /**
  * A headless component that synchronizes the Workspace Icon from settings 
  * to the browser's favicon and apple-touch-icon tags.
+ * This ensures custom branding appears in tabs and mobile home screens.
  */
 export function FaviconSync() {
   useEffect(() => {
@@ -14,8 +15,9 @@ export function FaviconSync() {
       if (!config) return;
 
       const icon = config.appIcon;
-      // Default placeholder if no icon is set
-      let iconUrl = 'https://placehold.co/180x180/4f46e5/white/png?text=TF';
+      // Default placeholder (Clipboard emoji) if no icon is set
+      const defaultIconUrl = 'https://placehold.co/180x180/4f46e5/white/png?text=%F0%9F%93%8B';
+      let iconUrl = defaultIconUrl;
 
       if (icon) {
         const isDataURI = icon.startsWith('data:image');
@@ -24,39 +26,42 @@ export function FaviconSync() {
           : `https://placehold.co/180x180/4f46e5/white/png?text=${encodeURIComponent(icon)}`;
       }
 
-      // 1. Update Standard Favicons
-      const iconSelectors = ["link[rel='icon']", "link[rel='shortcut icon']"];
-      let found = false;
+      // 1. Update/Clean Standard Favicons
+      // We look for all possible icon tags to ensure we override framework defaults
+      const iconSelectors = [
+        "link[rel='icon']", 
+        "link[rel='shortcut icon']",
+        "link[rel='apple-touch-icon']"
+      ];
       
       iconSelectors.forEach(selector => {
-        const link = document.querySelector(selector) as HTMLLinkElement;
-        if (link) {
-          link.href = iconUrl;
-          found = true;
+        const links = document.querySelectorAll(selector);
+        if (links.length > 0) {
+          links.forEach(link => {
+            (link as HTMLLinkElement).href = iconUrl;
+          });
+        } else {
+          // If not found, create the primary ones
+          const rel = selector.split("'")[1];
+          const newLink = document.createElement('link');
+          newLink.rel = rel;
+          newLink.href = iconUrl;
+          document.head.appendChild(newLink);
         }
       });
 
-      if (!found) {
-        const newLink = document.createElement('link');
-        newLink.rel = 'icon';
-        newLink.href = iconUrl;
-        document.head.appendChild(newLink);
-      }
-
-      // 2. Update Apple Touch Icon (Mobile Home Screen)
-      let appleLink = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement;
-      if (!appleLink) {
-        appleLink = document.createElement('link');
-        appleLink.rel = 'apple-touch-icon';
-        document.head.appendChild(appleLink);
-      }
-      appleLink.href = iconUrl;
+      // Update document title potentially if icon changed (triggers browser to notice favicon change)
+      const originalTitle = document.title;
+      document.title = originalTitle + " ";
+      setTimeout(() => {
+        document.title = originalTitle;
+      }, 50);
     };
 
     // Initial run
     updateFavicon();
 
-    // Listen for updates
+    // Listen for updates from settings or storage
     window.addEventListener('config-changed', updateFavicon);
     window.addEventListener('company-changed', updateFavicon);
     window.addEventListener('storage', updateFavicon);
