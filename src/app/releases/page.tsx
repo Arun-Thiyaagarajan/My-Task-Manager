@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -33,6 +32,7 @@ export default function ReleasesPage() {
                 setError("Unable to load releases. Please try again later.");
             } finally {
                 setIsLoading(false);
+                window.dispatchEvent(new Event('navigation-end'));
             }
         };
         
@@ -69,14 +69,14 @@ export default function ReleasesPage() {
         <div className="container mx-auto py-12 px-4 sm:px-6 lg:px-8 max-w-4xl">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-12 gap-4">
                 <div className="space-y-1">
-                    <h1 className="text-4xl font-bold tracking-tight flex items-center gap-3">
+                    <h1 className="text-4xl font-semibold tracking-tight flex items-center gap-3 text-foreground">
                         <History className="h-10 w-10 text-primary" />
                         Release History
                     </h1>
                     <p className="text-lg text-muted-foreground font-medium">Keep track of the latest features, improvements, and fixes.</p>
                 </div>
-                <Button asChild variant="ghost" className="font-semibold">
-                    <Link href="/">
+                <Button asChild variant="ghost" className="font-medium">
+                    <Link href="/" onClick={() => window.dispatchEvent(new Event('navigation-start'))}>
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Back to Tasks
                     </Link>
@@ -127,7 +127,7 @@ export default function ReleasesPage() {
 
                                 <Card className="overflow-hidden border-none shadow-xl bg-card hover:shadow-2xl transition-all duration-300">
                                     <CardHeader className="pb-3">
-                                        <CardTitle className="text-2xl font-bold group-hover:text-primary transition-colors tracking-tight">{release.title}</CardTitle>
+                                        <CardTitle className="text-2xl font-semibold group-hover:text-primary transition-colors tracking-tight">{release.title}</CardTitle>
                                         {release.description && (
                                             <CardDescription className="text-sm font-medium leading-relaxed">
                                                 {release.description}
@@ -156,13 +156,13 @@ export default function ReleasesPage() {
                                                                     "p-3 rounded-xl border border-transparent bg-muted/20 flex flex-col gap-2 transition-all",
                                                                     item.link && "hover:bg-primary/5 hover:border-primary/20 cursor-pointer"
                                                                 )}
-                                                                onClick={() => item.link && router.push(item.link)}
+                                                                onClick={() => item.link && prompt(() => { window.dispatchEvent(new Event('navigation-start')); router.push(item.link!); })}
                                                             >
                                                                 <div className={cn(
                                                                     "flex items-start gap-3",
                                                                     index % 2 !== 0 && "sm:flex-row-reverse sm:text-right"
                                                                 )}>
-                                                                    <div className="flex-1 text-sm font-semibold leading-snug tracking-tight">
+                                                                    <div className="flex-1 text-sm font-medium leading-snug tracking-tight">
                                                                         {item.text}
                                                                     </div>
                                                                     {item.link && <ArrowRight className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />}
@@ -189,10 +189,10 @@ export default function ReleasesPage() {
                             <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-6">
                                 <History className="h-8 w-8 text-muted-foreground/40" />
                             </div>
-                            <h2 className="text-2xl font-bold tracking-tight text-foreground/80">No releases available.</h2>
+                            <h2 className="text-2xl font-semibold tracking-tight text-foreground/80">No releases available.</h2>
                             <p className="text-muted-foreground font-medium mt-2 max-w-xs mx-auto">Application updates published by an administrator will appear here.</p>
-                            <Button asChild variant="outline" className="mt-8 font-semibold rounded-xl h-11 px-8">
-                                <Link href="/">Return to Workspace</Link>
+                            <Button asChild variant="outline" className="mt-8 font-medium rounded-xl h-11 px-8">
+                                <Link href="/" onClick={() => window.dispatchEvent(new Event('navigation-start'))}>Return to Workspace</Link>
                             </Button>
                         </div>
                     )}
