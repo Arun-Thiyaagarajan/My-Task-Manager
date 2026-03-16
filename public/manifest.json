@@ -4,9 +4,8 @@
   "description": "A Sleek & Simple Task Manager",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F0F2F5",
+  "background_color": "#ffffff",
   "theme_color": "#4f46e5",
-  "orientation": "portrait",
   "icons": [
     {
       "src": "https://placehold.co/192x192/4f46e5/white/png?text=TF",
@@ -19,11 +18,6 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
-    },
-    {
-      "src": "https://placehold.co/180x180/4f46e5/white/png?text=TF",
-      "sizes": "180x180",
-      "type": "image/png"
     }
   ]
 }
