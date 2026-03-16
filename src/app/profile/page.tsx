@@ -571,7 +571,8 @@ export default function ProfilePage() {
                       Update Password
                     </Button>
                   </CardFooter>
-                </form>
+                </Card>
+              </form>
 
               <Card className="border-destructive/20 bg-destructive/5 shadow-sm">
                 <CardHeader>
