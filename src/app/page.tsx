@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -818,8 +817,8 @@ export default function Home() {
                         <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold uppercase">{importProgress}%</span>
                       </div>
                       <div className="space-y-2">
-                        <h2 className="text-xl font-bold tracking-tight">Importing to Cloud</h2>
-                        <p className="text-muted-foreground text-sm max-w-xs mx-auto">
+                        <h2 className="text-xl font-semibold tracking-tight">Importing to Cloud</h2>
+                        <p className="text-muted-foreground text-sm max-w-xs mx-auto font-normal">
                             Your data is being imported to the cloud. This may take a few minutes for large datasets.
                         </p>
                       </div>
@@ -834,8 +833,8 @@ export default function Home() {
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-6">
         <div className="flex flex-col gap-1">
             <div className="flex items-center gap-3">
-                <h1 className="text-4xl font-bold tracking-tight text-foreground">Tasks</h1>
-                <Badge variant="outline" className={cn(mode === 'authenticate' ? "text-primary border-primary/20 bg-primary/5" : "text-muted-foreground", "h-6 px-3 text-[10px] font-semibold uppercase tracking-wider")}>
+                <h1 className="text-4xl font-semibold tracking-tight text-foreground">Tasks</h1>
+                <Badge variant="outline" className={cn(mode === 'authenticate' ? "text-primary border-primary/20 bg-primary/5" : "text-muted-foreground", "h-6 px-3 text-[10px] font-medium uppercase tracking-wider")}>
                     {mode === 'authenticate' ? 'Cloud Sync' : 'Local Storage'}
                 </Badge>
             </div>
@@ -849,12 +848,12 @@ export default function Home() {
                         <div className="p-3 bg-primary/10 rounded-full w-fit mb-2">
                            <GraduationCap className="h-6 w-6 text-primary" />
                         </div>
-                        <DialogTitle className="text-xl">Welcome!</DialogTitle>
-                        <DialogDescription>Want a quick tour?</DialogDescription>
+                        <DialogTitle className="text-xl font-semibold">Welcome!</DialogTitle>
+                        <DialogDescription className="font-normal">Want a quick tour?</DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="flex-row justify-center sm:justify-center gap-2 pt-4">
-                        <Button variant="ghost" onClick={() => setShowTutorialPrompt(false)}>Maybe later</Button>
-                        <Button onClick={() => { setShowTutorialPrompt(false); startTutorial(); }}>Start Tutorial</Button>
+                        <Button variant="ghost" onClick={() => setShowTutorialPrompt(false)} className="font-normal">Maybe later</Button>
+                        <Button onClick={() => { setShowTutorialPrompt(false); startTutorial(); }} className="font-medium">Start Tutorial</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -867,7 +866,7 @@ export default function Home() {
               >
                 <BellRing className="mr-2 h-4 w-4 shrink-0" />
                  <span className="truncate">Important Reminders</span>
-                <Badge variant="secondary" className="ml-2 bg-amber-500/20 text-amber-700 dark:text-amber-300 border-none shadow-none">{pinnedReminders.length + generalReminders.length}</Badge>
+                <Badge variant="secondary" className="ml-2 bg-amber-500/20 text-amber-700 dark:text-amber-300 border-none shadow-none font-medium">{pinnedReminders.length + generalReminders.length}</Badge>
               </Button>
             )}
 
@@ -880,9 +879,9 @@ export default function Home() {
                     </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => handleExport('current_view')}>Export Current View</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => handleExport('all_tasks')}>Export All Tasks</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={handleDownloadTemplate}>Download Import Template</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => handleExport('current_view')} className="font-medium">Export Current View</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => handleExport('all_tasks')} className="font-medium">Export All Tasks</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={handleDownloadTemplate} className="font-medium">Download Import Template</DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
 
@@ -905,14 +904,14 @@ export default function Home() {
           <div className="space-y-3">
               <Button 
                 variant="secondary" 
-                className="w-full flex lg:hidden items-center justify-between h-12 px-4 font-semibold shadow-sm border"
+                className="w-full flex lg:hidden items-center justify-between h-12 px-4 font-medium shadow-sm border"
                 onClick={() => setIsFiltersOpen(!isFiltersOpen)}
               >
                 <span className="flex items-center gap-2">
                     <Filter className="h-4 w-4" />
                     Filters
                     {(statusFilter.length > 0 || repoFilter.length > 0 || deploymentFilter.length > 0 || tagsFilter.length > 0) && (
-                        <Badge className="bg-primary text-primary-foreground h-5 px-1.5 min-w-5">
+                        <Badge className="bg-primary text-primary-foreground h-5 px-1.5 min-w-5 font-medium">
                             {statusFilter.length + repoFilter.length + deploymentFilter.length + tagsFilter.length}
                         </Badge>
                     )}
@@ -937,7 +936,7 @@ export default function Home() {
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         onKeyDown={handleSearchKeyDown}
-                                        className="w-full pl-10 pr-24 h-11"
+                                        className="w-full pl-10 pr-24 h-11 font-normal"
                                     />
                                     <div className="absolute right-0 flex items-center h-full pr-1.5 gap-1">
                                         {searchQuery && (
@@ -958,7 +957,7 @@ export default function Home() {
                                                     </kbd>
                                                 </TooltipTrigger>
                                                 <TooltipContent side="top">
-                                                    <div className="flex items-center gap-2">
+                                                    <div className="flex items-center gap-2 font-normal">
                                                         <CornerDownLeft className="h-3 w-3" />
                                                         <span>Press Enter to search</span>
                                                     </div>
@@ -983,8 +982,8 @@ export default function Home() {
            {searchError && (
                 <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Search failed</AlertTitle>
-                    <AlertDescription>{searchError}</AlertDescription>
+                    <AlertTitle className="font-semibold">Search failed</AlertTitle>
+                    <AlertDescription className="font-normal">{searchError}</AlertDescription>
                 </Alert>
            )}
 
@@ -1007,10 +1006,10 @@ export default function Home() {
                       </div>
                   )}
                     <div>
-                      <h2 className="text-lg font-bold tracking-tight">
+                      <h2 className="text-lg font-semibold tracking-tight">
                         {favoritesOnly ? 'Favorite Tasks' : `${sortedTasks.length} Results`}
                       </h2>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                         {favoritesOnly 
                           ? `Showing ${sortedTasks.length} favorited items.` 
                           : (dateView === 'all' ? 'Based on active filters.' : dateView === 'monthly' ? `Start date in ${format(selectedDate, 'MMM yyyy')}` : `Start date in ${format(selectedDate, 'yyyy')}`)}
@@ -1020,18 +1019,18 @@ export default function Home() {
 
                 <div id="view-mode-toggle" className="flex items-center gap-x-2 gap-y-2 flex-wrap justify-start sm:justify-end">
                   <Select value={sortDescriptor} onValueChange={setSortDescriptor}>
-                      <SelectTrigger className="w-auto sm:w-[180px] h-10 font-semibold"><SelectValue placeholder="Sort by" /></SelectTrigger>
+                      <SelectTrigger className="w-auto sm:w-[180px] h-10 font-medium"><SelectValue placeholder="Sort by" /></SelectTrigger>
                       <SelectContent>
-                          <SelectItem value="status-asc">Status (Asc)</SelectItem>
-                          <SelectItem value="status-desc">Status (Desc)</SelectItem>
-                          <SelectItem value="title-asc">Title (A-Z)</SelectItem>
-                          <SelectItem value="title-desc">Title (Z-A)</SelectItem>
+                          <SelectItem value="status-asc" className="font-medium">Status (Asc)</SelectItem>
+                          <SelectItem value="status-desc" className="font-medium">Status (Desc)</SelectItem>
+                          <SelectItem value="title-asc" className="font-medium">Title (A-Z)</SelectItem>
+                          <SelectItem value="title-desc" className="font-medium">Title (Z-A)</SelectItem>
                       </SelectContent>
                   </Select>
 
                    <div className="flex h-10 items-center justify-center rounded-md bg-muted p-1">
-                        <Button variant={dateView === 'all' ? 'default' : 'ghost'} onClick={() => setDateView('all')} className={cn("h-8 shadow-sm px-3 font-semibold", dateView === 'all' && 'bg-card text-foreground')}>All</Button>
-                        <Button variant={dateView === 'monthly' ? 'default' : 'ghost'} onClick={() => setDateView('monthly')} className={cn("h-8 shadow-sm px-3 font-semibold", dateView === 'monthly' && 'bg-card text-foreground')}>Monthly</Button>
+                        <Button variant={dateView === 'all' ? 'default' : 'ghost'} onClick={() => setDateView('all')} className={cn("h-8 shadow-sm px-3 font-medium", dateView === 'all' && 'bg-card text-foreground')}>All</Button>
+                        <Button variant={dateView === 'monthly' ? 'default' : 'ghost'} onClick={() => setDateView('monthly')} className={cn("h-8 shadow-sm px-3 font-medium", dateView === 'monthly' && 'bg-card text-foreground')}>Monthly</Button>
                    </div>
 
                   <div className="flex items-center gap-2">
@@ -1045,7 +1044,7 @@ export default function Home() {
                     <TooltipTrigger asChild>
                       <Button variant={favoritesOnly ? 'secondary' : 'outline'} size="icon" onClick={handleFavoritesToggle} className="h-10 w-10"><Heart className={cn("h-4 w-4", favoritesOnly && "fill-red-500 text-red-500")} /></Button>
                     </TooltipTrigger>
-                    <TooltipContent><p>{favoritesOnly ? 'All tasks' : 'Favorites only'}</p></TooltipContent>
+                    <TooltipContent className="font-normal"><p>{favoritesOnly ? 'All tasks' : 'Favorites only'}</p></TooltipContent>
                   </Tooltip>
                   </TooltipProvider>
                    <TooltipProvider>
@@ -1053,7 +1052,7 @@ export default function Home() {
                     <TooltipTrigger asChild>
                       <Button variant={isSelectMode ? 'secondary' : 'outline'} size="icon" onClick={handleToggleSelectMode} className="h-10 w-10 relative overflow-hidden"><CheckSquare className={cn("h-4 w-4 transition-all duration-300", isSelectMode ? "opacity-0" : "opacity-100")} /><X className={cn("h-4 w-4 transition-all duration-300 absolute", isSelectMode ? "opacity-100" : "opacity-0")} /></Button>
                     </TooltipTrigger>
-                    <TooltipContent><p>{isSelectMode ? 'Cancel selection' : 'Select multiple'}</p></TooltipContent>
+                    <TooltipContent className="font-normal"><p>{isSelectMode ? 'Cancel selection' : 'Select multiple'}</p></TooltipContent>
                   </Tooltip>
                   </TooltipProvider>
               </div>
@@ -1069,16 +1068,16 @@ export default function Home() {
                     </div>
 
                     <div className={cn('flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto', selectedTaskIds.length > 0 ? 'opacity-100' : 'opacity-0 pointer-events-none')}>
-                      <Button variant="outline" size="sm" onClick={() => setIsTagsDialogOpen(true)}><Tag className="mr-2 h-4 w-4" /> Tags</Button>
-                      <Button variant="outline" size="sm" onClick={handleBulkCopyText}><Copy className="mr-2 h-4 w-4" /> Copy</Button>
-                      <Button variant="outline" size="sm" onClick={handleBulkExportPdf}><Download className="mr-2 h-4 w-4" /> PDF</Button>
+                      <Button variant="outline" size="sm" onClick={() => setIsTagsDialogOpen(true)} className="font-medium"><Tag className="mr-2 h-4 w-4" /> Tags</Button>
+                      <Button variant="outline" size="sm" onClick={handleBulkCopyText} className="font-medium"><Copy className="mr-2 h-4 w-4" /> Copy</Button>
+                      <Button variant="outline" size="sm" onClick={handleBulkExportPdf} className="font-medium"><Download className="mr-2 h-4 w-4" /> PDF</Button>
                       <AlertDialog>
-                        <AlertDialogTrigger asChild><Button variant="destructive" size="sm"><Trash2 className="mr-2 h-4 w-4" /> Delete</Button></AlertDialogTrigger>
+                        <AlertDialogTrigger asChild><Button variant="destructive" size="sm" className="font-medium"><Trash2 className="mr-2 h-4 w-4" /> Delete</Button></AlertDialogTrigger>
                         <AlertDialogContent>
-                          <AlertDialogHeader><AlertDialogTitle>Move to Bin?</AlertDialogTitle><AlertDialogDescription>Move {selectedTaskIds.length} tasks to the bin?</AlertDialogDescription></AlertDialogHeader>
+                          <AlertDialogHeader><AlertDialogTitle className="font-semibold">Move to Bin?</AlertDialogTitle><AlertDialogDescription className="font-normal">Move {selectedTaskIds.length} tasks to the bin?</AlertDialogDescription></AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive">Delete</AlertDialogAction>
+                            <AlertDialogCancel className="font-normal">Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive font-medium">Delete</AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
@@ -1094,11 +1093,11 @@ export default function Home() {
                         <div className="bg-background/95 backdrop-blur-sm px-5 py-2 rounded-full border shadow-lg flex items-center gap-3 animate-in fade-in zoom-in duration-300">
                             <Loader2 className="h-4 w-4 text-primary animate-spin" />
                             <div className="flex flex-col leading-none">
-                                <span className="text-xs font-bold tracking-tight">
+                                <span className="text-xs font-semibold tracking-tight">
                                     {showSlowSearchMessage ? "Still searching..." : "Searching tasks..."}
                                 </span>
                                 {showSlowSearchMessage && (
-                                    <span className="text-[9px] text-muted-foreground mt-0.5">Thanks for your patience</span>
+                                    <span className="text-[9px] text-muted-foreground mt-0.5 font-normal">Thanks for your patience</span>
                                 )}
                             </div>
                         </div>
@@ -1123,7 +1122,7 @@ export default function Home() {
                                 <>
                                     <Heart className="h-16 w-16 mb-4 opacity-20 text-red-500" />
                                     <p className="text-lg font-semibold">No favorite tasks found.</p>
-                                    <p className="text-sm mt-1 max-w-xs mx-auto text-center font-medium">Tap the heart icon on any task card to add it to your personal favorites list.</p>
+                                    <p className="text-sm mt-1 max-w-xs mx-auto text-center font-normal">Tap the heart icon on any task card to add it to your personal favorites list.</p>
                                     <div className="flex gap-2 mt-6">
                                         <Button variant="outline" size="sm" onClick={() => setFavoritesOnly(false)} className="font-medium">View All Tasks</Button>
                                     </div>

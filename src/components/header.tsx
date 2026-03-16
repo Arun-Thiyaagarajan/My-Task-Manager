@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -214,28 +213,28 @@ export function Header() {
                 )}
 
               <HeaderLink href="/" className="hidden sm:inline-block">
-                <span className="font-bold tracking-tight text-lg">{uiConfig?.appName || 'Task Manager'}</span>
+                <span className="font-semibold tracking-tight text-lg">{uiConfig?.appName || 'Task Manager'}</span>
               </HeaderLink>
             </div>
 
             <nav className="hidden lg:flex items-center gap-6">
-               <HeaderLink href="/" id="header-nav-home" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
+               <HeaderLink href="/" id="header-nav-home" className="flex items-center text-sm font-normal text-muted-foreground hover:text-foreground transition-colors group">
                   <Home className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   Tasks
                </HeaderLink>
-               <HeaderLink href="/dashboard" id="header-nav-dashboard" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
+               <HeaderLink href="/dashboard" id="header-nav-dashboard" className="flex items-center text-sm font-normal text-muted-foreground hover:text-foreground transition-colors group">
                   <LayoutDashboard className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   Dashboard
                </HeaderLink>
-               <HeaderLink href="/settings" id="header-nav-settings" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
+               <HeaderLink href="/settings" id="header-nav-settings" className="flex items-center text-sm font-normal text-muted-foreground hover:text-foreground transition-colors group">
                   <Cog className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   Settings
                </HeaderLink>
-               <HeaderLink href="/releases" id="header-nav-releases" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
+               <HeaderLink href="/releases" id="header-nav-releases" className="flex items-center text-sm font-normal text-muted-foreground hover:text-foreground transition-colors group">
                   <History className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   Releases
                </HeaderLink>
-               <HeaderLink href="/bin" id="header-nav-bin" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
+               <HeaderLink href="/bin" id="header-nav-bin" className="flex items-center text-sm font-normal text-muted-foreground hover:text-foreground transition-colors group">
                   <Trash2 className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   Bin
                </HeaderLink>
@@ -245,16 +244,16 @@ export function Header() {
             {activeCompany && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="px-3 sm:px-4 font-semibold shadow-sm border-primary/10 bg-primary/5 hover:bg-primary/10 h-9 rounded-full transition-all">
+                  <Button variant="outline" className="px-3 sm:px-4 font-medium shadow-sm border-primary/10 bg-primary/5 hover:bg-primary/10 h-9 rounded-full transition-all">
                       <Building className="h-4 w-4 sm:mr-2 text-primary" />
                       <span className="hidden sm:inline tracking-tight">{activeCompany.name}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-64 p-2 rounded-xl shadow-xl">
-                  <DropdownMenuLabel className="px-2 py-1.5 text-xs font-bold uppercase tracking-widest text-muted-foreground/60">Switch Company</DropdownMenuLabel>
+                  <DropdownMenuLabel className="px-2 py-1.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground/60">Switch Company</DropdownMenuLabel>
                   <DropdownMenuRadioGroup value={activeCompanyId} onValueChange={handleCompanyChange}>
                       {companies.map((company) => (
-                          <DropdownMenuRadioItem key={company.id} value={company.id} className="rounded-lg font-semibold py-2">
+                          <DropdownMenuRadioItem key={company.id} value={company.id} className="rounded-lg font-medium py-2">
                               {company.name}
                           </DropdownMenuRadioItem>
                       ))}
@@ -263,14 +262,14 @@ export function Header() {
                   <DropdownMenuSeparator className="my-2" />
                   
                   <DropdownMenuGroup className="space-y-1">
-                      <DropdownMenuItem onSelect={handleAddCompany} className="rounded-lg font-bold text-primary focus:bg-primary/5 focus:text-primary">
+                      <DropdownMenuItem onSelect={handleAddCompany} className="rounded-lg font-semibold text-primary focus:bg-primary/5 focus:text-primary">
                           <PlusCircle className="mr-2 h-4 w-4" />
                           <span>Add New Company</span>
                       </DropdownMenuItem>
-                      <DropdownMenuLabel className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 mt-2">Manage</DropdownMenuLabel>
+                      <DropdownMenuLabel className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/40 mt-2">Manage</DropdownMenuLabel>
                       {companies.map((company) => (
                           <DropdownMenuItem key={company.id} onSelect={e => e.preventDefault()} className="flex justify-between items-center pr-1 rounded-lg">
-                              <span className="flex-1 truncate pr-2 font-medium">{company.name}</span>
+                              <span className="flex-1 truncate pr-2 font-normal">{company.name}</span>
                               <div className="flex items-center gap-0.5">
                                   <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" onClick={(e) => { e.stopPropagation(); handleEditCompany(company); }}>
                                       <Edit className="h-3.5 w-3.5 text-muted-foreground" />
@@ -284,14 +283,14 @@ export function Header() {
                                       </AlertDialogTrigger>
                                       <AlertDialogContent className="rounded-2xl">
                                           <AlertDialogHeader>
-                                              <AlertDialogTitle className="font-bold tracking-tight">Are you sure?</AlertDialogTitle>
-                                              <AlertDialogDescription className="font-medium">
+                                              <AlertDialogTitle className="font-semibold tracking-tight">Are you sure?</AlertDialogTitle>
+                                              <AlertDialogDescription className="font-normal">
                                                   This action cannot be undone. This will permanently delete the company and all its tasks.
                                               </AlertDialogDescription>
                                           </AlertDialogHeader>
                                           <AlertDialogFooter className="pt-4 gap-2">
-                                              <AlertDialogCancel className="rounded-xl font-semibold">Cancel</AlertDialogCancel>
-                                              <AlertDialogAction onClick={() => handleDeleteCompany(company.id)} className="bg-destructive hover:bg-destructive/90 rounded-xl font-bold px-6">
+                                              <AlertDialogCancel className="rounded-xl font-medium">Cancel</AlertDialogCancel>
+                                              <AlertDialogAction onClick={() => handleDeleteCompany(id)} className="bg-destructive hover:bg-destructive/90 rounded-xl font-semibold px-6">
                                                   Delete Company
                                               </AlertDialogAction>
                                           </AlertDialogFooter>
@@ -313,8 +312,8 @@ export function Header() {
                                 <span className="sr-only">Show Tutorial</span>
                             </Button>
                         </TooltipTrigger>
-                        <TooltipContent>
-                            <p className="font-medium">Start Tutorial</p>
+                        <TooltipContent className="font-normal">
+                            <p>Start Tutorial</p>
                         </TooltipContent>
                     </Tooltip>
                 </div>
@@ -342,7 +341,7 @@ export function Header() {
                         <Avatar className="h-full w-full">
                           <AvatarImage src={profilePhoto || undefined} className="object-cover" />
                           <AvatarFallback 
-                            className="text-white text-[10px] font-bold"
+                            className="text-white text-[10px] font-semibold"
                             style={{ background: getAvatarGradient(profileName) }}
                           >
                             {getInitials(profileName)}
@@ -357,7 +356,7 @@ export function Header() {
                 <DropdownMenuContent className="w-60 p-2 rounded-xl shadow-xl" align="end" forceMount>
                   <DropdownMenuLabel className="font-normal p-2">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-bold leading-none truncate tracking-tight">
+                      <p className="text-sm font-semibold leading-none truncate tracking-tight">
                         {authMode === 'authenticate' && user ? (profileName) : 'Guest User'}
                       </p>
                       <p className="text-[10px] leading-none text-muted-foreground truncate font-medium uppercase tracking-wider">
@@ -368,17 +367,17 @@ export function Header() {
                   <DropdownMenuSeparator className="my-2" />
                   <DropdownMenuGroup className="space-y-1">
                     {authMode === 'authenticate' && user ? (
-                      <DropdownMenuItem onSelect={() => prompt(() => router.push('/profile'))} className="rounded-lg font-semibold py-2">
+                      <DropdownMenuItem onSelect={() => prompt(() => router.push('/profile'))} className="rounded-lg font-medium py-2">
                         <UserIcon className="mr-2 h-4 w-4 opacity-70" />
                         <span>My Profile</span>
                       </DropdownMenuItem>
                     ) : (
-                      <DropdownMenuItem onSelect={() => setIsAuthModalOpen(true)} className="rounded-lg font-bold text-primary focus:bg-primary/5 focus:text-primary py-2">
+                      <DropdownMenuItem onSelect={() => setIsAuthModalOpen(true)} className="rounded-lg font-semibold text-primary focus:bg-primary/5 focus:text-primary py-2">
                         <ShieldCheck className="mr-2 h-4 w-4" />
                         <span>Sign In / Cloud Sync</span>
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem onSelect={() => prompt(() => router.push('/logs'))} className="rounded-lg font-semibold py-2">
+                    <DropdownMenuItem onSelect={() => prompt(() => router.push('/logs'))} className="rounded-lg font-medium py-2">
                       <FileClock className="mr-2 h-4 w-4 opacity-70" />
                       <span>Activity Logs</span>
                     </DropdownMenuItem>
@@ -386,7 +385,7 @@ export function Header() {
                   {authMode === 'authenticate' && (
                     <>
                       <DropdownMenuSeparator className="my-2" />
-                      <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setIsSignOutDialogOpen(true); }} className="text-destructive focus:text-destructive focus:bg-destructive/5 rounded-lg font-bold py-2">
+                      <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setIsSignOutDialogOpen(true); }} className="text-destructive focus:text-destructive focus:bg-destructive/5 rounded-lg font-semibold py-2">
                         <LogOut className="mr-2 h-4 w-4" />
                         <span>Sign Out</span>
                       </DropdownMenuItem>
@@ -421,14 +420,14 @@ export function Header() {
       <AlertDialog open={isSignOutDialogOpen} onOpenChange={setIsSignOutDialogOpen}>
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle className="font-bold tracking-tight">Sign Out Confirmation</AlertDialogTitle>
-            <AlertDialogDescription className="font-medium">
+            <AlertDialogTitle className="font-semibold tracking-tight">Sign Out Confirmation</AlertDialogTitle>
+            <AlertDialogDescription className="font-normal">
               You will be returned to Local Mode. Your cloud data is safe and will sync back the next time you sign in.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="pt-4 gap-2">
-            <AlertDialogCancel className="rounded-xl font-semibold">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleSignOut} className="bg-destructive hover:bg-destructive/90 rounded-xl font-bold px-6">
+            <AlertDialogCancel className="rounded-xl font-medium">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSignOut} className="bg-destructive hover:bg-destructive/90 rounded-xl font-semibold px-6">
                 Sign Out
             </AlertDialogAction>
           </AlertDialogFooter>
