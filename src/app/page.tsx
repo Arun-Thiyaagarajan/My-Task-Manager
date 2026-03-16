@@ -841,6 +841,19 @@ export default function Home() {
   const isVerifyingCloud = authMode === 'authenticate' && (isUserLoading || !activeCompanyId || !isInitialSyncComplete(activeCompanyId));
   const activeSkeletons = isLoading || isSearching || isVerifyingCloud || !hasInitialized;
 
+  const tagsOptions = useMemo(() => {
+      const tagsField = (uiConfig?.fields || []).find(f => f.key === 'tags');
+      const predefined = tagsField?.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
+      const dynamic = [...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({value: t, label: t}));
+      const combined = [...predefined];
+      dynamic.forEach(d => {
+          if (!combined.some(p => p.value === d.value)) {
+              combined.push(d);
+          }
+      });
+      return combined;
+  }, [uiConfig, tasks]);
+
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
       {isImporting && (
@@ -1185,8 +1198,8 @@ export default function Home() {
             {isSelectMode && (
               <div className="sticky top-[68px] z-30 mb-4">
                 <Card className="border-primary/50 bg-background/90 backdrop-blur-sm shadow-lg overflow-hidden">
-                  <CardContent className="p-3 flex flex-col md:flex-row items-center justify-between gap-4">
-                    <div className="flex items-center gap-3 w-full md:w-auto">
+                  <CardContent className="p-4 flex flex-col gap-4">
+                    <div className="flex items-center gap-3">
                       <Checkbox 
                         id="select-all-tasks" 
                         checked={filteredTasks.length > 0 && selectedTaskIds.length === filteredTasks.length} 
@@ -1199,21 +1212,21 @@ export default function Home() {
                     </div>
 
                     <div className={cn(
-                        'flex flex-row flex-wrap items-center justify-center gap-2 w-full md:w-auto transition-opacity duration-300', 
+                        'grid grid-cols-2 sm:flex sm:flex-row sm:items-center items-stretch justify-center gap-2 w-full md:w-auto transition-opacity duration-300', 
                         selectedTaskIds.length > 0 ? 'opacity-100' : 'opacity-40 pointer-events-none'
                     )}>
-                      <Button variant="outline" size="sm" onClick={() => setIsTagsDialogOpen(true)} className="font-medium h-9 px-3">
+                      <Button variant="outline" size="sm" onClick={() => setIsTagsDialogOpen(true)} className="font-medium h-10 px-3">
                         <Tag className="mr-2 h-4 w-4" /> Tags
                       </Button>
-                      <Button variant="outline" size="sm" onClick={handleBulkCopyText} className="font-medium h-9 px-3">
+                      <Button variant="outline" size="sm" onClick={handleBulkCopyText} className="font-medium h-10 px-3">
                         <Copy className="mr-2 h-4 w-4" /> Copy
                       </Button>
-                      <Button variant="outline" size="sm" onClick={handleBulkExportPdf} className="font-medium h-9 px-3">
+                      <Button variant="outline" size="sm" onClick={handleBulkExportPdf} className="font-medium h-10 px-3">
                         <Download className="mr-2 h-4 w-4" /> PDF
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="sm" className="font-semibold h-9 px-3">
+                            <Button variant="destructive" size="sm" className="font-semibold h-10 px-3">
                                 <Trash2 className="mr-2 h-4 w-4" /> Delete
                             </Button>
                         </AlertDialogTrigger>
@@ -1278,6 +1291,38 @@ export default function Home() {
       {uiConfig?.remindersEnabled && (pinnedReminders.length + generalReminders.length) > 0 && (
         <ReminderStack reminders={pinnedReminders} generalReminders={generalReminders} uiConfig={uiConfig} onUnpin={handleUnpinFromStack} onDismissGeneralReminder={handleDismissGeneralReminder} isOpen={isReminderStackOpen} onOpenChange={setIsReminderStackOpen} />
      )}
+
+     {/* Bulk Tags Dialog */}
+     <Dialog open={isTagsDialogOpen} onOpenChange={setIsTagsDialogOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+            <DialogHeader>
+                <div className="flex items-center gap-2 mb-1">
+                    <div className="p-2 bg-primary/10 rounded-full">
+                        <Tag className="h-4 w-4 text-primary" />
+                    </div>
+                    <DialogTitle>Apply Tags</DialogTitle>
+                </div>
+                <DialogDescription className="font-normal text-sm">
+                    Select tags to apply to the **{selectedTaskIds.length}** selected task(s).
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-6">
+                <MultiSelect
+                    selected={tagsToApply}
+                    onChange={setTagsToApply}
+                    options={tagsOptions}
+                    placeholder="Search or create tags..."
+                    creatable
+                />
+            </div>
+            <DialogFooter className="gap-2 sm:justify-end">
+                <Button variant="ghost" onClick={() => setIsTagsDialogOpen(false)} className="font-medium">Cancel</Button>
+                <Button onClick={handleBulkApplyTags} disabled={tagsToApply.length === 0} className="font-bold px-6">
+                    Apply to {selectedTaskIds.length} Tasks
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+     </Dialog>
     </div>
   );
 }
