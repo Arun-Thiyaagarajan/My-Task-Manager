@@ -60,7 +60,7 @@ export default function RootLayout({
             <Header />
             <NavigationLoader />
             <PullToRefresh>
-              <main className="flex-1 pb-24 md:pb-0">{children}</main>
+              <main className="flex-1 pb-32 md:pb-0">{children}</main>
             </PullToRefresh>
             <FloatingNotes />
             <MobileBottomNav />

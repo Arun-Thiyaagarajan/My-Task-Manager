@@ -81,7 +81,16 @@ export function MobileBottomNav() {
     : localProfile.photoURL;
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border flex items-center justify-around h-20 px-2 pb-4 safe-area-pb">
+    <nav 
+      className={cn(
+        "md:hidden fixed bottom-0 inset-x-0 z-[100] bg-background/95 backdrop-blur-md border-t border-border shadow-[0_-4px_16px_rgba(0,0,0,0.05)]",
+        "flex items-center justify-around px-2 transform-gpu transition-all duration-300"
+      )}
+      style={{
+        paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
+        height: 'calc(5.5rem + env(safe-area-inset-bottom))'
+      }}
+    >
       {navItems.map((item) => {
         const Icon = item.icon;
         const isActive = pathname === item.href;
@@ -105,7 +114,7 @@ export function MobileBottomNav() {
       <div className="flex-1 flex flex-col items-center justify-center">
         <Button 
           size="icon" 
-          className="h-12 w-12 rounded-full shadow-lg shadow-primary/30 -mt-10 border-4 border-background active:scale-95 transition-transform"
+          className="h-12 w-12 rounded-full shadow-lg shadow-primary/30 -mt-12 border-4 border-background active:scale-95 transition-transform"
           onClick={() => handleNavigate('/tasks/new')}
         >
           <Plus className="h-6 w-6" />
@@ -147,7 +156,7 @@ export function MobileBottomNav() {
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Me</span>
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" side="top" className="w-56 mb-2" sideOffset={12}>
+          <DropdownMenuContent align="end" side="top" className="w-56 mb-4" sideOffset={16}>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
                 <p className="text-sm font-bold truncate">{profileName}</p>
