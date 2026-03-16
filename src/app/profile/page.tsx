@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -32,7 +33,9 @@ import {
   Settings,
   Maximize2,
   LogOut,
-  UserCog
+  UserCog,
+  History,
+  RotateCcw
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
@@ -122,13 +125,21 @@ export default function ProfilePage() {
       await updateProfile(user, authUpdates);
       
       const userRef = doc(firestore, 'users', user.uid);
-      await setDoc(userRef, {
+      
+      // Determine if we should update history
+      const updates: any = {
         id: user.uid,
         username: displayName,
         email: email,
         photoURL: photoURL,
         updatedAt: new Date().toISOString()
-      }, { merge: true });
+      };
+
+      if (photoURL !== userProfile?.photoURL && userProfile?.photoURL) {
+          updates.previousPhotoURL = userProfile.photoURL;
+      }
+
+      await setDoc(userRef, updates, { merge: true });
 
       toast({ variant: 'success', title: 'Profile Updated', description: 'Your information has been saved successfully.' });
     } catch (error: any) {
@@ -178,6 +189,13 @@ export default function ProfilePage() {
         setIsPreviewOpen(false);
         setIsCropperOpen(true);
     }
+  };
+
+  const handleRestorePrevious = () => {
+      if (userProfile?.previousPhotoURL) {
+          setPhotoURL(userProfile.previousPhotoURL);
+          toast({ title: 'Photo restored', description: 'Don\'t forget to click "Save Changes" to apply.' });
+      }
   };
 
   const handlePasswordChange = async (e: React.FormEvent) => {
@@ -366,6 +384,41 @@ export default function ProfilePage() {
               </div>
             </div>
           </Card>
+
+          {userProfile?.previousPhotoURL && (
+              <Card className="p-4 border-dashed border-2 bg-muted/5">
+                  <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+                          <History className="h-3.5 w-3.5" />
+                          Previously Used
+                      </div>
+                      <TooltipProvider>
+                          <Tooltip>
+                              <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={handleRestorePrevious}>
+                                      <RotateCcw className="h-3 w-3" />
+                                  </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Restore this photo</TooltipContent>
+                          </Tooltip>
+                      </TooltipProvider>
+                  </div>
+                  <div className="flex justify-center">
+                      <button 
+                        onClick={handleRestorePrevious}
+                        className="relative group/restore cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full"
+                      >
+                        <Avatar className="h-16 w-16 border-2 border-border transition-all group-hover/restore:border-primary/50 group-hover/restore:scale-105">
+                            <AvatarImage src={userProfile.previousPhotoURL} className="object-cover" />
+                            <AvatarFallback className="text-xs">Old</AvatarFallback>
+                        </Avatar>
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover/restore:opacity-100 transition-opacity">
+                            <RotateCcw className="h-5 w-5 text-white" />
+                        </div>
+                      </button>
+                  </div>
+              </Card>
+          )}
         </div>
 
         {/* Main Content Area */}

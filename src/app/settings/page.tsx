@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -147,7 +148,14 @@ export default function SettingsPage() {
   };
 
   const handleSaveDisplaySettings = () => {
-    handleUpdateConfig({ appName, appIcon, timeFormat });
+    const updates: Partial<UiConfig> = { appName, appIcon, timeFormat };
+    
+    // Manage previous icon history
+    if (uiConfig?.appIcon && uiConfig.appIcon !== appIcon) {
+        updates.previousAppIcon = uiConfig.appIcon;
+    }
+
+    handleUpdateConfig(updates);
     toast({ variant: 'success', title: 'Display settings saved.' });
   };
 
@@ -189,6 +197,13 @@ export default function SettingsPage() {
         setIsPreviewOpen(false);
         setIsCropperOpen(true);
     }
+  };
+
+  const handleRestorePreviousIcon = () => {
+      if (uiConfig?.previousAppIcon) {
+          setAppIcon(uiConfig.previousAppIcon);
+          toast({ title: 'Icon restored', description: 'Click "Save Display Settings" to apply.' });
+      }
   };
 
   const handleFieldToggle = (key: string, property: 'isActive' | 'isRequired') => {
@@ -597,6 +612,33 @@ export default function SettingsPage() {
                             <input type="file" ref={iconFileInputRef} onChange={handleIconUpload} className="hidden" accept="image/*" />
                         </div>
                     </div>
+
+                    {uiConfig.previousAppIcon && (
+                        <div className="p-3 rounded-xl border border-dashed bg-muted/5">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                                    <History className="h-3 w-3" />
+                                    Previously Used
+                                </span>
+                                <Button variant="ghost" size="sm" className="h-6 text-[10px] font-bold px-2 rounded-full" onClick={handleRestorePreviousIcon}>
+                                    <RotateCcw className="h-3 w-3 mr-1" /> Reuse
+                                </Button>
+                            </div>
+                            <div className="flex justify-center">
+                                <button 
+                                    onClick={handleRestorePreviousIcon}
+                                    className="h-12 w-12 border rounded-xl flex items-center justify-center bg-background text-xl overflow-hidden shadow-sm hover:ring-4 hover:ring-primary/5 transition-all group"
+                                >
+                                    {uiConfig.previousAppIcon.startsWith('data:image') ? (
+                                        <img src={uiConfig.previousAppIcon} alt="Previous" className="h-full w-full object-contain group-hover:scale-110 transition-transform" />
+                                    ) : (
+                                        <span className="group-hover:scale-110 transition-transform">{uiConfig.previousAppIcon}</span>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="space-y-2">
                         <Label className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Time Display</Label>
                         <div className="grid grid-cols-2 gap-2">

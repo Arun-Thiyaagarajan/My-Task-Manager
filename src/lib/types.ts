@@ -164,6 +164,7 @@ export interface UserProfile {
   email?: string;
   username?: string;
   photoURL?: string | null;
+  previousPhotoURL?: string | null;
   role?: 'admin' | 'user';
   emailVerified: boolean;
   createdAt: string;
@@ -185,6 +186,7 @@ export interface UiConfig {
   taskStatuses: string[];
   appName?: string;
   appIcon?: string | null;
+  previousAppIcon?: string | null;
   remindersEnabled?: boolean;
   tutorialEnabled?: boolean;
   timeFormat?: '12h' | '24h';
