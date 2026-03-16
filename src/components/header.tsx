@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -218,23 +219,27 @@ export function Header() {
             </div>
 
             <nav className="hidden lg:flex items-center gap-6">
-               <HeaderLink href="/" id="header-nav-home" className="flex items-center text-sm font-normal text-muted-foreground hover:text-foreground transition-colors group">
+               <HeaderLink href="/" id="header-nav-home" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
                   <Home className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   Tasks
                </HeaderLink>
-               <HeaderLink href="/dashboard" id="header-nav-dashboard" className="flex items-center text-sm font-normal text-muted-foreground hover:text-foreground transition-colors group">
+               <HeaderLink href="/dashboard" id="header-nav-dashboard" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
                   <LayoutDashboard className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   Dashboard
                </HeaderLink>
-               <HeaderLink href="/settings" id="header-nav-settings" className="flex items-center text-sm font-normal text-muted-foreground hover:text-foreground transition-colors group">
+               <HeaderLink href="/settings" id="header-nav-settings" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
                   <Cog className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   Settings
                </HeaderLink>
-               <HeaderLink href="/releases" id="header-nav-releases" className="flex items-center text-sm font-normal text-muted-foreground hover:text-foreground transition-colors group">
+               <HeaderLink href="/releases" id="header-nav-releases" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
                   <History className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   Releases
                </HeaderLink>
-               <HeaderLink href="/bin" id="header-nav-bin" className="flex items-center text-sm font-normal text-muted-foreground hover:text-foreground transition-colors group">
+               <HeaderLink href="/logs" id="header-nav-logs" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
+                  <FileClock className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
+                  Logs
+               </HeaderLink>
+               <HeaderLink href="/bin" id="header-nav-bin" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
                   <Trash2 className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   Bin
                </HeaderLink>
@@ -290,7 +295,7 @@ export function Header() {
                                           </AlertDialogHeader>
                                           <AlertDialogFooter className="pt-4 gap-2">
                                               <AlertDialogCancel className="rounded-xl font-medium">Cancel</AlertDialogCancel>
-                                              <AlertDialogAction onClick={() => handleDeleteCompany(id)} className="bg-destructive hover:bg-destructive/90 rounded-xl font-semibold px-6">
+                                              <AlertDialogAction onClick={() => handleDeleteCompany(company.id)} className="bg-destructive hover:bg-destructive/90 rounded-xl font-semibold px-6">
                                                   Delete Company
                                               </AlertDialogAction>
                                           </AlertDialogFooter>
@@ -377,10 +382,6 @@ export function Header() {
                         <span>Sign In / Cloud Sync</span>
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem onSelect={() => prompt(() => router.push('/logs'))} className="rounded-lg font-medium py-2">
-                      <FileClock className="mr-2 h-4 w-4 opacity-70" />
-                      <span>Activity Logs</span>
-                    </DropdownMenuItem>
                   </DropdownMenuGroup>
                   {authMode === 'authenticate' && (
                     <>
