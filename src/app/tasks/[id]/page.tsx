@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -128,7 +127,10 @@ export default function TaskPage() {
       } else {
         document.title = `Task Not Found | ${config.appName || 'My Task Manager'}`;
       }
+      
       setIsLoading(false);
+      // Ensure global loading bar is cleared when page data is ready
+      window.dispatchEvent(new Event('sync-end'));
     }
   }
 
