@@ -66,7 +66,7 @@ export function MobileBottomNav() {
   const profilePhoto = userProfile?.photoURL || user?.photoURL;
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border flex items-center justify-around h-16 px-2 safe-area-pb">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border flex items-center justify-around h-16 px-2 safe-area-pb">
       {navItems.map((item) => {
         const Icon = item.icon;
         const isActive = pathname === item.href;
@@ -147,7 +147,7 @@ export function MobileBottomNav() {
             <DropdownMenuGroup>
               {user && (
                 <DropdownMenuItem onSelect={() => handleNavigate('/profile')}>
-                  <UserIcon className="mr-2 h-4 w-4" />
+                  <UserIcon className="mr-2 h-4 w-4 opacity-70" />
                   <span>My Profile</span>
                 </DropdownMenuItem>
               )}

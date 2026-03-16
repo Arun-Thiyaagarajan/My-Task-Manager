@@ -218,7 +218,7 @@ export function Header() {
               </HeaderLink>
             </div>
 
-            <nav className="hidden lg:flex items-center gap-6">
+            <nav className="hidden md:flex items-center gap-6">
                <HeaderLink href="/" id="header-nav-home" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
                   <Home className="mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   Tasks
@@ -334,7 +334,7 @@ export function Header() {
                 <span className="sr-only">General Reminders</span>
             </Button>
             
-            <div className="hidden lg:block">
+            <div className="hidden md:block">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="relative h-10 w-10 rounded-full group ring-offset-background transition-all hover:ring-2 hover:ring-primary/20">

@@ -198,7 +198,7 @@ export default function DashboardPage() {
       ) : (
         <div className="space-y-8">
             {/* Key Stats Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
                 {summaryStats.map((stat, index) => (
                     <Card key={index} className={cn("border-t-4 transition-all hover:shadow-xl hover:-translate-y-1", stat.borderColor)}>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -213,7 +213,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Charts Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">

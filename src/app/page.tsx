@@ -831,7 +831,7 @@ export default function Home() {
           </div>
       )}
 
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-6">
         <div className="flex flex-col gap-1">
             <div className="flex items-center gap-3">
                 <h1 className="text-3xl font-semibold tracking-tight text-foreground">Tasks</h1>
@@ -842,7 +842,7 @@ export default function Home() {
             {uiConfig?.appName && <p className="text-muted-foreground text-sm font-medium">{uiConfig.appName}</p>}
         </div>
         
-        <div className="flex flex-col items-stretch sm:items-center sm:flex-row gap-3 w-full lg:auto">
+        <div className="flex flex-col items-stretch sm:items-center sm:flex-row gap-3 w-full md:w-auto">
             <Dialog open={showTutorialPrompt} onOpenChange={setShowTutorialPrompt}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader className="items-center text-center">
@@ -892,7 +892,7 @@ export default function Home() {
                 </Button>
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />
                 
-                <Button asChild id="new-task-btn" disabled={isImporting} className="hidden lg:flex w-full sm:w-auto h-11 shadow-lg font-medium">
+                <Button asChild id="new-task-btn" disabled={isImporting} className="hidden md:flex w-full sm:w-auto h-11 shadow-lg font-medium">
                     <Link href="/tasks/new">
                         <Plus className="mr-2 h-5 w-5" /> New Task
                     </Link>
@@ -905,7 +905,7 @@ export default function Home() {
           <div className="space-y-3">
               <Button 
                 variant="secondary" 
-                className="w-full flex lg:hidden items-center justify-between h-12 px-4 font-medium shadow-sm border"
+                className="w-full flex md:hidden items-center justify-between h-12 px-4 font-medium shadow-sm border"
                 onClick={() => setIsFiltersOpen(!isFiltersOpen)}
               >
                 <span className="flex items-center gap-2">
@@ -922,13 +922,13 @@ export default function Home() {
 
               <div className={cn(
                   "transition-all duration-300 overflow-hidden",
-                  "lg:block", 
-                  isFiltersOpen ? "block opacity-100 max-h-[1000px] mb-4" : "hidden lg:opacity-100 lg:max-h-none opacity-0 max-h-0"
+                  "md:block", 
+                  isFiltersOpen ? "block opacity-100 max-h-[1000px] mb-4" : "hidden md:opacity-100 md:max-h-none opacity-0 max-h-0"
               )}>
-                <Card id="task-filters" className="border shadow-lg lg:shadow-none bg-card lg:bg-transparent lg:border-none">
-                    <CardContent className="p-4 lg:p-0">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                            <div className="relative flex flex-col w-full col-span-1 sm:col-span-2 lg:col-span-1">
+                <Card id="task-filters" className="border shadow-lg md:shadow-none bg-card md:bg-transparent md:border-none">
+                    <CardContent className="p-4 md:p-0">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+                            <div className="relative flex flex-col w-full col-span-1 sm:col-span-2 md:col-span-1">
                                 <div className="relative flex items-center w-full">
                                     <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
                                     <Input

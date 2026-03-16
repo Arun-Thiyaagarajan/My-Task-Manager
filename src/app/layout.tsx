@@ -51,7 +51,7 @@ export default function RootLayout({
             <div className="relative flex min-h-screen flex-col">
             <Header />
             <PullToRefresh>
-              <main className="flex-1 pb-20 lg:pb-0">{children}</main>
+              <main className="flex-1 pb-20 md:pb-0">{children}</main>
             </PullToRefresh>
             <FloatingNotes />
             <MobileBottomNav />
