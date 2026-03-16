@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -291,7 +292,7 @@ export default function ProfilePage() {
                         <Avatar className="h-24 w-24 border-[6px] border-background shadow-2xl transition-all duration-300 group-hover:border-primary/20">
                           <AvatarImage src={photoURL || undefined} className="object-cover" />
                           <AvatarFallback 
-                            className="text-2xl font-bold text-white" 
+                            className="text-2xl font-semibold text-white" 
                             style={{ background: getAvatarGradient(profileName) }}
                           >
                             {getInitials(profileName)}
@@ -302,12 +303,12 @@ export default function ProfilePage() {
                           {photoURL ? (
                             <>
                                 <Maximize2 className="h-6 w-6 text-white mb-1" />
-                                <span className="text-[10px] text-white font-bold uppercase tracking-tight">View / Edit</span>
+                                <span className="text-[10px] text-white font-medium uppercase tracking-tight">View / Edit</span>
                             </>
                           ) : (
                             <>
                                 <Camera className="h-6 w-6 text-white mb-1" />
-                                <span className="text-[10px] text-white font-bold uppercase tracking-tight">Upload</span>
+                                <span className="text-[10px] text-white font-medium uppercase tracking-tight">Upload</span>
                             </>
                           )}
                         </div>
@@ -329,11 +330,11 @@ export default function ProfilePage() {
               </div>
               
               <div className="mt-4 space-y-1 overflow-hidden">
-                <h2 className="text-xl font-bold tracking-tight text-foreground truncate px-4" title={profileName}>{profileName}</h2>
+                <h2 className="text-xl font-semibold tracking-tight text-foreground truncate px-4" title={profileName}>{profileName}</h2>
                 <div className="flex items-center justify-center gap-2">
-                    <p className="text-[11px] text-muted-foreground font-medium truncate" title={user.email || ''}>{user.email}</p>
+                    <p className="text-[11px] text-muted-foreground font-normal truncate" title={user.email || ''}>{user.email}</p>
                     <Badge variant="outline" className={cn(
-                        "h-4 px-1.5 text-[8px] uppercase font-black tracking-widest",
+                        "h-4 px-1.5 text-[8px] uppercase font-semibold tracking-widest",
                         displayRole === 'admin' ? "bg-primary/10 text-primary border-primary/20" : "bg-muted text-muted-foreground"
                     )}>
                         {displayRole}
@@ -345,7 +346,7 @@ export default function ProfilePage() {
                 <Badge 
                   variant="outline" 
                   className={cn(
-                    "flex items-center gap-1.5 py-1 px-3 text-[10px] font-bold uppercase tracking-wider border-none rounded-full",
+                    "flex items-center gap-1.5 py-1 px-3 text-[10px] font-semibold uppercase tracking-wider border-none rounded-full",
                     user.emailVerified 
                       ? "bg-green-500/10 text-green-600 dark:text-green-400" 
                       : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
@@ -355,7 +356,7 @@ export default function ProfilePage() {
                   {user.emailVerified ? 'Verified Account' : 'Action Required'}
                 </Badge>
                 
-                <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">
+                <div className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground/40 uppercase tracking-widest">
                   <Calendar className="h-3 w-3" />
                   Joined {user.metadata.creationTime ? format(new Date(user.metadata.creationTime), 'MMM d, yyyy') : 'N/A'}
                 </div>
@@ -368,41 +369,41 @@ export default function ProfilePage() {
         <div className="flex-1">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted/50 p-1">
-              <TabsTrigger value="general" className="data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer">General Info</TabsTrigger>
-              <TabsTrigger value="security" className="data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer">Security</TabsTrigger>
+              <TabsTrigger value="general" className="data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer font-medium">General Info</TabsTrigger>
+              <TabsTrigger value="security" className="data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer font-medium">Security</TabsTrigger>
             </TabsList>
 
             <TabsContent value="general" className="space-y-6">
               <form onSubmit={handleUpdateProfile}>
                 <Card className="shadow-sm">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-xl">
+                    <CardTitle className="flex items-center gap-2 text-lg font-semibold">
                       <UserIcon className="h-5 w-5 text-primary" />
                       Personal Information
                     </CardTitle>
-                    <CardDescription>Update your public-facing profile details.</CardDescription>
+                    <CardDescription className="text-sm font-normal">Update your public-facing profile details.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     {!user.emailVerified && (
                       <Alert variant="destructive" className="bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/50 text-amber-900 dark:text-amber-200">
                         <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                        <AlertTitle className="font-bold">Verification Required</AlertTitle>
+                        <AlertTitle className="font-semibold">Verification Required</AlertTitle>
                         <AlertDescription className="flex items-center justify-between gap-2 mt-1">
                           <div className="flex-1">
-                            <p>A verification email has been sent to your inbox. Please check your email to verify your account. If you don’t see it, please check your spam/junk folder.</p>
-                            <Button variant="link" onClick={handleVerifyEmail} type="button" className="h-auto p-0 text-xs font-bold underline cursor-pointer mt-2">Resend verification email</Button>
+                            <p className="font-normal text-sm">A verification email has been sent to your inbox. Please check your email to verify your account. If you don’t see it, please check your spam/junk folder.</p>
+                            <Button variant="link" onClick={handleVerifyEmail} type="button" className="h-auto p-0 text-xs font-semibold underline cursor-pointer mt-2">Resend verification email</Button>
                           </div>
                         </AlertDescription>
                       </Alert>
                     )}
 
                     <div className="grid gap-2">
-                      <Label htmlFor="display-name" className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Display Name</Label>
+                      <Label htmlFor="display-name" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Display Name</Label>
                       <div className="relative group">
                         <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                         <Input 
                           id="display-name" 
-                          className="pl-10 h-11" 
+                          className="pl-10 h-11 font-normal" 
                           value={displayName} 
                           onChange={(e) => setDisplayName(e.target.value)} 
                           placeholder="e.g. John Doe"
@@ -411,12 +412,12 @@ export default function ProfilePage() {
                     </div>
 
                     <div className="grid gap-2">
-                        <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Email Address</Label>
+                        <Label htmlFor="email" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Email Address</Label>
                         <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
                             id="email" 
-                            className="pl-10 h-11 bg-muted/50 cursor-not-allowed border-dashed" 
+                            className="pl-10 h-11 bg-muted/50 cursor-not-allowed border-dashed font-normal" 
                             value={email} 
                             readOnly
                             disabled
@@ -425,11 +426,11 @@ export default function ProfilePage() {
                     </div>
 
                     <div className="grid gap-2">
-                        <Label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Access Role</Label>
+                        <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Access Role</Label>
                         <div className="relative">
                             <UserCog className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
-                                className="pl-10 h-11 bg-muted/50 cursor-not-allowed border-dashed capitalize font-bold" 
+                                className="pl-10 h-11 bg-muted/50 cursor-not-allowed border-dashed capitalize font-semibold" 
                                 value={displayRole} 
                                 readOnly
                                 disabled
@@ -438,7 +439,7 @@ export default function ProfilePage() {
                     </div>
                   </CardContent>
                   <CardFooter className="bg-muted/30 border-t flex justify-end px-6 py-4">
-                    <Button type="submit" disabled={isUpdating || !hasChanges} className="px-8 cursor-pointer">
+                    <Button type="submit" disabled={isUpdating || !hasChanges} className="px-8 cursor-pointer font-medium">
                       {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Save Changes
                     </Button>
@@ -451,21 +452,21 @@ export default function ProfilePage() {
               <form onSubmit={handlePasswordChange}>
                 <Card className="shadow-sm">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-xl">
+                    <CardTitle className="flex items-center gap-2 text-lg font-semibold">
                       <KeyRound className="h-5 w-5 text-primary" />
                       Security Settings
                     </CardTitle>
-                    <CardDescription>Keep your account secure with a strong password.</CardDescription>
+                    <CardDescription className="text-sm font-normal">Keep your account secure with a strong password.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="grid gap-2">
-                      <Label htmlFor="new-pass" className="text-xs font-bold uppercase tracking-wide text-muted-foreground">New Password</Label>
+                      <Label htmlFor="new-pass" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">New Password</Label>
                       <div className="relative group">
                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                         <Input 
                           id="new-pass" 
                           type={showPass ? 'text' : 'password'}
-                          className="pl-10 pr-10 h-11" 
+                          className="pl-10 pr-10 h-11 font-normal" 
                           value={newPassword}
                           onChange={(e) => setNewPassword(e.target.value)}
                           placeholder="••••••••"
@@ -480,10 +481,10 @@ export default function ProfilePage() {
                         </button>
                       </div>
                       <div className="space-y-1.5 pt-1">
-                        <div className="flex items-center justify-between text-[10px] uppercase font-black tracking-widest text-muted-foreground">
+                        <div className="flex items-center justify-between text-[10px] uppercase font-semibold tracking-widest text-muted-foreground">
                           <span>Password Strength</span>
                           <span className={cn(
-                              "font-bold",
+                              "font-semibold",
                               getPasswordStrength() === 100 ? "text-green-600" : getPasswordStrength() >= 50 ? "text-amber-600" : "text-red-600"
                           )}>
                               {getPasswordStrength() === 100 ? 'Strong' : getPasswordStrength() >= 50 ? 'Medium' : 'Weak'}
@@ -494,13 +495,13 @@ export default function ProfilePage() {
                     </div>
 
                     <div className="grid gap-2">
-                      <Label htmlFor="confirm-pass" className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Confirm New Password</Label>
+                      <Label htmlFor="confirm-pass" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Confirm New Password</Label>
                       <div className="relative group">
                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                         <Input 
                           id="confirm-pass" 
                           type="password"
-                          className="pl-10 h-11" 
+                          className="pl-10 h-11 font-normal" 
                           value={confirmPassword}
                           onChange={(e) => setConfirmPassword(e.target.value)}
                           placeholder="••••••••"
@@ -509,7 +510,7 @@ export default function ProfilePage() {
                     </div>
                   </CardContent>
                   <CardFooter className="bg-muted/30 border-t flex justify-end px-6 py-4">
-                    <Button type="submit" disabled={isUpdating || !newPassword} className="px-8 cursor-pointer">
+                    <Button type="submit" disabled={isUpdating || !newPassword} className="px-8 cursor-pointer font-medium">
                       {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Update Password
                     </Button>
@@ -519,32 +520,32 @@ export default function ProfilePage() {
 
               <Card className="border-destructive/20 bg-destructive/5 shadow-sm">
                 <CardHeader>
-                  <CardTitle className="text-destructive text-lg font-bold">Advanced Account Actions</CardTitle>
-                  <CardDescription>Critical actions related to your account sessions and data.</CardDescription>
+                  <CardTitle className="text-destructive text-base font-semibold">Advanced Account Actions</CardTitle>
+                  <CardDescription className="text-sm font-normal">Critical actions related to your account sessions and data.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between p-4 border rounded-xl bg-background shadow-sm group hover:border-destructive/20 transition-colors">
                     <div>
-                      <p className="text-sm font-bold flex items-center gap-2">
+                      <p className="text-sm font-semibold flex items-center gap-2">
                           <LogOut className="h-4 w-4 text-muted-foreground" />
                           Sign out of session
                       </p>
-                      <p className="text-[11px] text-muted-foreground">End your current session on this device.</p>
+                      <p className="text-[11px] text-muted-foreground font-normal">End your current session on this device.</p>
                     </div>
                     <AlertDialog open={isSignOutDialogOpen} onOpenChange={setIsSignOutDialogOpen}>
                         <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-8 text-xs font-bold group-hover:bg-destructive group-hover:text-white transition-all cursor-pointer">Sign Out</Button>
+                            <Button variant="outline" size="sm" className="h-8 text-xs font-semibold group-hover:bg-destructive group-hover:text-white transition-all cursor-pointer">Sign Out</Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                             <AlertDialogHeader>
-                                <AlertDialogTitle>Sign out of TaskFlow?</AlertDialogTitle>
-                                <AlertDialogDescription>
+                                <AlertDialogTitle className="font-semibold">Sign out of TaskFlow?</AlertDialogTitle>
+                                <AlertDialogDescription className="font-normal text-sm">
                                     Are you sure you want to sign out? You will be redirected to the home page in Local Mode.
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleSignOut} className="bg-destructive hover:bg-destructive/90">Sign Out</AlertDialogAction>
+                                <AlertDialogCancel className="font-medium">Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleSignOut} className="bg-destructive hover:bg-destructive/90 font-semibold">Sign Out</AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>

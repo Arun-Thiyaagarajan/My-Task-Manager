@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -195,8 +196,8 @@ export default function Home() {
     const urlRepo = searchParams.getAll('repo');
     setRepoFilter(urlRepo.length > 0 ? urlRepo : (prefs.taskFilters?.repo || []));
     
-    const urlDeployment = searchParams.getAll('deployment');
-    setDeploymentFilter(urlDeployment.length > 0 ? urlDeployment : (prefs.taskFilters?.deployment || []));
+    const urlDeployment = searchParams.get('deployment');
+    setDeploymentFilter(urlDeployment ? [urlDeployment] : (prefs.taskFilters?.deployment || []));
     
     const urlTags = searchParams.getAll('tags');
     setTagsFilter(urlTags.length > 0 ? urlTags : (prefs.taskFilters?.tags || []));
@@ -833,7 +834,7 @@ export default function Home() {
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-6">
         <div className="flex flex-col gap-1">
             <div className="flex items-center gap-3">
-                <h1 className="text-4xl font-semibold tracking-tight text-foreground">Tasks</h1>
+                <h1 className="text-3xl font-semibold tracking-tight text-foreground">Tasks</h1>
                 <Badge variant="outline" className={cn(mode === 'authenticate' ? "text-primary border-primary/20 bg-primary/5" : "text-muted-foreground", "h-6 px-3 text-[10px] font-medium uppercase tracking-wider")}>
                     {mode === 'authenticate' ? 'Cloud Sync' : 'Local Storage'}
                 </Badge>
@@ -841,7 +842,7 @@ export default function Home() {
             {uiConfig?.appName && <p className="text-muted-foreground text-sm font-medium">{uiConfig.appName}</p>}
         </div>
         
-        <div className="flex flex-col items-stretch sm:items-center sm:flex-row gap-3 w-full lg:w-auto">
+        <div className="flex flex-col items-stretch sm:items-center sm:flex-row gap-3 w-full lg:auto">
             <Dialog open={showTutorialPrompt} onOpenChange={setShowTutorialPrompt}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader className="items-center text-center">
@@ -1006,7 +1007,7 @@ export default function Home() {
                       </div>
                   )}
                     <div>
-                      <h2 className="text-lg font-semibold tracking-tight">
+                      <h2 className="text-lg font-medium tracking-tight">
                         {favoritesOnly ? 'Favorite Tasks' : `${sortedTasks.length} Results`}
                       </h2>
                       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
