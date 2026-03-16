@@ -20,7 +20,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { INITIAL_REPOSITORY_CONFIGS } from '@/lib/constants';
 import {
   LayoutGrid,
   List,
@@ -101,7 +100,6 @@ import { useTutorial } from '@/hooks/use-tutorial';
 import { MultiSelect, type SelectOption } from '@/components/ui/multi-select';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useDebounce } from '@/hooks/use-debounce';
 import { useFirebase } from '@/firebase';
 
 
@@ -843,7 +841,7 @@ export default function Home() {
         <div className="flex flex-col gap-1">
             <div className="flex items-center gap-3">
                 <h1 className="text-3xl font-semibold tracking-tight text-foreground">Tasks</h1>
-                <Badge variant="outline" className={cn(mode === 'authenticate' ? "text-primary border-primary/20 bg-primary/5" : "text-muted-foreground", "h-6 px-3 text-[10px] font-medium uppercase tracking-wider")}>
+                <Badge variant="outline" className={cn(authMode === 'authenticate' ? "text-primary border-primary/20 bg-primary/5" : "text-muted-foreground", "h-6 px-3 text-[10px] font-medium uppercase tracking-wider")}>
                     {authMode === 'authenticate' ? 'Cloud Sync' : 'Local Storage'}
                 </Badge>
             </div>
@@ -979,7 +977,7 @@ export default function Home() {
                                     </div>
                                 </div>
                             </div>
-                            <MultiSelect selected={statusFilter} onChange={(val) => { setIsSearching(true); setStatusFilter(val); }} options={(TASK_STATUSES || []).map(s => ({ value: s, label: s }))} placeholder="Status..." />
+                            <MultiSelect selected={statusFilter} onChange={(val) => { setIsSearching(true); setStatusFilter(val); }} options={(uiConfig?.taskStatuses || []).map(s => ({ value: s, label: s }))} placeholder="Status..." />
                             <MultiSelect selected={repoFilter} onChange={(val) => { setIsSearching(true); setRepoFilter(val); }} options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} placeholder="Repository..." />
                             {(uiConfig?.fields || []).find(f => f.key === 'tags')?.isActive && (
                                 <MultiSelect selected={tagsFilter} onChange={(val) => { setIsSearching(true); setTagsFilter(val); }} options={[...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({value: t, label: t}))} placeholder="Tags..." />
