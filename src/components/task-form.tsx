@@ -413,7 +413,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                 return (
                     <div className="w-full">
                         <Input type="text" placeholder={label} {...field} value={field.value ?? ''} className="font-normal" />
-                        {baseUrl && <p className="text-[0.7rem] text-muted-foreground mt-1 break-all leading-tight font-medium uppercase tracking-wider">The value will be appended to: {baseUrl}</p>}
+                        {baseUrl && <p className="text-[0.7rem] text-muted-foreground mt-1 break-all leading-tight font-medium">The value will be appended to: {baseUrl}</p>}
                     </div>
                 );
             case 'number':
