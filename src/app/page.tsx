@@ -270,7 +270,7 @@ export default function Home() {
         document.title = config.appName || 'My Task Manager';
         setSelectedTaskIds([]);
         
-        // In authenticate mode, we only stop internal loading state when the sync is confirmed
+        // In authenticate mode, we stop internal loading state when the sync is confirmed
         const syncComplete = isInitialSyncComplete(activeCompanyId);
         if (getAuthMode() === 'authenticate' && !syncComplete) {
             return;
@@ -1111,7 +1111,14 @@ export default function Home() {
                             <TooltipProvider>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <Button variant={favoritesOnly ? 'secondary' : 'outline'} size="icon" onClick={handleFavoritesToggle} className="h-11 w-11 rounded-xl shadow-sm"><Heart className={cn("h-5 w-5", favoritesOnly && "fill-red-500 text-red-500")} /></Button>
+                                        <Button 
+                                            variant={favoritesOnly ? 'secondary' : 'outline'} 
+                                            size="icon" 
+                                            onClick={handleFavoritesToggle} 
+                                            className="hidden md:inline-flex h-11 w-11 rounded-xl shadow-sm"
+                                        >
+                                            <Heart className={cn("h-5 w-5", favoritesOnly && "fill-red-500 text-red-500")} />
+                                        </Button>
                                     </TooltipTrigger>
                                     <TooltipContent className="font-bold"><p>{favoritesOnly ? 'All tasks' : 'Favorites only'}</p></TooltipContent>
                                 </Tooltip>
@@ -1126,11 +1133,27 @@ export default function Home() {
 
                     {/* Separate row for Select Mode toggle on mobile */}
                     <div className="flex items-center gap-2 px-1">
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button 
+                                        variant={favoritesOnly ? 'secondary' : 'outline'} 
+                                        size="icon" 
+                                        onClick={handleFavoritesToggle} 
+                                        className="md:hidden h-11 w-11 rounded-xl shadow-sm shrink-0"
+                                    >
+                                        <Heart className={cn("h-5 w-5", favoritesOnly && "fill-red-500 text-red-500")} />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent className="font-bold"><p>{favoritesOnly ? 'All tasks' : 'Favorites only'}</p></TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+
                         <Button 
                             variant={isSelectMode ? 'secondary' : 'outline'} 
                             onClick={handleToggleSelectMode} 
                             className={cn(
-                                "h-11 px-4 rounded-xl shadow-sm font-bold flex items-center gap-2 transition-all active:scale-95",
+                                "h-11 px-4 rounded-xl shadow-sm font-bold flex items-center gap-2 transition-all active:scale-95 flex-1 md:flex-none",
                                 isSelectMode ? "bg-primary/10 text-primary border-primary/20" : "text-muted-foreground"
                             )}
                         >
