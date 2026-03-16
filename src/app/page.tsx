@@ -47,7 +47,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { cn, fuzzySearch } from '@/lib/utils';
-import type { Task, Person, UiConfig, RepositoryConfig, Log, GeneralReminder, BackupFrequency, Environment, UserPreferences } from '@/lib/types';
+import type { Task, Person, UiConfig, RepositoryConfig, Log, GeneralReminder, BackupFrequency, Environment, UserPreferences, AuthMode } from '@/lib/types';
 import {
   Popover,
   PopoverContent,
@@ -123,6 +123,10 @@ export default function Home() {
   const [generalReminders, setGeneralReminders] = useState<GeneralReminder[]>([]);
   
   const [isLoading, setIsLoading] = useState(true);
+  const [hasInitialized, setHasInitialized] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [currentAuthMode, setCurrentAuthMode] = useState<AuthMode>('localStorage');
+  
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -165,6 +169,9 @@ export default function Home() {
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   
   useEffect(() => {
+    setMounted(true);
+    setCurrentAuthMode(getAuthMode());
+    
     const prefs = getUserPreferences();
     
     const urlViewMode = searchParams.get('viewMode') as ViewMode;
@@ -404,6 +411,7 @@ export default function Home() {
 
             setFilteredTasks(sorted);
             setSearchError(null);
+            setHasInitialized(true);
         } catch (e) {
             console.error("Filtering logic failed:", e);
             setSearchError("Search temporarily unavailable. Please try again later.");
@@ -809,9 +817,9 @@ export default function Home() {
     router.push('/tasks/new');
   };
   
-  const authMode = getAuthMode();
+  const authMode = currentAuthMode;
   const isVerifyingCloud = authMode === 'authenticate' && isUserLoading;
-  const activeSkeletons = isLoading || isSearching || isVerifyingCloud;
+  const activeSkeletons = isLoading || isSearching || isVerifyingCloud || !hasInitialized;
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -841,8 +849,8 @@ export default function Home() {
         <div className="flex flex-col gap-1">
             <div className="flex items-center gap-3">
                 <h1 className="text-3xl font-semibold tracking-tight text-foreground">Tasks</h1>
-                <Badge variant="outline" className={cn(authMode === 'authenticate' ? "text-primary border-primary/20 bg-primary/5" : "text-muted-foreground", "h-6 px-3 text-[10px] font-medium uppercase tracking-wider")}>
-                    {authMode === 'authenticate' ? 'Cloud Sync' : 'Local Storage'}
+                <Badge variant="outline" className={cn(mounted && authMode === 'authenticate' ? "text-primary border-primary/20 bg-primary/5" : "text-muted-foreground", "h-6 px-3 text-[10px] font-medium uppercase tracking-wider")}>
+                    {mounted ? (authMode === 'authenticate' ? 'Cloud Sync' : 'Local Storage') : 'Verifying...'}
                 </Badge>
             </div>
             {uiConfig?.appName && <p className="text-muted-foreground text-sm font-medium">{uiConfig.appName}</p>}
