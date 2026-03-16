@@ -234,6 +234,7 @@ export default function Home() {
   }, [executedSearchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, statusFilter, repoFilter, deploymentFilter, tagsFilter, router, pathname, searchParams]);
 
   const handlePreviousDate = useCallback(() => {
+      setIsSearching(true);
       if (dateView === 'monthly') {
           setSelectedDate(subMonths(selectedDate, 1));
       } else if (dateView === 'yearly') {
@@ -242,6 +243,7 @@ export default function Home() {
   }, [dateView, selectedDate]);
 
   const handleNextDate = useCallback(() => {
+      setIsSearching(true);
       if (dateView === 'monthly') {
           setSelectedDate(addMonths(selectedDate, 1));
       } else if (dateView === 'yearly') {
@@ -618,9 +620,15 @@ export default function Home() {
   }, []);
   
   const handleFavoritesToggle = useCallback(() => {
+    setIsSearching(true);
     setFavoritesOnly(prev => !prev);
   }, []);
   
+  const handleDateViewChange = useCallback((mode: DateView) => {
+      setIsSearching(true);
+      setDateView(mode);
+  }, []);
+
   useEffect(() => {
     localStorage.setItem('taskflow_open_groups', JSON.stringify(openGroups));
   }, [openGroups]);
@@ -926,7 +934,12 @@ export default function Home() {
                                         ref={searchInputRef}
                                         placeholder="Search tasks..."
                                         value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        onChange={(e) => {
+                                            setSearchQuery(e.target.value);
+                                            if (!e.target.value) {
+                                                clearSearch();
+                                            }
+                                        }}
                                         onKeyDown={handleSearchKeyDown}
                                         className="w-full pl-10 pr-24 h-11 font-normal"
                                     />
@@ -959,12 +972,12 @@ export default function Home() {
                                     </div>
                                 </div>
                             </div>
-                            <MultiSelect selected={statusFilter} onChange={setStatusFilter} options={(TASK_STATUSES || []).map(s => ({ value: s, label: s }))} placeholder="Status..." />
-                            <MultiSelect selected={repoFilter} onChange={setRepoFilter} options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} placeholder="Repository..." />
+                            <MultiSelect selected={statusFilter} onChange={(val) => { setIsSearching(true); setStatusFilter(val); }} options={(TASK_STATUSES || []).map(s => ({ value: s, label: s }))} placeholder="Status..." />
+                            <MultiSelect selected={repoFilter} onChange={(val) => { setIsSearching(true); setRepoFilter(val); }} options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} placeholder="Repository..." />
                             {(uiConfig?.fields || []).find(f => f.key === 'tags')?.isActive && (
-                                <MultiSelect selected={tagsFilter} onChange={setTagsFilter} options={[...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({value: t, label: t}))} placeholder="Tags..." />
+                                <MultiSelect selected={tagsFilter} onChange={(val) => { setIsSearching(true); setTagsFilter(val); }} options={[...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({value: t, label: t}))} placeholder="Tags..." />
                             )}
-                            <MultiSelect selected={deploymentFilter} onChange={setDeploymentFilter} options={(uiConfig?.environments || []).flatMap(env => [{ value: env.name, label: `On ${env.name}` }, { value: `not_${env.name}`, label: `Not on ${env.name}` }])} placeholder="Deployment..." />
+                            <MultiSelect selected={deploymentFilter} onChange={(val) => { setIsSearching(true); setDeploymentFilter(val); }} options={(uiConfig?.environments || []).flatMap(env => [{ value: env.name, label: `On ${env.name}` }, { value: `not_${env.name}`, label: `Not on ${env.name}` }])} placeholder="Deployment..." />
                         </div>
                     </CardContent>
                 </Card>
@@ -991,7 +1004,7 @@ export default function Home() {
                                   </Button>
                               </PopoverTrigger>
                               <PopoverContent className="w-auto p-0" align="start">
-                                  <Calendar mode="single" selected={selectedDate} onSelect={(day) => day && setSelectedDate(day)} initialFocus />
+                                  <Calendar mode="single" selected={selectedDate} onSelect={(day) => { if(day) { setIsSearching(true); setSelectedDate(day); } }} initialFocus />
                               </PopoverContent>
                           </Popover>
                           <Button variant="outline" size="icon" onClick={handleNextDate} className="h-10 w-10"><ChevronRight className="h-4 w-4" /></Button>
@@ -1010,7 +1023,7 @@ export default function Home() {
                 </div>
 
                 <div id="view-mode-toggle" className="flex items-center gap-x-2 gap-y-2 flex-wrap justify-start sm:justify-end">
-                  <Select value={sortDescriptor} onValueChange={setSortDescriptor}>
+                  <Select value={sortDescriptor} onValueChange={(val) => { setIsSearching(true); setSortDescriptor(val); }}>
                       <SelectTrigger className="w-auto sm:w-[180px] h-10 font-medium"><SelectValue placeholder="Sort by" /></SelectTrigger>
                       <SelectContent>
                           <SelectItem value="status-asc" className="font-medium">Status (Asc)</SelectItem>
@@ -1022,7 +1035,7 @@ export default function Home() {
 
                    <div className="flex h-10 items-center justify-center rounded-lg bg-muted/50 p-1 border">
                         <button
-                            onClick={() => setDateView('all')}
+                            onClick={() => handleDateViewChange('all')}
                             className={cn(
                                 "h-8 px-4 rounded-md text-sm font-medium transition-all",
                                 dateView === 'all' 
@@ -1033,7 +1046,7 @@ export default function Home() {
                             All
                         </button>
                         <button
-                            onClick={() => setDateView('monthly')}
+                            onClick={() => handleDateViewChange('monthly')}
                             className={cn(
                                 "h-8 px-4 rounded-md text-sm font-medium transition-all",
                                 dateView === 'monthly' 
@@ -1100,17 +1113,14 @@ export default function Home() {
             )}
             
             <div className="relative">
-                {isSearching && (
+                {isSearching && !showSlowSearchMessage && (
                     <div className="absolute inset-x-0 -top-12 flex flex-col items-center justify-center z-20 pointer-events-none">
                         <div className="bg-background/95 backdrop-blur-sm px-5 py-2 rounded-full border shadow-lg flex items-center gap-3 animate-in fade-in zoom-in duration-300">
                             <Loader2 className="h-4 w-4 text-primary animate-spin" />
                             <div className="flex flex-col leading-none">
                                 <span className="text-xs font-semibold tracking-tight">
-                                    {showSlowSearchMessage ? "Still searching..." : "Searching tasks..."}
+                                    Updating list...
                                 </span>
-                                {showSlowSearchMessage && (
-                                    <span className="text-[9px] text-muted-foreground mt-0.5 font-normal">Thanks for your patience</span>
-                                )}
                             </div>
                         </div>
                     </div>
@@ -1118,14 +1128,14 @@ export default function Home() {
 
                 <div className={cn(
                     "transition-all duration-500",
-                    isSearching ? "opacity-40 grayscale-[0.5] blur-[0.5px]" : "opacity-100 grayscale-0 blur-0"
+                    isSearching && showSlowSearchMessage ? "opacity-40 grayscale-[0.5] blur-[0.5px]" : "opacity-100"
                 )}>
-                    {sortedTasks.length > 0 ? (
+                    {sortedTasks.length > 0 || isSearching ? (
                         <div>
                         {viewMode === 'grid' ? (
-                            <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handlePinToggle} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} />
+                            <TasksGrid tasks={sortedTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handlePinToggle} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} isLoading={isSearching} />
                         ) : (
-                            <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} />
+                            <TasksTable tasks={sortedTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} isLoading={isSearching} />
                         )}
                         </div>
                     ) : (

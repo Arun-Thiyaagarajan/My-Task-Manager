@@ -43,6 +43,8 @@ import { updateTask } from '@/lib/data';
 import { PersonProfileCard } from './person-profile-card';
 import { Checkbox } from './ui/checkbox';
 import { EnvironmentStatus } from './environment-status';
+import { TaskTableRowSkeleton } from './task-card-skeleton';
+import { Skeleton } from './ui/skeleton';
 
 interface TasksTableRowProps {
   task: Task;
@@ -342,6 +344,7 @@ export const TasksTable = memo(function TasksTable({
   setOpenGroups,
   currentQueryString,
   favoritesOnly,
+  isLoading
 }: {
   tasks: Task[];
   onTaskDelete: () => void;
@@ -355,6 +358,7 @@ export const TasksTable = memo(function TasksTable({
   setOpenGroups: (ids: string[]) => void;
   currentQueryString: string;
   favoritesOnly?: boolean;
+  isLoading?: boolean;
 }) {
   const [personInView, setPersonInView] = useState<{
     person: Person;
@@ -397,7 +401,7 @@ export const TasksTable = memo(function TasksTable({
   const colSpan = isSelectMode ? 8 : 7;
   
   const getPriorityTitle = () => {
-    if (priorityTasks.length === 0) return null;
+    if (priorityTasks.length === 0 && !isLoading) return null;
     const allStatuses = new Set(priorityTasks.map(t => t.status));
     let baseTitle = "Active Tasks";
     
@@ -407,9 +411,14 @@ export const TasksTable = memo(function TasksTable({
     
     return favoritesOnly ? `Favorite ${baseTitle}` : baseTitle;
   }
-  const priorityTitle = getPriorityTitle();
+  const priorityTitle = getPriorityTitle() || 'Tasks';
 
   const renderTaskRows = (tasksToRender: Task[]) => {
+    if (isLoading) {
+        return Array.from({ length: 5 }).map((_, i) => (
+            <TaskTableRowSkeleton key={`skeleton-row-${i}`} isSelectMode={isSelectMode} />
+        ));
+    }
     return tasksToRender.map((task) => (
       <TasksTableRow
         key={task.id}
@@ -428,6 +437,38 @@ export const TasksTable = memo(function TasksTable({
   };
   
   const groups: { key: string, title: string, tasks: Task[] }[] = [];
+
+  if (isLoading) {
+      return (
+        <div className="border rounded-lg bg-card overflow-hidden">
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        {isSelectMode && <TableHead className="w-[50px]"></TableHead>}
+                        <TableHead className="font-semibold">{fieldLabels.get('title') || 'Title'}</TableHead>
+                        <TableHead className="font-semibold">{fieldLabels.get('status') || 'Status'}</TableHead>
+                        <TableHead className="font-semibold">{developersLabel}</TableHead>
+                        <TableHead className="font-semibold">{testersLabel}</TableHead>
+                        <TableHead className="font-semibold">{fieldLabels.get('repositories') || 'Repositories'}</TableHead>
+                        <TableHead className="font-semibold">{fieldLabels.get('deploymentStatus') || 'Deployments'}</TableHead>
+                        <TableHead className="text-right font-semibold">Actions</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    <TableRow className="bg-muted/30 border-b">
+                        <TableCell colSpan={colSpan} className="py-3 px-4">
+                            <div className="flex items-center gap-3">
+                                <span className="font-semibold text-foreground tracking-tight">{priorityTitle}</span>
+                                <Skeleton className="h-5 w-8 rounded-full" />
+                            </div>
+                        </TableCell>
+                    </TableRow>
+                    {renderTaskRows([])}
+                </TableBody>
+            </Table>
+        </div>
+      );
+  }
 
   if (priorityTasks.length > 0) groups.push({ key: 'priority', title: priorityTitle!, tasks: priorityTasks });
   if (completedTasks.length > 0) groups.push({ key: 'completed', title: favoritesOnly ? 'Favorite Completed Tasks' : 'Completed Tasks', tasks: completedTasks });

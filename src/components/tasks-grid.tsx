@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import { TaskCard } from '@/components/task-card';
+import { TaskCardSkeleton } from '@/components/task-card-skeleton';
 import type { Task, UiConfig, Person } from '@/lib/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { Badge } from './ui/badge';
@@ -20,6 +21,7 @@ interface TasksGridProps {
   onPinToggle: (taskId: string) => void;
   currentQueryString: string;
   favoritesOnly?: boolean;
+  isLoading?: boolean;
 }
 
 export const TasksGrid = memo(function TasksGrid({ 
@@ -37,7 +39,8 @@ export const TasksGrid = memo(function TasksGrid({
   pinnedTaskIds, 
   onPinToggle, 
   currentQueryString,
-  favoritesOnly
+  favoritesOnly,
+  isLoading
 }: TasksGridProps) {
   const priorityStatuses = ['To Do', 'In Progress', 'Code Review', 'QA'];
   
@@ -51,7 +54,7 @@ export const TasksGrid = memo(function TasksGrid({
   );
 
   const getPriorityTitle = () => {
-    if (priorityTasks.length === 0) return null;
+    if (priorityTasks.length === 0 && !isLoading) return null;
     const allStatuses = new Set(priorityTasks.map(t => t.status));
     let baseTitle = "Active Tasks";
     
@@ -62,31 +65,50 @@ export const TasksGrid = memo(function TasksGrid({
     return favoritesOnly ? `Favorite ${baseTitle}` : baseTitle;
   }
 
-  const priorityTitle = getPriorityTitle();
+  const priorityTitle = getPriorityTitle() || 'Tasks';
 
   const renderGrid = (tasksToRender: Task[]) => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      {tasksToRender.map(task => (
-        <TaskCard 
-            key={task.id}
-            task={task} 
-            onTaskDelete={onTaskDelete} 
-            onTaskUpdate={onTaskUpdate} 
-            uiConfig={uiConfig}
-            developers={developers}
-            testers={testers}
-            selectedTaskIds={selectedTaskIds}
-            setSelectedTaskIds={setSelectedTaskIds}
-            isSelectMode={isSelectMode}
-            pinnedTaskIds={pinnedTaskIds}
-            onPinToggle={onPinToggle}
-            currentQueryString={currentQueryString}
-        />
-      ))}
+      {isLoading ? (
+          Array.from({ length: 8 }).map((_, i) => (
+              <TaskCardSkeleton key={`skeleton-${i}`} />
+          ))
+      ) : (
+          tasksToRender.map(task => (
+            <TaskCard 
+                key={task.id}
+                task={task} 
+                onTaskDelete={onTaskDelete} 
+                onTaskUpdate={onTaskUpdate} 
+                uiConfig={uiConfig}
+                developers={developers}
+                testers={testers}
+                selectedTaskIds={selectedTaskIds}
+                setSelectedTaskIds={setSelectedTaskIds}
+                isSelectMode={isSelectMode}
+                pinnedTaskIds={pinnedTaskIds}
+                onPinToggle={onPinToggle}
+                currentQueryString={currentQueryString}
+            />
+          ))
+      )}
     </div>
   );
 
   const groups: { key: string, title: string, tasks: Task[] }[] = [];
+
+  // In loading state, we just show one group with skeletons
+  if (isLoading) {
+      return (
+        <div className="space-y-4 px-4 py-3">
+            <h2 className="text-xl font-semibold tracking-tight mb-4 flex items-center gap-3">
+                {priorityTitle}
+                <Skeleton className="h-5 w-8 rounded-full" />
+            </h2>
+            {renderGrid([])}
+        </div>
+      );
+  }
 
   if (priorityTasks.length > 0) {
     groups.push({ key: 'priority', title: priorityTitle!, tasks: priorityTasks });
