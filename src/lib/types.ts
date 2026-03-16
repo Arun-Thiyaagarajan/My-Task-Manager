@@ -118,6 +118,7 @@ export interface UserPreferences {
   };
   sidebarPosition?: 'left' | 'right';
   favoritesOnly?: boolean;
+  tutorialSeen?: boolean;
 }
 
 export interface Task {

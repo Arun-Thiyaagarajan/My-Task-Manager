@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -108,7 +109,6 @@ type ViewMode = 'grid' | 'table';
 type DateView = 'all' | 'monthly' | 'yearly';
 
 const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
-const TUTORIAL_PROMPTED_KEY = 'taskflow_tutorial_prompted';
 const LAST_BACKUP_KEY = 'taskflow_last_auto_backup';
 
 export default function Home() {
@@ -537,8 +537,9 @@ export default function Home() {
     if (!activeCompanyId) return;
     
     const config = getUiConfig();
-    if (config.tutorialEnabled && !localStorage.getItem(TUTORIAL_PROMPTED_KEY)) {
-      setTimeout(() => setShowTutorialPrompt(true), 1000);
+    const prefs = getUserPreferences();
+    if (config.tutorialEnabled && !prefs.tutorialSeen) {
+      setTimeout(() => setShowTutorialPrompt(true), 2500);
     }
     
     const savedOpenGroups = localStorage.getItem('taskflow_open_groups');
@@ -864,7 +865,7 @@ export default function Home() {
           </div>
       )}
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:image-center mb-6 gap-6">
         <div className="flex flex-col gap-1">
             <div className="flex items-center gap-3">
                 <h1 className="text-3xl font-semibold tracking-tight text-foreground">Tasks</h1>
@@ -876,7 +877,12 @@ export default function Home() {
         </div>
         
         <div className="flex flex-col items-stretch sm:items-center sm:flex-row gap-3 w-full md:w-auto">
-            <Dialog open={showTutorialPrompt} onOpenChange={setShowTutorialPrompt}>
+            <Dialog open={showTutorialPrompt} onOpenChange={(open) => {
+                if (!open) {
+                    updateUserPreferences({ tutorialSeen: true });
+                }
+                setShowTutorialPrompt(open);
+            }}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader className="items-center text-center">
                         <div className="p-3 bg-primary/10 rounded-full w-fit mb-2">
@@ -886,8 +892,15 @@ export default function Home() {
                         <DialogDescription className="font-normal">Want a quick tour?</DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="flex-row justify-center sm:justify-center gap-2 pt-4">
-                        <Button variant="ghost" onClick={() => setShowTutorialPrompt(false)} className="font-normal">Maybe later</Button>
-                        <Button onClick={() => { setShowTutorialPrompt(false); startTutorial(); }} className="font-medium">Start Tutorial</Button>
+                        <Button variant="ghost" onClick={() => {
+                            setShowTutorialPrompt(false);
+                            updateUserPreferences({ tutorialSeen: true });
+                        }} className="font-normal">Maybe later</Button>
+                        <Button onClick={() => {
+                            setShowTutorialPrompt(false);
+                            updateUserPreferences({ tutorialSeen: true });
+                            startTutorial();
+                        }} className="font-medium">Start Tutorial</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
