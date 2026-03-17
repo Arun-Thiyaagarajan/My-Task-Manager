@@ -283,8 +283,6 @@ export function Header() {
             </nav>
           </div>
           <div className="flex items-center gap-1 sm:gap-3">
-            {isMobile && <ThemeToggle />}
-
             {activeCompany && !isMobile && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -373,6 +371,9 @@ export function Header() {
                 <span className="sr-only">General Reminders</span>
             </Button>
             
+            {/* Unified Theme Toggle - positioned correctly for both mobile and desktop */}
+            <ThemeToggle />
+
             {/* Sign In Button - Only for Mobile now as it is in the profile dropdown for desktop */}
             {authMode === 'localStorage' && (
                 <Button 
@@ -388,8 +389,6 @@ export function Header() {
                     <span>Sign In</span>
                 </Button>
             )}
-
-            {!isMobile && <ThemeToggle />}
 
             <div className="hidden sm:block">
               <DropdownMenu>
