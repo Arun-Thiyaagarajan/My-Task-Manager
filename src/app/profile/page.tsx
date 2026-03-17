@@ -158,9 +158,27 @@ function WorkspaceDialog({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChan
                                     <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => handleEdit(company)}>
                                         <Edit className="h-3.5 w-3.5" />
                                     </Button>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-full" onClick={() => handleDelete(company.id)}>
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-full" onClick={e => e.stopPropagation()}>
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent className="rounded-2xl">
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle className="font-semibold tracking-tight">Are you sure?</AlertDialogTitle>
+                                                <AlertDialogDescription className="font-normal">
+                                                    This action cannot be undone. This will permanently delete the company and all its tasks.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter className="pt-4 gap-2">
+                                                <AlertDialogCancel className="rounded-xl font-medium">Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDelete(company.id)} className="bg-destructive hover:bg-destructive/90 rounded-xl font-semibold px-6">
+                                                    Delete Company
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
                                 </div>
                             </div>
                         ))}
@@ -665,7 +683,7 @@ export default function ProfilePage() {
                                 className="text-2xl font-semibold text-white" 
                                 style={{ background: getAvatarGradient(profileName) }}
                             >
-                                {isActualImage(profilePhoto) ? getInitials(profileName) : (profilePhoto || getInitials(profileName))}
+                                {isActualImage(photoURL) ? getInitials(profileName) : (photoURL || getInitials(profileName))}
                             </AvatarFallback>
                             </Avatar>
                             
@@ -812,7 +830,7 @@ export default function ProfilePage() {
                                 </button>
                                 <button 
                                     type="button"
-                                    onClick={() => fileInputRef.current?.click()}
+                                    onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
                                     className="absolute bottom-1 right-1 p-2 bg-primary text-primary-foreground rounded-full shadow-lg border-2 border-background z-20"
                                 >
                                     <Camera className="h-5 w-5" />

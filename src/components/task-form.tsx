@@ -709,8 +709,9 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit, onInvalid)}>
-        {/* MOBILE HEADER - Normal scroll behavior */}
+        {/* MOBILE HEADER - Swapped Layout */}
         <div className="lg:hidden -mx-4 px-4 bg-background border-b h-14 flex items-center justify-between mb-2 animate-in fade-in duration-300">
+            <h2 className="text-lg font-semibold tracking-tight truncate">{formTitle}</h2>
             <Button
                 type="button"
                 variant="ghost"
@@ -718,10 +719,9 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                 onClick={handleCancel}
                 className="h-9 px-3 font-medium hover:bg-primary/10 hover:text-primary transition-all rounded-full flex items-center gap-1.5 active:scale-95"
             >
-                <ArrowLeft className="h-4 w-4" />
                 <span>Back</span>
+                <ArrowLeft className="h-4 w-4" />
             </Button>
-            <h2 className="text-lg font-semibold tracking-tight truncate ml-4">{formTitle}</h2>
         </div>
 
         {/* DESKTOP ACTION BAR - Fixed at bottom */}
