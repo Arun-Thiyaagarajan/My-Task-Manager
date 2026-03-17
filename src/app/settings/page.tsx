@@ -618,14 +618,14 @@ export default function SettingsPage() {
                                         <h4 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2 px-1">{groupName}</h4>
                                         <div className="grid gap-2">
                                             {fields.map(field => (
-                                                <div key={field.id} className="flex items-center justify-between p-4 bg-muted/20 border rounded-xl hover:bg-muted/40 transition-all group">
-                                                    <div className="min-w-0">
-                                                        <div className="flex items-center gap-2 mb-0.5">
-                                                            <span className="font-medium text-base truncate">{field.label} {field.isRequired && <span className="text-destructive">*</span>}</span>
-                                                            <Badge variant="outline" className="text-[9px] h-4">{field.type}</Badge>
+                                                <div key={field.id} className="flex items-center justify-between p-3 bg-muted/20 border rounded-xl hover:bg-muted/40 transition-all group">
+                                                    <div className="min-w-0 flex-1 pr-2">
+                                                        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                                                            <span className="font-medium text-sm sm:text-base truncate max-w-full">{field.label} {field.isRequired && <span className="text-destructive">*</span>}</span>
+                                                            <Badge variant="outline" className="text-[9px] h-4 shrink-0">{field.type}</Badge>
                                                         </div>
                                                     </div>
-                                                    <div className="flex gap-1">
+                                                    <div className="flex gap-1 shrink-0">
                                                         <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => { setFieldToEdit(field); setIsFieldDialogOpen(true); }}><Pencil className="h-4 w-4" /></Button>
                                                         {!['title', 'description', 'status', 'repositories'].includes(field.key) && (
                                                             <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={() => handleFieldToggle(field.key, 'isActive')}><X className="h-4 w-4" /></Button>
@@ -766,14 +766,6 @@ export default function SettingsPage() {
                 <p className="text-base text-muted-foreground mt-2 font-normal">Manage and customize fields and environments across your application.</p>
             </div>
         </div>
-        <Button 
-            id="add-field-button" 
-            size="lg" 
-            className="hidden sm:flex h-12 px-6 font-medium shadow-sm w-auto" 
-            onClick={() => { setFieldToEdit(null); setIsFieldDialogOpen(true); }}
-        >
-            <PlusCircle className="h-5 w-5 mr-2" /> Add Field
-        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start pb-20">
@@ -849,9 +841,11 @@ export default function SettingsPage() {
 
         {/* Main Content - Second on mobile, col 1-2 on desktop */}
         <div className="order-2 lg:order-none lg:col-span-2 lg:row-start-1 lg:row-span-10 space-y-4 sm:space-y-8">
-            {/* Add Field Button for Mobile Only - Below Storage Section */}
+            {/* Add Field Button - Below Storage Section when stacked */}
             <Button 
-                className="flex sm:hidden w-full h-12 mb-0 font-bold shadow-lg"
+                id="add-field-button" 
+                size="lg" 
+                className="w-full h-12 font-bold shadow-lg" 
                 onClick={() => { setFieldToEdit(null); setIsFieldDialogOpen(true); }}
             >
                 <PlusCircle className="h-5 w-5 mr-2" /> Add Field
@@ -888,18 +882,18 @@ export default function SettingsPage() {
                                     </h4>
                                     <div className="grid gap-2">
                                         {fields.map(field => (
-                                            <div key={field.id} className="flex items-center justify-between p-4 bg-muted/20 border rounded-xl hover:bg-muted/40 transition-all group border-transparent hover:border-border">
-                                                <div className="flex items-center gap-4">
-                                                    <GripVertical className="h-5 w-5 text-muted-foreground/30 cursor-grab active:cursor-grabbing" />
-                                                    <div className="min-w-0">
-                                                        <div className="flex items-center gap-2 mb-0.5">
-                                                            <span className="font-medium text-base tracking-tight truncate">{field.label} {field.isRequired && <span className="text-destructive font-bold">*</span>}</span>
+                                            <div key={field.id} className="flex items-center justify-between p-3 bg-muted/20 border rounded-xl hover:bg-muted/40 transition-all group border-transparent hover:border-border">
+                                                <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
+                                                    <GripVertical className="h-5 w-5 text-muted-foreground/30 cursor-grab active:cursor-grabbing shrink-0" />
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                                                            <span className="font-medium text-sm sm:text-base tracking-tight truncate max-w-full">{field.label} {field.isRequired && <span className="text-destructive font-bold">*</span>}</span>
                                                             <Badge variant="outline" className="text-[9px] uppercase font-medium px-1.5 h-4 bg-background shrink-0">{field.type}</Badge>
                                                         </div>
-                                                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{field.group}</p>
+                                                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate">{field.group}</p>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-1 shrink-0">
                                                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                         <Button variant="outline" size="icon" className="h-9 w-9 shadow-sm" onClick={() => { setFieldToEdit(field); setIsFieldDialogOpen(true); }}>
                                                             <Pencil className="h-4 w-4" />
@@ -927,8 +921,8 @@ export default function SettingsPage() {
                         {filteredAndGroupedFields.inactiveFields.length > 0 ? (
                             <div className="grid gap-2">
                                 {filteredAndGroupedFields.inactiveFields.map(field => (
-                                    <div key={field.id} className="flex items-center justify-between p-4 bg-muted/5 border border-dashed rounded-xl opacity-60 hover:opacity-100 transition-opacity">
-                                        <span className="text-base font-normal tracking-tight truncate pr-4">{field.label}</span>
+                                    <div key={field.id} className="flex items-center justify-between p-3 bg-muted/5 border border-dashed rounded-xl opacity-60 hover:opacity-100 transition-opacity">
+                                        <span className="text-sm sm:text-base font-normal tracking-tight truncate pr-4">{field.label}</span>
                                         <Button variant="outline" size="sm" className="h-9 px-4 font-medium shrink-0 shadow-sm" onClick={() => handleFieldToggle(field.key, 'isActive')}>
                                             <Check className="h-4 w-4 mr-2" /> Activate
                                         </Button>

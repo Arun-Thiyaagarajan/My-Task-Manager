@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -243,14 +242,14 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
 
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
-        <DialogHeader className="shrink-0">
-          <DialogTitle>{isCreating ? 'Create New Field' : `Edit "${field?.label}"`}</DialogTitle>
-          <DialogDescription>
+      <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[90vh] flex flex-col p-4 sm:p-6 overflow-hidden">
+        <DialogHeader className="shrink-0 mb-2">
+          <DialogTitle className="text-xl sm:text-2xl">{isCreating ? 'Create New Field' : `Edit "${field?.label}"`}</DialogTitle>
+          <DialogDescription className="text-sm">
             Configure the properties for this field. Click save when you're done.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex-grow overflow-y-auto -mx-6 px-6">
+        <div className="flex-grow overflow-y-auto -mx-2 px-2 sm:-mx-6 sm:px-6 custom-scrollbar">
             <Form {...form}>
                 <form id="edit-field-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -285,7 +284,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                                     ))}
                                     </SelectContent>
                                 </Select>
-                                {!isCreating && <p className="text-xs text-muted-foreground mt-1">Field type cannot be changed after creation.</p>}
+                                {!isCreating && <p className="text-[10px] text-muted-foreground mt-1 uppercase font-semibold">Field type cannot be changed after creation.</p>}
                                 <FormMessage />
                             </FormItem>
                             )}
@@ -306,7 +305,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                                         variant="outline"
                                         role="combobox"
                                         aria-expanded={isGroupPopoverOpen}
-                                        className="w-full justify-between"
+                                        className="w-full justify-between font-normal"
                                     >
                                         {field.value || "Select or create group..."}
                                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -393,7 +392,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                                             disabled={isRequiredToggleDisabled}
                                         />
                                     </FormControl>
-                                    <Label htmlFor={field.name} className="cursor-pointer">
+                                    <Label htmlFor={field.name} className="cursor-pointer font-semibold">
                                         Required
                                     </Label>
                                 </FormItem>
@@ -412,7 +411,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                                             disabled={isActiveToggleDisabled}
                                         />
                                     </FormControl>
-                                    <Label htmlFor={field.name} className="cursor-pointer">
+                                    <Label htmlFor={field.name} className="cursor-pointer font-semibold">
                                         Active
                                     </Label>
                                 </FormItem>
@@ -429,9 +428,9 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                                 <FormItem>
                                 <FormLabel>Base URL (Optional)</FormLabel>
                                 <FormControl>
-                                    <Input {...field} placeholder="e.g. https://example.com/items/" />
+                                    <Input {...field} placeholder="e.g. https://example.com/items/" className="font-mono text-xs" />
                                 </FormControl>
-                                <FormDescription>If provided, the field value will be appended to this URL to create a link.</FormDescription>
+                                <FormDescription className="text-[10px]">If provided, the field value will be appended to this URL to create a link.</FormDescription>
                                 <FormMessage />
                                 </FormItem>
                             )}
@@ -445,7 +444,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                             render={({ field }) => (
                                 <FormItem className="pt-4 border-t">
                                     <FormLabel>Option Sorting</FormLabel>
-                                    <FormDescription>Set the display order for options in dropdowns.</FormDescription>
+                                    <FormDescription className="text-xs">Set the display order for options in dropdowns.</FormDescription>
                                     <Select onValueChange={field.onChange} value={field.value} >
                                         <FormControl>
                                             <SelectTrigger>
@@ -466,20 +465,20 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                     
                     {isTagsField && (
                          <div className="space-y-3 pt-4 border-t">
-                            <h4 className="font-medium">Tag Management</h4>
-                            <FormDescription>Predefined tags are saved with this field's configuration. Other tags are dynamically found from existing tasks. Deleting a tag here will remove it from all tasks.</FormDescription>
+                            <h4 className="font-bold tracking-tight">Tag Management</h4>
+                            <FormDescription className="text-xs leading-relaxed">Predefined tags are saved with this field's configuration. Deleting a tag here will remove it from all tasks.</FormDescription>
                             <div className="flex gap-2">
                                 <Input value={newTag} onChange={e => setNewTag(e.target.value)} placeholder="New predefined tag name" onKeyDown={e => {if (e.key === 'Enter') { e.preventDefault(); handleAddTag();}}} />
-                                <Button type="button" onClick={handleAddTag} disabled={!newTag.trim()}><PlusCircle className="h-4 w-4 mr-2" /> Add Tag</Button>
+                                <Button type="button" onClick={handleAddTag} disabled={!newTag.trim()} className="shrink-0"><PlusCircle className="h-4 w-4 mr-2" /> Add</Button>
                             </div>
-                            <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+                            <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
                                 {allTags.map((tag) => {
                                     const isPredefined = options.some(opt => opt.value === tag.value);
                                     return (
                                         <div key={tag.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50 group">
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-medium text-sm">{tag.label}</span>
-                                                {!isPredefined && <Badge variant="outline">Dynamic</Badge>}
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <span className="font-medium text-sm truncate">{tag.label}</span>
+                                                {!isPredefined && <Badge variant="outline" className="text-[8px] uppercase tracking-tighter shrink-0">Dynamic</Badge>}
                                             </div>
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
@@ -487,16 +486,16 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                                                         <X className="h-4 w-4 text-destructive" />
                                                     </Button>
                                                 </AlertDialogTrigger>
-                                                <AlertDialogContent>
+                                                <AlertDialogContent className="rounded-2xl">
                                                     <AlertDialogHeader>
-                                                        <AlertDialogTitle>Delete Tag "{tag.label}"?</AlertDialogTitle>
-                                                        <AlertDialogDescription>
+                                                        <AlertDialogTitle className="font-bold">Delete Tag "{tag.label}"?</AlertDialogTitle>
+                                                        <AlertDialogDescription className="text-sm">
                                                           This will permanently remove this tag from all tasks and, if it's a predefined tag, from the configuration. This action cannot be undone.
                                                         </AlertDialogDescription>
                                                     </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleDeleteTag(tag)} className="bg-destructive hover:bg-destructive/90">Delete Tag</AlertDialogAction>
+                                                    <AlertDialogFooter className="gap-2">
+                                                        <AlertDialogCancel className="rounded-xl font-medium">Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDeleteTag(tag)} className="bg-destructive hover:bg-destructive/90 rounded-xl font-bold">Delete Tag</AlertDialogAction>
                                                     </AlertDialogFooter>
                                                 </AlertDialogContent>
                                             </AlertDialog>
@@ -510,42 +509,44 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                     
                     {showCustomOptionsUI && !isTagsField && (
                         <div className="space-y-3 pt-4 border-t">
-                            <h4 className="font-medium">Options</h4>
-                            {options.map((option, index) => (
-                                <div key={option.id} className="flex items-end gap-2 p-3 border rounded-md bg-muted/50">
-                                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
-                                        <FormField
-                                            control={form.control}
-                                            name={`options.${index}.label`}
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                <FormLabel className="text-xs">Label</FormLabel>
-                                                <FormControl>
-                                                    <Input {...field} placeholder="e.g. High Priority" />
-                                                </FormControl>
-                                                <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={form.control}
-                                            name={`options.${index}.value`}
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                <FormLabel className="text-xs">Value</FormLabel>
-                                                <FormControl>
-                                                    <Input {...field} placeholder="e.g. high_priority" />
-                                                </FormControl>
-                                                <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
+                            <h4 className="font-bold tracking-tight">Options</h4>
+                            <div className="space-y-3">
+                                {options.map((option, index) => (
+                                    <div key={option.id} className="flex items-end gap-2 p-3 border rounded-xl bg-muted/20">
+                                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 min-w-0">
+                                            <FormField
+                                                control={form.control}
+                                                name={`options.${index}.label`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Label</FormLabel>
+                                                    <FormControl>
+                                                        <Input {...field} placeholder="e.g. High Priority" className="h-9" />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={form.control}
+                                                name={`options.${index}.value`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Value</FormLabel>
+                                                    <FormControl>
+                                                        <Input {...field} placeholder="e.g. high_priority" className="h-9 font-mono text-xs" />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+                                        <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)} className="shrink-0 h-9 w-9 rounded-full"><Trash2 className="h-4 w-4" /></Button>
                                     </div>
-                                    <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)} className="shrink-0"><Trash2 className="h-4 w-4" /></Button>
-                                </div>
-                            ))}
-                             {form.formState.errors.options && <p className="text-sm text-destructive mt-1">{form.formState.errors.options.message}</p>}
-                            <Button type="button" variant="outline" size="sm" onClick={() => append({id: `option_${crypto.randomUUID()}`, label: '', value: ''})}>
+                                ))}
+                            </div>
+                             {form.formState.errors.options && <p className="text-sm text-destructive mt-1 font-semibold">{form.formState.errors.options.message}</p>}
+                            <Button type="button" variant="outline" size="sm" onClick={() => append({id: `option_${crypto.randomUUID()}`, label: '', value: ''})} className="w-full h-10 border-dashed rounded-xl font-bold">
                                 <PlusCircle className="h-4 w-4 mr-2" /> Add Option
                             </Button>
                         </div>
@@ -553,46 +554,46 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
 
                     {isRepoField && (
                         <div className="space-y-3 pt-4 border-t">
-                            <h4 className="font-medium">Repository Configurations</h4>
-                             <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                            <h4 className="font-bold tracking-tight">Repository Configurations</h4>
+                             <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                                 {localRepoConfigs.map((repo, index) => (
-                                    <div key={repo.id} className="p-3 border rounded-md bg-muted/50 space-y-2 relative group">
+                                    <div key={repo.id} className="p-4 border rounded-2xl bg-muted/20 space-y-3 relative group">
                                         <div className="space-y-1">
-                                            <Label htmlFor={`repo-name-${index}`} className="text-xs font-semibold">Name</Label>
+                                            <Label htmlFor={`repo-name-${index}`} className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Name</Label>
                                             <Input
                                                 id={`repo-name-${index}`}
                                                 value={repo.name}
                                                 onChange={(e) => handleRepoChange(index, 'name', e.target.value)}
-                                                className="h-8 bg-background"
+                                                className="h-9 bg-background font-bold"
                                             />
                                         </div>
                                         <div className="space-y-1">
-                                            <Label htmlFor={`repo-url-${index}`} className="text-xs font-semibold">Base PR URL</Label>
+                                            <Label htmlFor={`repo-url-${index}`} className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Base PR URL</Label>
                                             <Input
                                                 id={`repo-url-${index}`}
                                                 value={repo.baseUrl}
                                                 onChange={(e) => handleRepoChange(index, 'baseUrl', e.target.value)}
-                                                placeholder="e.g. https://github.com/org/repo/pull/"
-                                                className="h-8 bg-background"
+                                                placeholder="e.g. https://github.com/..."
+                                                className="h-9 bg-background font-mono text-xs"
                                             />
                                         </div>
-                                        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10">
                                                         <Trash2 className="h-4 w-4" />
                                                     </Button>
                                                 </AlertDialogTrigger>
-                                                <AlertDialogContent>
+                                                <AlertDialogContent className="rounded-2xl">
                                                     <AlertDialogHeader>
-                                                        <AlertDialogTitle>Delete {repo.name}?</AlertDialogTitle>
-                                                        <AlertDialogDescription>
+                                                        <AlertDialogTitle className="font-bold">Delete {repo.name}?</AlertDialogTitle>
+                                                        <AlertDialogDescription className="text-sm">
                                                             This will remove the repository from the configuration. It will not delete any tasks.
                                                         </AlertDialogDescription>
                                                     </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleDeleteRepo(repo.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                                    <AlertDialogFooter className="gap-2">
+                                                        <AlertDialogCancel className="rounded-xl font-medium">Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDeleteRepo(repo.id)} className="bg-destructive hover:bg-destructive/90 rounded-xl font-bold">Delete</AlertDialogAction>
                                                     </AlertDialogFooter>
                                                 </AlertDialogContent>
                                             </AlertDialog>
@@ -600,7 +601,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                                     </div>
                                 ))}
                             </div>
-                            <Button type="button" variant="outline" size="sm" onClick={handleAddRepo}>
+                            <Button type="button" variant="outline" size="sm" onClick={handleAddRepo} className="w-full h-10 border-dashed rounded-xl font-bold">
                                 <PlusCircle className="h-4 w-4 mr-2" /> Add Repository
                             </Button>
                         </div>
@@ -608,11 +609,11 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                 </form>
             </Form>
         </div>
-        <DialogFooter className="shrink-0 pt-4 border-t">
+        <DialogFooter className="shrink-0 pt-4 border-t flex-row gap-2 mt-auto">
             <DialogClose asChild>
-                <Button type="button" variant="outline">Cancel</Button>
+                <Button type="button" variant="outline" className="flex-1 rounded-xl h-11 font-medium">Cancel</Button>
             </DialogClose>
-            <Button type="submit" form="edit-field-form">
+            <Button type="submit" form="edit-field-form" className="flex-1 rounded-xl h-11 font-bold">
                 {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save Changes
             </Button>
