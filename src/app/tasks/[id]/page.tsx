@@ -53,6 +53,7 @@ import { getLinkAlias } from '@/ai/flows/alias-flow';
 import { generateSummary } from '@/ai/flows/summary-flow';
 import { TaskDetailSkeleton } from '@/components/task-detail-skeleton';
 import { useFirebase } from '@/firebase';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 
 const isImageUrl = (url: string): boolean => {
@@ -67,6 +68,7 @@ const isImageUrl = (url: string): boolean => {
 
 export default function TaskPage() {
   const { isUserLoading } = useFirebase();
+  const isMobile = useIsMobile();
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -836,39 +838,41 @@ const handleCopyDescription = () => {
   return (
     <>
       <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div className="flex flex-row justify-between items-center mb-6">
           <Button onClick={handleNavigateBack} variant="ghost" className="pl-1 active:scale-95 transition-transform font-medium">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
+              <ArrowLeft className={cn("h-4 w-4", !isMobile && "mr-2")} />
+              {!isMobile && "Back"}
           </Button>
           {isBinned ? (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" className="font-medium">
-                  <History className="mr-2 h-4 w-4" />
-                  Restore Task
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle className="font-semibold">Restore this task?</AlertDialogTitle>
-                  <AlertDialogDescription className="font-normal">
-                    This will move the task "{task.title}" back to your active tasks list.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel className="font-medium">Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleRestore} className="font-semibold">Restore</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          ) : (
             <div className="flex gap-2">
+                <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button variant="outline" size={isMobile ? "icon" : "sm"} className="font-medium">
+                    <History className={cn("h-4 w-4", !isMobile && "mr-2")} />
+                    {!isMobile && "Restore Task"}
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle className="font-semibold">Restore this task?</AlertDialogTitle>
+                    <AlertDialogDescription className="font-normal">
+                        This will move the task "{task.title}" back to your active tasks list.
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel className="font-medium">Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleRestore} className="font-semibold">Restore</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+                </AlertDialog>
+            </div>
+          ) : (
+            <div className="flex gap-1.5 sm:gap-2">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" className="font-medium">
-                            <Share2 className="mr-2 h-4 w-4" />
-                            Share
+                        <Button variant="outline" size={isMobile ? "icon" : "sm"} className="font-medium">
+                            <Share2 className={cn("h-4 w-4", !isMobile && "mr-2")} />
+                            {!isMobile && "Share"}
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -884,11 +888,17 @@ const handleCopyDescription = () => {
                     </DropdownMenuContent>
                 </DropdownMenu>
 
-                <Button onClick={handleNavigateEdit} variant="outline" size="sm" className="active:scale-95 transition-transform font-medium">
-                    < Pencil className="mr-2 h-4 w-4" />
-                    Edit
+                <Button onClick={handleNavigateEdit} variant="outline" size={isMobile ? "icon" : "sm"} className="active:scale-95 transition-transform font-medium">
+                    <Pencil className={cn("h-4 w-4", !isMobile && "mr-2")} />
+                    {!isMobile && "Edit"}
                 </Button>
-                <DeleteTaskButton taskId={task.id} taskTitle={task.title} onSuccess={() => router.push('/')} />
+                <DeleteTaskButton 
+                    taskId={task.id} 
+                    taskTitle={task.title} 
+                    onSuccess={() => router.push('/')} 
+                    iconOnly={isMobile}
+                    className={cn(isMobile && "h-9 w-9")}
+                />
             </div>
           )}
         </div>
