@@ -37,7 +37,10 @@ import {
   RotateCcw,
   FileClock,
   Settings,
-  Sparkles
+  Sparkles,
+  ChevronRight,
+  ArrowLeft,
+  Bell
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
@@ -55,6 +58,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const isActualImage = (url: string | null | undefined) => {
     if (!url) return false;
@@ -62,6 +66,7 @@ const isActualImage = (url: string | null | undefined) => {
 };
 
 export default function ProfilePage() {
+  const isMobile = useIsMobile();
   const { user, firestore, auth, isUserLoading, userProfile, isProfileLoading } = useFirebase();
   const { toast } = useToast();
   const router = useRouter();
@@ -72,6 +77,7 @@ export default function ProfilePage() {
   const isLocal = authMode === 'localStorage';
 
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'general');
+  const [showMobileSubPage, setShowMobileSubPage] = useState(false);
   const [isUpdating, setIsPending] = useState(false);
   const [isPageLoading, setIsPageLoading] = useState(true);
   
@@ -299,145 +305,312 @@ export default function ProfilePage() {
     displayName !== (isLocal ? getLocalProfile().username : (user?.displayName || userProfile?.username || '')) || 
     photoURL !== (isLocal ? getLocalProfile().photoURL : (userProfile?.photoURL || (user?.photoURL === "" ? null : user?.photoURL)));
 
-  return (
-    <div className="container max-w-4xl mx-auto py-10 px-4">
-      <div className="flex flex-col md:flex-row gap-8">
-        <div className="w-full md:w-1/3 space-y-6">
-          <Card className="overflow-hidden shadow-xl border-none bg-card rounded-3xl">
-            <div className="h-20 bg-gradient-to-br from-primary/20 via-primary/5 to-transparent w-full" />
-            <div className="px-6 pb-8 text-center -mt-12">
-              <div className="relative inline-block group">
-                <div className="absolute inset-0 rounded-full scale-110 opacity-0 group-hover:opacity-100 transition-all duration-500 bg-primary/10 blur-xl" />
-                
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button 
-                        onClick={() => (photoURL || previousPhotoURL) ? setIsPreviewOpen(true) : fileInputRef.current?.click()}
-                        className="relative block cursor-pointer transition-transform duration-300 active:scale-95"
-                      >
-                        <Avatar className="h-24 w-24 border-[6px] border-background shadow-2xl transition-all duration-300 group-hover:border-primary/20">
-                          <AvatarImage src={isActualImage(photoURL) ? photoURL : undefined} className="object-cover" />
-                          <AvatarFallback 
-                            className="text-2xl font-semibold text-white" 
-                            style={{ background: getAvatarGradient(profileName) }}
-                          >
-                            {isActualImage(photoURL) ? getInitials(profileName) : (photoURL || getInitials(profileName))}
-                          </AvatarFallback>
-                        </Avatar>
-                        
-                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                          {(photoURL || previousPhotoURL) ? (
-                            <>
-                                <Maximize2 className="h-6 w-6 text-white mb-1" />
-                                <span className="text-[10px] text-white font-medium uppercase tracking-tight">View / Edit</span>
-                            </>
-                          ) : (
-                            <>
-                                <Camera className="h-6 w-6 text-white mb-1" />
-                                <span className="text-[10px] text-white font-medium uppercase tracking-tight">Upload</span>
-                            </>
-                          )}
-                        </div>
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      <p>{(photoURL || previousPhotoURL) ? 'View profile photo' : 'Upload profile photo'}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+  const handleMobileRowClick = (tab: string) => {
+    setActiveTab(tab);
+    setShowMobileSubPage(true);
+  };
 
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="absolute bottom-0 right-0 p-2 bg-primary text-primary-foreground rounded-full shadow-lg border-2 border-background scale-0 group-hover:scale-100 transition-transform duration-300 z-30 hover:bg-primary/90 cursor-pointer"
-                >
-                  <Camera className="h-4 w-4" />
-                </button>
-                <input type="file" ref={fileInputRef} onChange={handleImageSelect} className="hidden" accept="image/*" />
-              </div>
-              
-              <div className="mt-4 space-y-1 overflow-hidden">
-                <h2 className="text-xl font-semibold tracking-tight text-foreground truncate px-4" title={profileName}>{profileName}</h2>
-                <div className="flex items-center justify-center gap-2">
-                    <p className="text-[11px] text-muted-foreground font-normal truncate" title={email}>{email}</p>
-                    <Badge variant="outline" className={cn(
-                        "h-4 px-1.5 text-[8px] uppercase font-semibold tracking-widest",
-                        displayRole === 'admin' ? "bg-primary/10 text-primary border-primary/20" : "bg-muted text-muted-foreground"
-                    )}>
-                        {displayRole}
-                    </Badge>
-                </div>
-              </div>
-              
-              <div className="mt-6 flex flex-col items-center gap-3">
-                <Badge 
-                  variant="outline" 
-                  className={cn(
-                    "flex items-center gap-1.5 py-1 px-3 text-[10px] font-semibold uppercase tracking-wider border-none rounded-full",
-                    isVerified 
-                      ? "bg-green-500/10 text-green-600 dark:text-green-400" 
-                      : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                  )}
-                >
-                  {isVerified ? <ShieldCheck className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
-                  {isVerified ? (isLocal ? 'Local Identity' : 'Verified Account') : 'Action Required'}
-                </Badge>
-                
-                <div className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground/40 uppercase tracking-widest">
-                  <Calendar className="h-3 w-3" />
-                  {isLocal ? 'Local Storage Active' : `Joined ${user?.metadata.creationTime ? format(new Date(user.metadata.creationTime), 'MMM d, yyyy') : 'N/A'}`}
-                </div>
-              </div>
-            </div>
-          </Card>
+  const MobileHubRow = ({ icon: Icon, title, subLabel, onClick, color = 'text-muted-foreground' }: { icon: any, title: string, subLabel: string, onClick?: () => void, color?: string }) => (
+    <button 
+        onClick={onClick}
+        className="w-full flex items-center gap-4 py-4 px-4 hover:bg-muted/50 active:bg-muted transition-colors border-b last:border-0 text-left group"
+    >
+        <div className={cn("shrink-0", color)}>
+            <Icon className="h-6 w-6" />
+        </div>
+        <div className="flex-1 min-w-0">
+            <p className="text-base font-medium text-foreground">{title}</p>
+            <p className="text-xs text-muted-foreground truncate">{subLabel}</p>
+        </div>
+        <ChevronRight className="h-5 w-5 text-muted-foreground/30 group-active:text-primary" />
+    </button>
+  );
 
-          {previousPhotoURL && (
-              <Card className="p-4 border-dashed border-2 bg-muted/5 rounded-3xl">
-                  <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-                          <History className="h-3.5 w-3.5" />
-                          Previously Used
-                      </div>
-                      <TooltipProvider>
-                          <Tooltip>
-                              <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={handleRestorePrevious}>
-                                      <RotateCcw className="h-3 w-3" />
-                                  </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Restore this photo</TooltipContent>
-                          </Tooltip>
-                      </TooltipProvider>
-                  </div>
-                  <div className="flex justify-center">
-                      <button 
-                        onClick={handleRestorePrevious}
-                        className="relative group/restore cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full"
-                      >
-                        <Avatar className="h-16 w-16 border-2 border-border transition-all group-hover/restore:border-primary/50 group-hover/restore:scale-105">
-                            <AvatarImage src={isActualImage(previousPhotoURL) ? previousPhotoURL : undefined} className="object-cover" />
-                            <AvatarFallback className="text-sm">
-                                {isActualImage(previousPhotoURL) ? 'Old' : previousPhotoURL}
+  // MOBILE HUB VIEW
+  if (isMobile && !showMobileSubPage) {
+    return (
+        <div className="min-h-screen bg-background pb-32">
+            {/* WhatsApp Style Header */}
+            <div className="px-6 pt-10 pb-8 space-y-6">
+                <div className="flex items-center gap-4">
+                    <div className="relative group">
+                        <Avatar className="h-20 w-24 border-2 border-background shadow-xl">
+                            <AvatarImage src={isActualImage(photoURL) ? photoURL : undefined} className="object-cover" />
+                            <AvatarFallback 
+                                className="text-2xl font-semibold text-white" 
+                                style={{ background: getAvatarGradient(profileName) }}
+                            >
+                                {getInitials(profileName)}
                             </AvatarFallback>
                         </Avatar>
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover/restore:opacity-100 transition-opacity">
-                            <RotateCcw className="h-5 w-5 text-white" />
+                        <button 
+                            onClick={() => fileInputRef.current?.click()}
+                            className="absolute -bottom-1 -right-1 p-1.5 bg-primary text-primary-foreground rounded-full shadow-lg border-2 border-background"
+                        >
+                            <Camera className="h-3 w-3" />
+                        </button>
+                        <input type="file" ref={fileInputRef} onChange={handleImageSelect} className="hidden" accept="image/*" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <h1 className="text-2xl font-bold tracking-tight truncate">{profileName}</h1>
+                        <p className="text-sm text-muted-foreground truncate">{email}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="outline" className="text-[10px] uppercase font-bold px-1.5 h-4 bg-muted/50 border-none">
+                                {displayRole}
+                            </Badge>
+                            {isVerified && <ShieldCheck className="h-3.5 w-3.5 text-green-500" />}
                         </div>
-                      </button>
-                  </div>
-              </Card>
-          )}
+                    </div>
+                </div>
+            </div>
+
+            {/* List of Settings Rows */}
+            <div className="bg-card border-y">
+                <MobileHubRow 
+                    icon={UserIcon} 
+                    title="Account" 
+                    subLabel="Personal information, email details" 
+                    onClick={() => handleMobileRowClick('general')}
+                    color="text-primary"
+                />
+                <MobileHubRow 
+                    icon={Lock} 
+                    title="Security" 
+                    subLabel="Password, account protection" 
+                    onClick={() => handleMobileRowClick('security')}
+                    color="text-amber-500"
+                />
+                <MobileHubRow 
+                    icon={FileClock} 
+                    title="Activity Logs" 
+                    subLabel="Your workspace history" 
+                    onClick={() => router.push('/logs')}
+                    color="text-blue-500"
+                />
+                <MobileHubRow 
+                    icon={Settings} 
+                    title="Workspace Settings" 
+                    subLabel="Fields, environments, team" 
+                    onClick={() => router.push('/settings')}
+                    color="text-purple-500"
+                />
+                <MobileHubRow 
+                    icon={Sparkles} 
+                    title="What's New" 
+                    subLabel="Release notes and updates" 
+                    onClick={() => router.push('/releases')}
+                    color="text-green-500"
+                />
+            </div>
+
+            {/* Account Actions */}
+            <div className="mt-8 bg-card border-y">
+                {!isLocal ? (
+                    <button 
+                        onClick={() => setIsSignOutDialogOpen(true)}
+                        className="w-full flex items-center gap-4 py-4 px-4 hover:bg-destructive/5 active:bg-destructive/10 transition-colors text-left"
+                    >
+                        <div className="shrink-0 text-destructive">
+                            <LogOut className="h-6 w-6" />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-base font-medium text-destructive">Sign Out</p>
+                            <p className="text-xs text-muted-foreground">End your cloud session</p>
+                        </div>
+                    </button>
+                ) : (
+                    <button 
+                        onClick={() => router.push('/')}
+                        className="w-full flex items-center gap-4 py-4 px-4 hover:bg-muted/50 active:bg-muted transition-colors text-left"
+                    >
+                        <div className="shrink-0 text-muted-foreground">
+                            <ArrowLeft className="h-6 w-6" />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-base font-medium">Return Home</p>
+                            <p className="text-xs text-muted-foreground">Go back to workspace</p>
+                        </div>
+                    </button>
+                )}
+            </div>
+
+            <AlertDialog open={isSignOutDialogOpen} onOpenChange={setIsSignOutDialogOpen}>
+                <AlertDialogContent className="rounded-3xl w-[90%]">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="font-semibold text-center">Sign out of TaskFlow?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-sm font-normal text-center">
+                            Your cloud data is safe and will sync back next time you sign in.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="flex-col gap-2 mt-4">
+                        <AlertDialogAction onClick={handleSignOut} className="bg-destructive hover:bg-destructive/90 font-semibold w-full h-11 rounded-xl">Sign Out</AlertDialogAction>
+                        <AlertDialogCancel className="font-medium w-full h-11 border-none bg-transparent hover:bg-muted rounded-xl">Cancel</AlertDialogCancel>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <ProfileImageCropper 
+                isOpen={isCropperOpen}
+                onOpenChange={setIsCropperOpen}
+                imageSrc={pendingImage}
+                onCropComplete={handleCropComplete}
+            />
         </div>
+    );
+  }
+
+  // SUB-PAGE OR DESKTOP VIEW
+  return (
+    <div className="container max-w-4xl mx-auto py-10 px-4">
+      {/* Mobile Back Header */}
+      {isMobile && showMobileSubPage && (
+          <div className="flex items-center gap-4 mb-8 -mt-4">
+              <Button variant="ghost" size="icon" onClick={() => setShowMobileSubPage(false)} className="rounded-full">
+                  <ArrowLeft className="h-6 w-6" />
+              </Button>
+              <h1 className="text-xl font-bold capitalize">{activeTab}</h1>
+          </div>
+      )}
+
+      <div className="flex flex-col md:flex-row gap-8">
+        {/* Profile Info Card (Hidden on mobile sub-page to save space) */}
+        {!isMobile && (
+            <div className="w-full md:w-1/3 space-y-6">
+            <Card className="overflow-hidden shadow-xl border-none bg-card rounded-3xl">
+                <div className="h-20 bg-gradient-to-br from-primary/20 via-primary/5 to-transparent w-full" />
+                <div className="px-6 pb-8 text-center -mt-12">
+                <div className="relative inline-block group">
+                    <div className="absolute inset-0 rounded-full scale-110 opacity-0 group-hover:opacity-100 transition-all duration-500 bg-primary/10 blur-xl" />
+                    
+                    <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                        <button 
+                            onClick={() => (photoURL || previousPhotoURL) ? setIsPreviewOpen(true) : fileInputRef.current?.click()}
+                            className="relative block cursor-pointer transition-transform duration-300 active:scale-95"
+                        >
+                            <Avatar className="h-24 w-24 border-[6px] border-background shadow-2xl transition-all duration-300 group-hover:border-primary/20">
+                            <AvatarImage src={isActualImage(photoURL) ? photoURL : undefined} className="object-cover" />
+                            <AvatarFallback 
+                                className="text-2xl font-semibold text-white" 
+                                style={{ background: getAvatarGradient(profileName) }}
+                            >
+                                {isActualImage(photoURL) ? getInitials(profileName) : (photoURL || getInitials(profileName))}
+                            </AvatarFallback>
+                            </Avatar>
+                            
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                            {(photoURL || previousPhotoURL) ? (
+                                <>
+                                    <Maximize2 className="h-6 w-6 text-white mb-1" />
+                                    <span className="text-[10px] text-white font-medium uppercase tracking-tight">View / Edit</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Camera className="h-6 w-6 text-white mb-1" />
+                                    <span className="text-[10px] text-white font-medium uppercase tracking-tight">Upload</span>
+                                </>
+                            )}
+                            </div>
+                        </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">
+                        <p>{(photoURL || previousPhotoURL) ? 'View profile photo' : 'Upload profile photo'}</p>
+                        </TooltipContent>
+                    </Tooltip>
+                    </TooltipProvider>
+
+                    <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute bottom-0 right-0 p-2 bg-primary text-primary-foreground rounded-full shadow-lg border-2 border-background scale-0 group-hover:scale-100 transition-transform duration-300 z-30 hover:bg-primary/90 cursor-pointer"
+                    >
+                    <Camera className="h-4 w-4" />
+                    </button>
+                    <input type="file" ref={fileInputRef} onChange={handleImageSelect} className="hidden" accept="image/*" />
+                </div>
+                
+                <div className="mt-4 space-y-1 overflow-hidden">
+                    <h2 className="text-xl font-semibold tracking-tight text-foreground truncate px-4" title={profileName}>{profileName}</h2>
+                    <div className="flex items-center justify-center gap-2">
+                        <p className="text-[11px] text-muted-foreground font-normal truncate" title={email}>{email}</p>
+                        <Badge variant="outline" className={cn(
+                            "h-4 px-1.5 text-[8px] uppercase font-semibold tracking-widest",
+                            displayRole === 'admin' ? "bg-primary/10 text-primary border-primary/20" : "bg-muted text-muted-foreground"
+                        )}>
+                            {displayRole}
+                        </Badge>
+                    </div>
+                </div>
+                
+                <div className="mt-6 flex flex-col items-center gap-3">
+                    <Badge 
+                    variant="outline" 
+                    className={cn(
+                        "flex items-center gap-1.5 py-1 px-3 text-[10px] font-semibold uppercase tracking-wider border-none rounded-full",
+                        isVerified 
+                        ? "bg-green-500/10 text-green-600 dark:text-green-400" 
+                        : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                    )}
+                    >
+                    {isVerified ? <ShieldCheck className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                    {isVerified ? (isLocal ? 'Local Identity' : 'Verified Account') : 'Action Required'}
+                    </Badge>
+                    
+                    <div className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground/40 uppercase tracking-widest">
+                    <Calendar className="h-3 w-3" />
+                    {isLocal ? 'Local Storage Active' : `Joined ${user?.metadata.creationTime ? format(new Date(user.metadata.creationTime), 'MMM d, yyyy') : 'N/A'}`}
+                    </div>
+                </div>
+                </div>
+            </Card>
+
+            {previousPhotoURL && (
+                <Card className="p-4 border-dashed border-2 bg-muted/5 rounded-3xl">
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+                            <History className="h-3.5 w-3.5" />
+                            Previously Used
+                        </div>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={handleRestorePrevious}>
+                                        <RotateCcw className="h-3 w-3" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Restore this photo</TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </div>
+                    <div className="flex justify-center">
+                        <button 
+                            onClick={handleRestorePrevious}
+                            className="relative group/restore cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full"
+                        >
+                            <Avatar className="h-16 w-16 border-2 border-border transition-all group-hover/restore:border-primary/50 group-hover/restore:scale-105">
+                                <AvatarImage src={isActualImage(previousPhotoURL) ? previousPhotoURL : undefined} className="object-cover" />
+                                <AvatarFallback className="text-sm">
+                                    {isActualImage(previousPhotoURL) ? 'Old' : previousPhotoURL}
+                                </AvatarFallback>
+                            </Avatar>
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover/restore:opacity-100 transition-opacity">
+                                <RotateCcw className="h-5 w-5 text-white" />
+                            </div>
+                        </button>
+                    </div>
+                </Card>
+            )}
+            </div>
+        )}
 
         <div className="flex-1">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 md:grid-cols-2 mb-6 bg-muted/50 p-1 rounded-xl h-auto">
-              <TabsTrigger value="general" className="data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer font-medium rounded-lg">General</TabsTrigger>
-              <TabsTrigger value="security" className="data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer font-medium rounded-lg">Security</TabsTrigger>
-              <TabsTrigger value="logs" className="md:hidden data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer font-medium rounded-lg">Activity</TabsTrigger>
-              <TabsTrigger value="settings" className="md:hidden data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer font-medium rounded-lg">Settings</TabsTrigger>
-              <TabsTrigger value="releases" className="md:hidden data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer font-medium rounded-lg">Updates</TabsTrigger>
-            </TabsList>
+            {!isMobile && (
+                <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted/50 p-1 rounded-xl h-auto">
+                    <TabsTrigger value="general" className="data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer font-medium rounded-lg">General</TabsTrigger>
+                    <TabsTrigger value="security" className="data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer font-medium rounded-lg">Security</TabsTrigger>
+                </TabsList>
+            )}
 
             <TabsContent value="general" className="space-y-6">
               <form onSubmit={handleUpdateProfile}>
@@ -450,6 +623,29 @@ export default function ProfilePage() {
                     <CardDescription className="text-sm font-normal">Update your profile details displayed in the workspace.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
+                    {isMobile && (
+                        <div className="flex justify-center pb-4">
+                            <div className="relative group">
+                                <Avatar className="h-32 w-32 border-4 border-background shadow-2xl">
+                                    <AvatarImage src={isActualImage(photoURL) ? photoURL : undefined} className="object-cover" />
+                                    <AvatarFallback 
+                                        className="text-4xl font-semibold text-white" 
+                                        style={{ background: getAvatarGradient(profileName) }}
+                                    >
+                                        {getInitials(profileName)}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <button 
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="absolute bottom-1 right-1 p-2 bg-primary text-primary-foreground rounded-full shadow-lg border-2 border-background"
+                                >
+                                    <Camera className="h-5 w-5" />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {!isLocal && !user?.emailVerified && (
                       <Alert variant="destructive" className="bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/50 text-amber-900 dark:text-amber-200">
                         <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
@@ -505,7 +701,7 @@ export default function ProfilePage() {
                     </div>
                   </CardContent>
                   <CardFooter className="bg-muted/30 border-t flex justify-end px-6 py-4">
-                    <Button type="submit" disabled={isUpdating || !hasChanges} className="px-8 cursor-pointer font-medium">
+                    <Button type="submit" disabled={isUpdating || !hasChanges} className="px-8 cursor-pointer font-medium w-full sm:w-auto">
                       {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Save Changes
                     </Button>
@@ -585,7 +781,7 @@ export default function ProfilePage() {
                         </div>
                     </CardContent>
                     <CardFooter className="bg-muted/30 border-t flex justify-end px-6 py-4">
-                        <Button type="submit" disabled={isUpdating || !newPassword} className="px-8 cursor-pointer font-medium">
+                        <Button type="submit" disabled={isUpdating || !newPassword} className="px-8 cursor-pointer font-medium w-full sm:w-auto">
                         {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Update Password
                         </Button>
@@ -594,95 +790,46 @@ export default function ProfilePage() {
                 </form>
               )}
 
-              <Card className="border-destructive/20 bg-destructive/5 shadow-sm rounded-3xl">
-                <CardHeader>
-                  <CardTitle className="text-destructive text-base font-semibold">Advanced Account Actions</CardTitle>
-                  <CardDescription className="text-sm font-normal">Manage your session and access mode.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between p-4 border rounded-2xl bg-background shadow-sm group hover:border-destructive/20 transition-colors">
-                    <div>
-                      <p className="text-sm font-semibold flex items-center gap-2">
-                          <LogOut className="h-4 w-4 text-muted-foreground" />
-                          {isLocal ? 'Return Home' : 'Sign out of session'}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground font-normal">{isLocal ? 'Go back to your workspace.' : 'End your current cloud session.'}</p>
+              {!isMobile && (
+                  <Card className="border-destructive/20 bg-destructive/5 shadow-sm rounded-3xl">
+                    <CardHeader>
+                    <CardTitle className="text-destructive text-base font-semibold">Advanced Account Actions</CardTitle>
+                    <CardDescription className="text-sm font-normal">Manage your session and access mode.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between p-4 border rounded-2xl bg-background shadow-sm group hover:border-destructive/20 transition-colors">
+                        <div>
+                        <p className="text-sm font-semibold flex items-center gap-2">
+                            <LogOut className="h-4 w-4 text-muted-foreground" />
+                            {isLocal ? 'Return Home' : 'Sign out of session'}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground font-normal">{isLocal ? 'Go back to your workspace.' : 'End your current cloud session.'}</p>
+                        </div>
+                        {isLocal ? (
+                            <Button variant="outline" size="sm" onClick={() => router.push('/')} className="h-8 text-xs font-semibold px-4">Workspace</Button>
+                        ) : (
+                            <AlertDialog open={isSignOutDialogOpen} onOpenChange={setIsSignOutDialogOpen}>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="outline" size="sm" className="h-8 text-xs font-semibold group-hover:bg-destructive group-hover:text-white transition-all cursor-pointer">Sign Out</Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="rounded-3xl">
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle className="font-semibold text-center">Sign out of TaskFlow?</AlertDialogTitle>
+                                        <AlertDialogDescription className="font-normal text-sm text-center">
+                                            You will be returned to Local Mode. Your cloud data is safe and will sync back the next time you sign in.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter className="flex-col gap-2">
+                                        <AlertDialogAction onClick={handleSignOut} className="bg-destructive hover:bg-destructive/90 font-semibold w-full rounded-xl h-11">Sign Out</AlertDialogAction>
+                                        <AlertDialogCancel className="font-medium w-full h-11 border-none hover:bg-muted rounded-xl">Cancel</AlertDialogCancel>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        )}
                     </div>
-                    {isLocal ? (
-                        <Button variant="outline" size="sm" onClick={() => router.push('/')} className="h-8 text-xs font-semibold px-4">Workspace</Button>
-                    ) : (
-                        <AlertDialog open={isSignOutDialogOpen} onOpenChange={setIsSignOutDialogOpen}>
-                            <AlertDialogTrigger asChild>
-                                <Button variant="outline" size="sm" className="h-8 text-xs font-semibold group-hover:bg-destructive group-hover:text-white transition-all cursor-pointer">Sign Out</Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent className="rounded-3xl">
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle className="font-semibold">Sign out of TaskFlow?</AlertDialogTitle>
-                                    <AlertDialogDescription className="font-normal text-sm">
-                                        Are you sure you want to sign out? You will be redirected to the home page in Local Mode.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel className="font-medium">Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleSignOut} className="bg-destructive hover:bg-destructive/90 font-semibold">Sign Out</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="logs" className="md:hidden space-y-6">
-              <Card className="shadow-sm border-none lg:border">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-                    <FileClock className="h-5 w-5 text-primary" />
-                    Activity Logs
-                  </CardTitle>
-                  <CardDescription className="text-sm font-normal">View a complete history of changes in this workspace.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button asChild className="w-full h-11 font-medium shadow-md">
-                    <Link href="/logs">Open Workspace Logs</Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="settings" className="md:hidden space-y-6">
-              <Card className="shadow-sm border-none lg:border">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-                    <Settings className="h-5 w-5 text-primary" />
-                    Workspace Settings
-                  </CardTitle>
-                  <CardDescription className="text-sm font-normal">Customize fields, environments, and team members.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button asChild className="w-full h-11 font-medium shadow-md">
-                    <Link href="/settings">Configure Workspace</Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="releases" className="md:hidden space-y-6">
-              <Card className="shadow-sm border-none lg:border">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-                    <Sparkles className="h-5 w-5 text-primary" />
-                    What's New
-                  </CardTitle>
-                  <CardDescription className="text-sm font-normal">Read about the latest features and application updates.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button asChild className="w-full h-11 font-medium shadow-md">
-                    <Link href="/releases">View Release Notes</Link>
-                  </Button>
-                </CardContent>
-              </Card>
+                    </CardContent>
+                </Card>
+              )}
             </TabsContent>
           </Tabs>
         </div>
