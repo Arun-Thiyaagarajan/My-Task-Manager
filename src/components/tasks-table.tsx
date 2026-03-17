@@ -161,15 +161,13 @@ const TasksTableRow = memo(function TasksTableRow({
   return (
     <TableRow 
         key={task.id} 
-        className={cn("group/row relative", isOpening && "opacity-70")} 
+        className={cn(
+            "group/row relative transition-opacity duration-300", 
+            isOpening && "opacity-60 pointer-events-none"
+        )} 
         data-state={isSelected ? 'selected' : undefined}
         onClick={handleRowClick}
     >
-       {isOpening && (
-         <div className="absolute inset-0 z-50 bg-background/40 backdrop-blur-[1px] flex items-center justify-center animate-in fade-in duration-200">
-            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-         </div>
-       )}
        {isSelectMode && (
          <TableCell>
             <Checkbox
@@ -318,10 +316,16 @@ const TasksTableRow = memo(function TasksTableRow({
       </TableCell>
       <TableCell className="align-top text-right">
         <div className="flex items-center justify-end gap-2">
-            <Button asChild variant="ghost" size="sm" disabled={isOpening} className="font-medium">
+            <Button asChild variant="ghost" size="sm" disabled={isOpening} className="font-medium min-w-[80px] justify-center">
                 <a href={`/tasks/${task.id}?${currentQueryString}`} onClick={handleRowClick}>
-                View
-                <ArrowRight className="ml-2 h-4 w-4" />
+                {isOpening ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                    <>
+                        View
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                    </>
+                )}
                 </a>
             </Button>
             <DeleteTaskButton taskId={task.id} taskTitle={task.title} onSuccess={onTaskUpdate} iconOnly className="h-8 w-8" />
