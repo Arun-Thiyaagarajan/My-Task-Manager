@@ -27,16 +27,15 @@ import {
   User, 
   Chrome, 
   ShieldCheck, 
-  AlertCircle, 
   ArrowLeft,
   KeyRound
 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { setAuthMode } from '@/lib/data';
 
 export default function AuthPage() {
   const isMobile = useIsMobile();
-  const { auth, firestore, user } = useFirebase();
+  const { auth, firestore } = useFirebase();
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -55,7 +54,6 @@ export default function AuthPage() {
   // to access this page even if they have a background Firebase session.
   // Successful authentication actions below still trigger a redirect to Home.
 
-  // If accessed on desktop, it's fine to show this page, but we prioritize it for mobile
   useEffect(() => {
     window.dispatchEvent(new Event('navigation-end'));
   }, []);
@@ -110,6 +108,8 @@ export default function AuthPage() {
         }
       }
       
+      // Crucial: Switch to Cloud mode before navigating home
+      setAuthMode('authenticate');
       window.dispatchEvent(new Event('company-changed'));
       router.push('/');
       
@@ -158,6 +158,9 @@ export default function AuthPage() {
       }
       
       toast({ variant: 'success', title: 'Signed in with Google' });
+      
+      // Crucial: Switch to Cloud mode before navigating home
+      setAuthMode('authenticate');
       window.dispatchEvent(new Event('company-changed'));
       router.push('/');
       

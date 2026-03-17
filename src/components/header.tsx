@@ -33,23 +33,14 @@ import {
   Edit, 
   LayoutDashboard, 
   Cog, 
-  Menu, 
   FileClock, 
   Home, 
   Bell, 
-  GraduationCap, 
   History,
   User as UserIcon,
   LogOut,
   ShieldCheck,
-  Smartphone,
-  Database,
-  Lock,
   CircleDot,
-  ChevronRight,
-  Circle,
-  Sun,
-  Moon
 } from 'lucide-react';
 import { CompaniesManager } from './companies-manager';
 import { useToast } from '@/hooks/use-toast';
@@ -62,7 +53,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useActiveCompany } from '@/hooks/use-active-company';
 import { ThemeToggle } from './theme-toggle';
@@ -75,7 +65,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { useFirebase } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { getInitials, getAvatarColor, getAvatarGradient, cn } from '@/lib/utils';
+import { getInitials, getAvatarGradient, cn } from '@/lib/utils';
 import { AuthModal } from './auth-modal';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -143,7 +133,7 @@ export function Header() {
 
   const handleOpenAuth = useCallback(() => {
     if (isMobile) {
-      if (pathname !== '/auth') {
+      if (!pathname.startsWith('/auth')) {
         window.dispatchEvent(new Event('navigation-start'));
         router.push('/auth');
       }
@@ -373,11 +363,10 @@ export function Header() {
                 <span className="sr-only">General Reminders</span>
             </Button>
             
-            {/* Unified Theme Toggle - positioned correctly for both mobile and desktop */}
             <ThemeToggle />
 
-            {/* Sign In Button - Only for Mobile now as it is in the profile dropdown for desktop */}
-            {authMode === 'localStorage' && pathname !== '/auth' && (
+            {/* Sign In Button - Only for Mobile, hidden on Auth page */}
+            {authMode === 'localStorage' && !pathname.startsWith('/auth') && (
                 <Button 
                     variant="outline" 
                     size="sm" 
@@ -450,7 +439,6 @@ export function Header() {
             </div>
           </div>
           
-          {/* Navbar Bottom Progress Bar */}
           {showProgress && (
             <div className="absolute bottom-0 left-0 right-0 h-0.5 overflow-hidden bg-primary/10">
               <div className="h-full bg-primary animate-loading-bar" />
