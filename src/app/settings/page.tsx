@@ -509,7 +509,7 @@ export default function SettingsPage() {
             
             {/* Add Field Button for Mobile Only - Below Storage Section */}
             <Button 
-                className="flex sm:hidden w-full h-12 mb-6 font-bold shadow-lg"
+                className="flex sm:hidden w-full h-12 mb-0 font-bold shadow-lg"
                 onClick={() => { setFieldToEdit(null); setIsFieldDialogOpen(true); }}
             >
                 <PlusCircle className="h-5 w-5 mr-2" /> Add Field

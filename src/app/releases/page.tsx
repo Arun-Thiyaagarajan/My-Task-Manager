@@ -123,7 +123,7 @@ export default function ReleasesPage() {
                             </div>
 
                             <div className={cn(
-                                "sm:w-[45%] space-y-4",
+                                "pl-14 sm:pl-0 sm:w-[45%] space-y-4",
                                 index % 2 === 0 ? "sm:ml-auto sm:pl-8" : "sm:mr-auto sm:pr-8 sm:text-right"
                             )}>
                                 <div className={cn(
