@@ -710,7 +710,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit, onInvalid)}>
         {/* MOBILE HEADER - Normal scroll behavior */}
-        <div className="lg:hidden -mx-4 px-4 bg-background border-b h-14 flex items-center justify-between mb-6 animate-in fade-in duration-300">
+        <div className="lg:hidden -mx-4 px-4 bg-background border-b h-14 flex items-center justify-between mb-2 animate-in fade-in duration-300">
             <h2 className="text-lg font-semibold tracking-tight truncate mr-4">{formTitle}</h2>
             <Button
                 type="button"
@@ -796,7 +796,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
 
         {/* FORM CONTENT */}
         <div className={cn(
-            "flex flex-col gap-8 pb-32 pt-6 lg:pt-0 lg:pb-32 relative px-4 lg:px-0",
+            "flex flex-col gap-8 pb-32 pt-2 lg:pt-0 lg:pb-32 relative px-4 lg:px-0",
             sidebarPosition === 'left' ? "lg:flex-row" : "lg:flex-row-reverse"
         )}>
             {/* Desktop Navigation Sidebar */}
