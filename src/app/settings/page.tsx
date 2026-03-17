@@ -87,6 +87,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useFirebase } from '@/firebase';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useRouter } from 'next/navigation';
+import { PeopleManagementContent } from '@/components/people-management-content';
 
 export default function SettingsPage() {
   const isMobile = useIsMobile();
@@ -480,16 +481,27 @@ export default function SettingsPage() {
 
   // MOBILE SUB-PAGE VIEW
   if (isMobile && activeMobileSection) {
+    const isPeopleManager = activeMobileSection === 'manage-developers' || activeMobileSection === 'manage-testers';
+    const managerType = activeMobileSection === 'manage-developers' ? 'developer' : 'tester';
+
     return (
         <div className="min-h-screen bg-background pb-32">
             <div className="px-6 pt-10 pb-6 flex items-center gap-4">
-                <Button variant="ghost" size="icon" onClick={() => setActiveMobileSection(null)} className="h-10 w-10 -ml-2 rounded-full shrink-0">
+                <Button variant="ghost" size="icon" onClick={() => setActiveMobileSection(isPeopleManager ? 'team' : null)} className="h-10 w-10 -ml-2 rounded-full shrink-0">
                     <ArrowLeft className="h-6 w-6" />
                 </Button>
-                <h1 className="text-xl font-bold capitalize">{activeMobileSection.replace('-', ' ')}</h1>
+                <h1 className="text-xl font-bold capitalize">
+                    {activeMobileSection === 'manage-developers' ? 'Manage Developers' : 
+                     activeMobileSection === 'manage-testers' ? 'Manage Testers' : 
+                     activeMobileSection.replace('-', ' ')}
+                </h1>
             </div>
 
-            <div className="px-4 space-y-4">
+            <div className={cn("px-4 space-y-4", isPeopleManager && "px-0")}>
+                {isPeopleManager && (
+                    <PeopleManagementContent type={managerType} />
+                )}
+
                 {activeMobileSection === 'storage' && (
                     <Card className="border-none shadow-lg">
                         <CardHeader className="pb-4">
@@ -680,8 +692,8 @@ export default function SettingsPage() {
                             <CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider"><Users className="h-5 w-5 text-primary" /> Team Management</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3">
-                            <Button variant="outline" className="w-full h-12 text-sm justify-between rounded-xl" onClick={() => setPeopleManagerType('developer')}>Manage Developers <ChevronRight className="h-4 w-4" /></Button>
-                            <Button variant="outline" className="w-full h-12 text-sm justify-between rounded-xl" onClick={() => setPeopleManagerType('tester')}>Manage Testers <ChevronRight className="h-4 w-4" /></Button>
+                            <Button variant="outline" className="w-full h-12 text-sm justify-between rounded-xl" onClick={() => setActiveMobileSection('manage-developers')}>Manage Developers <ChevronRight className="h-4 w-4" /></Button>
+                            <Button variant="outline" className="w-full h-12 text-sm justify-between rounded-xl" onClick={() => setActiveMobileSection('manage-testers')}>Manage Testers <ChevronRight className="h-4 w-4" /></Button>
                         </CardContent>
                     </Card>
                 )}
@@ -751,7 +763,7 @@ export default function SettingsPage() {
     );
   }
 
-  // DESKTOP VIEW - Unchanged
+  // DESKTOP VIEW
   return (
     <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8 max-w-7xl">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10">
@@ -1094,7 +1106,7 @@ export default function SettingsPage() {
                                                         <Trash2 className="h-3.5 w-3.5" />
                                                     </Button>
                                                 </AlertDialogTrigger>
-                                                <AlertDialogContent>
+                                                <AlertDialogContent className="rounded-3xl">
                                                     <AlertDialogHeader>
                                                         <AlertDialogTitle>Delete Environment?</AlertDialogTitle>
                                                         <AlertDialogDescription className="font-normal">
