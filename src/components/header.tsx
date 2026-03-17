@@ -44,7 +44,8 @@ import {
   ShieldCheck,
   Smartphone,
   Database,
-  Lock
+  Lock,
+  CircleDot
 } from 'lucide-react';
 import { CompaniesManager } from './companies-manager';
 import { useToast } from '@/hooks/use-toast';

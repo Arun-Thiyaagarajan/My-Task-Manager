@@ -98,6 +98,9 @@ export default function SettingsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
   
+  // Mobile Nav States
+  const [activeMobileSection, setActiveMobileSection] = useState<string | null>(null);
+
   const [peopleManagerType, setPeopleManagerType] = useState<'developer' | 'tester' | null>(null);
   const [fieldToEdit, setFieldToEdit] = useState<FieldConfig | null>(null);
   const [isFieldDialogOpen, setIsFieldDialogOpen] = useState(false);
@@ -174,7 +177,6 @@ export default function SettingsPage() {
     const reader = new FileReader();
     reader.onload = async (event) => {
       const rawDataUrl = event.target?.result as string;
-      // Aggressive pre-compression for app icon
       const workingOriginal = await compressImage(rawDataUrl, 800, 0.75);
       setOriginalIconImage(workingOriginal);
       setPendingIconImage(workingOriginal);
@@ -258,7 +260,6 @@ export default function SettingsPage() {
     toast({ variant: 'success', title: 'Field configuration saved.' });
   };
 
-  // Environment Management Actions
   const handleAddEnv = () => {
     if (!newEnvName.trim()) return;
     addEnvironment({ name: newEnvName.trim(), color: '#3b82f6' });
@@ -406,13 +407,351 @@ export default function SettingsPage() {
   }
 
   const authMode = getAuthMode();
+  const isAdmin = authMode === 'authenticate' && userProfile?.role === 'admin';
   const isDataURIIcon = appIcon && appIcon.startsWith('data:image');
 
   const handleBackToProfile = () => {
-    window.dispatchEvent(new Event('navigation-start'));
+    window.dispatchEvent(new Event('navigation-end'));
     router.push('/profile');
   };
 
+  const MobileHubRow = ({ icon: Icon, title, subLabel, onClick, color = 'text-muted-foreground' }: { icon: any, title: string, subLabel: string, onClick?: () => void, color?: string }) => (
+    <button 
+        onClick={onClick}
+        className="w-full flex items-center gap-4 py-4 px-4 hover:bg-muted/50 active:bg-muted transition-colors border-b last:border-0 text-left group"
+    >
+        <div className={cn("shrink-0", color)}>
+            <Icon className="h-6 w-6" />
+        </div>
+        <div className="flex-1 min-w-0">
+            <p className="text-base font-medium text-foreground">{title}</p>
+            <p className="text-xs text-muted-foreground truncate">{subLabel}</p>
+        </div>
+        <ChevronRight className="h-5 w-5 text-muted-foreground/30 group-active:text-primary" />
+    </button>
+  );
+
+  const MobileSectionHeader = ({ title }: { title: string }) => (
+    <div className="px-4 pt-6 pb-2">
+        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">{title}</h3>
+    </div>
+  );
+
+  // MOBILE HUB VIEW
+  if (isMobile && !activeMobileSection) {
+    return (
+        <div className="min-h-screen bg-background pb-32">
+            <div className="px-6 pt-10 pb-6 flex items-center gap-4">
+                <Button variant="ghost" size="icon" onClick={handleBackToProfile} className="h-10 w-10 -ml-2 rounded-full shrink-0">
+                    <ArrowLeft className="h-6 w-6" />
+                </Button>
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight">Workspace Settings</h1>
+                    <p className="text-xs text-muted-foreground font-medium">Configure your TaskFlow environment.</p>
+                </div>
+            </div>
+
+            <MobileSectionHeader title="Workspace" />
+            <div className="bg-card border-y">
+                <MobileHubRow icon={ShieldCheck} title="Storage Mode" subLabel={authMode === 'localStorage' ? 'Local Only' : 'Cloud Sync Enabled'} onClick={() => setActiveMobileSection('storage')} color="text-primary" />
+                <MobileHubRow icon={Globe} title="Appearance" subLabel="Branding, name, and time" onClick={() => setActiveMobileSection('appearance')} color="text-blue-500" />
+                <MobileHubRow icon={Bell} title="Features" subLabel="Reminders and tutorials" onClick={() => setActiveMobileSection('features')} color="text-amber-500" />
+            </div>
+
+            <MobileSectionHeader title="Structure" />
+            <div className="bg-card border-y">
+                <MobileHubRow icon={Layout} title="Field Configuration" subLabel="Task fields and visibility" onClick={() => setActiveMobileSection('fields')} color="text-purple-500" />
+                <MobileHubRow icon={Rocket} title="Environments" subLabel="Deployment pipeline" onClick={() => setActiveMobileSection('environments')} color="text-green-500" />
+            </div>
+
+            <MobileSectionHeader title="Organization" />
+            <div className="bg-card border-y">
+                <MobileHubRow icon={Users} title="Team Management" subLabel="Developers and testers" onClick={() => setActiveMobileSection('team')} color="text-indigo-500" />
+            </div>
+
+            <MobileSectionHeader title="System" />
+            <div className="bg-card border-y">
+                <MobileHubRow icon={History} title="Releases" subLabel={isAdmin ? 'Manage updates' : 'View updates'} onClick={() => setActiveMobileSection('releases')} color="text-orange-500" />
+                <MobileHubRow icon={Database} title="Data & Safety" subLabel="Import, export, clear data" onClick={() => setActiveMobileSection('data')} color="text-red-500" />
+            </div>
+        </div>
+    );
+  }
+
+  // MOBILE SUB-PAGE VIEW
+  if (isMobile && activeMobileSection) {
+    return (
+        <div className="min-h-screen bg-background pb-32">
+            <div className="px-6 pt-10 pb-6 flex items-center gap-4">
+                <Button variant="ghost" size="icon" onClick={() => setActiveMobileSection(null)} className="h-10 w-10 -ml-2 rounded-full shrink-0">
+                    <ArrowLeft className="h-6 w-6" />
+                </Button>
+                <h1 className="text-xl font-bold capitalize">{activeMobileSection.replace('-', ' ')}</h1>
+            </div>
+
+            <div className="px-4 space-y-4">
+                {activeMobileSection === 'storage' && (
+                    <Card className="border-none shadow-lg">
+                        <CardHeader className="pb-4">
+                            <CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider">
+                                <ShieldCheck className="h-5 w-5 text-primary" />
+                                STORAGE MODE
+                            </CardTitle>
+                            <CardDescription className="text-xs font-normal">Select how your workspace data is managed.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="grid gap-3">
+                                <button 
+                                    onClick={() => handleInitiateModeChange('localStorage')}
+                                    className={cn(
+                                        "flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all",
+                                        authMode === 'localStorage' 
+                                            ? "bg-primary/[0.03] border-primary shadow-sm" 
+                                            : "bg-background border-border"
+                                    )}
+                                >
+                                    <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center shrink-0", authMode === 'localStorage' ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
+                                        <Smartphone className="h-5 w-5" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="font-bold text-sm tracking-tight">Local Storage</p>
+                                        <p className="text-[10px] text-muted-foreground font-medium leading-tight mt-0.5">Browser-based. Fast & Offline.</p>
+                                    </div>
+                                </button>
+                                <button 
+                                    onClick={() => handleInitiateModeChange('authenticate')}
+                                    className={cn(
+                                        "flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all",
+                                        authMode === 'authenticate' 
+                                            ? "bg-primary/[0.03] border-primary shadow-sm" 
+                                            : "bg-background border-border"
+                                    )}
+                                >
+                                    <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center shrink-0", authMode === 'authenticate' ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
+                                        <Database className="h-5 w-5" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="font-bold text-sm tracking-tight">Cloud Sync</p>
+                                        <p className="text-[10px] text-muted-foreground font-medium leading-tight mt-0.5">Real-time sync across devices.</p>
+                                    </div>
+                                </button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {activeMobileSection === 'appearance' && (
+                    <Card className="border-none shadow-lg">
+                        <CardHeader className="pb-4">
+                            <CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider">
+                                <Globe className="h-5 w-5 text-primary" />
+                                Appearance
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-5">
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Workspace Name</Label>
+                                <Input value={appName} onChange={e => setAppName(e.target.value)} className="h-10 font-medium" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Workspace Icon</Label>
+                                <div className="flex gap-2">
+                                    <Input value={isDataURIIcon ? '' : (appIcon || '')} onChange={e => setAppIcon(e.target.value)} placeholder={isDataURIIcon ? "Custom image uploaded" : "Emoji or URL..."} className="h-10 flex-1 font-normal" />
+                                    <Button variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => iconFileInputRef.current?.click()}><Upload className="h-4 w-4" /></Button>
+                                    <input type="file" ref={iconFileInputRef} onChange={handleIconUpload} className="hidden" accept="image/*" />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Time Display</Label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button onClick={() => setTimeFormat('12h')} className={cn("flex items-center justify-center p-2.5 border rounded-xl gap-2 transition-all", timeFormat === '12h' ? "bg-primary/10 border-primary text-primary font-medium" : "bg-muted text-muted-foreground")}>12-hour</button>
+                                    <button onClick={() => setTimeFormat('24h')} className={cn("flex items-center justify-center p-2.5 border rounded-xl gap-2 transition-all", timeFormat === '24h' ? "bg-primary/10 border-primary text-primary font-medium" : "bg-muted text-muted-foreground")}>24-hour</button>
+                                </div>
+                            </div>
+                            <Button onClick={handleSaveDisplaySettings} className="w-full h-11 font-medium">Save Display Settings</Button>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {activeMobileSection === 'features' && (
+                    <Card className="border-none shadow-lg">
+                        <CardHeader className="pb-4">
+                            <CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider">
+                                <Bell className="h-5 w-5 text-primary" />
+                                Features
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20">
+                                <div className="space-y-0.5">
+                                    <Label className="text-sm font-semibold tracking-tight">Task Reminders</Label>
+                                    <p className="text-[10px] font-normal text-muted-foreground uppercase">Sticky notes on tasks.</p>
+                                </div>
+                                <Switch checked={uiConfig.remindersEnabled} onCheckedChange={(checked) => handleUpdateConfig({ remindersEnabled: checked })} />
+                            </div>
+                            <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20">
+                                <div className="space-y-0.5">
+                                    <Label className="text-sm font-semibold tracking-tight">Guided Tour</Label>
+                                    <p className="text-[10px] font-normal text-muted-foreground uppercase">Onboarding tips.</p>
+                                </div>
+                                <Switch checked={uiConfig.tutorialEnabled} onCheckedChange={(checked) => handleUpdateConfig({ tutorialEnabled: checked })} />
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {activeMobileSection === 'fields' && (
+                    <div className="space-y-4">
+                        <Button className="w-full h-12 font-bold shadow-lg" onClick={() => { setFieldToEdit(null); setIsFieldDialogOpen(true); }}>
+                            <PlusCircle className="h-5 w-5 mr-2" /> Add Field
+                        </Button>
+                        <Card className="border-none shadow-xl bg-card">
+                            <CardHeader className="pb-6">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                                    <Input placeholder="Search fields..." className="pl-10 h-12" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                                </div>
+                            </CardHeader>
+                            <CardContent className="space-y-8">
+                                {Object.entries(filteredAndGroupedFields.activeGroups).map(([groupName, fields]) => (
+                                    <div key={groupName} className="space-y-3">
+                                        <h4 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2 px-1">{groupName}</h4>
+                                        <div className="grid gap-2">
+                                            {fields.map(field => (
+                                                <div key={field.id} className="flex items-center justify-between p-4 bg-muted/20 border rounded-xl hover:bg-muted/40 transition-all group">
+                                                    <div className="min-w-0">
+                                                        <div className="flex items-center gap-2 mb-0.5">
+                                                            <span className="font-medium text-base truncate">{field.label} {field.isRequired && <span className="text-destructive">*</span>}</span>
+                                                            <Badge variant="outline" className="text-[9px] h-4">{field.type}</Badge>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex gap-1">
+                                                        <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => { setFieldToEdit(field); setIsFieldDialogOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                                                        {!['title', 'description', 'status', 'repositories'].includes(field.key) && (
+                                                            <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={() => handleFieldToggle(field.key, 'isActive')}><X className="h-4 w-4" /></Button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+
+                {activeMobileSection === 'environments' && (
+                    <Card className="border-none shadow-lg">
+                        <CardHeader className="pb-4">
+                            <CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider"><Rocket className="h-5 w-5 text-primary" /> Environments</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="grid gap-2">
+                                {(uiConfig.environments || []).map(env => {
+                                    const isMandatory = env.isMandatory || ['dev', 'production'].includes(env.name.toLowerCase());
+                                    return (
+                                        <div key={env.id} className="flex items-center justify-between p-3 border rounded-xl bg-muted/20">
+                                            <div className="flex items-center gap-3">
+                                                <div className="h-3 w-3 rounded-full" style={{ backgroundColor: env.color }} />
+                                                <span className="capitalize font-medium text-sm">{env.name}</span>
+                                            </div>
+                                            <div className="flex gap-1">
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEnvToEdit(env); setIsEnvDialogOpen(true); }}><Pencil className="h-3.5 w-3.5" /></Button>
+                                                {!isMandatory && (
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteEnv(env.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <div className="flex gap-2">
+                                <Input placeholder="New environment..." className="h-10 text-xs" value={newEnvName} onChange={e => setNewEnvName(e.target.value)} />
+                                <Button size="sm" className="h-10 px-4 shrink-0" onClick={handleAddEnv}>Add</Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {activeMobileSection === 'team' && (
+                    <Card className="border-none shadow-lg">
+                        <CardHeader className="pb-4">
+                            <CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider"><Users className="h-5 w-5 text-primary" /> Team Management</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            <Button variant="outline" className="w-full h-12 text-sm justify-between rounded-xl" onClick={() => setPeopleManagerType('developer')}>Manage Developers <ChevronRight className="h-4 w-4" /></Button>
+                            <Button variant="outline" className="w-full h-12 text-sm justify-between rounded-xl" onClick={() => setPeopleManagerType('tester')}>Manage Testers <ChevronRight className="h-4 w-4" /></Button>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {activeMobileSection === 'releases' && (
+                    <ReleaseManagementCard />
+                )}
+
+                {activeMobileSection === 'data' && (
+                    <div className="space-y-4">
+                        <Card className="border-none shadow-lg">
+                            <CardHeader className="pb-4">
+                                <CardTitle className="text-xs font-semibold uppercase tracking-wider">Data Operations</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                <Button variant="outline" className="w-full h-11 justify-start rounded-xl" onClick={handleExportSettings}><Download className="h-4 w-4 mr-3" /> Export Settings</Button>
+                                <Button variant="outline" className="w-full h-11 justify-start rounded-xl" onClick={() => fileInputRef.current?.click()}><Upload className="h-4 w-4 mr-3" /> Import Settings</Button>
+                                <input type="file" ref={fileInputRef} onChange={handleImportSettings} className="hidden" accept=".json" />
+                            </CardContent>
+                        </Card>
+                        <Card className="border-2 border-destructive/20 shadow-lg bg-destructive/[0.02]">
+                            <CardHeader className="pb-4">
+                                <CardTitle className="text-xs font-semibold text-destructive uppercase tracking-wider">Danger Zone</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="destructive" className="w-full h-11 justify-start rounded-xl"><Trash2 className="h-4 w-4 mr-3" /> Clear All Workspace Data</Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent className="rounded-3xl">
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Clear everything?</AlertDialogTitle>
+                                            <AlertDialogDescription>This will permanently delete all tasks, notes, and settings. This cannot be undone.</AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter className="gap-3 mt-4">
+                                            <AlertDialogCancel className="rounded-xl" disabled={isClearing}>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={handleClearAllData} className="bg-destructive hover:bg-destructive/90 rounded-xl" disabled={isClearing}>Clear Data</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+            </div>
+
+            {/* Shared Dialogs / Overlays */}
+            <PeopleManagerDialog type={peopleManagerType === 'developer' ? 'developer' : 'tester'} isOpen={peopleManagerType !== null} onOpenChange={(open) => !open && setPeopleManagerType(null)} onSuccess={() => {}} />
+            <EditFieldDialog isOpen={isFieldDialogOpen} onOpenChange={setIsFieldDialogOpen} field={fieldToEdit} repositoryConfigs={uiConfig.repositoryConfigs || []} onSave={handleSaveField} />
+            <EditEnvironmentDialog isOpen={isEnvDialogOpen} onOpenChange={setIsEnvDialogOpen} environment={envToEdit} onSave={handleSaveEnv} />
+            <AuthModal isOpen={isAuthModalOpen} onOpenChange={setIsAuthModalOpen} onSuccess={() => { setAuthMode('authenticate'); window.dispatchEvent(new Event('company-changed')); }} />
+            <ProfileImageCropper isOpen={isCropperOpen} onOpenChange={setIsCropperOpen} imageSrc={pendingIconImage} onCropComplete={handleCropComplete} />
+            <ImagePreviewDialog isOpen={isPreviewOpen} onOpenChange={setIsPreviewOpen} imageUrl={appIcon} imageName="Icon Preview" isProfilePreview onChange={() => { setIsPreviewOpen(false); iconFileInputRef.current?.click(); }} onRemove={handleRemoveIcon} previousImageUrl={uiConfig.previousAppIcon} onRestore={handleRestorePreviousIcon} />
+            <AlertDialog open={isModeConfirmOpen} onOpenChange={setIsModeConfirmOpen}>
+                <AlertDialogContent className="rounded-3xl">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Change Mode?</AlertDialogTitle>
+                        <AlertDialogDescription>{pendingModeChange === 'authenticate' ? "Switch to Cloud sync?" : "Switch to Local Storage?"}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="mt-4 gap-3">
+                        <AlertDialogCancel onClick={() => setPendingModeChange(null)}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleConfirmModeChange}>Confirm</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </div>
+    );
+  }
+
+  // DESKTOP VIEW - Unchanged
   return (
     <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8 max-w-7xl">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10">
