@@ -365,6 +365,15 @@ export default function ProfilePage() {
 
             {/* List of Settings Rows */}
             <div className="bg-card border-y">
+                {isLocal && (
+                    <MobileHubRow 
+                        icon={ShieldCheck} 
+                        title="Sign In / Cloud Sync" 
+                        subLabel="Securely sync your workspace" 
+                        onClick={() => window.dispatchEvent(new Event('open-auth-modal'))}
+                        color="text-primary font-bold"
+                    />
+                )}
                 <MobileHubRow 
                     icon={UserIcon} 
                     title="Account" 

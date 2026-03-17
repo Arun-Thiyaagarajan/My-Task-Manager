@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -6,7 +5,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { 
   Home, 
   LayoutDashboard, 
-  Plus
+  Plus,
+  ShieldCheck
 } from 'lucide-react';
 import { cn, getInitials, getAvatarGradient } from '@/lib/utils';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
@@ -41,6 +41,7 @@ export function MobileBottomNav() {
 
   const authMode = getAuthMode();
   const localProfile = getLocalProfile();
+  const isLocal = authMode === 'localStorage';
   
   const profileName = (authMode === 'authenticate' && user)
     ? (userProfile?.username || user?.displayName || user?.email || 'Cloud User')
@@ -104,6 +105,17 @@ export function MobileBottomNav() {
         <span className="text-[10px] font-bold uppercase tracking-wider">Bin</span>
         {pathname === '/bin' && <div className="absolute bottom-1 w-1 h-1 rounded-full bg-primary" />}
       </button>
+
+      {/* Conditional Sign In or Profile */}
+      {isLocal ? (
+        <button
+          onClick={() => window.dispatchEvent(new Event('open-auth-modal'))}
+          className="flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors relative text-primary"
+        >
+          <ShieldCheck className="h-5 w-5 fill-primary/10" />
+          <span className="text-[10px] font-bold uppercase tracking-wider">Sync</span>
+        </button>
+      ) : null}
 
       <div className="flex flex-col items-center justify-center flex-1 h-full">
         <button 
