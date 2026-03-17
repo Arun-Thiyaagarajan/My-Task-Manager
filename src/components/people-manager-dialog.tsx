@@ -22,11 +22,14 @@ interface PeopleManagerDialogProps {
 
 export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: PeopleManagerDialogProps) {
   const title = type === 'developer' ? 'Developer' : 'Tester';
-  const Icon = type === 'developer' ? Users : ClipboardCheck;
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl h-[90vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Manage {title}s</DialogTitle>
+          <DialogDescription>View and manage the list of {title.toLowerCase()}s in your workspace.</DialogDescription>
+        </DialogHeader>
         <div className="flex-1 min-h-0">
             <PeopleManagementContent 
                 type={type} 

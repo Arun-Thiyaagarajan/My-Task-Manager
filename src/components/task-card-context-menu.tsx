@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -6,6 +5,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from './ui/button';
 import { ShareMenu } from './share-menu';
@@ -43,6 +43,7 @@ export function TaskCardContextMenu({
       <DialogContent className="sm:max-w-xs p-2">
         <DialogHeader className="px-2 pt-1 pb-2">
           <DialogTitle className="text-base truncate">{task.title}</DialogTitle>
+          <DialogDescription className="sr-only">Task action menu for {task.title}</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-1">
           {uiConfig.remindersEnabled && (
