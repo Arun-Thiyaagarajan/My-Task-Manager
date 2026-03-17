@@ -45,7 +45,9 @@ import {
   Smartphone,
   Database,
   Lock,
-  CircleDot
+  CircleDot,
+  ChevronRight,
+  Circle
 } from 'lucide-react';
 import { CompaniesManager } from './companies-manager';
 import { useToast } from '@/hooks/use-toast';
@@ -137,6 +139,15 @@ export function Header() {
     setAuthModeState(getAuthMode());
   };
 
+  const handleOpenAuth = () => {
+    if (isMobile) {
+      window.dispatchEvent(new Event('navigation-start'));
+      router.push('/auth');
+    } else {
+      setIsAuthModalOpen(true);
+    }
+  };
+
   useEffect(() => {
     refreshAllData();
     
@@ -144,7 +155,6 @@ export function Header() {
     const handleSyncEnd = () => setIsGlobalLoading(false);
     const handleNavStart = () => setIsGlobalLoading(true);
     const handleNavEnd = () => setIsGlobalLoading(false);
-    const handleOpenAuth = () => setIsAuthModalOpen(true);
 
     window.addEventListener('company-changed', refreshAllData);
     window.addEventListener('storage', refreshAllData);
@@ -164,7 +174,7 @@ export function Header() {
         window.removeEventListener('open-auth-modal', handleOpenAuth);
     };
 
-  }, []);
+  }, [isMobile, router]);
   
   const isDataURI = (str: string | null | undefined): str is string => !!str && str.startsWith('data:image');
 
@@ -364,7 +374,7 @@ export function Header() {
                 <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={() => setIsAuthModalOpen(true)}
+                    onClick={handleOpenAuth}
                     className={cn(
                         "h-9 rounded-full px-2 sm:px-4 border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 font-black shadow-sm flex items-center transition-all active:scale-95",
                         isMobile && "px-3 ml-1"
@@ -413,7 +423,7 @@ export function Header() {
                         <span>My Profile</span>
                     </DropdownMenuItem>
                     {!(authMode === 'authenticate' && user) && (
-                      <DropdownMenuItem onSelect={() => setIsAuthModalOpen(true)} className="rounded-lg font-semibold text-primary focus:bg-primary/5 focus:text-primary py-2">
+                      <DropdownMenuItem onSelect={handleOpenAuth} className="rounded-lg font-semibold text-primary focus:bg-primary/5 focus:text-primary py-2">
                         <ShieldCheck className="mr-2 h-4 w-4" />
                         <span>Sign In / Cloud Sync</span>
                       </DropdownMenuItem>
