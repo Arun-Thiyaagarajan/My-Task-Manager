@@ -780,7 +780,7 @@ export default function ProfilePage() {
                                     {isActualImage(previousPhotoURL) ? 'Old' : 'N/A'}
                                 </AvatarFallback>
                             </Avatar>
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover/restore:opacity-100 transition-opacity">
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover/restore:opacity-100 transition-opacity">
                                 <RotateCcw className="h-5 w-5 text-white" />
                             </div>
                         </button>

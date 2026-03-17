@@ -415,7 +415,16 @@ export function Header() {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator className="my-2" />
                   <DropdownMenuGroup className="space-y-1">
-                    <DropdownMenuItem onSelect={() => prompt(() => { window.dispatchEvent(new Event('navigation-start')); router.push('/profile'); })} className="rounded-lg font-medium py-2">
+                    <DropdownMenuItem 
+                        onSelect={() => {
+                            if (pathname === '/profile') return;
+                            prompt(() => { 
+                                window.dispatchEvent(new Event('navigation-start')); 
+                                router.push('/profile'); 
+                            });
+                        }} 
+                        className="rounded-lg font-medium py-2"
+                    >
                         <UserIcon className="mr-2 h-4 w-4 opacity-70" />
                         <span>My Profile</span>
                     </DropdownMenuItem>

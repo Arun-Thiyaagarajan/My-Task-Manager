@@ -709,9 +709,8 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit, onInvalid)}>
-        {/* MOBILE HEADER - Swapped Layout */}
+        {/* MOBILE HEADER - Standard Back-on-Left Pattern */}
         <div className="lg:hidden -mx-4 px-4 bg-background border-b h-14 flex items-center justify-between mb-2 animate-in fade-in duration-300">
-            <h2 className="text-lg font-semibold tracking-tight truncate">{formTitle}</h2>
             <Button
                 type="button"
                 variant="ghost"
@@ -719,9 +718,10 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                 onClick={handleCancel}
                 className="h-9 px-3 font-medium hover:bg-primary/10 hover:text-primary transition-all rounded-full flex items-center gap-1.5 active:scale-95"
             >
-                <span>Back</span>
                 <ArrowLeft className="h-4 w-4" />
+                <span>Back</span>
             </Button>
+            <h2 className="text-lg font-semibold tracking-tight truncate flex-1 text-right">{formTitle}</h2>
         </div>
 
         {/* DESKTOP ACTION BAR - Fixed at bottom */}
@@ -1094,7 +1094,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                                         </FormItem>
                                                     )}
                                                 />
-                                            )) : <p className="col-span-full text-sm font-normal text-muted-foreground text-center py-8 bg-muted/10 rounded-2xl border-2 border-dashed">Select relevant environments to add PR links.</p>}
+                                            )) : <p className="col-span-full text-sm font-normal text-muted-foreground text-center py-12 bg-muted/10 rounded-2xl border-2 border-dashed">Select relevant environments to add PR links.</p>}
                                             </div>
                                         </TabsContent>
                                     ))}
