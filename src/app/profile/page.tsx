@@ -334,7 +334,7 @@ export default function ProfilePage() {
             <div className="px-6 pt-10 pb-8 space-y-6">
                 <div className="flex items-center gap-4">
                     <div className="relative group">
-                        <Avatar className="h-20 w-24 border-2 border-background shadow-xl">
+                        <Avatar className="h-20 w-20 border-2 border-background shadow-xl">
                             <AvatarImage src={isActualImage(photoURL) ? photoURL : undefined} className="object-cover" />
                             <AvatarFallback 
                                 className="text-2xl font-semibold text-white" 
