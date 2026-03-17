@@ -52,7 +52,7 @@ export function MobileBottomNav() {
           className="md:hidden fixed bottom-0 inset-x-0 z-[100] bg-background/95 border-t border-border"
           style={{
             paddingBottom: 'env(safe-area-inset-bottom)',
-            height: 'calc(4rem + env(safe-area-inset-bottom))'
+            height: 'calc(5rem + env(safe-area-inset-bottom))'
           }}
         />
     );
@@ -77,7 +77,7 @@ export function MobileBottomNav() {
       )}
       style={{
         paddingBottom: 'env(safe-area-inset-bottom)',
-        height: 'calc(4rem + env(safe-area-inset-bottom))'
+        height: 'calc(5rem + env(safe-area-inset-bottom))'
       }}
     >
       {navItems.map((item) => {
@@ -88,13 +88,13 @@ export function MobileBottomNav() {
             key={item.href}
             onClick={() => handleNavigate(item.href)}
             className={cn(
-              "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors relative",
+              "flex flex-col items-center justify-center flex-1 h-full gap-1.5 transition-colors relative",
               isActive ? "text-primary" : "text-muted-foreground"
             )}
           >
-            <Icon className={cn("h-5 w-5", isActive && "fill-primary/10")} />
+            <Icon className={cn("h-6 w-6", isActive && "fill-primary/10")} />
             <span className="text-[10px] font-bold uppercase tracking-wider">{item.label}</span>
-            {isActive && <div className="absolute bottom-1 w-1 h-1 rounded-full bg-primary" />}
+            {isActive && <div className="absolute bottom-2 w-1.5 h-1.5 rounded-full bg-primary" />}
           </button>
         );
       })}
@@ -103,34 +103,34 @@ export function MobileBottomNav() {
       <div className="flex-1 flex flex-col items-center justify-center">
         <Button 
           size="icon" 
-          className="h-12 w-12 rounded-full shadow-lg shadow-primary/30 -mt-10 border-4 border-background active:scale-95 transition-transform"
+          className="h-14 w-14 rounded-full shadow-xl shadow-primary/30 -mt-12 border-4 border-background active:scale-95 transition-transform"
           onClick={() => handleNavigate('/tasks/new')}
         >
-          <Plus className="h-6 w-6" />
+          <Plus className="h-7 w-7" />
           <span className="sr-only">New Task</span>
         </Button>
-        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mt-1">New</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mt-2">New</span>
       </div>
 
       <button
         onClick={() => handleNavigate('/bin')}
         className={cn(
-          "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors relative",
+          "flex flex-col items-center justify-center flex-1 h-full gap-1.5 transition-colors relative",
           pathname === '/bin' ? "text-primary" : "text-muted-foreground"
         )}
       >
-        <Trash2 className={cn("h-5 w-5", pathname === '/bin' && "fill-primary/10")} />
+        <Trash2 className={cn("h-6 w-6", pathname === '/bin' && "fill-primary/10")} />
         <span className="text-[10px] font-bold uppercase tracking-wider">Bin</span>
-        {pathname === '/bin' && <div className="absolute bottom-1 w-1 h-1 rounded-full bg-primary" />}
+        {pathname === '/bin' && <div className="absolute bottom-2 w-1.5 h-1.5 rounded-full bg-primary" />}
       </button>
 
       <div className="flex flex-col items-center justify-center flex-1 h-full">
         <button 
           onClick={() => handleNavigate('/profile')}
-          className="flex flex-col items-center justify-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-md p-1"
+          className="flex flex-col items-center justify-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-md p-1"
         >
           <div className={cn(
-            "h-7 w-7 rounded-full border-2 flex items-center justify-center overflow-hidden transition-transform active:scale-90",
+            "h-8 w-8 rounded-full border-2 flex items-center justify-center overflow-hidden transition-transform active:scale-90",
             (authMode === 'authenticate' && user) ? "border-primary" : "border-muted-foreground/20"
           )}>
             <Avatar className="h-full w-full">
