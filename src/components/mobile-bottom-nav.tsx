@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
   Home, 
@@ -25,6 +25,12 @@ export function MobileBottomNav() {
   const router = useRouter();
   const { prompt } = useUnsavedChanges();
   const { user, userProfile } = useFirebase();
+  const [mounted, setMounted] = useState(false);
+
+  // Set mounted to true after initial mount to prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const navItems = [
     { label: 'Tasks', href: '/', icon: Home },
@@ -38,6 +44,19 @@ export function MobileBottomNav() {
         router.push(href);
     });
   };
+
+  // Prevent hydration mismatch by returning a stable shell on the server
+  if (!mounted) {
+    return (
+        <nav 
+          className="md:hidden fixed bottom-0 inset-x-0 z-[100] bg-background/95 border-t border-border"
+          style={{
+            paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
+            height: 'calc(5.5rem + env(safe-area-inset-bottom))'
+          }}
+        />
+    );
+  }
 
   const authMode = getAuthMode();
   const localProfile = getLocalProfile();
