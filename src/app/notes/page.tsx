@@ -129,7 +129,8 @@ export default function NotesPage() {
     const authMode = getAuthMode();
     const companyId = getActiveCompanyId();
     
-    if (authMode === 'authenticate' && (isUserLoading || !companyId || !isInitialSyncComplete(companyId))) {
+    // Identity verification: block data display while determining auth or waiting for sync
+    if (isUserLoading || (authMode === 'authenticate' && (!companyId || !isInitialSyncComplete(companyId)))) {
         return;
     }
 
@@ -415,8 +416,8 @@ export default function NotesPage() {
 
   const authMode = getAuthMode();
   const activeCompanyId = getActiveCompanyId();
-  const isVerifyingCloud = authMode === 'authenticate' && (isUserLoading || !activeCompanyId || !isInitialSyncComplete(activeCompanyId));
-  const activeSkeletons = isLoading || isVerifyingCloud;
+  const isSyncing = authMode === 'authenticate' && (!activeCompanyId || !isInitialSyncComplete(activeCompanyId));
+  const activeSkeletons = isLoading || isUserLoading || isSyncing;
 
   if (activeSkeletons || !uiConfig) {
     return <NotesSkeleton />;

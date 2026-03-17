@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
-import { getTasks, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addTagsToMultipleTasks, addEnvironment, DATA_KEY, getAuthMode, importWorkspaceData, getUserPreferences, updateUserPreferences, isInitialSyncComplete } from '@/lib/data';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { getTasks, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addTagsToMultipleTasks, addEnvironment, DATA_KEY, getAuthMode, importWorkspaceData, getUserPreferences, updateUserPreferences, isInitialSyncComplete, getActiveCompanyId } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -69,7 +70,6 @@ import {
 } from 'date-fns';
 import { useActiveCompany } from '@/hooks/use-active-company';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Card, CardContent } from '@/components/ui/card';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
@@ -259,7 +259,13 @@ export default function Home() {
   }, [dateView, selectedDate]);
 
   const refreshData = useCallback(() => {
-    if (activeCompanyId) {
+    const authMode = getAuthMode();
+    const companyId = getActiveCompanyId();
+    
+    // Skeletons should be visible while auth or cloud sync is active
+    if (isUserLoading) return;
+
+    if (companyId) {
         setTasks(getTasks());
         setDevelopers(getDevelopers());
         setTesters(getTesters());
@@ -270,15 +276,36 @@ export default function Home() {
         setSelectedTaskIds([]);
         
         // In authenticate mode, we stop internal loading state when the sync is confirmed
-        const syncComplete = isInitialSyncComplete(activeCompanyId);
-        if (getAuthMode() === 'authenticate' && !syncComplete) {
+        if (authMode === 'authenticate' && !isInitialSyncComplete(companyId)) {
             return;
         }
         
         setIsLoading(false);
         window.dispatchEvent(new Event('navigation-end'));
     }
-  }, [activeCompanyId]);
+  }, [activeCompanyId, isUserLoading]);
+
+  useEffect(() => {
+    refreshData();
+    
+    const storageHandler = (event: StorageEvent) => {
+        if (event.key === DATA_KEY) {
+            refreshData();
+        }
+    };
+
+    window.addEventListener('storage', storageHandler);
+    window.addEventListener('config-changed', refreshData);
+    window.addEventListener('company-changed', refreshData);
+    window.addEventListener('sync-complete', refreshData);
+    
+    return () => {
+      window.removeEventListener('storage', storageHandler);
+      window.removeEventListener('config-changed', refreshData);
+      window.removeEventListener('company-changed', refreshData);
+      window.removeEventListener('sync-complete', refreshData);
+    };
+  }, [refreshData]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -342,6 +369,9 @@ export default function Home() {
   useEffect(() => {
     const filterAndProcess = () => {
         try {
+            // Block data processing until auth state is known
+            if (isUserLoading) return;
+
             const results = tasks.filter((task: Task) => {
                 if (favoritesOnly && !task.isFavorite) return false;
 
@@ -422,7 +452,7 @@ export default function Home() {
             // Only consider initialized if cloud sync status is known
             const mode = getAuthMode();
             if (mode === 'authenticate') {
-                if (isUserLoading || !activeCompanyId || !isInitialSyncComplete(activeCompanyId)) {
+                if (!activeCompanyId || !isInitialSyncComplete(activeCompanyId)) {
                     return;
                 }
             }
@@ -557,27 +587,7 @@ export default function Home() {
             localStorage.setItem(PINNED_TASKS_STORAGE_KEY, JSON.stringify(newPinned));
         }
     }
-
-    refreshData();
-    
-    const storageHandler = (event: StorageEvent) => {
-        if (event.key === DATA_KEY) {
-            refreshData();
-        }
-    };
-
-    window.addEventListener('storage', storageHandler);
-    window.addEventListener('config-changed', refreshData);
-    window.addEventListener('company-changed', refreshData);
-    window.addEventListener('sync-complete', refreshData);
-    
-    return () => {
-      window.removeEventListener('storage', storageHandler);
-      window.removeEventListener('config-changed', refreshData);
-      window.removeEventListener('company-changed', refreshData);
-      window.removeEventListener('sync-complete', refreshData);
-    };
-  }, [activeCompanyId, toast, refreshData]);
+  }, [activeCompanyId, toast]);
   
   useEffect(() => {
     if (isLoading || !uiConfig) return;
@@ -837,8 +847,9 @@ export default function Home() {
   };
   
   const authMode = currentAuthMode;
-  const isVerifyingCloud = authMode === 'authenticate' && (isUserLoading || !activeCompanyId || !isInitialSyncComplete(activeCompanyId));
-  const activeSkeletons = isLoading || isSearching || isVerifyingCloud || !hasInitialized;
+  // Comprehensive skeleton trigger: show skeletons if core loading, cloud sync, auth check, or search is active
+  const isSyncing = authMode === 'authenticate' && (!activeCompanyId || !isInitialSyncComplete(activeCompanyId));
+  const activeSkeletons = isLoading || isSearching || isUserLoading || isSyncing || !hasInitialized;
 
   const tagsOptions = useMemo(() => {
       const tagsField = (uiConfig?.fields || []).find(f => f.key === 'tags');

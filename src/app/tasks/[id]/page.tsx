@@ -111,8 +111,8 @@ export default function TaskPage() {
       const activeCompanyId = getActiveCompanyId();
       const authMode = getAuthMode();
       
-      // In authenticate mode, we stay in loading state until sync is definitive
-      if (authMode === 'authenticate' && (isUserLoading || !activeCompanyId || !isInitialSyncComplete(activeCompanyId))) {
+      // Identity verification: wait for auth state and (if in cloud mode) the initial sync
+      if (isUserLoading || (authMode === 'authenticate' && (!activeCompanyId || !isInitialSyncComplete(activeCompanyId)))) {
           return;
       }
 
@@ -777,8 +777,8 @@ const handleCopyDescription = () => {
 
   const authMode = getAuthMode();
   const activeCompanyId = getActiveCompanyId();
-  const isVerifyingCloud = authMode === 'authenticate' && (isUserLoading || !activeCompanyId || !isInitialSyncComplete(activeCompanyId));
-  const activeSkeletons = isLoading || isVerifyingCloud;
+  const isSyncing = authMode === 'authenticate' && (!activeCompanyId || !isInitialSyncComplete(activeCompanyId));
+  const activeSkeletons = isLoading || isUserLoading || isSyncing;
 
   if (activeSkeletons || !uiConfig) {
     return <TaskDetailSkeleton />;

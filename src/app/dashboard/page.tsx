@@ -27,7 +27,8 @@ export default function DashboardPage() {
         const authMode = getAuthMode();
         const companyId = getActiveCompanyId();
         
-        if (authMode === 'authenticate' && (isUserLoading || !companyId || !isInitialSyncComplete(companyId))) {
+        // Comprehensive identity check: wait for auth state and (if in cloud mode) the initial sync
+        if (isUserLoading || (authMode === 'authenticate' && (!companyId || !isInitialSyncComplete(companyId)))) {
             return;
         }
 
@@ -56,8 +57,8 @@ export default function DashboardPage() {
 
   const authMode = getAuthMode();
   const activeCompanyId = getActiveCompanyId();
-  const isVerifyingCloud = authMode === 'authenticate' && (isUserLoading || !activeCompanyId || !isInitialSyncComplete(activeCompanyId));
-  const activeSkeletons = isLoading || isVerifyingCloud;
+  const isSyncing = authMode === 'authenticate' && (!activeCompanyId || !isInitialSyncComplete(activeCompanyId));
+  const activeSkeletons = isLoading || isUserLoading || isSyncing;
 
   if (activeSkeletons || !uiConfig) {
     return <DashboardSkeleton />;
