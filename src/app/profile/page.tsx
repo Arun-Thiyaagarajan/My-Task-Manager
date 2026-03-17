@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -325,6 +326,45 @@ export default function ProfilePage() {
     </button>
   );
 
+  const sharedDialogs = (
+    <>
+      <ProfileImageCropper 
+        isOpen={isCropperOpen}
+        onOpenChange={setIsCropperOpen}
+        imageSrc={pendingImage}
+        onCropComplete={handleCropComplete}
+      />
+
+      <ImagePreviewDialog 
+        isOpen={isPreviewOpen}
+        onOpenChange={setIsPreviewOpen}
+        imageUrl={photoURL}
+        imageName="Profile Photo"
+        isProfilePreview
+        onEdit={handleEditExisting}
+        onChange={() => { setIsPreviewOpen(false); fileInputRef.current?.click(); }}
+        onRemove={handleRemovePhoto}
+        previousImageUrl={previousPhotoURL}
+        onRestore={handleRestorePrevious}
+      />
+
+      <AlertDialog open={isSignOutDialogOpen} onOpenChange={setIsSignOutDialogOpen}>
+        <AlertDialogContent className="rounded-3xl w-[90%] md:w-full">
+            <AlertDialogHeader>
+                <AlertDialogTitle className="font-semibold text-center">Sign out of TaskFlow?</AlertDialogTitle>
+                <AlertDialogDescription className="text-sm font-normal text-center">
+                    Your cloud data is safe and will sync back next time you sign in.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-col md:flex-row gap-2 mt-4">
+                <AlertDialogAction onClick={handleSignOut} className="bg-destructive hover:bg-destructive/90 font-semibold w-full h-11 rounded-xl">Sign Out</AlertDialogAction>
+                <AlertDialogCancel className="font-medium w-full h-11 border-none bg-transparent hover:bg-muted rounded-xl">Cancel</AlertDialogCancel>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+
   // MOBILE HUB VIEW
   if (isMobile && !showMobileSubPage) {
     return (
@@ -333,15 +373,20 @@ export default function ProfilePage() {
             <div className="px-6 pt-10 pb-8 space-y-6">
                 <div className="flex items-center gap-4">
                     <div className="relative group">
-                        <Avatar className="h-20 w-20 border-2 border-background shadow-xl relative z-10 ring-4 ring-primary/10 ring-offset-2 ring-offset-background">
-                            <AvatarImage src={isActualImage(photoURL) ? photoURL : undefined} className="object-cover" />
-                            <AvatarFallback 
-                                className="text-2xl font-semibold text-white" 
-                                style={{ background: getAvatarGradient(profileName) }}
-                            >
-                                {getInitials(profileName)}
-                            </AvatarFallback>
-                        </Avatar>
+                        <button 
+                            onClick={() => (photoURL || previousPhotoURL) ? setIsPreviewOpen(true) : fileInputRef.current?.click()}
+                            className="relative block cursor-pointer transition-transform duration-300 active:scale-95 rounded-full"
+                        >
+                            <Avatar className="h-20 w-20 border-2 border-background shadow-xl relative z-10 ring-4 ring-primary/10 ring-offset-2 ring-offset-background">
+                                <AvatarImage src={isActualImage(photoURL) ? photoURL : undefined} className="object-cover" />
+                                <AvatarFallback 
+                                    className="text-2xl font-semibold text-white" 
+                                    style={{ background: getAvatarGradient(profileName) }}
+                                >
+                                    {getInitials(profileName)}
+                                </AvatarFallback>
+                            </Avatar>
+                        </button>
                         <button 
                             onClick={() => fileInputRef.current?.click()}
                             className="absolute -bottom-1 -right-1 p-1.5 bg-primary text-primary-foreground rounded-full shadow-lg border-2 border-background z-20"
@@ -441,28 +486,7 @@ export default function ProfilePage() {
                     </button>
                 )}
             </div>
-
-            <AlertDialog open={isSignOutDialogOpen} onOpenChange={setIsSignOutDialogOpen}>
-                <AlertDialogContent className="rounded-3xl w-[90%]">
-                    <AlertDialogHeader>
-                        <AlertDialogTitle className="font-semibold text-center">Sign out of TaskFlow?</AlertDialogTitle>
-                        <AlertDialogDescription className="text-sm font-normal text-center">
-                            Your cloud data is safe and will sync back next time you sign in.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter className="flex-col gap-2 mt-4">
-                        <AlertDialogAction onClick={handleSignOut} className="bg-destructive hover:bg-destructive/90 font-semibold w-full h-11 rounded-xl">Sign Out</AlertDialogAction>
-                        <AlertDialogCancel className="font-medium w-full h-11 border-none bg-transparent hover:bg-muted rounded-xl">Cancel</AlertDialogCancel>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-
-            <ProfileImageCropper 
-                isOpen={isCropperOpen}
-                onOpenChange={setIsCropperOpen}
-                imageSrc={pendingImage}
-                onCropComplete={handleCropComplete}
-            />
+            {sharedDialogs}
         </div>
     );
   }
@@ -495,7 +519,7 @@ export default function ProfilePage() {
                         <TooltipTrigger asChild>
                         <button 
                             onClick={() => (photoURL || previousPhotoURL) ? setIsPreviewOpen(true) : fileInputRef.current?.click()}
-                            className="relative block cursor-pointer transition-transform duration-300 active:scale-95"
+                            className="relative block cursor-pointer transition-transform duration-300 active:scale-95 rounded-full"
                         >
                             <Avatar className="h-24 w-24 border-[6px] border-background shadow-2xl transition-all duration-300 group-hover:border-primary/20">
                             <AvatarImage src={isActualImage(photoURL) ? photoURL : undefined} className="object-cover" />
@@ -598,7 +622,7 @@ export default function ProfilePage() {
                             <Avatar className="h-16 w-16 border-2 border-border transition-all group-hover/restore:border-primary/50 group-hover/restore:scale-105">
                                 <AvatarImage src={isActualImage(previousPhotoURL) ? previousPhotoURL : undefined} className="object-cover" />
                                 <AvatarFallback className="text-sm">
-                                    {isActualImage(previousPhotoURL) ? 'Old' : previousPhotoURL}
+                                    {isActualImage(previousPhotoURL) ? 'Old' : 'N/A'}
                                 </AvatarFallback>
                             </Avatar>
                             <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover/restore:opacity-100 transition-opacity">
@@ -634,15 +658,21 @@ export default function ProfilePage() {
                     {isMobile && (
                         <div className="flex justify-center pb-4">
                             <div className="relative group">
-                                <Avatar className="h-32 w-32 border-4 border-background shadow-2xl relative z-10 ring-4 ring-primary/10 ring-offset-4 ring-offset-background">
-                                    <AvatarImage src={isActualImage(photoURL) ? photoURL : undefined} className="object-cover" />
-                                    <AvatarFallback 
-                                        className="text-4xl font-semibold text-white" 
-                                        style={{ background: getAvatarGradient(profileName) }}
-                                    >
-                                        {getInitials(profileName)}
-                                    </AvatarFallback>
-                                </Avatar>
+                                <button 
+                                    type="button"
+                                    onClick={() => (photoURL || previousPhotoURL) ? setIsPreviewOpen(true) : fileInputRef.current?.click()}
+                                    className="relative block cursor-pointer transition-transform duration-300 active:scale-95 rounded-full"
+                                >
+                                    <Avatar className="h-32 w-32 border-4 border-background shadow-2xl relative z-10 ring-4 ring-primary/10 ring-offset-4 ring-offset-background">
+                                        <AvatarImage src={isActualImage(photoURL) ? photoURL : undefined} className="object-cover" />
+                                        <AvatarFallback 
+                                            className="text-4xl font-semibold text-white" 
+                                            style={{ background: getAvatarGradient(profileName) }}
+                                        >
+                                            {getInitials(profileName)}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                </button>
                                 <button 
                                     type="button"
                                     onClick={() => fileInputRef.current?.click()}
@@ -842,26 +872,7 @@ export default function ProfilePage() {
           </Tabs>
         </div>
       </div>
-
-      <ProfileImageCropper 
-        isOpen={isCropperOpen}
-        onOpenChange={setIsCropperOpen}
-        imageSrc={pendingImage}
-        onCropComplete={handleCropComplete}
-      />
-
-      <ImagePreviewDialog 
-        isOpen={isPreviewOpen}
-        onOpenChange={setIsPreviewOpen}
-        imageUrl={photoURL}
-        imageName="Profile Photo"
-        isProfilePreview
-        onEdit={handleEditExisting}
-        onChange={() => { setIsPreviewOpen(false); fileInputRef.current?.click(); }}
-        onRemove={handleRemovePhoto}
-        previousImageUrl={previousPhotoURL}
-        onRestore={handleRestorePrevious}
-      />
+      {sharedDialogs}
     </div>
   );
 }
