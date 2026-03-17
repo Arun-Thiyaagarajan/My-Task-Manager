@@ -354,6 +354,19 @@ export function Header() {
                 <span className="sr-only">General Reminders</span>
             </Button>
             
+            {/* Sign In Button for Local Storage Mode */}
+            {authMode === 'localStorage' && (
+                <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setIsAuthModalOpen(true)}
+                    className="h-9 rounded-full px-4 border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 font-bold hidden sm:flex"
+                >
+                    <ShieldCheck className="h-4 w-4 mr-2" />
+                    Sign In
+                </Button>
+            )}
+
             <div className="hidden sm:block">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

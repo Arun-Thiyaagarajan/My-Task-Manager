@@ -427,7 +427,12 @@ export default function SettingsPage() {
                 <p className="text-base text-muted-foreground mt-2 font-normal">Manage and customize fields and environments across your application.</p>
             </div>
         </div>
-        <Button id="add-field-button" size="lg" className="h-12 px-6 font-medium shadow-sm w-full sm:w-auto" onClick={() => { setFieldToEdit(null); setIsFieldDialogOpen(true); }}>
+        <Button 
+            id="add-field-button" 
+            size="lg" 
+            className="hidden sm:flex h-12 px-6 font-medium shadow-sm w-auto" 
+            onClick={() => { setFieldToEdit(null); setIsFieldDialogOpen(true); }}
+        >
             <PlusCircle className="h-5 w-5 mr-2" /> Add Field
         </Button>
       </div>
@@ -435,7 +440,7 @@ export default function SettingsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start pb-20">
         {/* Storage Mode - Top on mobile, right sidebar on desktop */}
         <div className="order-1 lg:order-none lg:col-start-3 lg:row-start-1">
-            <Card className="border-none shadow-lg">
+            <Card className="border-none shadow-lg mb-4">
                 <CardHeader className="pb-4">
                     <CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider">
                         <ShieldCheck className="h-5 w-5 text-primary" />
@@ -501,6 +506,14 @@ export default function SettingsPage() {
                     </div>
                 </CardContent>
             </Card>
+            
+            {/* Add Field Button for Mobile Only - Below Storage Section */}
+            <Button 
+                className="flex sm:hidden w-full h-12 mb-6 font-bold shadow-lg"
+                onClick={() => { setFieldToEdit(null); setIsFieldDialogOpen(true); }}
+            >
+                <PlusCircle className="h-5 w-5 mr-2" /> Add Field
+            </Button>
         </div>
 
         {/* Main Content - Second on mobile, col 1-2 on desktop */}

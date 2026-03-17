@@ -6,7 +6,7 @@ import {
   Home, 
   LayoutDashboard, 
   Plus,
-  ShieldCheck
+  Trash2
 } from 'lucide-react';
 import { cn, getInitials, getAvatarGradient } from '@/lib/utils';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
@@ -51,8 +51,8 @@ export function MobileBottomNav() {
         <nav 
           className="md:hidden fixed bottom-0 inset-x-0 z-[100] bg-background/95 border-t border-border"
           style={{
-            paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
-            height: 'calc(5.5rem + env(safe-area-inset-bottom))'
+            paddingBottom: 'env(safe-area-inset-bottom)',
+            height: 'calc(4rem + env(safe-area-inset-bottom))'
           }}
         />
     );
@@ -60,7 +60,6 @@ export function MobileBottomNav() {
 
   const authMode = getAuthMode();
   const localProfile = getLocalProfile();
-  const isLocal = authMode === 'localStorage';
   
   const profileName = (authMode === 'authenticate' && user)
     ? (userProfile?.username || user?.displayName || user?.email || 'Cloud User')
@@ -77,8 +76,8 @@ export function MobileBottomNav() {
         "flex items-center justify-around px-2 transform-gpu transition-all duration-300"
       )}
       style={{
-        paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
-        height: 'calc(5.5rem + env(safe-area-inset-bottom))'
+        paddingBottom: 'env(safe-area-inset-bottom)',
+        height: 'calc(4rem + env(safe-area-inset-bottom))'
       }}
     >
       {navItems.map((item) => {
@@ -104,7 +103,7 @@ export function MobileBottomNav() {
       <div className="flex-1 flex flex-col items-center justify-center">
         <Button 
           size="icon" 
-          className="h-12 w-12 rounded-full shadow-lg shadow-primary/30 -mt-12 border-4 border-background active:scale-95 transition-transform"
+          className="h-12 w-12 rounded-full shadow-lg shadow-primary/30 -mt-10 border-4 border-background active:scale-95 transition-transform"
           onClick={() => handleNavigate('/tasks/new')}
         >
           <Plus className="h-6 w-6" />
@@ -120,21 +119,10 @@ export function MobileBottomNav() {
           pathname === '/bin' ? "text-primary" : "text-muted-foreground"
         )}
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("h-5 w-5", pathname === '/bin' && "fill-primary/10")}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+        <Trash2 className={cn("h-5 w-5", pathname === '/bin' && "fill-primary/10")} />
         <span className="text-[10px] font-bold uppercase tracking-wider">Bin</span>
         {pathname === '/bin' && <div className="absolute bottom-1 w-1 h-1 rounded-full bg-primary" />}
       </button>
-
-      {/* Conditional Sign In or Profile */}
-      {isLocal ? (
-        <button
-          onClick={() => window.dispatchEvent(new Event('open-auth-modal'))}
-          className="flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors relative text-primary"
-        >
-          <ShieldCheck className="h-5 w-5 fill-primary/10" />
-          <span className="text-[10px] font-bold uppercase tracking-wider">Sync</span>
-        </button>
-      ) : null}
 
       <div className="flex flex-col items-center justify-center flex-1 h-full">
         <button 
