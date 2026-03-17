@@ -73,6 +73,7 @@ import { signOut } from 'firebase/auth';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { getInitials, getAvatarColor, getAvatarGradient, cn } from '@/lib/utils';
 import { AuthModal } from './auth-modal';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const HeaderLink = ({ href, children, className, onClick, id }: { href: string; children: React.ReactNode, className?: string; onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void; id?: string; }) => {
     const router = useRouter();
@@ -106,6 +107,7 @@ const isActualImage = (url: string | null | undefined) => {
 };
 
 export function Header() {
+  const isMobile = useIsMobile();
   const { auth, user, userProfile, isUserLoading, isProfileLoading } = useFirebase();
   const { toast } = useToast();
   const router = useRouter();
@@ -267,7 +269,9 @@ export function Header() {
             </nav>
           </div>
           <div className="flex items-center gap-1 sm:gap-3">
-            {activeCompany && (
+            {isMobile && <ThemeToggle />}
+
+            {activeCompany && !isMobile && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="px-2 sm:px-4 font-medium shadow-sm border-primary/10 bg-primary/5 hover:bg-primary/10 h-9 rounded-full transition-all">
@@ -361,10 +365,13 @@ export function Header() {
                     variant="outline" 
                     size="sm" 
                     onClick={() => setIsAuthModalOpen(true)}
-                    className="h-9 rounded-full px-2 sm:px-4 border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 font-bold flex items-center"
+                    className={cn(
+                        "h-9 rounded-full px-2 sm:px-4 border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 font-black shadow-sm flex items-center transition-all active:scale-95",
+                        isMobile && "px-3 ml-1"
+                    )}
                 >
-                    <ShieldCheck className="h-4 w-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Sign In</span>
+                    <ShieldCheck className="h-4 w-4 mr-1.5" />
+                    <span className={cn("hidden sm:inline", isMobile && "inline")}>Sign In</span>
                 </Button>
             )}
 
@@ -425,7 +432,7 @@ export function Header() {
               </DropdownMenu>
             </div>
 
-            < ThemeToggle />
+            {!isMobile && < ThemeToggle />}
           </div>
           
           {/* Navbar Bottom Progress Bar */}

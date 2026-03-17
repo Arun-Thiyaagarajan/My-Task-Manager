@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -17,7 +16,16 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials, getAvatarGradient, cn, compressImage } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { setAuthMode, getAuthMode, getLocalProfile, setLocalProfile } from '@/lib/data';
+import { 
+    setAuthMode, 
+    getAuthMode, 
+    getLocalProfile, 
+    setLocalProfile, 
+    getCompanies, 
+    setActiveCompanyId, 
+    deleteCompany 
+} from '@/lib/data';
+import type { Company, UserProfile } from '@/lib/types';
 import { 
   User as UserIcon, 
   Mail, 
@@ -40,7 +48,11 @@ import {
   Sparkles,
   ChevronRight,
   ArrowLeft,
-  Bell
+  Bell,
+  Building,
+  PlusCircle,
+  Edit,
+  Trash2
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
@@ -56,14 +68,126 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useActiveCompany } from '@/hooks/use-active-company';
+import { CompaniesManager } from '@/components/companies-manager';
 
 const isActualImage = (url: string | null | undefined) => {
     if (!url) return false;
     return url.startsWith('data:image') || url.startsWith('http') || url.startsWith('/');
 };
+
+function WorkspaceDialog({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (open: boolean) => void }) {
+    const activeCompanyId = useActiveCompany();
+    const [companies, setCompanies] = useState<Company[]>([]);
+    const [isManagerOpen, setIsManagerOpen] = useState(false);
+    const [companyToEdit, setCompanyToEdit] = useState<Company | null>(null);
+    const { toast } = useToast();
+
+    useEffect(() => {
+        if (isOpen) {
+            setCompanies(getCompanies());
+        }
+    }, [isOpen]);
+
+    const handleCompanyChange = (id: string) => {
+        setActiveCompanyId(id);
+        window.dispatchEvent(new Event('company-changed'));
+        onOpenChange(false);
+    };
+
+    const handleAdd = () => {
+        setCompanyToEdit(null);
+        setIsManagerOpen(true);
+    };
+
+    const handleEdit = (c: Company) => {
+        setCompanyToEdit(c);
+        setIsManagerOpen(true);
+    };
+
+    const handleDelete = (id: string) => {
+        if (deleteCompany(id)) {
+            setCompanies(getCompanies());
+            window.dispatchEvent(new Event('company-changed'));
+            toast({ title: 'Company deleted' });
+        } else {
+            toast({ variant: 'destructive', title: 'Cannot delete the last company' });
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-md p-0 overflow-hidden rounded-3xl w-[95%]">
+                <DialogHeader className="p-6 pb-2">
+                    <DialogTitle className="flex items-center gap-2 text-xl font-bold">
+                        <Building className="h-5 w-5 text-primary" />
+                        My Workspaces
+                    </DialogTitle>
+                    <DialogDescription className="text-sm font-normal">Switch between or manage your company profiles.</DialogDescription>
+                </DialogHeader>
+                
+                <div className="px-6 py-4 space-y-4">
+                    <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1 custom-scrollbar">
+                        {companies.map(company => (
+                            <div key={company.id} className={cn(
+                                "flex items-center justify-between p-3 rounded-2xl border transition-all",
+                                company.id === activeCompanyId ? "bg-primary/5 border-primary/20 shadow-sm" : "bg-muted/30 border-transparent hover:bg-muted/50"
+                            )}>
+                                <button 
+                                    onClick={() => handleCompanyChange(company.id)}
+                                    className="flex-1 flex items-center gap-3 text-left min-w-0"
+                                >
+                                    <div className={cn(
+                                        "h-2 w-2 rounded-full shrink-0",
+                                        company.id === activeCompanyId ? "bg-primary" : "bg-muted-foreground/30"
+                                    )} />
+                                    <span className={cn("font-semibold truncate", company.id === activeCompanyId && "text-primary")}>{company.name}</span>
+                                </button>
+                                <div className="flex items-center gap-1 shrink-0">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => handleEdit(company)}>
+                                        <Edit className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-full" onClick={() => handleDelete(company.id)}>
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    
+                    <Button onClick={handleAdd} variant="outline" className="w-full border-dashed rounded-2xl h-12 font-bold hover:bg-primary/5 hover:text-primary hover:border-primary/30">
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Add New Company
+                    </Button>
+                </div>
+                
+                <DialogFooter className="p-4 bg-muted/10">
+                    <Button variant="ghost" className="w-full rounded-xl font-semibold" onClick={() => onOpenChange(false)}>Close</Button>
+                </DialogFooter>
+
+                <CompaniesManager 
+                    isOpen={isManagerOpen}
+                    onOpenChange={setIsManagerOpen}
+                    onSuccess={() => {
+                        setCompanies(getCompanies());
+                        window.dispatchEvent(new Event('company-changed'));
+                    }}
+                    companyToEdit={companyToEdit}
+                />
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 export default function ProfilePage() {
   const isMobile = useIsMobile();
@@ -98,6 +222,7 @@ export default function ProfilePage() {
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isSignOutDialogOpen, setIsSignOutDialogOpen] = useState(false);
+  const [isWorkspaceDialogOpen, setIsWorkspaceDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!isLocal && !isUserLoading && !user) {
@@ -362,6 +487,11 @@ export default function ProfilePage() {
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <WorkspaceDialog 
+        isOpen={isWorkspaceDialogOpen} 
+        onOpenChange={setIsWorkspaceDialogOpen} 
+      />
     </>
   );
 
@@ -432,6 +562,13 @@ export default function ProfilePage() {
                     subLabel="Password, account protection" 
                     onClick={() => handleMobileRowClick('security')}
                     color="text-amber-500"
+                />
+                <MobileHubRow 
+                    icon={Building} 
+                    title="Workspaces" 
+                    subLabel="Manage companies and workspace identity" 
+                    onClick={() => setIsWorkspaceDialogOpen(true)}
+                    color="text-cyan-500"
                 />
                 <MobileHubRow 
                     icon={FileClock} 
