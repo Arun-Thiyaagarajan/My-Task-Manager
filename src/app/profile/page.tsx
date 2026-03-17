@@ -68,6 +68,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
   Dialog,
@@ -388,7 +389,7 @@ export default function ProfilePage() {
       });
     } catch (error: any) {
       toast({ 
-        variant: 'destructive', 
+        variant: 'success', 
         title: 'Error', 
         description: 'Verification email could not be sent.' 
       });
