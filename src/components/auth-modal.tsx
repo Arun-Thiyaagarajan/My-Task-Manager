@@ -260,7 +260,8 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
             </Button>
           </form>
 
-          <div className="relative my-6 shrink-0">
+          {/* Google Authentication is future enhancment */}
+          {/* <div className="relative my-6 shrink-0">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
             </div>
@@ -293,7 +294,7 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
                 </div>
               </div>
             )}
-          </div>
+          </div> */}
 
           <div className="mt-6 text-center text-sm shrink-0">
             {authStep === 'login' ? (

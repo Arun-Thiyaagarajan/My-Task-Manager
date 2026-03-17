@@ -320,7 +320,8 @@ export default function AuthPage() {
               </Button>
             </form>
 
-            <div className="relative my-8">
+          {/* Google Authentication is future enhancment */}
+            {/* <div className="relative my-8">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
               </div>
@@ -332,7 +333,7 @@ export default function AuthPage() {
             <Button variant="outline" className="w-full h-12 font-bold text-base shadow-sm active:scale-95 transition-transform" onClick={handleGoogleSignIn} disabled={isLoading}>
               {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Chrome className="mr-2 h-4 w-4" />}
               Google
-            </Button>
+            </Button> */}
           </Tabs>
         )}
       </div>
