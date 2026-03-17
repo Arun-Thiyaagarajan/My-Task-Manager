@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -5,31 +6,13 @@ import { usePathname, useRouter } from 'next/navigation';
 import { 
   Home, 
   LayoutDashboard, 
-  FileClock, 
-  Trash2, 
-  User as UserIcon, 
-  Settings, 
-  History, 
-  LogOut,
-  ShieldCheck,
   Plus
 } from 'lucide-react';
 import { cn, getInitials, getAvatarGradient } from '@/lib/utils';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { useFirebase } from '@/firebase';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  DropdownMenuLabel,
-  DropdownMenuGroup,
-} from '@/components/ui/dropdown-menu';
-import { signOut } from 'firebase/auth';
-import { setAuthMode, getAuthMode, getLocalProfile } from '@/lib/data';
-import { useToast } from '@/hooks/use-toast';
+import { getAuthMode, getLocalProfile } from '@/lib/data';
 import { Button } from './ui/button';
 
 const isActualImage = (url: string | null | undefined) => {
@@ -41,8 +24,7 @@ export function MobileBottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { prompt } = useUnsavedChanges();
-  const { user, userProfile, auth, isUserLoading } = useFirebase();
-  const { toast } = useToast();
+  const { user, userProfile } = useFirebase();
 
   const navItems = [
     { label: 'Tasks', href: '/', icon: Home },
@@ -55,18 +37,6 @@ export function MobileBottomNav() {
         window.dispatchEvent(new Event('navigation-start'));
         router.push(href);
     });
-  };
-
-  const handleSignOut = async () => {
-    if (!auth) return;
-    try {
-      await signOut(auth);
-      setAuthMode('localStorage');
-      toast({ variant: 'success', title: 'Signed Out', description: 'Returned to local mode.' });
-      router.push('/');
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Sign Out Failed', description: error.message });
-    }
   };
 
   const authMode = getAuthMode();
@@ -130,72 +100,35 @@ export function MobileBottomNav() {
           pathname === '/bin' ? "text-primary" : "text-muted-foreground"
         )}
       >
-        <Trash2 className={cn("h-5 w-5", pathname === '/bin' && "fill-primary/10")} />
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("h-5 w-5", pathname === '/bin' && "fill-primary/10")}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
         <span className="text-[10px] font-bold uppercase tracking-wider">Bin</span>
         {pathname === '/bin' && <div className="absolute bottom-1 w-1 h-1 rounded-full bg-primary" />}
       </button>
 
       <div className="flex flex-col items-center justify-center flex-1 h-full">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="flex flex-col items-center justify-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-md p-1">
-              <div className={cn(
-                "h-7 w-7 rounded-full border-2 flex items-center justify-center overflow-hidden transition-transform active:scale-90",
-                (authMode === 'authenticate' && user) ? "border-primary" : "border-muted-foreground/20"
-              )}>
-                <Avatar className="h-full w-full">
-                  <AvatarImage src={isActualImage(profilePhoto) ? profilePhoto : undefined} className="object-cover" />
-                  <AvatarFallback 
-                    className="text-white text-[8px] font-bold"
-                    style={{ background: getAvatarGradient(profileName) }}
-                  >
-                    {isActualImage(profilePhoto) ? getInitials(profileName) : (profilePhoto || getInitials(profileName))}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Me</span>
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" side="top" className="w-56 mb-4" sideOffset={16}>
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-bold truncate">{profileName}</p>
-                <p className="text-[10px] text-muted-foreground truncate">{ (authMode === 'authenticate' && user) ? (user.email || user.phoneNumber) : 'Local Storage Mode'}</p>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem onSelect={() => handleNavigate('/profile')}>
-                <UserIcon className="mr-2 h-4 w-4 opacity-70" />
-                <span>My Profile</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => handleNavigate('/logs')}>
-                <FileClock className="mr-2 h-4 w-4" />
-                <span>Activity Logs</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => handleNavigate('/settings')}>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => handleNavigate('/releases')}>
-                <History className="mr-2 h-4 w-4" />
-                <span>Releases</span>
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            {(authMode === 'authenticate' && user) ? (
-              <DropdownMenuItem onSelect={handleSignOut} className="text-destructive focus:text-destructive">
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Sign Out</span>
-              </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem onSelect={() => window.dispatchEvent(new Event('open-auth-modal'))}>
-                <ShieldCheck className="mr-2 h-4 w-4" />
-                <span>Sign In</span>
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <button 
+          onClick={() => handleNavigate('/profile')}
+          className="flex flex-col items-center justify-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-md p-1"
+        >
+          <div className={cn(
+            "h-7 w-7 rounded-full border-2 flex items-center justify-center overflow-hidden transition-transform active:scale-90",
+            (authMode === 'authenticate' && user) ? "border-primary" : "border-muted-foreground/20"
+          )}>
+            <Avatar className="h-full w-full">
+              <AvatarImage src={isActualImage(profilePhoto) ? profilePhoto : undefined} className="object-cover" />
+              <AvatarFallback 
+                className="text-white text-[8px] font-bold"
+                style={{ background: getAvatarGradient(profileName) }}
+              >
+                {isActualImage(profilePhoto) ? getInitials(profileName) : (profilePhoto || getInitials(profileName))}
+              </AvatarFallback>
+            </Avatar>
+          </div>
+          <span className={cn(
+            "text-[10px] font-bold uppercase tracking-wider",
+            pathname === '/profile' ? "text-primary" : "text-muted-foreground"
+          )}>Me</span>
+        </button>
       </div>
     </nav>
   );

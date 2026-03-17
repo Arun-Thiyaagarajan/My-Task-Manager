@@ -1,7 +1,9 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { useFirebase } from '@/firebase';
 import { updateProfile, updatePassword, sendEmailVerification, signOut } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
@@ -32,7 +34,10 @@ import {
   LogOut,
   UserCog,
   History,
-  RotateCcw
+  RotateCcw,
+  FileClock,
+  Settings,
+  Sparkles
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
@@ -131,13 +136,11 @@ export default function ProfilePage() {
       } else {
           if (!user || !firestore) return;
           
-          // 1. Update Firebase Auth Profile (DisplayName only)
           await updateProfile(user, { 
             displayName,
-            photoURL: null // Ensure Base64 isn't sent to Auth photoURL
+            photoURL: null
           });
           
-          // 2. Update Firestore Document
           const userRef = doc(firestore, 'users', user.uid);
           const updates: any = {
             id: user.uid,
@@ -147,8 +150,6 @@ export default function ProfilePage() {
             updatedAt: new Date().toISOString()
           };
 
-          // ONLY include role if the profile doesn't exist yet (satisfies rule: allow create)
-          // For updates, excluding 'role' satisfies rule: allow update (implicit match)
           if (!userProfile) {
               updates.role = 'user';
           }
@@ -430,9 +431,12 @@ export default function ProfilePage() {
 
         <div className="flex-1">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted/50 p-1 rounded-xl">
-              <TabsTrigger value="general" className="data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer font-medium rounded-lg">General Info</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-2 mb-6 bg-muted/50 p-1 rounded-xl h-auto">
+              <TabsTrigger value="general" className="data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer font-medium rounded-lg">General</TabsTrigger>
               <TabsTrigger value="security" className="data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer font-medium rounded-lg">Security</TabsTrigger>
+              <TabsTrigger value="logs" className="md:hidden data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer font-medium rounded-lg">Activity</TabsTrigger>
+              <TabsTrigger value="settings" className="md:hidden data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer font-medium rounded-lg">Settings</TabsTrigger>
+              <TabsTrigger value="releases" className="md:hidden data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer font-medium rounded-lg">Updates</TabsTrigger>
             </TabsList>
 
             <TabsContent value="general" className="space-y-6">
@@ -626,6 +630,57 @@ export default function ProfilePage() {
                         </AlertDialog>
                     )}
                   </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="logs" className="md:hidden space-y-6">
+              <Card className="shadow-sm border-none lg:border">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                    <FileClock className="h-5 w-5 text-primary" />
+                    Activity Logs
+                  </CardTitle>
+                  <CardDescription className="text-sm font-normal">View a complete history of changes in this workspace.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button asChild className="w-full h-11 font-medium shadow-md">
+                    <Link href="/logs">Open Workspace Logs</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="settings" className="md:hidden space-y-6">
+              <Card className="shadow-sm border-none lg:border">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                    <Settings className="h-5 w-5 text-primary" />
+                    Workspace Settings
+                  </CardTitle>
+                  <CardDescription className="text-sm font-normal">Customize fields, environments, and team members.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button asChild className="w-full h-11 font-medium shadow-md">
+                    <Link href="/settings">Configure Workspace</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="releases" className="md:hidden space-y-6">
+              <Card className="shadow-sm border-none lg:border">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                    What's New
+                  </CardTitle>
+                  <CardDescription className="text-sm font-normal">Read about the latest features and application updates.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button asChild className="w-full h-11 font-medium shadow-md">
+                    <Link href="/releases">View Release Notes</Link>
+                  </Button>
                 </CardContent>
               </Card>
             </TabsContent>
