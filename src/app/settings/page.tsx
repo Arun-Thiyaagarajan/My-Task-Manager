@@ -713,6 +713,7 @@ export default function SettingsPage() {
                                 <Button variant="outline" className="w-full h-11 justify-start rounded-xl" onClick={() => fileInputRef.current?.click()}><Upload className="h-4 w-4 mr-3" /> Import Settings</Button>
                                 <input type="file" ref={fileInputRef} onChange={handleImportSettings} className="hidden" accept=".json" />
                             </CardContent>
+                        </Card>
                         <Card className="border-2 border-destructive/20 shadow-lg bg-destructive/[0.02]">
                             <CardHeader className="pb-4">
                                 <CardTitle className="text-xs font-semibold text-destructive uppercase tracking-wider">Danger Zone</CardTitle>
@@ -1216,8 +1217,8 @@ export default function SettingsPage() {
       />
 
       <AuthModal 
-        isOpen={isAuthModalOpen}
-        onOpenChange={setIsAuthModalOpen}
+        isOpen={isAuthModalOpen} 
+        onOpenChange={setIsAuthModalOpen} 
         onSuccess={() => {
             setAuthMode('authenticate');
             window.dispatchEvent(new Event('company-changed'));
