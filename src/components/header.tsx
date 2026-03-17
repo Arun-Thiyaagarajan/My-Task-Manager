@@ -333,7 +333,7 @@ export function Header() {
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={() => startTutorial()}>
-                                <GraduationCap className="h-5 w-5 text-muted-foreground" />
+                                <CircleDot className="h-5 w-5 text-muted-foreground" />
                                 <span className="sr-only">Show Tutorial</span>
                             </Button>
                         </TooltipTrigger>
@@ -360,10 +360,10 @@ export function Header() {
                     variant="outline" 
                     size="sm" 
                     onClick={() => setIsAuthModalOpen(true)}
-                    className="h-9 rounded-full px-4 border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 font-bold hidden sm:flex"
+                    className="h-9 rounded-full px-2 sm:px-4 border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 font-bold flex items-center"
                 >
-                    <ShieldCheck className="h-4 w-4 mr-2" />
-                    Sign In
+                    <ShieldCheck className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Sign In</span>
                 </Button>
             )}
 

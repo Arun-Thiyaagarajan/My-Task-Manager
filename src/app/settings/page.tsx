@@ -506,7 +506,10 @@ export default function SettingsPage() {
                     </div>
                 </CardContent>
             </Card>
-            
+        </div>
+
+        {/* Main Content - Second on mobile, col 1-2 on desktop */}
+        <div className="order-2 lg:order-none lg:col-span-2 lg:row-start-1 lg:row-span-10 space-y-4 sm:space-y-8">
             {/* Add Field Button for Mobile Only - Below Storage Section */}
             <Button 
                 className="flex sm:hidden w-full h-12 mb-0 font-bold shadow-lg"
@@ -514,10 +517,7 @@ export default function SettingsPage() {
             >
                 <PlusCircle className="h-5 w-5 mr-2" /> Add Field
             </Button>
-        </div>
 
-        {/* Main Content - Second on mobile, col 1-2 on desktop */}
-        <div className="order-2 lg:order-none lg:col-span-2 lg:row-start-1 lg:row-span-10 space-y-8">
             <Card id="settings-field-config-card" className="border-none shadow-xl bg-card">
                 <CardHeader className="pb-6">
                     <CardTitle className="text-xl font-semibold tracking-tight">Field Configuration</CardTitle>

@@ -123,17 +123,17 @@ export default function ReleasesPage() {
                             </div>
 
                             <div className={cn(
-                                "pl-14 sm:pl-0 sm:w-[45%] space-y-4",
+                                "pl-16 sm:pl-0 sm:w-[45%] space-y-4",
                                 index % 2 === 0 ? "sm:ml-auto sm:pl-8" : "sm:mr-auto sm:pr-8 sm:text-right"
                             )}>
                                 <div className={cn(
-                                    "flex items-center gap-3 mb-1",
+                                    "flex items-center flex-nowrap gap-3 mb-1",
                                     index % 2 !== 0 && "sm:justify-end"
                                 )}>
-                                    <Badge variant={index === 0 ? "default" : "outline"} className="text-xs font-semibold uppercase tracking-wider h-6 px-2.5">
+                                    <Badge variant={index === 0 ? "default" : "outline"} className="text-xs font-semibold uppercase tracking-wider h-6 px-2.5 shrink-0">
                                         v{release.version}
                                     </Badge>
-                                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5 bg-muted/30 px-2 py-1 rounded-md">
+                                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5 bg-muted/30 px-2 py-1 rounded-md whitespace-nowrap shrink-0">
                                         <Calendar className="h-3 w-3" />
                                         {format(new Date(release.date), 'MMM d, yyyy')}
                                     </span>
