@@ -53,6 +53,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useActiveCompany } from '@/hooks/use-active-company';
 import { ThemeToggle } from './theme-toggle';
