@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { addNote, getNotes, updateNote, deleteNote, getUiConfig, updateNoteLayouts, resetNotesLayout, deleteMultipleNotes, importNotes, addLog, getAuthMode, getUserPreferences, updateUserPreferences } from '@/lib/data';
+import { addNote, getNotes, updateNote, deleteNote, getUiConfig, updateNoteLayouts, resetNotesLayout, deleteMultipleNotes, importNotes, addLog, getAuthMode, getUserPreferences, updateUserPreferences, isInitialSyncComplete, getActiveCompanyId } from '@/lib/data';
 import type { Note, UiConfig, NoteLayout, UserPreferences } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -37,10 +37,13 @@ import { Calendar } from '@/components/ui/calendar';
 import type { DateRange } from 'react-day-picker';
 import { FolderSearch } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useFirebase } from '@/firebase';
+import { NotesSkeleton } from '@/components/notes-skeleton';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 export default function NotesPage() {
+  const { isUserLoading } = useFirebase();
   const [notes, setNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
@@ -123,23 +126,32 @@ export default function NotesPage() {
   }, [handleOpenNewNoteDialog]);
 
   const refreshData = useCallback(() => {
+    const authMode = getAuthMode();
+    const companyId = getActiveCompanyId();
+    
+    if (authMode === 'authenticate' && (isUserLoading || !companyId || !isInitialSyncComplete(companyId))) {
+        return;
+    }
+
     setNotes(getNotes());
     const config = getUiConfig();
     setUiConfig(config);
     document.title = `Notes | ${config.appName || 'My Task Manager'}`;
     setIsLoading(false);
     window.dispatchEvent(new Event('navigation-end'));
-  }, []);
+  }, [isUserLoading]);
 
   useEffect(() => {
     refreshData();
     window.addEventListener('storage', refreshData);
     window.addEventListener('notes-updated', refreshData);
     window.addEventListener('company-changed', refreshData);
+    window.addEventListener('sync-complete', refreshData);
     return () => {
         window.removeEventListener('storage', refreshData);
         window.removeEventListener('notes-updated', refreshData);
         window.removeEventListener('company-changed', refreshData);
+        window.removeEventListener('sync-complete', refreshData);
     };
   }, [refreshData]);
 
@@ -401,8 +413,13 @@ export default function NotesPage() {
 }, [areFiltersActive, filteredNotes]);
 
 
-  if (isLoading || !uiConfig) {
-    return null;
+  const authMode = getAuthMode();
+  const activeCompanyId = getActiveCompanyId();
+  const isVerifyingCloud = authMode === 'authenticate' && (isUserLoading || !activeCompanyId || !isInitialSyncComplete(activeCompanyId));
+  const activeSkeletons = isLoading || isVerifyingCloud;
+
+  if (activeSkeletons || !uiConfig) {
+    return <NotesSkeleton />;
   }
 
   const mode = getAuthMode();

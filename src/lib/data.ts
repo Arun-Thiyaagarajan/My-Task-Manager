@@ -1,6 +1,6 @@
 'use client';
 
-import { INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES, INITIAL_RELEASES } from './constants';
+import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
 import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile } from './types'; 
 import cloneDeep from 'lodash/cloneDeep';
 import { getAuth } from 'firebase/auth';
@@ -32,6 +32,10 @@ export function markInitialSyncComplete(companyId: string) {
     if (typeof window === 'undefined') return;
     _initialSyncStatus[companyId] = true;
     window.dispatchEvent(new Event('sync-complete'));
+}
+
+export function resetInitialSyncStatus() {
+    _initialSyncStatus = {};
 }
 
 const getEmptyAppData = (): MyTaskManagerData => ({
@@ -127,6 +131,7 @@ export function getAuthMode(): AuthMode {
 export function setAuthMode(mode: AuthMode) {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(AUTH_MODE_KEY, mode);
+    resetInitialSyncStatus();
     window.dispatchEvent(new Event('company-changed'));
 }
 

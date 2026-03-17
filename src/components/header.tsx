@@ -204,6 +204,7 @@ export function Header() {
 
   const handleSignOut = async () => {
     if (!auth) return;
+    window.dispatchEvent(new Event('navigation-start'));
     try {
       await signOut(auth);
       setAuthMode('localStorage');
@@ -213,6 +214,7 @@ export function Header() {
       router.push('/');
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Sign Out Failed', description: error.message });
+      window.dispatchEvent(new Event('navigation-end'));
     }
   };
 

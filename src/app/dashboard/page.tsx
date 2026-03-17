@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getTasks, getUiConfig, getDevelopers, getTesters } from '@/lib/data';
+import { getTasks, getUiConfig, getDevelopers, getTesters, getAuthMode, isInitialSyncComplete, getActiveCompanyId } from '@/lib/data';
 import type { Task, Person, UiConfig, Environment } from '@/lib/types';
 import { REPOSITORIES } from '@/lib/constants';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -11,8 +11,11 @@ import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '
 import { getAvatarColor, cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { useFirebase } from '@/firebase';
+import { DashboardSkeleton } from '@/components/dashboard-skeleton';
 
 export default function DashboardPage() {
+  const { isUserLoading } = useFirebase();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [developers, setDevelopers] = useState<Person[]>([]);
   const [testers, setTesters] = useState<Person[]>([]);
@@ -21,6 +24,13 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const refreshData = () => {
+        const authMode = getAuthMode();
+        const companyId = getActiveCompanyId();
+        
+        if (authMode === 'authenticate' && (isUserLoading || !companyId || !isInitialSyncComplete(companyId))) {
+            return;
+        }
+
         setTasks(getTasks());
         setDevelopers(getDevelopers());
         setTesters(getTesters());
@@ -35,15 +45,22 @@ export default function DashboardPage() {
 
     window.addEventListener('storage', refreshData);
     window.addEventListener('config-changed', refreshData);
+    window.addEventListener('sync-complete', refreshData);
 
     return () => {
       window.removeEventListener('storage', refreshData);
       window.removeEventListener('config-changed', refreshData);
+      window.removeEventListener('sync-complete', refreshData);
     };
-  }, []);
+  }, [isUserLoading]);
 
-  if (isLoading || !uiConfig) {
-    return null;
+  const authMode = getAuthMode();
+  const activeCompanyId = getActiveCompanyId();
+  const isVerifyingCloud = authMode === 'authenticate' && (isUserLoading || !activeCompanyId || !isInitialSyncComplete(activeCompanyId));
+  const activeSkeletons = isLoading || isVerifyingCloud;
+
+  if (activeSkeletons || !uiConfig) {
+    return <DashboardSkeleton />;
   }
 
   const fieldLabels = new Map((uiConfig?.fields || []).map(f => [f.key, f.label]));

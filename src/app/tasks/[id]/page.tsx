@@ -52,6 +52,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { getLinkAlias } from '@/ai/flows/alias-flow';
 import { generateSummary } from '@/ai/flows/summary-flow';
 import { TaskDetailSkeleton } from '@/components/task-detail-skeleton';
+import { useFirebase } from '@/firebase';
 
 
 const isImageUrl = (url: string): boolean => {
@@ -65,6 +66,7 @@ const isImageUrl = (url: string): boolean => {
 
 
 export default function TaskPage() {
+  const { isUserLoading } = useFirebase();
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -110,7 +112,7 @@ export default function TaskPage() {
       const authMode = getAuthMode();
       
       // In authenticate mode, we stay in loading state until sync is definitive
-      if (authMode === 'authenticate' && !isInitialSyncComplete(activeCompanyId)) {
+      if (authMode === 'authenticate' && (isUserLoading || !activeCompanyId || !isInitialSyncComplete(activeCompanyId))) {
           return;
       }
 
@@ -151,7 +153,7 @@ export default function TaskPage() {
         window.removeEventListener('company-changed', loadData);
         window.removeEventListener('sync-complete', loadData);
     };
-  }, [taskId]);
+  }, [taskId, isUserLoading]);
 
   useEffect(() => {
     if (!task || task.deletedAt) {
@@ -773,7 +775,12 @@ const handleCopyDescription = () => {
     router.push(backLink);
   };
 
-  if (isLoading || !uiConfig) {
+  const authMode = getAuthMode();
+  const activeCompanyId = getActiveCompanyId();
+  const isVerifyingCloud = authMode === 'authenticate' && (isUserLoading || !activeCompanyId || !isInitialSyncComplete(activeCompanyId));
+  const activeSkeletons = isLoading || isVerifyingCloud;
+
+  if (activeSkeletons || !uiConfig) {
     return <TaskDetailSkeleton />;
   }
 
@@ -1171,7 +1178,7 @@ const handleCopyDescription = () => {
                   <CardTitle className="flex items-center justify-between text-xl font-semibold">
                     <span className="flex items-center gap-2"><ListChecks className="h-5 w-5" />Task Details</span>
                     {!isBinned && editingSection !== 'details' && (
-                        <Button variant="ghost" size="sm" onClick={() => handleStartEditing('details', {})} className="font-medium">
+                        <Button variant="ghost" size="sm" onClick={handleStartEditing.bind(null, 'details', {})} className="font-medium">
                             <Pencil className="h-3 w-3 mr-1.5" /> Edit
                         </Button>
                     )}
