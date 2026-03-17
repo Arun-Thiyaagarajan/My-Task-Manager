@@ -665,7 +665,7 @@ export default function ProfilePage() {
                                 className="text-2xl font-semibold text-white" 
                                 style={{ background: getAvatarGradient(profileName) }}
                             >
-                                {isActualImage(photoURL) ? getInitials(profileName) : (photoURL || getInitials(profileName))}
+                                {isActualImage(profilePhoto) ? getInitials(profileName) : (profilePhoto || getInitials(profileName))}
                             </AvatarFallback>
                             </Avatar>
                             
@@ -696,7 +696,6 @@ export default function ProfilePage() {
                     >
                     <Camera className="h-4 w-4" />
                     </button>
-                    <input type="file" ref={fileInputRef} onChange={handleImageSelect} className="hidden" accept="image/*" />
                 </div>
                 
                 <div className="mt-4 space-y-1 overflow-hidden">
@@ -1010,6 +1009,7 @@ export default function ProfilePage() {
           </Tabs>
         </div>
       </div>
+      <input type="file" ref={fileInputRef} onChange={handleImageSelect} className="hidden" accept="image/*" />
       {sharedDialogs}
     </div>
   );
