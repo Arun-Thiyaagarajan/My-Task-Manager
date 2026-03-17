@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -334,7 +333,10 @@ export default function ProfilePage() {
             <div className="px-6 pt-10 pb-8 space-y-6">
                 <div className="flex items-center gap-4">
                     <div className="relative group">
-                        <Avatar className="h-20 w-20 border-2 border-background shadow-xl">
+                        {/* Subtle Focus Ring */}
+                        <div className="absolute inset-0 rounded-full animate-ring-pulse scale-110 pointer-events-none" />
+                        
+                        <Avatar className="h-20 w-20 border-2 border-background shadow-xl relative z-10">
                             <AvatarImage src={isActualImage(photoURL) ? photoURL : undefined} className="object-cover" />
                             <AvatarFallback 
                                 className="text-2xl font-semibold text-white" 
@@ -345,7 +347,7 @@ export default function ProfilePage() {
                         </Avatar>
                         <button 
                             onClick={() => fileInputRef.current?.click()}
-                            className="absolute -bottom-1 -right-1 p-1.5 bg-primary text-primary-foreground rounded-full shadow-lg border-2 border-background"
+                            className="absolute -bottom-1 -right-1 p-1.5 bg-primary text-primary-foreground rounded-full shadow-lg border-2 border-background z-20"
                         >
                             <Camera className="h-3 w-3" />
                         </button>
@@ -464,8 +466,8 @@ export default function ProfilePage() {
     <div className="container max-w-4xl mx-auto py-10 px-4">
       {/* Mobile Back Header */}
       {isMobile && showMobileSubPage && (
-          <div className="flex items-center gap-4 mb-8 -mt-4">
-              <Button variant="ghost" size="icon" onClick={() => setShowMobileSubPage(false)} className="rounded-full">
+          <div className="flex items-center gap-2 mb-8 -mt-4">
+              <Button variant="ghost" size="icon" onClick={() => setShowMobileSubPage(false)} className="rounded-full h-10 w-10">
                   <ArrowLeft className="h-6 w-6" />
               </Button>
               <h1 className="text-xl font-bold capitalize">{activeTab}</h1>
@@ -626,7 +628,9 @@ export default function ProfilePage() {
                     {isMobile && (
                         <div className="flex justify-center pb-4">
                             <div className="relative group">
-                                <Avatar className="h-32 w-32 border-4 border-background shadow-2xl">
+                                {/* Subtle Focus Ring for sub-pages too */}
+                                <div className="absolute inset-0 rounded-full animate-ring-pulse scale-110 pointer-events-none" />
+                                <Avatar className="h-32 w-32 border-4 border-background shadow-2xl relative z-10">
                                     <AvatarImage src={isActualImage(photoURL) ? photoURL : undefined} className="object-cover" />
                                     <AvatarFallback 
                                         className="text-4xl font-semibold text-white" 
@@ -638,7 +642,7 @@ export default function ProfilePage() {
                                 <button 
                                     type="button"
                                     onClick={() => fileInputRef.current?.click()}
-                                    className="absolute bottom-1 right-1 p-2 bg-primary text-primary-foreground rounded-full shadow-lg border-2 border-background"
+                                    className="absolute bottom-1 right-1 p-2 bg-primary text-primary-foreground rounded-full shadow-lg border-2 border-background z-20"
                                 >
                                     <Camera className="h-5 w-5" />
                                 </button>

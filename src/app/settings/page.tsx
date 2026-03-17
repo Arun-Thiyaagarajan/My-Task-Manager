@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -57,7 +56,8 @@ import {
     Maximize2,
     Camera,
     Loader2,
-    Lock
+    Lock,
+    ArrowLeft
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PeopleManagerDialog } from '@/components/people-manager-dialog';
@@ -85,8 +85,12 @@ import { ProfileImageCropper } from '@/components/profile-image-cropper';
 import { ImagePreviewDialog } from '@/components/image-preview-dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFirebase } from '@/firebase';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { useRouter } from 'next/navigation';
 
 export default function SettingsPage() {
+  const isMobile = useIsMobile();
+  const router = useRouter();
   const { userProfile } = useFirebase();
   const [uiConfig, setUiConfigState] = useState<UiConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -404,14 +408,26 @@ export default function SettingsPage() {
   const authMode = getAuthMode();
   const isDataURIIcon = appIcon && appIcon.startsWith('data:image');
 
+  const handleBackToProfile = () => {
+    window.dispatchEvent(new Event('navigation-start'));
+    router.push('/profile');
+  };
+
   return (
     <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8 max-w-7xl">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10">
-        <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-foreground">Application Settings</h1>
-            <p className="text-base text-muted-foreground mt-2 font-normal">Manage and customize fields and environments across your application.</p>
+        <div className="flex items-start gap-4">
+            {isMobile && (
+                <Button variant="ghost" size="icon" onClick={handleBackToProfile} className="h-10 w-10 -ml-2 rounded-full shrink-0">
+                    <ArrowLeft className="h-6 w-6" />
+                </Button>
+            )}
+            <div>
+                <h1 className="text-3xl font-semibold tracking-tight text-foreground">Application Settings</h1>
+                <p className="text-base text-muted-foreground mt-2 font-normal">Manage and customize fields and environments across your application.</p>
+            </div>
         </div>
-        <Button id="add-field-button" size="lg" className="h-12 px-6 font-medium shadow-sm" onClick={() => { setFieldToEdit(null); setIsFieldDialogOpen(true); }}>
+        <Button id="add-field-button" size="lg" className="h-12 px-6 font-medium shadow-sm w-full sm:w-auto" onClick={() => { setFieldToEdit(null); setIsFieldDialogOpen(true); }}>
             <PlusCircle className="h-5 w-5 mr-2" /> Add Field
         </Button>
       </div>

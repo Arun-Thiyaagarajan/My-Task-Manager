@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { FileClock, Link as LinkIcon, Activity, Trash2, LayoutGrid, Search, StickyNote, Loader2, CornerDownLeft, X, User } from 'lucide-react';
+import { FileClock, Link as LinkIcon, Activity, Trash2, LayoutGrid, Search, StickyNote, Loader2, CornerDownLeft, X, User, ArrowLeft } from 'lucide-react';
 import { format } from 'date-fns';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Badge } from '@/components/ui/badge';
 import { fuzzySearch, formatTimestamp } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { useRouter } from 'next/navigation';
 
 const parseLogMessage = (message: string) => {
     const parts = message.split(/(\*\*.*?\*\*|\*.*?\*)/g);
@@ -30,6 +32,8 @@ const parseLogMessage = (message: string) => {
 };
 
 export default function LogsPage() {
+    const isMobile = useIsMobile();
+    const router = useRouter();
     const [logs, setLogs] = useState<Log[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
@@ -165,15 +169,27 @@ export default function LogsPage() {
     if (isLoading || !uiConfig) {
         return null;
     }
+
+    const handleBackToProfile = () => {
+        window.dispatchEvent(new Event('navigation-start'));
+        router.push('/profile');
+    };
     
     return (
         <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
-                        <FileClock className="h-7 w-7"/> Activity Logs
-                    </h1>
-                    <p className="text-muted-foreground mt-1">A record of all changes made in this workspace.</p>
+                <div className="flex items-start gap-4">
+                    {isMobile && (
+                        <Button variant="ghost" size="icon" onClick={handleBackToProfile} className="h-10 w-10 -ml-2 rounded-full shrink-0">
+                            <ArrowLeft className="h-6 w-6" />
+                        </Button>
+                    )}
+                    <div>
+                        <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
+                            <FileClock className="h-7 w-7"/> Activity Logs
+                        </h1>
+                        <p className="text-muted-foreground mt-1">A record of all changes made in this workspace.</p>
+                    </div>
                 </div>
             </div>
             

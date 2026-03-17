@@ -28,6 +28,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useActiveCompany } from '@/hooks/use-active-company';
 import { formatTimestamp } from '@/lib/utils';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 
 function NoteViewerDialog({ isOpen, onOpenChange, note }: { isOpen: boolean, onOpenChange: (open: boolean) => void, note: Task | null }) {
@@ -51,6 +52,7 @@ function NoteViewerDialog({ isOpen, onOpenChange, note }: { isOpen: boolean, onO
 }
 
 export default function BinPage() {
+  const isMobile = useIsMobile();
   const router = useRouter();
   const activeCompanyId = useActiveCompany();
   const [binnedTasks, setBinnedTasks] = useState<Task[]>([]);
@@ -143,21 +145,33 @@ export default function BinPage() {
   const developersById = new Map(developers.map(d => [d.id, d]));
   const testersById = new Map(testers.map(t => [t.id, t]));
 
+  const handleBack = () => {
+    window.dispatchEvent(new Event('navigation-start'));
+    router.push(isMobile ? '/profile' : '/');
+  };
+
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-foreground flex items-center gap-2">
-                <Trash2 className="h-7 w-7"/> Bin
-            </h1>
-            <p className="text-muted-foreground mt-1 font-normal">Items deleted in the last 30 days. They will be permanently deleted after this period.</p>
+        <div className="flex items-start gap-4">
+            {isMobile && (
+                <Button variant="ghost" size="icon" onClick={handleBack} className="h-10 w-10 -ml-2 rounded-full shrink-0">
+                    <ArrowLeft className="h-6 w-6" />
+                </Button>
+            )}
+            <div>
+                <h1 className="text-3xl font-semibold tracking-tight text-foreground flex items-center gap-2">
+                    <Trash2 className="h-7 w-7"/> Bin
+                </h1>
+                <p className="text-muted-foreground mt-1 font-normal">Items deleted in the last 30 days. They will be permanently deleted after this period.</p>
+            </div>
         </div>
-        <Button asChild variant="ghost" className="font-medium">
-            <Link href="/" onClick={() => window.dispatchEvent(new Event('navigation-start'))}>
+        {!isMobile && (
+            <Button variant="ghost" onClick={handleBack} className="font-medium">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to tasks
-            </Link>
-        </Button>
+            </Button>
+        )}
       </div>
 
       <Card>

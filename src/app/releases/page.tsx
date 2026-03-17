@@ -13,8 +13,10 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function ReleasesPage() {
+    const isMobile = useIsMobile();
     const [releases, setReleases] = useState<ReleaseUpdate[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -65,22 +67,34 @@ export default function ReleasesPage() {
         }
     };
 
+    const handleBack = () => {
+        window.dispatchEvent(new Event('navigation-start'));
+        router.push(isMobile ? '/profile' : '/');
+    };
+
     return (
         <div className="container mx-auto py-12 px-4 sm:px-6 lg:px-8 max-w-4xl">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-12 gap-4">
-                <div className="space-y-1">
-                    <h1 className="text-4xl font-semibold tracking-tight flex items-center gap-3 text-foreground">
-                        <History className="h-10 w-10 text-primary" />
-                        Release History
-                    </h1>
-                    <p className="text-lg text-muted-foreground font-medium">Keep track of the latest features, improvements, and fixes.</p>
+                <div className="flex items-start gap-4">
+                    {isMobile && (
+                        <Button variant="ghost" size="icon" onClick={handleBack} className="h-10 w-10 -ml-2 rounded-full shrink-0">
+                            <ArrowLeft className="h-6 w-6" />
+                        </Button>
+                    )}
+                    <div className="space-y-1">
+                        <h1 className="text-4xl font-semibold tracking-tight flex items-center gap-3 text-foreground">
+                            <History className="h-10 w-10 text-primary" />
+                            Release History
+                        </h1>
+                        <p className="text-lg text-muted-foreground font-medium">Keep track of the latest features, improvements, and fixes.</p>
+                    </div>
                 </div>
-                <Button asChild variant="ghost" className="font-medium">
-                    <Link href="/" onClick={() => window.dispatchEvent(new Event('navigation-start'))}>
+                {!isMobile && (
+                    <Button variant="ghost" onClick={handleBack} className="font-medium">
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Back to Tasks
-                    </Link>
-                </Button>
+                    </Button>
+                )}
             </div>
 
             {error ? (
@@ -191,8 +205,8 @@ export default function ReleasesPage() {
                             </div>
                             <h2 className="text-2xl font-semibold tracking-tight text-foreground/80">No releases available.</h2>
                             <p className="text-muted-foreground font-medium mt-2 max-w-xs mx-auto">Application updates published by an administrator will appear here.</p>
-                            <Button asChild variant="outline" className="mt-8 font-medium rounded-xl h-11 px-8">
-                                <Link href="/" onClick={() => window.dispatchEvent(new Event('navigation-start'))}>Return to Workspace</Link>
+                            <Button variant="outline" className="mt-8 font-medium rounded-xl h-11 px-8" onClick={handleBack}>
+                                Return to Workspace
                             </Button>
                         </div>
                     )}
