@@ -51,12 +51,9 @@ export default function AuthPage() {
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
 
-  // Redirect if already logged in
-  useEffect(() => {
-    if (user) {
-      router.push('/');
-    }
-  }, [user, router]);
+  // We remove the auto-redirect on mount to allow users in Local Storage mode
+  // to access this page even if they have a background Firebase session.
+  // Successful authentication actions below still trigger a redirect to Home.
 
   // If accessed on desktop, it's fine to show this page, but we prioritize it for mobile
   useEffect(() => {

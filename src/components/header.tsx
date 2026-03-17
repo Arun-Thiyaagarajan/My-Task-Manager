@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Icons } from './icons';
 import { Button } from './ui/button';
 import {
@@ -133,22 +133,24 @@ export function Header() {
   const [isSignOutDialogOpen, setIsSignOutDialogOpen] = useState(false);
   const [isGlobalLoading, setIsGlobalLoading] = useState(false);
 
-  const refreshAllData = () => {
+  const refreshAllData = useCallback(() => {
     const config = getUiConfig();
     setCompanies(getCompanies());
     setUiConfig(config);
     setGeneralRemindersCount(getGeneralReminders().length);
     setAuthModeState(getAuthMode());
-  };
+  }, []);
 
-  const handleOpenAuth = () => {
+  const handleOpenAuth = useCallback(() => {
     if (isMobile) {
-      window.dispatchEvent(new Event('navigation-start'));
-      router.push('/auth');
+      if (pathname !== '/auth') {
+        window.dispatchEvent(new Event('navigation-start'));
+        router.push('/auth');
+      }
     } else {
       setIsAuthModalOpen(true);
     }
-  };
+  }, [isMobile, router, pathname]);
 
   useEffect(() => {
     refreshAllData();
@@ -176,7 +178,7 @@ export function Header() {
         window.removeEventListener('open-auth-modal', handleOpenAuth);
     };
 
-  }, [isMobile, router]);
+  }, [isMobile, router, refreshAllData, handleOpenAuth]);
   
   const isDataURI = (str: string | null | undefined): str is string => !!str && str.startsWith('data:image');
 
@@ -375,7 +377,7 @@ export function Header() {
             <ThemeToggle />
 
             {/* Sign In Button - Only for Mobile now as it is in the profile dropdown for desktop */}
-            {authMode === 'localStorage' && (
+            {authMode === 'localStorage' && pathname !== '/auth' && (
                 <Button 
                     variant="outline" 
                     size="sm" 
