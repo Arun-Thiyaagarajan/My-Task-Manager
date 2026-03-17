@@ -839,7 +839,15 @@ const handleCopyDescription = () => {
     <>
       <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="flex flex-row justify-between items-center mb-6">
-          <Button onClick={handleNavigateBack} variant="ghost" className="pl-1 active:scale-95 transition-transform font-medium">
+          <Button 
+            onClick={handleNavigateBack} 
+            variant="ghost" 
+            size={isMobile ? "icon" : "default"}
+            className={cn(
+              "active:scale-95 transition-transform font-medium", 
+              isMobile ? "rounded-full" : "pl-1"
+            )}
+          >
               <ArrowLeft className={cn("h-4 w-4", !isMobile && "mr-2")} />
               {!isMobile && "Back"}
           </Button>
