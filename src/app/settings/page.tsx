@@ -332,7 +332,7 @@ export default function SettingsPage() {
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
     };
-    reader.readAsText(file);
+    reader.readAsDataURL(file);
   };
 
   const handleClearAllData = async () => {
@@ -713,7 +713,6 @@ export default function SettingsPage() {
                                 <Button variant="outline" className="w-full h-11 justify-start rounded-xl" onClick={() => fileInputRef.current?.click()}><Upload className="h-4 w-4 mr-3" /> Import Settings</Button>
                                 <input type="file" ref={fileInputRef} onChange={handleImportSettings} className="hidden" accept=".json" />
                             </CardContent>
-                        </Card>
                         <Card className="border-2 border-destructive/20 shadow-lg bg-destructive/[0.02]">
                             <CardHeader className="pb-4">
                                 <CardTitle className="text-xs font-semibold text-destructive uppercase tracking-wider">Danger Zone</CardTitle>
@@ -853,20 +852,21 @@ export default function SettingsPage() {
 
         {/* Main Content - Second on mobile, col 1-2 on desktop */}
         <div className="order-2 lg:order-none lg:col-span-2 lg:row-start-1 lg:row-span-10 space-y-4 sm:space-y-8">
-            {/* Add Field Button - Below Storage Section when stacked */}
-            <Button 
-                id="add-field-button" 
-                size="lg" 
-                className="w-full h-12 font-bold shadow-lg" 
-                onClick={() => { setFieldToEdit(null); setIsFieldDialogOpen(true); }}
-            >
-                <PlusCircle className="h-5 w-5 mr-2" /> Add Field
-            </Button>
-
             <Card id="settings-field-config-card" className="border-none shadow-xl bg-card">
                 <CardHeader className="pb-6">
-                    <CardTitle className="text-xl font-semibold tracking-tight">Field Configuration</CardTitle>
-                    <CardDescription className="text-sm font-normal">Edit, activate, or deactivate fields as needed.</CardDescription>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="space-y-1">
+                            <CardTitle className="text-xl font-semibold tracking-tight">Field Configuration</CardTitle>
+                            <CardDescription className="text-sm font-normal">Edit, activate, or deactivate fields as needed.</CardDescription>
+                        </div>
+                        <Button 
+                            size="sm" 
+                            className="w-full sm:w-auto font-bold px-4 h-10 shadow-sm" 
+                            onClick={() => { setFieldToEdit(null); setIsFieldDialogOpen(true); }}
+                        >
+                            <PlusCircle className="h-4 w-4 mr-2" /> Add Field
+                        </Button>
+                    </div>
                     <div className="pt-6">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
