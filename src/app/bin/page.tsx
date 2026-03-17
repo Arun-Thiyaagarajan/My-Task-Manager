@@ -59,7 +59,6 @@ export default function BinPage() {
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
-  const { toast } = useToast();
   
   const [noteToView, setNoteToView] = useState<Task | null>(null);
   const [isNoteViewerOpen, setIsNoteViewerOpen] = useState(false);

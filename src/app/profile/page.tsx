@@ -333,10 +333,7 @@ export default function ProfilePage() {
             <div className="px-6 pt-10 pb-8 space-y-6">
                 <div className="flex items-center gap-4">
                     <div className="relative group">
-                        {/* Subtle Focus Ring */}
-                        <div className="absolute inset-0 rounded-full animate-ring-pulse scale-110 pointer-events-none" />
-                        
-                        <Avatar className="h-20 w-20 border-2 border-background shadow-xl relative z-10">
+                        <Avatar className="h-20 w-20 border-2 border-background shadow-xl relative z-10 ring-4 ring-primary/10 ring-offset-2 ring-offset-background">
                             <AvatarImage src={isActualImage(photoURL) ? photoURL : undefined} className="object-cover" />
                             <AvatarFallback 
                                 className="text-2xl font-semibold text-white" 
@@ -628,9 +625,7 @@ export default function ProfilePage() {
                     {isMobile && (
                         <div className="flex justify-center pb-4">
                             <div className="relative group">
-                                {/* Subtle Focus Ring for sub-pages too */}
-                                <div className="absolute inset-0 rounded-full animate-ring-pulse scale-110 pointer-events-none" />
-                                <Avatar className="h-32 w-32 border-4 border-background shadow-2xl relative z-10">
+                                <Avatar className="h-32 w-32 border-4 border-background shadow-2xl relative z-10 ring-4 ring-primary/10 ring-offset-4 ring-offset-background">
                                     <AvatarImage src={isActualImage(photoURL) ? photoURL : undefined} className="object-cover" />
                                     <AvatarFallback 
                                         className="text-4xl font-semibold text-white" 
