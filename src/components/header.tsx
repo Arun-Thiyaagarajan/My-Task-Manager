@@ -47,7 +47,9 @@ import {
   Lock,
   CircleDot,
   ChevronRight,
-  Circle
+  Circle,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { CompaniesManager } from './companies-manager';
 import { useToast } from '@/hooks/use-toast';
@@ -371,21 +373,23 @@ export function Header() {
                 <span className="sr-only">General Reminders</span>
             </Button>
             
-            {/* Sign In Button for Local Storage Mode */}
+            {/* Sign In Button - Only for Mobile now as it is in the profile dropdown for desktop */}
             {authMode === 'localStorage' && (
                 <Button 
                     variant="outline" 
                     size="sm" 
                     onClick={handleOpenAuth}
                     className={cn(
-                        "h-9 rounded-full px-2 sm:px-4 border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 font-black shadow-sm flex items-center transition-all active:scale-95",
-                        isMobile && "px-3 ml-1"
+                        "h-9 rounded-full px-3 border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 font-black shadow-sm flex items-center transition-all active:scale-95 sm:hidden",
+                        "ml-1"
                     )}
                 >
                     <ShieldCheck className="h-4 w-4 mr-1.5" />
-                    <span className={cn("hidden sm:inline", isMobile && "inline")}>Sign In</span>
+                    <span>Sign In</span>
                 </Button>
             )}
+
+            {!isMobile && <ThemeToggle />}
 
             <div className="hidden sm:block">
               <DropdownMenu>
@@ -443,8 +447,6 @@ export function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-
-            {!isMobile && < ThemeToggle />}
           </div>
           
           {/* Navbar Bottom Progress Bar */}
