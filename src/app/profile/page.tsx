@@ -92,7 +92,7 @@ const isActualImage = (url: string | null | undefined) => {
 function WorkspaceListContent({ onCompanySelect }: { onCompanySelect?: (id: string) => void }) {
     const activeCompanyId = useActiveCompany();
     const [companies, setCompanies] = useState<Company[]>([]);
-    const [isManagerOpen, setIsManagerOpen] = useState(false);
+    const isManagerOpen, setIsManagerOpen] = useState(false);
     const [companyToEdit, setCompanyToEdit] = useState<Company | null>(null);
     const { toast } = useToast();
 
@@ -571,7 +571,7 @@ export default function ProfilePage() {
                                     className="text-2xl font-semibold text-white" 
                                     style={{ background: getAvatarGradient(profileName) }}
                                 >
-                                    {isActualImage(photoURL) ? getInitials(profileName) : (photoURL || getInitials(profileName))}
+                                    {photoURL || getInitials(profileName)}
                                 </AvatarFallback>
                             </Avatar>
                         </button>
@@ -654,90 +654,94 @@ export default function ProfilePage() {
                 )}
             </div>
 
-            {/* List of Settings Rows */}
-            <div className="bg-card border-y">
-                {isLocal && (
+            {/* List of Settings Rows - Boxed Container */}
+            <div className="px-4">
+                <div className="bg-card rounded-3xl border shadow-sm overflow-hidden">
+                    {isLocal && (
+                        <MobileHubRow 
+                            icon={ShieldCheck} 
+                            title="Sign In / Cloud Sync" 
+                            subLabel="Securely sync your workspace" 
+                            onClick={() => window.dispatchEvent(new Event('open-auth-modal'))}
+                            color="text-primary font-bold"
+                        />
+                    )}
                     <MobileHubRow 
-                        icon={ShieldCheck} 
-                        title="Sign In / Cloud Sync" 
-                        subLabel="Securely sync your workspace" 
-                        onClick={() => window.dispatchEvent(new Event('open-auth-modal'))}
-                        color="text-primary font-bold"
+                        icon={UserIcon} 
+                        title="Account" 
+                        subLabel="Personal information, email details" 
+                        onClick={() => handleMobileRowClick('general')}
+                        color="text-primary"
                     />
-                )}
-                <MobileHubRow 
-                    icon={UserIcon} 
-                    title="Account" 
-                    subLabel="Personal information, email details" 
-                    onClick={() => handleMobileRowClick('general')}
-                    color="text-primary"
-                />
-                <MobileHubRow 
-                    icon={Lock} 
-                    title="Security" 
-                    subLabel="Password, account protection" 
-                    onClick={() => handleMobileRowClick('security')}
-                    color="text-amber-500"
-                />
-                <MobileHubRow 
-                    icon={Building} 
-                    title="Workspaces" 
-                    subLabel="Manage companies and workspace identity" 
-                    onClick={() => handleMobileRowClick('workspaces')}
-                    color="text-cyan-500"
-                />
-                <MobileHubRow 
-                    icon={FileClock} 
-                    title="Activity Logs" 
-                    subLabel="Your workspace history" 
-                    onClick={() => router.push('/logs')}
-                    color="text-blue-500"
-                />
-                <MobileHubRow 
-                    icon={Settings} 
-                    title="Workspace Settings" 
-                    subLabel="Fields, environments, team" 
-                    onClick={() => router.push('/settings')}
-                    color="text-purple-500"
-                />
-                <MobileHubRow 
-                    icon={Sparkles} 
-                    title="What's New" 
-                    subLabel="Release notes and updates" 
-                    onClick={() => router.push('/releases')}
-                    color="text-green-500"
-                />
+                    <MobileHubRow 
+                        icon={Lock} 
+                        title="Security" 
+                        subLabel="Password, account protection" 
+                        onClick={() => handleMobileRowClick('security')}
+                        color="text-amber-500"
+                    />
+                    <MobileHubRow 
+                        icon={Building} 
+                        title="Workspaces" 
+                        subLabel="Manage companies and workspace identity" 
+                        onClick={() => handleMobileRowClick('workspaces')}
+                        color="text-cyan-500"
+                    />
+                    <MobileHubRow 
+                        icon={FileClock} 
+                        title="Activity Logs" 
+                        subLabel="Your workspace history" 
+                        onClick={() => router.push('/logs')}
+                        color="text-blue-500"
+                    />
+                    <MobileHubRow 
+                        icon={Settings} 
+                        title="Workspace Settings" 
+                        subLabel="Fields, environments, team" 
+                        onClick={() => router.push('/settings')}
+                        color="text-purple-500"
+                    />
+                    <MobileHubRow 
+                        icon={Sparkles} 
+                        title="What's New" 
+                        subLabel="Release notes and updates" 
+                        onClick={() => router.push('/releases')}
+                        color="text-green-500"
+                    />
+                </div>
             </div>
 
-            {/* Account Actions */}
-            <div className="mt-8 bg-card border-y">
-                {!isLocal ? (
-                    <button 
-                        onClick={() => setIsSignOutDialogOpen(true)}
-                        className="w-full flex items-center gap-4 py-4 px-4 hover:bg-destructive/5 active:bg-destructive/10 transition-colors text-left"
-                    >
-                        <div className="shrink-0 text-destructive">
-                            <LogOut className="h-6 w-6" />
-                        </div>
-                        <div className="flex-1">
-                            <p className="text-base font-medium text-destructive">Sign Out</p>
-                            <p className="text-xs text-muted-foreground">End your cloud session</p>
-                        </div>
-                    </button>
-                ) : (
-                    <button 
-                        onClick={() => router.push('/')}
-                        className="w-full flex items-center gap-4 py-4 px-4 hover:bg-muted/50 active:bg-muted transition-colors text-left"
-                    >
-                        <div className="shrink-0 text-muted-foreground">
-                            <ArrowLeft className="h-6 w-6" />
-                        </div>
-                        <div className="flex-1">
-                            <p className="text-base font-medium">Return Home</p>
-                            <p className="text-xs text-muted-foreground">Go back to workspace</p>
-                        </div>
-                    </button>
-                )}
+            {/* Account Actions - Boxed Container */}
+            <div className="mt-6 px-4">
+                <div className="bg-card rounded-3xl border shadow-sm overflow-hidden">
+                    {!isLocal ? (
+                        <button 
+                            onClick={() => setIsSignOutDialogOpen(true)}
+                            className="w-full flex items-center gap-4 py-4 px-4 hover:bg-destructive/5 active:bg-destructive/10 transition-colors text-left"
+                        >
+                            <div className="shrink-0 text-destructive">
+                                <LogOut className="h-6 w-6" />
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-base font-medium text-destructive">Sign Out</p>
+                                <p className="text-xs text-muted-foreground">End your cloud session</p>
+                            </div>
+                        </button>
+                    ) : (
+                        <button 
+                            onClick={() => router.push('/')}
+                            className="w-full flex items-center gap-4 py-4 px-4 hover:bg-muted/50 active:bg-muted transition-colors text-left"
+                        >
+                            <div className="shrink-0 text-muted-foreground">
+                                <ArrowLeft className="h-6 w-6" />
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-base font-medium">Return Home</p>
+                                <p className="text-xs text-muted-foreground">Go back to workspace</p>
+                            </div>
+                        </button>
+                    )}
+                </div>
             </div>
             {sharedDialogs}
         </div>
@@ -780,7 +784,7 @@ export default function ProfilePage() {
                                 className="text-2xl font-semibold text-white" 
                                 style={{ background: getAvatarGradient(profileName) }}
                             >
-                                {isActualImage(photoURL) ? getInitials(profileName) : (photoURL || getInitials(profileName))}
+                                {photoURL || getInitials(profileName)}
                             </AvatarFallback>
                             </Avatar>
                             
