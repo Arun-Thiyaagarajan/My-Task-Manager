@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useFirebase } from '@/firebase';
@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getInitials, getAvatarGradient, cn, compressImage } from '@/lib/utils';
+import { getInitials, getAvatarGradient, cn, compressImage, fuzzySearch } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { 
@@ -52,7 +52,9 @@ import {
   Building,
   PlusCircle,
   Edit,
-  Trash2
+  Trash2,
+  Search,
+  X
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
@@ -231,6 +233,10 @@ export default function ProfilePage() {
   const [isUpdating, setIsPending] = useState(false);
   const [isPageLoading, setIsPageLoading] = useState(true);
   
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+
   // Form states
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -446,6 +452,29 @@ export default function ProfilePage() {
     return strength;
   };
 
+  const searchableItems = useMemo(() => {
+    const items = [
+        { id: 'general', title: 'Account', subLabel: 'Personal information, email details', icon: UserIcon, type: 'tab', color: 'text-primary' },
+        { id: 'security', title: 'Security', subLabel: 'Password, account protection', icon: Lock, type: 'tab', color: 'text-amber-500' },
+        { id: 'workspaces', title: 'Workspaces', subLabel: 'Manage companies and workspace identity', icon: Building, type: 'tab', color: 'text-cyan-500' },
+        { id: 'logs', title: 'Activity Logs', subLabel: 'Your workspace history', icon: FileClock, type: 'link', href: '/logs', color: 'text-blue-500' },
+        { id: 'settings', title: 'Workspace Settings', subLabel: 'Fields, environments, team', icon: Settings, type: 'link', href: '/settings', color: 'text-purple-500' },
+        { id: 'releases', title: 'What\'s New', subLabel: 'Release notes and updates', icon: Sparkles, type: 'link', href: '/releases', color: 'text-green-500' },
+    ];
+    if (isLocal) {
+        items.unshift({ id: 'auth', title: 'Sign In / Cloud Sync', subLabel: 'Securely sync your workspace', icon: ShieldCheck, type: 'event', event: 'open-auth-modal', color: 'text-primary font-bold' } as any);
+    }
+    return items;
+  }, [isLocal]);
+
+  const filteredSearchItems = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    return searchableItems.filter(item => 
+        fuzzySearch(searchQuery, item.title) || 
+        fuzzySearch(searchQuery, item.subLabel)
+    );
+  }, [searchQuery, searchableItems]);
+
   if (isPageLoading) return null;
 
   const profileName = displayName || (isLocal ? 'Guest User' : user?.email) || 'User';
@@ -527,9 +556,9 @@ export default function ProfilePage() {
   // MOBILE HUB VIEW
   if (isMobile && !showMobileSubPage) {
     return (
-        <div className="min-h-screen bg-background pb-32">
+        <div className="min-h-screen bg-background pb-32 no-scrollbar overflow-y-auto">
             {/* WhatsApp Style Header */}
-            <div className="px-6 pt-10 pb-8 space-y-6">
+            <div className="px-6 pt-10 pb-6 space-y-6">
                 <div className="flex items-center gap-4">
                     <div className="relative group">
                         <button 
@@ -569,6 +598,60 @@ export default function ProfilePage() {
                         </div>
                     </div>
                 </div>
+            </div>
+
+            {/* Smart Search Bar */}
+            <div className="px-6 mb-6 relative">
+                <div className="relative group">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                    <Input 
+                        placeholder="Search settings..." 
+                        className="pl-10 h-11 bg-muted/30 border-transparent focus:border-primary/30 focus:ring-0 transition-all rounded-xl font-normal"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onFocus={() => setIsSearchFocused(true)}
+                        onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                    />
+                    {searchQuery && (
+                        <button 
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    )}
+                </div>
+                
+                {/* Suggestions Dropdown */}
+                {isSearchFocused && filteredSearchItems.length > 0 && (
+                    <div className="absolute top-full left-6 right-6 mt-2 bg-popover border rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                        {filteredSearchItems.map(item => (
+                            <button
+                                key={item.id}
+                                className="w-full flex items-center gap-3 p-3 hover:bg-muted active:bg-muted/80 transition-colors text-left border-b last:border-0"
+                                onClick={() => {
+                                    if (item.type === 'tab') {
+                                        setActiveTab(item.id);
+                                        setShowMobileSubPage(true);
+                                    } else if (item.type === 'link') {
+                                        router.push(item.href);
+                                    } else if (item.type === 'event') {
+                                        window.dispatchEvent(new Event(item.event!));
+                                    }
+                                    setSearchQuery('');
+                                }}
+                            >
+                                <div className={cn("p-2 rounded-lg bg-muted/50", item.color)}>
+                                    <item.icon className="h-4 w-4" />
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-sm font-bold truncate">{item.title}</p>
+                                    <p className="text-[10px] text-muted-foreground truncate">{item.subLabel}</p>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* List of Settings Rows */}
