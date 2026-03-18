@@ -57,7 +57,10 @@ import {
     Camera,
     Loader2,
     Lock,
-    ArrowLeft
+    ArrowLeft,
+    Sun,
+    Moon,
+    Monitor
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PeopleManagerDialog } from '@/components/people-manager-dialog';
@@ -88,11 +91,13 @@ import { useFirebase } from '@/firebase';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useRouter } from 'next/navigation';
 import { PeopleManagementContent } from '@/components/people-management-content';
+import { useTheme } from 'next-themes';
 
 export default function SettingsPage() {
   const isMobile = useIsMobile();
   const router = useRouter();
   const { userProfile } = useFirebase();
+  const { theme, setTheme } = useTheme();
   const [uiConfig, setUiConfigState] = useState<UiConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isClearing, setIsClearing] = useState(false);
@@ -455,7 +460,7 @@ export default function SettingsPage() {
             <MobileSectionHeader title="Workspace" />
             <div className="bg-card border-y">
                 <MobileHubRow icon={ShieldCheck} title="Storage Mode" subLabel={authMode === 'localStorage' ? 'Local Only' : 'Cloud Sync Enabled'} onClick={() => setActiveMobileSection('storage')} color="text-primary" />
-                <MobileHubRow icon={Globe} title="Appearance" subLabel="Branding, name, and time" onClick={() => setActiveMobileSection('appearance')} color="text-blue-500" />
+                <MobileHubRow icon={Globe} title="Appearance" subLabel="Branding, theme, and time" onClick={() => setActiveMobileSection('appearance')} color="text-blue-500" />
                 <MobileHubRow icon={Bell} title="Features" subLabel="Reminders and tutorials" onClick={() => setActiveMobileSection('features')} color="text-amber-500" />
             </div>
 
@@ -560,7 +565,49 @@ export default function SettingsPage() {
                                 Appearance
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-5">
+                        <CardContent className="space-y-6">
+                            <div className="space-y-3">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Application Theme</Label>
+                                <RadioGroup value={theme} onValueChange={setTheme} className="grid grid-cols-3 gap-2">
+                                    <div className="flex flex-col gap-1">
+                                        <button 
+                                            onClick={() => setTheme('light')}
+                                            className={cn(
+                                                "flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all gap-2",
+                                                theme === 'light' ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent"
+                                            )}
+                                        >
+                                            <Sun className={cn("h-5 w-5", theme === 'light' ? "text-primary" : "text-muted-foreground")} />
+                                            <span className={cn("text-[10px] font-bold uppercase", theme === 'light' ? "text-primary" : "text-muted-foreground")}>Light</span>
+                                        </button>
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <button 
+                                            onClick={() => setTheme('dark')}
+                                            className={cn(
+                                                "flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all gap-2",
+                                                theme === 'dark' ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent"
+                                            )}
+                                        >
+                                            <Moon className={cn("h-5 w-5", theme === 'dark' ? "text-primary" : "text-muted-foreground")} />
+                                            <span className={cn("text-[10px] font-bold uppercase", theme === 'dark' ? "text-primary" : "text-muted-foreground")}>Dark</span>
+                                        </button>
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <button 
+                                            onClick={() => setTheme('system')}
+                                            className={cn(
+                                                "flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all gap-2",
+                                                theme === 'system' ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent"
+                                            )}
+                                        >
+                                            <Monitor className={cn("h-5 w-5", theme === 'system' ? "text-primary" : "text-muted-foreground")} />
+                                            <span className={cn("text-[10px] font-bold uppercase", theme === 'system' ? "text-primary" : "text-muted-foreground")}>System</span>
+                                        </button>
+                                    </div>
+                                </RadioGroup>
+                            </div>
+
                             <div className="space-y-2">
                                 <Label className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Workspace Name</Label>
                                 <Input value={appName} onChange={e => setAppName(e.target.value)} className="h-10 font-medium" />
@@ -960,9 +1007,51 @@ export default function SettingsPage() {
                         <Globe className="h-5 w-5 text-primary" />
                         Appearance
                     </CardTitle>
-                    <CardDescription className="text-xs font-normal">Custom branding and date formatting.</CardDescription>
+                    <CardDescription className="text-xs font-normal">Custom branding and theme.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-5">
+                <CardContent className="space-y-6">
+                    <div className="space-y-3 pb-2 border-b border-dashed">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Theme Preference</Label>
+                        <RadioGroup value={theme} onValueChange={setTheme} className="grid grid-cols-3 gap-2">
+                            <div className="flex flex-col gap-1">
+                                <button 
+                                    onClick={() => setTheme('light')}
+                                    className={cn(
+                                        "flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all gap-2",
+                                        theme === 'light' ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent hover:bg-muted/50"
+                                    )}
+                                >
+                                    <Sun className={cn("h-5 w-5", theme === 'light' ? "text-primary" : "text-muted-foreground")} />
+                                    <span className={cn("text-[10px] font-bold uppercase", theme === 'light' ? "text-primary" : "text-muted-foreground")}>Light</span>
+                                </button>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <button 
+                                    onClick={() => setTheme('dark')}
+                                    className={cn(
+                                        "flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all gap-2",
+                                        theme === 'dark' ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent hover:bg-muted/50"
+                                    )}
+                                >
+                                    <Moon className={cn("h-5 w-5", theme === 'dark' ? "text-primary" : "text-muted-foreground")} />
+                                    <span className={cn("text-[10px] font-bold uppercase", theme === 'dark' ? "text-primary" : "text-muted-foreground")}>Dark</span>
+                                </button>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <button 
+                                    onClick={() => setTheme('system')}
+                                    className={cn(
+                                        "flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all gap-2",
+                                        theme === 'system' ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent hover:bg-muted/50"
+                                    )}
+                                >
+                                    <Monitor className={cn("h-5 w-5", theme === 'system' ? "text-primary" : "text-muted-foreground")} />
+                                    <span className={cn("text-[10px] font-bold uppercase", theme === 'system' ? "text-primary" : "text-muted-foreground")}>System</span>
+                                </button>
+                            </div>
+                        </RadioGroup>
+                    </div>
+
                     <div className="space-y-2">
                         <Label className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Workspace Name</Label>
                         <Input value={appName} onChange={e => setAppName(e.target.value)} className="h-10 font-medium" />
