@@ -458,27 +458,35 @@ export default function SettingsPage() {
             </div>
 
             <MobileSectionHeader title="Workspace" />
-            <div className="bg-card border-y">
-                <MobileHubRow icon={ShieldCheck} title="Storage Mode" subLabel={authMode === 'localStorage' ? 'Local Only' : 'Cloud Sync Enabled'} onClick={() => setActiveMobileSection('storage')} color="text-primary" />
-                <MobileHubRow icon={Globe} title="Appearance" subLabel="Branding, theme, and time" onClick={() => setActiveMobileSection('appearance')} color="text-blue-500" />
-                <MobileHubRow icon={Bell} title="Features" subLabel="Reminders and tutorials" onClick={() => setActiveMobileSection('features')} color="text-amber-500" />
+            <div className="px-4">
+                <div className="bg-card border rounded-3xl shadow-sm overflow-hidden">
+                    <MobileHubRow icon={ShieldCheck} title="Storage Mode" subLabel={authMode === 'localStorage' ? 'Local Only' : 'Cloud Sync Enabled'} onClick={() => setActiveMobileSection('storage')} color="text-primary" />
+                    <MobileHubRow icon={Globe} title="Appearance" subLabel="Branding, theme, and time" onClick={() => setActiveMobileSection('appearance')} color="text-blue-500" />
+                    <MobileHubRow icon={Bell} title="Features" subLabel="Reminders and tutorials" onClick={() => setActiveMobileSection('features')} color="text-amber-500" />
+                </div>
             </div>
 
             <MobileSectionHeader title="Structure" />
-            <div className="bg-card border-y">
-                <MobileHubRow icon={Layout} title="Field Configuration" subLabel="Task fields and visibility" onClick={() => setActiveMobileSection('fields')} color="text-purple-500" />
-                <MobileHubRow icon={Rocket} title="Environments" subLabel="Deployment pipeline" onClick={() => setActiveMobileSection('environments')} color="text-green-500" />
+            <div className="px-4">
+                <div className="bg-card border rounded-3xl shadow-sm overflow-hidden">
+                    <MobileHubRow icon={Layout} title="Field Configuration" subLabel="Task fields and visibility" onClick={() => setActiveMobileSection('fields')} color="text-purple-500" />
+                    <MobileHubRow icon={Rocket} title="Environments" subLabel="Deployment pipeline" onClick={() => setActiveMobileSection('environments')} color="text-green-500" />
+                </div>
             </div>
 
             <MobileSectionHeader title="Organization" />
-            <div className="bg-card border-y">
-                <MobileHubRow icon={Users} title="Team Management" subLabel="Developers and testers" onClick={() => setActiveMobileSection('team')} color="text-indigo-500" />
+            <div className="px-4">
+                <div className="bg-card border rounded-3xl shadow-sm overflow-hidden">
+                    <MobileHubRow icon={Users} title="Team Management" subLabel="Developers and testers" onClick={() => setActiveMobileSection('team')} color="text-indigo-500" />
+                </div>
             </div>
 
             <MobileSectionHeader title="System" />
-            <div className="bg-card border-y">
-                <MobileHubRow icon={History} title="Releases" subLabel={isAdmin ? 'Manage updates' : 'View updates'} onClick={() => setActiveMobileSection('releases')} color="text-orange-500" />
-                <MobileHubRow icon={Database} title="Data & Safety" subLabel="Import, export, clear data" onClick={() => setActiveMobileSection('data')} color="text-red-500" />
+            <div className="px-4">
+                <div className="bg-card border rounded-3xl shadow-sm overflow-hidden">
+                    <MobileHubRow icon={History} title="Releases" subLabel={isAdmin ? 'Manage updates' : 'View updates'} onClick={() => setActiveMobileSection('releases')} color="text-orange-500" />
+                    <MobileHubRow icon={Database} title="Data & Safety" subLabel="Import, export, clear data" onClick={() => setActiveMobileSection('data')} color="text-red-500" />
+                </div>
             </div>
         </div>
     );
@@ -508,7 +516,7 @@ export default function SettingsPage() {
                 )}
 
                 {activeMobileSection === 'storage' && (
-                    <Card className="border-none shadow-lg">
+                    <Card className="border shadow-lg rounded-3xl">
                         <CardHeader className="pb-4">
                             <CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider">
                                 <ShieldCheck className="h-5 w-5 text-primary" />
@@ -521,7 +529,7 @@ export default function SettingsPage() {
                                 <button 
                                     onClick={() => handleInitiateModeChange('localStorage')}
                                     className={cn(
-                                        "flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all",
+                                        "flex items-center gap-4 p-4 rounded-2xl border-2 text-left transition-all",
                                         authMode === 'localStorage' 
                                             ? "bg-primary/[0.03] border-primary shadow-sm" 
                                             : "bg-background border-border"
@@ -538,7 +546,7 @@ export default function SettingsPage() {
                                 <button 
                                     onClick={() => handleInitiateModeChange('authenticate')}
                                     className={cn(
-                                        "flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all",
+                                        "flex items-center gap-4 p-4 rounded-2xl border-2 text-left transition-all",
                                         authMode === 'authenticate' 
                                             ? "bg-primary/[0.03] border-primary shadow-sm" 
                                             : "bg-background border-border"
@@ -558,7 +566,7 @@ export default function SettingsPage() {
                 )}
 
                 {activeMobileSection === 'appearance' && (
-                    <Card className="border-none shadow-lg">
+                    <Card className="border shadow-lg rounded-3xl">
                         <CardHeader className="pb-4">
                             <CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider">
                                 <Globe className="h-5 w-5 text-primary" />
@@ -633,7 +641,7 @@ export default function SettingsPage() {
                 )}
 
                 {activeMobileSection === 'features' && (
-                    <Card className="border-none shadow-lg">
+                    <Card className="border shadow-lg rounded-3xl">
                         <CardHeader className="pb-4">
                             <CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider">
                                 <Bell className="h-5 w-5 text-primary" />
@@ -661,14 +669,14 @@ export default function SettingsPage() {
 
                 {activeMobileSection === 'fields' && (
                     <div className="space-y-4">
-                        <Button className="w-full h-12 font-bold shadow-lg" onClick={() => { setFieldToEdit(null); setIsFieldDialogOpen(true); }}>
+                        <Button className="w-full h-12 font-bold shadow-lg rounded-2xl" onClick={() => { setFieldToEdit(null); setIsFieldDialogOpen(true); }}>
                             <PlusCircle className="h-5 w-5 mr-2" /> Add Field
                         </Button>
-                        <Card className="border-none shadow-xl bg-card">
+                        <Card className="border shadow-xl bg-card rounded-3xl">
                             <CardHeader className="pb-6">
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                                    <Input placeholder="Search fields..." className="pl-10 h-12" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                                    <Input placeholder="Search fields..." className="pl-10 h-12 rounded-xl" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                                 </div>
                             </CardHeader>
                             <CardContent className="space-y-8">
@@ -677,17 +685,17 @@ export default function SettingsPage() {
                                         <h4 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2 px-1">{groupName}</h4>
                                         <div className="grid gap-2">
                                             {fields.map(field => (
-                                                <div key={field.id} className="flex items-center justify-between p-3 bg-muted/20 border rounded-xl hover:bg-muted/40 transition-all group">
+                                                <div key={field.id} className="flex items-center justify-between p-3 bg-muted/20 border rounded-2xl hover:bg-muted/40 transition-all group">
                                                     <div className="min-w-0 flex-1 pr-2">
                                                         <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                                                             <span className="font-medium text-sm sm:text-base truncate max-w-full">{field.label} {field.isRequired && <span className="text-destructive">*</span>}</span>
-                                                            <Badge variant="outline" className="text-[9px] h-4 shrink-0">{field.type}</Badge>
+                                                            <Badge variant="outline" className="text-[9px] h-4 shrink-0 uppercase tracking-tighter"> {field.type} </Badge>
                                                         </div>
                                                     </div>
                                                     <div className="flex gap-1 shrink-0">
-                                                        <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => { setFieldToEdit(field); setIsFieldDialogOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                                                        <Button variant="outline" size="icon" className="h-9 w-9 rounded-full" onClick={() => { setFieldToEdit(field); setIsFieldDialogOpen(true); }}><Pencil className="h-4 w-4" /></Button>
                                                         {!['title', 'description', 'status', 'repositories'].includes(field.key) && (
-                                                            <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={() => handleFieldToggle(field.key, 'isActive')}><X className="h-4 w-4" /></Button>
+                                                            <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive rounded-full" onClick={() => handleFieldToggle(field.key, 'isActive')}><X className="h-4 w-4" /></Button>
                                                         )}
                                                     </div>
                                                 </div>
@@ -701,7 +709,7 @@ export default function SettingsPage() {
                 )}
 
                 {activeMobileSection === 'environments' && (
-                    <Card className="border-none shadow-lg">
+                    <Card className="border shadow-lg rounded-3xl">
                         <CardHeader className="pb-4">
                             <CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider"><Rocket className="h-5 w-5 text-primary" /> Environments</CardTitle>
                         </CardHeader>
@@ -710,15 +718,15 @@ export default function SettingsPage() {
                                 {(uiConfig.environments || []).map(env => {
                                     const isMandatory = env.isMandatory || ['dev', 'production'].includes(env.name.toLowerCase());
                                     return (
-                                        <div key={env.id} className="flex items-center justify-between p-3 border rounded-xl bg-muted/20">
+                                        <div key={env.id} className="flex items-center justify-between p-3 border rounded-2xl bg-muted/20">
                                             <div className="flex items-center gap-3">
                                                 <div className="h-3 w-3 rounded-full" style={{ backgroundColor: env.color }} />
                                                 <span className="capitalize font-medium text-sm">{env.name}</span>
                                             </div>
                                             <div className="flex gap-1">
-                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEnvToEdit(env); setIsEnvDialogOpen(true); }}><Pencil className="h-3.5 w-3.5" /></Button>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => { setEnvToEdit(env); setIsEnvDialogOpen(true); }}><Pencil className="h-3.5 w-3.5" /></Button>
                                                 {!isMandatory && (
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteEnv(env.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-full" onClick={() => handleDeleteEnv(env.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                                                 )}
                                             </div>
                                         </div>
@@ -726,21 +734,27 @@ export default function SettingsPage() {
                                 })}
                             </div>
                             <div className="flex gap-2">
-                                <Input placeholder="New environment..." className="h-10 text-xs" value={newEnvName} onChange={e => setNewEnvName(e.target.value)} />
-                                <Button size="sm" className="h-10 px-4 shrink-0" onClick={handleAddEnv}>Add</Button>
+                                <Input placeholder="New environment..." className="h-10 text-xs rounded-xl" value={newEnvName} onChange={e => setNewEnvName(e.target.value)} />
+                                <Button size="sm" className="h-10 px-4 shrink-0 rounded-xl font-bold" onClick={handleAddEnv}>Add</Button>
                             </div>
                         </CardContent>
                     </Card>
                 )}
 
                 {activeMobileSection === 'team' && (
-                    <Card className="border-none shadow-lg">
+                    <Card className="border shadow-lg rounded-3xl">
                         <CardHeader className="pb-4">
                             <CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider"><Users className="h-5 w-5 text-primary" /> Team Management</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3">
-                            <Button variant="outline" className="w-full h-12 text-sm justify-between rounded-xl" onClick={() => setActiveMobileSection('manage-developers')}>Manage Developers <ChevronRight className="h-4 w-4" /></Button>
-                            <Button variant="outline" className="w-full h-12 text-sm justify-between rounded-xl" onClick={() => setActiveMobileSection('manage-testers')}>Manage Testers <ChevronRight className="h-4 w-4" /></Button>
+                            <Button variant="outline" className="w-full h-14 text-sm justify-between rounded-2xl font-bold px-4" onClick={() => setActiveMobileSection('manage-developers')}>
+                                <span className="flex items-center gap-3"><Users className="h-5 w-5 text-indigo-500" /> Manage Developers</span>
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" className="w-full h-14 text-sm justify-between rounded-2xl font-bold px-4" onClick={() => setActiveMobileSection('manage-testers')}>
+                                <span className="flex items-center gap-3"><ClipboardCheck className="h-5 w-5 text-green-500" /> Manage Testers</span>
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
                         </CardContent>
                     </Card>
                 )}
@@ -751,24 +765,24 @@ export default function SettingsPage() {
 
                 {activeMobileSection === 'data' && (
                     <div className="space-y-4">
-                        <Card className="border-none shadow-lg">
+                        <Card className="border shadow-lg rounded-3xl">
                             <CardHeader className="pb-4">
                                 <CardTitle className="text-xs font-semibold uppercase tracking-wider">Data Operations</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
-                                <Button variant="outline" className="w-full h-11 justify-start rounded-xl" onClick={handleExportSettings}><Download className="h-4 w-4 mr-3" /> Export Settings</Button>
-                                <Button variant="outline" className="w-full h-11 justify-start rounded-xl" onClick={() => fileInputRef.current?.click()}><Upload className="h-4 w-4 mr-3" /> Import Settings</Button>
+                                <Button variant="outline" className="w-full h-12 justify-start rounded-2xl font-bold px-4" onClick={handleExportSettings}><Download className="h-5 w-5 mr-3 text-muted-foreground" /> Export Settings</Button>
+                                <Button variant="outline" className="w-full h-12 justify-start rounded-2xl font-bold px-4" onClick={() => fileInputRef.current?.click()}><Upload className="h-5 w-5 mr-3 text-muted-foreground" /> Import Settings</Button>
                                 <input type="file" ref={fileInputRef} onChange={handleImportSettings} className="hidden" accept=".json" />
                             </CardContent>
                         </Card>
-                        <Card className="border-2 border-destructive/20 shadow-lg bg-destructive/[0.02]">
+                        <Card className="border-2 border-destructive/20 shadow-lg bg-destructive/[0.02] rounded-3xl">
                             <CardHeader className="pb-4">
                                 <CardTitle className="text-xs font-semibold text-destructive uppercase tracking-wider">Danger Zone</CardTitle>
                             </CardHeader>
                             <CardContent>
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
-                                        <Button variant="destructive" className="w-full h-11 justify-start rounded-xl"><Trash2 className="h-4 w-4 mr-3" /> Clear All Workspace Data</Button>
+                                        <Button variant="destructive" className="w-full h-12 justify-start rounded-2xl font-bold px-4 shadow-md"><Trash2 className="h-5 w-5 mr-3" /> Clear All Workspace Data</Button>
                                     </AlertDialogTrigger>
                                     <AlertDialogContent className="rounded-3xl">
                                         <AlertDialogHeader>
@@ -777,7 +791,7 @@ export default function SettingsPage() {
                                         </AlertDialogHeader>
                                         <AlertDialogFooter className="gap-3 mt-4">
                                             <AlertDialogCancel className="rounded-xl" disabled={isClearing}>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={handleClearAllData} className="bg-destructive hover:bg-destructive/90 rounded-xl" disabled={isClearing}>Clear Data</AlertDialogAction>
+                                            <AlertDialogAction onClick={handleClearAllData} className="bg-destructive hover:bg-destructive/90 rounded-xl font-bold" disabled={isClearing}>Clear Data</AlertDialogAction>
                                         </AlertDialogFooter>
                                     </AlertDialogContent>
                                 </AlertDialog>
@@ -851,8 +865,7 @@ export default function SettingsPage() {
                         >
                             <div className={cn(
                                 "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
-                                authMode === 'localStorage' ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                            )}>
+                                authMode === 'localStorage' ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
                                 <Smartphone className="h-5 w-5" />
                             </div>
                             <div className="min-w-0">
@@ -872,8 +885,7 @@ export default function SettingsPage() {
                         >
                             <div className={cn(
                                 "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
-                                authMode === 'authenticate' ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                            )}>
+                                authMode === 'authenticate' ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
                                 <Database className="h-5 w-5" />
                             </div>
                             <div className="min-w-0">
@@ -1184,7 +1196,7 @@ export default function SettingsPage() {
                                         <Button 
                                             variant="ghost" 
                                             size="icon" 
-                                            className="h-7 w-7"
+                                            className="h-7 w-7 rounded-full"
                                             onClick={() => { setEnvToEdit(env); setIsEnvDialogOpen(true); }}
                                         >
                                             <Pencil className="h-3.5 w-3.5" />
@@ -1192,7 +1204,7 @@ export default function SettingsPage() {
                                         {!isMandatory && (
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10">
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10 rounded-full">
                                                         <Trash2 className="h-3.5 w-3.5" />
                                                     </Button>
                                                 </AlertDialogTrigger>

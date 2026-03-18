@@ -524,7 +524,7 @@ export default function ProfilePage() {
         imageUrl={photoURL}
         imageName="Profile Photo"
         isProfilePreview
-        onEdit={handleEditExisting}
+        onEdit={handleEditExistingIcon}
         onChange={() => { setIsPreviewOpen(false); fileInputRef.current?.click(); }}
         onRemove={handleRemovePhoto}
         previousImageUrl={previousPhotoURL}
@@ -906,7 +906,7 @@ export default function ProfilePage() {
 
             <TabsContent value="general" className="space-y-6">
               <form onSubmit={handleUpdateProfile}>
-                <Card className="shadow-sm border-none lg:border">
+                <Card className="shadow-sm border-none lg:border rounded-3xl lg:rounded-xl">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-lg font-semibold">
                       <UserIcon className="h-5 w-5 text-primary" />
@@ -1010,7 +1010,7 @@ export default function ProfilePage() {
 
             <TabsContent value="security" className="space-y-6">
               {isLocal ? (
-                  <Alert className="bg-primary/5 border-primary/20">
+                  <Alert className="bg-primary/5 border-primary/20 rounded-3xl">
                       <ShieldCheck className="h-4 w-4 text-primary" />
                       <AlertTitle className="font-bold">Local Security</AlertTitle>
                       <AlertDescription className="text-sm font-normal">
@@ -1019,7 +1019,7 @@ export default function ProfilePage() {
                   </Alert>
               ) : (
                 <form onSubmit={handlePasswordChange}>
-                    <Card className="shadow-sm border-none lg:border">
+                    <Card className="shadow-sm border-none lg:border rounded-3xl lg:rounded-xl">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-lg font-semibold">
                         <KeyRound className="h-5 w-5 text-primary" />
@@ -1131,7 +1131,7 @@ export default function ProfilePage() {
             </TabsContent>
 
             <TabsContent value="workspaces" className="space-y-6">
-                <Card className="shadow-sm border-none lg:border">
+                <Card className="shadow-sm border-none lg:border rounded-3xl lg:rounded-xl">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-lg font-semibold">
                             <Building className="h-5 w-5 text-primary" />
