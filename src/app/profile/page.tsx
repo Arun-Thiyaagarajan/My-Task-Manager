@@ -87,7 +87,7 @@ const isActualImage = (url: string | null | undefined) => {
     return url.startsWith('data:image') || url.startsWith('http') || url.startsWith('/');
 };
 
-function WorkspaceDialog({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (open: boolean) => void }) {
+function WorkspaceListContent({ onCompanySelect }: { onCompanySelect?: (id: string) => void }) {
     const activeCompanyId = useActiveCompany();
     const [companies, setCompanies] = useState<Company[]>([]);
     const [isManagerOpen, setIsManagerOpen] = useState(false);
@@ -95,15 +95,13 @@ function WorkspaceDialog({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChan
     const { toast } = useToast();
 
     useEffect(() => {
-        if (isOpen) {
-            setCompanies(getCompanies());
-        }
-    }, [isOpen]);
+        setCompanies(getCompanies());
+    }, []);
 
     const handleCompanyChange = (id: string) => {
         setActiveCompanyId(id);
         window.dispatchEvent(new Event('company-changed'));
-        onOpenChange(false);
+        onCompanySelect?.(id);
     };
 
     const handleAdd = () => {
@@ -127,6 +125,73 @@ function WorkspaceDialog({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChan
     };
 
     return (
+        <div className="space-y-4">
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
+                {companies.map(company => (
+                    <div key={company.id} className={cn(
+                        "flex items-center justify-between p-4 rounded-2xl border transition-all",
+                        company.id === activeCompanyId ? "bg-primary/5 border-primary/20 shadow-sm" : "bg-muted/30 border-transparent hover:bg-muted/50"
+                    )}>
+                        <button 
+                            onClick={() => handleCompanyChange(company.id)}
+                            className="flex-1 flex items-center gap-3 text-left min-w-0"
+                        >
+                            <div className={cn(
+                                "h-2.5 w-2.5 rounded-full shrink-0",
+                                company.id === activeCompanyId ? "bg-primary" : "bg-muted-foreground/30"
+                            )} />
+                            <span className={cn("font-bold text-base truncate", company.id === activeCompanyId && "text-primary")}>{company.name}</span>
+                        </button>
+                        <div className="flex items-center gap-1 shrink-0">
+                            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={() => handleEdit(company)}>
+                                <Edit className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive hover:bg-destructive/10 rounded-full">
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="rounded-3xl">
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle className="font-bold tracking-tight">Delete Workspace?</AlertDialogTitle>
+                                        <AlertDialogDescription className="font-normal text-sm">
+                                            This action cannot be undone. This will permanently delete the workspace and all its tasks.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter className="pt-4 gap-2">
+                                        <AlertDialogCancel className="rounded-xl font-medium">Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDelete(company.id)} className="bg-destructive hover:bg-destructive/90 rounded-xl font-bold px-6">
+                                            Delete Company
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
+                    </div>
+                ))}
+            </div>
+            
+            <Button onClick={handleAdd} variant="outline" className="w-full border-dashed rounded-2xl h-14 font-bold hover:bg-primary/5 hover:text-primary hover:border-primary/30">
+                <PlusCircle className="mr-2 h-5 w-5" />
+                Add New Company
+            </Button>
+
+            <CompaniesManager 
+                isOpen={isManagerOpen}
+                onOpenChange={setIsManagerOpen}
+                onSuccess={() => {
+                    setCompanies(getCompanies());
+                    window.dispatchEvent(new Event('company-changed'));
+                }}
+                companyToEdit={companyToEdit}
+            />
+        </div>
+    );
+}
+
+function WorkspaceDialog({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (open: boolean) => void }) {
+    return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-md p-0 overflow-hidden rounded-3xl w-[95%]">
                 <DialogHeader className="p-6 pb-2">
@@ -137,72 +202,13 @@ function WorkspaceDialog({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChan
                     <DialogDescription className="text-sm font-normal">Switch between or manage your company profiles.</DialogDescription>
                 </DialogHeader>
                 
-                <div className="px-6 py-4 space-y-4">
-                    <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1 custom-scrollbar">
-                        {companies.map(company => (
-                            <div key={company.id} className={cn(
-                                "flex items-center justify-between p-3 rounded-2xl border transition-all",
-                                company.id === activeCompanyId ? "bg-primary/5 border-primary/20 shadow-sm" : "bg-muted/30 border-transparent hover:bg-muted/50"
-                            )}>
-                                <button 
-                                    onClick={() => handleCompanyChange(company.id)}
-                                    className="flex-1 flex items-center gap-3 text-left min-w-0"
-                                >
-                                    <div className={cn(
-                                        "h-2 w-2 rounded-full shrink-0",
-                                        company.id === activeCompanyId ? "bg-primary" : "bg-muted-foreground/30"
-                                    )} />
-                                    <span className={cn("font-semibold truncate", company.id === activeCompanyId && "text-primary")}>{company.name}</span>
-                                </button>
-                                <div className="flex items-center gap-1 shrink-0">
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => handleEdit(company)}>
-                                        <Edit className="h-3.5 w-3.5" />
-                                    </Button>
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-full" onClick={e => e.stopPropagation()}>
-                                                <Trash2 className="h-3.5 w-3.5" />
-                                            </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent className="rounded-2xl">
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle className="font-semibold tracking-tight">Are you sure?</AlertDialogTitle>
-                                                <AlertDialogDescription className="font-normal">
-                                                    This action cannot be undone. This will permanently delete the company and all its tasks.
-                                                </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter className="pt-4 gap-2">
-                                                <AlertDialogCancel className="rounded-xl font-medium">Cancel</AlertDialogCancel>
-                                                <AlertDialogAction onClick={() => handleDelete(company.id)} className="bg-destructive hover:bg-destructive/90 rounded-xl font-semibold px-6">
-                                                    Delete Company
-                                                </AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                    
-                    <Button onClick={handleAdd} variant="outline" className="w-full border-dashed rounded-2xl h-12 font-bold hover:bg-primary/5 hover:text-primary hover:border-primary/30">
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Add New Company
-                    </Button>
+                <div className="px-6 py-4">
+                    <WorkspaceListContent onCompanySelect={() => onOpenChange(false)} />
                 </div>
                 
                 <DialogFooter className="p-4 bg-muted/10">
                     <Button variant="ghost" className="w-full rounded-xl font-semibold" onClick={() => onOpenChange(false)}>Close</Button>
                 </DialogFooter>
-
-                <CompaniesManager 
-                    isOpen={isManagerOpen}
-                    onOpenChange={setIsManagerOpen}
-                    onSuccess={() => {
-                        setCompanies(getCompanies());
-                        window.dispatchEvent(new Event('company-changed'));
-                    }}
-                    companyToEdit={companyToEdit}
-                />
             </DialogContent>
         </Dialog>
     );
@@ -215,6 +221,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const activeCompanyId = useActiveCompany();
 
   const authMode = getAuthMode();
   const isLocal = authMode === 'localStorage';
@@ -444,6 +451,9 @@ export default function ProfilePage() {
   const profileName = displayName || (isLocal ? 'Guest User' : user?.email) || 'User';
   const displayRole = isLocal ? 'guest' : (userProfile?.role || 'user');
   const isVerified = isLocal ? true : user?.emailVerified;
+  
+  const activeCompany = getCompanies().find(c => c.id === activeCompanyId);
+  const activeCompanyName = activeCompany?.name || 'Default Workspace';
 
   const hasChanges = 
     displayName !== (isLocal ? getLocalProfile().username : (user?.displayName || userProfile?.username || '')) || 
@@ -532,12 +542,12 @@ export default function ProfilePage() {
                                     className="text-2xl font-semibold text-white" 
                                     style={{ background: getAvatarGradient(profileName) }}
                                 >
-                                    {getInitials(profileName)}
+                                    {isActualImage(photoURL) ? getInitials(profileName) : (photoURL || getInitials(profileName))}
                                 </AvatarFallback>
                             </Avatar>
                         </button>
                         <button 
-                            onClick={() => fileInputRef.current?.click()}
+                            onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
                             className="absolute -bottom-1 -right-1 p-1.5 bg-primary text-primary-foreground rounded-full shadow-lg border-2 border-background z-20"
                         >
                             <Camera className="h-3 w-3" />
@@ -547,8 +557,12 @@ export default function ProfilePage() {
                     <div className="min-w-0 flex-1">
                         <h1 className="text-2xl font-bold tracking-tight truncate">{profileName}</h1>
                         <p className="text-sm text-muted-foreground truncate">{email}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                            <Badge variant="outline" className="text-[10px] uppercase font-bold px-1.5 h-4 bg-muted/50 border-none">
+                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                            <Badge variant="outline" className="flex items-center gap-1.5 text-[10px] uppercase font-bold px-2 h-5 bg-primary/5 border-primary/20 text-primary">
+                                <Building className="h-3 w-3" />
+                                {activeCompanyName}
+                            </Badge>
+                            <Badge variant="outline" className="text-[10px] uppercase font-bold px-2 h-5 bg-muted/50 border-none">
                                 {displayRole}
                             </Badge>
                             {isVerified && <ShieldCheck className="h-3.5 w-3.5 text-green-500" />}
@@ -586,7 +600,7 @@ export default function ProfilePage() {
                     icon={Building} 
                     title="Workspaces" 
                     subLabel="Manage companies and workspace identity" 
-                    onClick={() => setIsWorkspaceDialogOpen(true)}
+                    onClick={() => handleMobileRowClick('workspaces')}
                     color="text-cyan-500"
                 />
                 <MobileHubRow 
@@ -709,7 +723,7 @@ export default function ProfilePage() {
                     </TooltipProvider>
 
                     <button 
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
                     className="absolute bottom-0 right-0 p-2 bg-primary text-primary-foreground rounded-full shadow-lg border-2 border-background scale-0 group-hover:scale-100 transition-transform duration-300 z-30 hover:bg-primary/90 cursor-pointer"
                     >
                     <Camera className="h-4 w-4" />
@@ -718,7 +732,11 @@ export default function ProfilePage() {
                 
                 <div className="mt-4 space-y-1 overflow-hidden">
                     <h2 className="text-xl font-semibold tracking-tight text-foreground truncate px-4" title={profileName}>{profileName}</h2>
-                    <div className="flex items-center justify-center gap-2">
+                    <div className="flex flex-col items-center gap-2 mt-2">
+                        <Badge variant="outline" className="flex items-center gap-1.5 py-1 px-3 text-[10px] font-semibold uppercase tracking-wider bg-primary/5 border-primary/20 text-primary rounded-full">
+                            <Building className="h-3 w-3" />
+                            {activeCompanyName}
+                        </Badge>
                         <p className="text-[11px] text-muted-foreground font-normal truncate" title={email}>{email}</p>
                         <Badge variant="outline" className={cn(
                             "h-4 px-1.5 text-[8px] uppercase font-semibold tracking-widest",
@@ -974,7 +992,7 @@ export default function ProfilePage() {
                         </div>
                     </CardContent>
                     <CardFooter className="bg-muted/30 border-t flex justify-end px-6 py-4">
-                        <Button type="submit" disabled={isUpdating || !newPassword} className="px-8 cursor-pointer font-medium w-full sm:w-auto">
+                        <Button type="submit" disabled={isUpdating || !newPassword} className="px-8 font-medium w-full sm:w-auto">
                         {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Update Password
                         </Button>
@@ -1023,6 +1041,21 @@ export default function ProfilePage() {
                     </CardContent>
                 </Card>
               )}
+            </TabsContent>
+
+            <TabsContent value="workspaces" className="space-y-6">
+                <Card className="shadow-sm border-none lg:border">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                            <Building className="h-5 w-5 text-primary" />
+                            Workspace Management
+                        </CardTitle>
+                        <CardDescription className="text-sm font-normal">Switch between, add, or rename your organizational environments.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <WorkspaceListContent />
+                    </CardContent>
+                </Card>
             </TabsContent>
           </Tabs>
         </div>
