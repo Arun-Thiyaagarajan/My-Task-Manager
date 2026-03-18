@@ -92,7 +92,7 @@ const isActualImage = (url: string | null | undefined) => {
 function WorkspaceListContent({ onCompanySelect }: { onCompanySelect?: (id: string) => void }) {
     const activeCompanyId = useActiveCompany();
     const [companies, setCompanies] = useState<Company[]>([]);
-    const isManagerOpen, setIsManagerOpen] = useState(false);
+    const [isManagerOpen, setIsManagerOpen] = useState(false);
     const [companyToEdit, setCompanyToEdit] = useState<Company | null>(null);
     const { toast } = useToast();
 
