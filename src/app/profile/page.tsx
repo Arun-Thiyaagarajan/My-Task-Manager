@@ -364,7 +364,7 @@ export default function ProfilePage() {
     setIsPreviewOpen(false);
   };
 
-  const handleEditExisting = () => {
+  const handleEditExistingIcon = () => {
     const imageToEdit = originalImage || photoURL;
     if (isActualImage(imageToEdit)) {
         setPendingImage(imageToEdit);
@@ -571,7 +571,7 @@ export default function ProfilePage() {
                                     className="text-2xl font-semibold text-white" 
                                     style={{ background: getAvatarGradient(profileName) }}
                                 >
-                                    {photoURL || getInitials(profileName)}
+                                    {isActualImage(photoURL) ? getInitials(profileName) : (photoURL || getInitials(profileName))}
                                 </AvatarFallback>
                             </Avatar>
                         </button>
@@ -784,7 +784,7 @@ export default function ProfilePage() {
                                 className="text-2xl font-semibold text-white" 
                                 style={{ background: getAvatarGradient(profileName) }}
                             >
-                                {photoURL || getInitials(profileName)}
+                                {isActualImage(photoURL) ? getInitials(profileName) : (photoURL || getInitials(profileName))}
                             </AvatarFallback>
                             </Avatar>
                             
@@ -929,7 +929,7 @@ export default function ProfilePage() {
                                             className="text-4xl font-semibold text-white" 
                                             style={{ background: getAvatarGradient(profileName) }}
                                         >
-                                            {getInitials(profileName)}
+                                            {isActualImage(photoURL) ? getInitials(profileName) : (photoURL || getInitials(profileName))}
                                         </AvatarFallback>
                                     </Avatar>
                                 </button>
@@ -1110,7 +1110,7 @@ export default function ProfilePage() {
                                 <AlertDialogTrigger asChild>
                                     <Button variant="outline" size="sm" className="h-8 text-xs font-semibold group-hover:bg-destructive group-hover:text-white transition-all cursor-pointer">Sign Out</Button>
                                 </AlertDialogTrigger>
-                                <AlertDialogContent className="rounded-3xl">
+                                <AlertDialogContent className="rounded-2xl">
                                     <AlertDialogHeader>
                                         <AlertDialogTitle className="font-semibold text-center">Sign out of TaskFlow?</AlertDialogTitle>
                                         <AlertDialogDescription className="font-normal text-sm text-center">
