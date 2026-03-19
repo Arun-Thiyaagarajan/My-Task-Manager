@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -101,7 +100,7 @@ export default function RemindersPage() {
     };
 
     return (
-        <div className="bg-background min-h-screen pb-20">
+        <div className="bg-background min-h-0 pb-6">
             {/* Mobile Header */}
             <div className="px-6 pt-10 pb-6 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4">

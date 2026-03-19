@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
@@ -820,7 +819,7 @@ export default function ProfilePage() {
                     />
                     <MobileHubRow 
                         icon={Sparkles} 
-                        title="What\'s New" 
+                        title="What's New" 
                         subLabel="Release notes and updates" 
                         onClick={() => router.push('/releases')}
                         color="text-green-500"
@@ -829,7 +828,7 @@ export default function ProfilePage() {
             </div>
 
             {/* Account Actions - Boxed Container */}
-            <div className="mt-6 px-4 pb-6">
+            <div className="mt-6 px-4 pb-0">
                 <div className="bg-card rounded-3xl border shadow-sm overflow-hidden">
                     {!isLocal ? (
                         <button 

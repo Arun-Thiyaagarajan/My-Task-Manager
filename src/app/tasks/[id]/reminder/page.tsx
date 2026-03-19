@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -140,7 +139,7 @@ export default function TaskReminderPage() {
     const timeFormatString = timeFormat === '24h' ? 'PPP HH:mm' : 'PPP p';
 
     return (
-        <div className="bg-background min-h-screen pb-24">
+        <div className="bg-background min-h-0 pb-6">
             {/* Header */}
             <div className="px-6 pt-10 pb-6 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
@@ -249,7 +248,7 @@ export default function TaskReminderPage() {
                     </CardContent>
                 </Card>
 
-                <div className="fixed bottom-24 left-0 right-0 px-6 flex flex-col gap-2">
+                <div className="flex flex-col gap-2 pb-10">
                     <Button 
                         size="lg" 
                         className="w-full h-14 rounded-2xl font-bold shadow-2xl shadow-primary/30"

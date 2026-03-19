@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -79,6 +78,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -544,12 +551,12 @@ export default function SettingsPage() {
             <div className={cn("px-4 space-y-4", (isPeopleManager || activeMobileSection === 'edit-field' || activeMobileSection === 'edit-environment') && "px-0")}>
                 {isPeopleManager && <PeopleManagementContent type={managerType} />}
                 {activeMobileSection === 'edit-field' && (
-                    <div className="bg-background min-h-screen px-6 py-4">
+                    <div className="bg-background min-h-0 px-6 py-4">
                         <FieldFormContent field={fieldToEdit} repositoryConfigs={uiConfig.repositoryConfigs} onSave={handleSaveField} onCancel={() => setActiveMobileSection('fields')} />
                     </div>
                 )}
                 {activeMobileSection === 'edit-environment' && (
-                    <div className="bg-background min-h-screen px-6 py-4">
+                    <div className="bg-background min-h-0 px-6 py-4">
                         <EnvironmentFormContent environment={envToEdit} onSave={handleSaveEnv} onCancel={() => setActiveMobileSection('environments')} />
                     </div>
                 )}
@@ -810,7 +817,7 @@ export default function SettingsPage() {
                 <CardContent className="space-y-6">
                     <div className="space-y-3 pb-2 border-b border-dashed"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Theme Preference</Label><RadioGroup value={theme} onValueChange={setTheme} className="grid grid-cols-3 gap-2"><button onClick={() => setTheme('light')} className={cn("flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all gap-2", theme === 'light' ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent hover:bg-muted/50")}><Sun className={cn("h-5 w-5", theme === 'light' ? "text-primary" : "text-muted-foreground")} /><span className={cn("text-[10px] font-bold uppercase", theme === 'light' ? "text-primary" : "text-muted-foreground")}>Light</span></button><button onClick={() => setTheme('dark')} className={cn("flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all gap-2", theme === 'dark' ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent hover:bg-muted/50")}><Moon className={cn("h-5 w-5", theme === 'dark' ? "text-primary" : "text-muted-foreground")} /><span className={cn("text-[10px] font-bold uppercase", theme === 'dark' ? "text-primary" : "text-muted-foreground")}>Dark</span></button><button onClick={() => setTheme('system')} className={cn("flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all gap-2", theme === 'system' ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent hover:bg-muted/50")}><Monitor className={cn("h-5 w-5", theme === 'system' ? "text-primary" : "text-muted-foreground")} /><span className={cn("text-[10px] font-bold uppercase", theme === 'system' ? "text-primary" : "text-muted-foreground")}>System</span></button></RadioGroup></div>
                     <div className="space-y-2"><Label className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Workspace Name</Label><Input value={appName} onChange={e => setAppName(e.target.value)} className="h-10 font-medium" /></div>
-                    <div className="space-y-2"><Label className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Workspace Icon</Label><div className="flex gap-2"><Input value={isDataURIIcon ? '' : (appIcon || '')} onChange={e => setAppIcon(e.target.value)} placeholder={isDataURIIcon ? "Custom image uploaded" : "Emoji or URL..."} className="h-10 flex-1 font-normal" /><TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-10 w-10 shrink-0 border-dashed shadow-sm" onClick={() => iconFileInputRef.current?.click()} type="button"><Upload className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Upload Brand Icon</TooltipContent></Tooltip></TooltipProvider><input type="file" ref={iconFileInputRef} onChange={handleIconUpload} className="hidden" accept="image/*" /></div></div>
+                    <div className="space-y-2"><Label className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Workspace Icon</Label><div className="flex gap-2"><Input value={isDataURIIcon ? '' : (appIcon || '')} onChange={e => setAppIcon(e.target.value)} placeholder={isDataURIIcon ? "Custom image uploaded" : "Emoji or URL..."} className="h-10 flex-1 font-normal" /><TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-10 w-10 border-dashed shadow-sm" onClick={() => iconFileInputRef.current?.click()} type="button"><Upload className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Upload Brand Icon</TooltipContent></Tooltip></TooltipProvider><input type="file" ref={iconFileInputRef} onChange={handleIconUpload} className="hidden" accept="image/*" /></div></div>
                     <Button onClick={handleSaveDisplaySettings} className="w-full h-11 font-medium shadow-md">Save Display Settings</Button>
                 </CardContent>
             </Card>
