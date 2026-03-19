@@ -62,7 +62,14 @@ import {
     Sun,
     Moon,
     Monitor,
-    AlertCircle
+    AlertCircle,
+    DownloadCloud,
+    CheckCircle2,
+    Share,
+    PlusSquare,
+    MoreVertical,
+    Eraser,
+    Palette
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PeopleManagerDialog } from '@/components/people-manager-dialog';
@@ -156,9 +163,25 @@ export default function SettingsPage() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [originalIconImage, setOriginalIconImage] = useState<string | null>(null);
 
+  // Install State
+  const [installStatus, setInstallStatus] = useState<'installed' | 'not-installed' | 'checking'>('checking');
+  const [platform, setPlatform] = useState<'ios' | 'android' | 'desktop'>('desktop');
+
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
   const iconFileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Detect install status
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
+    setInstallStatus(isStandalone ? 'installed' : 'not-installed');
+
+    // Detect platform
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    if (/iphone|ipad|ipod/.test(userAgent)) setPlatform('ios');
+    else if (/android/.test(userAgent)) setPlatform('android');
+    else setPlatform('desktop');
+  }, []);
 
   const loadConfig = () => {
     const config = getUiConfig();
@@ -454,8 +477,8 @@ export default function SettingsPage() {
   const sharedDialogs = (
     <>
         <Dialog open={tasksUsingField.length > 0} onOpenChange={(open) => !open && setTasksUsingField([])}>
-            <DialogContent className="sm:max-w-lg p-0 overflow-hidden rounded-3xl">
-                <div className="p-6">
+            <DialogContent className="sm:max-w-lg p-0 overflow-hidden rounded-3xl flex flex-col max-h-[90vh]">
+                <div className="p-6 pb-0 flex-shrink-0">
                     <DialogHeader>
                         <div className="mx-auto w-14 h-14 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mb-4">
                             <AlertCircle className="h-8 w-8 text-amber-600 dark:text-amber-400" />
@@ -465,8 +488,10 @@ export default function SettingsPage() {
                             The field <strong>{fieldAttemptingDelete?.label}</strong> is currently used in <strong>{tasksUsingField.length}</strong> task(s).
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="mt-6 border rounded-2xl bg-muted/20 overflow-hidden">
-                        <ScrollArea className="max-h-64">
+                </div>
+                <div className="flex-1 overflow-hidden px-6 py-4">
+                    <div className="h-full border rounded-2xl bg-muted/20 overflow-hidden">
+                        <ScrollArea className="h-full">
                             <ul className="divide-y divide-border/50">
                                 {tasksUsingField.map(task => (
                                     <li key={task.id} className="text-sm py-3 px-4 flex items-center justify-between gap-4 bg-background/50">
@@ -478,7 +503,7 @@ export default function SettingsPage() {
                         </ScrollArea>
                     </div>
                 </div>
-                <DialogFooter className="p-4 bg-muted/10 border-t flex justify-center sm:justify-center">
+                <DialogFooter className="p-4 bg-muted/10 border-t flex flex-row justify-center sm:justify-center shrink-0">
                     <Button onClick={() => setTasksUsingField([])} className="w-full sm:w-32 rounded-xl h-11 font-bold">Got it</Button>
                 </DialogFooter>
             </DialogContent>
@@ -544,6 +569,7 @@ export default function SettingsPage() {
                 <div className="bg-card border rounded-3xl shadow-sm overflow-hidden">
                     <MobileHubRow icon={ShieldCheck} title="Storage Mode" subLabel={authMode === 'localStorage' ? 'Local Only' : 'Cloud Sync Enabled'} onClick={() => setActiveMobileSection('storage')} color="text-primary" />
                     <MobileHubRow icon={Globe} title="Appearance" subLabel="Branding, theme, and time" onClick={() => setActiveMobileSection('appearance')} color="text-blue-500" />
+                    <MobileHubRow icon={DownloadCloud} title="App Installation" subLabel={installStatus === 'installed' ? 'App Installed' : 'Install for best experience'} onClick={() => setActiveMobileSection('install')} color="text-green-600" />
                     <MobileHubRow icon={Bell} title="Features" subLabel="Reminders and tutorials" onClick={() => setActiveMobileSection('features')} color="text-amber-500" />
                 </div>
             </div>
@@ -591,6 +617,7 @@ export default function SettingsPage() {
                      activeMobileSection === 'manage-testers' ? 'Manage Testers' : 
                      activeMobileSection === 'edit-field' ? (fieldToEdit ? 'Edit Field' : 'Add Field') :
                      activeMobileSection === 'edit-environment' ? (envToEdit ? 'Edit Environment' : 'Add Environment') :
+                     activeMobileSection === 'install' ? 'App Installation' :
                      activeMobileSection.replace('-', ' ')}
                 </h1>
             </div>
@@ -640,6 +667,66 @@ export default function SettingsPage() {
                             <div className="space-y-2"><Label className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Workspace Icon</Label><div className="flex gap-2"><Input value={isDataURIIcon ? '' : (appIcon || '')} onChange={e => setAppIcon(e.target.value)} placeholder={isDataURIIcon ? "Custom image uploaded" : "Emoji or URL..."} className="h-10 flex-1 font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40" /><Button variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => iconFileInputRef.current?.click()}><Upload className="h-4 w-4" /></Button><input type="file" ref={iconFileInputRef} onChange={handleIconUpload} className="hidden" accept="image/*" /></div></div>
                             <div className="space-y-2"><Label className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Time Display</Label><div className="grid grid-cols-2 gap-2"><button onClick={() => setTimeFormat('12h')} className={cn("flex items-center justify-center p-2.5 border rounded-xl gap-2 transition-all", timeFormat === '12h' ? "bg-primary/10 border-primary text-primary font-medium" : "bg-muted text-muted-foreground")}>12-hour</button><button onClick={() => setTimeFormat('24h')} className={cn("flex items-center justify-center p-2.5 border rounded-xl gap-2 transition-all", timeFormat === '24h' ? "bg-primary/10 border-primary text-primary font-medium" : "bg-muted text-muted-foreground")}>24-hour</button></div></div>
                             <Button onClick={handleSaveDisplaySettings} className="w-full h-11 font-medium">Save Display Settings</Button>
+                        </CardContent>
+                    </Card>
+                )}
+                {activeMobileSection === 'install' && (
+                    <Card className="border shadow-lg rounded-3xl">
+                        <CardHeader className="pb-4">
+                            <CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider">
+                                <DownloadCloud className="h-5 w-5 text-primary" />
+                                APP INSTALLATION
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="flex flex-col items-center text-center p-6 bg-muted/20 rounded-2xl border-2 border-dashed">
+                                {installStatus === 'installed' ? (
+                                    <>
+                                        <div className="h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-4">
+                                            <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
+                                        </div>
+                                        <h3 className="text-lg font-bold">App Installed</h3>
+                                        <p className="text-xs text-muted-foreground mt-1">You are currently running the TaskFlow web app.</p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                                            <Smartphone className="h-8 w-8 text-primary" />
+                                        </div>
+                                        <h3 className="text-lg font-bold">Install TaskFlow</h3>
+                                        <p className="text-xs text-muted-foreground mt-1">Install for a faster, app-like experience with offline support.</p>
+                                    </>
+                                )}
+                            </div>
+
+                            {installStatus !== 'installed' && (
+                                <div className="space-y-4">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Installation Guide</p>
+                                    {platform === 'ios' ? (
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-3 p-3 bg-card border rounded-xl shadow-sm">
+                                                <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0"><Share className="h-4 w-4" /></div>
+                                                <p className="text-xs font-medium">1. Tap the <strong>Share</strong> button in Safari</p>
+                                            </div>
+                                            <div className="flex items-center gap-3 p-3 bg-card border rounded-xl shadow-sm">
+                                                <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0"><PlusSquare className="h-4 w-4" /></div>
+                                                <p className="text-xs font-medium">2. Select <strong>Add to Home Screen</strong></p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-3 p-3 bg-card border rounded-xl shadow-sm">
+                                                <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0"><MoreVertical className="h-4 w-4" /></div>
+                                                <p className="text-xs font-medium">1. Tap the browser's menu (three dots)</p>
+                                            </div>
+                                            <div className="flex items-center gap-3 p-3 bg-card border rounded-xl shadow-sm">
+                                                <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0"><DownloadCloud className="h-4 w-4" /></div>
+                                                <p className="text-xs font-medium">2. Select <strong>Install App</strong></p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 )}
@@ -920,6 +1007,50 @@ export default function SettingsPage() {
                     <Button onClick={handleSaveDisplaySettings} className="w-full h-11 font-medium shadow-md">Save Display Settings</Button>
                 </CardContent>
             </Card>
+            
+            <Card className="border-none shadow-lg">
+                <CardHeader className="pb-4">
+                    <CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider">
+                        <DownloadCloud className="h-5 w-5 text-primary" />
+                        APP INSTALLATION
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="p-4 rounded-xl bg-muted/20 border flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className={cn(
+                                "h-8 w-8 rounded-full flex items-center justify-center",
+                                installStatus === 'installed' ? "bg-green-100 text-green-600" : "bg-primary/10 text-primary"
+                            )}>
+                                {installStatus === 'installed' ? <CheckCircle2 className="h-5 w-5" /> : <Smartphone className="h-5 w-5" />}
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-xs font-bold leading-none">{installStatus === 'installed' ? 'App Installed' : 'Not Installed'}</p>
+                                <p className="text-[9px] text-muted-foreground uppercase font-medium mt-1">{installStatus === 'installed' ? 'Running as PWA' : 'Available for install'}</p>
+                            </div>
+                        </div>
+                        {installStatus === 'installed' && <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 border-none h-5 px-2 text-[8px] font-black uppercase">Live</Badge>}
+                    </div>
+
+                    {installStatus !== 'installed' && (
+                        <div className="space-y-3">
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Guide for {platform === 'ios' ? 'iOS' : platform === 'android' ? 'Android' : 'Desktop'}</p>
+                            
+                            {platform === 'ios' ? (
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2 text-xs font-medium"><div className="h-6 w-6 rounded bg-muted flex items-center justify-center shrink-0"><Share className="h-3.5 w-3.5" /></div><span>Tap <strong>Share</strong> in Safari</span></div>
+                                    <div className="flex items-center gap-2 text-xs font-medium"><div className="h-6 w-6 rounded bg-muted flex items-center justify-center shrink-0"><PlusSquare className="h-3.5 w-3.5" /></div><span>Choose <strong>Add to Home Screen</strong></span></div>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2 text-xs font-medium"><div className="h-6 w-6 rounded bg-muted flex items-center justify-center shrink-0"><DownloadCloud className="h-3.5 w-3.5" /></div><span>Click <strong>Install App</strong> in browser menu</span></div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
             <Card className="border-none shadow-lg">
                 <CardHeader className="pb-4"><CardTitle className="text-xs font-semibold gap-2 uppercase tracking-wider"><Bell className="h-5 w-5 text-primary" />Features</CardTitle></CardHeader>
                 <CardContent className="space-y-4"><div className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-transparent hover:border-border transition-colors"><div className="space-y-0.5"><Label className="text-sm font-semibold tracking-tight">Task Reminders</Label><p className="text-[10px] font-normal text-muted-foreground uppercase">Sticky notes.</p></div><Switch checked={uiConfig.remindersEnabled} onCheckedChange={(checked) => handleUpdateConfig({ remindersEnabled: checked })} /></div></CardContent>

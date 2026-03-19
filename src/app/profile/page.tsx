@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
@@ -68,7 +69,8 @@ import {
   Upload,
   Eraser,
   Palette,
-  SearchX
+  SearchX,
+  DownloadCloud
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
@@ -571,6 +573,7 @@ export default function ProfilePage() {
         // Settings Sections
         { id: 'storage', title: 'Storage Mode', subLabel: 'Cloud Sync vs Local Storage', icon: ShieldCheck, type: 'settings', section: 'storage', category: 'Workspace', color: 'text-primary', keywords: ['cloud', 'sync', 'local', 'browser', 'offline'] },
         { id: 'appearance', title: 'Theme & Appearance', subLabel: 'Branding, Dark Mode, Icons', icon: Palette, type: 'settings', section: 'appearance', category: 'Workspace', color: 'text-blue-500', keywords: ['dark mode', 'theme', 'color', 'icon', 'logo', 'brand', '12h', '24h'] },
+        { id: 'install', title: 'App Installation', subLabel: 'Install TaskFlow as a PWA', icon: DownloadCloud, type: 'settings', section: 'install', category: 'Workspace', color: 'text-green-600', keywords: ['install', 'pwa', 'mobile app', 'desktop app', 'home screen'] },
         { id: 'features', title: 'Feature Modules', subLabel: 'Reminders & Guided Tour', icon: Bell, type: 'settings', section: 'features', category: 'Workspace', color: 'text-amber-500', keywords: ['reminders', 'tutorial', 'tour', 'help'] },
         { id: 'fields', title: 'Field Configuration', subLabel: 'Task fields and visibility', icon: Layout, type: 'settings', section: 'fields', category: 'Structure', color: 'text-purple-500', keywords: ['custom fields', 'inputs', 'required', 'active'] },
         { id: 'environments', title: 'Deploy Environments', subLabel: 'Pipeline configuration', icon: Rocket, type: 'settings', section: 'environments', category: 'Structure', color: 'text-green-500', keywords: ['dev', 'stage', 'production', 'pipeline', 'deployment'] },

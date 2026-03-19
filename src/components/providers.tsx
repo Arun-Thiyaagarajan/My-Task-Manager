@@ -8,6 +8,7 @@ import { ReleaseNotesManager } from '@/components/release-notes-manager';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { useTaskFlowData } from '@/hooks/use-taskflow-data';
 import { AppOpener } from '@/components/app-opener';
+import { AppInstallPrompt } from '@/components/app-install-prompt';
 import { cn } from '@/lib/utils';
 
 function DataSyncProvider({ children }: { children: React.ReactNode }) {
@@ -61,6 +62,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
                 <AppOpener />
               </div>
             )}
+            <AppInstallPrompt />
             <ReleaseNotesManager />
             <DataSyncProvider>
               {children}

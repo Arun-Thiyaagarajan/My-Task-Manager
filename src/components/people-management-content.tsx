@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -411,8 +412,8 @@ export function PeopleManagementContent({ type, onSuccess }: PeopleManagementCon
             )}
 
             <Dialog open={inUseTasks.length > 0} onOpenChange={(open) => !open && setInUseTasks([])}>
-                <DialogContent className="sm:max-w-lg p-0 overflow-hidden rounded-3xl">
-                    <div className="p-6">
+                <DialogContent className="sm:max-w-lg p-0 overflow-hidden rounded-3xl flex flex-col max-h-[90vh]">
+                    <div className="p-6 pb-0 flex-shrink-0">
                         <DialogHeader>
                             <div className="mx-auto w-14 h-14 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mb-4">
                                 <AlertCircle className="h-8 w-8 text-amber-600 dark:text-amber-400" />
@@ -422,9 +423,11 @@ export function PeopleManagementContent({ type, onSuccess }: PeopleManagementCon
                                 <strong>{personAttemptingDelete?.name}</strong> is currently assigned to <strong>{inUseTasks.length}</strong> task(s).
                             </DialogDescription>
                         </DialogHeader>
-                        
-                        <div className="mt-6 border rounded-2xl bg-muted/20 overflow-hidden">
-                            <ScrollArea className="max-h-64">
+                    </div>
+                    
+                    <div className="flex-1 overflow-hidden px-6 py-4">
+                        <div className="h-full border rounded-2xl bg-muted/20 overflow-hidden">
+                            <ScrollArea className="h-full">
                                 <ul className="divide-y divide-border/50">
                                     {inUseTasks.map(task => (
                                         <li key={task.id} className="text-sm py-3 px-4 flex items-center justify-between gap-4 bg-background/50">
@@ -436,7 +439,7 @@ export function PeopleManagementContent({ type, onSuccess }: PeopleManagementCon
                             </ScrollArea>
                         </div>
                     </div>
-                    <DialogFooter className="p-4 bg-muted/10 border-t flex justify-center sm:justify-center">
+                    <DialogFooter className="p-4 bg-muted/10 border-t flex flex-row justify-center sm:justify-center shrink-0">
                         <Button onClick={() => setInUseTasks([])} className="w-full sm:w-32 rounded-xl h-11 font-bold">Got it</Button>
                     </DialogFooter>
                 </DialogContent>
