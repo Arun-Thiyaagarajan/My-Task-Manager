@@ -402,7 +402,7 @@ export default function SettingsPage() {
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
     };
-    reader.readAsDataURL(file);
+    reader.readAsText(file);
   };
 
   const handleClearAllData = async () => {
