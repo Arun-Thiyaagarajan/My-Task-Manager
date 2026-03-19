@@ -556,7 +556,7 @@ export default function ProfilePage() {
   // MOBILE HUB VIEW
   if (isMobile && !showMobileSubPage) {
     return (
-        <div className="min-h-screen bg-background pb-32 no-scrollbar overflow-y-auto">
+        <div className="bg-background no-scrollbar">
             {/* WhatsApp Style Header */}
             <div className="px-6 pt-10 pb-6 space-y-6">
                 <div className="flex items-center gap-4">
@@ -703,7 +703,7 @@ export default function ProfilePage() {
                     />
                     <MobileHubRow 
                         icon={Sparkles} 
-                        title="What's New" 
+                        title="What\'s New" 
                         subLabel="Release notes and updates" 
                         onClick={() => router.push('/releases')}
                         color="text-green-500"
@@ -712,7 +712,7 @@ export default function ProfilePage() {
             </div>
 
             {/* Account Actions - Boxed Container */}
-            <div className="mt-6 px-4">
+            <div className="mt-6 px-4 pb-6">
                 <div className="bg-card rounded-3xl border shadow-sm overflow-hidden">
                     {!isLocal ? (
                         <button 
@@ -750,7 +750,7 @@ export default function ProfilePage() {
 
   // SUB-PAGE OR DESKTOP VIEW
   return (
-    <div className="container max-w-4xl mx-auto py-10 px-4">
+    <div className="container max-w-4xl mx-auto pt-10 pb-6 px-4">
       {/* Mobile Back Header */}
       {isMobile && showMobileSubPage && (
           <div className="flex items-center gap-2 mb-8 -mt-4">
@@ -1112,7 +1112,7 @@ export default function ProfilePage() {
                                 </AlertDialogTrigger>
                                 <AlertDialogContent className="rounded-2xl">
                                     <AlertDialogHeader>
-                                        <AlertDialogTitle className="font-semibold text-center">Sign out of TaskFlow?</AlertDialogTitle>
+                                        <AlertDialogTitle className="font-semibold tracking-tight">Sign out of TaskFlow?</AlertDialogTitle>
                                         <AlertDialogDescription className="font-normal text-sm text-center">
                                             You will be returned to Local Mode. Your cloud data is safe and will sync back the next time you sign in.
                                         </AlertDialogDescription>

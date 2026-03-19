@@ -446,7 +446,7 @@ export default function SettingsPage() {
   // MOBILE HUB VIEW
   if (isMobile && !activeMobileSection) {
     return (
-        <div className="min-h-screen bg-background pb-32">
+        <div className="pb-6">
             <div className="px-6 pt-10 pb-6 flex items-center gap-4">
                 <Button variant="ghost" size="icon" onClick={handleBackToProfile} className="h-10 w-10 -ml-2 rounded-full shrink-0">
                     <ArrowLeft className="h-6 w-6" />
@@ -498,7 +498,7 @@ export default function SettingsPage() {
     const managerType = activeMobileSection === 'manage-developers' ? 'developer' : 'tester';
 
     return (
-        <div className="min-h-screen bg-background pb-32">
+        <div className="pb-6">
             <div className="px-6 pt-10 pb-6 flex items-center gap-4">
                 <Button variant="ghost" size="icon" onClick={() => setActiveMobileSection(isPeopleManager ? 'team' : null)} className="h-10 w-10 -ml-2 rounded-full shrink-0">
                     <ArrowLeft className="h-6 w-6" />
@@ -826,7 +826,7 @@ export default function SettingsPage() {
 
   // DESKTOP VIEW
   return (
-    <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8 max-w-7xl">
+    <div className="container mx-auto pt-10 pb-6 px-4 sm:px-6 lg:px-8 max-w-7xl">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10">
         <div className="flex items-start gap-4">
             {isMobile && (
