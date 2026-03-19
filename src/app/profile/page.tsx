@@ -63,7 +63,11 @@ import {
   Database,
   Layout,
   SunMoon,
-  Check
+  Check,
+  Download,
+  Upload,
+  Eraser,
+  Palette
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
@@ -547,37 +551,49 @@ export default function ProfilePage() {
   const searchableItems = useMemo(() => {
     const items = [
         // Top Level Tabs
-        { id: 'general', title: 'Account Settings', subLabel: 'Personal information & email', icon: UserIcon, type: 'tab', category: 'User', color: 'text-primary' },
-        { id: 'security', title: 'Password & Security', subLabel: 'Manage your credentials', icon: Lock, type: 'tab', category: 'User', color: 'text-amber-500' },
-        { id: 'workspaces', title: 'Manage Workspaces', subLabel: 'Switch between companies', icon: Building, type: 'tab', category: 'User', color: 'text-cyan-500' },
+        { id: 'general', title: 'Account Settings', subLabel: 'Personal information & email', icon: UserIcon, type: 'tab', category: 'User', color: 'text-primary', keywords: ['profile', 'me', 'display name', 'email', 'avatar'] },
+        { id: 'security', title: 'Password & Security', subLabel: 'Manage your credentials', icon: Lock, type: 'tab', category: 'User', color: 'text-amber-500', keywords: ['password', 'auth', 'protect', 'login'] },
+        { id: 'workspaces', title: 'Manage Workspaces', subLabel: 'Switch between companies', icon: Building, type: 'tab', category: 'User', color: 'text-cyan-500', keywords: ['company', 'switch', 'projects', 'organizations'] },
         
-        // Settings Sections (Direct Navigation)
-        { id: 'storage', title: 'Storage Mode', subLabel: 'Cloud Sync vs Local Storage', icon: ShieldCheck, type: 'settings', section: 'storage', category: 'Workspace', color: 'text-primary' },
-        { id: 'appearance', title: 'Theme & Appearance', subLabel: 'Branding, Dark Mode, Icons', icon: SunMoon, type: 'settings', section: 'appearance', category: 'Workspace', color: 'text-blue-500' },
-        { id: 'features', title: 'Feature Modules', subLabel: 'Reminders & Guided Tour', icon: Bell, type: 'settings', section: 'features', category: 'Workspace', color: 'text-amber-500' },
-        { id: 'fields', title: 'Field Configuration', subLabel: 'Task fields and visibility', icon: Layout, type: 'settings', section: 'fields', category: 'Structure', color: 'text-purple-500' },
-        { id: 'environments', title: 'Deploy Environments', subLabel: 'Pipeline configuration', icon: Rocket, type: 'settings', section: 'environments', category: 'Structure', color: 'text-green-500' },
-        { id: 'team', title: 'Team & People', subLabel: 'Developers and QA staff', icon: Users, type: 'settings', section: 'team', category: 'Organization', color: 'text-indigo-500' },
-        { id: 'data', title: 'Data & Safety', subLabel: 'Import, Export, Reset Workspace', icon: Database, type: 'settings', section: 'data', category: 'System', color: 'text-red-500' },
+        // Settings Sections
+        { id: 'storage', title: 'Storage Mode', subLabel: 'Cloud Sync vs Local Storage', icon: ShieldCheck, type: 'settings', section: 'storage', category: 'Workspace', color: 'text-primary', keywords: ['cloud', 'sync', 'local', 'browser', 'offline'] },
+        { id: 'appearance', title: 'Theme & Appearance', subLabel: 'Branding, Dark Mode, Icons', icon: Palette, type: 'settings', section: 'appearance', category: 'Workspace', color: 'text-blue-500', keywords: ['dark mode', 'theme', 'color', 'icon', 'logo', 'brand', '12h', '24h'] },
+        { id: 'features', title: 'Feature Modules', subLabel: 'Reminders & Guided Tour', icon: Bell, type: 'settings', section: 'features', category: 'Workspace', color: 'text-amber-500', keywords: ['reminders', 'tutorial', 'tour', 'help'] },
+        { id: 'fields', title: 'Field Configuration', subLabel: 'Task fields and visibility', icon: Layout, type: 'settings', section: 'fields', category: 'Structure', color: 'text-purple-500', keywords: ['custom fields', 'inputs', 'required', 'active'] },
+        { id: 'environments', title: 'Deploy Environments', subLabel: 'Pipeline configuration', icon: Rocket, type: 'settings', section: 'environments', category: 'Structure', color: 'text-green-500', keywords: ['dev', 'stage', 'production', 'pipeline', 'deployment'] },
+        { id: 'team', title: 'Team & People', subLabel: 'Developers and QA staff', icon: Users, type: 'settings', section: 'team', category: 'Organization', color: 'text-indigo-500', keywords: ['staff', 'developers', 'testers', 'contacts', 'qa'] },
+        { id: 'data', title: 'Data & Safety', subLabel: 'Import, Export, Reset Workspace', icon: Database, type: 'settings', section: 'data', category: 'System', color: 'text-red-500', keywords: ['backup', 'reset', 'clear data', 'json', 'export', 'import'] },
         
+        // Deep Deep Navigation (System Shortcuts)
+        { id: 'clear-data', title: 'Clear All Data', subLabel: 'Permanently reset workspace', icon: Eraser, type: 'settings', section: 'data', category: 'Danger Zone', color: 'text-destructive', keywords: ['reset', 'delete all', 'wipe', 'nuke'] },
+        { id: 'import-data', title: 'Import Configuration', subLabel: 'Load settings from JSON', icon: Upload, type: 'settings', section: 'data', category: 'Data Ops', color: 'text-blue-600', keywords: ['restore', 'json', 'upload config'] },
+        { id: 'export-data', title: 'Export Settings', subLabel: 'Download workspace config', icon: Download, type: 'settings', section: 'data', category: 'Data Ops', color: 'text-green-600', keywords: ['backup', 'json', 'download config'] },
+        { id: 'manage-releases', title: 'Publish Update', subLabel: 'Manage release notes (Admin)', icon: Sparkles, type: 'settings', section: 'releases', category: 'System', color: 'text-primary', keywords: ['publish', 'whats new', 'admin only'] },
+
         // Standalone Links
-        { id: 'logs', title: 'Activity Logs', subLabel: 'Audit trail of all changes', icon: FileClock, type: 'link', href: '/logs', category: 'System', color: 'text-blue-500' },
-        { id: 'releases', title: 'What\'s New', subLabel: 'Latest updates and features', icon: Sparkles, type: 'link', href: '/releases', category: 'System', color: 'text-green-500' },
-        { id: 'general-reminders', title: 'General Reminders', subLabel: 'Manage global workspace notes', icon: Bell, type: 'link', href: '/reminders', category: 'Productivity', color: 'text-amber-600' },
+        { id: 'logs', title: 'Activity Logs', subLabel: 'Audit trail of all changes', icon: FileClock, type: 'link', href: '/logs', category: 'System', color: 'text-blue-500', keywords: ['history', 'audit', 'track', 'changes'] },
+        { id: 'releases', title: 'What\'s New', subLabel: 'Latest updates and features', icon: Sparkles, type: 'link', href: '/releases', category: 'System', color: 'text-green-500', keywords: ['version', 'changelog', 'updates'] },
+        { id: 'general-reminders', title: 'General Reminders', subLabel: 'Manage global workspace notes', icon: Bell, type: 'link', href: '/reminders', category: 'Productivity', color: 'text-amber-600', keywords: ['sticky notes', 'global notes', 'bulletin'] },
     ];
     if (isLocal) {
-        items.unshift({ id: 'auth', title: 'Sign In / Cloud Sync', subLabel: 'Securely sync your workspace', icon: ShieldCheck, type: 'event', event: 'open-auth-modal', category: 'Identity', color: 'text-primary font-bold' } as any);
+        items.unshift({ id: 'auth', title: 'Sign In / Cloud Sync', subLabel: 'Securely sync your workspace', icon: ShieldCheck, type: 'event', event: 'open-auth-modal', category: 'Identity', color: 'text-primary font-bold', keywords: ['login', 'register', 'firebase', 'cloud'] } as any);
     }
     return items;
   }, [isLocal]);
 
   const filteredSearchItems = useMemo(() => {
-    if (!searchQuery.trim()) return [];
-    return searchableItems.filter(item => 
-        fuzzySearch(searchQuery, item.title) || 
-        fuzzySearch(searchQuery, item.subLabel) ||
-        fuzzySearch(searchQuery, item.category)
-    );
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+    
+    return searchableItems.filter(item => {
+        // 1. Text-based fuzzy match
+        if (fuzzySearch(q, item.title) || fuzzySearch(q, item.subLabel) || fuzzySearch(q, item.category)) return true;
+        
+        // 2. Intent-based keyword match
+        if (item.keywords?.some(kw => fuzzySearch(q, kw) || kw.includes(q))) return true;
+        
+        return false;
+    });
   }, [searchQuery, searchableItems]);
 
   if (isPageLoading) return null;

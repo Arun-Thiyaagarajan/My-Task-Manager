@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -131,6 +130,10 @@ export default function SettingsPage() {
   const [fieldAttemptingDelete, setFieldAttemptingDelete] = useState<FieldConfig | null>(null);
   const [tasksUsingField, setTasksUsingField] = useState<Task[]>([]);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+
+  // Deactivation confirmation states
+  const [isDeactivateConfirmOpen, setIsDeactivateConfirmOpen] = useState(false);
+  const [pendingDeactivateFields, setPendingDeactivateFields] = useState<FieldConfig[]>([]);
 
   // Environment Management States
   const [isEnvDialogOpen, setIsEnvDialogOpen] = useState(false);
@@ -277,8 +280,23 @@ export default function SettingsPage() {
   };
 
   const handleSaveFields = () => {
+    const currentlyActive = uiConfig?.fields.filter(f => f.isActive).map(f => f.key) || [];
+    const deactivating = localFields.filter(f => !f.isActive && currentlyActive.includes(f.key));
+    
+    if (deactivating.length > 0) {
+        setPendingDeactivateFields(deactivating);
+        setIsDeactivateConfirmOpen(true);
+        return;
+    }
+    
+    performSaveFields();
+  };
+
+  const performSaveFields = () => {
     handleUpdateConfig({ fields: localFields });
     toast({ variant: 'success', title: 'Field configuration saved successfully.' });
+    setIsDeactivateConfirmOpen(false);
+    setPendingDeactivateFields([]);
     if (isMobile) setActiveMobileSection('fields');
   };
 
@@ -476,6 +494,33 @@ export default function SettingsPage() {
                 <AlertDialogFooter className="mt-4 gap-3">
                     <AlertDialogCancel className="rounded-xl h-11 font-medium">Cancel</AlertDialogCancel>
                     <AlertDialogAction onClick={handleConfirmDeleteLocal} className="bg-destructive hover:bg-destructive/90 rounded-xl h-11 font-bold">Mark for Deletion</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={isDeactivateConfirmOpen} onOpenChange={setIsDeactivateConfirmOpen}>
+            <AlertDialogContent className="rounded-3xl">
+                <AlertDialogHeader>
+                    <AlertDialogTitle className="font-bold tracking-tight">Confirm Deactivation</AlertDialogTitle>
+                    <AlertDialogDescription className="text-sm font-normal">
+                        The following fields will be hidden across the application:
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <div className="mt-4 border rounded-2xl bg-muted/30 p-4">
+                    <ScrollArea className="max-h-40">
+                        <ul className="space-y-2">
+                            {pendingDeactivateFields.map(f => (
+                                <li key={f.id} className="flex items-center gap-2 text-sm font-semibold">
+                                    <div className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                                    {f.label}
+                                </li>
+                            ))}
+                        </ul>
+                    </ScrollArea>
+                </div>
+                <AlertDialogFooter className="mt-6 gap-3 flex-col sm:flex-row">
+                    <AlertDialogCancel className="rounded-xl h-11 font-medium border-none bg-muted/50 hover:bg-muted" onClick={() => setIsDeactivateConfirmOpen(false)}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={performSaveFields} className="bg-primary hover:bg-primary/90 rounded-xl h-11 font-bold shadow-lg">Confirm & Save</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
