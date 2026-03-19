@@ -1213,7 +1213,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
         ...l,
         id: `log-${crypto.randomUUID()}`,
         taskId: l.taskId ? (taskIdMap.get(l.taskId) || l.taskId) : undefined,
-        userName: l.userName || 'Imported User'
+        userName: l.userName || 'Importer'
     }));
 
     const totalOperations = processedTasks.length + jsonNotes.length + processedLogs.length + 3;

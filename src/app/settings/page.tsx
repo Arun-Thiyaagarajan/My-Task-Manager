@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -551,12 +552,12 @@ export default function SettingsPage() {
             <div className={cn("px-4 space-y-4", (isPeopleManager || activeMobileSection === 'edit-field' || activeMobileSection === 'edit-environment') && "px-0")}>
                 {isPeopleManager && <PeopleManagementContent type={managerType} />}
                 {activeMobileSection === 'edit-field' && (
-                    <div className="bg-background min-h-0 px-6 py-4">
+                    <div className="bg-background min-h-0 px-6 py-4 pb-10">
                         <FieldFormContent field={fieldToEdit} repositoryConfigs={uiConfig.repositoryConfigs} onSave={handleSaveField} onCancel={() => setActiveMobileSection('fields')} />
                     </div>
                 )}
                 {activeMobileSection === 'edit-environment' && (
-                    <div className="bg-background min-h-0 px-6 py-4">
+                    <div className="bg-background min-h-0 px-6 py-4 pb-10">
                         <EnvironmentFormContent environment={envToEdit} onSave={handleSaveEnv} onCancel={() => setActiveMobileSection('environments')} />
                     </div>
                 )}
@@ -624,16 +625,18 @@ export default function SettingsPage() {
                                                         </div>
                                                         <div className="flex gap-1 shrink-0">
                                                             <Button variant="outline" size="icon" className="h-9 w-9 rounded-full" onClick={() => { setFieldToEdit(field); setActiveMobileSection('edit-field'); }}><Pencil className="h-4 w-4" /></Button>
-                                                            <TooltipProvider>
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive rounded-full" onClick={() => field.isCustom ? handleRequestDeleteField(field) : handleFieldToggleLocal(field.key, 'isActive')}>
-                                                                            {field.isCustom ? <Trash2 className="h-4 w-4" /> : <X className="h-4 w-4" />}
-                                                                        </Button>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent><p>{field.isCustom ? 'Delete Field' : 'Deactivate Field'}</p></TooltipContent>
-                                                                </Tooltip>
-                                                            </TooltipProvider>
+                                                            {!isMandatory && (
+                                                                <TooltipProvider>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive rounded-full" onClick={() => field.isCustom ? handleRequestDeleteField(field) : handleFieldToggleLocal(field.key, 'isActive')}>
+                                                                                {field.isCustom ? <Trash2 className="h-4 w-4" /> : <X className="h-4 w-4" />}
+                                                                            </Button>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent><p>{field.isCustom ? 'Delete Field' : 'Deactivate Field'}</p></TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 );
@@ -747,34 +750,37 @@ export default function SettingsPage() {
                                 <div key={groupName} className="space-y-3">
                                     <h4 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2 px-1">{groupName}<div className="h-px bg-border flex-1" /></h4>
                                     <div className="grid gap-2">
-                                        {fields.map(field => (
-                                            <div key={field.id} className="flex items-center justify-between p-3 bg-muted/20 border rounded-xl hover:bg-muted/40 transition-all group border-transparent hover:border-border">
-                                                <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
-                                                    <GripVertical className="h-5 w-5 text-muted-foreground/30 cursor-grab active:cursor-grabbing shrink-0" />
-                                                    <div className="min-w-0 flex-1">
-                                                        <div className="flex items-center gap-2 mb-0.5 flex-wrap"><span className="font-medium text-sm sm:text-base tracking-tight truncate max-w-full">{field.label} {field.isRequired && <span className="text-destructive font-bold">*</span>}</span><Badge variant="outline" className="text-[9px] uppercase font-medium px-1.5 h-4 bg-background shrink-0">{field.type}</Badge></div>
-                                                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate">{field.group}</p>
+                                        {fields.map(field => {
+                                            const isMandatory = !field.isCustom && ['title', 'description', 'status', 'repositories', 'developers'].includes(field.key);
+                                            return (
+                                                <div key={field.id} className="flex items-center justify-between p-3 bg-muted/20 border rounded-xl hover:bg-muted/40 transition-all group border-transparent hover:border-border">
+                                                    <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
+                                                        <GripVertical className="h-5 w-5 text-muted-foreground/30 cursor-grab active:cursor-grabbing shrink-0" />
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="flex items-center gap-2 mb-0.5 flex-wrap"><span className="font-medium text-sm sm:text-base tracking-tight truncate max-w-full">{field.label} {field.isRequired && <span className="text-destructive font-bold">*</span>}</span><Badge variant="outline" className="text-[9px] uppercase font-medium px-1.5 h-4 bg-background shrink-0">{field.type}</Badge></div>
+                                                            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate">{field.group}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-1 shrink-0">
+                                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <Button variant="outline" size="icon" className="h-9 w-9 shadow-sm" onClick={() => { setFieldToEdit(field); setIsFieldDialogOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                                                            {!isMandatory && (
+                                                                <TooltipProvider>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => field.isCustom ? handleRequestDeleteField(field) : handleFieldToggleLocal(field.key, 'isActive')}>
+                                                                                {field.isCustom ? <Trash2 className="h-4 w-4" /> : <X className="h-4 w-4" />}
+                                                                            </Button>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent><p>{field.isCustom ? 'Delete Field' : 'Deactivate Field'}</p></TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-1 shrink-0">
-                                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <Button variant="outline" size="icon" className="h-9 w-9 shadow-sm" onClick={() => { setFieldToEdit(field); setIsFieldDialogOpen(true); }}><Pencil className="h-4 w-4" /></Button>
-                                                        {!field.isRequired && (
-                                                            <TooltipProvider>
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => field.isCustom ? handleRequestDeleteField(field) : handleFieldToggleLocal(field.key, 'isActive')}>
-                                                                            {field.isCustom ? <Trash2 className="h-4 w-4" /> : <X className="h-4 w-4" />}
-                                                                        </Button>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent><p>{field.isCustom ? 'Delete Field' : 'Deactivate Field'}</p></TooltipContent>
-                                                                </Tooltip>
-                                                            </TooltipProvider>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             ))}
