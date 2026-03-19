@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -100,10 +101,15 @@ export default function LogsPage() {
     };
 
     const triggerSearch = () => {
+        const trimmed = searchQuery.trim();
+        if (trimmed === executedSearchQuery.trim()) {
+            setIsFiltering(false);
+            return;
+        }
         setIsFiltering(true);
         window.dispatchEvent(new Event('sync-start'));
         setTimeout(() => {
-            setExecutedSearchQuery(searchQuery);
+            setExecutedSearchQuery(trimmed);
         }, 50);
     };
 

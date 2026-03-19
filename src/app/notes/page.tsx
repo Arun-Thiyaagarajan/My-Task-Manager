@@ -172,11 +172,16 @@ export default function NotesPage() {
   };
 
   const triggerSearch = () => {
+    const trimmed = searchQuery.trim();
+    if (trimmed === executedSearchQuery.trim()) {
+        setIsFiltering(false);
+        return;
+    }
     setIsFiltering(true);
     setIsSearchFocused(false);
     window.dispatchEvent(new Event('sync-start'));
     setTimeout(() => {
-        setExecutedSearchQuery(searchQuery);
+        setExecutedSearchQuery(trimmed);
     }, 50);
   };
 
@@ -591,7 +596,6 @@ export default function NotesPage() {
                                     </div>
                                 </div>
 
-                                {/* Smart Note Suggestions */}
                                 {isSearchFocused && searchSuggestions.length > 0 && (
                                     <div className="absolute top-full left-0 right-0 mt-2 bg-popover border rounded-2xl shadow-2xl z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                                         <div className="px-4 py-2 border-b bg-muted/30">

@@ -51,7 +51,8 @@ import {
   Check,
   User,
   GitMerge,
-  FileText
+  FileText,
+  ChevronRight as ChevronRightIcon
 } from 'lucide-react';
 import { cn, fuzzySearch } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig, Log, GeneralReminder, BackupFrequency, Environment, UserPreferences, AuthMode } from '@/lib/types';
@@ -238,7 +239,6 @@ export default function Home() {
     const newQuery = params.toString();
 
     if (currentQuery !== newQuery) {
-        // Use push to maintain proper routing history when search/filters are committed
         router.push(`${pathname}?${newQuery}`, { scroll: false });
     }
 
@@ -354,14 +354,22 @@ export default function Home() {
   };
 
   const triggerSearch = useCallback(() => {
+    const trimmed = searchQuery.trim();
+    // If query is unchanged, don't trigger a new search process
+    if (trimmed === executedSearchQuery.trim()) {
+        setIsSearching(false);
+        return;
+    }
+
     setIsSearching(true);
     setSearchError(null);
     setIsSearchFocused(false);
+    window.dispatchEvent(new Event('sync-start'));
     
     setTimeout(() => {
-        setExecutedSearchQuery(searchQuery);
+        setExecutedSearchQuery(trimmed);
     }, 50);
-  }, [searchQuery]);
+  }, [searchQuery, executedSearchQuery]);
 
   const clearSearch = useCallback(() => {
     setSearchQuery('');
@@ -475,6 +483,7 @@ export default function Home() {
             setSearchError("Search temporarily unavailable. Please try again later.");
         } finally {
             setIsSearching(false);
+            window.dispatchEvent(new Event('sync-end'));
         }
     };
 
@@ -797,7 +806,6 @@ export default function Home() {
     const testersById = new Map(testers.map(t => [t.id, t.name]));
 
     tasks.forEach(task => {
-        // 1. Direct Title Match (Priority)
         if (fuzzySearch(q, task.title)) {
             suggestions.push({
                 id: `task-title-${task.id}`,
@@ -808,10 +816,9 @@ export default function Home() {
                 taskId: task.id,
                 matchType: 'title'
             });
-            return; // Don't check other fields if title matched to avoid duplicates
+            return;
         }
 
-        // 2. User Matches
         const matchedDev = task.developers?.find(id => fuzzySearch(q, devsById.get(id) || ''));
         if (matchedDev) {
             suggestions.push({
@@ -826,7 +833,6 @@ export default function Home() {
             return;
         }
 
-        // 3. Tag Matches
         const matchedTag = task.tags?.find(t => fuzzySearch(q, t));
         if (matchedTag) {
             suggestions.push({
@@ -841,7 +847,6 @@ export default function Home() {
             return;
         }
 
-        // 4. Repo Matches
         const matchedRepo = Array.isArray(task.repositories) && task.repositories.find(r => fuzzySearch(q, r));
         if (matchedRepo) {
             suggestions.push({
@@ -856,7 +861,6 @@ export default function Home() {
             return;
         }
 
-        // 5. Description Matches (Low Priority)
         if (fuzzySearch(q, task.description)) {
             suggestions.push({
                 id: `task-desc-${task.id}`,
@@ -870,12 +874,11 @@ export default function Home() {
         }
     });
 
-    return suggestions.slice(0, 10); // Limit to top 10 suggestions
+    return suggestions.slice(0, 10);
   }, [searchQuery, tasks, developers, testers]);
 
   const handleSuggestionClick = (taskId: string) => {
     setIsSearchFocused(false);
-    // Commit the current search string to history before navigating so 'Back' preserves context
     setExecutedSearchQuery(searchQuery);
     window.dispatchEvent(new Event('navigation-start'));
     router.push(`/tasks/${taskId}`);
@@ -1059,7 +1062,6 @@ export default function Home() {
                                     </div>
                                 </div>
 
-                                {/* Smart Suggestions Dropdown */}
                                 {isSearchFocused && searchSuggestions.length > 0 && (
                                     <div className="absolute top-full left-0 right-0 mt-2 bg-popover border rounded-2xl shadow-2xl z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                                         <div className="px-4 py-2 border-b bg-muted/30">
@@ -1084,7 +1086,7 @@ export default function Home() {
                                                         <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{suggestion.title}</p>
                                                         <p className="text-[10px] text-muted-foreground truncate font-medium uppercase tracking-tight">{suggestion.subLabel}</p>
                                                     </div>
-                                                    <ChevronRight className="h-3 w-3 text-muted-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                    <ChevronRightIcon className="h-3 w-3 text-muted-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity" />
                                                 </button>
                                             ))}
                                         </div>
