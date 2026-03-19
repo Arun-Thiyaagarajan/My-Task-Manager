@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -257,7 +258,6 @@ export default function Home() {
   }, [executedSearchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, statusFilter, repoFilter, deploymentFilter, tagsFilter, router, pathname, searchParams]);
 
   const handlePreviousDate = useCallback(() => {
-      setIsSearching(true);
       if (dateView === 'monthly') {
           setSelectedDate(subMonths(selectedDate, 1));
       } else if (dateView === 'yearly') {
@@ -266,7 +266,6 @@ export default function Home() {
   }, [dateView, selectedDate]);
 
   const handleNextDate = useCallback(() => {
-      setIsSearching(true);
       if (dateView === 'monthly') {
           setSelectedDate(addMonths(selectedDate, 1));
       } else if (dateView === 'yearly') {
@@ -355,13 +354,11 @@ export default function Home() {
 
   const triggerSearch = useCallback(() => {
     const trimmed = searchQuery.trim();
-    // If query is unchanged, don't trigger a new search process
     if (trimmed === executedSearchQuery.trim()) {
         setIsSearching(false);
         return;
     }
 
-    setIsSearching(true);
     setSearchError(null);
     setIsSearchFocused(false);
     window.dispatchEvent(new Event('sync-start'));
@@ -372,7 +369,6 @@ export default function Home() {
   }, [searchQuery, executedSearchQuery]);
 
   const clearSearch = useCallback(() => {
-    setIsSearching(true); // Smooth transition back to all results
     setSearchQuery('');
     setExecutedSearchQuery('');
     searchInputRef.current?.focus();
@@ -611,22 +607,18 @@ export default function Home() {
   }, []);
   
   const handleFavoritesToggle = useCallback(() => {
-    setIsSearching(true);
     setFavoritesOnly(prev => !prev);
   }, []);
   
   const handleDateViewChange = useCallback((mode: DateView) => {
-      setIsSearching(true);
       setDateView(mode);
   }, []);
 
   const handleViewModeChange = useCallback((mode: ViewMode) => {
-      setIsSearching(true);
       setViewMode(mode);
   }, []);
 
   const handleSortChange = useCallback((val: string) => {
-      setIsSearching(true);
       setSortDescriptor(val);
   }, []);
 
@@ -1120,12 +1112,12 @@ export default function Home() {
                             <div className="hidden md:flex flex-col w-full col-span-1 sm:col-span-2 md:col-span-1">
                                 {searchInputContent}
                             </div>
-                            <MultiSelect selected={statusFilter} onChange={(val) => { setIsSearching(true); setStatusFilter(val); }} options={(uiConfig?.taskStatuses || []).map(s => ({ value: s, label: s }))} placeholder="Status..." />
-                            <MultiSelect selected={repoFilter} onChange={(val) => { setIsSearching(true); setRepoFilter(val); }} options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} placeholder="Repository..." />
+                            <MultiSelect selected={statusFilter} onChange={(val) => { setStatusFilter(val); }} options={(uiConfig?.taskStatuses || []).map(s => ({ value: s, label: s }))} placeholder="Status..." />
+                            <MultiSelect selected={repoFilter} onChange={(val) => { setRepoFilter(val); }} options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} placeholder="Repository..." />
                             {(uiConfig?.fields || []).find(f => f.key === 'tags')?.isActive && (
-                                <MultiSelect selected={tagsFilter} onChange={(val) => { setIsSearching(true); setTagsFilter(val); }} options={[...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({value: t, label: t}))} placeholder="Tags..." />
+                                <MultiSelect selected={tagsFilter} onChange={(val) => { setTagsFilter(val); }} options={[...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({value: t, label: t}))} placeholder="Tags..." />
                             )}
-                            <MultiSelect selected={deploymentFilter} onChange={(val) => { setIsSearching(true); setDeploymentFilter(val); }} options={(uiConfig?.environments || []).flatMap(env => [{ value: env.name, label: `On ${env.name}` }, { value: `not_${env.name}`, label: `Not on ${env.name}` }])} placeholder="Deployment..." />
+                            <MultiSelect selected={deploymentFilter} onChange={(val) => { setDeploymentFilter(val); }} options={(uiConfig?.environments || []).flatMap(env => [{ value: env.name, label: `On ${env.name}` }, { value: `not_${env.name}`, label: `Not on ${env.name}` }])} placeholder="Deployment..." />
                         </div>
                     </CardContent>
                 </Card>
@@ -1153,7 +1145,7 @@ export default function Home() {
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar mode="single" selected={selectedDate} onSelect={(day) => { if(day) { setIsSearching(true); setSelectedDate(day); } }} initialFocus />
+                                        <Calendar mode="single" selected={selectedDate} onSelect={(day) => { if(day) { setSelectedDate(day); } }} initialFocus />
                                     </PopoverContent>
                                 </Popover>
                                 <Button variant="outline" size="icon" onClick={handleNextDate} className="h-11 w-11 shrink-0 shadow-sm rounded-xl active:scale-95 transition-transform"><ChevronRight className="h-5 w-5" /></Button>

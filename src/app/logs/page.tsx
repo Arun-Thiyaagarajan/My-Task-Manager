@@ -106,7 +106,6 @@ export default function LogsPage() {
             setIsFiltering(false);
             return;
         }
-        setIsFiltering(true);
         window.dispatchEvent(new Event('sync-start'));
         setTimeout(() => {
             setExecutedSearchQuery(trimmed);
@@ -114,7 +113,6 @@ export default function LogsPage() {
     };
 
     const clearSearch = () => {
-        setIsFiltering(true); // Smooth transition back to all logs
         setSearchQuery('');
         setExecutedSearchQuery('');
     };

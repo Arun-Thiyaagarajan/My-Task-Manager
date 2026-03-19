@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -176,7 +177,6 @@ export default function NotesPage() {
         setIsFiltering(false);
         return;
     }
-    setIsFiltering(true);
     setIsSearchFocused(false);
     window.dispatchEvent(new Event('sync-start'));
     setTimeout(() => {
@@ -185,7 +185,6 @@ export default function NotesPage() {
   };
 
   const clearSearch = () => {
-    setIsFiltering(true); // Smooth transition back to all notes
     setSearchQuery('');
     setExecutedSearchQuery('');
   };
