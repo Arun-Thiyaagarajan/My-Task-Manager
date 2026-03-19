@@ -1,3 +1,4 @@
+
 'use client';
 
 import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
@@ -1080,6 +1081,32 @@ export function deleteComment(taskId: string, index: number): Task | null {
         return updated;
     }
     return null;
+}
+
+/**
+ * Checks if a specific UI field is currently being used in any active or binned tasks.
+ * @param key The unique key of the field to check.
+ * @returns An array of Tasks that use this field.
+ */
+export function getTasksUsingField(key: string): Task[] {
+    const tasks = getTasks();
+    const binned = getBinnedTasks();
+    const all = [...tasks, ...binned];
+    
+    return all.filter(t => {
+        // 1. Check Standard Fields (where applicable and non-mandatory)
+        const standardVal = (t as any)[key];
+        if (standardVal !== undefined && standardVal !== null && standardVal !== '' && 
+            (!Array.isArray(standardVal) || standardVal.length > 0)) {
+            return true;
+        }
+        // 2. Check Custom Fields payload
+        if (t.customFields && t.customFields[key] !== undefined && t.customFields[key] !== null && t.customFields[key] !== '' && 
+            (!Array.isArray(t.customFields[key]) || t.customFields[key].length > 0)) {
+            return true;
+        }
+        return false;
+    });
 }
 
 // Data Utility Functions
