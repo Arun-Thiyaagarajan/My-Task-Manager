@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
@@ -68,7 +67,8 @@ import {
   Download,
   Upload,
   Eraser,
-  Palette
+  Palette,
+  SearchX
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
@@ -686,6 +686,8 @@ export default function ProfilePage() {
     </>
   );
 
+  const isSearchActive = searchQuery.trim().length >= 2;
+
   // MOBILE HUB VIEW
   if (isMobile && !showMobileSubPage) {
     return (
@@ -756,36 +758,46 @@ export default function ProfilePage() {
                 </div>
                 
                 {/* Deep Navigation Suggestions Dropdown */}
-                {isSearchFocused && filteredSearchItems.length > 0 && (
+                {isSearchFocused && isSearchActive && (
                     <div className="absolute top-full left-6 right-6 mt-2 bg-popover border rounded-2xl shadow-2xl z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                        {filteredSearchItems.map(item => (
-                            <button
-                                key={item.id}
-                                className="w-full flex items-center gap-3 p-3 hover:bg-muted active:bg-muted/80 transition-colors text-left border-b last:border-0"
-                                onClick={() => {
-                                    if (item.type === 'tab') {
-                                        router.push(`/profile?tab=${item.id}`);
-                                    } else if (item.type === 'link') {
-                                        router.push(item.href);
-                                    } else if (item.type === 'settings') {
-                                        router.push(`/settings?section=${item.section}`);
-                                    } else if (item.type === 'event') {
-                                        window.dispatchEvent(new Event(item.event!));
-                                    }
-                                    setSearchQuery('');
-                                }}
-                            >
-                                <div className={cn("p-2 rounded-lg bg-muted/50", item.color)}>
-                                    <item.icon className="h-4 w-4" />
+                        {filteredSearchItems.length > 0 ? (
+                            filteredSearchItems.map(item => (
+                                <button
+                                    key={item.id}
+                                    className="w-full flex items-center gap-3 p-3 hover:bg-muted active:bg-muted/80 transition-colors text-left border-b last:border-0"
+                                    onClick={() => {
+                                        if (item.type === 'tab') {
+                                            router.push(`/profile?tab=${item.id}`);
+                                        } else if (item.type === 'link') {
+                                            router.push(item.href);
+                                        } else if (item.type === 'settings') {
+                                            router.push(`/settings?section=${item.section}`);
+                                        } else if (item.type === 'event') {
+                                            window.dispatchEvent(new Event(item.event!));
+                                        }
+                                        setSearchQuery('');
+                                    }}
+                                >
+                                    <div className={cn("p-2 rounded-lg bg-muted/50", item.color)}>
+                                        <item.icon className="h-4 w-4" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-0.5">{item.category}</p>
+                                        <p className="text-sm font-bold truncate">{item.title}</p>
+                                        <p className="text-[10px] text-muted-foreground truncate">{item.subLabel}</p>
+                                    </div>
+                                    <ChevronRight className="h-3 w-3 text-muted-foreground/30" />
+                                </button>
+                            ))
+                        ) : (
+                            <div className="p-8 text-center animate-in zoom-in-95 duration-300">
+                                <div className="mx-auto w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mb-3">
+                                    <SearchX className="h-6 w-6 text-muted-foreground/40" />
                                 </div>
-                                <div className="min-w-0 flex-1">
-                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-0.5">{item.category}</p>
-                                    <p className="text-sm font-bold truncate">{item.title}</p>
-                                    <p className="text-[10px] text-muted-foreground truncate">{item.subLabel}</p>
-                                </div>
-                                <ChevronRight className="h-3 w-3 text-muted-foreground/30" />
-                            </button>
-                        ))}
+                                <p className="text-sm font-bold text-foreground/80">No matches found</p>
+                                <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mt-1">Try a different setting</p>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -946,7 +958,7 @@ export default function ProfilePage() {
                             </div>
                         </button>
                         </TooltipTrigger>
-                        <TooltipContent side="bottom">
+                        <TooltipContent>
                         <p>{(photoURL || previousPhotoURL) ? 'View profile photo' : 'Upload profile photo'}</p>
                         </TooltipContent>
                     </Tooltip>

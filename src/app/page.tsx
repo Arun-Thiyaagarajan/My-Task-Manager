@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -52,7 +51,8 @@ import {
   User,
   GitMerge,
   FileText,
-  ChevronRight as ChevronRightIcon
+  ChevronRight as ChevronRightIcon,
+  SearchX
 } from 'lucide-react';
 import { cn, fuzzySearch } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig, Log, GeneralReminder, BackupFrequency, Environment, UserPreferences, AuthMode } from '@/lib/types';
@@ -884,26 +884,31 @@ export default function Home() {
     router.push(`/tasks/${taskId}`);
   };
 
-  const commonSearchInputProps = {
-    placeholder: "Search tasks...",
-    value: searchQuery,
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
-        setSearchQuery(e.target.value);
-        if (!e.target.value) {
-            clearSearch();
-        }
-    },
-    onFocus: () => setIsSearchFocused(true),
-    onBlur: () => setTimeout(() => setIsSearchFocused(false), 200),
-    onKeyDown: handleSearchKeyDown,
-    className: "w-full pl-10 pr-24 h-11 font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40"
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setSearchQuery(val);
+    if (!val) {
+        clearSearch();
+    }
   };
 
-  const SearchInputContainer = () => (
+  const isSearchActive = searchQuery.trim().length >= 2;
+
+  // IMPORTANT: The search input logic is placed directly here to ensure the DOM node is stable across re-renders
+  const searchInputContent = (
     <div className="relative flex flex-col w-full">
         <div className="relative flex items-center w-full">
             <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
-            <Input ref={searchInputRef} {...commonSearchInputProps} />
+            <Input 
+                ref={searchInputRef}
+                placeholder="Search tasks..."
+                value={searchQuery}
+                onChange={handleSearchInputChange}
+                onFocus={() => setIsSearchFocused(true)}
+                onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                onKeyDown={handleSearchKeyDown}
+                className="w-full pl-10 pr-24 h-11 font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40"
+            />
             <div className="absolute right-0 flex items-center h-full pr-1.5 gap-1">
                 {searchQuery && (
                     <Button
@@ -933,37 +938,49 @@ export default function Home() {
             </div>
         </div>
 
-        {isSearchFocused && searchSuggestions.length > 0 && (
+        {isSearchFocused && isSearchActive && (
             <div className="absolute top-full left-0 right-0 mt-2 bg-popover border rounded-2xl shadow-2xl z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                 <div className="px-4 py-2 border-b bg-muted/30">
                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Suggestions</p>
                 </div>
                 <div className="max-h-[300px] overflow-y-auto no-scrollbar">
-                    {searchSuggestions.map((suggestion) => (
-                        <button
-                            key={suggestion.id}
-                            onClick={() => handleSuggestionClick(suggestion.taskId)}
-                            className="w-full flex items-center gap-3 p-3 hover:bg-muted active:bg-muted/80 transition-colors text-left border-b last:border-0 group"
-                        >
-                            <div className={cn(
-                                "p-2 rounded-lg bg-muted/50 group-hover:bg-primary/10 transition-colors",
-                                suggestion.type === 'task' ? "text-primary" : 
-                                suggestion.type === 'user' ? "text-amber-500" :
-                                suggestion.type === 'tag' ? "text-green-500" : "text-blue-500"
-                            )}>
-                                <suggestion.icon className="h-4 w-4" />
+                    {searchSuggestions.length > 0 ? (
+                        searchSuggestions.map((suggestion) => (
+                            <button
+                                key={suggestion.id}
+                                onClick={() => handleSuggestionClick(suggestion.taskId)}
+                                className="w-full flex items-center gap-3 p-3 hover:bg-muted active:bg-muted/80 transition-colors text-left border-b last:border-0 group"
+                            >
+                                <div className={cn(
+                                    "p-2 rounded-lg bg-muted/50 group-hover:bg-primary/10 transition-colors",
+                                    suggestion.type === 'task' ? "text-primary" : 
+                                    suggestion.type === 'user' ? "text-amber-500" :
+                                    suggestion.type === 'tag' ? "text-green-500" : "text-blue-500"
+                                )}>
+                                    <suggestion.icon className="h-4 w-4" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{suggestion.title}</p>
+                                    <p className="text-[10px] text-muted-foreground truncate font-medium uppercase tracking-tight">{suggestion.subLabel}</p>
+                                </div>
+                                <ChevronRightIcon className="h-3 w-3 text-muted-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </button>
+                        ))
+                    ) : (
+                        <div className="p-8 text-center animate-in zoom-in-95 duration-300">
+                            <div className="mx-auto w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mb-3">
+                                <SearchX className="h-6 w-6 text-muted-foreground/40" />
                             </div>
-                            <div className="min-w-0 flex-1">
-                                <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{suggestion.title}</p>
-                                <p className="text-[10px] text-muted-foreground truncate font-medium uppercase tracking-tight">{suggestion.subLabel}</p>
-                            </div>
-                            <ChevronRightIcon className="h-3 w-3 text-muted-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </button>
-                    ))}
+                            <p className="text-sm font-bold text-foreground/80">No matches found</p>
+                            <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mt-1">Try a different keyword</p>
+                        </div>
+                    )}
                 </div>
-                <div className="p-3 bg-muted/10 text-center border-t">
-                    <p className="text-[10px] text-muted-foreground font-medium">Press <span className="font-bold">Enter</span> for all results</p>
-                </div>
+                {searchSuggestions.length > 0 && (
+                    <div className="p-3 bg-muted/10 text-center border-t">
+                        <p className="text-[10px] text-muted-foreground font-medium">Press <span className="font-bold">Enter</span> for all results</p>
+                    </div>
+                )}
             </div>
         )}
     </div>
@@ -1064,7 +1081,7 @@ export default function Home() {
                     <Download className="mr-2 h-4 w-4" />
                     Import
                 </Button>
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
                 
                 <Button onClick={handleNavigateNewTask} id="new-task-btn" disabled={isImporting} className="hidden md:flex w-full sm:w-auto h-11 shadow-lg font-medium active:scale-95 transition-transform">
                     <Plus className="mr-2 h-5 w-5" /> New Task
@@ -1101,7 +1118,7 @@ export default function Home() {
                     <CardContent className="p-4 md:p-0 overflow-visible">
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
                             <div className="hidden md:flex flex-col w-full col-span-1 sm:col-span-2 md:col-span-1">
-                                <SearchInputContainer />
+                                {searchInputContent}
                             </div>
                             <MultiSelect selected={statusFilter} onChange={(val) => { setIsSearching(true); setStatusFilter(val); }} options={(uiConfig?.taskStatuses || []).map(s => ({ value: s, label: s }))} placeholder="Status..." />
                             <MultiSelect selected={repoFilter} onChange={(val) => { setIsSearching(true); setRepoFilter(val); }} options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} placeholder="Repository..." />
@@ -1263,9 +1280,9 @@ export default function Home() {
                     </div>
                 </div>
 
-                {/* Mobile Search Bar - Visible only on mobile, extraction from filters for accessibility */}
+                {/* Mobile Search Bar - Visible only on mobile */}
                 <div className="md:hidden px-1 animate-in fade-in slide-in-from-top-2 duration-500">
-                    <SearchInputContainer />
+                    {searchInputContent}
                 </div>
             </div>
 

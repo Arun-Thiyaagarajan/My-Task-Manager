@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -7,7 +6,7 @@ import type { Note, UiConfig, NoteLayout, UserPreferences } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { StickyNote, LayoutGrid, Plus, CheckSquare, X, Trash2, Upload, Download, Search, CalendarIcon, XCircle, Loader2, CornerDownLeft, Filter, ChevronDown, ChevronRight, FileText } from 'lucide-react';
+import { StickyNote, LayoutGrid, Plus, CheckSquare, X, Trash2, Upload, Download, Search, CalendarIcon, XCircle, Loader2, CornerDownLeft, Filter, ChevronDown, ChevronRight, FileText, SearchX } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -470,6 +469,7 @@ export default function NotesPage() {
   }
 
   const mode = getAuthMode();
+  const isSearchActive = searchQuery.trim().length >= 2;
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -596,28 +596,38 @@ export default function NotesPage() {
                                     </div>
                                 </div>
 
-                                {isSearchFocused && searchSuggestions.length > 0 && (
+                                {isSearchFocused && isSearchActive && (
                                     <div className="absolute top-full left-0 right-0 mt-2 bg-popover border rounded-2xl shadow-2xl z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                                         <div className="px-4 py-2 border-b bg-muted/30">
                                             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Note Suggestions</p>
                                         </div>
                                         <div className="max-h-[300px] overflow-y-auto no-scrollbar">
-                                            {searchSuggestions.map((suggestion) => (
-                                                <button
-                                                    key={suggestion.id}
-                                                    onClick={() => handleSuggestionClick(suggestion.note)}
-                                                    className="w-full flex items-center gap-3 p-3 hover:bg-muted active:bg-muted/80 transition-colors text-left border-b last:border-0 group"
-                                                >
-                                                    <div className="p-2 rounded-lg bg-muted/50 group-hover:bg-primary/10 transition-colors text-primary">
-                                                        <suggestion.icon className="h-4 w-4" />
+                                            {searchSuggestions.length > 0 ? (
+                                                searchSuggestions.map((suggestion) => (
+                                                    <button
+                                                        key={suggestion.id}
+                                                        onClick={() => handleSuggestionClick(suggestion.note)}
+                                                        className="w-full flex items-center gap-3 p-3 hover:bg-muted active:bg-muted/80 transition-colors text-left border-b last:border-0 group"
+                                                    >
+                                                        <div className="p-2 rounded-lg bg-muted/50 group-hover:bg-primary/10 transition-colors text-primary">
+                                                            <suggestion.icon className="h-4 w-4" />
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{suggestion.title}</p>
+                                                            <p className="text-[10px] text-muted-foreground truncate font-medium uppercase tracking-tight">{suggestion.subLabel}</p>
+                                                        </div>
+                                                        <ChevronRight className="h-3 w-3 text-muted-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                    </button>
+                                                ))
+                                            ) : (
+                                                <div className="p-8 text-center animate-in zoom-in-95 duration-300">
+                                                    <div className="mx-auto w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mb-3">
+                                                        <SearchX className="h-6 w-6 text-muted-foreground/40" />
                                                     </div>
-                                                    <div className="min-w-0 flex-1">
-                                                        <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{suggestion.title}</p>
-                                                        <p className="text-[10px] text-muted-foreground truncate font-medium uppercase tracking-tight">{suggestion.subLabel}</p>
-                                                    </div>
-                                                    <ChevronRight className="h-3 w-3 text-muted-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                                </button>
-                                            ))}
+                                                    <p className="text-sm font-bold text-foreground/80">No matches found</p>
+                                                    <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mt-1">Try a different keyword</p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )}
