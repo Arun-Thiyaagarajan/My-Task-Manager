@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -226,6 +227,15 @@ export function Header() {
 
   const showProgress = isUserLoading || isProfileLoading || isGlobalLoading;
 
+  const handleRemindersClick = () => {
+    if (isMobile) {
+        window.dispatchEvent(new Event('navigation-start'));
+        router.push('/reminders');
+    } else {
+        setIsRemindersOpen(true);
+    }
+  };
+
   return (
     <>
       <header id="main-header" className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -353,7 +363,7 @@ export function Header() {
                     </Tooltip>
                 </div>
             )}
-            <Button variant="ghost" size="icon" onClick={() => setIsRemindersOpen(true)} className="relative h-9 w-9 rounded-full group">
+            <Button variant="ghost" size="icon" onClick={handleRemindersClick} className="relative h-9 w-9 rounded-full group">
                 <Bell className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
                 {generalRemindersCount > 0 && (
                     <div className="absolute top-1 right-1 flex h-2.5 w-2.5">
@@ -492,10 +502,14 @@ export function Header() {
         }}
         companyToEdit={companyToEdit}
       />
-      <GeneralRemindersDialog
-        isOpen={isRemindersOpen}
-        onOpenChange={setIsRemindersOpen}
-      />
+      
+      {!isMobile && (
+        <GeneralRemindersDialog
+            isOpen={isRemindersOpen}
+            onOpenChange={setIsRemindersOpen}
+        />
+      )}
+
       {uiConfig?.appIcon && isDataURI(uiConfig.appIcon) && (
         <ImagePreviewDialog
             isOpen={isImagePreviewOpen}

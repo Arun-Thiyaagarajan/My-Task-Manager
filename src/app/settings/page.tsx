@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -92,6 +93,8 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PeopleManagementContent } from '@/components/people-management-content';
 import { useTheme } from 'next-themes';
+import { FieldFormContent } from '@/components/field-form-content';
+import { EnvironmentFormContent } from '@/components/environment-form-content';
 
 export default function SettingsPage() {
   const isMobile = useIsMobile();
@@ -272,6 +275,10 @@ export default function SettingsPage() {
     if (repoConfigs) updates.repositoryConfigs = repoConfigs;
     handleUpdateConfig(updates);
     toast({ variant: 'success', title: 'Field configuration saved.' });
+    
+    if (isMobile) {
+        setActiveMobileSection('fields');
+    }
   };
 
   const handleAddEnv = () => {
@@ -287,6 +294,9 @@ export default function SettingsPage() {
         updateEnvironment(id, data);
         toast({ variant: 'success', title: 'Environment Updated' });
         loadConfig();
+        if (isMobile) {
+            setActiveMobileSection('environments');
+        }
     } catch (e) {
         toast({ variant: 'destructive', title: 'Error', description: 'Environment changes could not be saved. Please try again.' });
     }
@@ -508,19 +518,57 @@ export default function SettingsPage() {
     return (
         <div className="pb-6">
             <div className="px-6 pt-10 pb-6 flex items-center gap-4">
-                <Button variant="ghost" size="icon" onClick={() => setActiveMobileSection(isPeopleManager ? 'team' : null)} className="h-10 w-10 -ml-2 rounded-full shrink-0">
+                <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => {
+                        if (activeMobileSection === 'edit-field') {
+                            setActiveMobileSection('fields');
+                        } else if (activeMobileSection === 'edit-environment') {
+                            setActiveMobileSection('environments');
+                        } else if (isPeopleManager) {
+                            setActiveMobileSection('team');
+                        } else {
+                            setActiveMobileSection(null);
+                        }
+                    }} 
+                    className="h-10 w-10 -ml-2 rounded-full shrink-0"
+                >
                     <ArrowLeft className="h-6 w-6" />
                 </Button>
                 <h1 className="text-xl font-bold capitalize">
                     {activeMobileSection === 'manage-developers' ? 'Manage Developers' : 
                      activeMobileSection === 'manage-testers' ? 'Manage Testers' : 
+                     activeMobileSection === 'edit-field' ? (fieldToEdit ? 'Edit Field' : 'Add Field') :
+                     activeMobileSection === 'edit-environment' ? (envToEdit ? 'Edit Environment' : 'Add Environment') :
                      activeMobileSection.replace('-', ' ')}
                 </h1>
             </div>
 
-            <div className={cn("px-4 space-y-4", isPeopleManager && "px-0")}>
+            <div className={cn("px-4 space-y-4", (isPeopleManager || activeMobileSection === 'edit-field' || activeMobileSection === 'edit-environment') && "px-0")}>
                 {isPeopleManager && (
                     <PeopleManagementContent type={managerType} />
+                )}
+
+                {activeMobileSection === 'edit-field' && (
+                    <div className="bg-background min-h-screen px-6 py-4">
+                        <FieldFormContent 
+                            field={fieldToEdit} 
+                            repositoryConfigs={uiConfig.repositoryConfigs} 
+                            onSave={handleSaveField} 
+                            onCancel={() => setActiveMobileSection('fields')}
+                        />
+                    </div>
+                )}
+
+                {activeMobileSection === 'edit-environment' && (
+                    <div className="bg-background min-h-screen px-6 py-4">
+                        <EnvironmentFormContent 
+                            environment={envToEdit} 
+                            onSave={handleSaveEnv} 
+                            onCancel={() => setActiveMobileSection('environments')}
+                        />
+                    </div>
                 )}
 
                 {activeMobileSection === 'storage' && (
@@ -677,7 +725,7 @@ export default function SettingsPage() {
 
                 {activeMobileSection === 'fields' && (
                     <div className="space-y-4">
-                        <Button className="w-full h-12 font-bold shadow-lg rounded-2xl" onClick={() => { setFieldToEdit(null); setIsFieldDialogOpen(true); }}>
+                        <Button className="w-full h-12 font-bold shadow-lg rounded-2xl" onClick={() => { setFieldToEdit(null); setActiveMobileSection('edit-field'); }}>
                             <PlusCircle className="h-5 w-5 mr-2" /> Add Field
                         </Button>
                         <Card className="border shadow-xl bg-card rounded-3xl">
@@ -701,7 +749,7 @@ export default function SettingsPage() {
                                                         </div>
                                                     </div>
                                                     <div className="flex gap-1 shrink-0">
-                                                        <Button variant="outline" size="icon" className="h-9 w-9 rounded-full" onClick={() => { setFieldToEdit(field); setIsFieldDialogOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                                                        <Button variant="outline" size="icon" className="h-9 w-9 rounded-full" onClick={() => { setFieldToEdit(field); setActiveMobileSection('edit-field'); }}><Pencil className="h-4 w-4" /></Button>
                                                         {!['title', 'description', 'status', 'repositories'].includes(field.key) && (
                                                             <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive rounded-full" onClick={() => handleFieldToggle(field.key, 'isActive')}><X className="h-4 w-4" /></Button>
                                                         )}
@@ -732,7 +780,7 @@ export default function SettingsPage() {
                                                 <span className="capitalize font-medium text-sm">{env.name}</span>
                                             </div>
                                             <div className="flex gap-1">
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => { setEnvToEdit(env); setIsEnvDialogOpen(true); }}><Pencil className="h-3.5 w-3.5" /></Button>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => { setEnvToEdit(env); setActiveMobileSection('edit-environment'); }}><Pencil className="h-3.5 w-3.5" /></Button>
                                                 {!isMandatory && (
                                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-full" onClick={() => handleDeleteEnv(env.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                                                 )}
@@ -779,7 +827,7 @@ export default function SettingsPage() {
                             </CardHeader>
                             <CardContent className="space-y-3">
                                 <Button variant="outline" className="w-full h-12 justify-start rounded-2xl font-bold px-4" onClick={handleExportSettings}><Download className="h-5 w-5 mr-3 text-muted-foreground" /> Export Settings</Button>
-                                <Button variant="outline" className="w-full h-12 justify-start rounded-2xl font-bold px-4" onClick={() => fileInputRef.current?.click()}><Upload className="h-5 w-5 mr-3 text-muted-foreground" /> Import Settings</Button>
+                                <Button variant="outline" className="w-full h-12 justify-start rounded-2xl font-bold px-4" onClick={() => fileInputRef.current?.click()}><Upload className="h-5 w-5 mr-3 text-muted-foreground" /> Import Configuration</Button>
                                 <input type="file" ref={fileInputRef} onChange={handleImportSettings} className="hidden" accept=".json" />
                             </CardContent>
                         </Card>
@@ -811,8 +859,12 @@ export default function SettingsPage() {
 
             {/* Shared Dialogs / Overlays */}
             <PeopleManagerDialog type={peopleManagerType === 'developer' ? 'developer' : 'tester'} isOpen={peopleManagerType !== null} onOpenChange={(open) => !open && setPeopleManagerType(null)} onSuccess={() => {}} />
-            <EditFieldDialog isOpen={isFieldDialogOpen} onOpenChange={setIsFieldDialogOpen} field={fieldToEdit} repositoryConfigs={uiConfig.repositoryConfigs || []} onSave={handleSaveField} />
-            <EditEnvironmentDialog isOpen={isEnvDialogOpen} onOpenChange={setIsEnvDialogOpen} environment={envToEdit} onSave={handleSaveEnv} />
+            {!isMobile && (
+                <>
+                    <EditFieldDialog isOpen={isFieldDialogOpen} onOpenChange={setIsFieldDialogOpen} field={fieldToEdit} repositoryConfigs={uiConfig.repositoryConfigs || []} onSave={handleSaveField} />
+                    <EditEnvironmentDialog isOpen={isEnvDialogOpen} onOpenChange={setIsEnvDialogOpen} environment={envToEdit} onSave={handleSaveEnv} />
+                </>
+            )}
             <AuthModal isOpen={isAuthModalOpen} onOpenChange={setIsAuthModalOpen} onSuccess={() => { setAuthMode('authenticate'); window.dispatchEvent(new Event('company-changed')); }} />
             <ProfileImageCropper isOpen={isCropperOpen} onOpenChange={setIsCropperOpen} imageSrc={pendingIconImage} onCropComplete={handleCropComplete} />
             <ImagePreviewDialog isOpen={isPreviewOpen} onOpenChange={setIsPreviewOpen} imageUrl={appIcon} imageName="Icon Preview" isProfilePreview onChange={() => { setIsPreviewOpen(false); iconFileInputRef.current?.click(); }} onRemove={handleRemoveIcon} previousImageUrl={uiConfig.previousAppIcon} onRestore={handleRestorePreviousIcon} />
@@ -1310,20 +1362,24 @@ export default function SettingsPage() {
         onSuccess={() => {}}
       />
 
-      <EditFieldDialog 
-        isOpen={isFieldDialogOpen}
-        onOpenChange={setIsFieldDialogOpen}
-        field={fieldToEdit}
-        repositoryConfigs={uiConfig.repositoryConfigs || []}
-        onSave={handleSaveField}
-      />
+      {!isMobile && (
+          <>
+            <EditFieldDialog 
+                isOpen={isFieldDialogOpen}
+                onOpenChange={setIsFieldDialogOpen}
+                field={fieldToEdit}
+                repositoryConfigs={uiConfig.repositoryConfigs || []}
+                onSave={handleSaveField}
+            />
 
-      <EditEnvironmentDialog
-        isOpen={isEnvDialogOpen}
-        onOpenChange={setIsEnvDialogOpen}
-        environment={envToEdit}
-        onSave={handleSaveEnv}
-      />
+            <EditEnvironmentDialog
+                isOpen={isEnvDialogOpen}
+                onOpenChange={setIsEnvDialogOpen}
+                environment={envToEdit}
+                onSave={handleSaveEnv}
+            />
+          </>
+      )}
 
       <AuthModal 
         isOpen={isAuthModalOpen} 

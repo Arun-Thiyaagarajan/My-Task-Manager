@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
@@ -23,7 +24,9 @@ import {
     setLocalProfile, 
     getCompanies, 
     setActiveCompanyId, 
-    deleteCompany 
+    deleteCompany,
+    addCompany,
+    updateCompany
 } from '@/lib/data';
 import type { Company, UserProfile } from '@/lib/types';
 import { 
@@ -60,7 +63,8 @@ import {
   Users,
   Database,
   Layout,
-  SunMoon
+  SunMoon,
+  Check
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
@@ -96,10 +100,17 @@ const isActualImage = (url: string | null | undefined) => {
 };
 
 function WorkspaceListContent({ onCompanySelect }: { onCompanySelect?: (id: string) => void }) {
+    const isMobile = useIsMobile();
     const activeCompanyId = useActiveCompany();
     const [companies, setCompanies] = useState<Company[]>([]);
     const [isManagerOpen, setIsManagerOpen] = useState(false);
     const [companyToEdit, setCompanyToEdit] = useState<Company | null>(null);
+    
+    // Inline editing states for mobile
+    const [inlineEditId, setInlineEditId] = useState<string | null>(null);
+    const [inlineName, setInlineName] = useState('');
+    const [isAddingInline, setIsAddingInline] = useState(false);
+    
     const { toast } = useToast();
 
     useEffect(() => {
@@ -113,13 +124,47 @@ function WorkspaceListContent({ onCompanySelect }: { onCompanySelect?: (id: stri
     };
 
     const handleAdd = () => {
-        setCompanyToEdit(null);
-        setIsManagerOpen(true);
+        if (isMobile) {
+            setIsAddingInline(true);
+            setInlineEditId(null);
+            setInlineName('');
+        } else {
+            setCompanyToEdit(null);
+            setIsManagerOpen(true);
+        }
     };
 
     const handleEdit = (c: Company) => {
-        setCompanyToEdit(c);
-        setIsManagerOpen(true);
+        if (isMobile) {
+            setInlineEditId(c.id);
+            setInlineName(c.name);
+            setIsAddingInline(false);
+        } else {
+            setCompanyToEdit(c);
+            setIsManagerOpen(true);
+        }
+    };
+
+    const handleSaveInline = () => {
+        if (!inlineName.trim()) return;
+        
+        if (isAddingInline) {
+            addCompany(inlineName.trim());
+            toast({ title: 'Company added' });
+        } else if (inlineEditId) {
+            updateCompany(inlineEditId, inlineName.trim());
+            toast({ title: 'Company updated' });
+        }
+        
+        setCompanies(getCompanies());
+        window.dispatchEvent(new Event('company-changed'));
+        setInlineEditId(null);
+        setIsAddingInline(false);
+    };
+
+    const handleCancelInline = () => {
+        setInlineEditId(null);
+        setIsAddingInline(false);
     };
 
     const handleDelete = (id: string) => {
@@ -137,63 +182,105 @@ function WorkspaceListContent({ onCompanySelect }: { onCompanySelect?: (id: stri
             <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
                 {companies.map(company => (
                     <div key={company.id} className={cn(
-                        "flex items-center justify-between p-4 rounded-2xl border transition-all",
+                        "flex flex-col p-4 rounded-2xl border transition-all",
                         company.id === activeCompanyId ? "bg-primary/5 border-primary/20 shadow-sm" : "bg-muted/30 border-transparent hover:bg-muted/50"
                     )}>
-                        <button 
-                            onClick={() => handleCompanyChange(company.id)}
-                            className="flex-1 flex items-center gap-3 text-left min-w-0"
-                        >
-                            <div className={cn(
-                                "h-2.5 w-2.5 rounded-full shrink-0",
-                                company.id === activeCompanyId ? "bg-primary" : "bg-muted-foreground/30"
-                            )} />
-                            <span className={cn("font-bold text-base truncate", company.id === activeCompanyId && "text-primary")}>{company.name}</span>
-                        </button>
-                        <div className="flex items-center gap-1 shrink-0">
-                            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={() => handleEdit(company)}>
-                                <Edit className="h-4 w-4" />
-                            </Button>
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive hover:bg-destructive/10 rounded-full">
-                                        <Trash2 className="h-4 w-4" />
+                        {inlineEditId === company.id ? (
+                            <div className="space-y-3 animate-in fade-in duration-200">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Rename Company</Label>
+                                <Input 
+                                    value={inlineName} 
+                                    onChange={e => setInlineName(e.target.value)} 
+                                    autoFocus
+                                    className="h-10 bg-background"
+                                    onKeyDown={e => e.key === 'Enter' && handleSaveInline()}
+                                />
+                                <div className="flex gap-2">
+                                    <Button size="sm" className="h-8 flex-1 font-bold" onClick={handleSaveInline}>Save</Button>
+                                    <Button size="sm" variant="ghost" className="h-8 flex-1 font-medium" onClick={handleCancelInline}>Cancel</Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex items-center justify-between">
+                                <button 
+                                    onClick={() => handleCompanyChange(company.id)}
+                                    className="flex-1 flex items-center gap-3 text-left min-w-0"
+                                >
+                                    <div className={cn(
+                                        "h-2.5 w-2.5 rounded-full shrink-0",
+                                        company.id === activeCompanyId ? "bg-primary" : "bg-muted-foreground/30"
+                                    )} />
+                                    <span className={cn("font-bold text-base truncate", company.id === activeCompanyId && "text-primary")}>{company.name}</span>
+                                </button>
+                                <div className="flex items-center gap-1 shrink-0">
+                                    <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={() => handleEdit(company)}>
+                                        <Edit className="h-4 w-4" />
                                     </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent className="rounded-3xl">
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle className="font-bold tracking-tight">Delete Workspace?</AlertDialogTitle>
-                                        <AlertDialogDescription className="font-normal text-sm">
-                                            This action cannot be undone. This will permanently delete the workspace and all its tasks.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter className="pt-4 gap-2">
-                                        <AlertDialogCancel className="rounded-xl font-medium">Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleDelete(company.id)} className="bg-destructive hover:bg-destructive/90 rounded-xl font-bold px-6">
-                                            Delete Company
-                                        </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        </div>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive hover:bg-destructive/10 rounded-full">
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent className="rounded-3xl">
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle className="font-bold tracking-tight">Delete Workspace?</AlertDialogTitle>
+                                                <AlertDialogDescription className="font-normal text-sm">
+                                                    This action cannot be undone. This will permanently delete the workspace and all its tasks.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter className="pt-4 gap-2">
+                                                <AlertDialogCancel className="rounded-xl font-medium">Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDelete(company.id)} className="bg-destructive hover:bg-destructive/90 rounded-xl font-bold px-6">
+                                                    Delete Company
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 ))}
+                
+                {isAddingInline && (
+                    <div className="flex flex-col p-4 rounded-2xl border bg-primary/5 border-primary/20 animate-in slide-in-from-top-2 duration-300">
+                        <div className="space-y-3">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-primary">New Company Name</Label>
+                            <Input 
+                                value={inlineName} 
+                                onChange={e => setInlineName(e.target.value)} 
+                                autoFocus
+                                className="h-10 bg-background"
+                                onKeyDown={e => e.key === 'Enter' && handleSaveInline()}
+                            />
+                            <div className="flex gap-2">
+                                <Button size="sm" className="h-8 flex-1 font-bold" onClick={handleSaveInline}>Create</Button>
+                                <Button size="sm" variant="ghost" className="h-8 flex-1 font-medium" onClick={handleCancelInline}>Cancel</Button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
             
-            <Button onClick={handleAdd} variant="outline" className="w-full border-dashed rounded-2xl h-14 font-bold hover:bg-primary/5 hover:text-primary hover:border-primary/30">
-                <PlusCircle className="mr-2 h-5 w-5" />
-                Add New Company
-            </Button>
+            {!isAddingInline && (
+                <Button onClick={handleAdd} variant="outline" className="w-full border-dashed rounded-2xl h-14 font-bold hover:bg-primary/5 hover:text-primary hover:border-primary/30">
+                    <PlusCircle className="mr-2 h-5 w-5" />
+                    Add New Company
+                </Button>
+            )}
 
-            <CompaniesManager 
-                isOpen={isManagerOpen}
-                onOpenChange={setIsManagerOpen}
-                onSuccess={() => {
-                    setCompanies(getCompanies());
-                    window.dispatchEvent(new Event('company-changed'));
-                }}
-                companyToEdit={companyToEdit}
-            />
+            {!isMobile && (
+                <CompaniesManager 
+                    isOpen={isManagerOpen}
+                    onOpenChange={setIsManagerOpen}
+                    onSuccess={() => {
+                        setCompanies(getCompanies());
+                        window.dispatchEvent(new Event('company-changed'));
+                    }}
+                    companyToEdit={companyToEdit}
+                />
+            )}
         </div>
     );
 }
@@ -477,6 +564,7 @@ export default function ProfilePage() {
         // Standalone Links
         { id: 'logs', title: 'Activity Logs', subLabel: 'Audit trail of all changes', icon: FileClock, type: 'link', href: '/logs', category: 'System', color: 'text-blue-500' },
         { id: 'releases', title: 'What\'s New', subLabel: 'Latest updates and features', icon: Sparkles, type: 'link', href: '/releases', category: 'System', color: 'text-green-500' },
+        { id: 'general-reminders', title: 'General Reminders', subLabel: 'Manage global workspace notes', icon: Bell, type: 'link', href: '/reminders', category: 'Productivity', color: 'text-amber-600' },
     ];
     if (isLocal) {
         items.unshift({ id: 'auth', title: 'Sign In / Cloud Sync', subLabel: 'Securely sync your workspace', icon: ShieldCheck, type: 'event', event: 'open-auth-modal', category: 'Identity', color: 'text-primary font-bold' } as any);
@@ -574,7 +662,7 @@ export default function ProfilePage() {
   // MOBILE HUB VIEW
   if (isMobile && !showMobileSubPage) {
     return (
-        <div className="bg-background no-scrollbar">
+        <div className="bg-background no-scrollbar pb-6">
             {/* WhatsApp Style Header */}
             <div className="px-6 pt-10 pb-6 space-y-6">
                 <div className="flex items-center gap-4">
@@ -708,6 +796,13 @@ export default function ProfilePage() {
                         subLabel="Manage companies and workspace identity" 
                         onClick={() => handleMobileRowClick('workspaces')}
                         color="text-cyan-500"
+                    />
+                    <MobileHubRow 
+                        icon={Bell} 
+                        title="General Reminders" 
+                        subLabel="Workspace global notes" 
+                        onClick={() => router.push('/reminders')}
+                        color="text-amber-600"
                     />
                     <MobileHubRow 
                         icon={FileClock} 
