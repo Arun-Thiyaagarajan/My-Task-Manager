@@ -37,9 +37,11 @@ export function FloatingNotes() {
         }
 
         const handleKeyDown = (e: KeyboardEvent) => {
-            // Do not handle shortcut on pages where the button is hidden
-            const isTaskForm = pathname === '/tasks/new' || pathname?.endsWith('/edit');
-            if (pathname === '/notes' || isTaskForm) return; 
+            // Check visibility restriction
+            const isHome = pathname === '/';
+            const isTaskDetail = pathname?.startsWith('/tasks/') && !pathname.endsWith('/edit') && !pathname.endsWith('/new');
+            
+            if (!isHome && !isTaskDetail) return; 
             
             if ((e.metaKey || e.ctrlKey) && e.key === '/') {
                 e.preventDefault();
@@ -92,9 +94,11 @@ export function FloatingNotes() {
         setIsNoteEditorOpen(false);
     };
 
-    // Hide the floating button on the notes page and task form pages (New/Edit)
-    const isTaskForm = pathname === '/tasks/new' || pathname?.endsWith('/edit');
-    if (pathname === '/notes' || isTaskForm) {
+    // VISIBILITY RESTRICTION: Only show on Home and Task Detail pages
+    const isHome = pathname === '/';
+    const isTaskDetail = pathname?.startsWith('/tasks/') && !pathname.endsWith('/edit') && !pathname.endsWith('/new');
+    
+    if (!isHome && !isTaskDetail) {
         return null;
     }
 

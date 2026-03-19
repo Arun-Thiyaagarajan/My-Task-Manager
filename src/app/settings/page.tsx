@@ -89,13 +89,14 @@ import { ImagePreviewDialog } from '@/components/image-preview-dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFirebase } from '@/firebase';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { PeopleManagementContent } from '@/components/people-management-content';
 import { useTheme } from 'next-themes';
 
 export default function SettingsPage() {
   const isMobile = useIsMobile();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { userProfile } = useFirebase();
   const { theme, setTheme } = useTheme();
   const [uiConfig, setUiConfigState] = useState<UiConfig | null>(null);
@@ -144,6 +145,13 @@ export default function SettingsPage() {
     setTimeFormat(config?.timeFormat || '12h');
     setIsLoading(false);
     document.title = `Settings | ${config?.appName || 'Task Manager'}`;
+    
+    // Check for section deep-link on mobile
+    const section = searchParams.get('section');
+    if (section) {
+        setActiveMobileSection(section);
+    }
+    
     window.dispatchEvent(new Event('navigation-end'));
   };
 
@@ -151,7 +159,7 @@ export default function SettingsPage() {
     loadConfig();
     window.addEventListener('company-changed', loadConfig);
     return () => window.removeEventListener('company-changed', loadConfig);
-  }, []);
+  }, [searchParams]);
 
   const handleUpdateConfig = (updates: Partial<UiConfig>) => {
     if (!uiConfig) return;

@@ -54,7 +54,13 @@ import {
   Edit,
   Trash2,
   Search,
-  X
+  X,
+  Globe,
+  Rocket,
+  Users,
+  Database,
+  Layout,
+  SunMoon
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
@@ -454,15 +460,26 @@ export default function ProfilePage() {
 
   const searchableItems = useMemo(() => {
     const items = [
-        { id: 'general', title: 'Account', subLabel: 'Personal information, email details', icon: UserIcon, type: 'tab', color: 'text-primary' },
-        { id: 'security', title: 'Security', subLabel: 'Password, account protection', icon: Lock, type: 'tab', color: 'text-amber-500' },
-        { id: 'workspaces', title: 'Workspaces', subLabel: 'Manage companies and workspace identity', icon: Building, type: 'tab', color: 'text-cyan-500' },
-        { id: 'logs', title: 'Activity Logs', subLabel: 'Your workspace history', icon: FileClock, type: 'link', href: '/logs', color: 'text-blue-500' },
-        { id: 'settings', title: 'Workspace Settings', subLabel: 'Fields, environments, team', icon: Settings, type: 'link', href: '/settings', color: 'text-purple-500' },
-        { id: 'releases', title: 'What\'s New', subLabel: 'Release notes and updates', icon: Sparkles, type: 'link', href: '/releases', color: 'text-green-500' },
+        // Top Level Tabs
+        { id: 'general', title: 'Account Settings', subLabel: 'Personal information & email', icon: UserIcon, type: 'tab', category: 'User', color: 'text-primary' },
+        { id: 'security', title: 'Password & Security', subLabel: 'Manage your credentials', icon: Lock, type: 'tab', category: 'User', color: 'text-amber-500' },
+        { id: 'workspaces', title: 'Manage Workspaces', subLabel: 'Switch between companies', icon: Building, type: 'tab', category: 'User', color: 'text-cyan-500' },
+        
+        // Settings Sections (Direct Navigation)
+        { id: 'storage', title: 'Storage Mode', subLabel: 'Cloud Sync vs Local Storage', icon: ShieldCheck, type: 'settings', section: 'storage', category: 'Workspace', color: 'text-primary' },
+        { id: 'appearance', title: 'Theme & Appearance', subLabel: 'Branding, Dark Mode, Icons', icon: SunMoon, type: 'settings', section: 'appearance', category: 'Workspace', color: 'text-blue-500' },
+        { id: 'features', title: 'Feature Modules', subLabel: 'Reminders & Guided Tour', icon: Bell, type: 'settings', section: 'features', category: 'Workspace', color: 'text-amber-500' },
+        { id: 'fields', title: 'Field Configuration', subLabel: 'Task fields and visibility', icon: Layout, type: 'settings', section: 'fields', category: 'Structure', color: 'text-purple-500' },
+        { id: 'environments', title: 'Deploy Environments', subLabel: 'Pipeline configuration', icon: Rocket, type: 'settings', section: 'environments', category: 'Structure', color: 'text-green-500' },
+        { id: 'team', title: 'Team & People', subLabel: 'Developers and QA staff', icon: Users, type: 'settings', section: 'team', category: 'Organization', color: 'text-indigo-500' },
+        { id: 'data', title: 'Data & Safety', subLabel: 'Import, Export, Reset Workspace', icon: Database, type: 'settings', section: 'data', category: 'System', color: 'text-red-500' },
+        
+        // Standalone Links
+        { id: 'logs', title: 'Activity Logs', subLabel: 'Audit trail of all changes', icon: FileClock, type: 'link', href: '/logs', category: 'System', color: 'text-blue-500' },
+        { id: 'releases', title: 'What\'s New', subLabel: 'Latest updates and features', icon: Sparkles, type: 'link', href: '/releases', category: 'System', color: 'text-green-500' },
     ];
     if (isLocal) {
-        items.unshift({ id: 'auth', title: 'Sign In / Cloud Sync', subLabel: 'Securely sync your workspace', icon: ShieldCheck, type: 'event', event: 'open-auth-modal', color: 'text-primary font-bold' } as any);
+        items.unshift({ id: 'auth', title: 'Sign In / Cloud Sync', subLabel: 'Securely sync your workspace', icon: ShieldCheck, type: 'event', event: 'open-auth-modal', category: 'Identity', color: 'text-primary font-bold' } as any);
     }
     return items;
   }, [isLocal]);
@@ -471,7 +488,8 @@ export default function ProfilePage() {
     if (!searchQuery.trim()) return [];
     return searchableItems.filter(item => 
         fuzzySearch(searchQuery, item.title) || 
-        fuzzySearch(searchQuery, item.subLabel)
+        fuzzySearch(searchQuery, item.subLabel) ||
+        fuzzySearch(searchQuery, item.category)
     );
   }, [searchQuery, searchableItems]);
 
@@ -622,7 +640,7 @@ export default function ProfilePage() {
                     )}
                 </div>
                 
-                {/* Suggestions Dropdown */}
+                {/* Deep Navigation Suggestions Dropdown */}
                 {isSearchFocused && filteredSearchItems.length > 0 && (
                     <div className="absolute top-full left-6 right-6 mt-2 bg-popover border rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                         {filteredSearchItems.map(item => (
@@ -635,6 +653,8 @@ export default function ProfilePage() {
                                         setShowMobileSubPage(true);
                                     } else if (item.type === 'link') {
                                         router.push(item.href);
+                                    } else if (item.type === 'settings') {
+                                        router.push(`/settings?section=${item.section}`);
                                     } else if (item.type === 'event') {
                                         window.dispatchEvent(new Event(item.event!));
                                     }
@@ -644,10 +664,12 @@ export default function ProfilePage() {
                                 <div className={cn("p-2 rounded-lg bg-muted/50", item.color)}>
                                     <item.icon className="h-4 w-4" />
                                 </div>
-                                <div className="min-w-0">
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-0.5">{item.category}</p>
                                     <p className="text-sm font-bold truncate">{item.title}</p>
                                     <p className="text-[10px] text-muted-foreground truncate">{item.subLabel}</p>
                                 </div>
+                                <ChevronRight className="h-3 w-3 text-muted-foreground/30" />
                             </button>
                         ))}
                     </div>
