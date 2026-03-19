@@ -552,12 +552,12 @@ export default function SettingsPage() {
             <div className={cn("px-4 space-y-4", (isPeopleManager || activeMobileSection === 'edit-field' || activeMobileSection === 'edit-environment') && "px-0")}>
                 {isPeopleManager && <PeopleManagementContent type={managerType} />}
                 {activeMobileSection === 'edit-field' && (
-                    <div className="bg-background min-h-0 px-6 py-4 pb-10">
+                    <div className="bg-background min-h-0 px-6 py-4">
                         <FieldFormContent field={fieldToEdit} repositoryConfigs={uiConfig.repositoryConfigs} onSave={handleSaveField} onCancel={() => setActiveMobileSection('fields')} />
                     </div>
                 )}
                 {activeMobileSection === 'edit-environment' && (
-                    <div className="bg-background min-h-0 px-6 py-4 pb-10">
+                    <div className="bg-background min-h-0 px-6 py-4">
                         <EnvironmentFormContent environment={envToEdit} onSave={handleSaveEnv} onCancel={() => setActiveMobileSection('environments')} />
                     </div>
                 )}
@@ -610,40 +610,77 @@ export default function SettingsPage() {
                     <div className="space-y-4">
                         <Button className="w-full h-12 font-bold shadow-lg rounded-2xl" onClick={() => { setFieldToEdit(null); setActiveMobileSection('edit-field'); }}><PlusCircle className="h-5 w-5 mr-2" /> Add Field</Button>
                         <Card className="border shadow-xl bg-card rounded-3xl">
-                            <CardHeader className="pb-6"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" /><Input placeholder="Search fields..." className="pl-10 h-12 rounded-xl" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} /></div></CardHeader>
+                            <CardHeader className="pb-6">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                                    <Input placeholder="Search fields..." className="pl-10 h-12 rounded-xl" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                                </div>
+                            </CardHeader>
                             <CardContent className="space-y-8">
-                                {Object.entries(filteredAndGroupedFields.activeGroups).map(([groupName, fields]) => (
-                                    <div key={groupName} className="space-y-3">
-                                        <h4 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2 px-1">{groupName}</h4>
+                                <div>
+                                    <h3 className="text-xs font-bold uppercase tracking-wider mb-4 flex items-center gap-2 px-1">
+                                        <div className="h-2 w-2 rounded-full bg-green-500" />
+                                        Active Fields
+                                    </h3>
+                                    <div className="space-y-6">
+                                        {Object.entries(filteredAndGroupedFields.activeGroups).map(([groupName, fields]) => (
+                                            <div key={groupName} className="space-y-3">
+                                                <h4 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2 px-1">{groupName}</h4>
+                                                <div className="grid gap-2">
+                                                    {fields.map(field => {
+                                                        const isMandatory = !field.isCustom && ['title', 'description', 'status', 'repositories', 'developers'].includes(field.key);
+                                                        return (
+                                                            <div key={field.id} className="flex items-center justify-between p-3 bg-muted/20 border rounded-2xl hover:bg-muted/40 transition-all group">
+                                                                <div className="min-w-0 flex-1 pr-2">
+                                                                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                                                                        <span className="font-medium text-sm sm:text-base truncate max-w-full">
+                                                                            {field.label} {field.isRequired && <span className="text-destructive">*</span>}
+                                                                        </span>
+                                                                        <Badge variant="outline" className="text-[9px] h-4 shrink-0 uppercase tracking-tighter"> {field.type} </Badge>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="flex gap-1 shrink-0">
+                                                                    <Button variant="outline" size="icon" className="h-9 w-9 rounded-full" onClick={() => { setFieldToEdit(field); setActiveMobileSection('edit-field'); }}><Pencil className="h-4 w-4" /></Button>
+                                                                    {!isMandatory && (
+                                                                        <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive rounded-full" onClick={() => field.isCustom ? handleRequestDeleteField(field) : handleFieldToggleLocal(field.key, 'isActive')}>
+                                                                            {field.isCustom ? <Trash2 className="h-4 w-4" /> : <X className="h-4 w-4" />}
+                                                                        </Button>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {filteredAndGroupedFields.inactiveFields.length > 0 && (
+                                    <div className="pt-6 border-t border-dashed">
+                                        <h3 className="text-xs font-bold uppercase tracking-wider mb-4 flex items-center gap-2 px-1">
+                                            <div className="h-2 w-2 rounded-full bg-muted-foreground/30" />
+                                            Deactivated Fields
+                                        </h3>
                                         <div className="grid gap-2">
-                                            {fields.map(field => {
-                                                const isMandatory = !field.isCustom && ['title', 'description', 'status', 'repositories', 'developers'].includes(field.key);
-                                                return (
-                                                    <div key={field.id} className="flex items-center justify-between p-3 bg-muted/20 border rounded-2xl hover:bg-muted/40 transition-all group">
-                                                        <div className="min-w-0 flex-1 pr-2">
-                                                            <div className="flex items-center gap-2 mb-0.5 flex-wrap"><span className="font-medium text-sm sm:text-base truncate max-w-full">{field.label} {field.isRequired && <span className="text-destructive">*</span>}</span><Badge variant="outline" className="text-[9px] h-4 shrink-0 uppercase tracking-tighter"> {field.type} </Badge></div>
-                                                        </div>
-                                                        <div className="flex gap-1 shrink-0">
-                                                            <Button variant="outline" size="icon" className="h-9 w-9 rounded-full" onClick={() => { setFieldToEdit(field); setActiveMobileSection('edit-field'); }}><Pencil className="h-4 w-4" /></Button>
-                                                            {!isMandatory && (
-                                                                <TooltipProvider>
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger asChild>
-                                                                            <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive rounded-full" onClick={() => field.isCustom ? handleRequestDeleteField(field) : handleFieldToggleLocal(field.key, 'isActive')}>
-                                                                                {field.isCustom ? <Trash2 className="h-4 w-4" /> : <X className="h-4 w-4" />}
-                                                                            </Button>
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent><p>{field.isCustom ? 'Delete Field' : 'Deactivate Field'}</p></TooltipContent>
-                                                                    </Tooltip>
-                                                                </TooltipProvider>
-                                                            )}
-                                                        </div>
+                                            {filteredAndGroupedFields.inactiveFields.map(field => (
+                                                <div key={field.id} className="flex items-center justify-between p-3 bg-muted/5 border border-dashed rounded-2xl opacity-60">
+                                                    <span className="text-sm font-medium truncate pr-4">{field.label}</span>
+                                                    <div className="flex gap-1">
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10 rounded-full" onClick={() => handleFieldToggleLocal(field.key, 'isActive')}>
+                                                            <Check className="h-4 w-4" />
+                                                        </Button>
+                                                        {field.isCustom && (
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-full" onClick={() => handleRequestDeleteField(field)}>
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        )}
                                                     </div>
-                                                );
-                                            })}
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
-                                ))}
+                                )}
                             </CardContent>
                         </Card>
                         {hasUnsavedFieldChanges && (
