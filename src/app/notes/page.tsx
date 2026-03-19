@@ -186,9 +186,9 @@ export default function NotesPage() {
   };
 
   const clearSearch = () => {
+    setIsFiltering(true); // Smooth transition back to all notes
     setSearchQuery('');
     setExecutedSearchQuery('');
-    setIsFiltering(false);
   };
 
   // Background Filtering Logic
@@ -565,7 +565,7 @@ export default function NotesPage() {
                                         onFocus={() => setIsSearchFocused(true)}
                                         onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
                                         onKeyDown={handleSearchKeyDown}
-                                        className="w-full pl-10 h-11 font-normal"
+                                        className="w-full pl-10 h-11 font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40"
                                     />
                                     <div className="absolute right-1 flex items-center h-full gap-1">
                                         {searchQuery && (

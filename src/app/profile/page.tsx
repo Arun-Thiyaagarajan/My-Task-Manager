@@ -739,7 +739,7 @@ export default function ProfilePage() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                     <Input 
                         placeholder="Search settings..." 
-                        className="pl-10 h-11 bg-muted/30 border-transparent focus:border-primary/30 focus:ring-0 transition-all rounded-xl font-normal"
+                        className="pl-10 h-11 bg-muted/30 border-transparent transition-all rounded-xl font-normal focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         onFocus={() => setIsSearchFocused(true)}
@@ -1106,7 +1106,7 @@ export default function ProfilePage() {
                         <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                         <Input 
                           id="display-name" 
-                          className="pl-10 h-11 font-normal" 
+                          className="pl-10 h-11 font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40" 
                           value={displayName} 
                           onChange={(e) => setDisplayName(e.target.value)} 
                           placeholder="e.g. John Doe"
@@ -1178,7 +1178,7 @@ export default function ProfilePage() {
                             <Input 
                             id="new-pass" 
                             type={showPass ? 'text' : 'password'}
-                            className="pl-10 pr-10 h-11 font-normal" 
+                            className="pl-10 pr-10 h-11 font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40" 
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
                             placeholder="••••••••"
@@ -1213,7 +1213,7 @@ export default function ProfilePage() {
                             <Input 
                             id="confirm-pass" 
                             type="password"
-                            className="pl-10 h-11 font-normal" 
+                            className="pl-10 h-11 font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40" 
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             placeholder="••••••••"

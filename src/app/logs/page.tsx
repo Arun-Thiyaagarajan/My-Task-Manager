@@ -114,9 +114,9 @@ export default function LogsPage() {
     };
 
     const clearSearch = () => {
+        setIsFiltering(true); // Smooth transition back to all logs
         setSearchQuery('');
         setExecutedSearchQuery('');
-        setIsFiltering(false);
     };
 
     // Background Filtering Logic
@@ -221,7 +221,7 @@ export default function LogsPage() {
                                 value={searchQuery} 
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 onKeyDown={handleSearchKeyDown}
-                                className="w-full pl-10 pr-20 h-11"
+                                className="w-full pl-10 pr-20 h-11 transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40"
                             />
                             <div className="absolute right-0 flex items-center h-full pr-1.5 gap-1">
                                 {searchQuery && (
@@ -260,7 +260,7 @@ export default function LogsPage() {
                             const monthLogs = groupedLogs[monthKey];
                             return (
                                 <AccordionItem value={monthKey} key={monthKey} className="border-none">
-                                    <AccordionTrigger className="text-lg font-semibold tracking-tight text-foreground hover:no-underline rounded-lg px-4 py-3 hover:bg-muted/50 data-[state=open]:bg-muted/50 data-[state=open]:[&>svg]:text-primary">
+                                    <AccordionTrigger className="text-lg font-semibold tracking-tight text-foreground hover:no-underline rounded-lg px-4 py-3 hover:bg-muted/50 data-[state=open]:[&>svg]:text-primary">
                                         <div className="flex items-center gap-3">
                                             <span>{format(new Date(monthKey + '-02'), 'MMMM yyyy')}</span>
                                             <Badge variant="secondary">{monthLogs.length} logs</Badge>
