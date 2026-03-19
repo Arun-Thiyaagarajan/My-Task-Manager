@@ -238,7 +238,8 @@ export default function Home() {
     const newQuery = params.toString();
 
     if (currentQuery !== newQuery) {
-        router.replace(`${pathname}?${newQuery}`, { scroll: false });
+        // Use push to maintain proper routing history when search/filters are committed
+        router.push(`${pathname}?${newQuery}`, { scroll: false });
     }
 
     updateUserPreferences({
@@ -874,6 +875,8 @@ export default function Home() {
 
   const handleSuggestionClick = (taskId: string) => {
     setIsSearchFocused(false);
+    // Commit the current search string to history before navigating so 'Back' preserves context
+    setExecutedSearchQuery(searchQuery);
     window.dispatchEvent(new Event('navigation-start'));
     router.push(`/tasks/${taskId}`);
   };
@@ -1002,12 +1005,12 @@ export default function Home() {
               </Button>
 
               <div className={cn(
-                  "transition-all duration-300 overflow-hidden",
+                  "transition-all duration-300 overflow-visible",
                   "md:block", 
                   isFiltersOpen ? "block opacity-100 max-h-[1000px] mb-4" : "hidden md:opacity-100 md:max-h-none opacity-0 max-h-0"
               )}>
-                <Card id="task-filters" className="border shadow-lg md:shadow-none bg-card md:bg-transparent md:border-none">
-                    <CardContent className="p-4 md:p-0">
+                <Card id="task-filters" className="border shadow-lg md:shadow-none bg-card md:bg-transparent md:border-none overflow-visible">
+                    <CardContent className="p-4 md:p-0 overflow-visible">
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
                             <div className="relative flex flex-col w-full col-span-1 sm:col-span-2 md:col-span-1">
                                 <div className="relative flex items-center w-full">
@@ -1058,7 +1061,7 @@ export default function Home() {
 
                                 {/* Smart Suggestions Dropdown */}
                                 {isSearchFocused && searchSuggestions.length > 0 && (
-                                    <div className="absolute top-full left-0 right-0 mt-2 bg-popover border rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                    <div className="absolute top-full left-0 right-0 mt-2 bg-popover border rounded-2xl shadow-2xl z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                                         <div className="px-4 py-2 border-b bg-muted/30">
                                             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Suggestions</p>
                                         </div>

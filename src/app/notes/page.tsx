@@ -543,12 +543,12 @@ export default function NotesPage() {
             </Button>
 
              <div className={cn(
-                  "transition-all duration-300 overflow-hidden",
+                  "transition-all duration-300 overflow-visible",
                   "lg:block", 
                   isFiltersOpen ? "block opacity-100 max-h-[500px]" : "hidden lg:opacity-100 lg:max-h-none opacity-0 max-h-0"
               )}>
-                <Card className="border shadow-lg lg:shadow-none bg-card lg:bg-transparent lg:border-none">
-                    <CardContent className="p-4 lg:p-3">
+                <Card className="border shadow-lg lg:shadow-none bg-card lg:bg-transparent lg:border-none overflow-visible">
+                    <CardContent className="p-4 lg:p-3 overflow-visible">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="relative flex flex-col w-full">
                                 <div className="relative flex items-center w-full">
@@ -593,7 +593,7 @@ export default function NotesPage() {
 
                                 {/* Smart Note Suggestions */}
                                 {isSearchFocused && searchSuggestions.length > 0 && (
-                                    <div className="absolute top-full left-0 right-0 mt-2 bg-popover border rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                    <div className="absolute top-full left-0 right-0 mt-2 bg-popover border rounded-2xl shadow-2xl z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                                         <div className="px-4 py-2 border-b bg-muted/30">
                                             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Note Suggestions</p>
                                         </div>

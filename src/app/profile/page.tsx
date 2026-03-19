@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
@@ -379,6 +380,18 @@ export default function ProfilePage() {
     }
   }, [user, isUserLoading, userProfile, router, isProfileLoading, isLocal]);
 
+  // Sync state from URL for better back-navigation support
+  useEffect(() => {
+    if (!isMobile) return;
+    const tab = searchParams.get('tab');
+    if (tab) {
+        setActiveTab(tab);
+        setShowMobileSubPage(true);
+    } else {
+        setShowMobileSubPage(false);
+    }
+  }, [searchParams, isMobile]);
+
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsPending(true);
@@ -610,8 +623,7 @@ export default function ProfilePage() {
     photoURL !== (isLocal ? getLocalProfile().photoURL : (userProfile?.photoURL || (user?.photoURL === "" ? null : user?.photoURL)));
 
   const handleMobileRowClick = (tab: string) => {
-    setActiveTab(tab);
-    setShowMobileSubPage(true);
+    router.push(`/profile?tab=${tab}`);
   };
 
   const MobileHubRow = ({ icon: Icon, title, subLabel, onClick, color = 'text-muted-foreground' }: { icon: any, title: string, subLabel: string, onClick?: () => void, color?: string }) => (
@@ -745,15 +757,14 @@ export default function ProfilePage() {
                 
                 {/* Deep Navigation Suggestions Dropdown */}
                 {isSearchFocused && filteredSearchItems.length > 0 && (
-                    <div className="absolute top-full left-6 right-6 mt-2 bg-popover border rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="absolute top-full left-6 right-6 mt-2 bg-popover border rounded-2xl shadow-2xl z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                         {filteredSearchItems.map(item => (
                             <button
                                 key={item.id}
                                 className="w-full flex items-center gap-3 p-3 hover:bg-muted active:bg-muted/80 transition-colors text-left border-b last:border-0"
                                 onClick={() => {
                                     if (item.type === 'tab') {
-                                        setActiveTab(item.id);
-                                        setShowMobileSubPage(true);
+                                        router.push(`/profile?tab=${item.id}`);
                                     } else if (item.type === 'link') {
                                         router.push(item.href);
                                     } else if (item.type === 'settings') {
@@ -886,7 +897,7 @@ export default function ProfilePage() {
       {/* Mobile Back Header */}
       {isMobile && showMobileSubPage && (
           <div className="flex items-center gap-2 mb-8 -mt-4">
-              <Button variant="ghost" size="icon" onClick={() => setShowMobileSubPage(false)} className="rounded-full h-10 w-10">
+              <Button variant="ghost" size="icon" onClick={() => router.push('/profile')} className="rounded-full h-10 w-10">
                   <ArrowLeft className="h-6 w-6" />
               </Button>
               <h1 className="text-xl font-bold capitalize">{activeTab}</h1>
