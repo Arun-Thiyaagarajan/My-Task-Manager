@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -6,7 +7,7 @@ import type { Note, UiConfig, NoteLayout, UserPreferences } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { StickyNote, LayoutGrid, Plus, CheckSquare, X, Trash2, Upload, Download, Search, CalendarIcon, XCircle, Loader2, CornerDownLeft, Filter, ChevronDown } from 'lucide-react';
+import { StickyNote, LayoutGrid, Plus, CheckSquare, X, Trash2, Upload, Download, Search, CalendarIcon, XCircle, Loader2, CornerDownLeft, Filter, ChevronDown, ChevronRight, FileText } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,6 +43,14 @@ import { NotesSkeleton } from '@/components/notes-skeleton';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
+interface NoteSuggestion {
+    id: string;
+    title: string;
+    subLabel: string;
+    icon: any;
+    note: Note;
+}
+
 export default function NotesPage() {
   const { isUserLoading } = useFirebase();
   const [notes, setNotes] = useState<Note[]>([]);
@@ -62,6 +71,7 @@ export default function NotesPage() {
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
   const [executedSearchQuery, setExecutedSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [dateFilter, setDateFilter] = useState<DateRange | undefined>(undefined);
   
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
@@ -86,7 +96,6 @@ export default function NotesPage() {
 
   // Update preferences
   useEffect(() => {
-    // Avoid passing undefined properties which Firestore rejects
     const noteFilters: any = {
         search: executedSearchQuery,
     };
@@ -129,7 +138,6 @@ export default function NotesPage() {
     const authMode = getAuthMode();
     const companyId = getActiveCompanyId();
     
-    // Identity verification: block data display while determining auth or waiting for sync
     if (isUserLoading || (authMode === 'authenticate' && (!companyId || !isInitialSyncComplete(companyId)))) {
         return;
     }
@@ -165,6 +173,7 @@ export default function NotesPage() {
 
   const triggerSearch = () => {
     setIsFiltering(true);
+    setIsSearchFocused(false);
     window.dispatchEvent(new Event('sync-start'));
     setTimeout(() => {
         setExecutedSearchQuery(searchQuery);
@@ -413,6 +422,38 @@ export default function NotesPage() {
     return { lg: filteredNotes.map(n => n.layout) };
 }, [areFiltersActive, filteredNotes]);
 
+  const searchSuggestions = useMemo((): NoteSuggestion[] => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q || q.length < 2) return [];
+
+    const suggestions: NoteSuggestion[] = [];
+    notes.forEach(note => {
+        if (fuzzySearch(q, note.title)) {
+            suggestions.push({
+                id: `note-title-${note.id}`,
+                title: note.title,
+                subLabel: "Matched in title",
+                icon: StickyNote,
+                note
+            });
+        } else if (fuzzySearch(q, note.content)) {
+            suggestions.push({
+                id: `note-content-${note.id}`,
+                title: note.title || "Untitled Note",
+                subLabel: "Matched in content",
+                icon: FileText,
+                note
+            });
+        }
+    });
+
+    return suggestions.slice(0, 8);
+  }, [searchQuery, notes]);
+
+  const handleSuggestionClick = (note: Note) => {
+    setIsSearchFocused(false);
+    handleCardClick(note);
+  };
 
   const authMode = getAuthMode();
   const activeCompanyId = getActiveCompanyId();
@@ -509,42 +550,73 @@ export default function NotesPage() {
                 <Card className="border shadow-lg lg:shadow-none bg-card lg:bg-transparent lg:border-none">
                     <CardContent className="p-4 lg:p-3">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="relative flex items-center w-full">
-                                <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Search notes..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    onKeyDown={handleSearchKeyDown}
-                                    className="w-full pl-10 h-11 font-normal"
-                                />
-                                <div className="absolute right-1 flex items-center h-full gap-1">
-                                    {searchQuery && (
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7 text-muted-foreground"
-                                            onClick={clearSearch}
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </Button>
-                                    )}
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground cursor-help">
-                                                    <span className="text-xs">{commandKey}</span>K
-                                                </kbd>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top">
-                                                <div className="flex items-center gap-2">
-                                                    <CornerDownLeft className="h-3 w-3" />
-                                                    <span>Press Enter to search</span>
-                                                </div>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
+                            <div className="relative flex flex-col w-full">
+                                <div className="relative flex items-center w-full">
+                                    <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Search notes..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        onFocus={() => setIsSearchFocused(true)}
+                                        onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                                        onKeyDown={handleSearchKeyDown}
+                                        className="w-full pl-10 h-11 font-normal"
+                                    />
+                                    <div className="absolute right-1 flex items-center h-full gap-1">
+                                        {searchQuery && (
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7 text-muted-foreground"
+                                                onClick={clearSearch}
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </Button>
+                                        )}
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground cursor-help">
+                                                        <span className="text-xs">{commandKey}</span>K
+                                                    </kbd>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="top">
+                                                    <div className="flex items-center gap-2">
+                                                        <CornerDownLeft className="h-3 w-3" />
+                                                        <span>Press Enter to search</span>
+                                                    </div>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </div>
                                 </div>
+
+                                {/* Smart Note Suggestions */}
+                                {isSearchFocused && searchSuggestions.length > 0 && (
+                                    <div className="absolute top-full left-0 right-0 mt-2 bg-popover border rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                        <div className="px-4 py-2 border-b bg-muted/30">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Note Suggestions</p>
+                                        </div>
+                                        <div className="max-h-[300px] overflow-y-auto no-scrollbar">
+                                            {searchSuggestions.map((suggestion) => (
+                                                <button
+                                                    key={suggestion.id}
+                                                    onClick={() => handleSuggestionClick(suggestion.note)}
+                                                    className="w-full flex items-center gap-3 p-3 hover:bg-muted active:bg-muted/80 transition-colors text-left border-b last:border-0 group"
+                                                >
+                                                    <div className="p-2 rounded-lg bg-muted/50 group-hover:bg-primary/10 transition-colors text-primary">
+                                                        <suggestion.icon className="h-4 w-4" />
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{suggestion.title}</p>
+                                                        <p className="text-[10px] text-muted-foreground truncate font-medium uppercase tracking-tight">{suggestion.subLabel}</p>
+                                                    </div>
+                                                    <ChevronRight className="h-3 w-3 text-muted-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                             <Popover open={isDatePopoverOpen} onOpenChange={setIsDatePopoverOpen}>
                                 <PopoverTrigger asChild>

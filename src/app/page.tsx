@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -47,6 +48,10 @@ import {
   Filter,
   ChevronDown,
   Save,
+  Check,
+  User,
+  GitMerge,
+  FileText
 } from 'lucide-react';
 import { cn, fuzzySearch } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig, Log, GeneralReminder, BackupFrequency, Environment, UserPreferences, AuthMode } from '@/lib/types';
@@ -103,12 +108,21 @@ import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useFirebase } from '@/firebase';
 
-
 type ViewMode = 'grid' | 'table';
 type DateView = 'all' | 'monthly' | 'yearly';
 
 const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
 const LAST_BACKUP_KEY = 'taskflow_last_auto_backup';
+
+interface SearchSuggestion {
+    id: string;
+    title: string;
+    subLabel: string;
+    type: 'task' | 'user' | 'tag' | 'repo';
+    icon: any;
+    taskId: string;
+    matchType: string;
+}
 
 export default function Home() {
   const { user, isUserLoading } = useFirebase();
@@ -143,6 +157,7 @@ export default function Home() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [executedSearchQuery, setExecutedSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
@@ -262,7 +277,6 @@ export default function Home() {
     const authMode = getAuthMode();
     const companyId = getActiveCompanyId();
     
-    // Skeletons should be visible while auth or cloud sync is active
     if (isUserLoading) return;
 
     if (companyId) {
@@ -275,7 +289,6 @@ export default function Home() {
         document.title = config.appName || 'My Task Manager';
         setSelectedTaskIds([]);
         
-        // In authenticate mode, we stop internal loading state when the sync is confirmed
         if (authMode === 'authenticate' && !isInitialSyncComplete(companyId)) {
             return;
         }
@@ -342,6 +355,7 @@ export default function Home() {
   const triggerSearch = useCallback(() => {
     setIsSearching(true);
     setSearchError(null);
+    setIsSearchFocused(false);
     
     setTimeout(() => {
         setExecutedSearchQuery(searchQuery);
@@ -369,7 +383,6 @@ export default function Home() {
   useEffect(() => {
     const filterAndProcess = () => {
         try {
-            // Block data processing until auth state is known
             if (isUserLoading) return;
 
             const results = tasks.filter((task: Task) => {
@@ -421,7 +434,6 @@ export default function Home() {
                 return statusMatch && repoMatch && searchMatch && dateMatch && deploymentMatch && tagsMatch;
             });
 
-            // Sorting
             const sorted = [...results].sort((a, b) => {
                 const [sortBy, sortDirection] = sortDescriptor.split('-');
                 const taskStatuses = uiConfig?.taskStatuses || [];
@@ -449,7 +461,6 @@ export default function Home() {
             setFilteredTasks(sorted);
             setSearchError(null);
             
-            // Only consider initialized if cloud sync status is known
             const mode = getAuthMode();
             if (mode === 'authenticate') {
                 if (!activeCompanyId || !isInitialSyncComplete(activeCompanyId)) {
@@ -562,71 +573,6 @@ export default function Home() {
     }
   }, [isSelectMode, selectedTaskIds, filteredTasks, toast]);
 
-  useEffect(() => {
-    if (!activeCompanyId) return;
-    
-    const config = getUiConfig();
-    const prefs = getUserPreferences();
-    if (config.tutorialEnabled && !prefs.tutorialSeen) {
-      setTimeout(() => setShowTutorialPrompt(true), 2500);
-    }
-    
-    const savedOpenGroups = localStorage.getItem('taskflow_open_groups');
-    if (savedOpenGroups) setOpenGroups(JSON.parse(savedOpenGroups));
-    
-    const savedPinnedTasks = localStorage.getItem(PINNED_TASKS_STORAGE_KEY);
-    if (savedPinnedTasks) setPinnedTaskIds(JSON.parse(savedPinnedTasks));
-    
-    const { updatedTaskIds, unpinnedTaskIds } = clearExpiredReminders();
-    if (updatedTaskIds.length > 0) {
-        toast({ title: `${updatedTaskIds.length} reminder(s) expired and were cleared.` });
-        if (unpinnedTaskIds.length > 0) {
-            const currentPinned = JSON.parse(localStorage.getItem(PINNED_TASKS_STORAGE_KEY) || '[]');
-            const newPinned = currentPinned.filter((id: string) => !unpinnedTaskIds.includes(id));
-            setPinnedTaskIds(newPinned);
-            localStorage.setItem(PINNED_TASKS_STORAGE_KEY, JSON.stringify(newPinned));
-        }
-    }
-  }, [activeCompanyId, toast]);
-  
-  useEffect(() => {
-    if (isLoading || !uiConfig) return;
-
-    const backupFrequency = uiConfig.autoBackupFrequency || 'off';
-    if (backupFrequency === 'off') return;
-
-    const lastBackupStr = localStorage.getItem(LAST_BACKUP_KEY);
-    const now = new Date();
-    
-    let nextBackupDate: Date;
-
-    if (!lastBackupStr) {
-        nextBackupDate = new Date(now);
-        nextBackupDate.setHours(uiConfig.autoBackupFrequency === 'daily' ? (uiConfig.autoBackupTime ?? 6) : 6, 0, 0, 0);
-        if (now > nextBackupDate) nextBackupDate.setDate(nextBackupDate.getDate() + 1);
-    } else {
-        nextBackupDate = new Date(lastBackupStr);
-        switch (backupFrequency) {
-            case 'daily': nextBackupDate.setDate(nextBackupDate.getDate() + 1); break;
-            case 'weekly': nextBackupDate.setDate(nextBackupDate.getDate() + 7); break;
-            case 'monthly': nextBackupDate.setMonth(nextBackupDate.getMonth() + 1); break;
-            case 'yearly': nextBackupDate.setFullYear(nextBackupDate.getFullYear() + 1); break;
-        }
-        nextBackupDate.setHours(uiConfig.autoBackupTime ?? 6, 0, 0, 0);
-    }
-
-    if (now >= nextBackupDate) {
-        setTimeout(() => {
-            handleExport('all_tasks');
-            toast({
-                title: 'Automatic Backup',
-                description: `A ${backupFrequency} backup has been created.`,
-                duration: 10000,
-            });
-        }, 5000);
-    }
-  }, [isLoading, uiConfig, handleExport, toast]);
-
   const handlePinToggle = useCallback((taskIdToToggle: string) => {
     setPinnedTaskIds(currentIds => {
       const newPinnedIds = currentIds.includes(taskIdToToggle)
@@ -673,14 +619,6 @@ export default function Home() {
       setIsSearching(true);
       setSortDescriptor(val);
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem('taskflow_open_groups', JSON.stringify(openGroups));
-  }, [openGroups]);
-
-  const pinnedReminders = tasks
-    .filter(t => pinnedTaskIds.includes(t.id) && t.reminder)
-    .sort((a, b) => pinnedTaskIds.indexOf(a.id) - pinnedTaskIds.indexOf(b.id));
 
   const handleToggleSelectAll = useCallback((checked: boolean | 'indeterminate') => {
     setSelectedTaskIds(checked === true ? filteredTasks.map(t => t.id) : []);
@@ -846,23 +784,99 @@ export default function Home() {
     router.push('/tasks/new');
   };
   
-  const authMode = currentAuthMode;
-  // Comprehensive skeleton trigger: show skeletons if core loading, cloud sync, auth check, or search is active
-  const isSyncing = authMode === 'authenticate' && (!activeCompanyId || !isInitialSyncComplete(activeCompanyId));
+  const isSyncing = currentAuthMode === 'authenticate' && (!activeCompanyId || !isInitialSyncComplete(activeCompanyId));
   const activeSkeletons = isLoading || isSearching || isUserLoading || isSyncing || !hasInitialized;
 
-  const tagsOptions = useMemo(() => {
-      const tagsField = (uiConfig?.fields || []).find(f => f.key === 'tags');
-      const predefined = tagsField?.options?.map(opt => ({ value: opt.value, label: opt.label })) || [];
-      const dynamic = [...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({value: t, label: t}));
-      const combined = [...predefined];
-      dynamic.forEach(d => {
-          if (!combined.some(p => p.value === d.value)) {
-              combined.push(d);
-          }
-      });
-      return combined;
-  }, [uiConfig, tasks]);
+  const searchSuggestions = useMemo((): SearchSuggestion[] => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q || q.length < 2) return [];
+
+    const suggestions: SearchSuggestion[] = [];
+    const devsById = new Map(developers.map(d => [d.id, d.name]));
+    const testersById = new Map(testers.map(t => [t.id, t.name]));
+
+    tasks.forEach(task => {
+        // 1. Direct Title Match (Priority)
+        if (fuzzySearch(q, task.title)) {
+            suggestions.push({
+                id: `task-title-${task.id}`,
+                title: task.title,
+                subLabel: task.status,
+                type: 'task',
+                icon: FileText,
+                taskId: task.id,
+                matchType: 'title'
+            });
+            return; // Don't check other fields if title matched to avoid duplicates
+        }
+
+        // 2. User Matches
+        const matchedDev = task.developers?.find(id => fuzzySearch(q, devsById.get(id) || ''));
+        if (matchedDev) {
+            suggestions.push({
+                id: `task-dev-${task.id}`,
+                title: task.title,
+                subLabel: `Assigned to: ${devsById.get(matchedDev)}`,
+                type: 'user',
+                icon: User,
+                taskId: task.id,
+                matchType: 'user'
+            });
+            return;
+        }
+
+        // 3. Tag Matches
+        const matchedTag = task.tags?.find(t => fuzzySearch(q, t));
+        if (matchedTag) {
+            suggestions.push({
+                id: `task-tag-${task.id}`,
+                title: task.title,
+                subLabel: `Tagged with: ${matchedTag}`,
+                type: 'tag',
+                icon: Tag,
+                taskId: task.id,
+                matchType: 'tag'
+            });
+            return;
+        }
+
+        // 4. Repo Matches
+        const matchedRepo = Array.isArray(task.repositories) && task.repositories.find(r => fuzzySearch(q, r));
+        if (matchedRepo) {
+            suggestions.push({
+                id: `task-repo-${task.id}`,
+                title: task.title,
+                subLabel: `In Repository: ${matchedRepo}`,
+                type: 'repo',
+                icon: GitMerge,
+                taskId: task.id,
+                matchType: 'repo'
+            });
+            return;
+        }
+
+        // 5. Description Matches (Low Priority)
+        if (fuzzySearch(q, task.description)) {
+            suggestions.push({
+                id: `task-desc-${task.id}`,
+                title: task.title,
+                subLabel: "Matched in description",
+                type: 'task',
+                icon: FileText,
+                taskId: task.id,
+                matchType: 'description'
+            });
+        }
+    });
+
+    return suggestions.slice(0, 10); // Limit to top 10 suggestions
+  }, [searchQuery, tasks, developers, testers]);
+
+  const handleSuggestionClick = (taskId: string) => {
+    setIsSearchFocused(false);
+    window.dispatchEvent(new Event('navigation-start'));
+    router.push(`/tasks/${taskId}`);
+  };
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -892,8 +906,8 @@ export default function Home() {
         <div className="flex flex-col gap-1">
             <div className="flex items-center gap-3">
                 <h1 className="text-3xl font-semibold tracking-tight text-foreground">Tasks</h1>
-                <Badge variant="outline" className={cn(mounted && authMode === 'authenticate' ? "text-primary border-primary/20 bg-primary/5" : "text-muted-foreground", "h-6 px-3 text-[10px] font-medium uppercase tracking-wider")}>
-                    {mounted ? (authMode === 'authenticate' ? 'Cloud Sync' : 'Local Storage') : 'Verifying...'}
+                <Badge variant="outline" className={cn(mounted && currentAuthMode === 'authenticate' ? "text-primary border-primary/20 bg-primary/5" : "text-muted-foreground", "h-6 px-3 text-[10px] font-medium uppercase tracking-wider")}>
+                    {mounted ? (currentAuthMode === 'authenticate' ? 'Cloud Sync' : 'Local Storage') : 'Verifying...'}
                 </Badge>
             </div>
             {uiConfig?.appName && <p className="text-muted-foreground text-sm font-medium">{uiConfig.appName}</p>}
@@ -928,7 +942,7 @@ export default function Home() {
                 </DialogContent>
             </Dialog>
             
-            {uiConfig?.remindersEnabled && (pinnedReminders.length + generalReminders.length) > 0 && (
+            {uiConfig?.remindersEnabled && (pinnedTaskIds.length + generalReminders.length) > 0 && (
               <Button 
                 variant="outline" 
                 className="h-11 border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 hover:text-amber-700 dark:hover:text-amber-300 transition-all w-full sm:w-auto font-medium" 
@@ -936,7 +950,7 @@ export default function Home() {
               >
                 <BellRing className="mr-2 h-4 w-4 shrink-0" />
                  <span className="truncate">Important Reminders</span>
-                <Badge variant="secondary" className="ml-2 bg-amber-500/20 text-amber-700 dark:text-amber-300 border-none shadow-none font-medium">{pinnedReminders.length + generalReminders.length}</Badge>
+                <Badge variant="secondary" className="ml-2 bg-amber-500/20 text-amber-700 dark:text-amber-300 border-none shadow-none font-medium">{pinnedTaskIds.length + generalReminders.length}</Badge>
               </Button>
             )}
 
@@ -1008,6 +1022,8 @@ export default function Home() {
                                                 clearSearch();
                                             }
                                         }}
+                                        onFocus={() => setIsSearchFocused(true)}
+                                        onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
                                         onKeyDown={handleSearchKeyDown}
                                         className="w-full pl-10 pr-24 h-11 font-normal"
                                     />
@@ -1039,6 +1055,41 @@ export default function Home() {
                                         </TooltipProvider>
                                     </div>
                                 </div>
+
+                                {/* Smart Suggestions Dropdown */}
+                                {isSearchFocused && searchSuggestions.length > 0 && (
+                                    <div className="absolute top-full left-0 right-0 mt-2 bg-popover border rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                        <div className="px-4 py-2 border-b bg-muted/30">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Suggestions</p>
+                                        </div>
+                                        <div className="max-h-[300px] overflow-y-auto no-scrollbar">
+                                            {searchSuggestions.map((suggestion) => (
+                                                <button
+                                                    key={suggestion.id}
+                                                    onClick={() => handleSuggestionClick(suggestion.taskId)}
+                                                    className="w-full flex items-center gap-3 p-3 hover:bg-muted active:bg-muted/80 transition-colors text-left border-b last:border-0 group"
+                                                >
+                                                    <div className={cn(
+                                                        "p-2 rounded-lg bg-muted/50 group-hover:bg-primary/10 transition-colors",
+                                                        suggestion.type === 'task' ? "text-primary" : 
+                                                        suggestion.type === 'user' ? "text-amber-500" :
+                                                        suggestion.type === 'tag' ? "text-green-500" : "text-blue-500"
+                                                    )}>
+                                                        <suggestion.icon className="h-4 w-4" />
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{suggestion.title}</p>
+                                                        <p className="text-[10px] text-muted-foreground truncate font-medium uppercase tracking-tight">{suggestion.subLabel}</p>
+                                                    </div>
+                                                    <ChevronRight className="h-3 w-3 text-muted-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="p-3 bg-muted/10 text-center border-t">
+                                            <p className="text-[10px] text-muted-foreground font-medium">Press <span className="font-bold">Enter</span> for all results</p>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                             <MultiSelect selected={statusFilter} onChange={(val) => { setIsSearching(true); setStatusFilter(val); }} options={(uiConfig?.taskStatuses || []).map(s => ({ value: s, label: s }))} placeholder="Status..." />
                             <MultiSelect selected={repoFilter} onChange={(val) => { setIsSearching(true); setRepoFilter(val); }} options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} placeholder="Repository..." />
@@ -1062,7 +1113,6 @@ export default function Home() {
 
            <div className="flex flex-col gap-6">
                 <div className="flex flex-col md:flex-row md:flex-wrap lg:flex-nowrap md:items-center md:justify-between gap-4 md:gap-6">
-                    {/* LEFT GROUP: Date Nav & Count */}
                     <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-4 md:gap-6">
                         {(dateView === 'monthly' || dateView === 'yearly') && !favoritesOnly && (
                             <div className="flex items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
@@ -1093,7 +1143,6 @@ export default function Home() {
                         </div>
                     </div>
 
-                    {/* RIGHT GROUP: Controls */}
                     <div id="view-mode-toggle" className="flex flex-col md:flex-row md:flex-wrap items-center gap-4">
                         <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto md:overflow-visible md:flex-wrap pb-1 no-scrollbar md:pb-0">
                             <Select value={sortDescriptor} onValueChange={handleSortChange}>
@@ -1136,7 +1185,6 @@ export default function Home() {
                                 <Button variant="ghost" size="icon" className={cn("h-9 w-9 rounded-lg", viewMode === 'table' && 'bg-card text-foreground shadow-sm')} onClick={() => handleViewModeChange('table')}><List className="h-4 w-4" /></Button>
                             </div>
                             
-                            {/* Icons integrated into Desktop Row */}
                             <div className="hidden md:flex items-center gap-2">
                                 <TooltipProvider>
                                     <Tooltip>
@@ -1168,7 +1216,6 @@ export default function Home() {
                             </div>
                         </div>
 
-                        {/* Separate row for Select Mode toggle on mobile ONLY */}
                         <div className="flex items-center gap-2 px-1 md:hidden w-full">
                             <TooltipProvider>
                                 <Tooltip>
@@ -1298,11 +1345,10 @@ export default function Home() {
             </div>
       </div>
 
-      {uiConfig?.remindersEnabled && (pinnedReminders.length + generalReminders.length) > 0 && (
-        <ReminderStack reminders={pinnedReminders} generalReminders={generalReminders} uiConfig={uiConfig} onUnpin={handleUnpinFromStack} onDismissGeneralReminder={handleDismissGeneralReminder} isOpen={isReminderStackOpen} onOpenChange={setIsReminderStackOpen} />
+      {uiConfig?.remindersEnabled && (pinnedTaskIds.length + generalReminders.length) > 0 && (
+        <ReminderStack reminders={tasks.filter(t => pinnedTaskIds.includes(t.id))} generalReminders={generalReminders} uiConfig={uiConfig} onUnpin={handleUnpinFromStack} onDismissGeneralReminder={handleDismissGeneralReminder} isOpen={isReminderStackOpen} onOpenChange={setIsReminderStackOpen} />
      )}
 
-     {/* Bulk Tags Dialog */}
      <Dialog open={isTagsDialogOpen} onOpenChange={setIsTagsDialogOpen}>
         <DialogContent className="sm:max-w-md rounded-2xl">
             <DialogHeader>
@@ -1320,7 +1366,10 @@ export default function Home() {
                 <MultiSelect
                     selected={tagsToApply}
                     onChange={setTagsToApply}
-                    options={tagsOptions}
+                    options={tasks.flatMap(t => t.tags || []).reduce((acc, tag) => {
+                        if (!acc.some(o => o.value === tag)) acc.push({ value: tag, label: tag });
+                        return acc;
+                    }, [] as SelectOption[])}
                     placeholder="Search or create tags..."
                     creatable
                 />
