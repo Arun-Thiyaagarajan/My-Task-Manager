@@ -965,7 +965,7 @@ export default function Home() {
                                     <div className="flex items-center gap-2">
                                         <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{suggestion.title}</p>
                                         {suggestion.isBinned && (
-                                            <Badge variant="secondary" className="bg-zinc-500/10 text-zinc-500 border-none h-4 px-1.5 text-[8px] uppercase font-bold shrink-0">Bin</Badge>
+                                            <Badge variant="secondary" className="bg-zinc-500/10 text-zinc-500 border-none h-4 px-1.5 text-[8px] font-bold shrink-0">Bin</Badge>
                                         )}
                                     </div>
                                     <p className="text-[10px] text-muted-foreground truncate font-medium uppercase tracking-tight">{suggestion.subLabel}</p>
@@ -1069,7 +1069,7 @@ export default function Home() {
               </Button>
             )}
 
-            <div className="grid grid-cols-2 sm:flex items-center gap-2">
+            <div className="hidden md:flex items-center gap-2">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" disabled={isImporting} className="w-full sm:w-auto h-11 font-medium">
@@ -1090,7 +1090,7 @@ export default function Home() {
                 </Button>
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*,.json" />
                 
-                <Button onClick={handleNavigateNewTask} id="new-task-btn" disabled={isImporting} className="hidden md:flex w-full sm:w-auto h-11 shadow-lg font-medium active:scale-95 transition-transform">
+                <Button onClick={handleNavigateNewTask} id="new-task-btn" disabled={isImporting} className="w-full sm:w-auto h-11 shadow-lg font-medium active:scale-95 transition-transform">
                     <Plus className="mr-2 h-5 w-5" /> New Task
                 </Button>
             </div>
@@ -1099,9 +1099,116 @@ export default function Home() {
       
       <div className="space-y-6">
           <div className="space-y-3">
-              {/* MOBILE ONLY TOOLS - Optimized Order */}
+              {/* MOBILE ONLY TOOLS - Preserved Strict Order from Reference */}
               <div className="md:hidden flex flex-col gap-4 mb-2">
-                  {/* 1. Favourites / Select Toggle row */}
+                  {/* 1. Export / Import Buttons */}
+                  <div className="grid grid-cols-2 gap-2 px-1">
+                      <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                              <Button variant="outline" className="h-11 rounded-xl shadow-sm font-semibold gap-2">
+                                  <Download className="h-4 w-4" /> Export
+                              </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="center" className="w-[calc(100vw-3rem)]">
+                              <DropdownMenuItem onSelect={() => handleExport('current_view')}>Export Current View</DropdownMenuItem>
+                              <DropdownMenuItem onSelect={() => handleExport('all_tasks')}>Export All Tasks</DropdownMenuItem>
+                              <DropdownMenuItem onSelect={handleDownloadTemplate}>Download Template</DropdownMenuItem>
+                          </DropdownMenuContent>
+                      </DropdownMenu>
+                      <Button 
+                          variant="outline" 
+                          onClick={() => fileInputRef.current?.click()} 
+                          className="h-11 rounded-xl shadow-sm font-semibold gap-2"
+                      >
+                          <Upload className="h-4 w-4" /> Import
+                      </Button>
+                  </div>
+
+                  {/* 2. Filters Toggle Button */}
+                  <div className="px-1">
+                      <Button 
+                        variant="secondary" 
+                        className="w-full flex items-center justify-between h-12 px-4 font-semibold shadow-sm border rounded-xl"
+                        onClick={() => setIsFiltersOpen(!isFiltersOpen)}
+                      >
+                        <span className="flex items-center gap-2">
+                            <Filter className="h-4 w-4" />
+                            Filters
+                            {(statusFilter.length > 0 || repoFilter.length > 0 || deploymentFilter.length > 0 || tagsFilter.length > 0) && (
+                                <Badge className="bg-primary text-primary-foreground h-5 px-1.5 min-w-5 font-bold">
+                                    {statusFilter.length + repoFilter.length + deploymentFilter.length + tagsFilter.length}
+                                </Badge>
+                            )}
+                        </span>
+                        <ChevronDown className={cn("h-4 w-4 transition-transform duration-300", isFiltersOpen && "rotate-180")} />
+                      </Button>
+                  </div>
+
+                  {/* 3. Date navigation (if monthly/yearly) */}
+                  {(dateView === 'monthly' || dateView === 'yearly') && !favoritesOnly && (
+                      <div className="flex items-center justify-between gap-2 w-full px-1">
+                          <Button variant="outline" size="icon" onClick={handlePreviousDate} className="h-11 w-11 shrink-0 shadow-sm rounded-xl"><ChevronLeft className="h-5 w-5" /></Button>
+                          <Popover>
+                              <PopoverTrigger asChild>
+                                  <Button variant="outline" className="text-sm font-bold flex-1 h-11 shadow-sm rounded-xl">
+                                      {dateView === 'monthly' ? format(selectedDate, 'MMMM yyyy') : format(selectedDate, 'yyyy')}
+                                  </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="center">
+                                  <Calendar mode="single" selected={selectedDate} onSelect={(day) => { if(day) { setSelectedDate(day); } }} initialFocus />
+                              </PopoverContent>
+                          </Popover>
+                          <Button variant="outline" size="icon" onClick={handleNextDate} className="h-11 w-11 shrink-0 shadow-sm rounded-xl"><ChevronRight className="h-5 w-5" /></Button>
+                      </div>
+                  )}
+
+                  {/* 4. Results heading */}
+                  <div className="px-2">
+                      <h2 className="text-xl font-bold tracking-tight text-foreground/90 leading-tight">
+                          {favoritesOnly ? 'Favorite Tasks' : `${filteredTasks.length} Results`}
+                      </h2>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mt-0.5 whitespace-nowrap">
+                          {favoritesOnly 
+                              ? `Showing ${filteredTasks.length} favorited items.` 
+                              : (dateView === 'all' ? 'Based on active filters.' : dateView === 'monthly' ? `Start date in ${format(selectedDate, 'MMM yyyy')}` : `Start date in ${format(selectedDate, 'yyyy')}`)}
+                      </p>
+                  </div>
+
+                  {/* 5. Sort & View toggles row */}
+                  <div className="flex items-center gap-2 w-full px-1 overflow-x-auto no-scrollbar pb-1">
+                      <Select value={sortDescriptor} onValueChange={handleSortChange}>
+                          <SelectTrigger className="flex-1 min-w-[140px] h-11 font-bold rounded-xl shadow-sm"><SelectValue placeholder="Sort by" /></SelectTrigger>
+                          <SelectContent>
+                              <SelectItem value="status-asc" className="font-bold">Status (Asc)</SelectItem>
+                              <SelectItem value="status-desc" className="font-bold">Status (Desc)</SelectItem>
+                              <SelectItem value="title-asc" className="font-bold">Title (A-Z)</SelectItem>
+                              <SelectItem value="title-desc" className="font-bold">Title (Z-A)</SelectItem>
+                          </SelectContent>
+                      </Select>
+
+                      <div className="flex h-11 items-center justify-center rounded-xl bg-muted/50 p-1 border shadow-sm shrink-0">
+                          <button
+                              onClick={() => handleDateViewChange('all')}
+                              className={cn(
+                                  "inline-flex items-center justify-center h-9 px-4 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                                  dateView === 'all' ? "bg-background text-primary shadow-sm" : "text-muted-foreground"
+                              )}
+                          >
+                              All
+                          </button>
+                          <button
+                              onClick={() => handleDateViewChange('monthly')}
+                              className={cn(
+                                  "inline-flex items-center justify-center h-9 px-4 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                                  dateView === 'monthly' ? "bg-background text-primary shadow-sm" : "text-muted-foreground"
+                              )}
+                          >
+                              Monthly
+                          </button>
+                      </div>
+                  </div>
+
+                  {/* 6. Favourites / Select Toggle row */}
                   <div className="flex items-center gap-2 px-1 w-full">
                       <Button 
                           variant={favoritesOnly ? 'secondary' : 'outline'} 
@@ -1134,144 +1241,13 @@ export default function Home() {
                       </Button>
                   </div>
 
-                  {/* 2. Select Multiple container (Actions Bar) */}
-                  {isSelectMode && (
-                    <div className="sticky top-[68px] z-30 mb-4 animate-in slide-in-from-top-2 duration-300">
-                      <Card className="border-primary/50 bg-background/90 backdrop-blur-sm shadow-lg overflow-hidden">
-                        <CardContent className="p-4 flex flex-col gap-4">
-                          <div className="flex items-center gap-3">
-                            <Checkbox 
-                              id="select-all-tasks-mobile" 
-                              checked={filteredTasks.length > 0 && selectedTaskIds.length === filteredTasks.length} 
-                              onCheckedChange={handleToggleSelectAll}
-                              className="h-5 w-5"
-                            />
-                            <Label htmlFor="select-all-tasks-mobile" className="text-sm font-semibold whitespace-nowrap cursor-pointer text-foreground">
-                              {selectedTaskIds.length > 0 ? `${selectedTaskIds.length} Selected` : `Select All`}
-                            </Label>
-                          </div>
-
-                          <div className={cn(
-                              'grid grid-cols-2 gap-2 transition-opacity duration-300', 
-                              selectedTaskIds.length > 0 ? 'opacity-100' : 'opacity-40 pointer-events-none'
-                          )}>
-                            <Button variant="outline" size="sm" onClick={() => setIsTagsDialogOpen(true)} className="font-medium h-10 px-3">
-                              <Tag className="mr-2 h-4 w-4" /> Tags
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={handleBulkCopyText} className="font-medium h-10 px-3">
-                              <Copy className="mr-2 h-4 w-4" /> Copy
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={handleBulkExportPdf} className="font-medium h-10 px-3">
-                              <Download className="mr-2 h-4 w-4" /> PDF
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                  <Button variant="destructive" size="sm" className="font-semibold h-10 px-3">
-                                      <Trash2 className="mr-2 h-4 w-4" /> Delete
-                                  </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle className="font-semibold">Move to Bin?</AlertDialogTitle>
-                                  <AlertDialogDescription className="font-normal text-sm leading-relaxed">
-                                      You are about to move {selectedTaskIds.length} task(s) to the bin. You can restore them for up to 30 days.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter className="gap-2 pt-4">
-                                  <AlertDialogCancel className="font-medium rounded-lg">Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90 font-bold rounded-lg px-6">
-                                      Delete Tasks
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  )}
-
-                  {/* 3. Search Input Field */}
+                  {/* 7. Search Input Field */}
                   <div className="px-1 animate-in fade-in slide-in-from-top-2 duration-500">
                       {searchInputContent}
                   </div>
-
-                  {/* 4. Filters Toggle Button */}
-                  <Button 
-                    variant="secondary" 
-                    className="w-full flex items-center justify-between h-12 px-4 font-medium shadow-sm border"
-                    onClick={() => setIsFiltersOpen(!isFiltersOpen)}
-                  >
-                    <span className="flex items-center gap-2">
-                        <Filter className="h-4 w-4" />
-                        Filters
-                        {(statusFilter.length > 0 || repoFilter.length > 0 || deploymentFilter.length > 0 || tagsFilter.length > 0) && (
-                            <Badge className="bg-primary text-primary-foreground h-5 px-1.5 min-w-5 font-medium">
-                                {statusFilter.length + repoFilter.length + deploymentFilter.length + tagsFilter.length}
-                            </Badge>
-                        )}
-                    </span>
-                    <ChevronDown className={cn("h-4 w-4 transition-transform duration-300", isFiltersOpen && "rotate-180")} />
-                  </Button>
               </div>
 
-              {/* DESKTOP SELECTION BAR - BELOW HEADER */}
-              {isSelectMode && (
-                <div className="hidden md:block sticky top-[68px] z-30 mb-4 animate-in slide-in-from-top-2 duration-300">
-                  <Card className="border-primary/50 bg-background/90 backdrop-blur-sm shadow-lg overflow-hidden">
-                    <CardContent className="p-4 flex flex-col md:flex-row md:items-center gap-4">
-                      <div className="flex items-center gap-3">
-                        <Checkbox 
-                          id="select-all-tasks" 
-                          checked={filteredTasks.length > 0 && selectedTaskIds.length === filteredTasks.length} 
-                          onCheckedChange={handleToggleSelectAll}
-                          className="h-5 w-5"
-                        />
-                        <Label htmlFor="select-all-tasks" className="text-sm font-semibold whitespace-nowrap cursor-pointer text-foreground">
-                          {selectedTaskIds.length > 0 ? `${selectedTaskIds.length} Selected` : `Select All`}
-                        </Label>
-                      </div>
-
-                      <div className={cn(
-                          'grid grid-cols-2 md:flex md:flex-row md:items-center items-stretch justify-center md:justify-end gap-2 w-full md:auto transition-opacity duration-300 md:ml-auto', 
-                          selectedTaskIds.length > 0 ? 'opacity-100' : 'opacity-40 pointer-events-none'
-                      )}>
-                        <Button variant="outline" size="sm" onClick={() => setIsTagsDialogOpen(true)} className="font-medium h-10 px-3">
-                          <Tag className="mr-2 h-4 w-4" /> Tags
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={handleBulkCopyText} className="font-medium h-10 px-3">
-                          <Copy className="mr-2 h-4 w-4" /> Copy
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={handleBulkExportPdf} className="font-medium h-10 px-3">
-                          <Download className="mr-2 h-4 w-4" /> PDF
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                              <Button variant="destructive" size="sm" className="font-semibold h-10 px-3">
-                                  <Trash2 className="mr-2 h-4 w-4" /> Delete
-                              </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle className="font-semibold">Move to Bin?</AlertDialogTitle>
-                              <AlertDialogDescription className="font-normal text-sm leading-relaxed">
-                                  You are about to move {selectedTaskIds.length} task(s) to the bin. You can restore them for up to 30 days.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter className="gap-2 pt-4">
-                              <AlertDialogCancel className="rounded-xl font-medium">Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90 font-bold rounded-lg px-6">
-                                  Delete Tasks
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
+              {/* DESKTOP FILTER BAR */}
               <div className={cn(
                   "transition-all duration-300 overflow-visible",
                   "md:block", 
@@ -1307,7 +1283,7 @@ export default function Home() {
                 <div className="flex flex-col md:flex-row md:flex-wrap lg:flex-nowrap md:items-center md:justify-between gap-4 md:gap-6">
                     <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-4 md:gap-6">
                         {(dateView === 'monthly' || dateView === 'yearly') && !favoritesOnly && (
-                            <div className="flex items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
+                            <div className="hidden md:flex items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
                                 <Button variant="outline" size="icon" onClick={handlePreviousDate} className="h-11 w-11 shrink-0 shadow-sm rounded-xl active:scale-95 transition-transform"><ChevronLeft className="h-5 w-5" /></Button>
                                 <Popover>
                                     <PopoverTrigger asChild>
@@ -1323,7 +1299,7 @@ export default function Home() {
                             </div>
                         )}
                         
-                        <div className="px-1 md:px-0">
+                        <div className="hidden md:block px-1 md:px-0">
                             <h2 className="text-xl font-bold tracking-tight text-foreground/90 leading-tight">
                                 {favoritesOnly ? 'Favorite Tasks' : `${filteredTasks.length} Results`}
                             </h2>
@@ -1347,7 +1323,7 @@ export default function Home() {
                                 </SelectContent>
                             </Select>
 
-                            <div className="flex h-11 items-center justify-center rounded-xl bg-muted/50 p-1 border shadow-sm shrink-0">
+                            <div className="hidden md:flex h-11 items-center justify-center rounded-xl bg-muted/50 p-1 border shadow-sm shrink-0">
                                 <button
                                     onClick={() => handleDateViewChange('all')}
                                     className={cn(
@@ -1409,6 +1385,101 @@ export default function Home() {
                         </div>
                     </div>
                 </div>
+
+                {/* SELECTION BAR - Positioned after control row for desktop/tablet, and within mobile tool stack */}
+                {isSelectMode && (
+                    <div className="animate-in slide-in-from-top-2 duration-300">
+                        <Card className="border-primary/50 bg-background/90 backdrop-blur-sm shadow-lg overflow-hidden">
+                            <CardContent className="p-4 flex flex-col gap-4">
+                                <div className="flex items-center gap-3">
+                                    <Checkbox 
+                                        id="select-all-tasks" 
+                                        checked={filteredTasks.length > 0 && selectedTaskIds.length === filteredTasks.length} 
+                                        onCheckedChange={handleToggleSelectAll}
+                                        className="h-5 w-5"
+                                    />
+                                    <Label htmlFor="select-all-tasks" className="text-sm font-semibold whitespace-nowrap cursor-pointer text-foreground">
+                                        {selectedTaskIds.length > 0 ? `${selectedTaskIds.length} Selected` : `Select All`}
+                                    </Label>
+                                    
+                                    {/* Desktop/Tablet Action buttons pulled to the right */}
+                                    <div className={cn(
+                                        'hidden md:flex md:flex-row md:items-center items-stretch justify-end gap-2 w-full transition-opacity duration-300 ml-auto', 
+                                        selectedTaskIds.length > 0 ? 'opacity-100' : 'opacity-40 pointer-events-none'
+                                    )}>
+                                        <Button variant="outline" size="sm" onClick={() => setIsTagsDialogOpen(true)} className="font-medium h-10 px-3">
+                                            <Tag className="mr-2 h-4 w-4" /> Tags
+                                        </Button>
+                                        <Button variant="outline" size="sm" onClick={handleBulkCopyText} className="font-medium h-10 px-3">
+                                            <Copy className="mr-2 h-4 w-4" /> Copy
+                                        </Button>
+                                        <Button variant="outline" size="sm" onClick={handleBulkExportPdf} className="font-medium h-10 px-3">
+                                            <Download className="mr-2 h-4 w-4" /> PDF
+                                        </Button>
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="destructive" size="sm" className="font-semibold h-10 px-3">
+                                                    <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle className="font-semibold">Move to Bin?</AlertDialogTitle>
+                                                    <AlertDialogDescription className="font-normal text-sm leading-relaxed">
+                                                        You are about to move {selectedTaskIds.length} task(s) to the bin. You can restore them for up to 30 days.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter className="gap-2 pt-4">
+                                                    <AlertDialogCancel className="font-medium rounded-lg">Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90 font-bold rounded-lg px-6">
+                                                        Delete Tasks
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    </div>
+                                </div>
+
+                                {/* Mobile Action buttons stacked below */}
+                                <div className={cn(
+                                    'grid grid-cols-2 gap-2 md:hidden transition-opacity duration-300', 
+                                    selectedTaskIds.length > 0 ? 'opacity-100' : 'opacity-40 pointer-events-none'
+                                )}>
+                                    <Button variant="outline" size="sm" onClick={() => setIsTagsDialogOpen(true)} className="font-medium h-10 px-3">
+                                        <Tag className="mr-2 h-4 w-4" /> Tags
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={handleBulkCopyText} className="font-medium h-10 px-3">
+                                        <Copy className="mr-2 h-4 w-4" /> Copy
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={handleBulkExportPdf} className="font-medium h-10 px-3">
+                                        <Download className="mr-2 h-4 w-4" /> PDF
+                                    </Button>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button variant="destructive" size="sm" className="font-semibold h-10 px-3">
+                                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle className="font-semibold">Move to Bin?</AlertDialogTitle>
+                                                <AlertDialogDescription className="font-normal text-sm leading-relaxed">
+                                                    You are about to move {selectedTaskIds.length} task(s) to the bin. You can restore them for up to 30 days.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter className="gap-2 pt-4">
+                                                <AlertDialogCancel className="font-medium rounded-lg">Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90 font-bold rounded-lg px-6">
+                                                    Delete Tasks
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
             </div>
             
             <div className="relative">
