@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
@@ -763,7 +762,7 @@ export default function ProfilePage() {
                 
                 {/* Deep Navigation Suggestions Dropdown */}
                 {isSearchFocused && isSearchActive && (
-                    <div className="absolute top-full left-6 right-6 mt-2 bg-popover border rounded-2xl shadow-2xl z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="absolute top-full left-6 right-6 mt-2 bg-popover border rounded-2xl shadow-2xl z-[150] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                         {filteredSearchItems.length > 0 ? (
                             filteredSearchItems.map(item => (
                                 <button
