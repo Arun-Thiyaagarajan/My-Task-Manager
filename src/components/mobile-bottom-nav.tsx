@@ -45,12 +45,12 @@ export function MobileBottomNav() {
     });
   };
 
-  const isNotesPage = pathname === '/notes';
+  const isNotesPage = pathname?.startsWith('/notes');
 
   const handleFabClick = () => {
     if (isNotesPage) {
-      // Trigger note creation event that Notes page listens to
-      window.dispatchEvent(new Event('open-note-editor'));
+      // Navigate to the separate note creation page on mobile
+      handleNavigate('/notes/new');
     } else {
       handleNavigate('/tasks/new');
     }

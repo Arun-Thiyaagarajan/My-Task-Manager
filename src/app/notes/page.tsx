@@ -39,6 +39,8 @@ import { FolderSearch } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useFirebase } from '@/firebase';
 import { NotesSkeleton } from '@/components/notes-skeleton';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { useRouter } from 'next/navigation';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -51,7 +53,9 @@ interface NoteSuggestion {
 }
 
 export default function NotesPage() {
+  const isMobile = useIsMobile();
   const { isUserLoading } = useFirebase();
+  const router = useRouter();
   const [notes, setNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
@@ -113,9 +117,14 @@ export default function NotesPage() {
   }, [executedSearchQuery, dateFilter]);
   
   const handleOpenNewNoteDialog = useCallback(() => {
-    setNoteToEdit(null);
-    setIsEditorOpen(true);
-  }, []);
+    if (isMobile) {
+        window.dispatchEvent(new Event('navigation-start'));
+        router.push('/notes/new');
+    } else {
+        setNoteToEdit(null);
+        setIsEditorOpen(true);
+    }
+  }, [isMobile, router]);
   
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -234,8 +243,13 @@ export default function NotesPage() {
 
   const handleEditFromViewer = () => {
     setIsViewerOpen(false);
-    setNoteToEdit(noteToView);
-    setIsEditorOpen(true);
+    if (isMobile) {
+        window.dispatchEvent(new Event('navigation-start'));
+        router.push(`/notes/${noteToView?.id}/edit`);
+    } else {
+        setNoteToEdit(noteToView);
+        setIsEditorOpen(true);
+    }
   };
 
   const handleDeleteFromViewer = () => {
@@ -508,7 +522,7 @@ export default function NotesPage() {
       </div>
       
        <div className="space-y-4 mb-8">
-            {/* HIDDEN ON MOBILE: The 'Take a note' button is replaced by the context-aware navbar '+' button */}
+            {/* HIDDEN ON MOBILE: Notes page actions are in the bottom navbar */}
             <button
                 onClick={handleOpenNewNoteDialog}
                 className="hidden lg:flex w-full text-left p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors text-muted-foreground shadow-sm justify-between items-center h-11"
@@ -520,17 +534,17 @@ export default function NotesPage() {
             </button>
 
             <div className="lg:hidden grid grid-cols-2 gap-2 mb-4">
-                <Button variant="outline" className="font-medium h-11" onClick={handleExportNotes}><Upload className="mr-2 h-4 w-4"/>Export</Button>
-                <Button variant="outline" className="font-medium h-11" onClick={() => fileInputRef.current?.click()}><Download className="mr-2 h-4 w-4"/>Import</Button>
+                <Button variant="outline" className="font-medium h-11 rounded-xl" onClick={handleExportNotes}><Upload className="mr-2 h-4 w-4"/>Export</Button>
+                <Button variant="outline" className="font-medium h-11 rounded-xl" onClick={() => fileInputRef.current?.click()}><Download className="mr-2 h-4 w-4"/>Import</Button>
                 <Button
                     variant={isSelectMode ? 'secondary' : 'outline'}
-                    className="font-medium h-11"
+                    className="font-medium h-11 rounded-xl"
                     onClick={handleToggleSelectMode}
                 >
                   {isSelectMode ? <X className="h-4 w-4 mr-2" /> : <CheckSquare className="h-4 w-4 mr-2" />}
                   {isSelectMode ? 'Cancel' : 'Select'}
                 </Button>
-                <Button variant="outline" className="font-medium h-11" onClick={handleResetLayout}>
+                <Button variant="outline" className="font-medium h-11 rounded-xl" onClick={handleResetLayout}>
                     <LayoutGrid className="mr-2 h-4 w-4"/>
                     Reset
                 </Button>
@@ -538,7 +552,7 @@ export default function NotesPage() {
 
             <Button 
                 variant="secondary" 
-                className="w-full flex lg:hidden items-center justify-between h-12 px-4 font-medium shadow-sm border"
+                className="w-full flex lg:hidden items-center justify-between h-12 px-4 font-medium shadow-sm border rounded-xl"
                 onClick={() => setIsFiltersOpen(!isFiltersOpen)}
             >
                 <span className="flex items-center gap-2">
@@ -558,7 +572,7 @@ export default function NotesPage() {
                   "lg:block", 
                   isFiltersOpen ? "block opacity-100 max-h-[500px]" : "hidden lg:opacity-100 lg:max-h-none opacity-0 max-h-0"
               )}>
-                <Card className="border shadow-lg lg:shadow-none bg-card lg:bg-transparent lg:border-none overflow-visible">
+                <Card className="border shadow-lg lg:shadow-none bg-card lg:bg-transparent lg:border-none overflow-visible rounded-3xl lg:rounded-none">
                     <CardContent className="p-4 lg:p-3 overflow-visible">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="relative flex flex-col w-full">
@@ -571,7 +585,7 @@ export default function NotesPage() {
                                         onFocus={() => setIsSearchFocused(true)}
                                         onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
                                         onKeyDown={handleSearchKeyDown}
-                                        className="w-full pl-10 h-11 font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40"
+                                        className="w-full pl-10 h-11 font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40 rounded-xl"
                                     />
                                     <div className="absolute right-1 flex items-center h-full gap-1">
                                         {searchQuery && (
@@ -643,7 +657,7 @@ export default function NotesPage() {
                                     <Button
                                         variant={"outline"}
                                         className={cn(
-                                            "justify-start text-left h-11 font-normal",
+                                            "justify-start text-left h-11 font-normal rounded-xl",
                                             !dateFilter && "text-muted-foreground"
                                         )}
                                     >
@@ -661,14 +675,14 @@ export default function NotesPage() {
                                         )}
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
+                                <PopoverContent className="w-auto p-0 rounded-3xl" align="start">
                                     <Calendar
                                         initialFocus
                                         mode="range"
                                         defaultMonth={dateFilter?.from}
                                         selected={dateFilter}
                                         onSelect={setDateFilter}
-                                        numberOfMonths={2}
+                                        numberOfMonths={isMobile ? 1 : 2}
                                     />
                                 </PopoverContent>
                             </Popover>
@@ -695,7 +709,7 @@ export default function NotesPage() {
 
       {isSelectMode && (
           <div className="sticky top-[68px] z-30 mb-4">
-            <Card className="border-primary/50 bg-background/90 backdrop-blur-sm shadow-lg">
+            <Card className="border-primary/50 bg-background/90 backdrop-blur-sm shadow-lg rounded-2xl">
               <CardContent className="p-3 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
                   <Checkbox
@@ -726,11 +740,11 @@ export default function NotesPage() {
                 </div>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm" disabled={selectedNoteIds.length === 0} className="font-semibold">
+                    <Button variant="destructive" size="sm" disabled={selectedNoteIds.length === 0} className="font-semibold rounded-xl px-6">
                       <Trash2 className="mr-2 h-4 w-4" /> Move to Bin
                     </Button>
                   </AlertDialogTrigger>
-                  <AlertDialogContent>
+                  <AlertDialogContent className="rounded-3xl">
                     <AlertDialogHeader>
                       <AlertDialogTitle className="font-semibold">Move to Bin?</AlertDialogTitle>
                       <AlertDialogDescription className="font-normal">
@@ -740,10 +754,10 @@ export default function NotesPage() {
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel className="font-medium">Cancel</AlertDialogCancel>
+                      <AlertDialogCancel className="font-medium rounded-xl">Cancel</AlertDialogCancel>
                       <AlertDialogAction
                         onClick={handleBulkDelete}
-                        className="bg-destructive hover:bg-destructive/90 font-semibold"
+                        className="bg-destructive hover:bg-destructive/90 font-semibold rounded-xl px-6"
                       >
                         Move to Bin
                       </AlertDialogAction>
@@ -757,7 +771,7 @@ export default function NotesPage() {
       
       <div className="pb-8">
         {filteredNotes.length === 0 ? (
-          <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg mt-8">
+          <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-[2.5rem] mt-8 bg-muted/5">
               <FolderSearch className="h-16 w-16 mb-4 text-muted-foreground/50 mx-auto"/>
               <p className="text-lg font-semibold">{notes.length > 0 ? 'No notes match your filters.' : 'No notes yet.'}</p>
               <p className="mt-1 font-normal">{notes.length > 0 ? 'Try adjusting your search or date filters.' : 'Use the add button below to create your first note.'}</p>
