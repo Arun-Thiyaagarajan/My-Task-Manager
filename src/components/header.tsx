@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -354,6 +353,12 @@ export function Header() {
               </DropdownMenu>
             )}
             
+            {/* Recent Activity Shortcut (Mobile Only) */}
+            <HeaderLink href="/insights" className="md:hidden h-9 w-9 rounded-full flex items-center justify-center hover:bg-muted transition-colors">
+                <Sparkles className="h-5 w-5 text-muted-foreground" />
+                <span className="sr-only">Recent Activity</span>
+            </HeaderLink>
+
             <Button variant="ghost" size="icon" onClick={handleRemindersClick} className="relative h-9 w-9 rounded-full group">
                 <Bell className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
                 {generalRemindersCount > 0 && (
