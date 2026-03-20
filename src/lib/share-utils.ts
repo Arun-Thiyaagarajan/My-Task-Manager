@@ -141,8 +141,20 @@ const _drawTaskOnPage = async (
     const drawHeader = () => {
         doc.setFontSize(8);
         doc.setTextColor(...COLORS.TEXT_MUTED);
-        doc.setFont('helvetica', 'normal');
-        doc.text(uiConfig.appName || 'TaskFlow Workspace', PADDING, PADDING);
+        doc.setFont('helvetica', 'bold');
+        
+        let textX = PADDING;
+        const iconSize = 8;
+        if (uiConfig.appIcon && isDataURI(uiConfig.appIcon)) {
+            try {
+                const imageProps = doc.getImageProperties(uiConfig.appIcon);
+                // Position icon aligned with PADDING top
+                doc.addImage(uiConfig.appIcon, imageProps.fileType, PADDING, PADDING - 4, iconSize, iconSize);
+                textX += iconSize + 3;
+            } catch (e) {}
+        }
+        
+        doc.text(uiConfig.appName || 'TaskFlow Workspace', textX, PADDING, { baseline: 'middle' });
     };
 
     const drawFooter = () => {
@@ -150,20 +162,10 @@ const _drawTaskOnPage = async (
         doc.setDrawColor(...COLORS.CARD_BORDER);
         doc.line(PADDING, footerY - 8, PAGE_WIDTH - PADDING, footerY - 8);
 
-        const iconSize = 6;
-        let textX = PADDING;
-        if (uiConfig.appIcon && isDataURI(uiConfig.appIcon)) {
-            try {
-                const imageProps = doc.getImageProperties(uiConfig.appIcon);
-                doc.addImage(uiConfig.appIcon, imageProps.fileType, PADDING, footerY - 5, iconSize, iconSize);
-                textX += iconSize + 2;
-            } catch (e) {}
-        }
-
         doc.setFontSize(8);
-        doc.setFont('helvetica', 'bold');
+        doc.setFont('helvetica', 'normal');
         doc.setTextColor(...COLORS.TEXT_MUTED);
-        doc.text(uiConfig.appName || 'TaskFlow', textX, footerY, { baseline: 'middle' });
+        doc.text(`Generated on ${format(new Date(), 'PPP')}`, PADDING, footerY, { baseline: 'middle' });
 
         doc.setFont('helvetica', 'normal');
         doc.text(task.title, PAGE_WIDTH - PADDING, footerY, { align: 'right', baseline: 'middle' });
@@ -201,7 +203,7 @@ const _drawTaskOnPage = async (
         const titleLines = doc.splitTextToSize(text, MAX_CONTENT_WIDTH - 40);
         const titleHeight = titleLines.length * (LINE_HEIGHT_NORMAL * 1.2);
         
-        y = PADDING + 12;
+        y = PADDING + 15;
         doc.setTextColor(...COLORS.TEXT_PRIMARY);
         doc.text(titleLines, PADDING, y, { baseline: 'top' });
 
@@ -347,9 +349,30 @@ const _drawTaskOnPage = async (
 
     if (task.attachments && task.attachments.length > 0) {
         drawSectionHeader(fieldLabels.get('attachments') || 'Attachments');
-        task.attachments.forEach(att => {
-            drawKeyValue(att.name, { text: att.url, link: att.url });
-        });
+        for (const att of task.attachments) {
+            if (att.type === 'image' && isDataURI(att.url)) {
+                try {
+                    const props = doc.getImageProperties(att.url);
+                    const ratio = props.height / props.width;
+                    const displayWidth = Math.min(MAX_CONTENT_WIDTH, 120); 
+                    const displayHeight = displayWidth * ratio;
+                    
+                    checkPageBreak(displayHeight + 12);
+                    doc.setFont('helvetica', 'italic');
+                    doc.setFontSize(8);
+                    doc.setTextColor(...COLORS.TEXT_MUTED);
+                    doc.text(`Image: ${att.name}`, PADDING, y);
+                    y += 4;
+                    
+                    doc.addImage(att.url, props.fileType, PADDING, y, displayWidth, displayHeight);
+                    y += displayHeight + 8;
+                } catch (e) {
+                    drawKeyValue(att.name, { text: att.url, link: att.url });
+                }
+            } else {
+                drawKeyValue(att.name, { text: att.url, link: att.url });
+            }
+        }
     }
 
     if (customFields.length > 0) {
@@ -378,7 +401,8 @@ export const generateTaskPdf = async (
     developers: Person[], 
     testers: Person[], 
     outputType: 'save' | 'blob' = 'save',
-    filename?: string
+    filename?: string,
+    onProgress?: (progress: number) => void
 ): Promise<Blob | void> => {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const tasksArray = Array.isArray(tasks) ? tasks : [tasks];
@@ -389,6 +413,11 @@ export const generateTaskPdf = async (
             doc.addPage();
         }
         await _drawTaskOnPage(doc, task, uiConfig, developers, testers);
+        if (onProgress) {
+            onProgress(Math.round(((i + 1) / tasksArray.length) * 100));
+        }
+        // Yield to main thread to prevent blocking
+        await new Promise(resolve => setTimeout(resolve, 0));
     }
     
     const sanitizeFilename = (name: string): string => {
@@ -399,7 +428,7 @@ export const generateTaskPdf = async (
     if (!finalFilename) {
         finalFilename = tasksArray.length === 1 
             ? `TF_Export_${sanitizeFilename(tasksArray[0].title)}.pdf`
-            : 'TaskFlow_Workspace_Export.pdf';
+            : 'TaskFlow_Bulk_Export.pdf';
     }
     
     if (outputType === 'blob') {

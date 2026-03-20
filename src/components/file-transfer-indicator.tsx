@@ -1,14 +1,13 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { Progress } from '@/components/ui/progress';
 import { Card } from '@/components/ui/card';
-import { Loader2, X, CheckCircle2, AlertCircle, FileUp, FileDown } from 'lucide-react';
+import { Loader2, X, CheckCircle2, AlertCircle, FileUp, FileDown, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from './ui/button';
 
-export type TransferStatus = 'idle' | 'preparing' | 'uploading' | 'downloading' | 'complete' | 'error';
+export type TransferStatus = 'idle' | 'preparing' | 'uploading' | 'downloading' | 'complete' | 'error' | 'generating';
 
 export interface TransferEvent {
     id: string;
@@ -49,7 +48,7 @@ export function FileTransferIndicator() {
     if (transfers.length === 0) return null;
 
     return (
-        <div className="fixed bottom-24 right-6 md:right-12 z-[150] flex flex-col gap-3 max-w-xs w-full pointer-events-none">
+        <div className="fixed bottom-24 md:bottom-6 right-6 md:right-12 z-[150] flex flex-col gap-3 max-w-xs w-full pointer-events-none">
             {transfers.map(transfer => (
                 <Card 
                     key={transfer.id} 
@@ -61,13 +60,14 @@ export function FileTransferIndicator() {
                     <div className="flex items-start gap-3">
                         <div className={cn(
                             "h-10 w-10 rounded-xl flex items-center justify-center shrink-0",
-                            transfer.status === 'uploading' ? "bg-primary/10 text-primary" : 
+                            (transfer.status === 'uploading' || transfer.status === 'generating') ? "bg-primary/10 text-primary" : 
                             transfer.status === 'downloading' ? "bg-blue-500/10 text-blue-600" :
                             transfer.status === 'complete' ? "bg-green-500/10 text-green-600" :
                             "bg-destructive/10 text-destructive"
                         )}>
                             {transfer.status === 'uploading' && <FileUp className="h-5 w-5 animate-bounce" />}
                             {transfer.status === 'downloading' && <FileDown className="h-5 w-5 animate-bounce" />}
+                            {transfer.status === 'generating' && <FileText className="h-5 w-5 animate-pulse" />}
                             {transfer.status === 'complete' && <CheckCircle2 className="h-5 w-5" />}
                             {transfer.status === 'error' && <AlertCircle className="h-5 w-5" />}
                             {transfer.status === 'preparing' && <Loader2 className="h-5 w-5 animate-spin" />}
@@ -90,11 +90,12 @@ export function FileTransferIndicator() {
                                 {transfer.status === 'preparing' ? 'Preparing...' : 
                                  transfer.status === 'uploading' ? `Sending (${transfer.progress}%)` :
                                  transfer.status === 'downloading' ? `Receiving (${transfer.progress}%)` :
-                                 transfer.status === 'complete' ? 'Transfer Complete' : 
+                                 transfer.status === 'generating' ? `Generating PDF (${transfer.progress}%)` :
+                                 transfer.status === 'complete' ? 'Export Complete' : 
                                  transfer.error || 'Failed'}
                             </p>
 
-                            {(transfer.status === 'uploading' || transfer.status === 'downloading') && (
+                            {(transfer.status === 'uploading' || transfer.status === 'downloading' || transfer.status === 'generating') && (
                                 <Progress value={transfer.progress} className="h-1.5" />
                             )}
                         </div>

@@ -109,6 +109,7 @@ import { MultiSelect, type SelectOption } from '@/components/ui/multi-select';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useFirebase } from '@/firebase';
+import { triggerTransfer } from '@/components/file-transfer-indicator';
 
 type ViewMode = 'grid' | 'table';
 type DateView = 'all' | 'monthly' | 'yearly';
@@ -140,7 +141,6 @@ export default function Home() {
   const [generalReminders, setGeneralReminders] = useState<GeneralReminder[]>([]);
   
   const [isLoading, setIsLoading] = useState(true);
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [currentAuthMode, setCurrentAuthMode] = useState<AuthMode>('localStorage');
@@ -743,7 +743,7 @@ export default function Home() {
             window.dispatchEvent(new Event('sync-end'));
         }
     };
-    reader.readAsText(file);
+    reader.readAsDataURL(file);
   };
   
   const handleBulkDelete = useCallback(() => {
@@ -799,14 +799,25 @@ export default function Home() {
   const handleBulkExportPdf = useCallback(async () => {
     if (!uiConfig) return;
     const selectedTasks = tasks.filter(t => selectedTaskIds.includes(t.id));
-    setIsGeneratingPdf(true);
+    const transferId = `pdf-${Date.now()}`;
+    const filename = selectedTasks.length === 1 ? `TF_${selectedTasks[0].title}.pdf` : `TF_Bulk_Export_${selectedTasks.length}_Tasks.pdf`;
+    
+    triggerTransfer({
+        id: transferId,
+        filename,
+        status: 'generating',
+        progress: 0
+    });
+
     try {
-        await generateTaskPdf(selectedTasks, uiConfig, developers, testers, 'save');
-        toast({ variant: 'success', title: 'PDF Exported', description: `Successfully exported ${selectedTasks.length} tasks.` });
+        await generateTaskPdf(selectedTasks, uiConfig, developers, testers, 'save', filename, (p) => {
+            triggerTransfer({ id: transferId, filename, status: 'generating', progress: p });
+        });
+        triggerTransfer({ id: transferId, filename, status: 'complete', progress: 100 });
+        toast({ variant: 'success', title: 'PDF Exported', description: `Download for ${selectedTasks.length} task(s) is ready.` });
     } catch (e) {
+        triggerTransfer({ id: transferId, filename, status: 'error', progress: 0, error: 'Export failed' });
         toast({ variant: 'destructive', title: 'PDF Generation Failed', description: 'There was an error generating your document.' });
-    } finally {
-        setIsGeneratingPdf(false);
     }
   }, [selectedTaskIds, tasks, uiConfig, developers, testers, toast]);
 
@@ -1125,7 +1136,7 @@ export default function Home() {
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      {(isImporting || isGeneratingPdf) && (
+      {isImporting && (
           <div className="fixed inset-0 z-[200] bg-background/95 backdrop-blur-md flex items-center justify-center p-6 text-center">
               <Card className="w-full max-w-md shadow-2xl border-primary/20">
                   <CardContent className="pt-8 pb-10 flex flex-col items-center gap-6">
@@ -1134,9 +1145,9 @@ export default function Home() {
                         {isImporting && <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold uppercase">{importProgress}%</span>}
                       </div>
                       <div className="space-y-2">
-                        <h2 className="text-xl font-semibold tracking-tight">{isImporting ? 'Importing Data' : 'Generating PDF'}</h2>
+                        <h2 className="text-xl font-semibold tracking-tight">Importing Data</h2>
                         <p className="text-muted-foreground text-sm max-w-xs mx-auto font-normal">
-                            {isImporting ? 'Your data is being synced to the cloud. This may take a few minutes.' : 'Please wait while we prepare your document for download.'}
+                            Your data is being synced to the cloud. This may take a few minutes.
                         </p>
                       </div>
                       {isImporting && (
@@ -1204,7 +1215,7 @@ export default function Home() {
             <div className="hidden md:flex items-center gap-2">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" disabled={isImporting || isGeneratingPdf} className="w-full sm:w-auto h-11 font-medium">
+                    <Button variant="outline" size="sm" disabled={isImporting} className="w-full sm:w-auto h-11 font-medium">
                         <Download className="mr-2 h-4 w-4" />
                         Export
                     </Button>
@@ -1216,13 +1227,13 @@ export default function Home() {
                     </DropdownMenuContent>
                 </DropdownMenu>
 
-                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isImporting || isGeneratingPdf} className="w-full sm:w-auto h-11 font-medium">
+                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isImporting} className="w-full sm:w-auto h-11 font-medium">
                     <Upload className="mr-2 h-4 w-4" />
                     Import
                 </Button>
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />
                 
-                <Button onClick={handleNavigateNewTask} id="new-task-btn" disabled={isImporting || isGeneratingPdf} className="w-full sm:w-auto h-11 shadow-lg font-medium active:scale-95 transition-transform">
+                <Button onClick={handleNavigateNewTask} id="new-task-btn" disabled={isImporting} className="w-full sm:w-auto h-11 shadow-lg font-medium active:scale-95 transition-transform">
                     <Plus className="mr-2 h-5 w-5" /> New Task
                 </Button>
             </div>

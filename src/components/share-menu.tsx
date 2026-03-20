@@ -30,6 +30,7 @@ import type { Task, UiConfig, Person, Attachment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { addLog } from '@/lib/data';
 import LZString from 'lz-string';
+import { triggerTransfer } from './file-transfer-indicator';
 
 const sanitizeFilename = (name: string): string => {
     return name.replace(/[<>:"/\\|?*]+/g, '_').substring(0, 100);
@@ -47,22 +48,16 @@ interface ShareMenuProps {
 
 export function ShareMenu({ task, uiConfig, developers, testers, attachment, children, asSubmenu = false }: ShareMenuProps) {
   const { toast } = useToast();
-  const [isGenerating, setIsGenerating] = React.useState(false);
   const [copiedUrl, setCopiedUrl] = React.useState<string | null>(null);
+  const [isExporting, setIsExporting] = React.useState(false);
 
-  /**
-   * Generates a self-sufficient share URL by encoding a compressed snapshot of the task data
-   * into the URL query parameters. Uses LZ compression to keep links short.
-   */
   const getShareUrl = () => {
     if (typeof window === 'undefined') return '';
     const baseUrl = `${window.location.origin}/share/${task.id}`;
     
-    // Resolve person IDs to names for the snapshot
     const devMap = new Map(developers.map(d => [d.id, d.name]));
     const testerMap = new Map(testers.map(t => [t.id, t.name]));
 
-    // SYSTEM DEFAULTS: We don't need to send these labels in the URL if they haven't changed
     const defaultLabels: Record<string, string> = {
         developers: 'Developers',
         testers: 'Testers',
@@ -84,7 +79,6 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
         customFields: 'Other Details'
     };
 
-    // Only include metadata for custom fields or standard fields that have been renamed or have URLs
     const usedCustomKeys = Object.keys(task.customFields || {});
     const fieldMetadata: Record<string, { l: string, t: string, u?: string }> = {};
     uiConfig.fields.forEach(f => {
@@ -92,7 +86,6 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
         const isRenamed = defaultLabels[f.key] && defaultLabels[f.key] !== f.label;
         const hasBaseUrl = !!f.baseUrl;
         
-        // We send metadata if it's custom, renamed, or has a specific URL pattern
         if (isCustom || isRenamed || hasBaseUrl) {
             const isUsed = isCustom ? usedCustomKeys.includes(f.key) : !!(task as any)[f.key];
             if (isUsed || f.key === 'status') {
@@ -105,14 +98,12 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
         }
     });
 
-    // Prune deployment data to remove false/null values
     const prunedStatus: Record<string, boolean> = {};
     Object.entries(task.deploymentStatus || {}).forEach(([k, v]) => { if (v) prunedStatus[k] = v; });
     
     const prunedDates: Record<string, string> = {};
     Object.entries(task.deploymentDates || {}).forEach(([k, v]) => { if (v) prunedDates[k] = v as string; });
 
-    // Create a comprehensive snapshot for the URL payload
     const snapshot = {
         t: task.title,
         d: task.description,
@@ -123,7 +114,6 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
         e: task.relevantEnvironments?.length ? task.relevantEnvironments : undefined,
         st: Object.keys(prunedStatus).length ? prunedStatus : undefined,
         dt: Object.keys(prunedDates).length ? prunedDates : undefined,
-        // Include links only, skip data URIs to keep URL short
         at: (task.attachments || [])
             .filter(a => !a.url.startsWith('data:'))
             .map(a => ({ n: a.name, u: a.url, t: a.type })),
@@ -143,7 +133,6 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
 
     try {
         const json = JSON.stringify(snapshot);
-        // Use LZString for high-ratio compression specifically for URLs
         const compressed = LZString.compressToEncodedURIComponent(json);
         return `${baseUrl}?p=${compressed}`;
     } catch (e) {
@@ -201,15 +190,31 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
   };
 
   const handleExportPdf = async () => {
-    setIsGenerating(true);
+    if (isExporting) return;
+    setIsExporting(true);
+    
+    const transferId = `pdf-${Date.now()}`;
+    const filename = `Task_${sanitizeFilename(task.title)}.pdf`;
+    
+    triggerTransfer({
+        id: transferId,
+        filename,
+        status: 'generating',
+        progress: 0
+    });
+
     try {
-        await generateTaskPdf([task], uiConfig, developers, testers, 'save');
+        await generateTaskPdf([task], uiConfig, developers, testers, 'save', filename, (p) => {
+            triggerTransfer({ id: transferId, filename, status: 'generating', progress: p });
+        });
+        triggerTransfer({ id: transferId, filename, status: 'complete', progress: 100 });
         toast({ variant: 'success', title: 'PDF Exported' });
         addLog({ message: `Exported task "**${task.title}**" as PDF.`, taskId: task.id });
     } catch (e) {
-        toast({ variant: 'destructive', title: 'PDF export failed' });
+        triggerTransfer({ id: transferId, filename, status: 'error', progress: 0, error: 'Export failed' });
+        toast({ variant: 'destructive', title: 'PDF generation failed' });
     } finally {
-        setIsGenerating(false);
+        setIsExporting(false);
     }
   };
 
@@ -227,8 +232,8 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
       
       <DropdownMenuSeparator />
       <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-primary/60 px-2 py-1.5">Document Export</DropdownMenuLabel>
-      <DropdownMenuItem onSelect={handleExportPdf} disabled={isGenerating}>
-          {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
+      <DropdownMenuItem onSelect={handleExportPdf} disabled={isExporting}>
+          {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
           <span>Download PDF</span>
       </DropdownMenuItem>
       <DropdownMenuItem onSelect={handleExportJson}>
