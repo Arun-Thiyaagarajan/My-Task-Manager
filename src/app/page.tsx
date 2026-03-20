@@ -1271,12 +1271,6 @@ export default function Home() {
                     </div>
                 </div>
 
-                <div className="md:hidden px-1 animate-in fade-in slide-in-from-top-2 duration-500">
-                    {searchInputContent}
-                </div>
-            </div>
-            
-            <div className="relative">
                 {isSelectMode && (
                   <div className="sticky top-[68px] z-30 mb-4 animate-in slide-in-from-top-2 duration-300">
                     <Card className="border-primary/50 bg-background/90 backdrop-blur-sm shadow-lg overflow-hidden">
@@ -1333,6 +1327,12 @@ export default function Home() {
                   </div>
                 )}
 
+                <div className="md:hidden px-1 animate-in fade-in slide-in-from-top-2 duration-500">
+                    {searchInputContent}
+                </div>
+            </div>
+            
+            <div className="relative">
                 <div className={cn(
                     "transition-all duration-500",
                     isSearching && showSlowSearchMessage ? "opacity-40 grayscale-[0.5] blur-[0.5px]" : "opacity-100"
