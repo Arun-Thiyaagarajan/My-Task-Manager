@@ -237,8 +237,13 @@ export default function NotesPage() {
   }, [notes, executedSearchQuery, dateFilter]);
 
   const handleCardClick = (note: Note) => {
-    setNoteToView(note);
-    setIsViewerOpen(true);
+    if (isMobile) {
+        window.dispatchEvent(new Event('navigation-start'));
+        router.push(`/notes/${note.id}`);
+    } else {
+        setNoteToView(note);
+        setIsViewerOpen(true);
+    }
   };
 
   const handleEditFromViewer = () => {
