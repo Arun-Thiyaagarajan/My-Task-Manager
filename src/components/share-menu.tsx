@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -59,7 +58,11 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
     if (typeof window === 'undefined') return '';
     const baseUrl = `${window.location.origin}/share/${task.id}`;
     
-    // Create a lean snapshot for the URL payload
+    // Resolve person IDs to names for the snapshot
+    const devMap = new Map(developers.map(d => [d.id, d.name]));
+    const testerMap = new Map(testers.map(t => [t.id, t.name]));
+
+    // Create a comprehensive snapshot for the URL payload
     const snapshot = {
         t: task.title,
         d: task.description,
@@ -75,6 +78,14 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
             .filter(a => !a.url.startsWith('data:'))
             .map(a => ({ n: a.name, u: a.url, t: a.type })),
         sd: task.devStartDate,
+        ed: task.devEndDate,
+        qsd: task.qaStartDate,
+        qed: task.qaEndDate,
+        cf: task.customFields || {},
+        dv: (task.developers || []).map(id => devMap.get(id)).filter(Boolean),
+        ts: (task.testers || []).map(id => testerMap.get(id)).filter(Boolean),
+        pr: task.prLinks || {},
+        az: task.azureWorkItemId,
         up: task.updatedAt
     };
 
