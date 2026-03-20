@@ -53,7 +53,8 @@ import {
   GitMerge,
   FileText,
   ChevronRight as ChevronRightIcon,
-  SearchX
+  SearchX,
+  CircleDot
 } from 'lucide-react';
 import { cn, fuzzySearch } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig, Log, GeneralReminder, BackupFrequency, Environment, UserPreferences, AuthMode } from '@/lib/types';
@@ -886,7 +887,6 @@ export default function Home() {
 
   const isSearchActive = searchQuery.trim().length >= 2;
 
-  // IMPORTANT: The search input logic is placed directly here to ensure the DOM node is stable across re-renders
   const searchInputContent = (
     <div className="relative flex flex-col w-full">
         <div className="relative flex items-center w-full">
@@ -1055,6 +1055,16 @@ export default function Home() {
             )}
 
             <div className="grid grid-cols-2 sm:flex items-center gap-2">
+                <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => startTutorial()} 
+                    className="hidden md:flex h-11 px-4 font-medium"
+                >
+                    <CircleDot className="mr-2 h-4 w-4 text-primary" />
+                    Tour
+                </Button>
+
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" disabled={isImporting} className="w-full sm:w-auto h-11 font-medium">
