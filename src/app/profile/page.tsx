@@ -317,77 +317,6 @@ function WorkspaceDialog({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChan
     );
 }
 
-function RecentInsightsSection() {
-    const [recentAdded, setRecentAdded] = useState<Task[]>([]);
-    const [recentImported, setRecentImported] = useState<Task[]>([]);
-    const router = useRouter();
-
-    useEffect(() => {
-        setRecentAdded(getRecentTasks(3));
-        setRecentImported(getRecentImportedTasks(3));
-    }, []);
-
-    if (recentAdded.length === 0 && recentImported.length === 0) return null;
-
-    const TaskLink = ({ task, type }: { task: Task, type: 'added' | 'imported' }) => (
-        <button 
-            onClick={() => {
-                window.dispatchEvent(new Event('navigation-start'));
-                router.push(`/tasks/${task.id}`);
-            }}
-            className="w-full flex items-center gap-3 p-3 hover:bg-muted/50 active:bg-muted transition-colors text-left border-b last:border-0 group"
-        >
-            <div className={cn(
-                "h-8 w-8 rounded-lg flex items-center justify-center shrink-0",
-                type === 'added' ? "bg-green-500/10 text-green-600" : "bg-blue-500/10 text-blue-600"
-            )}>
-                {type === 'added' ? <Plus className="h-4 w-4" /> : <Download className="h-4 w-4" />}
-            </div>
-            <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold truncate">{task.title}</p>
-                <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mt-0.5">
-                    {formatDistanceToNow(new Date(task.createdAt), { addSuffix: true })}
-                </p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground/30" />
-        </button>
-    );
-
-    return (
-        <div className="space-y-6 pb-10">
-            {recentAdded.length > 0 && (
-                <div>
-                    <div className="px-4 pt-6 pb-2">
-                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 flex items-center gap-2">
-                            <Sparkles className="h-3 w-3" /> Recently Added
-                        </h3>
-                    </div>
-                    <div className="px-4">
-                        <div className="bg-card border rounded-3xl overflow-hidden shadow-sm">
-                            {recentAdded.map(t => <TaskLink key={t.id} task={t} type="added" />)}
-                        </div>
-                    </div>
-                </div>
-            )}
-            
-            {recentImported.length > 0 && (
-                <div>
-                    <div className="px-4 pt-6 pb-2">
-                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 flex items-center gap-2">
-                            <Download className="h-3 w-3" /> Recently Imported
-                        </h3>
-                    </div>
-                    <div className="px-4">
-                        <div className="bg-card border rounded-3xl overflow-hidden shadow-sm">
-                            {recentImported.map(t => <TaskLink key={t.id} task={t} type="imported" />)}
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-}
-
 export default function ProfilePage() {
   const isMobile = useIsMobile();
   const { user, firestore, auth, isUserLoading, userProfile, isProfileLoading } = useFirebase();
@@ -664,6 +593,7 @@ export default function ProfilePage() {
         { id: 'bin', title: 'Bin (Trash)', subLabel: 'Restore or delete deleted tasks', icon: Trash2, type: 'link', href: '/bin', category: 'System', color: 'text-zinc-500', keywords: ['trash', 'deleted', 'restore', 'recycle'] },
         { id: 'releases', title: 'What\'s New', subLabel: 'Latest updates and features', icon: Sparkles, type: 'link', href: '/releases', category: 'System', color: 'text-green-500', keywords: ['version', 'changelog', 'updates'] },
         { id: 'general-reminders', title: 'General Reminders', subLabel: 'Manage global workspace notes', icon: Bell, type: 'link', href: '/reminders', category: 'Productivity', color: 'text-amber-600', keywords: ['sticky notes', 'global notes', 'bulletin'] },
+        { id: 'insights', title: 'Recent Activity', subLabel: 'Tasks added or imported recently', icon: Sparkles, type: 'link', href: '/insights', category: 'Insights', color: 'text-primary', keywords: ['recent', 'added', 'imported', 'insights', 'activity'] },
     ];
     if (isLocal) {
         items.unshift({ id: 'auth', title: 'Sign In / Cloud Sync', subLabel: 'Securely sync your workspace', icon: ShieldCheck, type: 'event', event: 'open-auth-modal', category: 'Identity', color: 'text-primary font-bold', keywords: ['login', 'register', 'firebase', 'cloud'] } as any);
@@ -949,9 +879,6 @@ export default function ProfilePage() {
                     />
                 </div>
             </div>
-
-            {/* Recent Insights Hub Section */}
-            <RecentInsightsSection />
 
             {/* Account Actions - Boxed Container */}
             <div className="mt-6 px-4 pb-0">

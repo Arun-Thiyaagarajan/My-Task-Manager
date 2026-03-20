@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getRecentTasks, getRecentImportedTasks, getUiConfig, getDevelopers, getTesters } from '@/lib/data';
 import type { Task, UiConfig, Person } from '@/lib/types';
 import { TaskCard } from '@/components/task-card';
@@ -20,16 +19,21 @@ export default function InsightsPage() {
     const [testers, setTesters] = useState<Person[]>([]);
     const [pinnedTaskIds, setPinnedTaskIds] = useState<string[]>([]);
 
-    useEffect(() => {
-        const load = () => {
-            setRecentAdded(getRecentTasks(12));
-            setRecentImported(getRecentImportedTasks(12));
-            setUiConfig(getUiConfig());
-            setDevelopers(getDevelopers());
-            setTesters(getTesters());
+    const load = useCallback(() => {
+        setRecentAdded(getRecentTasks(12));
+        setRecentImported(getRecentImportedTasks(12));
+        setUiConfig(getUiConfig());
+        setDevelopers(getDevelopers());
+        setTesters(getTesters());
+        try {
             setPinnedTaskIds(JSON.parse(localStorage.getItem('taskflow_pinned_tasks') || '[]'));
-            window.dispatchEvent(new Event('navigation-end'));
-        };
+        } catch (e) {
+            setPinnedTaskIds([]);
+        }
+        window.dispatchEvent(new Event('navigation-end'));
+    }, []);
+
+    useEffect(() => {
         load();
         window.addEventListener('storage', load);
         window.addEventListener('company-changed', load);
@@ -37,11 +41,11 @@ export default function InsightsPage() {
             window.removeEventListener('storage', load);
             window.removeEventListener('company-changed', load);
         };
-    }, []);
+    }, [load]);
 
     const handleBack = () => {
         window.dispatchEvent(new Event('navigation-start'));
-        router.push('/');
+        router.back();
     };
 
     if (!uiConfig) return null;

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -1098,7 +1097,7 @@ export default function Home() {
         </div>
       </div>
       
-      <div className="space-y-6">
+      <div className="space-y-4 md:space-y-6">
           <div className="space-y-3">
               {/* MOBILE ONLY TOOLS - Preserved Strict Order from Reference */}
               <div className="md:hidden flex flex-col gap-4 mb-2">
