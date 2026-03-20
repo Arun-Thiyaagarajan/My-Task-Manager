@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -309,13 +308,13 @@ export default function Home() {
 
     window.addEventListener('storage', storageHandler);
     window.addEventListener('config-changed', refreshData);
-    window.addEventListener('company-changed', refreshData);
+    window.addEventListener('company-changed', refreshAllData);
     window.addEventListener('sync-complete', refreshData);
     
     return () => {
       window.removeEventListener('storage', storageHandler);
       window.removeEventListener('config-changed', refreshData);
-      window.removeEventListener('company-changed', refreshData);
+      window.removeEventListener('company-changed', refreshAllData);
       window.removeEventListener('sync-complete', refreshData);
     };
   }, [refreshData]);
@@ -1131,6 +1130,62 @@ export default function Home() {
                 </Alert>
            )}
 
+           {isSelectMode && (
+              <div className="sticky top-[68px] z-30 mb-4 animate-in slide-in-from-top-2 duration-300">
+                <Card className="border-primary/50 bg-background/90 backdrop-blur-sm shadow-lg overflow-hidden">
+                  <CardContent className="p-4 flex flex-col md:flex-row md:items-center gap-4">
+                    <div className="flex items-center gap-3">
+                      <Checkbox 
+                        id="select-all-tasks" 
+                        checked={filteredTasks.length > 0 && selectedTaskIds.length === filteredTasks.length} 
+                        onCheckedChange={handleToggleSelectAll}
+                        className="h-5 w-5"
+                      />
+                      <Label htmlFor="select-all-tasks" className="text-sm font-semibold whitespace-nowrap cursor-pointer">
+                        {selectedTaskIds.length > 0 ? `${selectedTaskIds.length} Selected` : `Select All`}
+                      </Label>
+                    </div>
+
+                    <div className={cn(
+                        'grid grid-cols-2 md:flex md:flex-row md:items-center items-stretch justify-center md:justify-end gap-2 w-full md:auto transition-opacity duration-300 md:ml-auto', 
+                        selectedTaskIds.length > 0 ? 'opacity-100' : 'opacity-40 pointer-events-none'
+                    )}>
+                      <Button variant="outline" size="sm" onClick={() => setIsTagsDialogOpen(true)} className="font-medium h-10 px-3">
+                        <Tag className="mr-2 h-4 w-4" /> Tags
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleBulkCopyText} className="font-medium h-10 px-3">
+                        <Copy className="mr-2 h-4 w-4" /> Copy
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleBulkExportPdf} className="font-medium h-10 px-3">
+                        <Download className="mr-2 h-4 w-4" /> PDF
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="sm" className="font-semibold h-10 px-3">
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="font-semibold">Move to Bin?</AlertDialogTitle>
+                            <AlertDialogDescription className="font-normal text-sm leading-relaxed">
+                                You are about to move {selectedTaskIds.length} task(s) to the bin. You can restore them for up to 30 days.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter className="gap-2 pt-4">
+                            <AlertDialogCancel className="font-medium rounded-lg">Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90 font-bold rounded-lg px-6">
+                                Delete Tasks
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
            <div className="flex flex-col gap-6">
                 <div className="flex flex-col md:flex-row md:flex-wrap lg:flex-nowrap md:items-center md:justify-between gap-4 md:gap-6">
                     <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-4 md:gap-6">
@@ -1164,7 +1219,7 @@ export default function Home() {
                     </div>
 
                     <div id="view-mode-toggle" className="flex flex-col md:flex-row md:flex-wrap items-center gap-4">
-                        <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto md:overflow-visible md:flex-wrap pb-1 no-scrollbar md:pb-0">
+                        <div className="flex items-center gap-2 w-full md:auto overflow-x-auto md:overflow-visible md:flex-wrap pb-1 no-scrollbar md:pb-0">
                             <Select value={sortDescriptor} onValueChange={handleSortChange}>
                                 <SelectTrigger className="flex-1 min-w-[140px] sm:w-[180px] h-11 font-bold rounded-xl shadow-sm"><SelectValue placeholder="Sort by" /></SelectTrigger>
                                 <SelectContent>
@@ -1276,62 +1331,6 @@ export default function Home() {
                     {searchInputContent}
                 </div>
             </div>
-
-            {isSelectMode && (
-              <div className="sticky top-[68px] z-30 mb-4">
-                <Card className="border-primary/50 bg-background/90 backdrop-blur-sm shadow-lg overflow-hidden">
-                  <CardContent className="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <Checkbox 
-                        id="select-all-tasks" 
-                        checked={filteredTasks.length > 0 && selectedTaskIds.length === filteredTasks.length} 
-                        onCheckedChange={handleToggleSelectAll}
-                        className="h-5 w-5"
-                      />
-                      <Label htmlFor="select-all-tasks" className="text-sm font-semibold whitespace-nowrap cursor-pointer">
-                        {selectedTaskIds.length > 0 ? `${selectedTaskIds.length} Selected` : `Select All`}
-                      </Label>
-                    </div>
-
-                    <div className={cn(
-                        'grid grid-cols-2 md:flex md:flex-row md:items-center items-stretch justify-center gap-2 w-full md:auto transition-opacity duration-300', 
-                        selectedTaskIds.length > 0 ? 'opacity-100' : 'opacity-40 pointer-events-none'
-                    )}>
-                      <Button variant="outline" size="sm" onClick={() => setIsTagsDialogOpen(true)} className="font-medium h-10 px-3">
-                        <Tag className="mr-2 h-4 w-4" /> Tags
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={handleBulkCopyText} className="font-medium h-10 px-3">
-                        <Copy className="mr-2 h-4 w-4" /> Copy
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={handleBulkExportPdf} className="font-medium h-10 px-3">
-                        <Download className="mr-2 h-4 w-4" /> PDF
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="sm" className="font-semibold h-10 px-3">
-                                <Trash2 className="mr-2 h-4 w-4" /> Delete
-                            </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle className="font-semibold">Move to Bin?</AlertDialogTitle>
-                            <AlertDialogDescription className="font-normal text-sm leading-relaxed">
-                                You are about to move {selectedTaskIds.length} task(s) to the bin. You can restore them for up to 30 days.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter className="gap-2 pt-4">
-                            <AlertDialogCancel className="font-medium rounded-lg">Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90 font-bold rounded-lg px-6">
-                                Delete Tasks
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
             
             <div className="relative">
                 <div className={cn(
