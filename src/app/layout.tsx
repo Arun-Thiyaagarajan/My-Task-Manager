@@ -1,3 +1,4 @@
+
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/header';
@@ -8,6 +9,7 @@ import { MobileBottomNav } from '@/components/mobile-bottom-nav';
 import { PullToRefresh } from '@/components/pull-to-refresh';
 import { NavigationLoader } from '@/components/navigation-loader';
 import { FaviconSync } from '@/components/favicon-sync';
+import { FileTransferIndicator } from '@/components/file-transfer-indicator';
 import type { Metadata, Viewport } from 'next';
 
 export const metadata: Metadata = {
@@ -63,6 +65,7 @@ export default function RootLayout({
               <main className="flex-1 pb-32 md:pb-0">{children}</main>
             </PullToRefresh>
             <FloatingNotes />
+            <FileTransferIndicator />
             <MobileBottomNav />
             </div>
             <Toaster />

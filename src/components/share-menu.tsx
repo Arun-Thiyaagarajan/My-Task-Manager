@@ -13,12 +13,12 @@ import {
   DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { Download, Share2, Copy, FileJson } from 'lucide-react';
+import { Download, Share2, Copy, FileJson, Link2, Monitor, Smartphone, Globe, FileUp, Check } from 'lucide-react';
 import { generateTaskPdf, generateTasksText } from '@/lib/share-utils';
-import type { Task, UiConfig, Person } from '@/lib/types';
+import type { Task, UiConfig, Person, Attachment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { getLogsForTask } from '@/lib/data';
-
+import { getLogsForTask, addLog } from '@/lib/data';
+import { triggerTransfer } from './file-transfer-indicator';
 
 const sanitizeFilename = (name: string): string => {
     return name.replace(/[<>:"/\\|?*]+/g, '_').substring(0, 100);
@@ -29,25 +29,22 @@ interface ShareMenuProps {
   uiConfig: UiConfig;
   developers: Person[];
   testers: Person[];
+  attachment?: Attachment;
   children: React.ReactNode;
   asSubmenu?: boolean;
 }
 
-export function ShareMenu({ task, uiConfig, developers, testers, children, asSubmenu = false }: ShareMenuProps) {
+export function ShareMenu({ task, uiConfig, developers, testers, attachment, children, asSubmenu = false }: ShareMenuProps) {
   const { toast } = useToast();
-  const [canSharePdf, setCanSharePdf] = React.useState(false);
+  const [canShare, setCanShare] = React.useState(false);
+  const [copiedUrl, setCopiedUrl] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    // Check if the browser supports sharing files.
-    const file = new File([], 'test.pdf', { type: 'application/pdf' });
-    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-      setCanSharePdf(true);
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      setCanShare(true);
     }
   }, []);
 
-  const pdfFilename = `${sanitizeFilename(task.title)}.pdf`;
-  const jsonFilename = `${sanitizeFilename(task.title)}.json`;
-  
   const handleExportJson = () => {
     const devIdsInTask = new Set(task.developers || []);
     const testerIdsInTask = new Set(task.testers || []);
@@ -78,83 +75,127 @@ export function ShareMenu({ task, uiConfig, developers, testers, children, asSub
     const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(exportData, null, 2))}`;
     const link = document.createElement("a");
     link.href = jsonString;
-    link.download = jsonFilename;
+    link.download = `${sanitizeFilename(task.title)}.json`;
     link.click();
 
     toast({
       variant: 'success',
       title: 'JSON Exported',
-      description: `Task "${task.title}" has been exported.`,
+      description: `Task data exported successfully.`,
     });
+    addLog({ message: `Exported task "**${task.title}**" as JSON.`, taskId: task.id });
   };
 
-  const handleSharePdf = async () => {
-    try {
-      // Generate PDF as a blob
-      const pdfBlob = await generateTaskPdf([task], uiConfig, developers, testers, 'blob');
-      if (!pdfBlob) throw new Error("Could not generate PDF blob.");
-      
-      const pdfFile = new File([pdfBlob], pdfFilename, {
-        type: 'application/pdf',
-      });
+  const handleNativeShare = async () => {
+    const shareData: ShareData = {
+        title: task.title,
+        text: `TaskFlow Task: ${task.title}\n\n${task.summary || task.description.substring(0, 100)}...`,
+        url: window.location.href
+    };
 
-      // Use Web Share API to share the file
-      await navigator.share({
-        files: [pdfFile],
-        title: `Task: ${task.title}`,
-      });
-      toast({ variant: 'success', title: 'Shared successfully!' });
+    if (attachment) {
+        shareData.title = attachment.name;
+        shareData.text = `Shared file from TaskFlow: ${attachment.name}`;
+        shareData.url = attachment.url.startsWith('http') ? attachment.url : undefined;
+    }
+
+    try {
+        await navigator.share(shareData);
+        toast({ variant: 'success', title: 'Shared successfully' });
     } catch (e: any) {
-      // The user canceling the share dialog is not an error.
-      if (e.name !== 'AbortError') {
-        console.error("PDF sharing failed:", e);
-        toast({ variant: 'destructive', title: 'Sharing Failed', description: 'There was an error while trying to share the PDF.' });
-      }
-    }
-  };
-  
-  const handleDownloadPdf = async () => {
-    try {
-      await generateTaskPdf([task], uiConfig, developers, testers, 'save', pdfFilename);
-      toast({ variant: 'success', title: 'PDF Generated', description: 'Your PDF has started downloading.' });
-    } catch (e) {
-      console.error("PDF generation failed:", e);
-      toast({ variant: 'destructive', title: 'PDF Generation Failed', description: 'There was an error creating the PDF.' });
+        if (e.name !== 'AbortError') {
+            toast({ variant: 'destructive', title: 'Sharing failed' });
+        }
     }
   };
 
-  const handleCopyToClipboard = () => {
-      const textContent = generateTasksText([task], uiConfig, developers, testers);
-      navigator.clipboard.writeText(textContent).then(() => {
-          toast({ variant: 'success', title: 'Copied to Clipboard' });
-      }).catch(err => {
-          console.error("Copy failed:", err);
-          toast({ variant: 'destructive', title: 'Failed to Copy' });
-      });
+  const handleDownloadFile = async () => {
+    if (!attachment) return;
+    
+    const transferId = Math.random().toString(36).substr(2, 9);
+    triggerTransfer({
+        id: transferId,
+        filename: attachment.name,
+        status: 'downloading',
+        progress: 0
+    });
+
+    try {
+        // Simulate download progress
+        for(let i=0; i<=100; i+=25) {
+            await new Promise(r => setTimeout(r, 200));
+            triggerTransfer({ id: transferId, filename: attachment.name, status: 'downloading', progress: i });
+        }
+
+        const link = document.createElement('a');
+        link.href = attachment.url;
+        link.download = attachment.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        triggerTransfer({ id: transferId, filename: attachment.name, status: 'complete', progress: 100 });
+        addLog({ message: `Downloaded attachment "**${attachment.name}**" from task "**${task.title}**".`, taskId: task.id });
+    } catch (e) {
+        triggerTransfer({ id: transferId, filename: attachment.name, status: 'error', progress: 0, error: 'Download failed' });
+    }
+  };
+
+  const handleCopyLink = () => {
+    const url = attachment ? attachment.url : window.location.href;
+    navigator.clipboard.writeText(url).then(() => {
+        setCopiedUrl(url);
+        toast({ variant: 'success', title: 'Link copied to clipboard' });
+        setTimeout(() => setCopiedUrl(null), 2000);
+    });
   };
 
   const menuItems = (
     <>
-      <DropdownMenuItem onSelect={handleDownloadPdf}>
-        <Download className="mr-2 h-4 w-4" />
-        <span>Download as PDF</span>
-      </DropdownMenuItem>
-       <DropdownMenuItem onSelect={handleExportJson}>
-        <FileJson className="mr-2 h-4 w-4" />
-        <span>Export as JSON</span>
-      </DropdownMenuItem>
-      <DropdownMenuItem onSelect={handleCopyToClipboard}>
-          <Copy className="mr-2 h-4 w-4" />
-          <span>Copy as Text</span>
-      </DropdownMenuItem>
-      {canSharePdf && (
-        <>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={handleSharePdf}>
-            <Share2 className="mr-2 h-4 w-4" />
-            <span>Share PDF...</span>
-          </DropdownMenuItem>
-        </>
+      {attachment ? (
+          <>
+            <DropdownMenuItem onSelect={handleDownloadFile}>
+                <Download className="mr-2 h-4 w-4" />
+                <span>Download File</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={handleCopyLink}>
+                {copiedUrl === attachment.url ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
+                <span>Copy Link</span>
+            </DropdownMenuItem>
+            {canShare && (
+                <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={handleNativeShare}>
+                        <Share2 className="mr-2 h-4 w-4" />
+                        <span>Share to App...</span>
+                    </DropdownMenuItem>
+                </>
+            )}
+          </>
+      ) : (
+          <>
+            <DropdownMenuItem onSelect={() => generateTaskPdf([task], uiConfig, developers, testers, 'save')}>
+                <Download className="mr-2 h-4 w-4" />
+                <span>Download PDF</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={handleExportJson}>
+                <FileJson className="mr-2 h-4 w-4" />
+                <span>Export JSON</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={handleCopyLink}>
+                {copiedUrl === window.location.href ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
+                <span>Copy Task Link</span>
+            </DropdownMenuItem>
+            {canShare && (
+                <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={handleNativeShare}>
+                        <Share2 className="mr-2 h-4 w-4" />
+                        <span>System Share...</span>
+                    </DropdownMenuItem>
+                </>
+            )}
+          </>
       )}
     </>
   );
@@ -175,7 +216,11 @@ export function ShareMenu({ task, uiConfig, developers, testers, children, asSub
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56" onClick={e => e.stopPropagation()}>
+      <DropdownMenuContent align="end" className="w-60 p-2 rounded-xl shadow-xl" onClick={e => e.stopPropagation()}>
+        <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-2 py-1.5">
+            {attachment ? 'File Sharing' : 'Task Sharing'}
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
         {menuItems}
       </DropdownMenuContent>
     </DropdownMenu>

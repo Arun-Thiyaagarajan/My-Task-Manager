@@ -34,6 +34,9 @@ export interface Attachment {
   name: string;
   url: string; // Will hold the link URL or the image Data URI
   type: 'link' | 'image';
+  size?: number;
+  uploadedAt?: string;
+  mimeType?: string;
 }
 
 export interface RepositoryConfig {

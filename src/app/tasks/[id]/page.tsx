@@ -1,19 +1,20 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask, clearExpiredReminders, addTagsToMultipleTasks, addDeveloper, addTester, addEnvironment, getAuthMode, isInitialSyncComplete, getActiveCompanyId } from '@/lib/data';
+import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask, clearExpiredReminders, addTagsToMultipleTasks, addDeveloper, addTester, addEnvironment, getAuthMode, isInitialSyncComplete, getActiveCompanyId, addLog } from '@/lib/data';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles, Share2, History, MessageSquare, BellRing, MoreVertical, Trash2, FileJson, Copy, Tag, Download, Pilcrow, Code, CalendarIcon } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles, Share2, History, MessageSquare, BellRing, MoreVertical, Trash2, FileJson, Copy, Tag, Download, Pilcrow, Code, CalendarIcon, FileUp, Share } from 'lucide-react';
 import { getStatusConfig, TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { DeleteTaskButton } from '@/components/delete-task-button';
 import { PrLinksGroup } from '@/components/pr-links-group';
 import { Badge } from '@/components/ui/badge';
-import { cn, getInitials, getAvatarColor, getRepoBadgeStyle, formatTimestamp, getEnvInfo, compressImage } from '@/lib/utils';
+import { cn, getInitials, getAvatarColor, getRepoBadgeStyle, formatTimestamp, getEnvInfo, compressImage, formatBytes } from '@/lib/utils';
 import { format } from 'date-fns';
 import type { Task, FieldConfig, UiConfig, TaskStatus, Person, Attachment, Log, Comment, Environment } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
@@ -42,7 +43,7 @@ import {
 import { FavoriteToggleButton } from '@/components/favorite-toggle';
 import { TaskHistory } from '@/components/task-history';
 import { ReminderDialog } from '@/components/reminder-dialog';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { generateTaskPdf, generateTasksText } from '@/lib/share-utils';
 import { MultiSelect, type SelectOption } from '@/components/ui/multi-select';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
@@ -54,6 +55,8 @@ import { generateSummary } from '@/ai/flows/summary-flow';
 import { TaskDetailSkeleton } from '@/components/task-detail-skeleton';
 import { useFirebase } from '@/firebase';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { ShareMenu } from '@/components/share-menu';
+import { triggerTransfer } from '@/components/file-transfer-indicator';
 
 
 const isImageUrl = (url: string): boolean => {
@@ -113,7 +116,6 @@ export default function TaskPage() {
       const activeCompanyId = getActiveCompanyId();
       const authMode = getAuthMode();
       
-      // Identity verification: wait for auth state and (if in cloud mode) the initial sync
       if (isUserLoading || (authMode === 'authenticate' && (!activeCompanyId || !isInitialSyncComplete(activeCompanyId)))) {
           return;
       }
@@ -468,12 +470,31 @@ export default function TaskPage() {
   };
 
   const handleImageUpload = (file: File) => {
+    const transferId = Math.random().toString(36).substr(2, 9);
+    triggerTransfer({
+        id: transferId,
+        filename: file.name,
+        status: 'uploading',
+        progress: 0
+    });
+
     const reader = new FileReader();
     reader.onload = async (e) => {
         const rawDataUri = e.target?.result as string;
+        triggerTransfer({ id: transferId, filename: file.name, status: 'uploading', progress: 50 });
+        
         const optimizedUri = await compressImage(rawDataUri);
-        const newAttachment: Attachment = { name: file.name, url: optimizedUri, type: 'image' };
+        const newAttachment: Attachment = { 
+            name: file.name, 
+            url: optimizedUri, 
+            type: 'image',
+            size: file.size,
+            uploadedAt: new Date().toISOString(),
+            mimeType: file.type
+        };
+        
         setLocalAttachments(prev => [...prev, newAttachment]);
+        triggerTransfer({ id: transferId, filename: file.name, status: 'complete', progress: 100 });
         toast({ variant: 'success', title: 'Image optimized and added.'});
     };
     reader.readAsDataURL(file);
@@ -486,7 +507,7 @@ export default function TaskPage() {
           toast({ variant: 'destructive', title: 'Invalid Link', description: errors.url?.[0] || errors.name?.[0] || 'Please check your inputs.' });
           return;
       }
-      const newAttachment: Attachment = { ...validationResult.data, type: 'link' };
+      const newAttachment: Attachment = { ...validationResult.data, type: 'link', uploadedAt: new Date().toISOString() };
       const newAttachmentIndex = localAttachments.length;
       setLocalAttachments(prev => [...prev, newAttachment]);
       
@@ -538,6 +559,7 @@ export default function TaskPage() {
                             name: pastedText,
                             url: pastedText,
                             type: 'link',
+                            uploadedAt: new Date().toISOString()
                         };
                         const newAttachmentIndex = localAttachments.length;
                         setLocalAttachments(prev => [...prev, newAttachment]);
@@ -817,9 +839,6 @@ const handleCopyDescription = () => {
   const assignedTesters = (task.testers || []).map(id => testers.find(p => p.id === id)).filter((p): p is Person => !!p);
 
   const azureWorkItemIdFieldConfig = (uiConfig?.fields || []).find(f => f.key === 'azureWorkItemId');
-  const azureWorkItemUrl = task.azureWorkItemId && azureWorkItemIdFieldConfig?.baseUrl
-    ? `${azureWorkItemIdFieldConfig.baseUrl}${task.azureWorkItemId}`
-    : null;
   
   const tagsField = (uiConfig?.fields || []).find(f => f.key === 'tags');
   const repoField = (uiConfig?.fields || []).find(f => f.key === 'repositories');
@@ -876,25 +895,12 @@ const handleCopyDescription = () => {
             </div>
           ) : (
             <div className="flex gap-1.5 sm:gap-2">
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size={isMobile ? "icon" : "sm"} className="font-medium">
-                            <Share2 className={cn("h-4 w-4", !isMobile && "mr-2")} />
-                            {!isMobile && "Share"}
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => generateTaskPdf([task], uiConfig, developers, testers, 'save')} className="font-normal">
-                           <Download className="mr-2 h-4 w-4" /> Download as PDF
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={handleExportJson} className="font-normal">
-                            <FileJson className="mr-2 h-4 w-4" /> Export as JSON
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => generateTasksText([task], uiConfig, developers, testers)} className="font-normal">
-                           <Copy className="mr-2 h-4 w-4" /> Copy as Text
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                <ShareMenu task={task} uiConfig={uiConfig} developers={developers} testers={testers}>
+                    <Button variant="outline" size={isMobile ? "icon" : "sm"} className="font-medium">
+                        <Share2 className={cn("h-4 w-4", !isMobile && "mr-2")} />
+                        {!isMobile && "Share"}
+                    </Button>
+                </ShareMenu>
 
                 <Button onClick={handleNavigateEdit} variant="outline" size={isMobile ? "icon" : "sm"} className="active:scale-95 transition-transform font-medium">
                     <Pencil className={cn("h-4 w-4", !isMobile && "mr-2")} />
@@ -983,28 +989,32 @@ const handleCopyDescription = () => {
                                 className="text-3xl font-semibold h-auto p-0 border-0 focus-visible:ring-0"
                             />
                         ) : (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <CardTitle className="text-3xl font-semibold cursor-pointer tracking-tight">
-                                  {task.title}
-                              </CardTitle>
-                            </TooltipTrigger>
-                            {!isBinned && (
-                              <TooltipContent>
-                                <p className="font-normal">Double-click to edit</p>
-                              </TooltipContent>
-                            )}
-                          </Tooltip>
+                          <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                <CardTitle className="text-3xl font-semibold cursor-pointer tracking-tight">
+                                    {task.title}
+                                </CardTitle>
+                                </TooltipTrigger>
+                                {!isBinned && (
+                                <TooltipContent>
+                                    <p className="font-normal">Double-click to edit</p>
+                                </TooltipContent>
+                                )}
+                            </Tooltip>
+                          </TooltipProvider>
                         )}
                         {uiConfig?.remindersEnabled && !isBinned && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsReminderOpen(true)}>
-                                <BellRing className={cn("h-5 w-5 text-muted-foreground", task.reminder && "text-amber-600 dark:text-amber-400")} />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent><p className="font-normal">{task.reminder ? 'Edit Reminder' : 'Set Reminder'}</p></TooltipContent>
-                          </Tooltip>
+                          <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsReminderOpen(true)}>
+                                    <BellRing className={cn("h-5 w-5 text-muted-foreground", task.reminder && "text-amber-600 dark:text-amber-400")} />
+                                </Button>
+                                </TooltipTrigger>
+                                <TooltipContent><p className="font-normal">{task.reminder ? 'Edit Reminder' : 'Set Reminder'}</p></TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         )}
                       </div>
                       <div className="flex-shrink-0 flex items-center gap-2">
@@ -1047,19 +1057,21 @@ const handleCopyDescription = () => {
                     )}
                      <div className={cn("relative", !isBinned && "cursor-pointer")}>
                        {task.description && !isBinned && editingSection !== 'description' && (
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="absolute top-0 right-0 h-7 w-7 text-muted-foreground opacity-0 group-hover/description:opacity-100 transition-opacity"
-                                        onClick={handleCopyDescription}
-                                    >
-                                        {isCopying ? <Check className="h-4 w-4 text-green-500 animate-in fade-in" /> : <Copy className="h-4 w-4" />}
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Copy description</TooltipContent>
-                            </Tooltip>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="absolute top-0 right-0 h-7 w-7 text-muted-foreground opacity-0 group-hover/description:opacity-100 transition-opacity"
+                                            onClick={handleCopyDescription}
+                                        >
+                                            {isCopying ? <Check className="h-4 w-4 text-green-500 animate-in fade-in" /> : <Copy className="h-4 w-4" />}
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Copy description</TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
                         )}
                         {editingSection === 'description' ? (
                           <div className="space-y-2">
@@ -1083,18 +1095,20 @@ const handleCopyDescription = () => {
                             </div>
                            </div>
                         ) : (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="font-normal text-foreground/90 leading-relaxed">
-                                <RichTextViewer text={task.description} />
-                              </div>
-                            </TooltipTrigger>
-                            {!isBinned && (
-                              <TooltipContent>
-                                <p className="font-normal">Double-click to edit</p>
-                              </TooltipContent>
-                            )}
-                          </Tooltip>
+                          <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                <div className="font-normal text-foreground/90 leading-relaxed">
+                                    <RichTextViewer text={task.description} />
+                                </div>
+                                </TooltipTrigger>
+                                {!isBinned && (
+                                <TooltipContent>
+                                    <p className="font-normal">Double-click to edit</p>
+                                </TooltipContent>
+                                )}
+                            </Tooltip>
+                          </TooltipProvider>
                         )}
                     </div>
                   </CardContent>
@@ -1390,24 +1404,65 @@ const handleCopyDescription = () => {
                                 <p className="text-sm font-medium">No attachments yet.</p>
                             </div>
                          ) : (
-                             <div className="space-y-2">
+                             <div className="space-y-3">
                                 {task.attachments.map((att, index) => {
                                     const isImage = att.type === 'image' || isImageUrl(att.url);
                                     return (
-                                        <div key={index} className="flex items-center justify-between group/attachment p-2 -m-2 rounded-md hover:bg-muted/50">
-                                            <button
-                                                onClick={() => {
-                                                    if (isImage) {
-                                                        setPreviewImage({ url: att.url, name: att.name });
-                                                    } else {
-                                                        window.open(att.url, '_blank', 'noopener,noreferrer');
-                                                    }
-                                                }}
-                                                className="flex items-center gap-2 min-w-0 text-left"
-                                            >
-                                                {isImage ? <Image className="h-4 w-4 text-muted-foreground shrink-0" /> : <Link2 className="h-4 w-4 text-muted-foreground shrink-0" />}
-                                                <span className="text-sm text-foreground truncate hover:text-primary hover:underline font-normal">{att.name}</span>
-                                            </button>
+                                        <div key={index} className="flex items-center justify-between group/attachment p-3 border rounded-xl hover:bg-muted/30 transition-all">
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden border">
+                                                    {isImage ? (
+                                                        <img src={att.url} alt={att.name} className="h-full w-full object-cover" />
+                                                    ) : (
+                                                        <Link2 className="h-5 w-5 text-muted-foreground" />
+                                                    )}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <button
+                                                        onClick={() => {
+                                                            if (isImage) {
+                                                                setPreviewImage({ url: att.url, name: att.name });
+                                                            } else {
+                                                                window.open(att.url, '_blank', 'noopener,noreferrer');
+                                                            }
+                                                        }}
+                                                        className="text-sm font-bold text-foreground truncate hover:text-primary hover:underline transition-colors block text-left w-full"
+                                                    >
+                                                        {att.name}
+                                                    </button>
+                                                    <div className="flex items-center gap-2 mt-0.5">
+                                                        {att.size && <span className="text-[10px] text-muted-foreground font-medium uppercase">{formatBytes(att.size)}</span>}
+                                                        {att.uploadedAt && (
+                                                            <span className="text-[10px] text-muted-foreground font-medium uppercase">
+                                                                • {format(new Date(att.uploadedAt), 'MMM d')}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-1 opacity-0 group-hover/attachment:opacity-100 transition-opacity">
+                                                <ShareMenu 
+                                                    task={task} 
+                                                    uiConfig={uiConfig} 
+                                                    developers={developers} 
+                                                    testers={testers}
+                                                    attachment={att}
+                                                >
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                                                        <Share className="h-4 w-4 text-muted-foreground" />
+                                                    </Button>
+                                                </ShareMenu>
+                                                {!isImage && (
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="icon" 
+                                                        className="h-8 w-8 rounded-full"
+                                                        onClick={() => window.open(att.url, '_blank')}
+                                                    >
+                                                        <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                                                    </Button>
+                                                )}
+                                            </div>
                                         </div>
                                     );
                                 })}
@@ -1487,34 +1542,36 @@ function TaskDetailSection({ title, people, setPersonInView, isDeveloper }: {
         <div className="flex flex-wrap gap-4">
             {people.length > 0 ? (
                 people.map((person, index) => (
-                  <Tooltip key={`${isDeveloper ? 'dev' : 'test'}-${person.id}-${index}`}>
-                    <TooltipTrigger asChild>
-                      <button 
-                        className="flex items-center gap-2 p-1 -m-1 rounded-md hover:bg-muted/50 transition-colors disabled:cursor-not-allowed disabled:opacity-70"
-                        onClick={() => setPersonInView({ person, isDeveloper })}
-                        disabled={!canOpenPopup(person)}
-                      >
-                          <Avatar className="h-7 w-7">
-                          <AvatarFallback
-                              className="font-semibold text-white text-[10px]"
-                              style={{
-                              backgroundColor: `#${getAvatarColor(person.name)}`,
-                              }}
-                          >
-                              {getInitials(person.name)}
-                          </AvatarFallback>
-                          </Avatar>
-                          <span className="text-sm font-medium text-foreground">
-                          {person.name}
-                          </span>
-                      </button>
-                    </TooltipTrigger>
-                    {!canOpenPopup(person) && (
-                        <TooltipContent>
-                            <p className="font-normal">No contact details available.</p>
-                        </TooltipContent>
-                    )}
-                  </Tooltip>
+                  <TooltipProvider key={`${isDeveloper ? 'dev' : 'test'}-${person.id}-${index}`}>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                        <button 
+                            className="flex items-center gap-2 p-1 -m-1 rounded-md hover:bg-muted/50 transition-colors disabled:cursor-not-allowed disabled:opacity-70"
+                            onClick={() => setPersonInView({ person, isDeveloper })}
+                            disabled={!canOpenPopup(person)}
+                        >
+                            <Avatar className="h-7 w-7">
+                            <AvatarFallback
+                                className="font-semibold text-white text-[10px]"
+                                style={{
+                                backgroundColor: `#${getAvatarColor(person.name)}`,
+                                }}
+                            >
+                                {getInitials(person.name)}
+                            </AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm font-medium text-foreground">
+                            {person.name}
+                            </span>
+                        </button>
+                        </TooltipTrigger>
+                        {!canOpenPopup(person) && (
+                            <TooltipContent>
+                                <p className="font-normal">No contact details available.</p>
+                            </TooltipContent>
+                        )}
+                    </Tooltip>
+                  </TooltipProvider>
                 ))
             ) : (
             <p className="text-sm text-muted-foreground font-normal">
