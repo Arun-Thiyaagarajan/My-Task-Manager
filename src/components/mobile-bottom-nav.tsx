@@ -6,7 +6,7 @@ import {
   Home, 
   LayoutDashboard, 
   Plus,
-  Trash2
+  StickyNote
 } from 'lucide-react';
 import { cn, getInitials, getAvatarGradient } from '@/lib/utils';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
@@ -99,7 +99,7 @@ export function MobileBottomNav() {
         );
       })}
 
-      {/* FAB - New Task */}
+      {/* FAB - New Task (Always Center) */}
       <div className="flex-1 flex flex-col items-center justify-center">
         <Button 
           size="icon" 
@@ -112,18 +112,20 @@ export function MobileBottomNav() {
         <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mt-2">New</span>
       </div>
 
+      {/* Dedicated Notes Link (Replaces Bin) */}
       <button
-        onClick={() => handleNavigate('/bin')}
+        onClick={() => handleNavigate('/notes')}
         className={cn(
           "flex flex-col items-center justify-center flex-1 h-full gap-1.5 transition-colors relative",
-          pathname === '/bin' ? "text-primary" : "text-muted-foreground"
+          pathname === '/notes' ? "text-primary" : "text-muted-foreground"
         )}
       >
-        <Trash2 className={cn("h-6 w-6", pathname === '/bin' && "fill-primary/10")} />
-        <span className="text-[10px] font-bold uppercase tracking-wider">Bin</span>
-        {pathname === '/bin' && <div className="absolute bottom-2 w-1.5 h-1.5 rounded-full bg-primary" />}
+        <StickyNote className={cn("h-6 w-6", pathname === '/notes' && "fill-primary/10")} />
+        <span className="text-[10px] font-bold uppercase tracking-wider">Notes</span>
+        {pathname === '/notes' && <div className="absolute bottom-2 w-1.5 h-1.5 rounded-full bg-primary" />}
       </button>
 
+      {/* Profile Link (Me) */}
       <div className="flex flex-col items-center justify-center flex-1 h-full">
         <button 
           onClick={() => handleNavigate('/profile')}
