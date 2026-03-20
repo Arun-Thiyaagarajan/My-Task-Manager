@@ -338,12 +338,12 @@ export default function Home() {
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isSearching) {
-        timer = setTimeout(() => setShowSlowSearchMessage(true), 3000);
+        timer = setTimeout(() => showSlowSearchMessage && setShowSlowSearchMessage(true), 3000);
     } else {
         setShowSlowSearchMessage(false);
     }
     return () => clearTimeout(timer);
-  }, [isSearching]);
+  }, [isSearching, showSlowSearchMessage]);
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -664,6 +664,16 @@ export default function Home() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.json')) {
+        toast({
+            variant: 'destructive',
+            title: 'Invalid File',
+            description: 'Please select a valid .json file for import.'
+        });
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+    }
 
     const reader = new FileReader();
     reader.onload = async (e) => {
@@ -1088,7 +1098,7 @@ export default function Home() {
                     <Upload className="mr-2 h-4 w-4" />
                     Import
                 </Button>
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*,.json" />
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />
                 
                 <Button onClick={handleNavigateNewTask} id="new-task-btn" disabled={isImporting} className="w-full sm:w-auto h-11 shadow-lg font-medium active:scale-95 transition-transform">
                     <Plus className="mr-2 h-5 w-5" /> New Task
@@ -1142,6 +1152,23 @@ export default function Home() {
                         </span>
                         <ChevronDown className={cn("h-4 w-4 transition-transform duration-300", isFiltersOpen && "rotate-180")} />
                       </Button>
+
+                      {/* Filter Grid - Mobile Positioning Fix (Directly below trigger) */}
+                      <div className={cn(
+                          "transition-all duration-300 overflow-hidden mt-2",
+                          isFiltersOpen ? "opacity-100 max-h-[1000px] mb-4" : "opacity-0 max-h-0 pointer-events-none"
+                      )}>
+                        <Card className="border shadow-lg bg-card">
+                            <CardContent className="p-4 space-y-4">
+                                <MultiSelect selected={statusFilter} onChange={(val) => { setStatusFilter(val); }} options={(uiConfig?.taskStatuses || []).map(s => ({ value: s, label: s }))} placeholder="Status..." />
+                                <MultiSelect selected={repoFilter} onChange={(val) => { setRepoFilter(val); }} options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} placeholder="Repository..." />
+                                {(uiConfig?.fields || []).find(f => f.key === 'tags')?.isActive && (
+                                    <MultiSelect selected={tagsFilter} onChange={(val) => { setTagsFilter(val); }} options={[...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({value: t, label: t}))} placeholder="Tags..." />
+                                )}
+                                <MultiSelect selected={deploymentFilter} onChange={(val) => { setDeploymentFilter(val); }} options={(uiConfig?.environments || []).flatMap(env => [{ value: env.name, label: `On ${env.name}` }, { value: `not_${env.name}`, label: `Not on ${env.name}` }])} placeholder="Deployment..." />
+                            </CardContent>
+                        </Card>
+                      </div>
                   </div>
 
                   {/* 3. Date navigation (if monthly/yearly) */}
@@ -1250,8 +1277,8 @@ export default function Home() {
               {/* DESKTOP FILTER BAR */}
               <div className={cn(
                   "transition-all duration-300 overflow-visible",
-                  "md:block", 
-                  isFiltersOpen ? "block opacity-100 max-h-[1000px] mb-4" : "hidden md:opacity-100 md:max-h-none opacity-0 max-h-0"
+                  "hidden md:block", 
+                  isFiltersOpen ? "block opacity-100 max-h-[1000px] mb-4" : "opacity-0 max-h-0"
               )}>
                 <Card id="task-filters" className="border shadow-lg md:shadow-none bg-card md:bg-transparent md:border-none overflow-visible">
                     <CardContent className="p-4 md:p-0 overflow-visible">
@@ -1279,7 +1306,7 @@ export default function Home() {
                 </Alert>
            )}
 
-           <div className="flex flex-col gap-6">
+           <div className="flex flex-col gap-4">
                 <div className="hidden md:flex flex-col md:flex-row md:flex-wrap lg:flex-nowrap md:items-center md:justify-between gap-4 md:gap-6">
                     <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-4 md:gap-6">
                         {(dateView === 'monthly' || dateView === 'yearly') && !favoritesOnly && (

@@ -384,6 +384,17 @@ export default function SettingsPage() {
   const handleImportSettings = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.json')) {
+        toast({
+            variant: 'destructive',
+            title: 'Invalid File',
+            description: 'Please select a valid .json file for configuration.'
+        });
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+    }
+
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
@@ -1065,10 +1076,7 @@ export default function SettingsPage() {
 
             <Card className="border-none shadow-lg">
                 <CardHeader className="pb-4">
-                    <CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider">
-                        <Bell className="h-5 w-5 text-primary" />
-                        FEATURES
-                    </CardTitle>
+                    <CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider"><Bell className="h-5 w-5 text-primary" />FEATURES</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-transparent hover:border-border transition-colors">
