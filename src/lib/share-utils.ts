@@ -2,7 +2,7 @@
 
 import jsPDF from 'jspdf';
 import { format } from 'date-fns';
-import type { Task, UiConfig, Person, FieldConfig, Environment } from './types';
+import type { Task, UiConfig, Person, FieldConfig, Environment, Comment, Attachment } from './types';
 
 // --- SVG ICONS FOR PDF WATERMARK ---
 const STATUS_SVG_ICONS: Record<string, string> = {
@@ -139,7 +139,6 @@ const _drawTaskOnPage = async (
     };
     
     const drawHeader = () => {
-        // App Name at top left, Status Badge at top right
         doc.setFontSize(8);
         doc.setTextColor(...COLORS.TEXT_MUTED);
         doc.setFont('helvetica', 'normal');
@@ -312,6 +311,7 @@ const _drawTaskOnPage = async (
 
     drawSectionHeader('Timeline & Deployments');
     if (task.devStartDate) drawKeyValue(fieldLabels.get('devStartDate') || 'Dev Start Date', format(new Date(task.devStartDate), 'MMMM do, yyyy'));
+    if (task.devEndDate) drawKeyValue(fieldLabels.get('devEndDate') || 'Dev End Date', format(new Date(task.devEndDate), 'MMMM do, yyyy'));
     if (task.qaStartDate) drawKeyValue(fieldLabels.get('qaStartDate') || 'QA Start Date', format(new Date(task.qaStartDate), 'MMMM do, yyyy'));
     if (task.qaEndDate) drawKeyValue(fieldLabels.get('qaEndDate') || 'QA End Date', format(new Date(task.qaEndDate), 'MMMM do, yyyy'));
     
@@ -338,10 +338,17 @@ const _drawTaskOnPage = async (
                 prIds.forEach(id => {
                     const baseUrl = repoConfig?.baseUrl || '';
                     const fullUrl = baseUrl ? `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}${id}` : '';
-                    const label = `${repoName} #${id} (${env}):`;
+                    const label = `${repoName} #${id} (${env})`;
                     drawKeyValue(label, { text: fullUrl || 'Link not available', link: fullUrl });
                 });
             });
+        });
+    }
+
+    if (task.attachments && task.attachments.length > 0) {
+        drawSectionHeader(fieldLabels.get('attachments') || 'Attachments');
+        task.attachments.forEach(att => {
+            drawKeyValue(att.name, { text: att.url, link: att.url });
         });
     }
 
@@ -351,6 +358,14 @@ const _drawTaskOnPage = async (
             const val = task.customFields![field.key];
             const display = renderCustomFieldValue(field, val);
             drawKeyValue(field.label, display);
+        });
+    }
+
+    if (task.comments && task.comments.length > 0) {
+        drawSectionHeader(fieldLabels.get('comments') || 'Comments');
+        task.comments.forEach(comment => {
+            const date = format(new Date(comment.timestamp), 'MMM d, h:mm a');
+            drawKeyValue(date, comment.text);
         });
     }
 
@@ -402,7 +417,6 @@ export const generateTasksText = (
 ): string => {
     const developersById = new Map(allDevelopers.map(d => [d.id, d.name]));
     const testersById = new Map(allTesters.map(t => [t.id, t.name]));
-    const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
 
     const stripMarkup = (text: string) => {
         return text.replace(/(\*\*|_(.*?)_|\`|\~)/g, '');
@@ -416,7 +430,8 @@ export const generateTasksText = (
         text += `Developers: ${devs || 'None'}\n`;
         const test = (task.testers || []).map(id => testersById.get(id)).filter(Boolean).join(', ');
         text += `Testers: ${test || 'None'}\n`;
-        text += `Repositories: ${(task.repositories || []).join(', ') || 'None'}\n`;
+        const testRepos = Array.isArray(task.repositories) ? task.repositories : [];
+        text += `Repositories: ${testRepos.join(', ') || 'None'}\n`;
         if (task.azureWorkItemId) text += `Azure Work Item: #${task.azureWorkItemId}\n`;
         
         return text;

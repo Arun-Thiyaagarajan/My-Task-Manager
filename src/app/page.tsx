@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -141,6 +140,7 @@ export default function Home() {
   const [generalReminders, setGeneralReminders] = useState<GeneralReminder[]>([]);
   
   const [isLoading, setIsLoading] = useState(true);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [currentAuthMode, setCurrentAuthMode] = useState<AuthMode>('localStorage');
@@ -799,8 +799,15 @@ export default function Home() {
   const handleBulkExportPdf = useCallback(async () => {
     if (!uiConfig) return;
     const selectedTasks = tasks.filter(t => selectedTaskIds.includes(t.id));
-    await generateTaskPdf(selectedTasks, uiConfig, developers, testers, 'save');
-    toast({ variant: 'success', title: 'PDF Exported' });
+    setIsGeneratingPdf(true);
+    try {
+        await generateTaskPdf(selectedTasks, uiConfig, developers, testers, 'save');
+        toast({ variant: 'success', title: 'PDF Exported', description: `Successfully exported ${selectedTasks.length} tasks.` });
+    } catch (e) {
+        toast({ variant: 'destructive', title: 'PDF Generation Failed', description: 'There was an error generating your document.' });
+    } finally {
+        setIsGeneratingPdf(false);
+    }
   }, [selectedTaskIds, tasks, uiConfig, developers, testers, toast]);
 
   const handleNavigateNewTask = (e: React.MouseEvent) => {
@@ -1118,23 +1125,25 @@ export default function Home() {
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      {isImporting && (
+      {(isImporting || isGeneratingPdf) && (
           <div className="fixed inset-0 z-[200] bg-background/95 backdrop-blur-md flex items-center justify-center p-6 text-center">
               <Card className="w-full max-w-md shadow-2xl border-primary/20">
                   <CardContent className="pt-8 pb-10 flex flex-col items-center gap-6">
                       <div className="relative">
                         <Loader2 className="h-16 w-16 text-primary animate-spin" />
-                        <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold uppercase">{importProgress}%</span>
+                        {isImporting && <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold uppercase">{importProgress}%</span>}
                       </div>
                       <div className="space-y-2">
-                        <h2 className="text-xl font-semibold tracking-tight">Importing to Cloud</h2>
+                        <h2 className="text-xl font-semibold tracking-tight">{isImporting ? 'Importing Data' : 'Generating PDF'}</h2>
                         <p className="text-muted-foreground text-sm max-w-xs mx-auto font-normal">
-                            Your data is being imported to the cloud. This may take a few minutes for large datasets.
+                            {isImporting ? 'Your data is being synced to the cloud. This may take a few minutes.' : 'Please wait while we prepare your document for download.'}
                         </p>
                       </div>
-                      <div className="w-full px-4">
-                        <Progress value={importProgress} className="h-2" />
-                      </div>
+                      {isImporting && (
+                        <div className="w-full px-4">
+                            <Progress value={importProgress} className="h-2" />
+                        </div>
+                      )}
                   </CardContent>
               </Card>
           </div>
@@ -1195,7 +1204,7 @@ export default function Home() {
             <div className="hidden md:flex items-center gap-2">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" disabled={isImporting} className="w-full sm:w-auto h-11 font-medium">
+                    <Button variant="outline" size="sm" disabled={isImporting || isGeneratingPdf} className="w-full sm:w-auto h-11 font-medium">
                         <Download className="mr-2 h-4 w-4" />
                         Export
                     </Button>
@@ -1207,13 +1216,13 @@ export default function Home() {
                     </DropdownMenuContent>
                 </DropdownMenu>
 
-                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isImporting} className="w-full sm:w-auto h-11 font-medium">
+                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isImporting || isGeneratingPdf} className="w-full sm:w-auto h-11 font-medium">
                     <Upload className="mr-2 h-4 w-4" />
                     Import
                 </Button>
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />
                 
-                <Button onClick={handleNavigateNewTask} id="new-task-btn" disabled={isImporting} className="w-full sm:w-auto h-11 shadow-lg font-medium active:scale-95 transition-transform">
+                <Button onClick={handleNavigateNewTask} id="new-task-btn" disabled={isImporting || isGeneratingPdf} className="w-full sm:w-auto h-11 shadow-lg font-medium active:scale-95 transition-transform">
                     <Plus className="mr-2 h-5 w-5" /> New Task
                 </Button>
             </div>
