@@ -62,10 +62,10 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
     const devMap = new Map(developers.map(d => [d.id, d.name]));
     const testerMap = new Map(testers.map(t => [t.id, t.name]));
 
-    // Capture CURRENT field aliases to ensure consistency in the shared view
-    const labels: Record<string, string> = {};
+    // Capture CURRENT field metadata (labels and types) to ensure consistency in the shared view
+    const fieldMetadata: Record<string, { l: string, t: string }> = {};
     uiConfig.fields.forEach(f => {
-        labels[f.key] = f.label;
+        fieldMetadata[f.key] = { l: f.label, t: f.type };
     });
 
     // Create a comprehensive snapshot for the URL payload
@@ -94,7 +94,7 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
         az: task.azureWorkItemId,
         up: task.updatedAt,
         cm: task.comments || [],
-        lb: labels
+        fm: fieldMetadata // Use 'fm' for field metadata (Label + Type)
     };
 
     try {

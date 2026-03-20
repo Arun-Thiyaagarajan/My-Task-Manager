@@ -39,6 +39,7 @@ function SharedTaskContent() {
     const [task, setTask] = useState<Task | null>(null);
     const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
     const [fieldLabels, setFieldLabels] = useState<Map<string, string>>(new Map());
+    const [fieldMetadata, setFieldMetadata] = useState<Map<string, { l: string, t: string }>>(new Map());
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -48,7 +49,7 @@ function SharedTaskContent() {
         setUiConfig(config);
 
         let finalTask: Task | null = null;
-        let finalLabels: Record<string, string> = {};
+        let rawMetadata: Record<string, { l: string, t: string }> = {};
 
         if (payload) {
             try {
@@ -57,7 +58,15 @@ function SharedTaskContent() {
                 ).join('');
                 const snapshot = JSON.parse(decodeURIComponent(decoded));
                 
-                finalLabels = snapshot.lb || {};
+                // Extract metadata (Labels and Types)
+                if (snapshot.fm) {
+                    rawMetadata = snapshot.fm;
+                } else if (snapshot.lb) {
+                    // Backward compatibility for 'lb' (labels only) snapshots
+                    Object.entries(snapshot.lb).forEach(([k, v]) => {
+                        rawMetadata[k] = { l: v as string, t: 'text' };
+                    });
+                }
                 
                 finalTask = {
                     id: taskId,
@@ -94,14 +103,20 @@ function SharedTaskContent() {
             if (foundTask) {
                 finalTask = foundTask;
                 config.fields.forEach(f => {
-                    finalLabels[f.key] = f.label;
+                    rawMetadata[f.key] = { l: f.label, t: f.type };
                 });
             }
         }
 
         if (finalTask) {
             setTask(finalTask);
-            setFieldLabels(new Map(Object.entries(finalLabels)));
+            setFieldMetadata(new Map(Object.entries(rawMetadata)));
+            
+            // Derive simpler labels map for UI ease
+            const labels = new Map<string, string>();
+            Object.entries(rawMetadata).forEach(([k, v]) => labels.set(k, v.l));
+            setFieldLabels(labels);
+            
             document.title = `Snapshot: ${finalTask.title}`;
         }
         setIsLoading(false);
@@ -110,8 +125,21 @@ function SharedTaskContent() {
     const renderCustomFieldValue = (fieldKey: string, value: any) => {
         if (value === null || value === undefined || value === '') return <span className="text-muted-foreground font-normal">N/A</span>;
         
+        const metadata = fieldMetadata.get(fieldKey);
+        const type = metadata?.t;
         const aliasKey = `${fieldKey}_alias`;
         const alias = task?.customFields?.[aliasKey];
+
+        // Format as date if the field is type 'date' or if value looks like an ISO string
+        const isDateString = typeof value === 'string' && value.length >= 20 && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value);
+        if (type === 'date' || isDateString) {
+            try {
+                const date = new Date(value);
+                if (!isNaN(date.getTime())) {
+                    return <span className="font-normal">{format(date, 'PPP')}</span>;
+                }
+            } catch (e) {}
+        }
 
         if (typeof value === 'boolean') return value ? 'Yes' : 'No';
         if (Array.isArray(value)) return <div className="flex flex-wrap gap-1">{value.map((v: any) => <Badge key={v} variant="secondary">{v}</Badge>)}</div>;
@@ -137,15 +165,15 @@ function SharedTaskContent() {
         );
     }
 
-    // Determine which custom fields to show by checking if they have a known label in the snapshot
+    // Determine which custom fields to show by checking if they have metadata in the snapshot
     const customFieldEntries = Object.entries(task.customFields || {}).filter(([key]) => {
         // Exclude internal alias keys and standard task keys
         if (key.endsWith('_alias')) return false;
         const standardKeys = ['title', 'description', 'status', 'repositories', 'developers', 'testers', 'azureWorkItemId', 'tags', 'prLinks', 'attachments', 'deploymentStatus', 'relevantEnvironments', 'devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate', 'comments'];
         if (standardKeys.includes(key)) return false;
         
-        // Only show if we have a label for it (ensures it's not a leaked technical variable)
-        return fieldLabels.has(key);
+        // Only show if we have metadata for it (ensures it's not a leaked technical variable)
+        return fieldMetadata.has(key);
     });
     
     const relevantEnvs = (task.relevantEnvironments || []).map(name => uiConfig.environments.find(e => e.name === name)).filter((e): e is Environment => !!e);
