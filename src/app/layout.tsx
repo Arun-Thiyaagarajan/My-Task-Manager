@@ -1,27 +1,30 @@
 
-'use client';
-
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { cn } from '@/lib/utils';
-import { Header } from '@/components/header';
-import { Toaster } from '@/components/ui/toaster';
-import { Providers } from '@/components/providers';
-import { FloatingNotes } from '@/components/floating-notes';
-import { MobileBottomNav } from '@/components/mobile-bottom-nav';
-import { PullToRefresh } from '@/components/pull-to-refresh';
-import { NavigationLoader } from '@/components/navigation-loader';
-import { FaviconSync } from '@/components/favicon-sync';
-import { FileTransferIndicator } from '@/components/file-transfer-indicator';
-import { usePathname } from 'next/navigation';
+import { RootLayoutClient } from '@/components/root-layout-client';
+
+export const metadata: Metadata = {
+  title: 'TaskFlow',
+  description: 'A sleek and simple task manager',
+};
+
+/**
+ * Disables zooming on mobile devices to prevent UX disruptions 
+ * from accidental pinch or double-tap gestures.
+ */
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const pathname = usePathname();
-  const isSharedPage = pathname?.startsWith('/share/');
-
   return (
     <html lang="en" suppressHydrationWarning>
       <body
@@ -30,22 +33,9 @@ export default function RootLayout({
         )}
         suppressHydrationWarning={true}
       >
-        <Providers>
-            <FaviconSync />
-            <div className="relative flex min-h-screen flex-col">
-            {!isSharedPage && <Header />}
-            <NavigationLoader />
-            <PullToRefresh>
-              <main className={cn("flex-1", !isSharedPage && "pb-32 md:pb-0")}>
-                {children}
-              </main>
-            </PullToRefresh>
-            {!isSharedPage && <FloatingNotes />}
-            <FileTransferIndicator />
-            {!isSharedPage && <MobileBottomNav />}
-            </div>
-            <Toaster />
-        </Providers>
+        <RootLayoutClient>
+            {children}
+        </RootLayoutClient>
       </body>
     </html>
   );
