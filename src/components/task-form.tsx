@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -25,7 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { useToast } from '@/hooks/use-toast';
-import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Textarea } from '@/components/ui/textarea';
 import { TextareaToolbar, applyFormat, FormatType } from '@/components/ui/textarea-toolbar';
 import { getLinkAlias } from '@/ai/flows/alias-flow';
@@ -49,9 +50,9 @@ const safeParseDate = (d: any): Date | undefined => {
     return isNaN(date.getTime()) ? undefined : date;
 };
 
-const getInitialTaskData = (task?: Partial<Task>) => {
+const getInitialTaskData = (task?: Partial<Task>, uiConfig?: UiConfig | null) => {
     if (!task) {
-        return {
+        const defaults: any = {
             title: '',
             description: '',
             status: 'To Do',
@@ -68,6 +69,22 @@ const getInitialTaskData = (task?: Partial<Task>) => {
             azureWorkItemId: '',
             summary: null,
         };
+
+        if (uiConfig) {
+            uiConfig.fields.forEach(f => {
+                if (f.defaultValue !== undefined && f.defaultValue !== null) {
+                    if (f.key === 'developers' || f.key === 'testers') {
+                        defaults[f.key] = Array.isArray(f.defaultValue) ? f.defaultValue : [f.defaultValue];
+                    } else if (f.isCustom) {
+                        defaults.customFields = { ...defaults.customFields, [f.key]: f.defaultValue };
+                    } else {
+                        defaults[f.key] = f.defaultValue;
+                    }
+                }
+            });
+        }
+        
+        return defaults;
     }
     
     const deploymentDatesAsDates: { [key: string]: Date | undefined } = {};
@@ -154,7 +171,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
 
   const form = useForm<TaskFormData>({
     resolver: zodResolver(dynamicTaskSchema),
-    defaultValues: getInitialTaskData(task),
+    defaultValues: getInitialTaskData(task, getUiConfig()),
   });
 
   const { formState: { isDirty, errors } } = form;
@@ -167,9 +184,10 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   }, [isDirty, setIsDirty]);
   
   useEffect(() => {
-    const initialData = getInitialTaskData(task);
-    if (!initialData.status && uiConfig?.taskStatuses?.length) {
-        initialData.status = uiConfig.taskStatuses[0];
+    const currentUiConfig = getUiConfig();
+    const initialData = getInitialTaskData(task, currentUiConfig);
+    if (!initialData.status && currentUiConfig?.taskStatuses?.length) {
+        initialData.status = currentUiConfig.taskStatuses[0];
     }
     form.reset(initialData);
   }, [task, form.reset, uiConfig]);
@@ -616,7 +634,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
         sections.push({ 
             id: 'pull-requests', 
             label: fieldLabels.get('prLinks') || 'Pull Requests', 
-            icon: GitMerge,
+            icon: GitMerge, 
             fields: []
         });
     }
@@ -976,6 +994,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
 
                             <input
                                 type="file"
+                                min="0"
                                 ref={imageInputRef}
                                 onChange={(e) => e.target.files && handleImageUpload(e.target.files[0])}
                                 className="hidden"

@@ -239,4 +239,5 @@ export interface FieldConfig {
   options?: FieldOption[];
   baseUrl?: string;
   sortDirection?: 'asc' | 'desc' | 'manual';
+  defaultValue?: any;
 }

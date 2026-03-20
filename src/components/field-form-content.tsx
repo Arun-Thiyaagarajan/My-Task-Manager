@@ -9,17 +9,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X, Info, Users, ClipboardCheck } from 'lucide-react';
 import type { FieldConfig, FieldOption, FieldType, RepositoryConfig } from '@/lib/types';
 import { FIELD_TYPES } from '@/lib/constants';
 import * as React from 'react';
-import { getUiConfig, getTasks, updateTask, addLog } from '@/lib/data';
+import { getUiConfig, getTasks, updateTask, addLog, getDevelopers, getTesters } from '@/lib/data';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { Badge } from './ui/badge';
+import { MultiSelect } from '@/components/ui/multi-select';
 
 const fieldOptionSchema = z.object({
     id: z.string(),
@@ -36,6 +37,7 @@ const fieldSchema = z.object({
   options: z.array(fieldOptionSchema).optional(),
   baseUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
   sortDirection: z.enum(['asc', 'desc', 'manual']).optional(),
+  defaultValue: z.any().optional(),
 });
 
 type FieldFormData = z.infer<typeof fieldSchema>;
@@ -61,6 +63,7 @@ export function FieldFormContent({ field, repositoryConfigs, onSave, onCancel }:
       options: field?.options || [],
       baseUrl: field?.baseUrl || '',
       sortDirection: field?.sortDirection || 'manual',
+      defaultValue: field?.defaultValue || ( (field?.key === 'developers' || field?.key === 'testers') ? [] : undefined),
     },
   });
 
@@ -90,6 +93,8 @@ export function FieldFormContent({ field, repositoryConfigs, onSave, onCancel }:
 
   const isRepoField = field?.key === 'repositories';
   const isTagsField = field?.key === 'tags';
+  const isDevelopersField = field?.key === 'developers';
+  const isTestersField = field?.key === 'testers';
   const fieldHasManagedOptions = field?.key === 'status' || field?.key === 'developers' || field?.key === 'testers';
   const showCustomOptionsUI = showOptions && !isRepoField && !fieldHasManagedOptions;
 
@@ -160,6 +165,16 @@ export function FieldFormContent({ field, repositoryConfigs, onSave, onCancel }:
     };
     onSave(finalField, isRepoField ? localRepoConfigs : undefined);
   };
+
+  const defaultPersonOptions = React.useMemo(() => {
+      if (isDevelopersField) {
+          return getDevelopers().map(d => ({ value: d.id, label: d.name }));
+      }
+      if (isTestersField) {
+          return getTesters().map(t => ({ value: t.id, label: t.name }));
+      }
+      return [];
+  }, [isDevelopersField, isTestersField]);
 
   return (
     <Form {...form}>
@@ -256,6 +271,34 @@ export function FieldFormContent({ field, repositoryConfigs, onSave, onCancel }:
                     />
                 </div>
             </div>
+
+            {(isDevelopersField || isTestersField) && (
+                <FormField
+                    control={form.control}
+                    name="defaultValue"
+                    render={({ field }) => (
+                        <FormItem className="pt-4 border-t space-y-3">
+                            <div className="flex items-center gap-2">
+                                {isDevelopersField ? <Users className="h-4 w-4 text-primary" /> : <ClipboardCheck className="h-4 w-4 text-primary" />}
+                                <FormLabel className="font-bold tracking-tight">Default {isDevelopersField ? 'Developers' : 'Testers'}</FormLabel>
+                            </div>
+                            <FormDescription className="text-[10px] leading-relaxed uppercase font-black tracking-widest text-muted-foreground/60">
+                                Pre-selected for new tasks
+                            </FormDescription>
+                            <FormControl>
+                                <MultiSelect
+                                    selected={field.value || []}
+                                    onChange={field.onChange}
+                                    options={defaultPersonOptions}
+                                    placeholder={`Select default ${isDevelopersField ? 'developers' : 'testers'}...`}
+                                    className="bg-background"
+                                />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            )}
 
             {showCustomOptionsUI && !isTagsField && (
                 <div className="space-y-3 pt-4 border-t">
