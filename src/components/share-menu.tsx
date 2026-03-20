@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -13,8 +14,19 @@ import {
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { Download, Share2, Copy, FileJson, Link2, Monitor, Smartphone, Globe, FileUp, Check } from 'lucide-react';
-import { generateTaskPdf, generateTasksText } from '@/lib/share-utils';
+import { 
+    Download, 
+    Share2, 
+    Copy, 
+    FileJson, 
+    Link2, 
+    Check, 
+    Globe, 
+    ExternalLink, 
+    FileText,
+    Loader2
+} from 'lucide-react';
+import { generateTaskPdf } from '@/lib/share-utils';
 import type { Task, UiConfig, Person, Attachment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { getLogsForTask, addLog } from '@/lib/data';
@@ -36,14 +48,26 @@ interface ShareMenuProps {
 
 export function ShareMenu({ task, uiConfig, developers, testers, attachment, children, asSubmenu = false }: ShareMenuProps) {
   const { toast } = useToast();
-  const [canShare, setCanShare] = React.useState(false);
+  const [isGenerating, setIsGenerating] = React.useState(false);
   const [copiedUrl, setCopiedUrl] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      setCanShare(true);
-    }
-  }, []);
+  const getShareUrl = () => {
+    if (typeof window === 'undefined') return '';
+    return `${window.location.origin}/share/${task.id}`;
+  };
+
+  const handleCopyShareLink = () => {
+    const url = getShareUrl();
+    navigator.clipboard.writeText(url).then(() => {
+        setCopiedUrl(url);
+        toast({ variant: 'success', title: 'Share link copied!' });
+        setTimeout(() => setCopiedUrl(null), 2000);
+    });
+  };
+
+  const handleOpenSharedView = () => {
+    window.open(getShareUrl(), '_blank');
+  };
 
   const handleExportJson = () => {
     const devIdsInTask = new Set(task.developers || []);
@@ -86,26 +110,16 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
     addLog({ message: `Exported task "**${task.title}**" as JSON.`, taskId: task.id });
   };
 
-  const handleNativeShare = async () => {
-    const shareData: ShareData = {
-        title: task.title,
-        text: `TaskFlow Task: ${task.title}\n\n${task.summary || task.description.substring(0, 100)}...`,
-        url: window.location.href
-    };
-
-    if (attachment) {
-        shareData.title = attachment.name;
-        shareData.text = `Shared file from TaskFlow: ${attachment.name}`;
-        shareData.url = attachment.url.startsWith('http') ? attachment.url : undefined;
-    }
-
+  const handleExportPdf = async () => {
+    setIsGenerating(true);
     try {
-        await navigator.share(shareData);
-        toast({ variant: 'success', title: 'Shared successfully' });
-    } catch (e: any) {
-        if (e.name !== 'AbortError') {
-            toast({ variant: 'destructive', title: 'Sharing failed' });
-        }
+        await generateTaskPdf([task], uiConfig, developers, testers, 'save');
+        toast({ variant: 'success', title: 'PDF exported successfully' });
+        addLog({ message: `Exported task "**${task.title}**" as PDF.`, taskId: task.id });
+    } catch (e) {
+        toast({ variant: 'destructive', title: 'PDF export failed' });
+    } finally {
+        setIsGenerating(false);
     }
   };
 
@@ -162,39 +176,29 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
                 {copiedUrl === attachment.url ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
                 <span>Copy Link</span>
             </DropdownMenuItem>
-            {canShare && (
-                <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={handleNativeShare}>
-                        <Share2 className="mr-2 h-4 w-4" />
-                        <span>Share to App...</span>
-                    </DropdownMenuItem>
-                </>
-            )}
           </>
       ) : (
           <>
-            <DropdownMenuItem onSelect={() => generateTaskPdf([task], uiConfig, developers, testers, 'save')}>
-                <Download className="mr-2 h-4 w-4" />
-                <span>Download PDF</span>
+            <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-primary/60 px-2 py-1.5">Static Web View</DropdownMenuLabel>
+            <DropdownMenuItem onSelect={handleCopyShareLink}>
+                {copiedUrl === getShareUrl() ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
+                <span>Copy Share Link</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={handleOpenSharedView}>
+                <ExternalLink className="mr-2 h-4 w-4" />
+                <span>Open Shared View</span>
+            </DropdownMenuItem>
+            
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-primary/60 px-2 py-1.5">Document Export</DropdownMenuLabel>
+            <DropdownMenuItem onSelect={handleExportPdf} disabled={isGenerating}>
+                {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
+                <span>Export as PDF</span>
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={handleExportJson}>
                 <FileJson className="mr-2 h-4 w-4" />
-                <span>Export JSON</span>
+                <span>Export as JSON</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={handleCopyLink}>
-                {copiedUrl === window.location.href ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
-                <span>Copy Task Link</span>
-            </DropdownMenuItem>
-            {canShare && (
-                <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={handleNativeShare}>
-                        <Share2 className="mr-2 h-4 w-4" />
-                        <span>System Share...</span>
-                    </DropdownMenuItem>
-                </>
-            )}
           </>
       )}
     </>
@@ -218,7 +222,7 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
       <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60 p-2 rounded-xl shadow-xl" onClick={e => e.stopPropagation()}>
         <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-2 py-1.5">
-            {attachment ? 'File Sharing' : 'Task Sharing'}
+            {attachment ? 'File Sharing' : 'Task Publication'}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {menuItems}

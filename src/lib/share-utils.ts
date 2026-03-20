@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import jsPDF from 'jspdf';
@@ -84,7 +83,7 @@ const _drawTaskOnPage = async (
     developers: Person[],
     testers: Person[]
 ) => {
-    let y = 0; // 'y' will be managed by the draw functions
+    let y = 0;
 
     // --- LAYOUT CONSTANTS & HELPERS ---
     const PADDING = 15;
@@ -110,12 +109,12 @@ const _drawTaskOnPage = async (
     };
 
     const WATERMARK_COLORS: Record<string, [number, number, number]> = {
-        'To Do': [107, 114, 128], // gray-500
-        'In Progress': [59, 130, 246], // blue-500
-        'Code Review': [139, 92, 246], // purple-500
-        'QA': [234, 179, 8], // yellow-500
-        'Hold': [113, 113, 122], // zinc-500
-        'Done': [34, 197, 94], // green-500
+        'To Do': [107, 114, 128],
+        'In Progress': [59, 130, 246],
+        'Code Review': [139, 92, 246],
+        'QA': [234, 179, 8],
+        'Hold': [113, 113, 122],
+        'Done': [34, 197, 94],
     };
 
     const STATUS_COLORS: Record<string, { bg: [number, number, number], text: [number, number, number] }> = {
@@ -136,7 +135,7 @@ const _drawTaskOnPage = async (
             doc.addPage();
             drawHeader();
             drawWatermark();
-            y = PADDING + 8 + 8; // Reset Y after header on new page
+            y = PADDING + 8 + 8;
         }
     };
     
@@ -152,15 +151,14 @@ const _drawTaskOnPage = async (
                 doc.addImage(appIcon, imageProps.fileType, iconX, PADDING - 2, iconSize, iconSize);
                 textX += iconSize + 3;
             } catch (e) {
-                console.error("Failed to add app icon to PDF:", e);
-                textX = PADDING; // Reset textX if icon fails
+                textX = PADDING;
             }
         }
         
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(FONT_SIZE_NORMAL);
         doc.setTextColor(...COLORS.TEXT_MUTED);
-        doc.text(appName || 'My Task Manager', textX, PADDING + iconSize / 2, { baseline: 'middle' });
+        doc.text(appName || 'TaskFlow Workspace', textX, PADDING + iconSize / 2, { baseline: 'middle' });
         
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8);
@@ -317,7 +315,6 @@ const _drawTaskOnPage = async (
             y += imgHeight + 4;
 
         } catch (e) {
-            console.error("Could not add image to PDF:", e);
             drawKeyValue(name, "(Image attachment could not be rendered)");
         }
     };
@@ -329,7 +326,7 @@ const _drawTaskOnPage = async (
     const customFields = uiConfig.fields.filter(f => f.isCustom && f.isActive && task.customFields && typeof task.customFields[f.key] !== 'undefined' && task.customFields[f.key] !== null && task.customFields[f.key] !== '');
     
     const groupedCustomFields = customFields.reduce((acc, field) => {
-        const group = field.group || 'Other Custom Fields';
+        const group = field.group || 'Other Details';
         if (!acc[group]) acc[group] = [];
         acc[group].push(field);
         return acc;
@@ -355,7 +352,7 @@ const _drawTaskOnPage = async (
         y += descHeight + 2;
     }
 
-    drawSectionHeader('Task Details');
+    drawSectionHeader('Task Identification');
     const assignedDevs = (task.developers || []).map(id => developersById.get(id)).filter(Boolean).join(', ');
     drawKeyValue(fieldLabels.get('developers') || 'Developers', assignedDevs);
     const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter(Boolean).join(', ');
@@ -366,7 +363,7 @@ const _drawTaskOnPage = async (
     if (task.azureWorkItemId) {
         const azureConfig = uiConfig.fields.find(f => f.key === 'azureWorkItemId');
         const url = azureConfig?.baseUrl ? `${azureConfig.baseUrl}${task.azureWorkItemId}` : '';
-        drawKeyValue(fieldLabels.get('azureWorkItemId') || 'Azure Work Item ID', { text: `#${task.azureWorkItemId}`, link: url });
+        drawKeyValue(fieldLabels.get('azureWorkItemId') || 'Work Item ID', { text: `#${task.azureWorkItemId}`, link: url });
     }
 
     Object.entries(groupedCustomFields).forEach(([groupName, fields]) => {
@@ -378,41 +375,19 @@ const _drawTaskOnPage = async (
         });
     });
 
-    drawSectionHeader('Timeline & Deployments');
-    if (task.devStartDate) drawKeyValue(fieldLabels.get('devStartDate') || 'Dev Start Date', format(new Date(task.devStartDate), 'PPP'));
-    if (task.devEndDate) drawKeyValue(fieldLabels.get('devEndDate') || 'Dev End Date', format(new Date(task.devEndDate), 'PPP'));
-    if (task.qaStartDate) drawKeyValue(fieldLabels.get('qaStartDate') || 'QA Start Date', format(new Date(task.qaStartDate), 'PPP'));
-    if (task.qaEndDate) drawKeyValue(fieldLabels.get('qaEndDate') || 'QA End Date', format(new Date(task.qaEndDate), 'PPP'));
+    drawSectionHeader('Milestones & Deployments');
+    if (task.devStartDate) drawKeyValue('Commencement Date', format(new Date(task.devStartDate), 'PPP'));
     
     if (uiConfig.environments.length > 0) {
-      if (task.devStartDate || task.devEndDate || task.qaStartDate || task.qaEndDate) y += 2;
       uiConfig.environments.forEach((env: Environment) => {
           if (!env || !env.name) return;
           const isSelected = task.deploymentStatus?.[env.name] ?? false;
           const hasDate = task.deploymentDates && task.deploymentDates[env.name];
-          const isDeployed = isSelected && (env.name === 'dev' || !!hasDate);
-          if (isDeployed) {
-              const deploymentDate = hasDate ? `on ${format(new Date(hasDate), 'PPP')}` : '(Deployed)';
-              drawKeyValue(`${env.name.charAt(0).toUpperCase() + env.name.slice(1)} Deployed`, deploymentDate);
+          if (isSelected) {
+              const deploymentDate = hasDate ? `on ${format(new Date(hasDate), 'PPP')}` : '(Status: Active)';
+              drawKeyValue(`${env.name.charAt(0).toUpperCase() + env.name.slice(1)} Milestone`, deploymentDate);
           }
       });
-    }
-
-    const hasPrs = task.prLinks && Object.values(task.prLinks).some(v => v && Object.keys(v).length > 0);
-    if(hasPrs) {
-        drawSectionHeader('Pull Requests');
-        Object.entries(task.prLinks!).forEach(([env, repos]) => {
-            if (!repos) return;
-            Object.entries(repos).forEach(([repo, ids]) => {
-                if (!ids) return;
-                const prConfig = uiConfig.repositoryConfigs.find(rc => rc.name === repo);
-                ids.split(',').map(id => id.trim()).filter(Boolean).forEach(prId => {
-                    const url = prConfig?.baseUrl ? `${prConfig.baseUrl}${prId}` : '#';
-                    const key = `${repo} #${prId} (${env})`;
-                    drawKeyValue(key, { text: url, link: url });
-                });
-            });
-        });
     }
 
     const hasAttachments = task.attachments && task.attachments.length > 0;
@@ -426,33 +401,22 @@ const _drawTaskOnPage = async (
             requiredHeightForFirstItem = Math.max(keyLines.length, valueLines.length) * LINE_HEIGHT_NORMAL + 2;
         } else if (firstAttachment.type === 'image' && isDataURI(firstAttachment.url)) {
             try {
-                const titleHeight = LINE_HEIGHT_NORMAL + 2;
                 const imageProps = doc.getImageProperties(firstAttachment.url);
                 const aspectRatio = imageProps.width / imageProps.height;
                 let imgWidth = VALUE_COLUMN_WIDTH;
                 let imgHeight = imgWidth / aspectRatio;
-                const MAX_IMAGE_HEIGHT = 80;
-
-                if (imgHeight > MAX_IMAGE_HEIGHT) {
-                    imgHeight = MAX_IMAGE_HEIGHT;
-                    imgWidth = imgHeight * aspectRatio;
-                }
-                if (imgWidth > VALUE_COLUMN_WIDTH) {
-                    imgWidth = VALUE_COLUMN_WIDTH;
-                    imgHeight = imgWidth / aspectRatio;
-                }
-                requiredHeightForFirstItem = titleHeight + imgHeight + 4;
+                if (imgHeight > 80) imgHeight = 80;
+                requiredHeightForFirstItem = (LINE_HEIGHT_NORMAL + 2) + imgHeight + 4;
             } catch (e) {
                 requiredHeightForFirstItem = LINE_HEIGHT_NORMAL + 2;
             }
         }
         
-        drawSectionHeader('Attachments', requiredHeightForFirstItem);
+        drawSectionHeader('Supporting Documents', requiredHeightForFirstItem);
         
         task.attachments!.forEach(att => {
             if (att.type === 'link') {
-              const urlValue = String(att.url);
-              drawKeyValue(att.name, {text: urlValue, link: urlValue});
+              drawKeyValue(att.name, {text: att.url, link: att.url});
             } else if (att.type === 'image' && isDataURI(att.url)) {
               drawImageAttachment(att.name, att.url);
             }
@@ -486,8 +450,8 @@ export const generateTaskPdf = async (
     let finalFilename = filename;
     if (!finalFilename) {
         finalFilename = tasksArray.length === 1 
-            ? `${sanitizeFilename(tasksArray[0].title)}.pdf`
-            : 'My_Tasks_Export.pdf';
+            ? `TF_Export_${sanitizeFilename(tasksArray[0].title)}.pdf`
+            : 'TaskFlow_Multiple_Export.pdf';
     }
     
     if (outputType === 'blob') {
@@ -535,82 +499,48 @@ export const generateTasksText = (
     };
 
     const taskStrings = tasks.map(task => {
-        let taskText = `Title: ${task.title}\n`;
-        taskText += `Status: ${task.status}\n\n`;
-        taskText += `Description:\n${stripMarkup(task.description)}\n\n`;
+        let taskText = `TASK: ${task.title}\n`;
+        taskText += `STATUS: ${task.status}\n\n`;
+        taskText += `OBJECTIVE:\n${stripMarkup(task.description)}\n\n`;
         
         const details: string[] = [];
 
         if (task.developers && task.developers.length > 0) {
             const assignedDevs = task.developers.map(id => developersById.get(id) || id).join(', ');
-            details.push(`${fieldLabels.get('developers') || 'Developers'}: ${assignedDevs}`);
-        }
-        
-        if (task.testers && task.testers.length > 0) {
-            const assignedTesters = task.testers.map(id => testersById.get(id) || id).join(', ');
-            details.push(`${fieldLabels.get('testers') || 'Testers'}: ${assignedTesters}`);
+            details.push(`Assignees: ${assignedDevs}`);
         }
 
         if (task.repositories && task.repositories.length > 0) {
-            details.push(`${fieldLabels.get('repositories') || 'Repositories'}: ${task.repositories.join(', ')}`);
+            details.push(`Repos: ${task.repositories.join(', ')}`);
         }
 
         if (task.azureWorkItemId) {
-            details.push(`${fieldLabels.get('azureWorkItemId') || 'Azure Work Item ID'}: #${task.azureWorkItemId}`);
+            details.push(`Work Item: #${task.azureWorkItemId}`);
         }
 
         if (details.length > 0) {
-            taskText += "--- Task Details ---\n";
+            taskText += "--- IDENTIFICATION ---\n";
             taskText += details.join('\n') + '\n\n';
         }
         
         const timeline: string[] = [];
-        if (task.devStartDate) timeline.push(`${fieldLabels.get('devStartDate') || 'Dev Start'}: ${format(new Date(task.devStartDate), 'PPP')}`);
-        if (task.devEndDate) timeline.push(`${fieldLabels.get('devEndDate') || 'Dev End'}: ${format(new Date(task.devEndDate), 'PPP')}`);
-        if (task.qaStartDate) timeline.push(`${fieldLabels.get('qaStartDate') || 'QA Start'}: ${format(new Date(task.qaStartDate), 'PPP')}`);
-        if (task.qaEndDate) timeline.push(`${fieldLabels.get('qaEndDate') || 'QA End'}: ${format(new Date(task.qaEndDate), 'PPP')}`);
+        if (task.devStartDate) timeline.push(`Commenced: ${format(new Date(task.devStartDate), 'PPP')}`);
         
         if (task.deploymentDates) {
             Object.entries(task.deploymentDates).forEach(([env, date]) => {
                 if(date) {
-                    timeline.push(`${env.charAt(0).toUpperCase() + env.slice(1)} Deployed: ${format(new Date(date), 'PPP')}`);
+                    timeline.push(`${env.toUpperCase()} Deployment: ${format(new Date(date), 'PPP')}`);
                 }
             });
         }
         
         if (timeline.length > 0) {
-            taskText += "--- Timeline & Deployments ---\n";
+            taskText += "--- MILESTONES ---\n";
             taskText += timeline.join('\n') + '\n\n';
-        }
-
-        const customFields = uiConfig.fields.filter(f => f.isCustom && f.isActive && task.customFields && task.customFields[f.key]);
-        if (customFields.length > 0) {
-            const customDetails = customFields.map(field => {
-                const value = task.customFields![field.key];
-                if (value !== null && value !== undefined && value !== '') {
-                    return `${field.label}: ${renderCustomFieldValueForText(field, value)}`;
-                }
-                return null;
-            }).filter(Boolean);
-
-            if (customDetails.length > 0) {
-                taskText += "--- Other Details ---\n";
-                taskText += customDetails.join('\n') + '\n\n';
-            }
-        }
-        
-        if (task.comments && task.comments.length > 0) {
-            const commentsText = task.comments.map(c => {
-                const text = typeof c === 'string' ? c : c.text;
-                const timestamp = typeof c === 'object' && c.timestamp ? `(${format(new Date(c.timestamp), 'PPP')})` : '';
-                return `- ${stripMarkup(text)} ${timestamp}`;
-            }).join('\n');
-            taskText += '--- Comments ---\n';
-            taskText += commentsText + '\n\n';
         }
 
         return taskText;
     });
 
-    return taskStrings.join('----------------------------------------\n\n');
+    return taskStrings.join('========================================\n\n');
 };

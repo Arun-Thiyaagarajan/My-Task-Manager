@@ -1,4 +1,6 @@
 
+'use client';
+
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/header';
@@ -10,44 +12,16 @@ import { PullToRefresh } from '@/components/pull-to-refresh';
 import { NavigationLoader } from '@/components/navigation-loader';
 import { FaviconSync } from '@/components/favicon-sync';
 import { FileTransferIndicator } from '@/components/file-transfer-indicator';
-import type { Metadata, Viewport } from 'next';
-
-export const metadata: Metadata = {
-  title: 'TaskFlow',
-  description: 'A Sleek & Simple Task Manager',
-  manifest: '/manifest.json',
-  icons: {
-    icon: [
-      { url: 'https://placehold.co/32x32/4f46e5/white/png?text=%F0%9F%93%8B', sizes: '32x32', type: 'image/png' },
-      { url: 'https://placehold.co/16x16/4f46e5/white/png?text=%F0%9F%93%8B', sizes: '16x16', type: 'image/png' },
-    ],
-    apple: [
-      { url: 'https://placehold.co/180x180/4f46e5/white/png?text=%F0%9F%93%8B', sizes: '180x180', type: 'image/png' },
-    ],
-  },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'default',
-    title: 'TaskFlow',
-  },
-  formatDetection: {
-    telephone: false,
-  },
-};
-
-export const viewport: Viewport = {
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  themeColor: '#4f46e5',
-};
+import { usePathname } from 'next/navigation';
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const pathname = usePathname();
+  const isSharedPage = pathname?.startsWith('/share/');
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body
@@ -59,14 +33,16 @@ export default function RootLayout({
         <Providers>
             <FaviconSync />
             <div className="relative flex min-h-screen flex-col">
-            <Header />
+            {!isSharedPage && <Header />}
             <NavigationLoader />
             <PullToRefresh>
-              <main className="flex-1 pb-32 md:pb-0">{children}</main>
+              <main className={cn("flex-1", !isSharedPage && "pb-32 md:pb-0")}>
+                {children}
+              </main>
             </PullToRefresh>
-            <FloatingNotes />
+            {!isSharedPage && <FloatingNotes />}
             <FileTransferIndicator />
-            <MobileBottomNav />
+            {!isSharedPage && <MobileBottomNav />}
             </div>
             <Toaster />
         </Providers>
