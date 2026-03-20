@@ -339,6 +339,17 @@ const _drawTaskOnPage = async (
     y = PADDING + 8 + 8;
 
     drawTitle(task.title, task.status);
+
+    if (task.summary) {
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(FONT_SIZE_NORMAL);
+        doc.setTextColor(...COLORS.TEXT_MUTED);
+        const summaryLines = doc.splitTextToSize(`"${task.summary}"`, MAX_CONTENT_WIDTH);
+        const summaryHeight = summaryLines.length * LINE_HEIGHT_NORMAL;
+        checkPageBreak(summaryHeight + 4);
+        doc.text(summaryLines, PADDING, y);
+        y += summaryHeight + 4;
+    }
     
     if (task.description) {
         const cleanDescription = task.description.replace(/(\*\*|_(.*?)_|\`|\~)/g, '');
@@ -365,6 +376,9 @@ const _drawTaskOnPage = async (
         const url = azureConfig?.baseUrl ? `${azureConfig.baseUrl}${task.azureWorkItemId}` : '';
         drawKeyValue(fieldLabels.get('azureWorkItemId') || 'Work Item ID', { text: `#${task.azureWorkItemId}`, link: url });
     }
+    if (task.tags && task.tags.length > 0) {
+        drawKeyValue(fieldLabels.get('tags') || 'Tags', task.tags.join(', '));
+    }
 
     Object.entries(groupedCustomFields).forEach(([groupName, fields]) => {
         drawSectionHeader(groupName);
@@ -376,7 +390,10 @@ const _drawTaskOnPage = async (
     });
 
     drawSectionHeader('Milestones & Deployments');
-    if (task.devStartDate) drawKeyValue('Commencement Date', format(new Date(task.devStartDate), 'PPP'));
+    if (task.devStartDate) drawKeyValue(fieldLabels.get('devStartDate') || 'Dev Commencement', format(new Date(task.devStartDate), 'PPP'));
+    if (task.devEndDate) drawKeyValue(fieldLabels.get('devEndDate') || 'Dev Completion', format(new Date(task.devEndDate), 'PPP'));
+    if (task.qaStartDate) drawKeyValue(fieldLabels.get('qaStartDate') || 'QA Commenced', format(new Date(task.qaStartDate), 'PPP'));
+    if (task.qaEndDate) drawKeyValue(fieldLabels.get('qaEndDate') || 'QA Verified', format(new Date(task.qaEndDate), 'PPP'));
     
     if (uiConfig.environments.length > 0) {
       uiConfig.environments.forEach((env: Environment) => {
@@ -385,9 +402,24 @@ const _drawTaskOnPage = async (
           const hasDate = task.deploymentDates && task.deploymentDates[env.name];
           if (isSelected) {
               const deploymentDate = hasDate ? `on ${format(new Date(hasDate), 'PPP')}` : '(Status: Active)';
-              drawKeyValue(`${env.name.charAt(0).toUpperCase() + env.name.slice(1)} Milestone`, deploymentDate);
+              drawKeyValue(`${env.name.charAt(0).toUpperCase() + env.name.slice(1)} Deployment`, deploymentDate);
           }
       });
+    }
+
+    if (task.prLinks && Object.keys(task.prLinks).length > 0) {
+        drawSectionHeader(fieldLabels.get('prLinks') || 'Pull Request Links');
+        Object.entries(task.prLinks).forEach(([env, repos]) => {
+            if (!repos) return;
+            Object.entries(repos).forEach(([repoName, prIdString]) => {
+                if (!prIdString) return;
+                const prIds = prIdString.split(',').map(s => s.trim()).filter(Boolean);
+                if (prIds.length === 0) return;
+                
+                const label = `${env.charAt(0).toUpperCase() + env.slice(1)} - ${repoName}`;
+                drawKeyValue(label, prIds.map(id => `#${id}`).join(', '));
+            });
+        });
     }
 
     const hasAttachments = task.attachments && task.attachments.length > 0;
@@ -412,7 +444,7 @@ const _drawTaskOnPage = async (
             }
         }
         
-        drawSectionHeader('Supporting Documents', requiredHeightForFirstItem);
+        drawSectionHeader(fieldLabels.get('attachments') || 'Supporting Documents', requiredHeightForFirstItem);
         
         task.attachments!.forEach(att => {
             if (att.type === 'link') {
@@ -525,6 +557,9 @@ export const generateTasksText = (
         
         const timeline: string[] = [];
         if (task.devStartDate) timeline.push(`Commenced: ${format(new Date(task.devStartDate), 'PPP')}`);
+        if (task.devEndDate) timeline.push(`Completed: ${format(new Date(task.devEndDate), 'PPP')}`);
+        if (task.qaStartDate) timeline.push(`QA Started: ${format(new Date(task.qaStartDate), 'PPP')}`);
+        if (task.qaEndDate) timeline.push(`QA Verified: ${format(new Date(task.qaEndDate), 'PPP')}`);
         
         if (task.deploymentDates) {
             Object.entries(task.deploymentDates).forEach(([env, date]) => {
