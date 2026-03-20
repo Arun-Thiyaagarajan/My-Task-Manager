@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials, getAvatarGradient, cn, compressImage, fuzzySearch } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { 
     setAuthMode, 
     getAuthMode, 
@@ -25,9 +25,11 @@ import {
     setActiveCompanyId, 
     deleteCompany,
     addCompany,
-    updateCompany
+    updateCompany,
+    getRecentTasks,
+    getRecentImportedTasks
 } from '@/lib/data';
-import type { Company, UserProfile } from '@/lib/types';
+import type { Company, UserProfile, Task } from '@/lib/types';
 import { 
   User as UserIcon, 
   Mail, 
@@ -69,7 +71,8 @@ import {
   Eraser,
   Palette,
   SearchX,
-  DownloadCloud
+  DownloadCloud,
+  Plus
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
@@ -311,6 +314,77 @@ function WorkspaceDialog({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChan
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+    );
+}
+
+function RecentInsightsSection() {
+    const [recentAdded, setRecentAdded] = useState<Task[]>([]);
+    const [recentImported, setRecentImported] = useState<Task[]>([]);
+    const router = useRouter();
+
+    useEffect(() => {
+        setRecentAdded(getRecentTasks(3));
+        setRecentImported(getRecentImportedTasks(3));
+    }, []);
+
+    if (recentAdded.length === 0 && recentImported.length === 0) return null;
+
+    const TaskLink = ({ task, type }: { task: Task, type: 'added' | 'imported' }) => (
+        <button 
+            onClick={() => {
+                window.dispatchEvent(new Event('navigation-start'));
+                router.push(`/tasks/${task.id}`);
+            }}
+            className="w-full flex items-center gap-3 p-3 hover:bg-muted/50 active:bg-muted transition-colors text-left border-b last:border-0 group"
+        >
+            <div className={cn(
+                "h-8 w-8 rounded-lg flex items-center justify-center shrink-0",
+                type === 'added' ? "bg-green-500/10 text-green-600" : "bg-blue-500/10 text-blue-600"
+            )}>
+                {type === 'added' ? <Plus className="h-4 w-4" /> : <Download className="h-4 w-4" />}
+            </div>
+            <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold truncate">{task.title}</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mt-0.5">
+                    {formatDistanceToNow(new Date(task.createdAt), { addSuffix: true })}
+                </p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground/30" />
+        </button>
+    );
+
+    return (
+        <div className="space-y-6 pb-10">
+            {recentAdded.length > 0 && (
+                <div>
+                    <div className="px-4 pt-6 pb-2">
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 flex items-center gap-2">
+                            <Sparkles className="h-3 w-3" /> Recently Added
+                        </h3>
+                    </div>
+                    <div className="px-4">
+                        <div className="bg-card border rounded-3xl overflow-hidden shadow-sm">
+                            {recentAdded.map(t => <TaskLink key={t.id} task={t} type="added" />)}
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            {recentImported.length > 0 && (
+                <div>
+                    <div className="px-4 pt-6 pb-2">
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 flex items-center gap-2">
+                            <Download className="h-3 w-3" /> Recently Imported
+                        </h3>
+                    </div>
+                    <div className="px-4">
+                        <div className="bg-card border rounded-3xl overflow-hidden shadow-sm">
+                            {recentImported.map(t => <TaskLink key={t.id} task={t} type="imported" />)}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 }
 
@@ -676,7 +750,7 @@ export default function ProfilePage() {
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="flex-col md:flex-row gap-2 mt-4">
-                <AlertDialogAction onClick={handleSignOut} className="bg-destructive hover:bg-destructive/90 font-semibold w-full h-11 rounded-xlAction">Sign Out</AlertDialogAction>
+                <AlertDialogAction onClick={handleSignOut} className="bg-destructive hover:bg-destructive/90 font-semibold w-full h-11 rounded-xl">Sign Out</AlertDialogAction>
                 <AlertDialogCancel className="font-medium w-full h-11 border-none bg-transparent hover:bg-muted rounded-xl">Cancel</AlertDialogCancel>
             </AlertDialogFooter>
         </AlertDialogContent>
@@ -762,7 +836,7 @@ export default function ProfilePage() {
                 
                 {/* Deep Navigation Suggestions Dropdown */}
                 {isSearchFocused && isSearchActive && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-popover border rounded-2xl shadow-2xl z-[150] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 w-full max-w-[calc(100vw-3rem)] mx-auto">
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-popover border rounded-2xl shadow-2xl z-[150] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 w-full max-w-[calc(100vw-2rem)] mx-auto">
                         {filteredSearchItems.length > 0 ? (
                             filteredSearchItems.map(item => (
                                 <button
@@ -875,6 +949,9 @@ export default function ProfilePage() {
                     />
                 </div>
             </div>
+
+            {/* Recent Insights Hub Section */}
+            <RecentInsightsSection />
 
             {/* Account Actions - Boxed Container */}
             <div className="mt-6 px-4 pb-0">

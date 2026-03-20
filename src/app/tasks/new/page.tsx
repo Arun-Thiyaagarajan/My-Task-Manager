@@ -97,7 +97,7 @@ export default function NewTaskPage() {
       }
     }
 
-    addTask(taskDataToCreate);
+    const newTask = addTask(taskDataToCreate);
     
     toast({
         variant: 'success',
@@ -105,7 +105,7 @@ export default function NewTaskPage() {
         description: "Your new task has been saved.",
     });
 
-    router.push(`/`);
+    router.push(`/tasks/${newTask.id}`);
   };
 
   if (isLoading) {

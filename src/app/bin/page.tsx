@@ -246,12 +246,6 @@ export default function BinPage() {
                 <p className="text-xs sm:text-sm text-muted-foreground mt-1 font-normal">Items deleted in the last 30 days. They will be permanently deleted after this period.</p>
             </div>
         </div>
-        {!isMobile && (
-            <Button variant="ghost" onClick={handleBack} className="font-medium">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to tasks
-            </Button>
-        )}
       </div>
 
       <div className="space-y-6">

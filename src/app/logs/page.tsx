@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -174,20 +173,18 @@ export default function LogsPage() {
         return null;
     }
 
-    const handleBackToProfile = () => {
+    const handleBack = () => {
         window.dispatchEvent(new Event('navigation-start'));
-        router.push('/profile');
+        router.push(isMobile ? '/profile' : '/');
     };
     
     return (
         <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                 <div className="flex items-start gap-4">
-                    {isMobile && (
-                        <Button variant="ghost" size="icon" onClick={handleBackToProfile} className="h-10 w-10 -ml-2 rounded-full shrink-0">
-                            <ArrowLeft className="h-6 w-6" />
-                        </Button>
-                    )}
+                    <Button variant="ghost" size="icon" onClick={handleBack} className="h-10 w-10 -ml-2 rounded-full shrink-0">
+                        <ArrowLeft className="h-6 w-6" />
+                    </Button>
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
                             <FileClock className="h-7 w-7"/> Activity Logs

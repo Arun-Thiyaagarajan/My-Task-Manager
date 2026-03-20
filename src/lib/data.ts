@@ -609,6 +609,36 @@ export function getTaskById(id: string): Task | undefined {
            appData.companyData[companyId].trash.find(t => t.id === id);
 }
 
+export function getRecentTasks(limitCount = 5): Task[] {
+    const tasks = getTasks();
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    return tasks
+        .filter(t => new Date(t.createdAt) >= sevenDaysAgo)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, limitCount);
+}
+
+export function getRecentImportedTasks(limitCount = 5): Task[] {
+    const logs = getLogs();
+    const tasks = getTasks();
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    // Find task IDs that have an "Imported task" log recently
+    const importedTaskIds = new Set(
+        logs
+            .filter(l => l.taskId && l.message.includes('Imported task') && new Date(l.timestamp) >= sevenDaysAgo)
+            .map(l => l.taskId!)
+    );
+
+    return tasks
+        .filter(t => importedTaskIds.has(t.id))
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, limitCount);
+}
+
 export function addTask(task: Partial<Task>): Task {
     const data = getAppData();
     const companyId = getActiveCompanyId();

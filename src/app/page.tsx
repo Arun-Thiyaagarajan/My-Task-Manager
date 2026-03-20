@@ -1078,9 +1078,9 @@ export default function Home() {
                     </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => handleExport('current_view')} className="font-medium">Export Current View</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => handleExport('all_tasks')} className="font-medium">Export All Tasks</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={handleDownloadTemplate} className="font-medium">Download Import Template</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => handleExport('current_view')} className="font-normal">Export Current View</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => handleExport('all_tasks')} className="font-normal">Export All Tasks</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={handleDownloadTemplate} className="font-normal">Download Import Template</DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
 
@@ -1259,7 +1259,7 @@ export default function Home() {
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter className="gap-2 pt-4">
-                              <AlertDialogCancel className="font-medium rounded-lg">Cancel</AlertDialogCancel>
+                              <AlertDialogCancel className="rounded-xl font-medium">Cancel</AlertDialogCancel>
                               <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90 font-bold rounded-lg px-6">
                                   Delete Tasks
                               </AlertDialogAction>
