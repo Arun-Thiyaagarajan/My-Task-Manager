@@ -54,6 +54,7 @@ import {
   FileText,
   ChevronRight as ChevronRightIcon,
   SearchX,
+  CalendarIcon,
 } from 'lucide-react';
 import { cn, fuzzySearch } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig, Log, GeneralReminder, BackupFrequency, Environment, UserPreferences, AuthMode } from '@/lib/types';
@@ -1272,12 +1273,36 @@ export default function Home() {
                       )}>
                         <Card className="border shadow-lg bg-card">
                             <CardContent className="p-4 space-y-4">
-                                <MultiSelect selected={statusFilter} onChange={(val) => { setStatusFilter(val); }} options={(uiConfig?.taskStatuses || []).map(s => ({ value: s, label: s }))} placeholder="Status..." />
-                                <MultiSelect selected={repoFilter} onChange={(val) => { setRepoFilter(val); }} options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} placeholder="Repository..." />
+                                <MultiSelect 
+                                    selected={statusFilter} 
+                                    className={cn(statusFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+                                    onChange={(val) => { setIsSearching(true); setStatusFilter(val); }} 
+                                    options={(uiConfig?.taskStatuses || []).map(s => ({ value: s, label: s }))} 
+                                    placeholder="Status..." 
+                                />
+                                <MultiSelect 
+                                    selected={repoFilter} 
+                                    className={cn(repoFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+                                    onChange={(val) => { setIsSearching(true); setRepoFilter(val); }} 
+                                    options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} 
+                                    placeholder="Repository..." 
+                                />
                                 {(uiConfig?.fields || []).find(f => f.key === 'tags')?.isActive && (
-                                    <MultiSelect selected={tagsFilter} onChange={(val) => { setTagsFilter(val); }} options={[...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({value: t, label: t}))} placeholder="Tags..." />
+                                    <MultiSelect 
+                                        selected={tagsFilter} 
+                                        className={cn(tagsFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+                                        onChange={(val) => { setIsSearching(true); setTagsFilter(val); }} 
+                                        options={[...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({value: t, label: t}))} 
+                                        placeholder="Tags..." 
+                                    />
                                 )}
-                                <MultiSelect selected={deploymentFilter} onChange={(val) => { setDeploymentFilter(val); }} options={(uiConfig?.environments || []).flatMap(env => [{ value: env.name, label: `On ${env.name}` }, { value: `not_${env.name}`, label: `Not on ${env.name}` }])} placeholder="Deployment..." />
+                                <MultiSelect 
+                                    selected={deploymentFilter} 
+                                    className={cn(deploymentFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+                                    onChange={(val) => { setIsSearching(true); setDeploymentFilter(val); }} 
+                                    options={(uiConfig?.environments || []).flatMap(env => [{ value: env.name, label: `On ${env.name}` }, { value: `not_${env.name}`, label: `Not on ${env.name}` }])} 
+                                    placeholder="Deployment..." 
+                                />
                             </CardContent>
                         </Card>
                       </div>
@@ -1697,7 +1722,7 @@ export default function Home() {
             <div className="relative">
                 <div className={cn(
                     "transition-all duration-500",
-                    isSearching && showSlowSearchMessage ? "opacity-40 grayscale-[0.5] blur-[0.5px]" : "opacity-100"
+                    isSearching ? "opacity-40 grayscale-[0.5] blur-[0.5px]" : "opacity-100"
                 )}>
                     {(filteredTasks.length > 0 || activeSkeletons) ? (
                         <div>
