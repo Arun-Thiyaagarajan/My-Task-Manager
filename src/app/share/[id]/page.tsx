@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, Suspense, useMemo } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { getTaskById, getUiConfig } from '@/lib/data';
-import type { Task, UiConfig, Person, Environment, Attachment, FieldConfig } from '@/lib/types';
+import type { Task, UiConfig, Environment, Attachment } from '@/lib/types';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
 import { TaskStatusBadge, getStatusConfig } from '@/components/task-status-badge';
 import { Badge } from '@/components/ui/badge';
@@ -21,12 +21,9 @@ import {
     ArrowLeft,
     CheckCircle2,
     X,
-    FileSearch,
     ListChecks,
-    Users,
     Code2,
-    ClipboardCheck,
-    MessageSquare
+    ClipboardCheck
 } from 'lucide-react';
 import { cn, getRepoBadgeStyle, formatTimestamp, getAvatarColor, getInitials } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -79,8 +76,8 @@ function SharedTaskContent() {
                     qaStartDate: snapshot.qsd,
                     qaEndDate: snapshot.qed,
                     customFields: snapshot.cf,
-                    developers: snapshot.dv, // Snapshot contains names
-                    testers: snapshot.ts, // Snapshot contains names
+                    developers: snapshot.dv, // Snapshot contains resolved names
+                    testers: snapshot.ts, // Snapshot contains resolved names
                     prLinks: snapshot.pr,
                     azureWorkItemId: snapshot.az,
                     updatedAt: snapshot.up,
@@ -96,7 +93,6 @@ function SharedTaskContent() {
             const foundTask = getTaskById(taskId);
             if (foundTask) {
                 finalTask = foundTask;
-                // Use app's current labels as fallback
                 config.fields.forEach(f => {
                     finalLabels[f.key] = f.label;
                 });
@@ -111,18 +107,20 @@ function SharedTaskContent() {
         setIsLoading(false);
     }, [params.id, searchParams]);
 
-    const renderCustomFieldValue = (fieldKey: string, label: string, value: any) => {
+    const renderCustomFieldValue = (fieldKey: string, value: any) => {
         if (value === null || value === undefined || value === '') return <span className="text-muted-foreground font-normal">N/A</span>;
         
-        // Determine type based on common key patterns or value types if config isn't fully available
+        const aliasKey = `${fieldKey}_alias`;
+        const alias = task?.customFields?.[aliasKey];
+
         if (typeof value === 'boolean') return value ? 'Yes' : 'No';
         if (Array.isArray(value)) return <div className="flex flex-wrap gap-1">{value.map((v: any) => <Badge key={v} variant="secondary">{v}</Badge>)}</div>;
-        if (String(value).startsWith('http')) return <a href={String(value)} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{String(value)}</a>;
+        if (String(value).startsWith('http')) return <a href={String(value)} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{alias || String(value)}</a>;
         
-        return <RichTextViewer text={String(value)} />;
+        return <RichTextViewer text={alias || String(value)} />;
     }
 
-    if (isLoading) return <LoadingSpinner text="Initializing secure view..." />;
+    if (isLoading) return <LoadingSpinner text="Initializing secure view..." size="lg" />;
 
     if (!task || !uiConfig) {
         return (
@@ -139,20 +137,28 @@ function SharedTaskContent() {
         );
     }
 
+    // Determine which custom fields to show by checking if they have a known label in the snapshot
+    const customFieldEntries = Object.entries(task.customFields || {}).filter(([key]) => {
+        // Exclude internal alias keys and standard task keys
+        if (key.endsWith('_alias')) return false;
+        const standardKeys = ['title', 'description', 'status', 'repositories', 'developers', 'testers', 'azureWorkItemId', 'tags', 'prLinks', 'attachments', 'deploymentStatus', 'relevantEnvironments', 'devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate', 'comments'];
+        if (standardKeys.includes(key)) return false;
+        
+        // Only show if we have a label for it (ensures it's not a leaked technical variable)
+        return fieldLabels.has(key);
+    });
+    
     const relevantEnvs = (task.relevantEnvironments || []).map(name => uiConfig.environments.find(e => e.name === name)).filter((e): e is Environment => !!e);
-    
-    // Custom fields present in the task snapshot
-    const customFieldKeys = Object.keys(task.customFields || {});
-    
     const statusConfig = getStatusConfig(task.status);
     const { Icon, cardClassName, iconColorClassName } = statusConfig;
 
-    const prLinksLabel = fieldLabels.get('prLinks') || 'Pull Requests';
     const deploymentLabel = fieldLabels.get('deploymentStatus') || 'Deployments';
+    const prLinksLabel = fieldLabels.get('prLinks') || 'Pull Request Links';
     const developersLabel = fieldLabels.get('developers') || 'Developers';
     const testersLabel = fieldLabels.get('testers') || 'Testers';
     const repositoriesLabel = fieldLabels.get('repositories') || 'Repositories';
     const attachmentsLabel = fieldLabels.get('attachments') || 'Attachments';
+    const otherDetailsLabel = fieldLabels.get('customFields') || 'Other Details';
 
     return (
         <div className="min-h-screen bg-muted/5 pb-20 selection:bg-primary selection:text-white">
@@ -224,17 +230,16 @@ function SharedTaskContent() {
                             </Card>
                         </div>
 
-                        {customFieldKeys.length > 0 && (
+                        {customFieldEntries.length > 0 && (
                             <Card>
-                                <CardHeader><CardTitle className="flex items-center gap-2 text-xl font-semibold"><Box className="h-5 w-5" />Extended Details</CardTitle></CardHeader>
+                                <CardHeader><CardTitle className="flex items-center gap-2 text-xl font-semibold"><Box className="h-5 w-5" />{otherDetailsLabel}</CardTitle></CardHeader>
                                 <CardContent className="space-y-4">
-                                    {customFieldKeys.map(key => {
+                                    {customFieldEntries.map(([key, value]) => {
                                         const label = fieldLabels.get(key) || key;
-                                        const value = task.customFields?.[key];
                                         return (
                                             <div key={key} className="break-words">
                                                 <h4 className="text-sm font-semibold text-muted-foreground mb-1">{label}</h4>
-                                                <div className="text-sm text-foreground font-normal">{renderCustomFieldValue(key, label, value)}</div>
+                                                <div className="text-sm text-foreground font-normal">{renderCustomFieldValue(key, value)}</div>
                                             </div>
                                         );
                                     })}

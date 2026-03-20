@@ -62,13 +62,10 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
     const devMap = new Map(developers.map(d => [d.id, d.name]));
     const testerMap = new Map(testers.map(t => [t.id, t.name]));
 
-    // Capture current field aliases to ensure consistency in the shared view
+    // Capture CURRENT field aliases to ensure consistency in the shared view
     const labels: Record<string, string> = {};
     uiConfig.fields.forEach(f => {
-        // Include core labels and custom field labels if they are used in this task
-        if (!f.isCustom || (task.customFields && task.customFields[f.key] !== undefined)) {
-            labels[f.key] = f.label;
-        }
+        labels[f.key] = f.label;
     });
 
     // Create a comprehensive snapshot for the URL payload
