@@ -29,8 +29,7 @@ import {
 import { generateTaskPdf } from '@/lib/share-utils';
 import type { Task, UiConfig, Person, Attachment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { getLogsForTask, addLog } from '@/lib/data';
-import { triggerTransfer } from './file-transfer-indicator';
+import { addLog } from '@/lib/data';
 
 const sanitizeFilename = (name: string): string => {
     return name.replace(/[<>:"/\\|?*]+/g, '_').substring(0, 100);
@@ -51,9 +50,43 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
   const [isGenerating, setIsGenerating] = React.useState(false);
   const [copiedUrl, setCopiedUrl] = React.useState<string | null>(null);
 
+  /**
+   * Generates a self-sufficient share URL by encoding a snapshot of the task data
+   * into the URL query parameters. This ensures the link works on any device
+   * without needing backend access for the recipient.
+   */
   const getShareUrl = () => {
     if (typeof window === 'undefined') return '';
-    return `${window.location.origin}/share/${task.id}`;
+    const baseUrl = `${window.location.origin}/share/${task.id}`;
+    
+    // Create a lean snapshot for the URL payload
+    const snapshot = {
+        t: task.title,
+        d: task.description,
+        s: task.status,
+        u: task.summary,
+        g: task.tags || [],
+        r: task.repositories || [],
+        e: task.relevantEnvironments || [],
+        st: task.deploymentStatus || {},
+        dt: task.deploymentDates || {},
+        // Include links only, skip data URIs to keep URL short
+        at: (task.attachments || [])
+            .filter(a => !a.url.startsWith('data:'))
+            .map(a => ({ n: a.name, u: a.url, t: a.type })),
+        sd: task.devStartDate,
+        up: task.updatedAt
+    };
+
+    try {
+        const json = JSON.stringify(snapshot);
+        const encoded = btoa(encodeURIComponent(json).replace(/%([0-9A-F]{2})/g, (match, p1) => 
+            String.fromCharCode(parseInt(p1, 16))
+        ));
+        return `${baseUrl}?p=${encoded}`;
+    } catch (e) {
+        return baseUrl;
+    }
   };
 
   const handleCopyShareLink = () => {
@@ -70,13 +103,6 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
   };
 
   const handleExportJson = () => {
-    const devIdsInTask = new Set(task.developers || []);
-    const testerIdsInTask = new Set(task.testers || []);
-    
-    const developersToExport = developers.filter(d => devIdsInTask.has(d.id));
-    const testersToExport = testers.filter(t => testerIdsInTask.has(t.id));
-    const logsToExport = getLogsForTask(task.id);
-    
     const devIdToName = new Map(developers.map(d => [d.id, d.name]));
     const testerIdToName = new Map(testers.map(t => [t.id, t.name]));
 
@@ -89,24 +115,17 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
     const exportData = {
         appName: uiConfig.appName,
         appIcon: uiConfig.appIcon,
-        repositoryConfigs: uiConfig.repositoryConfigs,
-        developers: developersToExport.map(p => ({ name: p.name, email: p.email, phone: p.phone, additionalFields: p.additionalFields })),
-        testers: testersToExport.map(p => ({ name: p.name, email: p.email, phone: p.phone, additionalFields: p.additionalFields })),
-        tasks: [taskWithNames],
-        logs: logsToExport,
+        task: taskWithNames,
+        exportedAt: new Date().toISOString()
     };
     
     const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(exportData, null, 2))}`;
     const link = document.createElement("a");
     link.href = jsonString;
-    link.download = `${sanitizeFilename(task.title)}.json`;
+    link.download = `Task_${sanitizeFilename(task.title)}.json`;
     link.click();
 
-    toast({
-      variant: 'success',
-      title: 'JSON Exported',
-      description: `Task data exported successfully.`,
-    });
+    toast({ variant: 'success', title: 'JSON Exported' });
     addLog({ message: `Exported task "**${task.title}**" as JSON.`, taskId: task.id });
   };
 
@@ -114,7 +133,7 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
     setIsGenerating(true);
     try {
         await generateTaskPdf([task], uiConfig, developers, testers, 'save');
-        toast({ variant: 'success', title: 'PDF exported successfully' });
+        toast({ variant: 'success', title: 'PDF Exported' });
         addLog({ message: `Exported task "**${task.title}**" as PDF.`, taskId: task.id });
     } catch (e) {
         toast({ variant: 'destructive', title: 'PDF export failed' });
@@ -123,84 +142,28 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
     }
   };
 
-  const handleDownloadFile = async () => {
-    if (!attachment) return;
-    
-    const transferId = Math.random().toString(36).substr(2, 9);
-    triggerTransfer({
-        id: transferId,
-        filename: attachment.name,
-        status: 'downloading',
-        progress: 0
-    });
-
-    try {
-        // Simulate download progress
-        for(let i=0; i<=100; i+=25) {
-            await new Promise(r => setTimeout(r, 200));
-            triggerTransfer({ id: transferId, filename: attachment.name, status: 'downloading', progress: i });
-        }
-
-        const link = document.createElement('a');
-        link.href = attachment.url;
-        link.download = attachment.name;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        triggerTransfer({ id: transferId, filename: attachment.name, status: 'complete', progress: 100 });
-        addLog({ message: `Downloaded attachment "**${attachment.name}**" from task "**${task.title}**".`, taskId: task.id });
-    } catch (e) {
-        triggerTransfer({ id: transferId, filename: attachment.name, status: 'error', progress: 0, error: 'Download failed' });
-    }
-  };
-
-  const handleCopyLink = () => {
-    const url = attachment ? attachment.url : window.location.href;
-    navigator.clipboard.writeText(url).then(() => {
-        setCopiedUrl(url);
-        toast({ variant: 'success', title: 'Link copied to clipboard' });
-        setTimeout(() => setCopiedUrl(null), 2000);
-    });
-  };
-
   const menuItems = (
     <>
-      {attachment ? (
-          <>
-            <DropdownMenuItem onSelect={handleDownloadFile}>
-                <Download className="mr-2 h-4 w-4" />
-                <span>Download File</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={handleCopyLink}>
-                {copiedUrl === attachment.url ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
-                <span>Copy Link</span>
-            </DropdownMenuItem>
-          </>
-      ) : (
-          <>
-            <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-primary/60 px-2 py-1.5">Static Web View</DropdownMenuLabel>
-            <DropdownMenuItem onSelect={handleCopyShareLink}>
-                {copiedUrl === getShareUrl() ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
-                <span>Copy Share Link</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={handleOpenSharedView}>
-                <ExternalLink className="mr-2 h-4 w-4" />
-                <span>Open Shared View</span>
-            </DropdownMenuItem>
-            
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-primary/60 px-2 py-1.5">Document Export</DropdownMenuLabel>
-            <DropdownMenuItem onSelect={handleExportPdf} disabled={isGenerating}>
-                {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
-                <span>Export as PDF</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={handleExportJson}>
-                <FileJson className="mr-2 h-4 w-4" />
-                <span>Export as JSON</span>
-            </DropdownMenuItem>
-          </>
-      )}
+      <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-primary/60 px-2 py-1.5">Public Publication</DropdownMenuLabel>
+      <DropdownMenuItem onSelect={handleCopyShareLink}>
+          {copiedUrl === getShareUrl() ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
+          <span>Copy Share Link</span>
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={handleOpenSharedView}>
+          <ExternalLink className="mr-2 h-4 w-4" />
+          <span>Open Web View</span>
+      </DropdownMenuItem>
+      
+      <DropdownMenuSeparator />
+      <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-primary/60 px-2 py-1.5">Document Export</DropdownMenuLabel>
+      <DropdownMenuItem onSelect={handleExportPdf} disabled={isGenerating}>
+          {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
+          <span>Download PDF</span>
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={handleExportJson}>
+          <FileJson className="mr-2 h-4 w-4" />
+          <span>Download JSON</span>
+      </DropdownMenuItem>
     </>
   );
 
@@ -222,7 +185,7 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
       <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60 p-2 rounded-xl shadow-xl" onClick={e => e.stopPropagation()}>
         <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-2 py-1.5">
-            {attachment ? 'File Sharing' : 'Task Publication'}
+            Publication & Export
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {menuItems}
