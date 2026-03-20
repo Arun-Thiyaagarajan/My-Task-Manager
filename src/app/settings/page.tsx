@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -113,6 +112,7 @@ import { useTheme } from 'next-themes';
 import { FieldFormContent } from '@/components/field-form-content';
 import { EnvironmentFormContent } from '@/components/environment-form-content';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function SettingsPage() {
   const isMobile = useIsMobile();
@@ -328,7 +328,8 @@ export default function SettingsPage() {
   };
 
   const hasUnsavedFieldChanges = useMemo(() => {
-    return JSON.stringify(localFields) !== JSON.stringify(uiConfig?.fields || []);
+    if (!uiConfig) return false;
+    return JSON.stringify(localFields) !== JSON.stringify(uiConfig.fields);
   }, [localFields, uiConfig]);
 
   const handleSaveField = (updatedField: FieldConfig, repoConfigs?: RepositoryConfig[]) => {
@@ -578,6 +579,19 @@ export default function SettingsPage() {
                     <p className="text-xs text-muted-foreground font-medium">Configure your TaskFlow environment.</p>
                 </div>
             </div>
+            
+            {hasUnsavedFieldChanges && (
+                <div className="px-4 mb-4">
+                    <Alert className="bg-primary/5 border-primary/20 rounded-2xl animate-in slide-in-from-top-2 duration-500">
+                        <Info className="h-4 w-4 text-primary" />
+                        <AlertTitle className="font-bold text-primary">Unsaved Field Changes</AlertTitle>
+                        <AlertDescription className="text-xs font-medium text-muted-foreground">
+                            You have pending edits to your field configuration. Please click <strong>Save Fields</strong> to apply them.
+                        </AlertDescription>
+                    </Alert>
+                </div>
+            )}
+
             <MobileSectionHeader title="Workspace" />
             <div className="px-4">
                 <div className="bg-card border rounded-3xl shadow-sm overflow-hidden">
@@ -918,6 +932,17 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start pb-20">
         <div className="lg:col-span-2 space-y-8">
+            {hasUnsavedFieldChanges && (
+                <Alert className="bg-primary/5 border-primary/20 rounded-3xl animate-in slide-in-from-top-2 duration-500 shadow-xl shadow-primary/5">
+                    <Info className="h-5 w-5 text-primary" />
+                    <AlertTitle className="font-bold text-primary text-lg">Unsaved Field Changes</AlertTitle>
+                    <AlertDescription className="text-sm font-medium text-muted-foreground leading-relaxed">
+                        You have pending modifications to your workspace fields. These changes won't be visible to other users until you finalize them. 
+                        Please click the <strong>Save Changes</strong> button to apply these settings globally.
+                    </AlertDescription>
+                </Alert>
+            )}
+
             <Card id="settings-field-config-card" className="border-none shadow-xl bg-card">
                 <CardHeader className="pb-6">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

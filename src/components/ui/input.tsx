@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from "react"
@@ -7,6 +6,7 @@ import { Sparkles, Loader2 } from "lucide-react"
 import { refineText } from "@/ai/flows/refine-text-flow"
 import { useToast } from "@/hooks/use-toast"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "./tooltip"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 export interface InputProps extends React.ComponentProps<"input"> {
     showRefine?: boolean;
@@ -14,9 +14,18 @@ export interface InputProps extends React.ComponentProps<"input"> {
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, showRefine = false, ...props }, ref) => {
+    const isMobile = useIsMobile();
     const [isRefining, setIsRefining] = React.useState(false);
+    const [shortcutHint, setShortcutHint] = React.useState('Alt + H');
     const localRef = React.useRef<HTMLInputElement>(null);
     const { toast } = useToast();
+
+    React.useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+            setShortcutHint(isMac ? 'Option + H' : 'Alt + H');
+        }
+    }, []);
 
     const handleCombinedRef = (el: HTMLInputElement) => {
         localRef.current = el;
@@ -96,7 +105,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
                         <TooltipContent side="top" className="text-[10px] font-bold">
                             <div className="flex items-center gap-2">
                                 <span>Refine Content</span>
-                                <kbd className="bg-muted px-1 rounded border">Alt + H</kbd>
+                                {!isMobile && <kbd className="bg-muted px-1 rounded border">{shortcutHint}</kbd>}
                             </div>
                         </TooltipContent>
                     </Tooltip>

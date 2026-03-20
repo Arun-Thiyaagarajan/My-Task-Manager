@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Bold, Italic, Strikethrough, Code, Code2, AtSign, Sparkles } from 'lucide-react';
@@ -6,6 +5,7 @@ import { Button } from './button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from './tooltip';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export type FormatType = 'bold' | 'italic' | 'strike' | 'code' | 'code-block' | 'mention' | 'refine';
 
@@ -108,12 +108,15 @@ export function applyFormat(formatType: FormatType, target: HTMLTextAreaElement,
 
 
 export function TextareaToolbar({ onFormatClick, showRefine = false }: TextareaToolbarProps) {
+    const isMobile = useIsMobile();
     const [commandKey, setCommandKey] = useState('Ctrl');
+    const [refineShortcut, setRefineShortcut] = useState('Alt+H');
     
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
             setCommandKey(isMac ? '⌘' : 'Ctrl');
+            setRefineShortcut(isMac ? 'Option+H' : 'Alt+H');
         }
     }, []);
 
@@ -131,7 +134,7 @@ export function TextareaToolbar({ onFormatClick, showRefine = false }: TextareaT
             type: 'refine', 
             icon: <Sparkles className="h-4 w-4" />, 
             tooltip: 'Refine / Rephrase', 
-            shortcut: 'Alt+H',
+            shortcut: refineShortcut,
             color: 'text-primary'
         });
     }
@@ -162,19 +165,21 @@ export function TextareaToolbar({ onFormatClick, showRefine = false }: TextareaT
                 <TooltipContent side="top">
                     <div className="flex items-center gap-2">
                         <span>{tooltip}</span>
-                        {shortcut === '@&lt;' ? (
-                            <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                            @&lt;
-                            </kbd>
-                        ) : shortcut === 'Alt+H' ? (
-                            <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                                Alt+H
-                            </kbd>
-                        ) : (
-                            <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                                <span className="text-xs">{commandKey}</span>
-                                {shortcut.includes('+') ? `+${shortcut.split('+')[1]}` : shortcut}
-                            </kbd>
+                        {!isMobile && (
+                            shortcut === '@&lt;' ? (
+                                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                                @&lt;
+                                </kbd>
+                            ) : shortcut.includes('Option') || shortcut.includes('Alt') ? (
+                                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                                    {shortcut}
+                                </kbd>
+                            ) : (
+                                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                                    <span className="text-xs">{commandKey}</span>
+                                    {shortcut.includes('+') ? `+${shortcut.split('+')[1]}` : shortcut}
+                                </kbd>
+                            )
                         )}
                     </div>
                 </TooltipContent>
