@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -62,49 +63,77 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
     const devMap = new Map(developers.map(d => [d.id, d.name]));
     const testerMap = new Map(testers.map(t => [t.id, t.name]));
 
-    // Optimized metadata: Only include labels/types for fields that are actually used in this task
+    // SYSTEM DEFAULTS: We don't need to send these labels in the URL if they haven't changed
+    const defaultLabels: Record<string, string> = {
+        developers: 'Developers',
+        testers: 'Testers',
+        repositories: 'Repositories',
+        status: 'Status',
+        tags: 'Tags',
+        attachments: 'Attachments',
+        prLinks: 'Pull Request Links',
+        deploymentStatus: 'Deployment Status',
+        description: 'Description',
+        title: 'Title',
+        summary: 'Summary',
+        azureWorkItemId: 'Azure Work Item ID',
+        devStartDate: 'Dev Start Date',
+        devEndDate: 'Dev End Date',
+        qaStartDate: 'QA Start Date',
+        qaEndDate: 'QA End Date',
+        comments: 'Comments',
+        customFields: 'Other Details'
+    };
+
+    // Only include metadata for custom fields or standard fields that have been renamed
     const usedCustomKeys = Object.keys(task.customFields || {});
-    const essentialKeys = [
-        'title', 'description', 'status', 'summary', 'tags', 
-        'repositories', 'developers', 'testers', 'azureWorkItemId', 
-        'prLinks', 'attachments', 'deploymentStatus', 'relevantEnvironments',
-        'devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate', 'comments'
-    ];
-    
     const fieldMetadata: Record<string, { l: string, t: string }> = {};
     uiConfig.fields.forEach(f => {
-        if (essentialKeys.includes(f.key) || usedCustomKeys.includes(f.key)) {
-            fieldMetadata[f.key] = { l: f.label, t: f.type };
+        const isCustom = f.isCustom;
+        const isRenamed = defaultLabels[f.key] && defaultLabels[f.key] !== f.label;
+        
+        if (isCustom || isRenamed) {
+            // Only send metadata if it's custom or actually relevant to the UI rendering
+            if (isCustom || usedCustomKeys.includes(f.key)) {
+                fieldMetadata[f.key] = { l: f.label, t: f.type };
+            }
         }
     });
+
+    // Prune deployment data to remove false/null values
+    const prunedStatus: Record<string, boolean> = {};
+    Object.entries(task.deploymentStatus || {}).forEach(([k, v]) => { if (v) prunedStatus[k] = v; });
+    
+    const prunedDates: Record<string, string> = {};
+    Object.entries(task.deploymentDates || {}).forEach(([k, v]) => { if (v) prunedDates[k] = v as string; });
 
     // Create a comprehensive snapshot for the URL payload
     const snapshot = {
         t: task.title,
         d: task.description,
         s: task.status,
-        u: task.summary,
-        g: task.tags || [],
-        r: task.repositories || [],
-        e: task.relevantEnvironments || [],
-        st: task.deploymentStatus || {},
-        dt: task.deploymentDates || {},
+        u: task.summary || undefined,
+        g: task.tags?.length ? task.tags : undefined,
+        r: task.repositories?.length ? task.repositories : undefined,
+        e: task.relevantEnvironments?.length ? task.relevantEnvironments : undefined,
+        st: Object.keys(prunedStatus).length ? prunedStatus : undefined,
+        dt: Object.keys(prunedDates).length ? prunedDates : undefined,
         // Include links only, skip data URIs to keep URL short
         at: (task.attachments || [])
             .filter(a => !a.url.startsWith('data:'))
             .map(a => ({ n: a.name, u: a.url, t: a.type })),
-        sd: task.devStartDate,
-        ed: task.devEndDate,
-        qsd: task.qaStartDate,
-        qed: task.qaEndDate,
-        cf: task.customFields || {},
+        sd: task.devStartDate || undefined,
+        ed: task.devEndDate || undefined,
+        qsd: task.qaStartDate || undefined,
+        qed: task.qaEndDate || undefined,
+        cf: Object.keys(task.customFields || {}).length ? task.customFields : undefined,
         dv: (task.developers || []).map(id => devMap.get(id)).filter(Boolean),
         ts: (task.testers || []).map(id => testerMap.get(id)).filter(Boolean),
-        pr: task.prLinks || {},
-        az: task.azureWorkItemId,
+        pr: Object.keys(task.prLinks || {}).length ? task.prLinks : undefined,
+        az: task.azureWorkItemId || undefined,
         up: task.updatedAt,
-        cm: task.comments || [],
-        fm: fieldMetadata 
+        cm: task.comments?.length ? task.comments : undefined,
+        fm: Object.keys(fieldMetadata).length ? fieldMetadata : undefined 
     };
 
     try {
@@ -114,7 +143,6 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
         return `${baseUrl}?p=${compressed}`;
     } catch (e) {
         console.error("Compression failed, using fallback encoding", e);
-        // Minimal fallback if compression fails
         try {
             const json = JSON.stringify(snapshot);
             const encoded = btoa(encodeURIComponent(json).replace(/%([0-9A-F]{2})/g, (match, p1) => 

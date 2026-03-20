@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
@@ -33,6 +34,29 @@ import { PrLinksGroup } from '@/components/pr-links-group';
 import { CommentsSection } from '@/components/comments-section';
 import LZString from 'lz-string';
 
+// Built-in defaults to keep shared URLs short
+const DEFAULT_METADATA: Record<string, { l: string, t: string }> = {
+    title: { l: 'Title', t: 'text' },
+    description: { l: 'Description', t: 'textarea' },
+    status: { l: 'Status', t: 'select' },
+    summary: { l: 'Summary', t: 'text' },
+    tags: { l: 'Tags', t: 'tags' },
+    repositories: { l: 'Repositories', t: 'multiselect' },
+    developers: { l: 'Developers', t: 'tags' },
+    testers: { l: 'Testers', t: 'tags' },
+    azureWorkItemId: { l: 'Azure Work Item ID', t: 'text' },
+    prLinks: { l: 'Pull Request Links', t: 'object' },
+    attachments: { l: 'Attachments', t: 'object' },
+    deploymentStatus: { l: 'Deployment Status', t: 'object' },
+    relevantEnvironments: { l: 'Relevant Environments', t: 'multiselect' },
+    devStartDate: { l: 'Dev Start Date', t: 'date' },
+    devEndDate: { l: 'Dev End Date', t: 'date' },
+    qaStartDate: { l: 'QA Start Date', t: 'date' },
+    qaEndDate: { l: 'QA End Date', t: 'date' },
+    comments: { l: 'Comments', t: 'object' },
+    customFields: { l: 'Other Details', t: 'object' }
+};
+
 function SharedTaskContent() {
     const params = useParams();
     const router = useRouter();
@@ -50,45 +74,36 @@ function SharedTaskContent() {
         setUiConfig(config);
 
         let finalTask: Task | null = null;
-        let rawMetadata: Record<string, { l: string, t: string }> = {};
+        let rawMetadata: Record<string, { l: string, t: string }> = { ...DEFAULT_METADATA };
 
         if (payload) {
             try {
                 let snapshotData: any = null;
                 
-                // 1. Try LZ Decompression (New Format)
+                // 1. Try LZ Decompression (Optimized Format)
                 const decompressed = LZString.decompressFromEncodedURIComponent(payload);
                 if (decompressed) {
                     try {
                         snapshotData = JSON.parse(decompressed);
-                    } catch (e) {
-                        // Not JSON, might be legacy format handled below
-                    }
+                    } catch (e) {}
                 }
 
-                // 2. Try Legacy Base64 Decoding if Decompression failed or returned non-JSON
+                // 2. Try Legacy Base64 Decoding fallback
                 if (!snapshotData) {
                     try {
                         const decoded = atob(payload).split('').map((c) => 
                             '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
                         ).join('');
                         snapshotData = JSON.parse(decodeURIComponent(decoded));
-                    } catch (e) {
-                        console.error("Payload decoding failed entirely", e);
-                    }
+                    } catch (e) {}
                 }
 
                 if (snapshotData) {
                     const snapshot = snapshotData;
                     
-                    // Extract metadata (Labels and Types)
+                    // Merge embedded metadata over defaults
                     if (snapshot.fm) {
-                        rawMetadata = snapshot.fm;
-                    } else if (snapshot.lb) {
-                        // Backward compatibility for 'lb' (labels only) snapshots
-                        Object.entries(snapshot.lb).forEach(([k, v]) => {
-                            rawMetadata[k] = { l: v as string, t: 'text' };
-                        });
+                        Object.assign(rawMetadata, snapshot.fm);
                     }
                     
                     finalTask = {
@@ -97,20 +112,20 @@ function SharedTaskContent() {
                         description: snapshot.d,
                         status: snapshot.s,
                         summary: snapshot.u,
-                        tags: snapshot.g,
-                        repositories: snapshot.r,
-                        relevantEnvironments: snapshot.e,
-                        deploymentStatus: snapshot.st,
-                        deploymentDates: snapshot.dt,
-                        attachments: snapshot.at?.map((a: any) => ({ name: a.n, url: a.u, type: a.t })),
+                        tags: snapshot.g || [],
+                        repositories: snapshot.r || [],
+                        relevantEnvironments: snapshot.e || ['dev', 'stage', 'production'],
+                        deploymentStatus: snapshot.st || {},
+                        deploymentDates: snapshot.dt || {},
+                        attachments: snapshot.at?.map((a: any) => ({ name: a.n, url: a.u, type: a.t })) || [],
                         devStartDate: snapshot.sd,
                         devEndDate: snapshot.ed,
                         qaStartDate: snapshot.qsd,
                         qaEndDate: snapshot.qed,
-                        customFields: snapshot.cf,
-                        developers: snapshot.dv, 
-                        testers: snapshot.ts, 
-                        prLinks: snapshot.pr,
+                        customFields: snapshot.cf || {},
+                        developers: snapshot.dv || [], 
+                        testers: snapshot.ts || [], 
+                        prLinks: snapshot.pr || {},
                         azureWorkItemId: snapshot.az,
                         updatedAt: snapshot.up,
                         createdAt: snapshot.up,
@@ -122,7 +137,7 @@ function SharedTaskContent() {
             }
         }
 
-        // Fallback to local data if URL payload is missing or invalid
+        // Fallback to local data if URL payload is missing or invalid (for self-previews)
         if (!finalTask) {
             const foundTask = getTaskById(taskId);
             if (foundTask) {
@@ -190,17 +205,6 @@ function SharedTaskContent() {
         );
     }
 
-    // Determine which custom fields to show by checking if they have metadata in the snapshot
-    const customFieldEntries = Object.entries(task.customFields || {}).filter(([key]) => {
-        // Exclude internal alias keys and standard task keys
-        if (key.endsWith('_alias')) return false;
-        const standardKeys = ['title', 'description', 'status', 'repositories', 'developers', 'testers', 'azureWorkItemId', 'tags', 'prLinks', 'attachments', 'deploymentStatus', 'relevantEnvironments', 'devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate', 'comments'];
-        if (standardKeys.includes(key)) return false;
-        
-        // Only show if we have metadata for it (ensures it's not a leaked technical variable)
-        return fieldMetadata.has(key);
-    });
-    
     const relevantEnvs = (task.relevantEnvironments || []).map(name => uiConfig.environments.find(e => e.name === name)).filter((e): e is Environment => !!e);
     const statusConfig = getStatusConfig(task.status);
     const { Icon, cardClassName, iconColorClassName } = statusConfig;
@@ -212,6 +216,16 @@ function SharedTaskContent() {
     const repositoriesLabel = fieldLabels.get('repositories') || 'Repositories';
     const attachmentsLabel = fieldLabels.get('attachments') || 'Attachments';
     const otherDetailsLabel = fieldLabels.get('customFields') || 'Other Details';
+
+    // Standard fields we don't treat as "custom" in the other details section
+    const standardKeys = ['title', 'description', 'status', 'repositories', 'developers', 'testers', 'azureWorkItemId', 'tags', 'prLinks', 'attachments', 'deploymentStatus', 'relevantEnvironments', 'devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate', 'comments', 'summary'];
+
+    const customFieldEntries = Object.entries(task.customFields || {}).filter(([key]) => {
+        if (key.endsWith('_alias')) return false;
+        if (standardKeys.includes(key)) return false;
+        // Only show if we have metadata mapping for it
+        return fieldMetadata.has(key);
+    });
 
     return (
         <div className="min-h-screen bg-muted/5 pb-20 selection:bg-primary selection:text-white">
@@ -245,7 +259,7 @@ function SharedTaskContent() {
                                         <CardTitle className="text-3xl font-semibold tracking-tight">{task.title}</CardTitle>
                                         <TaskStatusBadge status={task.status} variant="prominent" />
                                     </div>
-                                    <CardDescription className="font-normal">Last updated {formatTimestamp(task.updatedAt, uiConfig.timeFormat)}</CardDescription>
+                                    <CardDescription className="font-normal">Snapshot Timestamp: {formatTimestamp(task.updatedAt, uiConfig.timeFormat)}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="pt-2">
                                     {task.summary && (
@@ -300,7 +314,6 @@ function SharedTaskContent() {
                             </Card>
                         )}
 
-                        {/* Comments Section */}
                         <CommentsSection 
                             taskId={task.id} 
                             comments={task.comments || []} 
@@ -319,7 +332,7 @@ function SharedTaskContent() {
                                         <Code2 className="h-4 w-4" /> {developersLabel}
                                     </h4>
                                     <div className="flex flex-wrap gap-3">
-                                        {((task.developers || []) as any[]).map((name, i) => (
+                                        {((task.developers || []) as string[]).map((name, i) => (
                                             <div key={i} className="flex items-center gap-2 bg-muted/30 px-2 py-1 rounded-full border">
                                                 <Avatar className="h-6 w-6"><AvatarFallback className="text-[8px] font-bold text-white" style={{backgroundColor:`#${getAvatarColor(name)}`}}>{getInitials(name)}</AvatarFallback></Avatar>
                                                 <span className="text-xs font-bold">{name}</span>
@@ -334,7 +347,7 @@ function SharedTaskContent() {
                                         <ClipboardCheck className="h-4 w-4" /> {testersLabel}
                                     </h4>
                                     <div className="flex flex-wrap gap-3">
-                                        {((task.testers || []) as any[]).map((name, i) => (
+                                        {((task.testers || []) as string[]).map((name, i) => (
                                             <div key={i} className="flex items-center gap-2 bg-muted/30 px-2 py-1 rounded-full border">
                                                 <Avatar className="h-6 w-6"><AvatarFallback className="text-[8px] font-bold text-white" style={{backgroundColor:`#${getAvatarColor(name)}`}}>{getInitials(name)}</AvatarFallback></Avatar>
                                                 <span className="text-xs font-bold">{name}</span>
