@@ -42,6 +42,7 @@ import {
   LogOut,
   ShieldCheck,
   Compass,
+  Sparkles,
 } from 'lucide-react';
 import { CompaniesManager } from './companies-manager';
 import { useToast } from '@/hooks/use-toast';
@@ -266,6 +267,10 @@ export function Header() {
                <HeaderLink href="/dashboard" id="header-nav-dashboard" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap px-2 py-1">
                   <LayoutDashboard className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   <span className="hidden lg:inline">Dashboard</span>
+               </HeaderLink>
+               <HeaderLink href="/insights" id="header-nav-insights" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap px-2 py-1">
+                  <Sparkles className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
+                  <span className="hidden lg:inline">Recent</span>
                </HeaderLink>
                <HeaderLink href="/settings" id="header-nav-settings" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap px-2 py-1">
                   <Cog className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />

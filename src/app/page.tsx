@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -1312,7 +1313,7 @@ export default function Home() {
                     </div>
 
                     <div id="view-mode-toggle" className="flex flex-col md:flex-row md:flex-wrap items-center gap-4">
-                        <div className="flex items-center gap-2 w-full md:auto overflow-x-auto md:overflow-visible md:flex-wrap pb-1 no-scrollbar md:pb-0">
+                        <div className="hidden md:flex items-center gap-2 w-full md:auto overflow-x-auto md:overflow-visible md:flex-wrap pb-1 no-scrollbar md:pb-0">
                             <Select value={sortDescriptor} onValueChange={handleSortChange}>
                                 <SelectTrigger className="flex-1 min-w-[140px] sm:w-[180px] h-11 font-bold rounded-xl shadow-sm"><SelectValue placeholder="Sort by" /></SelectTrigger>
                                 <SelectContent>
