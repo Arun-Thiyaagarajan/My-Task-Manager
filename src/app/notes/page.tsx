@@ -595,7 +595,7 @@ export default function NotesPage() {
                                 </div>
 
                                 {isSearchFocused && isSearchActive && (
-                                    <div className="absolute top-full left-0 right-0 mt-2 bg-popover border rounded-2xl shadow-2xl z-[150] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                    <div className="absolute top-full left-0 right-0 mt-2 bg-popover border rounded-2xl shadow-2xl z-[150] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 w-full max-w-[calc(100vw-2rem)] mx-auto sm:max-w-none">
                                         <div className="px-4 py-2 border-b bg-muted/30">
                                             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Note Suggestions</p>
                                         </div>

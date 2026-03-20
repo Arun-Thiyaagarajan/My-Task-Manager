@@ -676,7 +676,7 @@ export default function ProfilePage() {
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="flex-col md:flex-row gap-2 mt-4">
-                <AlertDialogAction onClick={handleSignOut} className="bg-destructive hover:bg-destructive/90 font-semibold w-full h-11 rounded-xl">Sign Out</AlertDialogAction>
+                <AlertDialogAction onClick={handleSignOut} className="bg-destructive hover:bg-destructive/90 font-semibold w-full h-11 rounded-xlAction">Sign Out</AlertDialogAction>
                 <AlertDialogCancel className="font-medium w-full h-11 border-none bg-transparent hover:bg-muted rounded-xl">Cancel</AlertDialogCancel>
             </AlertDialogFooter>
         </AlertDialogContent>
@@ -762,7 +762,7 @@ export default function ProfilePage() {
                 
                 {/* Deep Navigation Suggestions Dropdown */}
                 {isSearchFocused && isSearchActive && (
-                    <div className="absolute top-full left-6 right-6 mt-2 bg-popover border rounded-2xl shadow-2xl z-[150] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-popover border rounded-2xl shadow-2xl z-[150] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 w-full max-w-[calc(100vw-3rem)] mx-auto">
                         {filteredSearchItems.length > 0 ? (
                             filteredSearchItems.map(item => (
                                 <button
