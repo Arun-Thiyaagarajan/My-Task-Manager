@@ -1,4 +1,3 @@
-
 'use client';
 
 import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
@@ -708,6 +707,8 @@ export function updateTask(id: string, updates: Partial<Task>, silent = false): 
 
             if (key === 'description') {
                 changes.push(`updated the **Description**`);
+            } else if (key === 'isFavorite') {
+                changes.push(newVal ? `marked as **Favourite**` : `removed from **Favourites**`);
             } else if (key === 'deploymentStatus') {
                 const statuses = newVal as Record<string, boolean>;
                 const oldStatuses = oldVal as Record<string, boolean> || {};

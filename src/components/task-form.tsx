@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -841,7 +840,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                             </Tooltip>
                         </TooltipProvider>
                     </div>
-                    <ScrollArea className="h-[calc(100vh-180px)] pr-4">
+                    <ScrollArea className="h-[calc(100vh-200px)] pr-4">
                         <nav className="flex flex-col gap-1 pb-10">
                             {navigableSections.map((section) => {
                                 const Icon = section.icon;
