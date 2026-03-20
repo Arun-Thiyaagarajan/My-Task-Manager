@@ -588,6 +588,7 @@ export default function ProfilePage() {
 
         // Standalone Links
         { id: 'logs', title: 'Activity Logs', subLabel: 'Audit trail of all changes', icon: FileClock, type: 'link', href: '/logs', category: 'System', color: 'text-blue-500', keywords: ['history', 'audit', 'track', 'changes'] },
+        { id: 'bin', title: 'Bin (Trash)', subLabel: 'Restore or delete deleted tasks', icon: Trash2, type: 'link', href: '/bin', category: 'System', color: 'text-zinc-500', keywords: ['trash', 'deleted', 'restore', 'recycle'] },
         { id: 'releases', title: 'What\'s New', subLabel: 'Latest updates and features', icon: Sparkles, type: 'link', href: '/releases', category: 'System', color: 'text-green-500', keywords: ['version', 'changelog', 'updates'] },
         { id: 'general-reminders', title: 'General Reminders', subLabel: 'Manage global workspace notes', icon: Bell, type: 'link', href: '/reminders', category: 'Productivity', color: 'text-amber-600', keywords: ['sticky notes', 'global notes', 'bulletin'] },
     ];
@@ -851,6 +852,13 @@ export default function ProfilePage() {
                         subLabel="Your workspace history" 
                         onClick={() => router.push('/logs')}
                         color="text-blue-500"
+                    />
+                    <MobileHubRow 
+                        icon={Trash2} 
+                        title="Bin (Trash)" 
+                        subLabel="Deleted tasks and items" 
+                        onClick={() => router.push('/bin')}
+                        color="text-zinc-500"
                     />
                     <MobileHubRow 
                         icon={Settings} 
