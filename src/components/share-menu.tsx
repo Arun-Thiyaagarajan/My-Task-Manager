@@ -85,17 +85,23 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
         customFields: 'Other Details'
     };
 
-    // Only include metadata for custom fields or standard fields that have been renamed
+    // Only include metadata for custom fields or standard fields that have been renamed or have URLs
     const usedCustomKeys = Object.keys(task.customFields || {});
-    const fieldMetadata: Record<string, { l: string, t: string }> = {};
+    const fieldMetadata: Record<string, { l: string, t: string, u?: string }> = {};
     uiConfig.fields.forEach(f => {
         const isCustom = f.isCustom;
         const isRenamed = defaultLabels[f.key] && defaultLabels[f.key] !== f.label;
+        const hasBaseUrl = !!f.baseUrl;
         
-        if (isCustom || isRenamed) {
-            // Only send metadata if it's custom or actually relevant to the UI rendering
-            if (isCustom || usedCustomKeys.includes(f.key)) {
-                fieldMetadata[f.key] = { l: f.label, t: f.type };
+        // We send metadata if it's custom, renamed, or has a specific URL pattern
+        if (isCustom || isRenamed || hasBaseUrl) {
+            const isUsed = isCustom ? usedCustomKeys.includes(f.key) : !!(task as any)[f.key];
+            if (isUsed || f.key === 'status') {
+                fieldMetadata[f.key] = { 
+                    l: f.label, 
+                    t: f.type,
+                    u: f.baseUrl || undefined
+                };
             }
         }
     });

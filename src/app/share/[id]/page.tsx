@@ -35,7 +35,7 @@ import { CommentsSection } from '@/components/comments-section';
 import LZString from 'lz-string';
 
 // Built-in defaults to keep shared URLs short
-const DEFAULT_METADATA: Record<string, { l: string, t: string }> = {
+const DEFAULT_METADATA: Record<string, { l: string, t: string, u?: string }> = {
     title: { l: 'Title', t: 'text' },
     description: { l: 'Description', t: 'textarea' },
     status: { l: 'Status', t: 'select' },
@@ -64,7 +64,7 @@ function SharedTaskContent() {
     const [task, setTask] = useState<Task | null>(null);
     const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
     const [fieldLabels, setFieldLabels] = useState<Map<string, string>>(new Map());
-    const [fieldMetadata, setFieldMetadata] = useState<Map<string, { l: string, t: string }>>(new Map());
+    const [fieldMetadata, setFieldMetadata] = useState<Map<string, { l: string, t: string, u?: string }>>(new Map());
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -74,7 +74,7 @@ function SharedTaskContent() {
         setUiConfig(config);
 
         let finalTask: Task | null = null;
-        let rawMetadata: Record<string, { l: string, t: string }> = { ...DEFAULT_METADATA };
+        let rawMetadata: Record<string, { l: string, t: string, u?: string }> = { ...DEFAULT_METADATA };
 
         if (payload) {
             try {
@@ -143,7 +143,7 @@ function SharedTaskContent() {
             if (foundTask) {
                 finalTask = foundTask;
                 config.fields.forEach(f => {
-                    rawMetadata[f.key] = { l: f.label, t: f.type };
+                    rawMetadata[f.key] = { l: f.label, t: f.type, u: f.baseUrl };
                 });
             }
         }
@@ -363,9 +363,31 @@ function SharedTaskContent() {
                                     </h4>
                                     <div className="flex flex-wrap gap-1.5">
                                         {task.repositories?.map(repo => <Badge key={repo} variant="repo" style={getRepoBadgeStyle(repo)} className="text-[10px] font-bold uppercase">{repo}</Badge>)}
-                                        {task.azureWorkItemId && <Badge variant="outline" className="text-[10px] font-bold">AZURE #{task.azureWorkItemId}</Badge>}
                                     </div>
                                 </div>
+                                {task.azureWorkItemId && (
+                                    <>
+                                        <Separator className="opacity-50" />
+                                        <div>
+                                            <h4 className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2">
+                                                <ExternalLink className="h-4 w-4" /> {fieldLabels.get('azureWorkItemId') || 'Azure DevOps'}
+                                            </h4>
+                                            {fieldMetadata.get('azureWorkItemId')?.u ? (
+                                                <a 
+                                                    href={`${fieldMetadata.get('azureWorkItemId')!.u}${task.azureWorkItemId}`} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer" 
+                                                    className="text-primary hover:underline text-sm font-medium flex items-center gap-2"
+                                                >
+                                                    <ExternalLink className="h-3 w-3" />
+                                                    <span>Work Item #{task.azureWorkItemId}</span>
+                                                </a>
+                                            ) : (
+                                                <span className="text-sm text-foreground font-medium">#{task.azureWorkItemId}</span>
+                                            )}
+                                        </div>
+                                    </>
+                                )}
                                 <Separator className="opacity-50" />
                                 <div>
                                     <h4 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
