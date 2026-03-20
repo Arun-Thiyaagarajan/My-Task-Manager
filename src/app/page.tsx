@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -908,6 +909,8 @@ export default function Home() {
 
   const isSearchActive = searchQuery.trim().length >= 2;
 
+  const totalActiveFilters = statusFilter.length + repoFilter.length + deploymentFilter.length + tagsFilter.length + (executedSearchQuery ? 1 : 0);
+
   const selectionBarContent = (
     <Card className="border-primary/50 bg-background/90 backdrop-blur-sm shadow-lg overflow-hidden">
         <CardContent className="p-4 flex flex-col gap-4">
@@ -1012,7 +1015,10 @@ export default function Home() {
                 onFocus={() => setIsSearchFocused(true)}
                 onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
                 onKeyDown={handleSearchKeyDown}
-                className="w-full pl-10 pr-24 h-11 font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40"
+                className={cn(
+                    "w-full pl-10 pr-24 h-11 font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40",
+                    executedSearchQuery && "border-primary/40 bg-primary/5 shadow-sm"
+                )}
             />
             <div className="absolute right-0 flex items-center h-full pr-1.5 gap-1">
                 {searchQuery && (
@@ -1382,12 +1388,12 @@ export default function Home() {
                             <div className="hidden md:flex flex-col w-full col-span-1 sm:col-span-2 md:col-span-1">
                                 {searchInputContent}
                             </div>
-                            <MultiSelect selected={statusFilter} onChange={(val) => { setStatusFilter(val); }} options={(uiConfig?.taskStatuses || []).map(s => ({ value: s, label: s }))} placeholder="Status..." />
-                            <MultiSelect selected={repoFilter} onChange={(val) => { setRepoFilter(val); }} options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} placeholder="Repository..." />
+                            <MultiSelect selected={statusFilter} className={cn(statusFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")} onChange={(val) => { setStatusFilter(val); }} options={(uiConfig?.taskStatuses || []).map(s => ({ value: s, label: s }))} placeholder="Status..." />
+                            <MultiSelect selected={repoFilter} className={cn(repoFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")} onChange={(val) => { setRepoFilter(val); }} options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} placeholder="Repository..." />
                             {(uiConfig?.fields || []).find(f => f.key === 'tags')?.isActive && (
-                                <MultiSelect selected={tagsFilter} onChange={(val) => { setTagsFilter(val); }} options={[...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({value: t, label: t}))} placeholder="Tags..." />
+                                <MultiSelect selected={tagsFilter} className={cn(tagsFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")} onChange={(val) => { setTagsFilter(val); }} options={[...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({value: t, label: t}))} placeholder="Tags..." />
                             )}
-                            <MultiSelect selected={deploymentFilter} onChange={(val) => { setDeploymentFilter(val); }} options={(uiConfig?.environments || []).flatMap(env => [{ value: env.name, label: `On ${env.name}` }, { value: `not_${env.name}`, label: `Not on ${env.name}` }])} placeholder="Deployment..." />
+                            <MultiSelect selected={deploymentFilter} className={cn(deploymentFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")} onChange={(val) => { setDeploymentFilter(val); }} options={(uiConfig?.environments || []).flatMap(env => [{ value: env.name, label: `On ${env.name}` }, { value: `not_${env.name}`, label: `Not on ${env.name}` }])} placeholder="Deployment..." />
                         </div>
                     </CardContent>
                 </Card>
@@ -1423,9 +1429,34 @@ export default function Home() {
                         )}
                         
                         <div className="hidden md:block px-1 md:px-0">
-                            <h2 className="text-xl font-bold tracking-tight text-foreground/90 leading-tight">
-                                {favoritesOnly ? 'Favorite Tasks' : `${filteredTasks.length} Results`}
-                            </h2>
+                            <div className="flex items-center gap-3">
+                                <h2 className="text-xl font-bold tracking-tight text-foreground/90 leading-tight">
+                                    {favoritesOnly ? 'Favorite Tasks' : `${filteredTasks.length} Results`}
+                                </h2>
+                                {totalActiveFilters > 0 && (
+                                    <div className="flex items-center gap-2 animate-in fade-in zoom-in duration-300">
+                                        <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20 h-5 px-2 text-[10px] font-black uppercase tracking-wider rounded-full">
+                                            {totalActiveFilters} {totalActiveFilters === 1 ? 'Filter' : 'Filters'} Active
+                                        </Badge>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="sm" 
+                                            onClick={() => {
+                                                setStatusFilter([]);
+                                                setRepoFilter([]);
+                                                setDeploymentFilter([]);
+                                                setTagsFilter([]);
+                                                setSearchQuery('');
+                                                setExecutedSearchQuery('');
+                                            }}
+                                            className="h-5 px-1.5 text-[9px] font-bold uppercase tracking-tight text-muted-foreground hover:text-destructive transition-colors rounded-md"
+                                        >
+                                            <X className="h-3 w-3 mr-1" />
+                                            Clear
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
                             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mt-0.5 whitespace-nowrap">
                                 {favoritesOnly 
                                     ? `Showing ${filteredTasks.length} favorited items.` 

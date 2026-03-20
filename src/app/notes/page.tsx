@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -590,7 +591,10 @@ export default function NotesPage() {
                                         onFocus={() => setIsSearchFocused(true)}
                                         onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
                                         onKeyDown={handleSearchKeyDown}
-                                        className="w-full pl-10 h-11 font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40 rounded-xl"
+                                        className={cn(
+                                            "w-full pl-10 h-11 font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40 rounded-xl",
+                                            executedSearchQuery && "border-primary/40 bg-primary/5 shadow-sm"
+                                        )}
                                     />
                                     <div className="absolute right-1 flex items-center h-full gap-1">
                                         {searchQuery && (
@@ -663,7 +667,8 @@ export default function NotesPage() {
                                         variant={"outline"}
                                         className={cn(
                                             "justify-start text-left h-11 font-normal rounded-xl",
-                                            !dateFilter && "text-muted-foreground"
+                                            !dateFilter && "text-muted-foreground",
+                                            dateFilter && "border-primary/40 bg-primary/5 shadow-sm text-foreground"
                                         )}
                                     >
                                         <CalendarIcon className="mr-2 h-4 w-4" />
@@ -703,7 +708,14 @@ export default function NotesPage() {
                                         Filtering notes...
                                     </div>
                                 ) : (
-                                    <p className="text-sm text-muted-foreground font-normal">{filteredNotes.length} of {notes.length} notes shown.</p>
+                                    <p className="text-sm text-muted-foreground font-normal">
+                                        {filteredNotes.length} of {notes.length} notes shown.
+                                        {areFiltersActive && (
+                                            <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20 h-5 px-2 text-[10px] font-black uppercase tracking-wider rounded-full ml-2">
+                                                Filtered
+                                            </Badge>
+                                        )}
+                                    </p>
                                 )}
                             </div>
                         )}
