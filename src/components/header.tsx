@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -42,6 +43,7 @@ import {
   ShieldCheck,
   Compass,
   Sparkles,
+  ArrowLeft,
 } from 'lucide-react';
 import { CompaniesManager } from './companies-manager';
 import { useToast } from '@/hooks/use-toast';
@@ -110,6 +112,7 @@ export function Header() {
   const pathname = usePathname();
   const { prompt } = useUnsavedChanges();
   
+  const [mounted, setMounted] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
   const activeCompanyId = useActiveCompany();
   const [isManagerOpen, setIsManagerOpen] = useState(false);
@@ -145,6 +148,7 @@ export function Header() {
   }, [isMobile, router, pathname]);
 
   useEffect(() => {
+    setMounted(true);
     refreshAllData();
     
     const handleSyncStart = () => setIsGlobalLoading(true);
@@ -290,7 +294,7 @@ export function Header() {
             </nav>
           </div>
           <div className="flex items-center gap-1 sm:gap-3">
-            {activeCompany && !isMobile && (
+            {mounted && activeCompany && !isMobile && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="px-2 sm:px-4 font-medium shadow-sm border-primary/10 bg-primary/5 hover:bg-primary/10 h-9 rounded-full transition-all">
@@ -389,7 +393,7 @@ export function Header() {
             <ThemeToggle />
 
             {/* Sign In Button - Only for Mobile, hidden on Auth page */}
-            {authMode === 'localStorage' && !pathname.startsWith('/auth') && (
+            {mounted && authMode === 'localStorage' && !pathname.startsWith('/auth') && (
                 <Button 
                     variant="outline" 
                     size="sm" 
@@ -405,69 +409,71 @@ export function Header() {
             )}
 
             <div className="hidden sm:block">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="relative h-9 w-9 rounded-full group ring-offset-background transition-all hover:ring-2 hover:ring-primary/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-                    <div className={cn(
-                      "flex h-full w-full items-center justify-center rounded-full border-2 transition-all overflow-hidden",
-                      authMode === 'authenticate' && user ? "border-primary p-0.5" : "border-muted-foreground/20"
-                    )}>
-                      <Avatar className="h-full w-full">
-                        <AvatarImage src={isActualImage(profilePhoto) ? profilePhoto : undefined} className="object-cover" />
-                        <AvatarFallback 
-                          className="text-white text-[10px] font-semibold"
-                          style={{ background: getAvatarGradient(profileName) }}
-                        >
-                          {isActualImage(profilePhoto) ? getInitials(profileName) : (profilePhoto || getInitials(profileName))}
-                        </AvatarFallback>
-                      </Avatar>
-                    </div>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-60 p-2 rounded-xl shadow-xl" align="end" sideOffset={8}>
-                  <DropdownMenuLabel className="font-normal p-2">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-semibold leading-none truncate tracking-tight">
-                        {profileName}
-                      </p>
-                      <p className="text-[10px] leading-none text-muted-foreground truncate font-medium uppercase tracking-wider">
-                        {authMode === 'authenticate' && user ? (user.email || user.phoneNumber) : 'Local Mode: Data in Browser'}
-                      </p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator className="my-2" />
-                  <DropdownMenuGroup className="space-y-1">
-                    <DropdownMenuItem 
-                        onSelect={() => {
-                            if (pathname === '/profile') return;
-                            prompt(() => { 
-                                window.dispatchEvent(new Event('navigation-start')); 
-                                router.push('/profile'); 
-                            });
-                        }} 
-                        className="rounded-lg font-medium py-2"
-                    >
-                        <UserIcon className="mr-2 h-4 w-4 opacity-70" />
-                        <span>My Profile</span>
-                    </DropdownMenuItem>
-                    {!(authMode === 'authenticate' && user) && (
-                      <DropdownMenuItem onSelect={handleOpenAuth} className="rounded-lg font-semibold text-primary focus:bg-primary/5 focus:text-primary py-2">
-                        <ShieldCheck className="mr-2 h-4 w-4" />
-                        <span>Sign In / Cloud Sync</span>
+              {mounted && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="relative h-9 w-9 rounded-full group ring-offset-background transition-all hover:ring-2 hover:ring-primary/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                      <div className={cn(
+                        "flex h-full w-full items-center justify-center rounded-full border-2 transition-all overflow-hidden",
+                        authMode === 'authenticate' && user ? "border-primary p-0.5" : "border-muted-foreground/20"
+                      )}>
+                        <Avatar className="h-full w-full">
+                          <AvatarImage src={isActualImage(profilePhoto) ? profilePhoto : undefined} className="object-cover" />
+                          <AvatarFallback 
+                            className="text-white text-[10px] font-semibold"
+                            style={{ background: getAvatarGradient(profileName) }}
+                          >
+                            {isActualImage(profilePhoto) ? getInitials(profileName) : (profilePhoto || getInitials(profileName))}
+                          </AvatarFallback>
+                        </Avatar>
+                      </div>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-60 p-2 rounded-xl shadow-xl" align="end" sideOffset={8}>
+                    <DropdownMenuLabel className="font-normal p-2">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-semibold leading-none truncate tracking-tight">
+                          {profileName}
+                        </p>
+                        <p className="text-[10px] leading-none text-muted-foreground truncate font-medium uppercase tracking-wider">
+                          {authMode === 'authenticate' && user ? (user.email || user.phoneNumber) : 'Local Mode: Data in Browser'}
+                        </p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator className="my-2" />
+                    <DropdownMenuGroup className="space-y-1">
+                      <DropdownMenuItem 
+                          onSelect={() => {
+                              if (pathname === '/profile') return;
+                              prompt(() => { 
+                                  window.dispatchEvent(new Event('navigation-start')); 
+                                  router.push('/profile'); 
+                              });
+                          }} 
+                          className="rounded-lg font-medium py-2"
+                      >
+                          <UserIcon className="mr-2 h-4 w-4 opacity-70" />
+                          <span>My Profile</span>
                       </DropdownMenuItem>
+                      {!(authMode === 'authenticate' && user) && (
+                        <DropdownMenuItem onSelect={handleOpenAuth} className="rounded-lg font-semibold text-primary focus:bg-primary/5 focus:text-primary py-2">
+                          <ShieldCheck className="mr-2 h-4 w-4" />
+                          <span>Sign In / Cloud Sync</span>
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuGroup>
+                    {authMode === 'authenticate' && user && (
+                      <>
+                        <DropdownMenuSeparator className="my-2" />
+                        <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setIsSignOutDialogOpen(true); }} className="text-destructive focus:text-destructive focus:bg-destructive/5 rounded-lg font-semibold py-2">
+                          <LogOut className="mr-2 h-4 w-4" />
+                          <span>Sign Out</span>
+                        </DropdownMenuItem>
+                      </>
                     )}
-                  </DropdownMenuGroup>
-                  {authMode === 'authenticate' && user && (
-                    <>
-                      <DropdownMenuSeparator className="my-2" />
-                      <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setIsSignOutDialogOpen(true); }} className="text-destructive focus:text-destructive focus:bg-destructive/5 rounded-lg font-semibold py-2">
-                        <LogOut className="mr-2 h-4 w-4" />
-                        <span>Sign Out</span>
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           </div>
           
