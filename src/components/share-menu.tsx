@@ -29,6 +29,7 @@ import { generateTaskPdf } from '@/lib/share-utils';
 import type { Task, UiConfig, Person, Attachment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { addLog } from '@/lib/data';
+import LZString from 'lz-string';
 
 const sanitizeFilename = (name: string): string => {
     return name.replace(/[<>:"/\\|?*]+/g, '_').substring(0, 100);
@@ -50,9 +51,8 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
   const [copiedUrl, setCopiedUrl] = React.useState<string | null>(null);
 
   /**
-   * Generates a self-sufficient share URL by encoding a snapshot of the task data
-   * into the URL query parameters. This ensures the link works on any device
-   * without needing backend access for the recipient.
+   * Generates a self-sufficient share URL by encoding a compressed snapshot of the task data
+   * into the URL query parameters. Uses LZ compression to keep links short.
    */
   const getShareUrl = () => {
     if (typeof window === 'undefined') return '';
@@ -62,10 +62,20 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
     const devMap = new Map(developers.map(d => [d.id, d.name]));
     const testerMap = new Map(testers.map(t => [t.id, t.name]));
 
-    // Capture CURRENT field metadata (labels and types) to ensure consistency in the shared view
+    // Optimized metadata: Only include labels/types for fields that are actually used in this task
+    const usedCustomKeys = Object.keys(task.customFields || {});
+    const essentialKeys = [
+        'title', 'description', 'status', 'summary', 'tags', 
+        'repositories', 'developers', 'testers', 'azureWorkItemId', 
+        'prLinks', 'attachments', 'deploymentStatus', 'relevantEnvironments',
+        'devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate', 'comments'
+    ];
+    
     const fieldMetadata: Record<string, { l: string, t: string }> = {};
     uiConfig.fields.forEach(f => {
-        fieldMetadata[f.key] = { l: f.label, t: f.type };
+        if (essentialKeys.includes(f.key) || usedCustomKeys.includes(f.key)) {
+            fieldMetadata[f.key] = { l: f.label, t: f.type };
+        }
     });
 
     // Create a comprehensive snapshot for the URL payload
@@ -94,17 +104,26 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
         az: task.azureWorkItemId,
         up: task.updatedAt,
         cm: task.comments || [],
-        fm: fieldMetadata // Use 'fm' for field metadata (Label + Type)
+        fm: fieldMetadata 
     };
 
     try {
         const json = JSON.stringify(snapshot);
-        const encoded = btoa(encodeURIComponent(json).replace(/%([0-9A-F]{2})/g, (match, p1) => 
-            String.fromCharCode(parseInt(p1, 16))
-        ));
-        return `${baseUrl}?p=${encoded}`;
+        // Use LZString for high-ratio compression specifically for URLs
+        const compressed = LZString.compressToEncodedURIComponent(json);
+        return `${baseUrl}?p=${compressed}`;
     } catch (e) {
-        return baseUrl;
+        console.error("Compression failed, using fallback encoding", e);
+        // Minimal fallback if compression fails
+        try {
+            const json = JSON.stringify(snapshot);
+            const encoded = btoa(encodeURIComponent(json).replace(/%([0-9A-F]{2})/g, (match, p1) => 
+                String.fromCharCode(parseInt(p1, 16))
+            ));
+            return `${baseUrl}?p=${encoded}`;
+        } catch (innerE) {
+            return baseUrl;
+        }
     }
   };
 

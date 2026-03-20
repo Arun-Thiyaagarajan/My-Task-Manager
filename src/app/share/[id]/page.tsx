@@ -31,6 +31,7 @@ import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { PrLinksGroup } from '@/components/pr-links-group';
 import { CommentsSection } from '@/components/comments-section';
+import LZString from 'lz-string';
 
 function SharedTaskContent() {
     const params = useParams();
@@ -53,51 +54,75 @@ function SharedTaskContent() {
 
         if (payload) {
             try {
-                const decoded = atob(payload).split('').map((c) => 
-                    '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
-                ).join('');
-                const snapshot = JSON.parse(decodeURIComponent(decoded));
+                let snapshotData: any = null;
                 
-                // Extract metadata (Labels and Types)
-                if (snapshot.fm) {
-                    rawMetadata = snapshot.fm;
-                } else if (snapshot.lb) {
-                    // Backward compatibility for 'lb' (labels only) snapshots
-                    Object.entries(snapshot.lb).forEach(([k, v]) => {
-                        rawMetadata[k] = { l: v as string, t: 'text' };
-                    });
+                // 1. Try LZ Decompression (New Format)
+                const decompressed = LZString.decompressFromEncodedURIComponent(payload);
+                if (decompressed) {
+                    try {
+                        snapshotData = JSON.parse(decompressed);
+                    } catch (e) {
+                        // Not JSON, might be legacy format handled below
+                    }
                 }
-                
-                finalTask = {
-                    id: taskId,
-                    title: snapshot.t,
-                    description: snapshot.d,
-                    status: snapshot.s,
-                    summary: snapshot.u,
-                    tags: snapshot.g,
-                    repositories: snapshot.r,
-                    relevantEnvironments: snapshot.e,
-                    deploymentStatus: snapshot.st,
-                    deploymentDates: snapshot.dt,
-                    attachments: snapshot.at?.map((a: any) => ({ name: a.n, url: a.u, type: a.t })),
-                    devStartDate: snapshot.sd,
-                    devEndDate: snapshot.ed,
-                    qaStartDate: snapshot.qsd,
-                    qaEndDate: snapshot.qed,
-                    customFields: snapshot.cf,
-                    developers: snapshot.dv, // Snapshot contains resolved names
-                    testers: snapshot.ts, // Snapshot contains resolved names
-                    prLinks: snapshot.pr,
-                    azureWorkItemId: snapshot.az,
-                    updatedAt: snapshot.up,
-                    createdAt: snapshot.up,
-                    comments: snapshot.cm || []
-                } as Task;
+
+                // 2. Try Legacy Base64 Decoding if Decompression failed or returned non-JSON
+                if (!snapshotData) {
+                    try {
+                        const decoded = atob(payload).split('').map((c) => 
+                            '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+                        ).join('');
+                        snapshotData = JSON.parse(decodeURIComponent(decoded));
+                    } catch (e) {
+                        console.error("Payload decoding failed entirely", e);
+                    }
+                }
+
+                if (snapshotData) {
+                    const snapshot = snapshotData;
+                    
+                    // Extract metadata (Labels and Types)
+                    if (snapshot.fm) {
+                        rawMetadata = snapshot.fm;
+                    } else if (snapshot.lb) {
+                        // Backward compatibility for 'lb' (labels only) snapshots
+                        Object.entries(snapshot.lb).forEach(([k, v]) => {
+                            rawMetadata[k] = { l: v as string, t: 'text' };
+                        });
+                    }
+                    
+                    finalTask = {
+                        id: taskId,
+                        title: snapshot.t,
+                        description: snapshot.d,
+                        status: snapshot.s,
+                        summary: snapshot.u,
+                        tags: snapshot.g,
+                        repositories: snapshot.r,
+                        relevantEnvironments: snapshot.e,
+                        deploymentStatus: snapshot.st,
+                        deploymentDates: snapshot.dt,
+                        attachments: snapshot.at?.map((a: any) => ({ name: a.n, url: a.u, type: a.t })),
+                        devStartDate: snapshot.sd,
+                        devEndDate: snapshot.ed,
+                        qaStartDate: snapshot.qsd,
+                        qaEndDate: snapshot.qed,
+                        customFields: snapshot.cf,
+                        developers: snapshot.dv, 
+                        testers: snapshot.ts, 
+                        prLinks: snapshot.pr,
+                        azureWorkItemId: snapshot.az,
+                        updatedAt: snapshot.up,
+                        createdAt: snapshot.up,
+                        comments: snapshot.cm || []
+                    } as Task;
+                }
             } catch (e) {
-                console.error("Failed to decode share payload", e);
+                console.error("Failed to process share payload", e);
             }
         }
 
+        // Fallback to local data if URL payload is missing or invalid
         if (!finalTask) {
             const foundTask = getTaskById(taskId);
             if (foundTask) {
