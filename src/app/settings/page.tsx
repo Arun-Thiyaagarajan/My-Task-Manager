@@ -1052,7 +1052,7 @@ export default function SettingsPage() {
             </Card>
 
             <Card className="border-none shadow-lg">
-                <CardHeader className="pb-4"><CardTitle className="text-xs font-semibold gap-2 uppercase tracking-wider"><Bell className="h-5 w-5 text-primary" />Features</CardTitle></CardHeader>
+                <CardHeader className="pb-4"><CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider"><Bell className="h-5 w-5 text-primary" />FEATURES</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                     <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-transparent hover:border-border transition-colors">
                         <div className="space-y-0.5">

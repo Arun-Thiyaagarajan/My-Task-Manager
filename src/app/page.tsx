@@ -1281,7 +1281,7 @@ export default function Home() {
            )}
 
            <div className="flex flex-col gap-6">
-                <div className="flex flex-col md:flex-row md:flex-wrap lg:flex-nowrap md:items-center md:justify-between gap-4 md:gap-6">
+                <div className="hidden md:flex flex-col md:flex-row md:flex-wrap lg:flex-nowrap md:items-center md:justify-between gap-4 md:gap-6">
                     <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-4 md:gap-6">
                         {(dateView === 'monthly' || dateView === 'yearly') && !favoritesOnly && (
                             <div className="hidden md:flex items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
