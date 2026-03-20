@@ -1236,33 +1236,36 @@ export default function Home() {
                             </div>
                         </div>
 
+                        {/* Mobile Action Row - Restored Layout */}
                         <div className="flex items-center gap-2 px-1 md:hidden w-full">
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button 
-                                            variant={favoritesOnly ? 'secondary' : 'outline'} 
-                                            size="icon" 
-                                            onClick={handleFavoritesToggle} 
-                                            className="h-11 w-11 rounded-xl shadow-sm shrink-0"
-                                        >
-                                            <Heart className={cn("h-5 w-5", favoritesOnly && "fill-red-500 text-red-500")} />
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent className="font-bold"><p>{favoritesOnly ? 'All tasks' : 'Favorites only'}</p></TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
+                            <Button 
+                                variant={favoritesOnly ? 'secondary' : 'outline'} 
+                                size="icon" 
+                                onClick={handleFavoritesToggle} 
+                                className="h-11 w-11 rounded-xl shadow-sm shrink-0"
+                            >
+                                <Heart className={cn("h-5 w-5", favoritesOnly && "fill-red-500 text-red-500")} />
+                            </Button>
 
                             <Button 
-                                variant="outline" 
-                                size="icon"
+                                variant={isSelectMode ? 'secondary' : 'outline'} 
                                 onClick={handleToggleSelectMode} 
                                 className={cn(
-                                    "h-11 w-11 rounded-xl shadow-sm transition-all active:scale-95",
+                                    "flex-1 h-11 rounded-xl shadow-sm transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest",
                                     isSelectMode ? "bg-primary/10 text-primary border-primary/20" : "text-muted-foreground"
                                 )}
                             >
-                                {isSelectMode ? <X className="h-5 w-5" /> : <CheckSquare className="h-5 w-5" />}
+                                {isSelectMode ? (
+                                    <>
+                                        <X className="h-4 w-4 mr-2" />
+                                        CANCEL
+                                    </>
+                                ) : (
+                                    <>
+                                        <CheckSquare className="h-4 w-4 mr-2" />
+                                        SELECT MULTIPLE
+                                    </>
+                                )}
                             </Button>
                         </div>
                     </div>
