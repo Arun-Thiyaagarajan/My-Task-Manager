@@ -1211,7 +1211,7 @@ export default function Home() {
                     <Upload className="mr-2 h-4 w-4" />
                     Import
                 </Button>
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />
                 
                 <Button onClick={handleNavigateNewTask} id="new-task-btn" disabled={isImporting} className="w-full sm:w-auto h-11 shadow-lg font-medium active:scale-95 transition-transform">
                     <Plus className="mr-2 h-5 w-5" /> New Task
