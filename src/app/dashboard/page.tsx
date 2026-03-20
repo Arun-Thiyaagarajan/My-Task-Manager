@@ -215,8 +215,8 @@ export default function DashboardPage() {
         </div>
       ) : (
         <div className="space-y-8">
-            {/* Key Stats Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+            {/* Key Stats Cards - Optimized for mobile with 2 columns */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
                 {summaryStats.map((stat, index) => (
                     <Card key={index} className={cn("border-t-4 transition-all hover:shadow-xl hover:-translate-y-1", stat.borderColor)}>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

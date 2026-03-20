@@ -11,7 +11,7 @@ export function DashboardSkeleton() {
         <Skeleton className="h-4 w-64" />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
         {Array.from({ length: 4 }).map((_, i) => (
           <Card key={i} className="border-t-4 border-muted/30">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
