@@ -53,8 +53,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
                 el.dispatchEvent(new Event("input", { bubbles: true }));
                 toast({ variant: 'success', title: 'Content Refined' });
             }
-        } catch (error) {
-            toast({ variant: 'destructive', title: 'AI Assist Unavailable' });
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'AI Assist Unavailable', description: error.message });
         } finally {
             setIsRefining(false);
         }
@@ -113,6 +113,11 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
                         </TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
+            </div>
+        )}
+        {isRefining && (
+            <div className="absolute inset-0 flex items-center justify-center bg-background/20 backdrop-blur-[0.5px] rounded-md pointer-events-none">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
             </div>
         )}
       </div>

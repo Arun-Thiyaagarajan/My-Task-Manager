@@ -172,6 +172,7 @@ export default function SettingsPage() {
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
   const iconFileInputRef = useRef<HTMLInputElement>(null);
+  const prevHasChangesRef = useRef(false);
 
   useEffect(() => {
     setMounted(true);
@@ -207,6 +208,19 @@ export default function SettingsPage() {
     window.addEventListener('company-changed', loadConfig);
     return () => window.removeEventListener('company-changed', loadConfig);
   }, [searchParams]);
+
+  const hasUnsavedFieldChanges = useMemo(() => {
+    if (!uiConfig) return false;
+    return JSON.stringify(localFields) !== JSON.stringify(uiConfig.fields);
+  }, [localFields, uiConfig]);
+
+  // Auto-scroll to top when unsaved changes alert appears
+  useEffect(() => {
+    if (hasUnsavedFieldChanges && !prevHasChangesRef.current) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    prevHasChangesRef.current = hasUnsavedFieldChanges;
+  }, [hasUnsavedFieldChanges]);
 
   const handleUpdateConfig = (updates: Partial<UiConfig>) => {
     if (!uiConfig) return;
@@ -326,11 +340,6 @@ export default function SettingsPage() {
     setPendingDeactivateFields([]);
     if (isMobile) setActiveMobileSection('fields');
   };
-
-  const hasUnsavedFieldChanges = useMemo(() => {
-    if (!uiConfig) return false;
-    return JSON.stringify(localFields) !== JSON.stringify(uiConfig.fields);
-  }, [localFields, uiConfig]);
 
   const handleSaveField = (updatedField: FieldConfig, repoConfigs?: RepositoryConfig[]) => {
     let newFields = [...localFields];
@@ -572,6 +581,24 @@ export default function SettingsPage() {
   if (isMobile && !activeMobileSection) {
     return (
         <div className="pb-6">
+            {/* Mobile Unsaved Changes Banner */}
+            {hasUnsavedFieldChanges && (
+                <div className="fixed top-0 left-0 right-0 z-[100] bg-primary text-primary-foreground px-4 py-3 flex items-center justify-between shadow-lg animate-in slide-in-from-top duration-300">
+                    <div className="flex items-center gap-2">
+                        <Info className="h-4 w-4" />
+                        <span className="text-xs font-bold uppercase tracking-wider">Unsaved Field Changes</span>
+                    </div>
+                    <Button 
+                        size="sm" 
+                        variant="secondary" 
+                        className="h-7 text-[10px] font-black uppercase"
+                        onClick={handleSaveFields}
+                    >
+                        Save Now
+                    </Button>
+                </div>
+            )}
+
             <div className="px-6 pt-10 pb-6 flex items-center gap-4">
                 <Button variant="ghost" size="icon" onClick={handleBackToProfile} className="h-10 w-10 -ml-2 rounded-full shrink-0"><ArrowLeft className="h-6 w-6" /></Button>
                 <div>

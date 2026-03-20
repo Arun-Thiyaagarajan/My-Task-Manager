@@ -1185,15 +1185,26 @@ const handleCopyDescription = () => {
                       </div>
                       <div className="text-sm text-foreground min-w-0 font-normal">
                         {editingSection === `customFields.${field.key}` ? (
-                            <Input
-                                value={editingValue}
-                                onChange={e => setEditingValue(e.target.value)}
-                                onBlur={() => handleSaveEditing(field.key, true)}
-                                onKeyDown={e => e.key === 'Enter' && handleSaveEditing(field.key, true)}
-                                autoFocus
-                                className="font-normal"
-                                showRefine={field.enableRefine}
-                            />
+                            field.type === 'textarea' ? (
+                                <Textarea
+                                    value={editingValue}
+                                    onChange={e => setEditingValue(e.target.value)}
+                                    onBlur={() => handleSaveEditing(field.key, true)}
+                                    autoFocus
+                                    className="font-normal"
+                                    showRefine={field.enableRefine}
+                                />
+                            ) : (
+                                <Input
+                                    value={editingValue}
+                                    onChange={e => setEditingValue(e.target.value)}
+                                    onBlur={() => handleSaveEditing(field.key, true)}
+                                    onKeyDown={e => e.key === 'Enter' && handleSaveEditing(field.key, true)}
+                                    autoFocus
+                                    className="font-normal"
+                                    showRefine={field.enableRefine}
+                                />
+                            )
                         ) : (
                             renderCustomFieldValue(field, task.customFields?.[field.key])
                         )}

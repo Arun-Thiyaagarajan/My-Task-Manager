@@ -84,8 +84,8 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                 el.dispatchEvent(new Event("input", { bubbles: true }));
                 toast({ variant: 'success', title: 'Content Refined' });
             }
-        } catch (error) {
-            toast({ variant: 'destructive', title: 'AI Assist Unavailable' });
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'AI Assist Unavailable', description: error.message });
         } finally {
             setIsRefining(false);
         }
@@ -206,8 +206,8 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                         {...props}
                     />
                     {isRefining && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-[1px] rounded-md z-20">
-                            <div className="flex items-center gap-2 px-4 py-2 bg-background border shadow-2xl rounded-full animate-in zoom-in-95 duration-300">
+                        <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-[1px] rounded-md z-20 pointer-events-none">
+                            <div className="flex items-center gap-2 px-4 py-2 bg-background border shadow-2xl rounded-full animate-in zoom-in-95 duration-300 pointer-events-auto">
                                 <Loader2 className="h-4 w-4 animate-spin text-primary" />
                                 <span className="text-xs font-bold uppercase tracking-widest text-primary/90">AI Refining</span>
                             </div>

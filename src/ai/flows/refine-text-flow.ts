@@ -1,4 +1,3 @@
-
 'use server';
 
 /**
@@ -32,7 +31,12 @@ export type RefineOutput = z.infer<typeof RefineOutputSchema>;
 export async function refineText(
   input: RefineInput
 ): Promise<RefineOutput> {
-  return refineTextFlow(input);
+  try {
+    return await refineTextFlow(input);
+  } catch (error) {
+    console.error("AI Refine Flow Error:", error);
+    throw new Error("AI refinement is currently unavailable. Please try again later.");
+  }
 }
 
 const refineTextFlow = ai.defineFlow(
@@ -63,6 +67,10 @@ const refineTextFlow = ai.defineFlow(
       },
     });
 
-    return output!;
+    if (!output) {
+        throw new Error("AI failed to generate a response.");
+    }
+
+    return output;
   }
 );
