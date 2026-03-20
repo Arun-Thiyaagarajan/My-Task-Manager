@@ -133,6 +133,13 @@ export default function NotesPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleOpenNewNoteDialog]);
 
+  // Listen for mobile-specific add note trigger from navbar
+  useEffect(() => {
+    const handleOpenNoteEvent = () => handleOpenNewNoteDialog();
+    window.addEventListener('open-note-editor', handleOpenNoteEvent);
+    return () => window.removeEventListener('open-note-editor', handleOpenNoteEvent);
+  }, [handleOpenNewNoteDialog]);
+
   const refreshData = useCallback(() => {
     const authMode = getAuthMode();
     const companyId = getActiveCompanyId();
@@ -501,9 +508,10 @@ export default function NotesPage() {
       </div>
       
        <div className="space-y-4 mb-8">
+            {/* HIDDEN ON MOBILE: The 'Take a note' button is replaced by the context-aware navbar '+' button */}
             <button
                 onClick={handleOpenNewNoteDialog}
-                className="w-full text-left p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors text-muted-foreground shadow-sm flex justify-between items-center h-11"
+                className="hidden lg:flex w-full text-left p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors text-muted-foreground shadow-sm justify-between items-center h-11"
             >
                 <span className="font-normal">Take a note...</span>
                 <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
@@ -752,7 +760,7 @@ export default function NotesPage() {
           <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg mt-8">
               <FolderSearch className="h-16 w-16 mb-4 text-muted-foreground/50 mx-auto"/>
               <p className="text-lg font-semibold">{notes.length > 0 ? 'No notes match your filters.' : 'No notes yet.'}</p>
-              <p className="mt-1 font-normal">{notes.length > 0 ? 'Try adjusting your search or date filters.' : 'Use the bar above to create your first note.'}</p>
+              <p className="mt-1 font-normal">{notes.length > 0 ? 'Try adjusting your search or date filters.' : 'Use the add button below to create your first note.'}</p>
           </div>
         ) : (
           <ResponsiveGridLayout

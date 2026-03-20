@@ -45,6 +45,17 @@ export function MobileBottomNav() {
     });
   };
 
+  const isNotesPage = pathname === '/notes';
+
+  const handleFabClick = () => {
+    if (isNotesPage) {
+      // Trigger note creation event that Notes page listens to
+      window.dispatchEvent(new Event('open-note-editor'));
+    } else {
+      handleNavigate('/tasks/new');
+    }
+  };
+
   // Prevent hydration mismatch by returning a stable shell on the server
   if (!mounted) {
     return (
@@ -99,20 +110,22 @@ export function MobileBottomNav() {
         );
       })}
 
-      {/* FAB - New Task (Always Center) */}
+      {/* FAB - New Task / Add Note (Always Center) */}
       <div className="flex-1 flex flex-col items-center justify-center">
         <Button 
           size="icon" 
           className="h-14 w-14 rounded-full shadow-xl shadow-primary/30 -mt-12 border-4 border-background active:scale-95 transition-transform"
-          onClick={() => handleNavigate('/tasks/new')}
+          onClick={handleFabClick}
         >
-          <Plus className="h-7 w-7" />
-          <span className="sr-only">New Task</span>
+          {isNotesPage ? <StickyNote className="h-7 w-7" /> : <Plus className="h-7 w-7" />}
+          <span className="sr-only">{isNotesPage ? 'Add Note' : 'New Task'}</span>
         </Button>
-        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mt-2">New</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mt-2">
+          {isNotesPage ? 'Add' : 'New'}
+        </span>
       </div>
 
-      {/* Dedicated Notes Link (Replaces Bin) */}
+      {/* Dedicated Notes Link */}
       <button
         onClick={() => handleNavigate('/notes')}
         className={cn(
