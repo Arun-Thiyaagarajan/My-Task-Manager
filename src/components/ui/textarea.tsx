@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -57,7 +56,6 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         mentionStartIndex.current = null;
     }, []);
     
-    // This effect handles the dynamic sizing of the textarea
     React.useEffect(() => {
       const adjustHeight = () => {
         const textarea = localRef.current;
@@ -70,7 +68,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       adjustHeight();
     }, [props.value]);
     
-    const handleRefine = async () => {
+    const handleRefine = React.useCallback(async () => {
         const el = localRef.current;
         if (!el || !el.value.trim() || isRefining) return;
 
@@ -91,9 +89,8 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         } finally {
             setIsRefining(false);
         }
-    };
+    }, [isRefining, toast]);
 
-    // This effect handles the hotkeys for formatting
     React.useEffect(() => {
         const textarea = localRef.current;
         if (!textarea || !enableHotkeys) return;
@@ -120,7 +117,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
 
         textarea.addEventListener('keydown', handleKeyDown);
         return () => textarea.removeEventListener('keydown', handleKeyDown);
-    }, [enableHotkeys, showRefine]);
+    }, [enableHotkeys, showRefine, handleRefine]);
 
 
     const handleMentionSelect = (name: string) => {
@@ -209,10 +206,10 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                         {...props}
                     />
                     {isRefining && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-background/20 backdrop-blur-[1px] rounded-md z-10">
-                            <div className="flex items-center gap-2 px-3 py-1.5 bg-background border shadow-lg rounded-full animate-in zoom-in-95 duration-200">
-                                <Loader2 className="h-3 w-3 animate-spin text-primary" />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-primary/80">Refining</span>
+                        <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-[1px] rounded-md z-20">
+                            <div className="flex items-center gap-2 px-4 py-2 bg-background border shadow-2xl rounded-full animate-in zoom-in-95 duration-300">
+                                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                                <span className="text-xs font-bold uppercase tracking-widest text-primary/90">AI Refining</span>
                             </div>
                         </div>
                     )}
@@ -220,7 +217,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
             </PopoverAnchor>
             <PopoverContent 
                 className="w-64 p-0" 
-                onOpenAutoFocus={(e) => e.preventDefault()} // Prevent focus stealing
+                onOpenAutoFocus={(e) => e.preventDefault()} 
                 align="start"
                 onEscapeKeyDown={closeMentionPopover}
                 onInteractOutside={closeMentionPopover}

@@ -33,7 +33,11 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         else if (ref) ref.current = el;
     };
 
-    const handleRefine = async () => {
+    const handleRefine = async (e?: React.MouseEvent) => {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
         const el = localRef.current;
         if (!el || !el.value.trim() || isRefining) return;
 
@@ -41,7 +45,6 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         try {
             const result = await refineText({ text: el.value });
             if (result.refinedText) {
-                // Manually update value and trigger event for react-hook-form
                 const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
                     window.HTMLInputElement.prototype,
                     "value"
@@ -80,7 +83,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           {...props}
         />
         {showRefine && (
-            <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center">
+            <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center z-10">
                 <TooltipProvider>
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -105,7 +108,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
                         <TooltipContent side="top" className="text-[10px] font-bold">
                             <div className="flex items-center gap-2">
                                 <span>Refine Content</span>
-                                {!isMobile && <kbd className="bg-muted px-1 rounded border">{shortcutHint}</kbd>}
+                                {!isMobile && <kbd className="bg-muted px-1 rounded border text-[9px]">{shortcutHint}</kbd>}
                             </div>
                         </TooltipContent>
                     </Tooltip>

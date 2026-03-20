@@ -1,13 +1,12 @@
-
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask, clearExpiredReminders, addTagsToMultipleTasks, addDeveloper, addTester, addEnvironment, getAuthMode, isInitialSyncComplete, getActiveCompanyId, addLog } from '@/lib/data';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles, Share2, History, MessageSquare, BellRing, MoreVertical, Trash2, FileJson, Copy, Tag, Download, Pilcrow, Code, CalendarIcon, FileUp, Share } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles, Share2, History, MessageSquare, BellRing, MoreVertical, Trash2, FileJson, Copy, Tag, Download, Pilcrow, Code, CalendarIcon, FileUp, Share, Save } from 'lucide-react';
 import { getStatusConfig, TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -799,6 +798,12 @@ const handleCopyDescription = () => {
     router.push(backLink);
   };
 
+  const handleFormat = (ref: React.RefObject<HTMLTextAreaElement>, type: FormatType) => {
+      if (ref.current) {
+          applyFormat(type, ref.current);
+      }
+  };
+
   const authMode = getAuthMode();
   const activeCompanyId = getActiveCompanyId();
   const isSyncing = authMode === 'authenticate' && (!activeCompanyId || !isInitialSyncComplete(activeCompanyId));
@@ -839,6 +844,8 @@ const handleCopyDescription = () => {
   const assignedTesters = (task.testers || []).map(id => testers.find(p => p.id === id)).filter((p): p is Person => !!p);
 
   const azureWorkItemIdFieldConfig = (uiConfig?.fields || []).find(f => f.key === 'azureWorkItemId');
+  const titleField = (uiConfig?.fields || []).find(f => f.key === 'title');
+  const descriptionField = (uiConfig?.fields || []).find(f => f.key === 'description');
   
   const tagsField = (uiConfig?.fields || []).find(f => f.key === 'tags');
   const repoField = (uiConfig?.fields || []).find(f => f.key === 'repositories');
@@ -987,6 +994,7 @@ const handleCopyDescription = () => {
                                 onBlur={() => handleSaveEditing('title', false)}
                                 onKeyDown={e => e.key === 'Enter' && handleSaveEditing('title', false)}
                                 className="text-3xl font-semibold h-auto p-0 border-0 focus-visible:ring-0"
+                                showRefine={titleField?.enableRefine}
                             />
                         ) : (
                           <TooltipProvider>
@@ -1083,8 +1091,9 @@ const handleCopyDescription = () => {
                                   className="min-h-[150px] pb-12 font-normal"
                                   placeholder="Enter a description..."
                                   enableHotkeys
+                                  showRefine={descriptionField?.enableRefine}
                                />
-                               <TextareaToolbar onFormatClick={(type) => descriptionEditorRef.current && applyFormat(type, descriptionEditorRef.current)} />
+                               <TextareaToolbar showRefine={descriptionField?.enableRefine} onFormatClick={(type) => handleFormat(descriptionEditorRef, type)} />
                              </div>
                             <div className="flex justify-end gap-2">
                                 <Button variant="ghost" size="sm" onClick={handleCancelEditing} className="font-medium">Cancel</Button>
@@ -1183,6 +1192,7 @@ const handleCopyDescription = () => {
                                 onKeyDown={e => e.key === 'Enter' && handleSaveEditing(field.key, true)}
                                 autoFocus
                                 className="font-normal"
+                                showRefine={field.enableRefine}
                             />
                         ) : (
                             renderCustomFieldValue(field, task.customFields?.[field.key])
@@ -1234,7 +1244,7 @@ const handleCopyDescription = () => {
                         {azureWorkItemIdFieldConfig?.isActive && (
                             <div>
                                 <Label className="font-semibold">{azureWorkItemIdFieldConfig.label || 'Azure DevOps'}</Label>
-                                <Input defaultValue={task.azureWorkItemId} onBlur={(e) => handleSaveEditing('azureWorkItemId', false, e.target.value)} placeholder="Enter ID..." className="font-normal"/>
+                                <Input defaultValue={task.azureWorkItemId} onBlur={(e) => handleSaveEditing('azureWorkItemId', false, e.target.value)} placeholder="Enter ID..." className="font-normal" showRefine={azureWorkItemIdFieldConfig?.enableRefine}/>
                             </div>
                         )}
                         <Button onClick={() => setEditingSection(null)} className="w-full font-semibold">Done</Button>

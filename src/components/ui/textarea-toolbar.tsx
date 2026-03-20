@@ -41,8 +41,14 @@ export function applyFormat(formatType: FormatType, target: HTMLTextAreaElement,
     }
 
     if (formatType === 'refine') {
-        // Refine is handled by the textarea component itself or parent through onKeyDown/click
-        // but we trigger a custom event or let the parent handle the click handler
+        // Refine is handled by the textarea component itself via event listener
+        // We trigger it by dispatching the keyboard shortcut event
+        const event = new KeyboardEvent('keydown', {
+            key: 'h',
+            altKey: true,
+            bubbles: true
+        });
+        target.dispatchEvent(event);
         return;
     }
 
@@ -133,7 +139,7 @@ export function TextareaToolbar({ onFormatClick, showRefine = false }: TextareaT
         tools.push({ 
             type: 'refine', 
             icon: <Sparkles className="h-4 w-4" />, 
-            tooltip: 'Refine / Rephrase', 
+            tooltip: 'Refine Content', 
             shortcut: refineShortcut,
             color: 'text-primary'
         });
@@ -141,43 +147,40 @@ export function TextareaToolbar({ onFormatClick, showRefine = false }: TextareaT
 
     return (
         <div className={cn(
-            "absolute bottom-2 left-2 flex items-center gap-1",
-            "p-1 rounded-lg bg-background/60 backdrop-blur-sm border border-border"
+            "absolute bottom-2 left-2 flex items-center gap-1 z-10",
+            "p-1 rounded-lg bg-background/80 backdrop-blur-sm border border-border shadow-sm"
         )}>
         {tools.map(({ type, icon, tooltip, shortcut, color }) => (
             <TooltipProvider key={type}>
                 <Tooltip>
                 <TooltipTrigger asChild>
-                    <Button
+                    <button
                     type="button"
-                    variant="ghost"
-                    size="icon"
-                    className={cn("h-7 w-7", color || "text-muted-foreground")}
+                    className={cn(
+                        "h-7 w-7 rounded-md flex items-center justify-center transition-all",
+                        "hover:bg-muted active:scale-95",
+                        color || "text-muted-foreground"
+                    )}
                     onClick={(e) => {
                         e.preventDefault();
                         onFormatClick(type);
                     }}
-                    onMouseDown={(e) => e.preventDefault()} // Prevent textarea from losing focus
+                    onMouseDown={(e) => e.preventDefault()}
                     >
                     {icon}
-                    </Button>
+                    </button>
                 </TooltipTrigger>
-                <TooltipContent side="top">
+                <TooltipContent side="top" className="text-[10px] font-bold">
                     <div className="flex items-center gap-2">
                         <span>{tooltip}</span>
                         {!isMobile && (
                             shortcut === '@&lt;' ? (
-                                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                                @&lt;
-                                </kbd>
+                                <kbd className="bg-muted px-1 rounded border text-[9px]">@&lt;</kbd>
                             ) : shortcut.includes('Option') || shortcut.includes('Alt') ? (
-                                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                                    {shortcut}
-                                </kbd>
+                                <kbd className="bg-muted px-1 rounded border text-[9px]">{shortcut}</kbd>
                             ) : (
-                                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                                    <span className="text-xs">{commandKey}</span>
-                                    {shortcut.includes('+') ? `+${shortcut.split('+')[1]}` : shortcut}
+                                <kbd className="bg-muted px-1 rounded border text-[9px]">
+                                    {commandKey}+{shortcut}
                                 </kbd>
                             )
                         )}
