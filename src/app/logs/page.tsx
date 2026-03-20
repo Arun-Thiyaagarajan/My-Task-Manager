@@ -13,7 +13,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Input } from '@/components/ui/input';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
-import { fuzzySearch, formatTimestamp } from '@/lib/utils';
+import { fuzzySearch, formatTimestamp, cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useRouter } from 'next/navigation';
@@ -30,6 +30,64 @@ const parseLogMessage = (message: string) => {
         return <span key={index}>{part}</span>;
     });
 };
+
+function MobileLogCard({ log, uiConfig }: { log: Log, uiConfig: UiConfig }) {
+    const isNoteLog = log.message.toLowerCase().includes('note');
+    
+    return (
+        <Card className="p-4 space-y-3 bg-card/50 border-muted/60 shadow-sm">
+            <div className="space-y-2">
+                <div className="flex justify-between items-start gap-2">
+                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary/70">
+                        <User className="h-3 w-3" />
+                        {log.userName || 'N/A'}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground font-medium whitespace-nowrap bg-muted/50 px-1.5 py-0.5 rounded">
+                        {formatTimestamp(log.timestamp, uiConfig.timeFormat)}
+                    </span>
+                </div>
+                <div className="text-sm font-medium leading-relaxed text-foreground/90">
+                    {parseLogMessage(log.message)}
+                </div>
+            </div>
+            
+            {/* Mobile Action Buttons */}
+            {(log.taskId || isNoteLog || log.message.includes('bin')) && (
+                <div className="pt-2 border-t border-dashed flex justify-end">
+                    {log.taskId && !isNoteLog ? (
+                        <Button asChild variant="secondary" size="sm" className="h-8 text-[10px] font-bold uppercase tracking-wider px-3 rounded-lg">
+                            <Link href={`/tasks/${log.taskId}`}>
+                                <LinkIcon className="mr-1.5 h-3 w-3" />
+                                View Task
+                            </Link>
+                        </Button>
+                    ) : isNoteLog ? (
+                         <Button asChild variant="secondary" size="sm" className="h-8 text-[10px] font-bold uppercase tracking-wider px-3 rounded-lg">
+                            <Link href="/notes">
+                                <StickyNote className="mr-1.5 h-3 w-3" />
+                                View Notes
+                            </Link>
+                        </Button>
+                    ) : log.message.includes('to the bin') ? (
+                        <Button asChild variant="secondary" size="sm" className="h-8 text-[10px] font-bold uppercase tracking-wider px-3 rounded-lg">
+                            <Link href="/bin">
+                                <Trash2 className="mr-1.5 h-3 w-3" />
+                                View Bin
+                            </Link>
+                        </Button>
+                    ) : log.message.includes('from the bin') ? (
+                        <Button asChild variant="secondary" size="sm" className="h-8 text-[10px] font-bold uppercase tracking-wider px-3 rounded-lg">
+                            <Link href="/">
+                                <LayoutGrid className="mr-1.5 h-3 w-3" />
+                                View Tasks
+                            </Link>
+                        </Button>
+                    ) : null}
+                </div>
+            )}
+        </Card>
+    );
+}
 
 export default function LogsPage() {
     const isMobile = useIsMobile();
@@ -189,13 +247,13 @@ export default function LogsPage() {
                         <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
                             <FileClock className="h-7 w-7"/> Activity Logs
                         </h1>
-                        <p className="text-muted-foreground mt-1">A record of all changes made in this workspace.</p>
+                        <p className="text-muted-foreground mt-1 font-normal">A record of all changes made in this workspace.</p>
                     </div>
                 </div>
             </div>
             
-            <Card>
-                <CardHeader>
+            <Card className="rounded-2xl lg:rounded-xl overflow-hidden border-none lg:border shadow-xl lg:shadow-md">
+                <CardHeader className="pb-4">
                     <CardTitle>All Logs</CardTitle>
                     <CardDescription>
                         {isFiltering ? (
@@ -216,7 +274,7 @@ export default function LogsPage() {
                                 value={searchQuery} 
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 onKeyDown={handleSearchKeyDown}
-                                className="w-full pl-10 pr-20 h-11 transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40"
+                                className="w-full pl-10 pr-20 h-11 transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40 rounded-xl lg:rounded-md"
                             />
                             <div className="absolute right-0 flex items-center h-full pr-1.5 gap-1">
                                 {searchQuery && (
@@ -258,86 +316,94 @@ export default function LogsPage() {
                                     <AccordionTrigger className="text-lg font-semibold tracking-tight text-foreground hover:no-underline rounded-lg px-4 py-3 hover:bg-muted/50 data-[state=open]:[&>svg]:text-primary">
                                         <div className="flex items-center gap-3">
                                             <span>{format(new Date(monthKey + '-02'), 'MMMM yyyy')}</span>
-                                            <Badge variant="secondary">{monthLogs.length} logs</Badge>
+                                            <Badge variant="secondary" className="bg-muted text-muted-foreground border-none">{monthLogs.length} logs</Badge>
                                         </div>
                                     </AccordionTrigger>
                                     <AccordionContent className="pt-2">
-                                        <div className="border rounded-lg overflow-x-auto">
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead className="w-[150px]">Time</TableHead>
-                                                        <TableHead className="w-[150px]">User</TableHead>
-                                                        <TableHead className="min-w-[300px]">Action</TableHead>
-                                                        <TableHead className="w-[150px] text-right">Related Item</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {monthLogs.map(log => {
-                                                        const isNoteLog = log.message.toLowerCase().includes('note');
-
-                                                        return (
-                                                        <TableRow key={log.id}>
-                                                            <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
-                                                                {formatTimestamp(log.timestamp, uiConfig.timeFormat)}
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <div className="flex items-center gap-2 text-xs font-semibold text-primary/80">
-                                                                    <User className="h-3 w-3" />
-                                                                    {log.userName || 'N/A'}
-                                                                </div>
-                                                            </TableCell>
-                                                            <TableCell className="font-medium text-sm">
-                                                                <div className="whitespace-pre-wrap">{parseLogMessage(log.message)}</div>
-                                                            </TableCell>
-                                                            <TableCell className="text-right">
-                                                                {log.taskId && !isNoteLog ? (
-                                                                    <Button asChild variant="outline" size="sm">
-                                                                        <Link href={`/tasks/${log.taskId}`}>
-                                                                            <LinkIcon className="mr-2 h-3 w-3" />
-                                                                            View Task
-                                                                        </Link>
-                                                                    </Button>
-                                                                ) : isNoteLog ? (
-                                                                     <Button asChild variant="outline" size="sm">
-                                                                        <Link href="/notes">
-                                                                            <StickyNote className="mr-2 h-3 w-3" />
-                                                                            View Notes
-                                                                        </Link>
-                                                                    </Button>
-                                                                ) : log.message.includes('to the bin') ? (
-                                                                    <Button asChild variant="outline" size="sm">
-                                                                        <Link href="/bin">
-                                                                            <Trash2 className="mr-2 h-3 w-3" />
-                                                                            View Bin
-                                                                        </Link>
-                                                                    </Button>
-                                                                ) : log.message.includes('from the bin') ? (
-                                                                    <Button asChild variant="outline" size="sm">
-                                                                        <Link href="/">
-                                                                            <LayoutGrid className="mr-2 h-3 w-3" />
-                                                                            View Tasks
-                                                                        </Link>
-                                                                    </Button>
-                                                                ) : (
-                                                                    <span className="text-xs text-muted-foreground">N/A</span>
-                                                                )}
-                                                            </TableCell>
+                                        {isMobile ? (
+                                            <div className="space-y-3 px-1 pb-4">
+                                                {monthLogs.map(log => (
+                                                    <MobileLogCard key={log.id} log={log} uiConfig={uiConfig} />
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="border rounded-lg overflow-x-auto bg-background">
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <TableHead className="w-[150px]">Time</TableHead>
+                                                            <TableHead className="w-[150px]">User</TableHead>
+                                                            <TableHead className="min-w-[300px]">Action</TableHead>
+                                                            <TableHead className="w-[150px] text-right">Related Item</TableHead>
                                                         </TableRow>
-                                                    )})}
-                                                </TableBody>
-                                            </Table>
-                                        </div>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {monthLogs.map(log => {
+                                                            const isNoteLog = log.message.toLowerCase().includes('note');
+
+                                                            return (
+                                                            <TableRow key={log.id}>
+                                                                <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
+                                                                    {formatTimestamp(log.timestamp, uiConfig.timeFormat)}
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    <div className="flex items-center gap-2 text-xs font-semibold text-primary/80">
+                                                                        <User className="h-3 w-3" />
+                                                                        {log.userName || 'N/A'}
+                                                                    </div>
+                                                                </TableCell>
+                                                                <TableCell className="font-medium text-sm">
+                                                                    <div className="whitespace-pre-wrap">{parseLogMessage(log.message)}</div>
+                                                                </TableCell>
+                                                                <TableCell className="text-right">
+                                                                    {log.taskId && !isNoteLog ? (
+                                                                        <Button asChild variant="outline" size="sm">
+                                                                            <Link href={`/tasks/${log.taskId}`}>
+                                                                                <LinkIcon className="mr-2 h-3 w-3" />
+                                                                                View Task
+                                                                            </Link>
+                                                                        </Button>
+                                                                    ) : isNoteLog ? (
+                                                                         <Button asChild variant="outline" size="sm">
+                                                                            <Link href="/notes">
+                                                                                <StickyNote className="mr-2 h-3 w-3" />
+                                                                                View Notes
+                                                                            </Link>
+                                                                        </Button>
+                                                                    ) : log.message.includes('to the bin') ? (
+                                                                        <Button asChild variant="outline" size="sm">
+                                                                            <Link href="/bin">
+                                                                                <Trash2 className="mr-2 h-3 w-3" />
+                                                                                View Bin
+                                                                            </Link>
+                                                                        </Button>
+                                                                    ) : log.message.includes('from the bin') ? (
+                                                                        <Button asChild variant="outline" size="sm">
+                                                                            <Link href="/">
+                                                                                <LayoutGrid className="mr-2 h-3 w-3" />
+                                                                                View Tasks
+                                                                            </Link>
+                                                                        </Button>
+                                                                    ) : (
+                                                                        <span className="text-xs text-muted-foreground">N/A</span>
+                                                                    )}
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        )})}
+                                                    </TableBody>
+                                                </Table>
+                                            </div>
+                                        )}
                                     </AccordionContent>
                                 </AccordionItem>
                             );
                         })}
                     </Accordion>
                    ) : (
-                    <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg">
+                    <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg bg-muted/5">
                         <Activity className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
                         <p className="text-lg font-semibold">{logs.length > 0 ? 'No logs match your search.' : 'No activity yet.'}</p>
-                        <p className="mt-1">{logs.length > 0 ? 'Try a different search query.' : 'Changes you make to tasks and settings will appear here.'}</p>
+                        <p className="mt-1 font-normal">{logs.length > 0 ? 'Try a different search query.' : 'Changes you make to tasks and settings will appear here.'}</p>
                     </div>
                    )}
                 </CardContent>
