@@ -1201,7 +1201,7 @@ export default function Home() {
                     <Upload className="mr-2 h-4 w-4" />
                     Import
                 </Button>
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
                 
                 <Button onClick={handleNavigateNewTask} id="new-task-btn" disabled={isImporting} className="w-full sm:w-auto h-11 shadow-lg font-medium active:scale-95 transition-transform">
                     <Plus className="mr-2 h-5 w-5" /> New Task
@@ -1285,7 +1285,71 @@ export default function Home() {
                                   </Button>
                               </PopoverTrigger>
                               <PopoverContent className="w-auto p-0" align="center">
-                                  <Calendar mode="single" selected={selectedDate} onSelect={(day) => { if(day) { setSelectedDate(day); } }} initialFocus />
+                                  <div className="p-3 w-[280px] space-y-4">
+                                      <div className="flex items-center justify-between gap-2">
+                                          <Button 
+                                              variant="outline" 
+                                              size="icon" 
+                                              className="h-8 w-8 rounded-lg"
+                                              onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handlePreviousDate();
+                                              }}
+                                          >
+                                              <ChevronLeft className="h-4 w-4" />
+                                          </Button>
+                                          <Select 
+                                              value={String(selectedDate.getFullYear())}
+                                              onValueChange={(val) => {
+                                                  const d = new Date(selectedDate);
+                                                  d.setFullYear(parseInt(val));
+                                                  setSelectedDate(d);
+                                              }}
+                                          >
+                                              <SelectTrigger className="h-8 flex-1 font-bold border-none hover:bg-muted transition-colors rounded-lg">
+                                                  <SelectValue />
+                                              </SelectTrigger>
+                                              <SelectContent className="max-h-60">
+                                                  {Array.from({ length: 101 }, (_, i) => 2000 + i).map(y => (
+                                                      <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                                                  ))}
+                                              </SelectContent>
+                                          </Select>
+                                          <Button 
+                                              variant="outline" 
+                                              size="icon" 
+                                              className="h-8 w-8 rounded-lg"
+                                              onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleNextDate();
+                                              }}
+                                          >
+                                              <ChevronRight className="h-4 w-4" />
+                                          </Button>
+                                      </div>
+
+                                      {dateView === 'monthly' && (
+                                          <div className="grid grid-cols-3 gap-2">
+                                              {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((month, idx) => (
+                                                  <Button
+                                                      key={month}
+                                                      variant={selectedDate.getMonth() === idx ? "default" : "ghost"}
+                                                      className={cn(
+                                                          "h-9 text-xs font-semibold rounded-lg",
+                                                          selectedDate.getMonth() === idx ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                                                      )}
+                                                      onClick={() => {
+                                                          const d = new Date(selectedDate);
+                                                          d.setMonth(idx);
+                                                          setSelectedDate(d);
+                                                      }}
+                                                  >
+                                                      {month}
+                                                  </Button>
+                                              ))}
+                                          </div>
+                                      )}
+                                  </div>
                               </PopoverContent>
                           </Popover>
                           <Button variant="outline" size="icon" onClick={handleNextDate} className="h-11 w-11 shrink-0 shadow-sm rounded-xl"><ChevronRight className="h-5 w-5" /></Button>
@@ -1425,7 +1489,71 @@ export default function Home() {
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar mode="single" selected={selectedDate} onSelect={(day) => { if(day) { setSelectedDate(day); } }} initialFocus />
+                                        <div className="p-3 w-[280px] space-y-4">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <Button 
+                                                    variant="outline" 
+                                                    size="icon" 
+                                                    className="h-8 w-8 rounded-lg"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handlePreviousDate();
+                                                    }}
+                                                >
+                                                    <ChevronLeft className="h-4 w-4" />
+                                                </Button>
+                                                <Select 
+                                                    value={String(selectedDate.getFullYear())}
+                                                    onValueChange={(val) => {
+                                                        const d = new Date(selectedDate);
+                                                        d.setFullYear(parseInt(val));
+                                                        setSelectedDate(d);
+                                                    }}
+                                                >
+                                                    <SelectTrigger className="h-8 flex-1 font-bold border-none hover:bg-muted transition-colors rounded-lg">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent className="max-h-60">
+                                                        {Array.from({ length: 101 }, (_, i) => 2000 + i).map(y => (
+                                                            <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                <Button 
+                                                    variant="outline" 
+                                                    size="icon" 
+                                                    className="h-8 w-8 rounded-lg"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleNextDate();
+                                                    }}
+                                                >
+                                                    <ChevronRight className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+
+                                            {dateView === 'monthly' && (
+                                                <div className="grid grid-cols-3 gap-2">
+                                                    {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((month, idx) => (
+                                                        <Button
+                                                            key={month}
+                                                            variant={selectedDate.getMonth() === idx ? "default" : "ghost"}
+                                                            className={cn(
+                                                                "h-9 text-xs font-semibold rounded-lg",
+                                                                selectedDate.getMonth() === idx ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                                                            )}
+                                                            onClick={() => {
+                                                                const d = new Date(selectedDate);
+                                                                d.setMonth(idx);
+                                                                setSelectedDate(d);
+                                                            }}
+                                                        >
+                                                            {month}
+                                                        </Button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                     </PopoverContent>
                                 </Popover>
                                 <Button variant="outline" size="icon" onClick={handleNextDate} className="h-11 w-11 shrink-0 shadow-sm rounded-xl active:scale-95 transition-transform"><ChevronRight className="h-5 w-5" /></Button>
