@@ -54,7 +54,6 @@ import {
   FileText,
   ChevronRight as ChevronRightIcon,
   SearchX,
-  CircleDot
 } from 'lucide-react';
 import { cn, fuzzySearch } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig, Log, GeneralReminder, BackupFrequency, Environment, UserPreferences, AuthMode } from '@/lib/types';
@@ -1055,20 +1054,10 @@ export default function Home() {
             )}
 
             <div className="grid grid-cols-2 sm:flex items-center gap-2">
-                <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => startTutorial()} 
-                    className="hidden md:flex h-11 px-4 font-medium"
-                >
-                    <CircleDot className="mr-2 h-4 w-4 text-primary" />
-                    Tour
-                </Button>
-
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" disabled={isImporting} className="w-full sm:w-auto h-11 font-medium">
-                        <Upload className="mr-2 h-4 w-4" />
+                        <Download className="mr-2 h-4 w-4" />
                         Export
                     </Button>
                     </DropdownMenuTrigger>
@@ -1080,7 +1069,7 @@ export default function Home() {
                 </DropdownMenu>
 
                 <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isImporting} className="w-full sm:w-auto h-11 font-medium">
-                    <Download className="mr-2 h-4 w-4" />
+                    <Upload className="mr-2 h-4 w-4" />
                     Import
                 </Button>
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />
@@ -1265,18 +1254,15 @@ export default function Home() {
                             </TooltipProvider>
 
                             <Button 
-                                variant={isSelectMode ? 'secondary' : 'outline'} 
+                                variant="outline" 
+                                size="icon"
                                 onClick={handleToggleSelectMode} 
                                 className={cn(
-                                    "h-11 px-4 rounded-xl shadow-sm font-bold flex items-center gap-2 transition-all active:scale-95 flex-1",
+                                    "h-11 w-11 rounded-xl shadow-sm transition-all active:scale-95",
                                     isSelectMode ? "bg-primary/10 text-primary border-primary/20" : "text-muted-foreground"
                                 )}
                             >
-                                <div className="relative h-5 w-5 flex items-center justify-center overflow-hidden">
-                                    <CheckSquare className={cn("h-5 w-5 transition-all duration-300 absolute", isSelectMode ? "opacity-0 scale-50" : "opacity-100 scale-100")} />
-                                    <X className={cn("h-5 w-5 transition-all duration-300 absolute", isSelectMode ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
-                                </div>
-                                <span className="text-xs uppercase tracking-widest">{isSelectMode ? 'Cancel Selection' : 'Select Multiple'}</span>
+                                {isSelectMode ? <X className="h-5 w-5" /> : <CheckSquare className="h-5 w-5" />}
                             </Button>
                         </div>
                     </div>
@@ -1305,7 +1291,7 @@ export default function Home() {
                     </div>
 
                     <div className={cn(
-                        'grid grid-cols-2 md:flex md:flex-row md:items-center items-stretch justify-center gap-2 w-full md:w-auto transition-opacity duration-300', 
+                        'grid grid-cols-2 md:flex md:flex-row md:items-center items-stretch justify-center gap-2 w-full md:auto transition-opacity duration-300', 
                         selectedTaskIds.length > 0 ? 'opacity-100' : 'opacity-40 pointer-events-none'
                     )}>
                       <Button variant="outline" size="sm" onClick={() => setIsTagsDialogOpen(true)} className="font-medium h-10 px-3">

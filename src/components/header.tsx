@@ -41,7 +41,7 @@ import {
   User as UserIcon,
   LogOut,
   ShieldCheck,
-  CircleDot,
+  Compass,
 } from 'lucide-react';
 import { CompaniesManager } from './companies-manager';
 import { useToast } from '@/hooks/use-toast';
@@ -348,21 +348,7 @@ export function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            {uiConfig?.tutorialEnabled && (
-                <div id="tutorial-trigger-wrapper">
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={() => startTutorial()}>
-                                <CircleDot className="h-5 w-5 text-muted-foreground" />
-                                <span className="sr-only">Show Tutorial</span>
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent className="font-normal">
-                            <p>Start Tutorial</p>
-                        </TooltipContent>
-                    </Tooltip>
-                </div>
-            )}
+            
             <Button variant="ghost" size="icon" onClick={handleRemindersClick} className="relative h-9 w-9 rounded-full group">
                 <Bell className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
                 {generalRemindersCount > 0 && (
@@ -373,6 +359,22 @@ export function Header() {
                 )}
                 <span className="sr-only">General Reminders</span>
             </Button>
+
+            {uiConfig?.tutorialEnabled && (
+                <div id="tutorial-trigger-wrapper">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={() => startTutorial()}>
+                                <Compass className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                                <span className="sr-only">Show Tour</span>
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent className="font-normal">
+                            <p>Take Workspace Tour</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </div>
+            )}
             
             <ThemeToggle />
 
