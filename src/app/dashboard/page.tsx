@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -16,11 +17,16 @@ import { DashboardSkeleton } from '@/components/dashboard-skeleton';
 
 export default function DashboardPage() {
   const { isUserLoading } = useFirebase();
+  const [mounted, setMounted] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [developers, setDevelopers] = useState<Person[]>([]);
   const [testers, setTesters] = useState<Person[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const refreshData = () => {
@@ -58,7 +64,7 @@ export default function DashboardPage() {
   const authMode = getAuthMode();
   const activeCompanyId = getActiveCompanyId();
   const isSyncing = authMode === 'authenticate' && (!activeCompanyId || !isInitialSyncComplete(activeCompanyId));
-  const activeSkeletons = isLoading || isUserLoading || isSyncing;
+  const activeSkeletons = !mounted || isLoading || isUserLoading || isSyncing;
 
   if (activeSkeletons || !uiConfig) {
     return <DashboardSkeleton />;

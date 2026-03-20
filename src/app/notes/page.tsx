@@ -57,6 +57,7 @@ export default function NotesPage() {
   const isMobile = useIsMobile();
   const { isUserLoading } = useFirebase();
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
@@ -83,6 +84,10 @@ export default function NotesPage() {
   const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // Hydrate preferences
   useEffect(() => {
     const prefs = getUserPreferences();
@@ -100,6 +105,7 @@ export default function NotesPage() {
 
   // Update preferences
   useEffect(() => {
+    if (!mounted) return;
     const noteFilters: any = {
         search: executedSearchQuery,
     };
@@ -115,7 +121,7 @@ export default function NotesPage() {
     updateUserPreferences({
         noteFilters
     });
-  }, [executedSearchQuery, dateFilter]);
+  }, [executedSearchQuery, dateFilter, mounted]);
   
   const handleOpenNewNoteDialog = useCallback(() => {
     if (isMobile) {
@@ -487,7 +493,7 @@ export default function NotesPage() {
   const authMode = getAuthMode();
   const activeCompanyId = getActiveCompanyId();
   const isSyncing = authMode === 'authenticate' && (!activeCompanyId || !isInitialSyncComplete(activeCompanyId));
-  const activeSkeletons = isLoading || isUserLoading || isSyncing;
+  const activeSkeletons = !mounted || isLoading || isUserLoading || isSyncing;
 
   if (activeSkeletons || !uiConfig) {
     return <NotesSkeleton />;

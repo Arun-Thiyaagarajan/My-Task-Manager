@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -223,6 +222,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (!mounted) return;
     const params = new URLSearchParams();
     
     if (executedSearchQuery) params.set('search', executedSearchQuery);
@@ -256,7 +256,7 @@ export default function Home() {
             tags: tagsFilter
         }
     });
-  }, [executedSearchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, statusFilter, repoFilter, deploymentFilter, tagsFilter, router, pathname, searchParams]);
+  }, [executedSearchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, statusFilter, repoFilter, deploymentFilter, tagsFilter, router, pathname, searchParams, mounted]);
 
   const handlePreviousDate = useCallback(() => {
       if (dateView === 'monthly') {
@@ -390,7 +390,7 @@ export default function Home() {
   useEffect(() => {
     const filterAndProcess = () => {
         try {
-            if (isUserLoading) return;
+            if (isUserLoading || !mounted) return;
 
             const results = tasks.filter((task: Task) => {
                 if (favoritesOnly && !task.isFavorite) return false;
@@ -488,7 +488,7 @@ export default function Home() {
 
     const rafId = requestAnimationFrame(filterAndProcess);
     return () => cancelAnimationFrame(rafId);
-  }, [tasks, statusFilter, repoFilter, tagsFilter, developers, testers, executedSearchQuery, dateView, selectedDate, deploymentFilter, favoritesOnly, sortDescriptor, uiConfig, viewMode, isUserLoading]);
+  }, [tasks, statusFilter, repoFilter, tagsFilter, developers, testers, executedSearchQuery, dateView, selectedDate, deploymentFilter, favoritesOnly, sortDescriptor, uiConfig, viewMode, isUserLoading, mounted]);
 
   const handleExport = useCallback((exportType: 'current_view' | 'all_tasks') => {
     const allDevelopers = getDevelopers();
@@ -801,7 +801,7 @@ export default function Home() {
   
   const activeCompanyIdForSync = getActiveCompanyId();
   const isSyncing = currentAuthMode === 'authenticate' && (!activeCompanyIdForSync || !isInitialSyncComplete(activeCompanyIdForSync));
-  const activeSkeletons = isLoading || isSearching || isUserLoading || isSyncing || !hasInitialized;
+  const activeSkeletons = !mounted || isLoading || isSearching || isUserLoading || isSyncing || !hasInitialized;
 
   const searchSuggestions = useMemo((): SearchSuggestion[] => {
     const q = searchQuery.trim().toLowerCase();
@@ -1101,6 +1101,10 @@ export default function Home() {
         )}
     </div>
   );
+
+  if (!mounted) {
+    return <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8"><LoadingSpinner /></div>;
+  }
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">

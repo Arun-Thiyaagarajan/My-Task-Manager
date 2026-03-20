@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -119,6 +120,7 @@ export default function SettingsPage() {
   const searchParams = useSearchParams();
   const { userProfile } = useFirebase();
   const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [uiConfig, setUiConfigState] = useState<UiConfig | null>(null);
   const [localFields, setLocalFields] = useState<FieldConfig[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -172,6 +174,7 @@ export default function SettingsPage() {
   const iconFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    setMounted(true);
     // Detect install status
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
     setInstallStatus(isStandalone ? 'installed' : 'not-installed');
@@ -458,7 +461,7 @@ export default function SettingsPage() {
     return { activeGroups, inactiveFields };
   }, [localFields, searchQuery]);
 
-  if (isLoading || !uiConfig) return null;
+  if (!mounted || isLoading || !uiConfig) return <div className="container mx-auto pt-10 pb-6 px-4"><LoadingSpinner /></div>;
 
   const authMode = getAuthMode();
   const isAdmin = authMode === 'authenticate' && userProfile?.role === 'admin';
