@@ -1,17 +1,17 @@
 
 'use client';
 
-import { Bold, Italic, Strikethrough, Code, Code2, AtSign } from 'lucide-react';
+import { Bold, Italic, Strikethrough, Code, Code2, AtSign, Sparkles } from 'lucide-react';
 import { Button } from './button';
-import { Tooltip, TooltipContent, TooltipTrigger } from './tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from './tooltip';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { useFormContext } from 'react-hook-form';
 
-export type FormatType = 'bold' | 'italic' | 'strike' | 'code' | 'code-block' | 'mention';
+export type FormatType = 'bold' | 'italic' | 'strike' | 'code' | 'code-block' | 'mention' | 'refine';
 
 interface TextareaToolbarProps {
   onFormatClick: (formatType: FormatType) => void;
+  showRefine?: boolean;
 }
 
 export function applyFormat(formatType: FormatType, target: HTMLTextAreaElement, mentionValue?: string) {
@@ -37,6 +37,12 @@ export function applyFormat(formatType: FormatType, target: HTMLTextAreaElement,
         // This will trigger the popover in the textarea component
         const inputEvent = new Event('input', { bubbles: true });
         target.dispatchEvent(inputEvent);
+        return;
+    }
+
+    if (formatType === 'refine') {
+        // Refine is handled by the textarea component itself or parent through onKeyDown/click
+        // but we trigger a custom event or let the parent handle the click handler
         return;
     }
 
@@ -101,7 +107,7 @@ export function applyFormat(formatType: FormatType, target: HTMLTextAreaElement,
 }
 
 
-export function TextareaToolbar({ onFormatClick }: TextareaToolbarProps) {
+export function TextareaToolbar({ onFormatClick, showRefine = false }: TextareaToolbarProps) {
     const [commandKey, setCommandKey] = useState('Ctrl');
     
     useEffect(() => {
@@ -111,7 +117,7 @@ export function TextareaToolbar({ onFormatClick }: TextareaToolbarProps) {
         }
     }, []);
 
-    const tools: { type: FormatType; icon: React.ReactNode; tooltip: string; shortcut: string; }[] = [
+    const tools: { type: FormatType; icon: React.ReactNode; tooltip: string; shortcut: string; color?: string }[] = [
         { type: 'bold', icon: <Bold className="h-4 w-4" />, tooltip: 'Bold', shortcut: 'B' },
         { type: 'italic', icon: <Italic className="h-4 w-4" />, tooltip: 'Italic', shortcut: 'I' },
         { type: 'strike', icon: <Strikethrough className="h-4 w-4" />, tooltip: 'Strikethrough', shortcut: 'Shift+X' },
@@ -120,44 +126,60 @@ export function TextareaToolbar({ onFormatClick }: TextareaToolbarProps) {
         { type: 'mention', icon: <AtSign className="h-4 w-4" />, tooltip: 'Mention User', shortcut: '@&lt;' },
     ];
 
+    if (showRefine) {
+        tools.push({ 
+            type: 'refine', 
+            icon: <Sparkles className="h-4 w-4" />, 
+            tooltip: 'Refine / Rephrase', 
+            shortcut: 'Alt+H',
+            color: 'text-primary'
+        });
+    }
+
     return (
         <div className={cn(
             "absolute bottom-2 left-2 flex items-center gap-1",
             "p-1 rounded-lg bg-background/60 backdrop-blur-sm border border-border"
         )}>
-        {tools.map(({ type, icon, tooltip, shortcut }) => (
-            <Tooltip key={type}>
-            <TooltipTrigger asChild>
-                <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-muted-foreground"
-                onClick={(e) => {
-                    e.preventDefault();
-                    onFormatClick(type);
-                }}
-                onMouseDown={(e) => e.preventDefault()} // Prevent textarea from losing focus
-                >
-                {icon}
-                </Button>
-            </TooltipTrigger>
-            <TooltipContent side="top">
-                <div className="flex items-center gap-2">
-                    <span>{tooltip}</span>
-                    {shortcut === '@&lt;' ? (
-                        <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                           @&lt;
-                        </kbd>
-                    ) : (
-                         <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                            <span className="text-xs">{commandKey}</span>
-                            {shortcut.includes('+') ? `+${shortcut.split('+')[1]}` : shortcut}
-                        </kbd>
-                    )}
-                </div>
-            </TooltipContent>
-            </Tooltip>
+        {tools.map(({ type, icon, tooltip, shortcut, color }) => (
+            <TooltipProvider key={type}>
+                <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className={cn("h-7 w-7", color || "text-muted-foreground")}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        onFormatClick(type);
+                    }}
+                    onMouseDown={(e) => e.preventDefault()} // Prevent textarea from losing focus
+                    >
+                    {icon}
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                    <div className="flex items-center gap-2">
+                        <span>{tooltip}</span>
+                        {shortcut === '@&lt;' ? (
+                            <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                            @&lt;
+                            </kbd>
+                        ) : shortcut === 'Alt+H' ? (
+                            <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                                Alt+H
+                            </kbd>
+                        ) : (
+                            <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                                <span className="text-xs">{commandKey}</span>
+                                {shortcut.includes('+') ? `+${shortcut.split('+')[1]}` : shortcut}
+                            </kbd>
+                        )}
+                    </div>
+                </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
         ))}
         </div>
     );

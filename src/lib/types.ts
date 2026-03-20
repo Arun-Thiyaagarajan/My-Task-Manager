@@ -243,4 +243,5 @@ export interface FieldConfig {
   baseUrl?: string;
   sortDirection?: 'asc' | 'desc' | 'manual';
   defaultValue?: any;
+  enableRefine?: boolean;
 }

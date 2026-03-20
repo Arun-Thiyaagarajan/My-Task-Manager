@@ -18,7 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X, Users, ClipboardCheck } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X, Users, ClipboardCheck, Sparkles } from 'lucide-react';
 import type { FieldConfig, FieldOption, FieldType, RepositoryConfig, Task } from '@/lib/types';
 import { FIELD_TYPES } from '@/lib/constants';
 import * as React from 'react';
@@ -44,6 +44,7 @@ const fieldSchema = z.object({
   group: z.string().min(2, { message: 'Group must be at least 2 characters.' }),
   isRequired: z.boolean(),
   isActive: z.boolean(),
+  enableRefine: z.boolean().optional(),
   options: z.array(fieldOptionSchema).optional(),
   baseUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
   sortDirection: z.enum(['asc', 'desc', 'manual']).optional(),
@@ -71,6 +72,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
       group: field?.group || 'Custom',
       isRequired: field?.isRequired || false,
       isActive: field?.isActive ?? true, // New fields default to active
+      enableRefine: field?.enableRefine ?? false,
       options: field?.options || [],
       baseUrl: field?.baseUrl || '',
       sortDirection: field?.sortDirection || 'manual',
@@ -94,6 +96,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
   const selectedType = form.watch('type');
   const showOptions = selectedType === 'select' || selectedType === 'multiselect' || selectedType === 'tags';
   const isSortableField = showOptions && (!field || field.key !== 'status');
+  const canEnableRefine = selectedType === 'text' || selectedType === 'textarea';
   
   const [allGroups, setAllGroups] = React.useState<string[]>([]);
   const [isGroupPopoverOpen, setIsGroupPopoverOpen] = React.useState(false);
@@ -216,6 +219,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
           group: field?.group || 'Custom',
           isRequired: field?.isRequired || false,
           isActive: field?.isActive ?? true,
+          enableRefine: field?.enableRefine ?? false,
           options: field?.options || [],
           baseUrl: field?.baseUrl || '',
           sortDirection: field?.sortDirection || 'manual',
@@ -289,7 +293,12 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                             render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Field Type</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value} disabled={!isCreating}>
+                                <Select onValueChange={(val) => {
+                                    field.onChange(val);
+                                    if (val !== 'text' && val !== 'textarea') {
+                                        form.setValue('enableRefine', false);
+                                    }
+                                }} value={field.value} disabled={!isCreating}>
                                     <FormControl>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select a type" />
@@ -436,6 +445,32 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                             />
                         </div>
                     </div>
+
+                    {canEnableRefine && (
+                        <FormField
+                            control={form.control}
+                            name="enableRefine"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 bg-primary/5 border-primary/10">
+                                    <div className="space-y-0.5">
+                                        <div className="flex items-center gap-2">
+                                            <Sparkles className="h-4 w-4 text-primary" />
+                                            <FormLabel className="font-bold">Enable Refine / Rephrase</FormLabel>
+                                        </div>
+                                        <FormDescription className="text-xs leading-relaxed max-w-[300px]">
+                                            Allows users to intelligently polish content for clarity and grammar using AI (Shortcut: Alt + H).
+                                        </FormDescription>
+                                    </div>
+                                    <FormControl>
+                                        <Switch
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
+                    )}
 
                      {selectedType === 'text' && (
                         <FormField

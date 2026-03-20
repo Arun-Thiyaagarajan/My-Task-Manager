@@ -8,16 +8,19 @@ import { Popover, PopoverContent, PopoverAnchor } from "./popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./command";
 import { getDevelopers, getTesters } from "@/lib/data";
 import type { Person } from "@/lib/types";
-import { Code2, User } from "lucide-react";
+import { Code2, User, Sparkles, Loader2 } from "lucide-react";
+import { refineText } from "@/ai/flows/refine-text-flow";
+import { useToast } from "@/hooks/use-toast";
 
 
 export interface TextareaProps
   extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
     enableHotkeys?: boolean;
+    showRefine?: boolean;
 }
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className, enableHotkeys = false, ...props }, ref) => {
+  ({ className, enableHotkeys = false, showRefine = false, ...props }, ref) => {
     
     const localRef = React.useRef<HTMLTextAreaElement>(null);
     const combinedRef = (el: HTMLTextAreaElement) => {
@@ -30,11 +33,13 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     };
 
     const [isMentionOpen, setIsMentionOpen] = React.useState(false);
+    const [isRefining, setIsRefining] = React.useState(false);
     const [mentionQuery, setMentionQuery] = React.useState('');
     const [developers, setDevelopers] = React.useState<Person[]>([]);
     const [testers, setTesters] = React.useState<Person[]>([]);
     const [activeSuggestion, setActiveSuggestion] = React.useState(0);
     const mentionStartIndex = React.useRef<number | null>(null);
+    const { toast } = useToast();
 
     const openMentionPopover = React.useCallback(() => {
         if (localRef.current) {
@@ -65,6 +70,29 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       adjustHeight();
     }, [props.value]);
     
+    const handleRefine = async () => {
+        const el = localRef.current;
+        if (!el || !el.value.trim() || isRefining) return;
+
+        setIsRefining(true);
+        try {
+            const result = await refineText({ text: el.value });
+            if (result.refinedText) {
+                const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+                    window.HTMLTextAreaElement.prototype,
+                    "value"
+                )?.set;
+                nativeInputValueSetter?.call(el, result.refinedText);
+                el.dispatchEvent(new Event("input", { bubbles: true }));
+                toast({ variant: 'success', title: 'Content Refined' });
+            }
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'AI Assist Unavailable' });
+        } finally {
+            setIsRefining(false);
+        }
+    };
+
     // This effect handles the hotkeys for formatting
     React.useEffect(() => {
         const textarea = localRef.current;
@@ -84,11 +112,15 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                     e.preventDefault();
                 }
             }
+            if (showRefine && e.altKey && e.key.toLowerCase() === 'h') {
+                e.preventDefault();
+                handleRefine();
+            }
         };
 
         textarea.addEventListener('keydown', handleKeyDown);
         return () => textarea.removeEventListener('keydown', handleKeyDown);
-    }, [enableHotkeys]);
+    }, [enableHotkeys, showRefine]);
 
 
     const handleMentionSelect = (name: string) => {
@@ -164,16 +196,27 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     return (
         <Popover open={isMentionOpen} onOpenChange={setIsMentionOpen}>
             <PopoverAnchor asChild>
-                <textarea
-                    className={cn(
-                    "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50 overflow-y-auto resize-none",
-                    className
+                <div className="relative w-full">
+                    <textarea
+                        className={cn(
+                        "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50 overflow-y-auto resize-none",
+                        isRefining && "animate-pulse text-muted-foreground",
+                        className
+                        )}
+                        ref={combinedRef}
+                        onKeyDown={handleKeyDown}
+                        onChange={handleTextareaInput}
+                        {...props}
+                    />
+                    {isRefining && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-background/20 backdrop-blur-[1px] rounded-md z-10">
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-background border shadow-lg rounded-full animate-in zoom-in-95 duration-200">
+                                <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-primary/80">Refining</span>
+                            </div>
+                        </div>
                     )}
-                    ref={combinedRef}
-                    onKeyDown={handleKeyDown}
-                    onChange={handleTextareaInput}
-                    {...props}
-                />
+                </div>
             </PopoverAnchor>
             <PopoverContent 
                 className="w-64 p-0" 

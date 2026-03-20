@@ -28,8 +28,8 @@ export const FIELD_TYPES: {value: FieldType, label: string}[] = [
 ]
 
 export const INITIAL_UI_CONFIG: FieldConfig[] = [
-  { id: 'field_title', key: 'title', label: 'Title', type: 'text', group: 'Core Details', isActive: true, isRequired: true, isCustom: false, order: 0 },
-  { id: 'field_description', key: 'description', label: 'Description', type: 'textarea', group: 'Core Details', isActive: true, isRequired: true, isCustom: false, order: 1 },
+  { id: 'field_title', key: 'title', label: 'Title', type: 'text', group: 'Core Details', isActive: true, isRequired: true, isCustom: false, order: 0, enableRefine: true },
+  { id: 'field_description', key: 'description', label: 'Description', type: 'textarea', group: 'Core Details', isActive: true, isRequired: true, isCustom: false, order: 1, enableRefine: true },
   { id: 'field_status', key: 'status', label: 'Status', type: 'select', group: 'Core Details', isActive: true, isRequired: true, isCustom: false, order: 2, options: TASK_STATUSES.map(s => ({id: s, value: s, label: s})) },
   { id: 'field_repositories', key: 'repositories', label: 'Repositories', type: 'multiselect', group: 'Assignment & Tracking', isActive: true, isRequired: true, isCustom: false, order: 3, options: INITIAL_REPOSITORY_CONFIGS.map(r => ({id: r.id, value: r.name, label: r.name})) },
   { id: 'field_developers', key: 'developers', label: 'Developers', type: 'tags', group: 'Assignment & Tracking', isActive: true, isRequired: true, isCustom: false, order: 4, options: [] },
