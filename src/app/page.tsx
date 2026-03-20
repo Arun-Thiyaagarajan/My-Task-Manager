@@ -123,6 +123,7 @@ interface SearchSuggestion {
     icon: any;
     taskId: string;
     matchType: string;
+    isBinned?: boolean;
 }
 
 export default function Home() {
@@ -798,7 +799,12 @@ export default function Home() {
     const devsById = new Map(developers.map(d => [d.id, d.name]));
     const testersById = new Map(testers.map(t => [t.id, t.name]));
 
-    tasks.forEach(task => {
+    const allTasksForSearch = [
+        ...tasks.map(t => ({ ...t, isBinned: false })),
+        ...getBinnedTasks().map(t => ({ ...t, isBinned: true }))
+    ];
+
+    allTasksForSearch.forEach(task => {
         if (fuzzySearch(q, task.title)) {
             suggestions.push({
                 id: `task-title-${task.id}`,
@@ -807,7 +813,8 @@ export default function Home() {
                 type: 'task',
                 icon: FileText,
                 taskId: task.id,
-                matchType: 'title'
+                matchType: 'title',
+                isBinned: task.isBinned
             });
             return;
         }
@@ -821,7 +828,8 @@ export default function Home() {
                 type: 'user',
                 icon: User,
                 taskId: task.id,
-                matchType: 'user'
+                matchType: 'user',
+                isBinned: task.isBinned
             });
             return;
         }
@@ -835,7 +843,8 @@ export default function Home() {
                 type: 'tag',
                 icon: Tag,
                 taskId: task.id,
-                matchType: 'tag'
+                matchType: 'tag',
+                isBinned: task.isBinned
             });
             return;
         }
@@ -849,7 +858,8 @@ export default function Home() {
                 type: 'repo',
                 icon: GitMerge,
                 taskId: task.id,
-                matchType: 'repo'
+                matchType: 'repo',
+                isBinned: task.isBinned
             });
             return;
         }
@@ -862,7 +872,8 @@ export default function Home() {
                 type: 'task',
                 icon: FileText,
                 taskId: task.id,
-                matchType: 'description'
+                matchType: 'description',
+                isBinned: task.isBinned
             });
         }
     });
@@ -872,7 +883,6 @@ export default function Home() {
 
   const handleSuggestionClick = (taskId: string) => {
     setIsSearchFocused(false);
-    setExecutedSearchQuery(searchQuery);
     window.dispatchEvent(new Event('navigation-start'));
     router.push(`/tasks/${taskId}`);
   };
@@ -952,7 +962,12 @@ export default function Home() {
                                     <suggestion.icon className="h-4 w-4" />
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                    <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{suggestion.title}</p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{suggestion.title}</p>
+                                        {suggestion.isBinned && (
+                                            <Badge variant="secondary" className="bg-zinc-500/10 text-zinc-500 border-none h-4 px-1.5 text-[8px] uppercase font-bold shrink-0">Bin</Badge>
+                                        )}
+                                    </div>
                                     <p className="text-[10px] text-muted-foreground truncate font-medium uppercase tracking-tight">{suggestion.subLabel}</p>
                                 </div>
                                 <ChevronRightIcon className="h-3 w-3 text-muted-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -1073,7 +1088,7 @@ export default function Home() {
                     <Upload className="mr-2 h-4 w-4" />
                     Import
                 </Button>
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*,.json" />
                 
                 <Button onClick={handleNavigateNewTask} id="new-task-btn" disabled={isImporting} className="hidden md:flex w-full sm:w-auto h-11 shadow-lg font-medium active:scale-95 transition-transform">
                     <Plus className="mr-2 h-5 w-5" /> New Task
@@ -1113,7 +1128,7 @@ export default function Home() {
                             onCheckedChange={handleToggleSelectAll}
                             className="h-5 w-5"
                           />
-                          <Label htmlFor="select-all-tasks-mobile" className="text-sm font-semibold whitespace-nowrap cursor-pointer">
+                          <Label htmlFor="select-all-tasks-mobile" className="text-sm font-semibold whitespace-nowrap cursor-pointer text-foreground">
                             {selectedTaskIds.length > 0 ? `${selectedTaskIds.length} Selected` : `Select All`}
                           </Label>
                         </div>
@@ -1157,6 +1172,10 @@ export default function Home() {
                     </Card>
                   </div>
                 )}
+
+                <div className="md:hidden px-1 animate-in fade-in slide-in-from-top-2 duration-500">
+                    {searchInputContent}
+                </div>
 
               <div className={cn(
                   "transition-all duration-300 overflow-visible",
@@ -1340,7 +1359,7 @@ export default function Home() {
                             onCheckedChange={handleToggleSelectAll}
                             className="h-5 w-5"
                           />
-                          <Label htmlFor="select-all-tasks" className="text-sm font-semibold whitespace-nowrap cursor-pointer">
+                          <Label htmlFor="select-all-tasks" className="text-sm font-semibold whitespace-nowrap cursor-pointer text-foreground">
                             {selectedTaskIds.length > 0 ? `${selectedTaskIds.length} Selected` : `Select All`}
                           </Label>
                         </div>
@@ -1447,7 +1466,7 @@ export default function Home() {
             <div className="py-6">
                 <MultiSelect
                     selected={tagsToApply}
-                    onChange={tagsToApply}
+                    onChange={setTagsToApply}
                     options={tasks.flatMap(t => t.tags || []).reduce((acc, tag) => {
                         if (!acc.some(o => o.value === tag)) acc.push({ value: tag, label: tag });
                         return acc;
