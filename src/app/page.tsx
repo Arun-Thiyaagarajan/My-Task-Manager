@@ -322,7 +322,8 @@ export default function Home() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-        setCommandKey(navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? '⌘' : 'Ctrl');
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        setCommandKey(isMac ? '⌘' : 'Ctrl');
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1274,14 +1275,10 @@ export default function Home() {
                   </div>
               </div>
 
-              {/* DESKTOP FILTER BAR */}
-              <div className={cn(
-                  "transition-all duration-300 overflow-visible",
-                  "hidden md:block", 
-                  isFiltersOpen ? "block opacity-100 max-h-[1000px] mb-4" : "opacity-0 max-h-0"
-              )}>
-                <Card id="task-filters" className="border shadow-lg md:shadow-none bg-card md:bg-transparent md:border-none overflow-visible">
-                    <CardContent className="p-4 md:p-0 overflow-visible">
+              {/* DESKTOP FILTER BAR - Restored to be persistently visible */}
+              <div className="hidden md:block overflow-visible mb-4">
+                <Card id="task-filters" className="border-none bg-transparent overflow-visible">
+                    <CardContent className="p-0 overflow-visible">
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
                             <div className="hidden md:flex flex-col w-full col-span-1 sm:col-span-2 md:col-span-1">
                                 {searchInputContent}
