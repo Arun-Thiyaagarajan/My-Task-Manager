@@ -308,13 +308,13 @@ export default function Home() {
 
     window.addEventListener('storage', storageHandler);
     window.addEventListener('config-changed', refreshData);
-    window.addEventListener('company-changed', refreshAllData);
+    window.addEventListener('company-changed', refreshData);
     window.addEventListener('sync-complete', refreshData);
     
     return () => {
       window.removeEventListener('storage', storageHandler);
       window.removeEventListener('config-changed', refreshData);
-      window.removeEventListener('company-changed', refreshAllData);
+      window.removeEventListener('company-changed', refreshData);
       window.removeEventListener('sync-complete', refreshData);
     };
   }, [refreshData]);
@@ -1081,55 +1081,6 @@ export default function Home() {
       </div>
       
       <div className="space-y-6">
-          <div className="space-y-3">
-              <Button 
-                variant="secondary" 
-                className="w-full flex md:hidden items-center justify-between h-12 px-4 font-medium shadow-sm border"
-                onClick={() => setIsFiltersOpen(!isFiltersOpen)}
-              >
-                <span className="flex items-center gap-2">
-                    <Filter className="h-4 w-4" />
-                    Filters
-                    {(statusFilter.length > 0 || repoFilter.length > 0 || deploymentFilter.length > 0 || tagsFilter.length > 0) && (
-                        <Badge className="bg-primary text-primary-foreground h-5 px-1.5 min-w-5 font-medium">
-                            {statusFilter.length + repoFilter.length + deploymentFilter.length + tagsFilter.length}
-                        </Badge>
-                    )}
-                </span>
-                <ChevronDown className={cn("h-4 w-4 transition-transform duration-300", isFiltersOpen && "rotate-180")} />
-              </Button>
-
-              <div className={cn(
-                  "transition-all duration-300 overflow-visible",
-                  "md:block", 
-                  isFiltersOpen ? "block opacity-100 max-h-[1000px] mb-4" : "hidden md:opacity-100 md:max-h-none opacity-0 max-h-0"
-              )}>
-                <Card id="task-filters" className="border shadow-lg md:shadow-none bg-card md:bg-transparent md:border-none overflow-visible">
-                    <CardContent className="p-4 md:p-0 overflow-visible">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
-                            <div className="hidden md:flex flex-col w-full col-span-1 sm:col-span-2 md:col-span-1">
-                                {searchInputContent}
-                            </div>
-                            <MultiSelect selected={statusFilter} onChange={(val) => { setStatusFilter(val); }} options={(uiConfig?.taskStatuses || []).map(s => ({ value: s, label: s }))} placeholder="Status..." />
-                            <MultiSelect selected={repoFilter} onChange={(val) => { setRepoFilter(val); }} options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} placeholder="Repository..." />
-                            {(uiConfig?.fields || []).find(f => f.key === 'tags')?.isActive && (
-                                <MultiSelect selected={tagsFilter} onChange={(val) => { setTagsFilter(val); }} options={[...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({value: t, label: t}))} placeholder="Tags..." />
-                            )}
-                            <MultiSelect selected={deploymentFilter} onChange={(val) => { setDeploymentFilter(val); }} options={(uiConfig?.environments || []).flatMap(env => [{ value: env.name, label: `On ${env.name}` }, { value: `not_${env.name}`, label: `Not on ${env.name}` }])} placeholder="Deployment..." />
-                        </div>
-                    </CardContent>
-                </Card>
-              </div>
-          </div>
-          
-           {searchError && (
-                <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle className="font-semibold">Search failed</AlertTitle>
-                    <AlertDescription className="font-normal">{searchError}</AlertDescription>
-                </Alert>
-           )}
-
            {isSelectMode && (
               <div className="sticky top-[68px] z-30 mb-4 animate-in slide-in-from-top-2 duration-300">
                 <Card className="border-primary/50 bg-background/90 backdrop-blur-sm shadow-lg overflow-hidden">
@@ -1185,6 +1136,55 @@ export default function Home() {
                 </Card>
               </div>
             )}
+
+          <div className="space-y-3">
+              <Button 
+                variant="secondary" 
+                className="w-full flex md:hidden items-center justify-between h-12 px-4 font-medium shadow-sm border"
+                onClick={() => setIsFiltersOpen(!isFiltersOpen)}
+              >
+                <span className="flex items-center gap-2">
+                    <Filter className="h-4 w-4" />
+                    Filters
+                    {(statusFilter.length > 0 || repoFilter.length > 0 || deploymentFilter.length > 0 || tagsFilter.length > 0) && (
+                        <Badge className="bg-primary text-primary-foreground h-5 px-1.5 min-w-5 font-medium">
+                            {statusFilter.length + repoFilter.length + deploymentFilter.length + tagsFilter.length}
+                        </Badge>
+                    )}
+                </span>
+                <ChevronDown className={cn("h-4 w-4 transition-transform duration-300", isFiltersOpen && "rotate-180")} />
+              </Button>
+
+              <div className={cn(
+                  "transition-all duration-300 overflow-visible",
+                  "md:block", 
+                  isFiltersOpen ? "block opacity-100 max-h-[1000px] mb-4" : "hidden md:opacity-100 md:max-h-none opacity-0 max-h-0"
+              )}>
+                <Card id="task-filters" className="border shadow-lg md:shadow-none bg-card md:bg-transparent md:border-none overflow-visible">
+                    <CardContent className="p-4 md:p-0 overflow-visible">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+                            <div className="hidden md:flex flex-col w-full col-span-1 sm:col-span-2 md:col-span-1">
+                                {searchInputContent}
+                            </div>
+                            <MultiSelect selected={statusFilter} onChange={(val) => { setStatusFilter(val); }} options={(uiConfig?.taskStatuses || []).map(s => ({ value: s, label: s }))} placeholder="Status..." />
+                            <MultiSelect selected={repoFilter} onChange={(val) => { setRepoFilter(val); }} options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} placeholder="Repository..." />
+                            {(uiConfig?.fields || []).find(f => f.key === 'tags')?.isActive && (
+                                <MultiSelect selected={tagsFilter} onChange={(val) => { setTagsFilter(val); }} options={[...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({value: t, label: t}))} placeholder="Tags..." />
+                            )}
+                            <MultiSelect selected={deploymentFilter} onChange={(val) => { setDeploymentFilter(val); }} options={(uiConfig?.environments || []).flatMap(env => [{ value: env.name, label: `On ${env.name}` }, { value: `not_${env.name}`, label: `Not on ${env.name}` }])} placeholder="Deployment..." />
+                        </div>
+                    </CardContent>
+                </Card>
+              </div>
+          </div>
+          
+           {searchError && (
+                <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle className="font-semibold">Search failed</AlertTitle>
+                    <AlertDescription className="font-normal">{searchError}</AlertDescription>
+                </Alert>
+           )}
 
            <div className="flex flex-col gap-6">
                 <div className="flex flex-col md:flex-row md:flex-wrap lg:flex-nowrap md:items-center md:justify-between gap-4 md:gap-6">
@@ -1389,7 +1389,7 @@ export default function Home() {
             <div className="py-6">
                 <MultiSelect
                     selected={tagsToApply}
-                    onChange={setTagsToApply}
+                    onChange={tagsToApply}
                     options={tasks.flatMap(t => t.tags || []).reduce((acc, tag) => {
                         if (!acc.some(o => o.value === tag)) acc.push({ value: tag, label: tag });
                         return acc;
