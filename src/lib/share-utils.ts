@@ -1,4 +1,3 @@
-
 'use client';
 
 import jsPDF from 'jspdf';
@@ -75,7 +74,6 @@ const renderCustomFieldValue = (fieldConfig: FieldConfig, value: any) => {
   }
 };
 
-
 const _drawTaskOnPage = async (
     doc: jsPDF,
     task: Task,
@@ -91,14 +89,14 @@ const _drawTaskOnPage = async (
     const PAGE_WIDTH = doc.internal.pageSize.getWidth();
     const MAX_CONTENT_WIDTH = PAGE_WIDTH - PADDING * 2;
     
-    const KEY_COLUMN_WIDTH = 45;
+    const KEY_COLUMN_WIDTH = 55;
     const VALUE_COLUMN_X = PADDING + KEY_COLUMN_WIDTH;
     const VALUE_COLUMN_WIDTH = MAX_CONTENT_WIDTH - KEY_COLUMN_WIDTH;
 
     const FONT_SIZE_NORMAL = 10;
-    const FONT_SIZE_H1 = 16;
-    const FONT_SIZE_H2 = 12;
-    const LINE_HEIGHT_NORMAL = 5.5;
+    const FONT_SIZE_H1 = 18;
+    const FONT_SIZE_H2 = 13;
+    const LINE_HEIGHT_NORMAL = 6;
 
     const COLORS = {
         TEXT_PRIMARY: [31, 41, 55],
@@ -131,47 +129,45 @@ const _drawTaskOnPage = async (
     }
 
     const checkPageBreak = (neededHeight = 0) => {
-        if (y + neededHeight > PAGE_HEIGHT - PADDING) {
+        if (y + neededHeight > PAGE_HEIGHT - PADDING - 15) {
+            drawFooter();
             doc.addPage();
             drawHeader();
             drawWatermark();
-            y = PADDING + 8 + 8;
+            y = PADDING + 12;
         }
     };
     
     const drawHeader = () => {
-        const { appName, appIcon } = uiConfig;
-        const iconSize = 8;
-        let iconX = PADDING;
-        let textX = PADDING;
-
-        if (appIcon && isDataURI(appIcon)) {
-            try {
-                const imageProps = doc.getImageProperties(appIcon);
-                doc.addImage(appIcon, imageProps.fileType, iconX, PADDING - 2, iconSize, iconSize);
-                textX += iconSize + 3;
-            } catch (e) {
-                textX = PADDING;
-            }
-        }
-        
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(FONT_SIZE_NORMAL);
-        doc.setTextColor(...COLORS.TEXT_MUTED);
-        doc.text(appName || 'TaskFlow Workspace', textX, PADDING + iconSize / 2, { baseline: 'middle' });
-        
-        doc.setFont('helvetica', 'normal');
+        // App Name at top left, Status Badge at top right
         doc.setFontSize(8);
         doc.setTextColor(...COLORS.TEXT_MUTED);
-        
-        const maxTitleWidth = MAX_CONTENT_WIDTH / 2.5;
-        const truncatedTitle = doc.splitTextToSize(task.title, maxTitleWidth);
-        
-        doc.text(truncatedTitle, PAGE_WIDTH - PADDING, PADDING + iconSize / 2, { align: 'right', baseline: 'middle' });
+        doc.setFont('helvetica', 'normal');
+        doc.text(uiConfig.appName || 'TaskFlow Workspace', PADDING, PADDING);
+    };
 
-        const headerBottomY = PADDING + iconSize + 4;
+    const drawFooter = () => {
+        const footerY = PAGE_HEIGHT - PADDING + 5;
         doc.setDrawColor(...COLORS.CARD_BORDER);
-        doc.line(PADDING, headerBottomY, PAGE_WIDTH - PADDING, headerBottomY);
+        doc.line(PADDING, footerY - 8, PAGE_WIDTH - PADDING, footerY - 8);
+
+        const iconSize = 6;
+        let textX = PADDING;
+        if (uiConfig.appIcon && isDataURI(uiConfig.appIcon)) {
+            try {
+                const imageProps = doc.getImageProperties(uiConfig.appIcon);
+                doc.addImage(uiConfig.appIcon, imageProps.fileType, PADDING, footerY - 5, iconSize, iconSize);
+                textX += iconSize + 2;
+            } catch (e) {}
+        }
+
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...COLORS.TEXT_MUTED);
+        doc.text(uiConfig.appName || 'TaskFlow', textX, footerY, { baseline: 'middle' });
+
+        doc.setFont('helvetica', 'normal');
+        doc.text(task.title, PAGE_WIDTH - PADDING, footerY, { align: 'right', baseline: 'middle' });
     };
     
     const drawWatermark = async () => {
@@ -184,74 +180,67 @@ const _drawTaskOnPage = async (
         const colorHex = rgbToHex(colorRGB[0], colorRGB[1], colorRGB[2]);
         const coloredSvg = svgString.replace(/currentColor/g, colorHex);
 
-        const iconSize = 120;
+        const iconSize = 140;
         const x = (PAGE_WIDTH - iconSize) / 2;
         const y_pos = (PAGE_HEIGHT - iconSize) / 2;
 
         try {
             const pngDataUrl = await svgToDataURL(coloredSvg);
-            doc.setGState(new doc.GState({ opacity: 0.08 }));
+            doc.setGState(new doc.GState({ opacity: 0.05 }));
             doc.addImage(pngDataUrl, 'PNG', x, y_pos, iconSize, iconSize);
             doc.setGState(new doc.GState({ opacity: 1 }));
         } catch (e) {
-            console.error("Failed to render SVG watermark:", e);
+            console.error("Failed to render watermark:", e);
         }
     };
 
-    const drawTitle = (text: string, status: string) => {
+    const drawTitleAndBadge = (text: string, status: string) => {
         const statusColors = STATUS_COLORS[status] || STATUS_COLORS['To Do'];
-        doc.setFontSize(FONT_SIZE_NORMAL);
-        doc.setFont('helvetica', 'bold');
-        const statusTextWidth = doc.getTextWidth(status);
-        const badgeWidth = statusTextWidth + 8;
-        
-        const titleWidth = MAX_CONTENT_WIDTH - badgeWidth - 10;
-        
         doc.setFontSize(FONT_SIZE_H1);
-        const titleLines = doc.splitTextToSize(text, titleWidth);
+        doc.setFont('helvetica', 'bold');
+        
+        const titleLines = doc.splitTextToSize(text, MAX_CONTENT_WIDTH - 40);
         const titleHeight = titleLines.length * (LINE_HEIGHT_NORMAL * 1.2);
         
-        checkPageBreak(titleHeight + 4);
-        
+        y = PADDING + 12;
         doc.setTextColor(...COLORS.TEXT_PRIMARY);
-        const titleY = y;
-        doc.text(titleLines, PADDING, titleY, { baseline: 'top' });
+        doc.text(titleLines, PADDING, y, { baseline: 'top' });
 
-        const badgeHeight = 8;
-        const badgeY = titleY + (titleHeight / 2) - (badgeHeight / 2);
+        // Badge at top right
+        doc.setFontSize(9);
+        const statusWidth = doc.getTextWidth(status);
+        const badgeWidth = statusWidth + 10;
+        const badgeHeight = 7;
         const badgeX = PAGE_WIDTH - PADDING - badgeWidth;
-        
+        const badgeY = y;
+
         doc.setFillColor(statusColors.bg[0], statusColors.bg[1], statusColors.bg[2]);
         doc.roundedRect(badgeX, badgeY, badgeWidth, badgeHeight, 3, 3, 'F');
         
-        doc.setFontSize(FONT_SIZE_NORMAL);
         doc.setTextColor(statusColors.text[0], statusColors.text[1], statusColors.text[2]);
-        doc.text(status, badgeX + 4, badgeY + badgeHeight / 2, { baseline: 'middle' });
+        doc.text(status, badgeX + 5, badgeY + badgeHeight / 2, { baseline: 'middle' });
 
-        y += titleHeight + 4;
+        y += titleHeight + 8;
     };
     
-    const drawSectionHeader = (title: string, minContentHeight: number | null = null) => {
-        const headerHeight = 7 + (LINE_HEIGHT_NORMAL - 1) + 5;
-        const neededHeight = headerHeight + (minContentHeight ?? LINE_HEIGHT_NORMAL + 2);
-        checkPageBreak(neededHeight);
-        
-        y += 7;
+    const drawSectionHeader = (title: string) => {
+        checkPageBreak(15);
+        y += 5;
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(FONT_SIZE_H2);
         doc.setTextColor(...COLORS.TEXT_PRIMARY);
         doc.text(title, PADDING, y);
-        y += LINE_HEIGHT_NORMAL - 1;
+        y += 2;
         doc.setDrawColor(...COLORS.CARD_BORDER);
         doc.line(PADDING, y, PADDING + MAX_CONTENT_WIDTH, y);
-        y += 5;
+        y += 8;
     };
 
-    const drawKeyValue = (key: string, value: string | { text: string; link: string } | null | undefined) => {
-        if (!value) return;
+    const drawKeyValue = (key: string, value: any) => {
+        if (value === undefined || value === null || value === '') return;
 
         let textValue: string, linkUrl: string | undefined;
-        if (typeof value === 'object' && value !== null) {
+        if (typeof value === 'object' && value !== null && 'text' in value) {
             textValue = value.text;
             linkUrl = value.link;
         } else {
@@ -259,8 +248,7 @@ const _drawTaskOnPage = async (
         }
         
         doc.setFontSize(FONT_SIZE_NORMAL);
-        
-        const keyLines = doc.splitTextToSize(`${key}:`, KEY_COLUMN_WIDTH - 2);
+        const keyLines = doc.splitTextToSize(`${key}:`, KEY_COLUMN_WIDTH - 5);
         const valueLines = doc.splitTextToSize(textValue, VALUE_COLUMN_WIDTH);
         
         const requiredHeight = Math.max(keyLines.length, valueLines.length) * LINE_HEIGHT_NORMAL;
@@ -282,178 +270,91 @@ const _drawTaskOnPage = async (
         
         y += requiredHeight + 2;
     };
-    
-    const drawImageAttachment = (name: string, dataUrl: string) => {
-        try {
-            const titleHeight = LINE_HEIGHT_NORMAL + 2;
-            const imageProps = doc.getImageProperties(dataUrl);
-            const aspectRatio = imageProps.width / imageProps.height;
-            let imgWidth = VALUE_COLUMN_WIDTH;
-            let imgHeight = imgWidth / aspectRatio;
-            const MAX_IMAGE_HEIGHT = 80;
-
-            if (imgHeight > MAX_IMAGE_HEIGHT) {
-                imgHeight = MAX_IMAGE_HEIGHT;
-                imgWidth = imgHeight * aspectRatio;
-            }
-
-            if (imgWidth > VALUE_COLUMN_WIDTH) {
-                imgWidth = VALUE_COLUMN_WIDTH;
-                imgHeight = imgWidth / aspectRatio;
-            }
-            
-            const totalRequiredHeight = titleHeight + imgHeight + 4;
-            
-            checkPageBreak(totalRequiredHeight);
-
-            doc.setFontSize(FONT_SIZE_NORMAL);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(...COLORS.TEXT_MUTED);
-            doc.text(`${name}:`, PADDING, y, { baseline: 'top' });
-
-            doc.addImage(dataUrl, imageProps.fileType, VALUE_COLUMN_X, y, imgWidth, imgHeight);
-            y += imgHeight + 4;
-
-        } catch (e) {
-            drawKeyValue(name, "(Image attachment could not be rendered)");
-        }
-    };
 
     // --- DATA PREPARATION ---
     const developersById = new Map(developers.map(d => [d.id, d.name]));
     const testersById = new Map(testers.map(t => [t.id, t.name]));
     const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
     const customFields = uiConfig.fields.filter(f => f.isCustom && f.isActive && task.customFields && typeof task.customFields[f.key] !== 'undefined' && task.customFields[f.key] !== null && task.customFields[f.key] !== '');
-    
-    const groupedCustomFields = customFields.reduce((acc, field) => {
-        const group = field.group || 'Other Details';
-        if (!acc[group]) acc[group] = [];
-        acc[group].push(field);
-        return acc;
-    }, {} as Record<string, FieldConfig[]>);
 
     // --- PDF DRAWING ---
     drawHeader();
     await drawWatermark();
-    doc.setFont('helvetica', 'normal');
-    y = PADDING + 8 + 8;
-
-    drawTitle(task.title, task.status);
-
-    if (task.summary) {
-        doc.setFont('helvetica', 'italic');
-        doc.setFontSize(FONT_SIZE_NORMAL);
-        doc.setTextColor(...COLORS.TEXT_MUTED);
-        const summaryLines = doc.splitTextToSize(`"${task.summary}"`, MAX_CONTENT_WIDTH);
-        const summaryHeight = summaryLines.length * LINE_HEIGHT_NORMAL;
-        checkPageBreak(summaryHeight + 4);
-        doc.text(summaryLines, PADDING, y);
-        y += summaryHeight + 4;
-    }
     
+    drawTitleAndBadge(task.title, task.status);
+
     if (task.description) {
+        drawSectionHeader(fieldLabels.get('description') || 'Description');
         const cleanDescription = task.description.replace(/(\*\*|_(.*?)_|\`|\~)/g, '');
         const lines = doc.splitTextToSize(cleanDescription, MAX_CONTENT_WIDTH);
         const descHeight = lines.length * LINE_HEIGHT_NORMAL;
-        drawSectionHeader(fieldLabels.get('description') || 'Description', descHeight);
+        checkPageBreak(descHeight + 5);
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(FONT_SIZE_NORMAL);
         doc.setTextColor(...COLORS.TEXT_PRIMARY);
         doc.text(lines, PADDING, y);
-        y += descHeight + 2;
+        y += descHeight + 10;
     }
 
-    drawSectionHeader('Task Identification');
+    drawSectionHeader('Task Details');
     const assignedDevs = (task.developers || []).map(id => developersById.get(id)).filter(Boolean).join(', ');
-    drawKeyValue(fieldLabels.get('developers') || 'Developers', assignedDevs);
+    drawKeyValue(fieldLabels.get('developers') || 'Developers', assignedDevs || 'None');
     const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter(Boolean).join(', ');
-    drawKeyValue(fieldLabels.get('testers') || 'QA', assignedTesters);
+    drawKeyValue(fieldLabels.get('testers') || 'Testers', assignedTesters || 'None');
     if (task.repositories && task.repositories.length > 0) {
         drawKeyValue(fieldLabels.get('repositories') || 'Repositories', task.repositories.join(', '));
     }
     if (task.azureWorkItemId) {
         const azureConfig = uiConfig.fields.find(f => f.key === 'azureWorkItemId');
         const url = azureConfig?.baseUrl ? `${azureConfig.baseUrl}${task.azureWorkItemId}` : '';
-        drawKeyValue(fieldLabels.get('azureWorkItemId') || 'Work Item ID', { text: `#${task.azureWorkItemId}`, link: url });
-    }
-    if (task.tags && task.tags.length > 0) {
-        drawKeyValue(fieldLabels.get('tags') || 'Tags', task.tags.join(', '));
+        drawKeyValue(fieldLabels.get('azureWorkItemId') || 'Azure Work Item ID', { text: `#${task.azureWorkItemId}`, link: url });
     }
 
-    Object.entries(groupedCustomFields).forEach(([groupName, fields]) => {
-        drawSectionHeader(groupName);
-        fields.forEach(field => {
-            const value = task.customFields![field.key];
-            const displayValue = renderCustomFieldValue(field, value);
-            drawKeyValue(field.label, displayValue);
-        });
+    drawSectionHeader('Timeline & Deployments');
+    if (task.devStartDate) drawKeyValue(fieldLabels.get('devStartDate') || 'Dev Start Date', format(new Date(task.devStartDate), 'MMMM do, yyyy'));
+    if (task.qaStartDate) drawKeyValue(fieldLabels.get('qaStartDate') || 'QA Start Date', format(new Date(task.qaStartDate), 'MMMM do, yyyy'));
+    if (task.qaEndDate) drawKeyValue(fieldLabels.get('qaEndDate') || 'QA End Date', format(new Date(task.qaEndDate), 'MMMM do, yyyy'));
+    
+    uiConfig.environments.forEach((env: Environment) => {
+        if (!env || !env.name) return;
+        const isSelected = task.deploymentStatus?.[env.name] ?? false;
+        const date = task.deploymentDates?.[env.name];
+        if (isSelected) {
+            const label = `${env.name.charAt(0).toUpperCase() + env.name.slice(1)} Deployed`;
+            const val = date ? `on ${format(new Date(date), 'MMMM do, yyyy')}` : '(Deployed)';
+            drawKeyValue(label, val);
+        }
     });
 
-    drawSectionHeader('Milestones & Deployments');
-    if (task.devStartDate) drawKeyValue(fieldLabels.get('devStartDate') || 'Dev Commencement', format(new Date(task.devStartDate), 'PPP'));
-    if (task.devEndDate) drawKeyValue(fieldLabels.get('devEndDate') || 'Dev Completion', format(new Date(task.devEndDate), 'PPP'));
-    if (task.qaStartDate) drawKeyValue(fieldLabels.get('qaStartDate') || 'QA Commenced', format(new Date(task.qaStartDate), 'PPP'));
-    if (task.qaEndDate) drawKeyValue(fieldLabels.get('qaEndDate') || 'QA Verified', format(new Date(task.qaEndDate), 'PPP'));
-    
-    if (uiConfig.environments.length > 0) {
-      uiConfig.environments.forEach((env: Environment) => {
-          if (!env || !env.name) return;
-          const isSelected = task.deploymentStatus?.[env.name] ?? false;
-          const hasDate = task.deploymentDates && task.deploymentDates[env.name];
-          if (isSelected) {
-              const deploymentDate = hasDate ? `on ${format(new Date(hasDate), 'PPP')}` : '(Status: Active)';
-              drawKeyValue(`${env.name.charAt(0).toUpperCase() + env.name.slice(1)} Deployment`, deploymentDate);
-          }
-      });
-    }
-
     if (task.prLinks && Object.keys(task.prLinks).length > 0) {
-        drawSectionHeader(fieldLabels.get('prLinks') || 'Pull Request Links');
+        drawSectionHeader('Pull Requests');
         Object.entries(task.prLinks).forEach(([env, repos]) => {
             if (!repos) return;
             Object.entries(repos).forEach(([repoName, prIdString]) => {
                 if (!prIdString) return;
                 const prIds = prIdString.split(',').map(s => s.trim()).filter(Boolean);
-                if (prIds.length === 0) return;
+                const repoConfig = uiConfig.repositoryConfigs.find(rc => rc.name === repoName);
                 
-                const label = `${env.charAt(0).toUpperCase() + env.slice(1)} - ${repoName}`;
-                drawKeyValue(label, prIds.map(id => `#${id}`).join(', '));
+                prIds.forEach(id => {
+                    const baseUrl = repoConfig?.baseUrl || '';
+                    const fullUrl = baseUrl ? `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}${id}` : '';
+                    const label = `${repoName} #${id} (${env}):`;
+                    drawKeyValue(label, { text: fullUrl || 'Link not available', link: fullUrl });
+                });
             });
         });
     }
 
-    const hasAttachments = task.attachments && task.attachments.length > 0;
-    if (hasAttachments) {
-        let requiredHeightForFirstItem = LINE_HEIGHT_NORMAL + 2;
-        const firstAttachment = task.attachments![0];
-
-        if (firstAttachment.type === 'link') {
-            const keyLines = doc.splitTextToSize(`${firstAttachment.name}:`, KEY_COLUMN_WIDTH - 2);
-            const valueLines = doc.splitTextToSize(firstAttachment.url, VALUE_COLUMN_WIDTH);
-            requiredHeightForFirstItem = Math.max(keyLines.length, valueLines.length) * LINE_HEIGHT_NORMAL + 2;
-        } else if (firstAttachment.type === 'image' && isDataURI(firstAttachment.url)) {
-            try {
-                const imageProps = doc.getImageProperties(firstAttachment.url);
-                const aspectRatio = imageProps.width / imageProps.height;
-                let imgWidth = VALUE_COLUMN_WIDTH;
-                let imgHeight = imgWidth / aspectRatio;
-                if (imgHeight > 80) imgHeight = 80;
-                requiredHeightForFirstItem = (LINE_HEIGHT_NORMAL + 2) + imgHeight + 4;
-            } catch (e) {
-                requiredHeightForFirstItem = LINE_HEIGHT_NORMAL + 2;
-            }
-        }
-        
-        drawSectionHeader(fieldLabels.get('attachments') || 'Supporting Documents', requiredHeightForFirstItem);
-        
-        task.attachments!.forEach(att => {
-            if (att.type === 'link') {
-              drawKeyValue(att.name, {text: att.url, link: att.url});
-            } else if (att.type === 'image' && isDataURI(att.url)) {
-              drawImageAttachment(att.name, att.url);
-            }
+    if (customFields.length > 0) {
+        drawSectionHeader('Other Details');
+        customFields.forEach(field => {
+            const val = task.customFields![field.key];
+            const display = renderCustomFieldValue(field, val);
+            drawKeyValue(field.label, display);
         });
     }
+
+    drawFooter();
 };
 
 export const generateTaskPdf = async (
@@ -483,7 +384,7 @@ export const generateTaskPdf = async (
     if (!finalFilename) {
         finalFilename = tasksArray.length === 1 
             ? `TF_Export_${sanitizeFilename(tasksArray[0].title)}.pdf`
-            : 'TaskFlow_Multiple_Export.pdf';
+            : 'TaskFlow_Workspace_Export.pdf';
     }
     
     if (outputType === 'blob') {
@@ -507,75 +408,19 @@ export const generateTasksText = (
         return text.replace(/(\*\*|_(.*?)_|\`|\~)/g, '');
     };
 
-    const renderCustomFieldValueForText = (fieldConfig: FieldConfig, value: any): string => {
-        if (value === null || value === undefined || value === '') return 'N/A';
-        switch (fieldConfig.type) {
-            case 'text':
-                if (fieldConfig.baseUrl && value) {
-                    return `${value} (${fieldConfig.baseUrl}${value})`;
-                }
-                return String(value);
-            case 'date':
-                return value ? format(new Date(value), 'PPP') : 'Not set';
-            case 'checkbox':
-                return value ? 'Yes' : 'No';
-            case 'url':
-                return String(value);
-            case 'multiselect':
-                return Array.isArray(value) ? value.join(', ') : String(value);
-            case 'tags':
-                return Array.isArray(value) ? value.join(', ') : String(value);
-            default:
-                return String(value);
-        }
-    };
-
     const taskStrings = tasks.map(task => {
-        let taskText = `TASK: ${task.title}\n`;
-        taskText += `STATUS: ${task.status}\n\n`;
-        taskText += `OBJECTIVE:\n${stripMarkup(task.description)}\n\n`;
+        let text = `TASK: ${task.title}\nSTATUS: ${task.status}\n\n`;
+        text += `DESCRIPTION:\n${stripMarkup(task.description)}\n\n`;
         
-        const details: string[] = [];
-
-        if (task.developers && task.developers.length > 0) {
-            const assignedDevs = task.developers.map(id => developersById.get(id) || id).join(', ');
-            details.push(`Assignees: ${assignedDevs}`);
-        }
-
-        if (task.repositories && task.repositories.length > 0) {
-            details.push(`Repos: ${task.repositories.join(', ')}`);
-        }
-
-        if (task.azureWorkItemId) {
-            details.push(`Work Item: #${task.azureWorkItemId}`);
-        }
-
-        if (details.length > 0) {
-            taskText += "--- IDENTIFICATION ---\n";
-            taskText += details.join('\n') + '\n\n';
-        }
+        const devs = (task.developers || []).map(id => developersById.get(id)).filter(Boolean).join(', ');
+        text += `Developers: ${devs || 'None'}\n`;
+        const test = (task.testers || []).map(id => testersById.get(id)).filter(Boolean).join(', ');
+        text += `Testers: ${test || 'None'}\n`;
+        text += `Repositories: ${(task.repositories || []).join(', ') || 'None'}\n`;
+        if (task.azureWorkItemId) text += `Azure Work Item: #${task.azureWorkItemId}\n`;
         
-        const timeline: string[] = [];
-        if (task.devStartDate) timeline.push(`Commenced: ${format(new Date(task.devStartDate), 'PPP')}`);
-        if (task.devEndDate) timeline.push(`Completed: ${format(new Date(task.devEndDate), 'PPP')}`);
-        if (task.qaStartDate) timeline.push(`QA Started: ${format(new Date(task.qaStartDate), 'PPP')}`);
-        if (task.qaEndDate) timeline.push(`QA Verified: ${format(new Date(task.qaEndDate), 'PPP')}`);
-        
-        if (task.deploymentDates) {
-            Object.entries(task.deploymentDates).forEach(([env, date]) => {
-                if(date) {
-                    timeline.push(`${env.toUpperCase()} Deployment: ${format(new Date(date), 'PPP')}`);
-                }
-            });
-        }
-        
-        if (timeline.length > 0) {
-            taskText += "--- MILESTONES ---\n";
-            taskText += timeline.join('\n') + '\n\n';
-        }
-
-        return taskText;
+        return text;
     });
 
-    return taskStrings.join('========================================\n\n');
+    return taskStrings.join('\n' + '='.repeat(40) + '\n\n');
 };
