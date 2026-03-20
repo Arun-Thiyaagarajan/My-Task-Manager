@@ -25,13 +25,15 @@ import {
     ListChecks,
     Users,
     Code2,
-    ClipboardCheck
+    ClipboardCheck,
+    MessageSquare
 } from 'lucide-react';
 import { cn, getRepoBadgeStyle, formatTimestamp, getAvatarColor, getInitials } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { PrLinksGroup } from '@/components/pr-links-group';
+import { CommentsSection } from '@/components/comments-section';
 
 function SharedTaskContent() {
     const params = useParams();
@@ -39,6 +41,7 @@ function SharedTaskContent() {
     const searchParams = useSearchParams();
     const [task, setTask] = useState<Task | null>(null);
     const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
+    const [fieldLabels, setFieldLabels] = useState<Map<string, string>>(new Map());
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -48,6 +51,7 @@ function SharedTaskContent() {
         setUiConfig(config);
 
         let finalTask: Task | null = null;
+        let finalLabels: Record<string, string> = {};
 
         if (payload) {
             try {
@@ -55,6 +59,8 @@ function SharedTaskContent() {
                     '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
                 ).join('');
                 const snapshot = JSON.parse(decodeURIComponent(decoded));
+                
+                finalLabels = snapshot.lb || {};
                 
                 finalTask = {
                     id: taskId,
@@ -73,12 +79,13 @@ function SharedTaskContent() {
                     qaStartDate: snapshot.qsd,
                     qaEndDate: snapshot.qed,
                     customFields: snapshot.cf,
-                    developers: snapshot.dv, // Snapshot contains names, not IDs
-                    testers: snapshot.ts, // Snapshot contains names, not IDs
+                    developers: snapshot.dv, // Snapshot contains names
+                    testers: snapshot.ts, // Snapshot contains names
                     prLinks: snapshot.pr,
                     azureWorkItemId: snapshot.az,
                     updatedAt: snapshot.up,
-                    createdAt: snapshot.up, 
+                    createdAt: snapshot.up,
+                    comments: snapshot.cm || []
                 } as Task;
             } catch (e) {
                 console.error("Failed to decode share payload", e);
@@ -87,33 +94,32 @@ function SharedTaskContent() {
 
         if (!finalTask) {
             const foundTask = getTaskById(taskId);
-            if (foundTask) finalTask = foundTask;
+            if (foundTask) {
+                finalTask = foundTask;
+                // Use app's current labels as fallback
+                config.fields.forEach(f => {
+                    finalLabels[f.key] = f.label;
+                });
+            }
         }
 
         if (finalTask) {
             setTask(finalTask);
+            setFieldLabels(new Map(Object.entries(finalLabels)));
             document.title = `Snapshot: ${finalTask.title}`;
         }
         setIsLoading(false);
     }, [params.id, searchParams]);
 
-    const renderCustomFieldValue = (fieldConfig: FieldConfig, value: any) => {
+    const renderCustomFieldValue = (fieldKey: string, label: string, value: any) => {
         if (value === null || value === undefined || value === '') return <span className="text-muted-foreground font-normal">N/A</span>;
         
-        switch (fieldConfig.type) {
-            case 'text':
-                if (fieldConfig.baseUrl && value) {
-                    return <a href={`${fieldConfig.baseUrl}${value}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-2 break-all"><ExternalLink className="h-4 w-4 shrink-0"/> {value}</a>
-                }
-                return <RichTextViewer text={String(value)} />;
-            case 'textarea': return <RichTextViewer text={String(value)} />;
-            case 'date': return value ? format(new Date(value), 'PPP') : 'Not set';
-            case 'checkbox': return value ? 'Yes' : 'No';
-            case 'url': return <a href={String(value)} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{String(value)}</a>
-            case 'multiselect':
-            case 'tags': return Array.isArray(value) ? (<div className="flex flex-wrap gap-1">{value.map((v: any) => <Badge key={v} variant="secondary">{v}</Badge>)}</div>) : <RichTextViewer text={String(value)} />;
-            default: return <RichTextViewer text={String(value)} />;
-        }
+        // Determine type based on common key patterns or value types if config isn't fully available
+        if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+        if (Array.isArray(value)) return <div className="flex flex-wrap gap-1">{value.map((v: any) => <Badge key={v} variant="secondary">{v}</Badge>)}</div>;
+        if (String(value).startsWith('http')) return <a href={String(value)} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{String(value)}</a>;
+        
+        return <RichTextViewer text={String(value)} />;
     }
 
     if (isLoading) return <LoadingSpinner text="Initializing secure view..." />;
@@ -134,9 +140,19 @@ function SharedTaskContent() {
     }
 
     const relevantEnvs = (task.relevantEnvironments || []).map(name => uiConfig.environments.find(e => e.name === name)).filter((e): e is Environment => !!e);
-    const customFieldsToShow = uiConfig.fields.filter(f => f.isCustom && f.isActive && task.customFields && typeof task.customFields[f.key] !== 'undefined' && task.customFields[f.key] !== null && task.customFields[f.key] !== '');
+    
+    // Custom fields present in the task snapshot
+    const customFieldKeys = Object.keys(task.customFields || {});
+    
     const statusConfig = getStatusConfig(task.status);
     const { Icon, cardClassName, iconColorClassName } = statusConfig;
+
+    const prLinksLabel = fieldLabels.get('prLinks') || 'Pull Requests';
+    const deploymentLabel = fieldLabels.get('deploymentStatus') || 'Deployments';
+    const developersLabel = fieldLabels.get('developers') || 'Developers';
+    const testersLabel = fieldLabels.get('testers') || 'Testers';
+    const repositoriesLabel = fieldLabels.get('repositories') || 'Repositories';
+    const attachmentsLabel = fieldLabels.get('attachments') || 'Attachments';
 
     return (
         <div className="min-h-screen bg-muted/5 pb-20 selection:bg-primary selection:text-white">
@@ -160,7 +176,7 @@ function SharedTaskContent() {
             <div className="container max-w-7xl mx-auto px-4 sm:px-6 pt-10 space-y-8">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
                     
-                    {/* MAIN COLUMN (MIRRORS TASKS DETAIL) */}
+                    {/* MAIN COLUMN */}
                     <div className="lg:col-span-2 space-y-6">
                         <Card className={cn("relative overflow-hidden", cardClassName)}>
                             <Icon className={cn('absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none opacity-20', iconColorClassName)} />
@@ -185,7 +201,7 @@ function SharedTaskContent() {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <Card>
-                                <CardHeader><CardTitle className="flex items-center gap-2 text-xl font-semibold"><CheckCircle2 className="h-5 w-5" />Release Progress</CardTitle></CardHeader>
+                                <CardHeader><CardTitle className="flex items-center gap-2 text-xl font-semibold"><CheckCircle2 className="h-5 w-5" />{deploymentLabel}</CardTitle></CardHeader>
                                 <CardContent>
                                     <div className="space-y-1 text-sm">
                                         {relevantEnvs.length > 0 ? relevantEnvs.map(env => {
@@ -203,34 +219,46 @@ function SharedTaskContent() {
                                 </CardContent>
                             </Card>
                             <Card>
-                                <CardHeader><CardTitle className="flex items-center gap-2 text-xl font-semibold"><GitMerge className="h-5 w-5" />Pull Requests</CardTitle></CardHeader>
+                                <CardHeader><CardTitle className="flex items-center gap-2 text-xl font-semibold"><GitMerge className="h-5 w-5" />{prLinksLabel}</CardTitle></CardHeader>
                                 <CardContent><PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} configuredEnvs={relevantEnvs.map(e => e.name)} repositoryConfigs={uiConfig.repositoryConfigs} isEditing={false} /></CardContent>
                             </Card>
                         </div>
 
-                        {customFieldsToShow.length > 0 && (
+                        {customFieldKeys.length > 0 && (
                             <Card>
                                 <CardHeader><CardTitle className="flex items-center gap-2 text-xl font-semibold"><Box className="h-5 w-5" />Extended Details</CardTitle></CardHeader>
                                 <CardContent className="space-y-4">
-                                    {customFieldsToShow.map(field => (
-                                        <div key={field.key} className="break-words">
-                                            <h4 className="text-sm font-semibold text-muted-foreground mb-1">{field.label}</h4>
-                                            <div className="text-sm text-foreground font-normal">{renderCustomFieldValue(field, task.customFields?.[field.key])}</div>
-                                        </div>
-                                    ))}
+                                    {customFieldKeys.map(key => {
+                                        const label = fieldLabels.get(key) || key;
+                                        const value = task.customFields?.[key];
+                                        return (
+                                            <div key={key} className="break-words">
+                                                <h4 className="text-sm font-semibold text-muted-foreground mb-1">{label}</h4>
+                                                <div className="text-sm text-foreground font-normal">{renderCustomFieldValue(key, label, value)}</div>
+                                            </div>
+                                        );
+                                    })}
                                 </CardContent>
                             </Card>
                         )}
+
+                        {/* Comments Section */}
+                        <CommentsSection 
+                            taskId={task.id} 
+                            comments={task.comments || []} 
+                            onCommentsUpdate={() => {}} 
+                            readOnly={true} 
+                        />
                     </div>
 
-                    {/* SIDEBAR (MIRRORS TASKS DETAIL) */}
+                    {/* SIDEBAR */}
                     <div className="space-y-6">
                         <Card>
                             <CardHeader><CardTitle className="flex items-center gap-2 text-xl font-semibold"><ListChecks className="h-5 w-5" />Task Profile</CardTitle></CardHeader>
                             <CardContent className="space-y-6">
                                 <div>
-                                    <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
-                                        <Code2 className="h-3.5 w-3.5" /> Assignees
+                                    <h4 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+                                        <Code2 className="h-4 w-4" /> {developersLabel}
                                     </h4>
                                     <div className="flex flex-wrap gap-3">
                                         {((task.developers || []) as any[]).map((name, i) => (
@@ -239,19 +267,28 @@ function SharedTaskContent() {
                                                 <span className="text-xs font-bold">{name}</span>
                                             </div>
                                         ))}
+                                        {!task.developers?.length && <p className="text-xs text-muted-foreground font-normal italic">None assigned.</p>}
+                                    </div>
+                                </div>
+                                <Separator className="opacity-50" />
+                                <div>
+                                    <h4 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+                                        <ClipboardCheck className="h-4 w-4" /> {testersLabel}
+                                    </h4>
+                                    <div className="flex flex-wrap gap-3">
                                         {((task.testers || []) as any[]).map((name, i) => (
                                             <div key={i} className="flex items-center gap-2 bg-muted/30 px-2 py-1 rounded-full border">
                                                 <Avatar className="h-6 w-6"><AvatarFallback className="text-[8px] font-bold text-white" style={{backgroundColor:`#${getAvatarColor(name)}`}}>{getInitials(name)}</AvatarFallback></Avatar>
                                                 <span className="text-xs font-bold">{name}</span>
                                             </div>
                                         ))}
-                                        {(!task.developers?.length && !task.testers?.length) && <p className="text-xs text-muted-foreground font-normal italic">No staff assigned.</p>}
+                                        {!task.testers?.length && <p className="text-xs text-muted-foreground font-normal italic">None assigned.</p>}
                                     </div>
                                 </div>
                                 <Separator className="opacity-50" />
                                 <div>
-                                    <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
-                                        <GitMerge className="h-3.5 w-3.5" /> Context
+                                    <h4 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+                                        <GitMerge className="h-4 w-4" /> {repositoriesLabel}
                                     </h4>
                                     <div className="flex flex-wrap gap-1.5">
                                         {task.repositories?.map(repo => <Badge key={repo} variant="repo" style={getRepoBadgeStyle(repo)} className="text-[10px] font-bold uppercase">{repo}</Badge>)}
@@ -260,8 +297,8 @@ function SharedTaskContent() {
                                 </div>
                                 <Separator className="opacity-50" />
                                 <div>
-                                    <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
-                                        <Clock className="h-3.5 w-3.5" /> Timeline
+                                    <h4 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+                                        <Clock className="h-4 w-4" /> Timeline
                                     </h4>
                                     <div className="space-y-2 text-xs font-medium">
                                         {task.devStartDate && <div className="flex justify-between"><span>Dev Commenced</span><span className="font-bold">{format(new Date(task.devStartDate), 'PPP')}</span></div>}
@@ -275,7 +312,7 @@ function SharedTaskContent() {
                         </Card>
 
                         <Card>
-                            <CardHeader><CardTitle className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2"><Paperclip className="h-4 w-4" />Attachments</CardTitle></CardHeader>
+                            <CardHeader><CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2"><Paperclip className="h-4 w-4" />{attachmentsLabel}</CardTitle></CardHeader>
                             <CardContent>
                                 <div className="space-y-2">
                                     {task.attachments?.map((att, i) => (
@@ -285,7 +322,7 @@ function SharedTaskContent() {
                                             <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                                         </a>
                                     ))}
-                                    {!task.attachments?.length && <p className="text-center py-4 text-xs text-muted-foreground font-normal italic">No verified links provided.</p>}
+                                    {!task.attachments?.length && <p className="text-center py-4 text-xs text-muted-foreground font-normal italic">No documents provided.</p>}
                                 </div>
                             </CardContent>
                         </Card>
