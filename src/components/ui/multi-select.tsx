@@ -203,39 +203,9 @@ export const MultiSelect = React.memo(function MultiSelect({
                     onTouchMove={(e) => e.stopPropagation()}
                 >
                     <CommandEmpty>No results found.</CommandEmpty>
-                    <CommandGroup>
-                        {filteredOptions.map((option) => (
-                        <CommandItem
-                            key={option.value}
-                            value={option.label}
-                            onMouseDown={(e) => e.preventDefault()}
-                            onSelect={() => {
-                            onChange([...safeSelected, option.value]);
-                            setQuery('');
-                            }}
-                            className="cursor-pointer"
-                        >
-                            {option.label}
-                        </CommandItem>
-                        ))}
-                    </CommandGroup>
-                    {showCreatable && (
-                    <CommandGroup>
-                        <CommandItem
-                            key={query}
-                            value={query}
-                            onMouseDown={(e) => e.preventDefault()}
-                            onSelect={handleSelectCreatable}
-                            className="cursor-pointer text-primary"
-                        >
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Create "{query.trim()}"
-                        </CommandItem>
-                    </CommandGroup>
-                    )}
                     {safeSelected.length > 0 && (
                         <CommandGroup>
-                            <div className="space-y-1 p-2 border-t mt-2 pt-2">
+                            <div className="space-y-1 p-2 border-b mb-2 pb-2">
                                 <div className="flex items-center justify-between px-2 mb-1">
                                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Selected ({safeSelected.length})</p>
                                     <Button
@@ -270,6 +240,36 @@ export const MultiSelect = React.memo(function MultiSelect({
                                 )}
                             </div>
                         </CommandGroup>
+                    )}
+                    <CommandGroup>
+                        {filteredOptions.map((option) => (
+                        <CommandItem
+                            key={option.value}
+                            value={option.label}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onSelect={() => {
+                            onChange([...safeSelected, option.value]);
+                            setQuery('');
+                            }}
+                            className="cursor-pointer"
+                        >
+                            {option.label}
+                        </CommandItem>
+                        ))}
+                    </CommandGroup>
+                    {showCreatable && (
+                    <CommandGroup>
+                        <CommandItem
+                            key={query}
+                            value={query}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onSelect={handleSelectCreatable}
+                            className="cursor-pointer text-primary"
+                        >
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Create "{query.trim()}"
+                        </CommandItem>
+                    </CommandGroup>
                     )}
                 </CommandList>
             </Command>
