@@ -383,6 +383,14 @@ export function Header() {
               </DropdownMenu>
             )}
             
+            {/* Support Inbox Shortcut (Mobile Only - Admin) */}
+            {isAdmin && mounted && (
+                <HeaderLink href="/admin/feedback" className="md:hidden h-9 w-9 rounded-full flex items-center justify-center hover:bg-muted transition-colors text-amber-600">
+                    <Inbox className="h-5 w-5" />
+                    <span className="sr-only">Support Inbox</span>
+                </HeaderLink>
+            )}
+
             {/* Recent Activity Shortcut (Mobile Only) */}
             <HeaderLink href="/insights" className="md:hidden h-9 w-9 rounded-full flex items-center justify-center hover:bg-muted transition-colors">
                 <Sparkles className="h-5 w-5 text-muted-foreground" />
