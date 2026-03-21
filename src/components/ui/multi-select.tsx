@@ -193,8 +193,7 @@ export const MultiSelect = React.memo(function MultiSelect({
                         className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
                     />
                 </div>
-                <CommandList>
-                <div className="max-h-60 overflow-y-auto">
+                <CommandList className="max-h-60 overscroll-contain">
                     <CommandEmpty>No results found.</CommandEmpty>
                     <CommandGroup>
                         {filteredOptions.map((option) => (
@@ -264,49 +263,48 @@ export const MultiSelect = React.memo(function MultiSelect({
                             </div>
                         </CommandGroup>
                     )}
-                </div>
                 </CommandList>
             </Command>
         </PopoverContent>
         </Popover>
 
         <Dialog open={isListOpen} onOpenChange={setIsListOpen}>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <div className="flex items-center gap-2 mb-1">
-                        <div className="p-2 bg-primary/10 rounded-full">
-                            <ListFilter className="h-4 w-4 text-primary" />
+            <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col p-0 overflow-hidden">
+                <div className="p-6 pb-2 shrink-0">
+                    <DialogHeader>
+                        <div className="flex items-center gap-2 mb-1">
+                            <div className="p-2 bg-primary/10 rounded-full">
+                                <ListFilter className="h-4 w-4 text-primary" />
+                            </div>
+                            <DialogTitle>Selected Items</DialogTitle>
                         </div>
-                        <DialogTitle>Selected Items</DialogTitle>
-                    </div>
-                    <p className="text-sm text-muted-foreground">You have {safeSelected.length} items selected for this filter.</p>
-                </DialogHeader>
+                        <p className="text-sm text-muted-foreground">You have {safeSelected.length} items selected for this filter.</p>
+                    </DialogHeader>
+                </div>
                 
-                <div className="py-4">
-                    <ScrollArea className="max-h-[40vh] pr-4">
-                        <div className="flex flex-wrap gap-2">
-                            {safeSelected.map(value => (
-                                <Badge key={value} variant="secondary" className="pl-3 pr-1 py-1 h-8 text-sm gap-2 border-primary/10 transition-all hover:border-primary/30">
-                                    <span className="truncate max-w-[200px]">{selectedMap.get(value)}</span>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-6 w-6 rounded-full hover:bg-destructive hover:text-white"
-                                        onClick={(e) => handleUnselect(e, value)}
-                                    >
-                                        <X className="h-3 w-3" />
-                                    </Button>
-                                </Badge>
-                            ))}
-                        </div>
-                    </ScrollArea>
+                <div className="flex-1 overflow-y-auto overscroll-contain px-6 py-4">
+                    <div className="flex flex-wrap gap-2">
+                        {safeSelected.map(value => (
+                            <Badge key={value} variant="secondary" className="pl-3 pr-1 py-1 h-8 text-sm gap-2 border-primary/10 transition-all hover:border-primary/30">
+                                <span className="truncate max-w-[200px]">{selectedMap.get(value)}</span>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 rounded-full hover:bg-destructive hover:text-white"
+                                    onClick={(e) => handleUnselect(e, value)}
+                                >
+                                    <X className="h-3 w-3" />
+                                </Button>
+                            </Badge>
+                        ))}
+                    </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-4 border-t">
+                <div className="p-4 bg-muted/10 border-t flex items-center justify-between shrink-0">
                     <Button
                         variant="outline"
                         size="sm"
-                        className="text-xs text-destructive hover:bg-destructive/10"
+                        className="text-xs text-destructive hover:bg-destructive/10 h-10 px-4 rounded-xl"
                         onClick={() => {
                             onChange([]);
                             setIsListOpen(false);
@@ -315,7 +313,7 @@ export const MultiSelect = React.memo(function MultiSelect({
                         Clear All
                     </Button>
                     <DialogClose asChild>
-                        <Button size="sm">Done</Button>
+                        <Button className="h-10 px-6 rounded-xl font-bold">Done</Button>
                     </DialogClose>
                 </div>
             </DialogContent>

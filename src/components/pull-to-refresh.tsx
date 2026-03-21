@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -25,16 +24,19 @@ export function PullToRefresh({ children }: PullToRefreshProps) {
   const MAX_PULL_DISTANCE = 130;
 
   const onTouchStart = useCallback((e: TouchEvent) => {
-    // Detect if a modal/dialog is open. 
+    // Detect if a modal/dialog or popover is open. 
     // Radix UI (ShadCN) sets overflow: hidden on the body when a dialog is open.
     const bodyStyles = window.getComputedStyle(document.body);
-    const isDialogOpen = bodyStyles.overflow === 'hidden' || !!document.querySelector('[role="dialog"]');
+    const isOverlayOpen = 
+        bodyStyles.overflow === 'hidden' || 
+        !!document.querySelector('[role="dialog"]') || 
+        !!document.querySelector('[data-radix-popper-content-wrapper]');
 
     // Only allow pull-to-refresh if:
     // 1. We are at the top of the main window
     // 2. Not already refreshing
-    // 3. NO dialog is currently open (to avoid scroll conflicts)
-    if (window.scrollY > 0 || isRefreshing || isDialogOpen) return;
+    // 3. NO dialog/popover is currently open (to avoid scroll conflicts)
+    if (window.scrollY > 0 || isRefreshing || isOverlayOpen) return;
     
     pullStartRef.current = e.touches[0].clientY;
   }, [isRefreshing]);
