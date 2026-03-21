@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask, addDeveloper, addTester, getActiveCompanyId } from '@/lib/data';
+import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask, addDeveloper, addTester, getActiveCompanyId, getAuthMode, isInitialSyncComplete } from '@/lib/data';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -697,7 +697,7 @@ const handleCopyDescription = () => {
           case 'multiselect':
           case 'tags':
               return Array.isArray(value) ? (
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex wrap gap-1">
                       {value.map((v: any) => <Badge key={v} variant="secondary">{v}</Badge>)}
                   </div>
               ) : <RichTextViewer text={String(value)} />;
@@ -1534,7 +1534,7 @@ function TaskDetailSection({ title, people, setPersonInView, isDeveloper }: {
   return (
     <div>
         <h4 className="text-sm font-semibold text-muted-foreground mb-2">{title}</h4>
-        <div className="flex flex-wrap gap-4">
+        <div className="flex wrap gap-4">
             {people.length > 0 ? (
                 people.map((person, index) => (
                   <TooltipProvider key={`${isDeveloper ? 'dev' : 'test'}-${person.id}-${index}`}>
