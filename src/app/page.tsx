@@ -776,7 +776,7 @@ export default function Home() {
     moveMultipleTasksToBin(idsToRestore);
     
     const { id, dismiss, update } = toast({
-        variant: 'destructive',
+        variant: 'default',
         title: 'Tasks Moved to Bin',
         description: `${idsToRestore.length} tasks have been moved.`,
         duration: 10000,

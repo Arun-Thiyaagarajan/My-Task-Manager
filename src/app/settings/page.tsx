@@ -32,7 +32,6 @@ import {
     Layout, 
     Globe, 
     Bell, 
-    GraduationCap, 
     History,
     Search,
     ChevronUp,
@@ -529,7 +528,7 @@ export default function SettingsPage() {
                     </div>
                 </div>
                 <DialogFooter className="p-4 bg-muted/10 border-t flex flex-row justify-center sm:justify-center shrink-0">
-                    <Button onClick={() => setTasksUsingField([])} className="w-full sm:w-32 rounded-xl h-11 font-bold">Got it</Button>
+                    <Button onClick={() => setInUseTasks([])} className="w-full sm:w-32 rounded-xl h-11 font-bold">Got it</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -843,7 +842,7 @@ export default function SettingsPage() {
                                                                             {field.label} {field.isRequired && <span className="text-destructive">*</span>}
                                                                         </span>
                                                                         <Badge variant="outline" className="text-[9px] h-4 shrink-0 uppercase tracking-tighter"> {field.type} </Badge>
-                                                                        {field.isUnique && <Badge variant="secondary" className="text-[8px] h-4 uppercase bg-amber-100 text-amber-700 border-amber-200">Unique</Badge>}
+                                                                        {field.isUnique && <Badge variant="secondary" className="text-[8px] h-4 uppercase bg-amber-100/60 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200/50">Unique</Badge>}
                                                                     </div>
                                                                 </div>
                                                                 <div className="flex gap-1 shrink-0">
@@ -1021,7 +1020,7 @@ export default function SettingsPage() {
                                                                 <span className="font-medium text-sm sm:text-base tracking-tight truncate max-w-full">{field.label} {field.isRequired && <span className="text-destructive font-bold">*</span>}</span>
                                                                 <Badge variant="outline" className="text-[9px] uppercase font-medium px-1.5 h-4 bg-background shrink-0">{field.type}</Badge>
                                                                 {field.isUnique && (
-                                                                    <Badge variant="secondary" className="text-[8px] h-4 uppercase bg-amber-50 text-amber-700 border-amber-200">
+                                                                    <Badge variant="secondary" className="text-[8px] h-4 uppercase bg-amber-100/60 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200/50">
                                                                         <Fingerprint className="h-2.5 w-2.5 mr-1" /> Unique
                                                                     </Badge>
                                                                 )}
