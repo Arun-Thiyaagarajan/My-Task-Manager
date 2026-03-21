@@ -19,7 +19,8 @@ import {
     Clock,
     Smartphone,
     Monitor,
-    Lock
+    Lock,
+    Info
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -52,6 +53,8 @@ export default function FeedbackDetailPage() {
     const scrollRef = useRef<HTMLDivElement>(null);
 
     const isAdmin = userProfile?.role === 'admin';
+    const authMode = getAuthMode();
+    const isLocalMode = authMode === 'localStorage';
 
     useEffect(() => {
         const load = async () => {
@@ -119,7 +122,7 @@ export default function FeedbackDetailPage() {
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newMessage.trim() || isSending || !item || item.status === 'Closed') return;
+        if (!newMessage.trim() || isSending || !item || item.status === 'Closed' || isLocalMode) return;
 
         setIsSending(true);
         try {
@@ -377,28 +380,51 @@ export default function FeedbackDetailPage() {
                         </ScrollArea>
 
                         <div className="p-6 bg-muted/10 border-t shrink-0">
-                            <form onSubmit={handleSendMessage} className="flex gap-2">
-                                <Input 
-                                    placeholder={isClosed ? "Conversation closed" : "Type a message..."}
-                                    className="h-12 rounded-2xl bg-background border-transparent focus-visible:ring-primary/20"
-                                    value={newMessage}
-                                    onChange={(e) => setNewMessage(e.target.value)}
-                                    disabled={isSending || isClosed}
-                                />
-                                <Button 
-                                    type="submit" 
-                                    size="icon" 
-                                    className="h-12 w-12 shrink-0 rounded-2xl shadow-lg"
-                                    disabled={isSending || !newMessage.trim() || isClosed}
-                                >
-                                    {isSending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-                                </Button>
-                            </form>
-                            {isClosed && (
-                                <p className="text-[10px] font-bold text-center text-muted-foreground uppercase tracking-widest mt-3 flex items-center justify-center gap-2">
-                                    <Lock className="h-3 w-3" />
-                                    This request is closed
-                                </p>
+                            {isLocalMode ? (
+                                <div className="space-y-3 animate-in fade-in duration-500">
+                                    <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl shadow-inner">
+                                        <Info className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                                        <div className="space-y-1">
+                                            <p className="text-xs font-bold text-amber-900 dark:text-amber-200 uppercase tracking-tight">Chat restricted</p>
+                                            <p className="text-[11px] leading-relaxed text-amber-800/80 dark:text-amber-300/80 font-medium">
+                                                Communication with our support team requires an active cloud session. Please sign in to sync and send messages.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <Button 
+                                        className="w-full h-11 rounded-xl font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-lg"
+                                        onClick={() => window.dispatchEvent(new Event('open-auth-modal'))}
+                                    >
+                                        <ShieldCheck className="mr-2 h-4 w-4" />
+                                        Sign In / Cloud Sync
+                                    </Button>
+                                </div>
+                            ) : (
+                                <form onSubmit={handleSendMessage} className="flex flex-col gap-3">
+                                    <div className="flex gap-2">
+                                        <Input 
+                                            placeholder={isClosed ? "Conversation closed" : "Type a message..."}
+                                            className="h-12 rounded-2xl bg-background border-transparent focus-visible:ring-primary/20"
+                                            value={newMessage}
+                                            onChange={(e) => setNewMessage(e.target.value)}
+                                            disabled={isSending || isClosed}
+                                        />
+                                        <Button 
+                                            type="submit" 
+                                            size="icon" 
+                                            className="h-12 w-12 shrink-0 rounded-2xl shadow-lg"
+                                            disabled={isSending || !newMessage.trim() || isClosed}
+                                        >
+                                            {isSending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                                        </Button>
+                                    </div>
+                                    {isClosed && (
+                                        <p className="text-[10px] font-bold text-center text-muted-foreground uppercase tracking-widest flex items-center justify-center gap-2">
+                                            <Lock className="h-3 w-3" />
+                                            This request is closed
+                                        </p>
+                                    )}
+                                </form>
                             )}
                         </div>
                     </Card>
