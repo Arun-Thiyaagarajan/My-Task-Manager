@@ -2,124 +2,22 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { Sparkles, Loader2 } from "lucide-react"
-import { refineText } from "@/ai/flows/refine-text-flow"
-import { useToast } from "@/hooks/use-toast"
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "./tooltip"
-import { useIsMobile } from "@/hooks/use-mobile"
 
-export interface InputProps extends React.ComponentProps<"input"> {
-    showRefine?: boolean;
-}
+export interface InputProps extends React.ComponentProps<"input"> {}
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, showRefine = false, ...props }, ref) => {
-    const isMobile = useIsMobile();
-    const [isRefining, setIsRefining] = React.useState(false);
-    const [shortcutHint, setShortcutHint] = React.useState('Alt + H');
-    const localRef = React.useRef<HTMLInputElement>(null);
-    const { toast } = useToast();
-
-    React.useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-            setShortcutHint(isMac ? 'Option + H' : 'Alt + H');
-        }
-    }, []);
-
-    const handleCombinedRef = (el: HTMLInputElement) => {
-        localRef.current = el;
-        if (typeof ref === 'function') ref(el);
-        else if (ref) ref.current = el;
-    };
-
-    const handleRefine = async (e?: React.MouseEvent) => {
-        if (e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-        const el = localRef.current;
-        if (!el || !el.value.trim() || isRefining) return;
-
-        setIsRefining(true);
-        try {
-            const result = await refineText({ text: el.value });
-            if (result.refinedText) {
-                const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-                    window.HTMLInputElement.prototype,
-                    "value"
-                )?.set;
-                nativeInputValueSetter?.call(el, result.refinedText);
-                el.dispatchEvent(new Event("input", { bubbles: true }));
-                toast({ variant: 'success', title: 'Content Refined' });
-            }
-        } catch (error: any) {
-            toast({ variant: 'destructive', title: 'AI Assist Unavailable', description: error.message });
-        } finally {
-            setIsRefining(false);
-        }
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (showRefine && e.altKey && e.key.toLowerCase() === 'h') {
-            e.preventDefault();
-            handleRefine();
-        }
-        props.onKeyDown?.(e);
-    };
-
+  ({ className, type, ...props }, ref) => {
     return (
       <div className="relative group/input w-full">
         <input
           type={type}
           className={cn(
             "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50",
-            showRefine && "pr-10",
-            isRefining && "animate-pulse text-muted-foreground",
             className
           )}
-          ref={handleCombinedRef}
-          onKeyDown={handleKeyDown}
+          ref={ref}
           {...props}
         />
-        {showRefine && (
-            <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center z-10">
-                <TooltipProvider>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <button
-                                type="button"
-                                onClick={handleRefine}
-                                disabled={isRefining || !props.value}
-                                className={cn(
-                                    "h-8 w-8 rounded-md flex items-center justify-center transition-all",
-                                    "hover:bg-primary/10 hover:text-primary",
-                                    "disabled:opacity-20 disabled:cursor-not-allowed",
-                                    isRefining ? "text-primary" : "text-muted-foreground opacity-0 group-focus-within/input:opacity-100 group-hover/input:opacity-100"
-                                )}
-                            >
-                                {isRefining ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                    <Sparkles className="h-4 w-4" />
-                                )}
-                            </button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="text-[10px] font-bold">
-                            <div className="flex items-center gap-2">
-                                <span>Refine Content</span>
-                                {!isMobile && <kbd className="bg-muted px-1 rounded border text-[9px]">{shortcutHint}</kbd>}
-                            </div>
-                        </TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
-            </div>
-        )}
-        {isRefining && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/20 backdrop-blur-[0.5px] rounded-md pointer-events-none">
-                <Loader2 className="h-4 w-4 animate-spin text-primary" />
-            </div>
-        )}
       </div>
     )
   }

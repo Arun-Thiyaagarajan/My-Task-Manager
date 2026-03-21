@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -10,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2, HelpCircle, Sparkles, Layout, Users, Calendar as CalendarIconLucide, Paperclip, Rocket, GitMerge, ChevronRight, PanelLeft, PanelRight, CircleDot, Save, ArrowLeft } from 'lucide-react';
+import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2, HelpCircle, Layout, Users, Calendar as CalendarIconLucide, Paperclip, Rocket, GitMerge, ChevronRight, PanelLeft, PanelRight, CircleDot, Save, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTransition, useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -415,23 +414,12 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   
   const handleFormat = (ref: React.RefObject<HTMLTextAreaElement>, type: FormatType) => {
       if (ref.current) {
-          if (type === 'refine') {
-              // The textarea component has internal Alt+H support, 
-              // we can also trigger it via a native key event if needed
-              const event = new KeyboardEvent('keydown', {
-                  key: 'h',
-                  altKey: true,
-                  bubbles: true
-              });
-              ref.current.dispatchEvent(event);
-          } else {
-              applyFormat(type, ref.current);
-          }
+          applyFormat(type, ref.current);
       }
   };
   
   const renderField = (fieldConfig: FieldConfig) => {
-    const { key, type, label, isCustom, isRequired, baseUrl, enableRefine } = fieldConfig;
+    const { key, type, label, isCustom, isRequired, baseUrl } = fieldConfig;
     const fieldName = isCustom ? `customFields.${key}` : key;
     
     const hasError = !!(isCustom ? errors.customFields?.[key] : errors[key as keyof typeof errors]);
@@ -441,7 +429,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
             case 'text':
                 return (
                     <div className="w-full">
-                        <Input type="text" placeholder={label} showRefine={enableRefine} {...field} value={field.value ?? ''} className="font-normal" />
+                        <Input type="text" placeholder={label} {...field} value={field.value ?? ''} className="font-normal" />
                         {baseUrl && <p className="text-[0.7rem] text-muted-foreground mt-1 break-all leading-tight font-medium">The value will be appended to: {baseUrl}</p>}
                     </div>
                 );
@@ -452,8 +440,8 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                  const ref = key === 'description' ? descriptionRef : undefined;
                  return (
                     <div className="relative w-full">
-                        <Textarea {...field} value={field.value ?? ''} ref={ref} showRefine={enableRefine} className="pb-12 font-normal" enableHotkeys/>
-                        <TextareaToolbar showRefine={enableRefine} onFormatClick={(type) => handleFormat(ref, type)} />
+                        <Textarea {...field} value={field.value ?? ''} ref={ref} className="pb-12 font-normal" enableHotkeys/>
+                        <TextareaToolbar onFormatClick={(type) => handleFormat(ref, type)} />
                     </div>
                  )
             }

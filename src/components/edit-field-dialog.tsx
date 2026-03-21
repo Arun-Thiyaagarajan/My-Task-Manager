@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -18,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X, Users, ClipboardCheck, Sparkles } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X, Users, ClipboardCheck } from 'lucide-react';
 import type { FieldConfig, FieldOption, FieldType, RepositoryConfig, Task } from '@/lib/types';
 import { FIELD_TYPES } from '@/lib/constants';
 import * as React from 'react';
@@ -44,7 +43,6 @@ const fieldSchema = z.object({
   group: z.string().min(2, { message: 'Group must be at least 2 characters.' }),
   isRequired: z.boolean(),
   isActive: z.boolean(),
-  enableRefine: z.boolean().optional(),
   options: z.array(fieldOptionSchema).optional(),
   baseUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
   sortDirection: z.enum(['asc', 'desc', 'manual']).optional(),
@@ -71,8 +69,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
       type: field?.type || 'text',
       group: field?.group || 'Custom',
       isRequired: field?.isRequired || false,
-      isActive: field?.isActive ?? true, // New fields default to active
-      enableRefine: field?.enableRefine ?? false,
+      isActive: field?.isActive ?? true, 
       options: field?.options || [],
       baseUrl: field?.baseUrl || '',
       sortDirection: field?.sortDirection || 'manual',
@@ -96,7 +93,6 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
   const selectedType = form.watch('type');
   const showOptions = selectedType === 'select' || selectedType === 'multiselect' || selectedType === 'tags';
   const isSortableField = showOptions && (!field || field.key !== 'status');
-  const canEnableRefine = selectedType === 'text' || selectedType === 'textarea';
   
   const [allGroups, setAllGroups] = React.useState<string[]>([]);
   const [isGroupPopoverOpen, setIsGroupPopoverOpen] = React.useState(false);
@@ -143,13 +139,11 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
   
   const handleAddTag = () => {
     const trimmedTag = newTag.trim();
-    // Only check against already predefined options to allow promoting dynamic ones
     if (trimmedTag && !options.some(opt => opt.value.toLowerCase() === trimmedTag.toLowerCase())) {
         const newOption = { id: `option_${crypto.randomUUID()}`, label: trimmedTag, value: trimmedTag };
         append(newOption);
         
         setAllTags(prev => {
-            // Replace existing dynamic tag with new predefined one if names match
             const filtered = prev.filter(t => t.value.toLowerCase() !== trimmedTag.toLowerCase());
             return [...filtered, newOption].sort((a,b) => a.label.localeCompare(b.label));
         });
@@ -158,7 +152,6 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
   };
   
   const handleDeleteTag = (tagToDelete: FieldOption) => {
-    // Correctly find index by value to avoid ID mismatch issues with dynamic tags
     const optionIndex = options.findIndex(opt => opt.value === tagToDelete.value);
     if (optionIndex > -1) {
         remove(optionIndex);
@@ -166,12 +159,10 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
     
     setAllTags(prev => prev.filter(t => t.value !== tagToDelete.value));
 
-    // Also remove this tag from all tasks
     const allTasks = getTasks();
     let updatedCount = 0;
     allTasks.forEach(task => {
         if (task.tags?.includes(tagToDelete.value)) {
-            // Silent update to avoid flooding logs with individual updates
             updateTask(task.id, { tags: task.tags.filter(t => t !== tagToDelete.value) }, true);
             updatedCount++;
         }
@@ -187,8 +178,8 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
     const finalField: FieldConfig = {
       ...(field || {
         id: `field_custom_${crypto.randomUUID()}`,
-        key: '', // Key will be generated in parent
-        order: 0, // Order will be set in parent
+        key: '', 
+        order: 0, 
         isCustom: true,
       }),
       ...data,
@@ -219,7 +210,6 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
           group: field?.group || 'Custom',
           isRequired: field?.isRequired || false,
           isActive: field?.isActive ?? true,
-          enableRefine: field?.enableRefine ?? false,
           options: field?.options || [],
           baseUrl: field?.baseUrl || '',
           sortDirection: field?.sortDirection || 'manual',
@@ -245,7 +235,6 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
 
             combinedTags.sort((a,b) => a.label.localeCompare(b.label));
             setAllTags(combinedTags);
-            // Initialize form state with predefined options only
             replace(predefinedOptions);
         }
     }
@@ -293,12 +282,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                             render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Field Type</FormLabel>
-                                <Select onValueChange={(val) => {
-                                    field.onChange(val);
-                                    if (val !== 'text' && val !== 'textarea') {
-                                        form.setValue('enableRefine', false);
-                                    }
-                                }} value={field.value} disabled={!isCreating}>
+                                <Select onValueChange={field.onChange} value={field.value} disabled={!isCreating}>
                                     <FormControl>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select a type" />
@@ -445,32 +429,6 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                             />
                         </div>
                     </div>
-
-                    {canEnableRefine && (
-                        <FormField
-                            control={form.control}
-                            name="enableRefine"
-                            render={({ field }) => (
-                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 bg-primary/5 border-primary/10">
-                                    <div className="space-y-0.5">
-                                        <div className="flex items-center gap-2">
-                                            <Sparkles className="h-4 w-4 text-primary" />
-                                            <FormLabel className="font-bold">Enable Refine / Rephrase</FormLabel>
-                                        </div>
-                                        <FormDescription className="text-xs leading-relaxed max-w-[300px]">
-                                            Allows users to intelligently polish content for clarity and grammar using AI (Shortcut: Alt + H).
-                                        </FormDescription>
-                                    </div>
-                                    <FormControl>
-                                        <Switch
-                                            checked={field.value}
-                                            onCheckedChange={field.onChange}
-                                        />
-                                    </FormControl>
-                                </FormItem>
-                            )}
-                        />
-                    )}
 
                      {selectedType === 'text' && (
                         <FormField

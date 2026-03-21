@@ -1,17 +1,16 @@
 'use client';
 
-import { Bold, Italic, Strikethrough, Code, Code2, AtSign, Sparkles } from 'lucide-react';
+import { Bold, Italic, Strikethrough, Code, Code2, AtSign } from 'lucide-react';
 import { Button } from './button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from './tooltip';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-export type FormatType = 'bold' | 'italic' | 'strike' | 'code' | 'code-block' | 'mention' | 'refine';
+export type FormatType = 'bold' | 'italic' | 'strike' | 'code' | 'code-block' | 'mention';
 
 interface TextareaToolbarProps {
   onFormatClick: (formatType: FormatType) => void;
-  showRefine?: boolean;
 }
 
 export function applyFormat(formatType: FormatType, target: HTMLTextAreaElement, mentionValue?: string) {
@@ -39,19 +38,6 @@ export function applyFormat(formatType: FormatType, target: HTMLTextAreaElement,
         target.dispatchEvent(inputEvent);
         return;
     }
-
-    if (formatType === 'refine') {
-        // Refine is handled by the textarea component itself via event listener
-        // We trigger it by dispatching the keyboard shortcut event
-        const event = new KeyboardEvent('keydown', {
-            key: 'h',
-            altKey: true,
-            bubbles: true
-        });
-        target.dispatchEvent(event);
-        return;
-    }
-
 
     let chars = '';
     let block = false;
@@ -113,16 +99,14 @@ export function applyFormat(formatType: FormatType, target: HTMLTextAreaElement,
 }
 
 
-export function TextareaToolbar({ onFormatClick, showRefine = false }: TextareaToolbarProps) {
+export function TextareaToolbar({ onFormatClick }: TextareaToolbarProps) {
     const isMobile = useIsMobile();
     const [commandKey, setCommandKey] = useState('Ctrl');
-    const [refineShortcut, setRefineShortcut] = useState('Alt+H');
     
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
             setCommandKey(isMac ? '⌘' : 'Ctrl');
-            setRefineShortcut(isMac ? 'Option+H' : 'Alt+H');
         }
     }, []);
 
@@ -134,16 +118,6 @@ export function TextareaToolbar({ onFormatClick, showRefine = false }: TextareaT
         { type: 'code-block', icon: <Code2 className="h-4 w-4" />, tooltip: 'Code Block', shortcut: 'Shift+C' },
         { type: 'mention', icon: <AtSign className="h-4 w-4" />, tooltip: 'Mention User', shortcut: '@&lt;' },
     ];
-
-    if (showRefine) {
-        tools.push({ 
-            type: 'refine', 
-            icon: <Sparkles className="h-4 w-4" />, 
-            tooltip: 'Refine Content', 
-            shortcut: refineShortcut,
-            color: 'text-primary'
-        });
-    }
 
     return (
         <div className={cn(
@@ -176,8 +150,6 @@ export function TextareaToolbar({ onFormatClick, showRefine = false }: TextareaT
                         {!isMobile && (
                             shortcut === '@&lt;' ? (
                                 <kbd className="bg-muted px-1 rounded border text-[9px]">@&lt;</kbd>
-                            ) : shortcut.includes('Option') || shortcut.includes('Alt') ? (
-                                <kbd className="bg-muted px-1 rounded border text-[9px]">{shortcut}</kbd>
                             ) : (
                                 <kbd className="bg-muted px-1 rounded border text-[9px]">
                                     {commandKey}+{shortcut}

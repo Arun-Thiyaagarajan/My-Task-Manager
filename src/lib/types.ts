@@ -1,4 +1,3 @@
-
 import type { TASK_STATUSES } from './constants';
 
 export type TaskStatus = string;
@@ -243,5 +242,4 @@ export interface FieldConfig {
   baseUrl?: string;
   sortDirection?: 'asc' | 'desc' | 'manual';
   defaultValue?: any;
-  enableRefine?: boolean;
 }

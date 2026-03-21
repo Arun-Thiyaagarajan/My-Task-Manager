@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -9,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X, Info, Users, ClipboardCheck, Sparkles } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X, Info, Users, ClipboardCheck } from 'lucide-react';
 import type { FieldConfig, FieldOption, FieldType, RepositoryConfig } from '@/lib/types';
 import { FIELD_TYPES } from '@/lib/constants';
 import * as React from 'react';
@@ -34,7 +33,6 @@ const fieldSchema = z.object({
   group: z.string().min(2, { message: 'Group must be at least 2 characters.' }),
   isRequired: z.boolean(),
   isActive: z.boolean(),
-  enableRefine: z.boolean().optional(),
   options: z.array(fieldOptionSchema).optional(),
   baseUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
   sortDirection: z.enum(['asc', 'desc', 'manual']).optional(),
@@ -61,7 +59,6 @@ export function FieldFormContent({ field, repositoryConfigs, onSave, onCancel }:
       group: field?.group || 'Custom',
       isRequired: field?.isRequired || false,
       isActive: field?.isActive ?? true,
-      enableRefine: field?.enableRefine ?? false,
       options: field?.options || [],
       baseUrl: field?.baseUrl || '',
       sortDirection: field?.sortDirection || 'manual',
@@ -84,7 +81,6 @@ export function FieldFormContent({ field, repositoryConfigs, onSave, onCancel }:
   const selectedType = form.watch('type');
   const showOptions = selectedType === 'select' || selectedType === 'multiselect' || selectedType === 'tags';
   const isSortableField = showOptions && (!field || field.key !== 'status');
-  const canEnableRefine = selectedType === 'text' || selectedType === 'textarea';
   
   const [allGroups, setAllGroups] = React.useState<string[]>([]);
   const [isGroupPopoverOpen, setIsGroupPopoverOpen] = React.useState(false);
@@ -182,6 +178,13 @@ export function FieldFormContent({ field, repositoryConfigs, onSave, onCancel }:
   return (
     <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <div className="p-4 rounded-2xl bg-muted/20 border-2 border-dashed flex items-start gap-3">
+                <Info className="h-5 w-5 text-primary mt-0.5" />
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                    Configure the properties for this task field. Standard fields have limited modification options.
+                </p>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                     control={form.control}
@@ -200,12 +203,7 @@ export function FieldFormContent({ field, repositoryConfigs, onSave, onCancel }:
                     render={({ field }) => (
                     <FormItem>
                         <FormLabel>Field Type</FormLabel>
-                        <Select onValueChange={(val) => {
-                            field.onChange(val);
-                            if (val !== 'text' && val !== 'textarea') {
-                                form.setValue('enableRefine', false);
-                            }
-                        }} value={field.value} disabled={!isCreating}>
+                        <Select onValueChange={field.onChange} value={field.value} disabled={!isCreating}>
                             <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                             <SelectContent>
                                 {FIELD_TYPES.map(type => (
@@ -279,32 +277,6 @@ export function FieldFormContent({ field, repositoryConfigs, onSave, onCancel }:
                     />
                 </div>
             </div>
-
-            {canEnableRefine && (
-                <FormField
-                    control={form.control}
-                    name="enableRefine"
-                    render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-2xl border-2 border-dashed p-4 bg-primary/5 border-primary/20">
-                            <div className="space-y-0.5 pr-2">
-                                <div className="flex items-center gap-2">
-                                    <Sparkles className="h-4 w-4 text-primary" />
-                                    <FormLabel className="font-bold">AI Assist</FormLabel>
-                                </div>
-                                <FormDescription className="text-[10px] leading-tight uppercase font-black tracking-widest text-muted-foreground/60">
-                                    Refine / Rephrase content
-                                </FormDescription>
-                            </div>
-                            <FormControl>
-                                <Switch
-                                    checked={field.value}
-                                    onCheckedChange={field.onChange}
-                                />
-                            </FormControl>
-                        </FormItem>
-                    )}
-                />
-            )}
 
             {(isDevelopersField || isTestersField) && (
                 <FormField

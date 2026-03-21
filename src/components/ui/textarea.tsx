@@ -2,24 +2,21 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { applyFormat, FormatType } from "./textarea-toolbar";
+import { applyFormat } from "./textarea-toolbar";
 import { Popover, PopoverContent, PopoverAnchor } from "./popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./command";
 import { getDevelopers, getTesters } from "@/lib/data";
 import type { Person } from "@/lib/types";
-import { Code2, User, Sparkles, Loader2 } from "lucide-react";
-import { refineText } from "@/ai/flows/refine-text-flow";
-import { useToast } from "@/hooks/use-toast";
+import { Code2, User } from "lucide-react";
 
 
 export interface TextareaProps
   extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
     enableHotkeys?: boolean;
-    showRefine?: boolean;
 }
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className, enableHotkeys = false, showRefine = false, ...props }, ref) => {
+  ({ className, enableHotkeys = false, ...props }, ref) => {
     
     const localRef = React.useRef<HTMLTextAreaElement>(null);
     const combinedRef = (el: HTMLTextAreaElement) => {
@@ -32,13 +29,11 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     };
 
     const [isMentionOpen, setIsMentionOpen] = React.useState(false);
-    const [isRefining, setIsRefining] = React.useState(false);
     const [mentionQuery, setMentionQuery] = React.useState('');
     const [developers, setDevelopers] = React.useState<Person[]>([]);
     const [testers, setTesters] = React.useState<Person[]>([]);
     const [activeSuggestion, setActiveSuggestion] = React.useState(0);
     const mentionStartIndex = React.useRef<number | null>(null);
-    const { toast } = useToast();
 
     const openMentionPopover = React.useCallback(() => {
         if (localRef.current) {
@@ -68,29 +63,6 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       adjustHeight();
     }, [props.value]);
     
-    const handleRefine = React.useCallback(async () => {
-        const el = localRef.current;
-        if (!el || !el.value.trim() || isRefining) return;
-
-        setIsRefining(true);
-        try {
-            const result = await refineText({ text: el.value });
-            if (result.refinedText) {
-                const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-                    window.HTMLTextAreaElement.prototype,
-                    "value"
-                )?.set;
-                nativeInputValueSetter?.call(el, result.refinedText);
-                el.dispatchEvent(new Event("input", { bubbles: true }));
-                toast({ variant: 'success', title: 'Content Refined' });
-            }
-        } catch (error: any) {
-            toast({ variant: 'destructive', title: 'AI Assist Unavailable', description: error.message });
-        } finally {
-            setIsRefining(false);
-        }
-    }, [isRefining, toast]);
-
     React.useEffect(() => {
         const textarea = localRef.current;
         if (!textarea || !enableHotkeys) return;
@@ -109,15 +81,11 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                     e.preventDefault();
                 }
             }
-            if (showRefine && e.altKey && e.key.toLowerCase() === 'h') {
-                e.preventDefault();
-                handleRefine();
-            }
         };
 
         textarea.addEventListener('keydown', handleKeyDown);
         return () => textarea.removeEventListener('keydown', handleKeyDown);
-    }, [enableHotkeys, showRefine, handleRefine]);
+    }, [enableHotkeys]);
 
 
     const handleMentionSelect = (name: string) => {
@@ -188,32 +156,20 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
 
     const filteredDevelopers = developers.filter(d => d.name.toLowerCase().includes(mentionQuery));
     const filteredTesters = testers.filter(t => t.name.toLowerCase().includes(mentionQuery));
-    const suggestionList = [...filteredDevelopers, ...filteredTesters];
     
     return (
         <Popover open={isMentionOpen} onOpenChange={setIsMentionOpen}>
             <PopoverAnchor asChild>
-                <div className="relative w-full">
-                    <textarea
-                        className={cn(
-                        "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50 overflow-y-auto resize-none",
-                        isRefining && "animate-pulse text-muted-foreground",
-                        className
-                        )}
-                        ref={combinedRef}
-                        onKeyDown={handleKeyDown}
-                        onChange={handleTextareaInput}
-                        {...props}
-                    />
-                    {isRefining && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-[1px] rounded-md z-20 pointer-events-none">
-                            <div className="flex items-center gap-2 px-4 py-2 bg-background border shadow-2xl rounded-full animate-in zoom-in-95 duration-300 pointer-events-auto">
-                                <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                                <span className="text-xs font-bold uppercase tracking-widest text-primary/90">AI Refining</span>
-                            </div>
-                        </div>
+                <textarea
+                    className={cn(
+                    "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50 overflow-y-auto resize-none",
+                    className
                     )}
-                </div>
+                    ref={combinedRef}
+                    onKeyDown={handleKeyDown}
+                    onChange={handleTextareaInput}
+                    {...props}
+                />
             </PopoverAnchor>
             <PopoverContent 
                 className="w-64 p-0" 

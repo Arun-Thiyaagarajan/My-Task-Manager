@@ -1,25 +1,25 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask, clearExpiredReminders, addTagsToMultipleTasks, addDeveloper, addTester, addEnvironment, getAuthMode, isInitialSyncComplete, getActiveCompanyId, addLog } from '@/lib/data';
+import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask, addDeveloper, addTester, getActiveCompanyId } from '@/lib/data';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, ZoomIn, Image, X, Ban, Sparkles, Share2, History, MessageSquare, BellRing, MoreVertical, Trash2, FileJson, Copy, Tag, Download, Pilcrow, Code, CalendarIcon, FileUp, Share, Save } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, Image, X, Ban, Share2, History, BellRing, MoreVertical, Trash2, Copy, Tag, Download, CalendarIcon, Save } from 'lucide-react';
 import { getStatusConfig, TaskStatusBadge } from '@/components/task-status-badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { DeleteTaskButton } from '@/components/delete-task-button';
 import { PrLinksGroup } from '@/components/pr-links-group';
 import { Badge } from '@/components/ui/badge';
-import { cn, getInitials, getAvatarColor, getRepoBadgeStyle, formatTimestamp, getEnvInfo, compressImage, formatBytes } from '@/lib/utils';
+import { cn, getInitials, getAvatarColor, getRepoBadgeStyle, formatTimestamp, compressImage, formatBytes } from '@/lib/utils';
 import { format } from 'date-fns';
 import type { Task, FieldConfig, UiConfig, TaskStatus, Person, Attachment, Log, Comment, Environment } from '@/lib/types';
 import { CommentsSection } from '@/components/comments-section';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useToast } from '@/hooks/use-toast';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { PersonProfileCard } from '@/components/person-profile-card';
 import { ImagePreviewDialog } from '@/components/image-preview-dialog';
@@ -43,14 +43,12 @@ import { FavoriteToggleButton } from '@/components/favorite-toggle';
 import { TaskHistory } from '@/components/task-history';
 import { ReminderDialog } from '@/components/reminder-dialog';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
-import { generateTaskPdf, generateTasksText } from '@/lib/share-utils';
-import { MultiSelect, type SelectOption } from '@/components/ui/multi-select';
+import { MultiSelect } from '@/components/ui/multi-select';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
 import { Textarea } from '@/components/ui/textarea';
 import { TextareaToolbar, applyFormat } from '@/components/ui/textarea-toolbar';
 import { Calendar } from '@/components/ui/calendar';
 import { getLinkAlias } from '@/ai/flows/alias-flow';
-import { generateSummary } from '@/ai/flows/summary-flow';
 import { TaskDetailSkeleton } from '@/components/task-detail-skeleton';
 import { useFirebase } from '@/firebase';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -81,7 +79,6 @@ export default function TaskPage() {
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [justUpdatedEnv, setJustUpdatedEnv] = useState<string | null>(null);
   const [personInView, setPersonInView] = useState<{person: Person, isDeveloper: boolean} | null>(null);
   const [isEditingPrLinks, setIsEditingPrLinks] = useState(false);
@@ -279,22 +276,6 @@ export default function TaskPage() {
     }
     
     let updatePayload: Partial<Task> = {};
-    if (key === 'description' && finalValue !== task.description) {
-        if(finalValue.length > 200) {
-          setIsGeneratingSummary(true);
-          try {
-            const summaryResult = await generateSummary({ text: finalValue });
-            updatePayload.summary = summaryResult.summary;
-          } catch(e) {
-            console.error('Summary generation failed:', e);
-            updatePayload.summary = null;
-          }
-          setIsGeneratingSummary(false);
-        } else {
-          updatePayload.summary = null;
-        }
-    }
-
     if (isCustom) {
         updatePayload.customFields = { ...task.customFields, [key]: finalValue };
     } else {
@@ -844,8 +825,6 @@ const handleCopyDescription = () => {
   const assignedTesters = (task.testers || []).map(id => testers.find(p => p.id === id)).filter((p): p is Person => !!p);
 
   const azureWorkItemIdFieldConfig = (uiConfig?.fields || []).find(f => f.key === 'azureWorkItemId');
-  const titleField = (uiConfig?.fields || []).find(f => f.key === 'title');
-  const descriptionField = (uiConfig?.fields || []).find(f => f.key === 'description');
   
   const tagsField = (uiConfig?.fields || []).find(f => f.key === 'tags');
   const repoField = (uiConfig?.fields || []).find(f => f.key === 'repositories');
@@ -994,7 +973,6 @@ const handleCopyDescription = () => {
                                 onBlur={() => handleSaveEditing('title', false)}
                                 onKeyDown={e => e.key === 'Enter' && handleSaveEditing('title', false)}
                                 className="text-3xl font-semibold h-auto p-0 border-0 focus-visible:ring-0"
-                                showRefine={titleField?.enableRefine}
                             />
                         ) : (
                           <TooltipProvider>
@@ -1091,14 +1069,12 @@ const handleCopyDescription = () => {
                                   className="min-h-[150px] pb-12 font-normal"
                                   placeholder="Enter a description..."
                                   enableHotkeys
-                                  showRefine={descriptionField?.enableRefine}
                                />
-                               <TextareaToolbar showRefine={descriptionField?.enableRefine} onFormatClick={(type) => handleFormat(descriptionEditorRef, type)} />
+                               <TextareaToolbar onFormatClick={(type) => handleFormat(descriptionEditorRef, type)} />
                              </div>
                             <div className="flex justify-end gap-2">
                                 <Button variant="ghost" size="sm" onClick={handleCancelEditing} className="font-medium">Cancel</Button>
-                                <Button size="sm" onClick={() => handleSaveEditing('description', false)} disabled={isGeneratingSummary} className="font-semibold">
-                                  {isGeneratingSummary && <Sparkles className="h-4 w-4 mr-2 animate-pulse" />}
+                                <Button size="sm" onClick={() => handleSaveEditing('description', false)} className="font-semibold">
                                   Save
                                 </Button>
                             </div>
@@ -1192,7 +1168,6 @@ const handleCopyDescription = () => {
                                     onBlur={() => handleSaveEditing(field.key, true)}
                                     autoFocus
                                     className="font-normal"
-                                    showRefine={field.enableRefine}
                                 />
                             ) : (
                                 <Input
@@ -1202,7 +1177,6 @@ const handleCopyDescription = () => {
                                     onKeyDown={e => e.key === 'Enter' && handleSaveEditing(field.key, true)}
                                     autoFocus
                                     className="font-normal"
-                                    showRefine={field.enableRefine}
                                 />
                             )
                         ) : (
@@ -1255,7 +1229,7 @@ const handleCopyDescription = () => {
                         {azureWorkItemIdFieldConfig?.isActive && (
                             <div>
                                 <Label className="font-semibold">{azureWorkItemIdFieldConfig.label || 'Azure DevOps'}</Label>
-                                <Input defaultValue={task.azureWorkItemId} onBlur={(e) => handleSaveEditing('azureWorkItemId', false, e.target.value)} placeholder="Enter ID..." className="font-normal" showRefine={azureWorkItemIdFieldConfig?.enableRefine}/>
+                                <Input defaultValue={task.azureWorkItemId} onBlur={(e) => handleSaveEditing('azureWorkItemId', false, e.target.value)} placeholder="Enter ID..." className="font-normal"/>
                             </div>
                         )}
                         <Button onClick={() => setEditingSection(null)} className="w-full font-semibold">Done</Button>
