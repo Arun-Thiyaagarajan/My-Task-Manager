@@ -76,7 +76,7 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
       options: field?.options || [],
       baseUrl: field?.baseUrl || '',
       sortDirection: field?.sortDirection || 'manual',
-      defaultValue: field?.defaultValue || ( (field?.key === 'developers' || field?.key === 'testers') ? [] : undefined),
+      defaultValue: field?.defaultValue ?? ( (field?.key === 'developers' || field?.key === 'testers') ? [] : ''),
     },
   });
 
@@ -219,7 +219,7 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
                     name="defaultValue"
                     render={({ field }) => (
                         <FormControl>
-                            <Input {...field} type={type === 'number' ? 'number' : 'text'} className="h-11 rounded-xl bg-background" />
+                            <Input {...field} value={field.value ?? ""} type={type === 'number' ? 'number' : 'text'} className="h-11 rounded-xl bg-background" />
                         </FormControl>
                     )}
                 />
@@ -231,7 +231,7 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
                     name="defaultValue"
                     render={({ field }) => (
                         <FormControl>
-                            <Textarea {...field} className="min-h-[100px] rounded-xl bg-background" />
+                            <Textarea {...field} value={field.value ?? ""} className="min-h-[100px] rounded-xl bg-background" />
                         </FormControl>
                     )}
                 />

@@ -16,7 +16,7 @@ export interface TextareaProps
 }
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className, enableHotkeys = false, ...props }, ref) => {
+  ({ className, enableHotkeys = false, value, ...props }, ref) => {
     
     const localRef = React.useRef<HTMLTextAreaElement>(null);
     const combinedRef = (el: HTMLTextAreaElement) => {
@@ -61,7 +61,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       };
 
       adjustHeight();
-    }, [props.value]);
+    }, [value]);
     
     React.useEffect(() => {
         const textarea = localRef.current;
@@ -90,12 +90,12 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
 
     const handleMentionSelect = (name: string) => {
         if(localRef.current && mentionStartIndex.current !== null) {
-            const { value } = localRef.current;
+            const { value: currentVal } = localRef.current;
             const start = mentionStartIndex.current - 2; // include the @<
             const end = localRef.current.selectionStart;
 
             const mentionText = `@<${name}> `;
-            const newValue = value.substring(0, start) + mentionText + value.substring(end);
+            const newValue = currentVal.substring(0, start) + mentionText + currentVal.substring(end);
             
             const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
             nativeInputValueSetter?.call(localRef.current, newValue);
@@ -134,13 +134,13 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     };
     
     const handleTextareaInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        const { value, selectionStart } = e.currentTarget;
-        const trigger = value.substring(selectionStart - 2, selectionStart);
+        const { value: currentVal, selectionStart } = e.currentTarget;
+        const trigger = currentVal.substring(selectionStart - 2, selectionStart);
 
         if (trigger === '@<') {
             openMentionPopover();
         } else if (isMentionOpen && mentionStartIndex.current !== null) {
-            const queryText = value.substring(mentionStartIndex.current, selectionStart);
+            const queryText = currentVal.substring(mentionStartIndex.current, selectionStart);
             if (!queryText.trim() || queryText.includes('>')) {
                 closeMentionPopover();
             } else {
@@ -168,6 +168,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                     ref={combinedRef}
                     onKeyDown={handleKeyDown}
                     onChange={handleTextareaInput}
+                    value={value ?? ""}
                     {...props}
                 />
             </PopoverAnchor>

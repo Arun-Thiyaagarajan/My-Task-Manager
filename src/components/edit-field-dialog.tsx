@@ -89,7 +89,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
       options: field?.options || [],
       baseUrl: field?.baseUrl || '',
       sortDirection: field?.sortDirection || 'manual',
-      defaultValue: field?.defaultValue || undefined,
+      defaultValue: field?.defaultValue ?? '',
     },
   });
 
@@ -247,7 +247,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
           options: field?.options || [],
           baseUrl: field?.baseUrl || '',
           sortDirection: field?.sortDirection || 'manual',
-          defaultValue: field?.defaultValue || ( (isDevelopersField || isTestersField) ? [] : undefined),
+          defaultValue: field?.defaultValue ?? ( (isDevelopersField || isTestersField) ? [] : ''),
         });
         setGroupSearch(field?.group || '');
 
@@ -297,7 +297,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
                     name="defaultValue"
                     render={({ field }) => (
                         <FormControl>
-                            <Input {...field} type={type === 'number' ? 'number' : 'text'} className="h-10 bg-background" />
+                            <Input {...field} value={field.value ?? ""} type={type === 'number' ? 'number' : 'text'} className="h-10 bg-background" />
                         </FormControl>
                     )}
                 />
@@ -309,7 +309,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
                     name="defaultValue"
                     render={({ field }) => (
                         <FormControl>
-                            <Textarea {...field} className="min-h-[80px] bg-background" />
+                            <Textarea {...field} value={field.value ?? ""} className="min-h-[80px] bg-background" />
                         </FormControl>
                     )}
                 />
