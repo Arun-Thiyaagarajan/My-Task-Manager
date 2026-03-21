@@ -20,7 +20,9 @@ import {
     Smartphone,
     Monitor,
     Lock,
-    Info
+    Info,
+    Globe,
+    Mail
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -31,7 +33,6 @@ import { formatTimestamp, cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
 import { Separator } from '@/components/ui/separator';
-import { Globe, Mail } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useFirebase } from '@/firebase';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
@@ -196,31 +197,36 @@ export default function FeedbackDetailPage() {
 
     return (
         <div className="container max-w-7xl mx-auto pt-6 sm:pt-10 pb-20 px-4 sm:px-6">
-            <div className="flex items-center gap-3 sm:gap-4 mb-8">
-                <Button variant="ghost" size="icon" onClick={handleBack} className="rounded-full h-9 w-9 sm:h-10 sm:w-10">
-                    <ArrowLeft className="h-5 w-5" />
-                </Button>
-                <div className="flex-1 min-w-0">
-                    <h1 className="text-xl sm:text-2xl font-black tracking-tight flex items-center gap-2 truncate">
-                        {getTypeIcon(item.type)}
-                        {item.title}
-                    </h1>
-                    <p className="text-muted-foreground text-[10px] sm:text-xs font-bold uppercase tracking-widest">Tracking ID: {item.id.slice(0, 8)}</p>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-8">
+                <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                    <Button variant="ghost" size="icon" onClick={handleBack} className="rounded-full h-9 w-9 sm:h-10 sm:w-10 shrink-0">
+                        <ArrowLeft className="h-5 w-5" />
+                    </Button>
+                    <div className="flex-1 min-w-0">
+                        <h1 className="text-xl sm:text-2xl font-black tracking-tight flex items-center gap-2 truncate">
+                            {getTypeIcon(item.type)}
+                            {item.title}
+                        </h1>
+                        <p className="text-muted-foreground text-[10px] sm:text-xs font-bold uppercase tracking-widest">Tracking ID: {item.id.slice(0, 8)}</p>
+                    </div>
                 </div>
                 {isAdmin && (
-                    <div className="hidden sm:block">
-                        <Select value={item.status} onValueChange={(val: any) => handleStatusUpdate(val)}>
-                            <SelectTrigger className="w-[160px] rounded-xl font-bold h-10 border-primary/20">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-xl">
-                                <SelectItem value="Submitted">Submitted</SelectItem>
-                                <SelectItem value="In Progress">In Progress</SelectItem>
-                                <SelectItem value="Reviewed">Reviewed</SelectItem>
-                                <SelectItem value="Resolved">Resolved</SelectItem>
-                                <SelectItem value="Closed">Closed</SelectItem>
-                            </SelectContent>
-                        </Select>
+                    <div className="w-full sm:w-auto shrink-0">
+                        <div className="flex flex-col sm:block">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1 sm:hidden">Request Status</p>
+                            <Select value={item.status} onValueChange={(val: any) => handleStatusUpdate(val)}>
+                                <SelectTrigger className="w-full sm:w-[160px] rounded-xl font-bold h-10 border-primary/20 bg-card shadow-sm">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-xl">
+                                    <SelectItem value="Submitted">Submitted</SelectItem>
+                                    <SelectItem value="In Progress">In Progress</SelectItem>
+                                    <SelectItem value="Reviewed">Reviewed</SelectItem>
+                                    <SelectItem value="Resolved">Resolved</SelectItem>
+                                    <SelectItem value="Closed">Closed</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                 )}
             </div>
@@ -239,14 +245,14 @@ export default function FeedbackDetailPage() {
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <div className="text-right hidden sm:block">
-                                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground leading-none mb-1">Priority</p>
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground leading-none mb-1.5">Priority</p>
                                         <Badge variant="outline" className={cn("text-[10px] font-bold h-6 px-2.5 border rounded-lg", getPriorityStyle(item.priority))}>
                                             {item.priority}
                                         </Badge>
                                     </div>
                                     <div className="h-10 w-px bg-muted-foreground/10 hidden sm:block" />
                                     <div className="text-right">
-                                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground leading-none mb-1">Submitted</p>
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground leading-none mb-1.5">Submitted</p>
                                         <p className="text-xs font-bold">{formatTimestamp(item.createdAt)}</p>
                                     </div>
                                 </div>
@@ -282,11 +288,11 @@ export default function FeedbackDetailPage() {
                             )}
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6 border-t border-dashed">
-                                <div className="space-y-1 min-w-0">
+                                <div className="space-y-1 min-w-0 overflow-hidden">
                                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Environment</p>
-                                    <div className="flex items-center gap-2 font-bold text-sm truncate">
+                                    <div className="flex items-center gap-2 font-bold text-sm min-w-0">
                                         <Globe className="h-4 w-4 text-primary/60 shrink-0" />
-                                        <span className="truncate" title={item.environment}>{item.environment || 'Production'}</span>
+                                        <span className="truncate flex-1" title={item.environment}>{item.environment || 'Production'}</span>
                                     </div>
                                 </div>
                                 <div className="space-y-1 min-w-0">
