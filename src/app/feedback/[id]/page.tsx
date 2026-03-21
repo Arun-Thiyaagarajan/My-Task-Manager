@@ -37,6 +37,8 @@ import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export default function FeedbackDetailPage() {
     const params = useParams();
@@ -67,22 +69,31 @@ export default function FeedbackDetailPage() {
         const messagesRef = collection(firestore, 'feedback', params.id as string, 'messages');
         const q = query(messagesRef, orderBy('timestamp', 'asc'));
 
-        const unsub = onSnapshot(q, (snapshot) => {
-            const msgs = snapshot.docs.map(doc => doc.data() as FeedbackMessage);
-            setMessages(msgs);
-            // Scroll to bottom on new message
-            setTimeout(() => {
-                if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-            }, 100);
-        });
+        const unsub = onSnapshot(q, 
+            (snapshot) => {
+                const msgs = snapshot.docs.map(doc => doc.data() as FeedbackMessage);
+                setMessages(msgs);
+                // Scroll to bottom on new message
+                setTimeout(() => {
+                    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+                }, 100);
+            },
+            async (serverError) => {
+                const permissionError = new FirestorePermissionError({
+                    path: messagesRef.path,
+                    operation: 'list',
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            }
+        );
 
         return () => unsub();
     }, [firestore, params.id]);
 
     const handleBack = () => {
         window.dispatchEvent(new Event('navigation-start'));
-        if (isAdmin && router.back) {
-            router.back();
+        if (isAdmin) {
+            router.push('/admin/feedback');
         } else {
             router.push('/feedback');
         }

@@ -53,5 +53,26 @@ service cloud.firestore {
         }
       }
     }
+
+    // Global Feedback Collection Rules
+    match /feedback/{feedbackId} {
+      // Any signed-in user can submit feedback
+      allow create: if isSignedIn();
+      
+      // Users can only read/update their own reports. Admins see everything.
+      allow read, update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      
+      // Admin list access for the Support Inbox
+      allow list: if isAdmin();
+
+      // Conversation Messages Subcollection
+      match /messages/{messageId} {
+        // Access depends on the parent feedback report ownership
+        allow read, create: if isSignedIn() && (
+          get(/databases/$(database)/documents/feedback/$(feedbackId)).data.userId == request.auth.uid || 
+          isAdmin()
+        );
+      }
+    }
   }
 }
