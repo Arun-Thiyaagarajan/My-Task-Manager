@@ -6,7 +6,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, Image, X, Ban, Share2, History, BellRing, MoreVertical, Trash2, Copy, Tag, Download, CalendarIcon, Save } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, Image, X, Ban, Share2, History, BellRing, MoreVertical, Trash2, Copy, Tag, Download, CalendarIcon, Save, Share } from 'lucide-react';
 import { getStatusConfig, TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -46,8 +46,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/comp
 import { MultiSelect } from '@/components/ui/multi-select';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
 import { Textarea } from '@/components/ui/textarea';
-import { TextareaToolbar, applyFormat } from '@/components/ui/textarea-toolbar';
-import { Calendar } from '@/components/ui/calendar';
+import { TextareaToolbar, applyFormat, type FormatType } from '@/components/ui/textarea-toolbar';
 import { getLinkAlias } from '@/ai/flows/alias-flow';
 import { TaskDetailSkeleton } from '@/components/task-detail-skeleton';
 import { useFirebase } from '@/firebase';
@@ -830,7 +829,7 @@ const handleCopyDescription = () => {
   const repoField = (uiConfig?.fields || []).find(f => f.key === 'repositories');
   
   const tagsOptions = [...new Set([...(tagsField?.options?.map(opt => opt.value) || []), ...(allTasks.flatMap(t => t.tags || []))])].map(t => ({value: t, label: t}));
-  const repoOptions = (repoField?.options || uiConfig?.repositoryConfigs || []).map(opt => ({ value: (opt as any).value ?? (opt as any).label, label: (opt as any).label }));
+  const repoOptions = (repoField?.options || uiConfig?.repositoryConfigs || []).map(opt => ({ value: (opt as any).value ?? (opt as any).label, label: (any).label }));
   const developerOptions = developers.map(d => ({value: d.id, label: d.name}));
   const testerOptions = testers.map(t => ({value: t.id, label: t.name}));
 
