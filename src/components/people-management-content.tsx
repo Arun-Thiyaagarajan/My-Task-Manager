@@ -48,8 +48,8 @@ import {
 } from '@/lib/data';
 import type { Person, PersonFieldType, Task } from '@/lib/types';
 import { Loader2, PlusCircle, Trash2, Edit, Users, ClipboardCheck, AlertCircle, Search, X } from 'lucide-react';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './ui/form';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './select';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Textarea } from './ui/textarea';
 import { ScrollArea } from './ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
