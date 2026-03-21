@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -50,7 +49,7 @@ import {
 import type { Person, PersonFieldType, Task } from '@/lib/types';
 import { Loader2, PlusCircle, Trash2, Edit, Users, ClipboardCheck, AlertCircle, Search, X } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './ui/form';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './select';
 import { Textarea } from './ui/textarea';
 import { ScrollArea } from './ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -425,18 +424,16 @@ export function PeopleManagementContent({ type, onSuccess }: PeopleManagementCon
                         </DialogHeader>
                     </div>
                     
-                    <div className="flex-1 overflow-hidden px-6 py-4">
+                    <div className="flex-1 overflow-y-auto px-6 py-4 overscroll-contain">
                         <div className="h-full border rounded-2xl bg-muted/20 overflow-hidden">
-                            <ScrollArea className="h-full">
-                                <ul className="divide-y divide-border/50">
-                                    {inUseTasks.map(task => (
-                                        <li key={task.id} className="text-sm py-3 px-4 flex items-center justify-between gap-4 bg-background/50">
-                                            <span className="truncate font-semibold">{task.title}</span>
-                                            {task.deletedAt && <Badge variant="secondary" className="text-[8px] uppercase h-4 bg-amber-50 text-amber-700 border-amber-200">In Bin</Badge>}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </ScrollArea>
+                            <ul className="divide-y divide-border/50">
+                                {inUseTasks.map(task => (
+                                    <li key={task.id} className="text-sm py-3 px-4 flex items-center justify-between gap-4 bg-background/50">
+                                        <span className="truncate font-semibold">{task.title}</span>
+                                        {task.deletedAt && <Badge variant="secondary" className="text-[8px] uppercase h-4 bg-amber-50 text-amber-700 border-amber-200">In Bin</Badge>}
+                                    </li>
+                                ))}
+                            </ul>
                         </div>
                     </div>
                     <DialogFooter className="p-4 bg-muted/10 border-t flex flex-row justify-center sm:justify-center shrink-0">
