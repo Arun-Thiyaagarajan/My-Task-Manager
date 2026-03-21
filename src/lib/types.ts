@@ -236,6 +236,7 @@ export interface FieldConfig {
   group: string;
   isActive: boolean;
   isRequired: boolean;
+  isUnique: boolean;
   isCustom: boolean;
   order: number;
   options?: FieldOption[];

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { getTasks, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addTagsToMultipleTasks, addEnvironment, DATA_KEY, getAuthMode, importWorkspaceData, getUserPreferences, updateUserPreferences, isInitialSyncComplete, getActiveCompanyId } from '@/lib/data';
+import { getTasks, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addTagsToMultipleTasks, addEnvironment, DATA_KEY, getAuthMode, importWorkspaceData, getUserPreferences, updateUserPreferences, isInitialSyncComplete, getActiveCompanyId, findExistingDuplicates } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -54,6 +54,8 @@ import {
   ChevronRight as ChevronRightIcon,
   SearchX,
   CalendarIcon,
+  AlertTriangle,
+  Fingerprint,
 } from 'lucide-react';
 import { cn, fuzzySearch } from '@/lib/utils';
 import type { Task, Person, UiConfig, RepositoryConfig, Log, GeneralReminder, BackupFrequency, Environment, UserPreferences, AuthMode } from '@/lib/types';
@@ -91,7 +93,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog';
 import { generateTaskPdf, generateTasksText } from '@/lib/share-utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -110,6 +112,7 @@ import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useFirebase } from '@/firebase';
 import { triggerTransfer } from '@/components/file-transfer-indicator';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 type ViewMode = 'grid' | 'table';
 type DateView = 'all' | 'monthly' | 'yearly';
@@ -184,8 +187,11 @@ export default function Home() {
 
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
+  const [importSummary, setImportSummary] = useState<{ importedCount: number; skippedDuplicates: any[] } | null>(null);
 
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
+  const [existingDuplicates, setExistingDuplicates] = useState<{ fieldLabel: string; value: string; tasks: Task[] }[]>([]);
+  const [isResolutionOpen, setIsResolutionOpen] = useState(false);
   
   useEffect(() => {
     setMounted(true);
@@ -294,6 +300,11 @@ export default function Home() {
         document.title = config.appName || 'My Task Manager';
         setSelectedTaskIds([]);
         
+        // Detect duplicates for resolution
+        const duplicates = findExistingDuplicates();
+        setExistingDuplicates(duplicates);
+        if (duplicates.length > 0) setIsResolutionOpen(true);
+
         if (authMode === 'authenticate' && !isInitialSyncComplete(companyId)) {
             return;
         }
@@ -700,22 +711,29 @@ export default function Home() {
                 setImportProgress(0);
                 
                 try {
-                    const success = await importWorkspaceData(parsedJson, (progress) => {
+                    const result = await importWorkspaceData(parsedJson, (progress) => {
                         setImportProgress(progress);
                     });
                     
-                    if (success) {
-                        toast({ 
-                            variant: 'success', 
-                            title: 'Import Complete', 
-                            description: 'Your data has been successfully imported to your cloud workspace.' 
-                        });
+                    if (result.success) {
+                        if (result.skippedDuplicates.length > 0) {
+                            setImportSummary({ 
+                                importedCount: result.importedCount, 
+                                skippedDuplicates: result.skippedDuplicates 
+                            });
+                        } else {
+                            toast({ 
+                                variant: 'success', 
+                                title: 'Import Complete', 
+                                description: `Successfully imported ${result.importedCount} tasks.` 
+                            });
+                        }
                     }
                 } catch (error: any) {
                     toast({ 
                         variant: 'destructive', 
                         title: 'Import Failed', 
-                        description: 'Some tasks could not be imported. Please try again.' 
+                        description: error.message || 'Some tasks could not be imported.' 
                     });
                 } finally {
                     setIsImporting(false);
@@ -723,13 +741,20 @@ export default function Home() {
                 }
             } else {
                 try {
-                    await importWorkspaceData(parsedJson);
-                    toast({ variant: 'success', title: 'Local Import Successful', description: 'Your browser storage has been updated.' });
+                    const result = await importWorkspaceData(parsedJson);
+                    if (result.skippedDuplicates.length > 0) {
+                        setImportSummary({ 
+                            importedCount: result.importedCount, 
+                            skippedDuplicates: result.skippedDuplicates 
+                        });
+                    } else {
+                        toast({ variant: 'success', title: 'Local Import Successful', description: `Successfully imported ${result.importedCount} tasks.` });
+                    }
                 } catch (error: any) {
                     toast({ 
                         variant: 'destructive', 
                         title: 'Import Failed', 
-                        description: 'Some tasks could not be imported. Please try again.' 
+                        description: error.message || 'Some tasks could not be imported.' 
                     });
                 }
             }
@@ -1159,6 +1184,152 @@ export default function Home() {
               </Card>
           </div>
       )}
+
+      {/* Import Summary Dialog */}
+      <Dialog open={!!importSummary} onOpenChange={(open) => !open && setImportSummary(null)}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+            <DialogHeader>
+                <div className="flex items-center gap-2 mb-1">
+                    <div className="p-2 bg-primary/10 rounded-full text-primary">
+                        <Download className="h-5 w-5" />
+                    </div>
+                    <DialogTitle>Import Summary</DialogTitle>
+                </div>
+                <DialogDescription className="font-normal text-sm">
+                    Processed {importSummary?.importedCount} tasks successfully. 
+                    {importSummary && importSummary.skippedDuplicates.length > 0 && ` ${importSummary.skippedDuplicates.length} items were omitted due to uniqueness constraints.`}
+                </DialogDescription>
+            </DialogHeader>
+            
+            {importSummary && importSummary.skippedDuplicates.length > 0 && (
+                <div className="py-4">
+                    <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+                        <Fingerprint className="h-3 w-3" />
+                        Omitted Duplicates
+                    </p>
+                    <div className="border rounded-xl bg-muted/20 overflow-hidden">
+                        <ScrollArea className="h-48">
+                            <div className="divide-y divide-border/50">
+                                {importSummary.skippedDuplicates.map((item, i) => (
+                                    <div key={i} className="p-3 bg-background/50 hover:bg-background transition-colors">
+                                        <p className="text-sm font-bold truncate">{item.taskTitle}</p>
+                                        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tight mt-0.5">
+                                            Duplicate {item.field}: <span className="text-primary font-bold">{item.value}</span>
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        </ScrollArea>
+                    </div>
+                </div>
+            )}
+
+            <DialogFooter>
+                <Button onClick={() => setImportSummary(null)} className="w-full sm:w-auto px-8 font-bold">Close</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Duplicate Resolution Dialog */}
+      <Dialog open={isResolutionOpen} onOpenChange={setIsResolutionOpen}>
+        <DialogContent className="sm:max-w-2xl rounded-3xl max-h-[90vh] flex flex-col p-0 overflow-hidden border-none shadow-2xl">
+            <div className="bg-amber-500 p-6 text-white shrink-0 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                    <Fingerprint className="h-24 w-24 rotate-12" />
+                </div>
+                <div className="relative z-10 space-y-1">
+                    <div className="flex items-center gap-2 mb-1">
+                        <Badge variant="secondary" className="bg-white/20 text-white border-none uppercase text-[10px] font-black tracking-widest">Action Required</Badge>
+                    </div>
+                    <DialogTitle className="text-2xl font-black tracking-tight">Resolve Duplicate Conflicts</DialogTitle>
+                    <DialogDescription className="text-white/80 text-sm font-medium">
+                        Existing tasks have conflicting values in unique fields. Please clean up these duplicates to ensure data integrity.
+                    </DialogDescription>
+                </div>
+            </div>
+
+            <div className="flex-1 overflow-hidden bg-background">
+                <ScrollArea className="h-full">
+                    <div className="p-6 space-y-8">
+                        {existingDuplicates.map((group, groupIdx) => (
+                            <div key={groupIdx} className="space-y-4">
+                                <div className="flex items-center gap-2 px-1">
+                                    <div className="h-2 w-2 rounded-full bg-amber-500" />
+                                    <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
+                                        {group.fieldLabel}: <span className="text-foreground">{group.value}</span>
+                                    </h3>
+                                </div>
+                                <div className="grid gap-3">
+                                    {group.tasks.map(task => (
+                                        <Card key={task.id} className="border-muted/60 bg-muted/5 hover:bg-muted/10 transition-all">
+                                            <CardContent className="p-4 flex items-center justify-between gap-4">
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="text-sm font-bold truncate">{task.title}</p>
+                                                    <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tight mt-0.5">
+                                                        Added {format(new Date(task.createdAt), 'MMM d, yyyy')}
+                                                    </p>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="sm" 
+                                                        className="h-8 text-[10px] font-black uppercase tracking-widest px-3 rounded-lg"
+                                                        onClick={() => router.push(`/tasks/${task.id}`)}
+                                                    >
+                                                        View
+                                                    </Button>
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button 
+                                                                variant="ghost" 
+                                                                size="icon" 
+                                                                className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-full"
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent className="rounded-3xl">
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle className="font-bold">Delete Duplicate Task?</AlertDialogTitle>
+                                                                <AlertDialogDescription className="text-sm font-normal">
+                                                                    This task will be moved to the bin. This value ("{group.value}") will then be available for other tasks.
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter className="pt-4 gap-2">
+                                                                <AlertDialogCancel className="rounded-xl font-medium">Cancel</AlertDialogCancel>
+                                                                <AlertDialogAction 
+                                                                    className="bg-destructive hover:bg-destructive/90 rounded-xl font-bold"
+                                                                    onClick={() => {
+                                                                        moveMultipleTasksToBin([task.id]);
+                                                                        refreshData();
+                                                                    }}
+                                                                >
+                                                                    Delete Task
+                                                                </AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </ScrollArea>
+            </div>
+
+            <DialogFooter className="p-6 bg-muted/30 border-t shrink-0 flex flex-row items-center justify-between">
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest hidden sm:block">
+                    {existingDuplicates.length} Conflict Group(s) Remaining
+                </p>
+                <Button onClick={() => setIsResolutionOpen(false)} className="w-full sm:w-auto px-8 font-black text-[10px] uppercase tracking-[0.2em] shadow-lg">
+                    I'll Resolve Later
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-6">
         <div className="flex flex-col gap-1">

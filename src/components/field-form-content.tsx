@@ -17,9 +17,8 @@ import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
-import { Badge } from './ui/badge';
-import { MultiSelect } from '@/components/ui/multi-select';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from './ui/tooltip';
+import { Badge } from '@/components/ui/badge';
 
 const fieldOptionSchema = z.object({
     id: z.string(),
@@ -32,6 +31,7 @@ const fieldSchema = z.object({
   type: z.enum(FIELD_TYPES.map(t => t.value) as [FieldType, ...FieldType[]]),
   group: z.string().min(2, { message: 'Group must be at least 2 characters.' }),
   isRequired: z.boolean(),
+  isUnique: z.boolean(),
   isActive: z.boolean(),
   options: z.array(fieldOptionSchema).optional(),
   baseUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
@@ -58,6 +58,7 @@ export function FieldFormContent({ field, repositoryConfigs, onSave, onCancel }:
       type: field?.type || 'text',
       group: field?.group || 'Custom',
       isRequired: field?.isRequired || false,
+      isUnique: field?.isUnique || false,
       isActive: field?.isActive ?? true,
       options: field?.options || [],
       baseUrl: field?.baseUrl || '',
@@ -254,7 +255,7 @@ export function FieldFormContent({ field, repositoryConfigs, onSave, onCancel }:
                     </FormItem>
                     )}
                 />
-                <div className="flex items-center gap-x-6">
+                <div className="flex items-center gap-x-4">
                      <FormField
                         control={form.control}
                         name="isRequired"
@@ -262,6 +263,26 @@ export function FieldFormContent({ field, repositoryConfigs, onSave, onCancel }:
                         <FormItem className="flex flex-row items-center space-x-2 pt-2">
                             <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} disabled={isRequiredToggleDisabled} /></FormControl>
                             <Label className="cursor-pointer font-semibold">Required</Label>
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="isUnique"
+                        render={({ field }) => (
+                        <FormItem className="flex flex-row items-center space-x-2 pt-2">
+                            <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                            <Label className="cursor-pointer font-semibold flex items-center gap-1.5">
+                                Unique
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Info className="h-3 w-3 text-muted-foreground" />
+                                        </TooltipTrigger>
+                                        <TooltipContent className="text-xs font-normal">Values in this field must be unique across active tasks</TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </Label>
                         </FormItem>
                         )}
                     />

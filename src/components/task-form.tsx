@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2, HelpCircle, Layout, Users, Calendar as CalendarIconLucide, Paperclip, Rocket, GitMerge, ChevronRight, PanelLeft, PanelRight, CircleDot, Save, ArrowLeft } from 'lucide-react';
+import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2, HelpCircle, Layout, Users, Calendar as CalendarIconLucide, Paperclip, Rocket, GitMerge, ChevronRight, PanelLeft, PanelRight, CircleDot, Save, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTransition, useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -18,7 +18,7 @@ import { cn, compressImage } from '@/lib/utils';
 import { format } from 'date-fns';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { addDeveloper, getUiConfig, addTester, updateTask } from '@/lib/data';
+import { addDeveloper, getUiConfig, addTester, updateTask, checkUniqueness } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -29,6 +29,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/comp
 import { Textarea } from '@/components/ui/textarea';
 import { TextareaToolbar, applyFormat, FormatType } from '@/components/ui/textarea-toolbar';
 import { getLinkAlias } from '@/ai/flows/alias-flow';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 
 type TaskFormData = z.infer<ReturnType<typeof createTaskSchema>>;
@@ -126,6 +127,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   const [activeId, setActiveId] = useState<string>('');
   
   const [sidebarPosition, setSidebarPosition] = useState<'left' | 'right'>('left');
+  const [uniquenessViolation, setUniquenessViolation] = useState<{ fieldLabel: string; value: string; fieldKey: string } | null>(null);
   
   const isJumpingRef = useRef(false);
   const jumpTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -346,6 +348,24 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   };
 
   const handleFormSubmit = (data: TaskFormData) => {
+    // Uniqueness Check
+    const uniqueness = checkUniqueness(data, task?.id);
+    if (!uniqueness.isUnique) {
+        const fieldKey = uiConfig?.fields.find(f => f.label === uniqueness.fieldLabel)?.key || 'title';
+        setUniquenessViolation({ 
+            fieldLabel: uniqueness.fieldLabel!, 
+            value: uniqueness.value!, 
+            fieldKey 
+        });
+        toast({
+            variant: 'destructive',
+            title: 'Duplicate Detected',
+            description: `The field "${uniqueness.fieldLabel}" must be unique. A task with this value already exists.`
+        });
+        scrollToId(`field-container-${fieldKey}`);
+        return;
+    }
+
     startTransition(() => {
         setIsDirty(false);
         onSubmit(data);
@@ -379,7 +399,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     let options: {value: string, label: string}[] = [];
     
     if (field.key === 'repositories') {
-        options = (uiConfig?.repositoryConfigs || []).map(d => ({ value: d.name, label: d.name }));
+        options = (uiConfig?.repositoryConfigs || []).map(rc => ({ value: rc.name, label: rc.name }));
     } else if (field.key === 'status') {
       options = (uiConfig?.taskStatuses || []).map(s => ({ value: s, label: s}));
       return options;
@@ -423,13 +443,24 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     const fieldName = isCustom ? `customFields.${key}` : key;
     
     const hasError = !!(isCustom ? errors.customFields?.[key] : errors[key as keyof typeof errors]);
+    const hasUniquenessViolation = uniquenessViolation?.fieldKey === key;
 
     const renderInput = (fieldType: FieldType, field: any) => {
         switch (fieldType) {
             case 'text':
                 return (
                     <div className="w-full">
-                        <Input type="text" placeholder={label} {...field} value={field.value ?? ''} className="font-normal" />
+                        <Input 
+                            type="text" 
+                            placeholder={label} 
+                            {...field} 
+                            value={field.value ?? ''} 
+                            className={cn("font-normal", hasUniquenessViolation && "border-destructive ring-destructive")}
+                            onChange={(e) => {
+                                field.onChange(e);
+                                if (hasUniquenessViolation) setUniquenessViolation(null);
+                            }}
+                        />
                         {baseUrl && <p className="text-[0.7rem] text-muted-foreground mt-1 break-all leading-tight font-medium">The value will be appended to: {baseUrl}</p>}
                     </div>
                 );
@@ -557,10 +588,16 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
             name={fieldName as any}
             render={({ field }) => (
                 <FormItem id={`field-container-${key}`} className="scroll-mt-32 max-w-full">
-                    <FormLabel error={hasError} className="font-medium">{label} {isRequired && <span className="text-destructive font-semibold">*</span>}</FormLabel>
+                    <FormLabel error={hasError || hasUniquenessViolation} className="font-medium">{label} {isRequired && <span className="text-destructive font-semibold">*</span>}</FormLabel>
                     <FormControl className="w-full">
                         {renderInput(type, field)}
                     </FormControl>
+                    {hasUniquenessViolation && (
+                        <p className="text-[10px] font-bold text-destructive uppercase tracking-wider mt-1 flex items-center gap-1">
+                            <AlertTriangle className="h-3 w-3" />
+                            Value must be unique
+                        </p>
+                    )}
                 </FormItem>
             )}
         />
@@ -897,6 +934,19 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
             <div className="flex-1 space-y-6 max-w-full">
                 {/* Desktop-only Page Title (hidden on mobile since we have the header component) */}
                 <h1 className="hidden lg:block text-2xl font-semibold tracking-tight mb-2 px-6">{formTitle}</h1>
+
+                {uniquenessViolation && (
+                    <div className="px-6">
+                        <Alert variant="destructive" className="bg-destructive/5 border-destructive/20 rounded-2xl animate-in slide-in-from-top-2 duration-500">
+                            <AlertTriangle className="h-5 w-5" />
+                            <AlertTitle className="font-bold">Duplicate Value Conflict</AlertTitle>
+                            <AlertDescription className="text-sm font-medium leading-relaxed">
+                                The value "<strong>{uniquenessViolation.value}</strong>" for field "<strong>{uniquenessViolation.fieldLabel}</strong>" is already in use by another active task. 
+                                Please use a unique value to continue.
+                            </AlertDescription>
+                        </Alert>
+                    </div>
+                )}
 
                 {groupOrder.map(groupName => {
                     if (['Attachments', 'Deployment', 'Pull Requests'].includes(groupName)) {

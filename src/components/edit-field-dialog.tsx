@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X, Users, ClipboardCheck } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X, Users, ClipboardCheck, Info } from 'lucide-react';
 import type { FieldConfig, FieldOption, FieldType, RepositoryConfig, Task } from '@/lib/types';
 import { FIELD_TYPES } from '@/lib/constants';
 import * as React from 'react';
@@ -42,6 +42,7 @@ const fieldSchema = z.object({
   type: z.enum(FIELD_TYPES.map(t => t.value) as [FieldType, ...FieldType[]]),
   group: z.string().min(2, { message: 'Group must be at least 2 characters.' }),
   isRequired: z.boolean(),
+  isUnique: z.boolean(),
   isActive: z.boolean(),
   options: z.array(fieldOptionSchema).optional(),
   baseUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
@@ -69,6 +70,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
       type: field?.type || 'text',
       group: field?.group || 'Custom',
       isRequired: field?.isRequired || false,
+      isUnique: field?.isUnique || false,
       isActive: field?.isActive ?? true, 
       options: field?.options || [],
       baseUrl: field?.baseUrl || '',
@@ -209,6 +211,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
           type: field?.type || 'text',
           group: field?.group || 'Custom',
           isRequired: field?.isRequired || false,
+          isUnique: field?.isUnique || false,
           isActive: field?.isActive ?? true,
           options: field?.options || [],
           baseUrl: field?.baseUrl || '',
@@ -388,7 +391,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                             </FormItem>
                             )}
                         />
-                        <div className="flex items-center gap-x-6">
+                        <div className="flex items-center gap-x-4">
                              <FormField
                                 control={form.control}
                                 name="isRequired"
@@ -404,6 +407,32 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                                     </FormControl>
                                     <Label htmlFor={field.name} className="cursor-pointer font-semibold">
                                         Required
+                                    </Label>
+                                </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="isUnique"
+                                render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-2 pt-2">
+                                    <FormControl>
+                                        <Switch
+                                            id={field.name}
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                    </FormControl>
+                                    <Label htmlFor={field.name} className="cursor-pointer font-semibold flex items-center gap-1.5">
+                                        Unique
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Info className="h-3 w-3 text-muted-foreground" />
+                                                </TooltipTrigger>
+                                                <TooltipContent className="text-xs font-normal">Values in this field must be unique across active tasks</TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
                                     </Label>
                                 </FormItem>
                                 )}

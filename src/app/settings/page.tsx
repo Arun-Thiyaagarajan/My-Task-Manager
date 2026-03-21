@@ -69,7 +69,8 @@ import {
     MoreVertical,
     Eraser,
     Palette,
-    Sparkles
+    Sparkles,
+    Fingerprint
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PeopleManagerDialog } from '@/components/people-manager-dialog';
@@ -288,7 +289,7 @@ export default function SettingsPage() {
   };
 
   // Field Management Logic (Now Local-Only until saved)
-  const handleFieldToggleLocal = (key: string, property: 'isActive' | 'isRequired') => {
+  const handleFieldToggleLocal = (key: string, property: 'isActive' | 'isRequired' | 'isUnique') => {
     const updatedFields = localFields.map(f => {
         if (f.key === key) {
             const updated = { ...f, [property]: !f[property] };
@@ -842,6 +843,7 @@ export default function SettingsPage() {
                                                                             {field.label} {field.isRequired && <span className="text-destructive">*</span>}
                                                                         </span>
                                                                         <Badge variant="outline" className="text-[9px] h-4 shrink-0 uppercase tracking-tighter"> {field.type} </Badge>
+                                                                        {field.isUnique && <Badge variant="secondary" className="text-[8px] h-4 uppercase bg-amber-100 text-amber-700 border-amber-200">Unique</Badge>}
                                                                     </div>
                                                                 </div>
                                                                 <div className="flex gap-1 shrink-0">
@@ -1015,7 +1017,15 @@ export default function SettingsPage() {
                                                     <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
                                                         <GripVertical className="h-5 w-5 text-muted-foreground/30 cursor-grab active:cursor-grabbing shrink-0" />
                                                         <div className="min-w-0 flex-1">
-                                                            <div className="flex items-center gap-2 mb-0.5 flex-wrap"><span className="font-medium text-sm sm:text-base tracking-tight truncate max-w-full">{field.label} {field.isRequired && <span className="text-destructive font-bold">*</span>}</span><Badge variant="outline" className="text-[9px] uppercase font-medium px-1.5 h-4 bg-background shrink-0">{field.type}</Badge></div>
+                                                            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                                                                <span className="font-medium text-sm sm:text-base tracking-tight truncate max-w-full">{field.label} {field.isRequired && <span className="text-destructive font-bold">*</span>}</span>
+                                                                <Badge variant="outline" className="text-[9px] uppercase font-medium px-1.5 h-4 bg-background shrink-0">{field.type}</Badge>
+                                                                {field.isUnique && (
+                                                                    <Badge variant="secondary" className="text-[8px] h-4 uppercase bg-amber-50 text-amber-700 border-amber-200">
+                                                                        <Fingerprint className="h-2.5 w-2.5 mr-1" /> Unique
+                                                                    </Badge>
+                                                                )}
+                                                            </div>
                                                             <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate">{field.group}</p>
                                                         </div>
                                                     </div>
@@ -1050,7 +1060,10 @@ export default function SettingsPage() {
                             <div className="grid gap-2">
                                 {filteredAndGroupedFields.inactiveFields.map(field => (
                                     <div key={field.id} className="flex items-center justify-between p-3 bg-muted/5 border border-dashed rounded-xl opacity-60 hover:opacity-100 transition-opacity">
-                                        <span className="text-sm sm:text-base font-normal tracking-tight truncate pr-4">{field.label}</span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm sm:text-base font-normal tracking-tight truncate pr-4">{field.label}</span>
+                                            {field.isUnique && <Badge variant="outline" className="text-[8px] h-4 uppercase border-amber-200/50 text-amber-600/50">Unique</Badge>}
+                                        </div>
                                         <div className="flex gap-2">
                                             <Button variant="outline" size="sm" className="h-9 px-4 font-medium shrink-0 shadow-sm" onClick={() => handleFieldToggleLocal(field.key, 'isActive')}><Check className="h-4 w-4 mr-2" /> Activate</Button>
                                             {field.isCustom && (

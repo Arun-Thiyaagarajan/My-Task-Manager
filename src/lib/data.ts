@@ -1,4 +1,3 @@
-
 'use client';
 
 import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
@@ -639,6 +638,70 @@ export function getRecentImportedTasks(limitCount = 5): Task[] {
         .slice(0, limitCount);
 }
 
+/**
+ * Checks for uniqueness violations.
+ * @returns Object with isUnique (boolean) and violation detail if any.
+ */
+export function checkUniqueness(
+    taskData: Partial<Task>, 
+    excludeTaskId?: string
+): { isUnique: boolean; fieldLabel?: string; value?: string } {
+    const activeTasks = getTasks();
+    const config = getUiConfig();
+    const uniqueFields = config.fields.filter(f => f.isActive && f.isUnique);
+
+    for (const field of uniqueFields) {
+        let valToCheck = field.isCustom 
+            ? taskData.customFields?.[field.key] 
+            : (taskData as any)[field.key];
+
+        if (valToCheck && typeof valToCheck === 'string' && valToCheck.trim() !== '') {
+            const normalized = valToCheck.trim().toLowerCase();
+            const conflict = activeTasks.find(t => {
+                if (excludeTaskId && t.id === excludeTaskId) return false;
+                const otherVal = field.isCustom ? t.customFields?.[field.key] : (t as any)[field.key];
+                return otherVal && typeof otherVal === 'string' && otherVal.trim().toLowerCase() === normalized;
+            });
+
+            if (conflict) {
+                return { isUnique: false, fieldLabel: field.label, value: valToCheck };
+            }
+        }
+    }
+
+    return { isUnique: true };
+}
+
+/**
+ * Finds all existing duplicate sets in the active tasks.
+ */
+export function findExistingDuplicates(): { fieldLabel: string; value: string; tasks: Task[] }[] {
+    const tasks = getTasks();
+    const config = getUiConfig();
+    const uniqueFields = config.fields.filter(f => f.isActive && f.isUnique);
+    const results: { fieldLabel: string; value: string; tasks: Task[] }[] = [];
+
+    uniqueFields.forEach(field => {
+        const valueMap = new Map<string, Task[]>();
+        tasks.forEach(task => {
+            const val = field.isCustom ? task.customFields?.[field.key] : (task as any)[field.key];
+            if (val && typeof val === 'string' && val.trim() !== '') {
+                const norm = val.trim().toLowerCase();
+                if (!valueMap.has(norm)) valueMap.set(norm, []);
+                valueMap.get(norm)!.push(task);
+            }
+        });
+
+        valueMap.forEach((matchedTasks, value) => {
+            if (matchedTasks.length > 1) {
+                results.push({ fieldLabel: field.label, value, tasks: matchedTasks });
+            }
+        });
+    });
+
+    return results;
+}
+
 export function addTask(task: Partial<Task>): Task {
     const data = getAppData();
     const companyId = getActiveCompanyId();
@@ -797,7 +860,15 @@ export function restoreTask(id: string) {
     const taskIndex = data.companyData[companyId].trash.findIndex(t => t.id === id);
     if (taskIndex === -1) return;
 
-    const task = data.companyData[companyId].trash.splice(taskIndex, 1)[0];
+    const task = data.companyData[companyId].trash[taskIndex];
+    
+    // Uniqueness Check
+    const uniqueness = checkUniqueness(task);
+    if (!uniqueness.isUnique) {
+        throw new Error(`Cannot restore — duplicate exists in active tasks for unique field "${uniqueness.fieldLabel}"`);
+    }
+
+    data.companyData[companyId].trash.splice(taskIndex, 1);
     delete task.deletedAt;
     data.companyData[companyId].tasks.unshift(task);
     setAppData(data);
@@ -812,7 +883,13 @@ export function moveMultipleTasksToBin(ids: string[]) {
 }
 
 export function restoreMultipleTasks(ids: string[]) {
-    ids.forEach(id => restoreTask(id));
+    ids.forEach(id => {
+        try {
+            restoreTask(id);
+        } catch (e: any) {
+            toast({ variant: 'destructive', title: 'Restore Blocked', description: e.message });
+        }
+    });
 }
 
 export function permanentlyDeleteMultipleTasks(ids: string[]) {
@@ -1034,7 +1111,8 @@ export function addReleaseUpdate(release: Partial<ReleaseUpdate>) {
     const data = getAppData();
     const companyId = getActiveCompanyId();
     const id = `rel-${crypto.randomUUID()}`;
-    const newRel = { id, version: '', title: '', items: [], date: new Date().toISOString(), isPublished: false, ...release } as ReleaseUpdate;
+    const now = new Date().toISOString();
+    const newRel = { id, version: '', title: '', items: [], date: now, isPublished: false, ...release } as ReleaseUpdate;
     data.companyData[companyId].releaseUpdates.unshift(newRel);
     setAppData(data);
     addLog({ message: `Created new release draft: **v${newRel.version}**` });
@@ -1165,6 +1243,47 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
         throw new Error("The imported file is invalid or corrupted. Please check the file format.");
     }
 
+    const uiConfig = getUiConfig();
+    const activeTasks = getTasks();
+    const uniqueFields = uiConfig.fields.filter(f => f.isActive && f.isUnique);
+    
+    // Tracking for uniqueness within the import and against existing data
+    const skippedTasks: { taskTitle: string; field: string; value: string }[] = [];
+    const usedValuesByField = new Map<string, Set<string>>();
+    
+    uniqueFields.forEach(f => {
+        const set = new Set<string>();
+        // Populate with existing active values
+        activeTasks.forEach(t => {
+            const val = f.isCustom ? t.customFields?.[f.key] : (t as any)[f.key];
+            if (val && typeof val === 'string' && val.trim() !== '') {
+                set.add(val.trim().toLowerCase());
+            }
+        });
+        usedValuesByField.set(f.key, set);
+    });
+
+    const tasksToImport: any[] = [];
+    rawTasks.forEach((t: any) => {
+        let isDuplicate = false;
+        for (const f of uniqueFields) {
+            const val = f.isCustom ? t.customFields?.[f.key] : (t as any)[f.key];
+            if (val && typeof val === 'string' && val.trim() !== '') {
+                const normalized = val.trim().toLowerCase();
+                const set = usedValuesByField.get(f.key)!;
+                if (set.has(normalized)) {
+                    skippedTasks.push({ taskTitle: t.title || 'Untitled', field: f.label, value: val });
+                    isDuplicate = true;
+                    break;
+                }
+                set.add(normalized);
+            }
+        }
+        if (!isDuplicate) {
+            tasksToImport.push(t);
+        }
+    });
+
     let currentDevs = [...getDevelopers()];
     let currentTesters = [...getTesters()];
 
@@ -1206,7 +1325,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
         ensureTester(name, typeof t === 'object' ? t : undefined);
     });
 
-    rawTasks.forEach((t: any) => {
+    tasksToImport.forEach((t: any) => {
         (t.developers || []).forEach((name: any) => {
             if (typeof name === 'string') ensureDev(name);
         });
@@ -1216,7 +1335,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
     });
 
     const taskIdMap = new Map<string, string>();
-    const processedTasks = rawTasks.map((t: any) => {
+    const processedTasks = tasksToImport.map((t: any) => {
         const devIds = (t.developers || []).map((val: any) => {
             if (typeof val !== 'string') return val;
             return devMap.get(val.toLowerCase()) || val;
@@ -1352,7 +1471,12 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
         console.error("Import Sync Failure:", error);
         throw new Error("An error occurred while importing. Please try again later.");
     }
-    return true;
+    
+    return { 
+        success: true, 
+        importedCount: processedTasks.length, 
+        skippedDuplicates: skippedTasks 
+    };
 }
 
 export async function clearAllData() {
