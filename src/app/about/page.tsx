@@ -163,6 +163,30 @@ function AboutContent() {
                             Absolutely. In Local Mode, your data never leaves your browser. In Cloud Mode, your data is protected by Firebase Security Rules, ensuring that only you (and people you explicitly grant access to) can see your tasks.
                         </AccordionContent>
                     </AccordionItem>
+                    <AccordionItem value="multi-company" className="border-muted/60">
+                        <AccordionTrigger className="text-sm font-bold hover:no-underline py-4 text-left">Can I manage multiple projects or companies?</AccordionTrigger>
+                        <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4">
+                            Yes! Use the <strong>Workspace Switcher</strong> in the top navigation bar (or under <strong>Profile → Workspaces</strong> on mobile) to create and switch between different organizational profiles. Each workspace has its own tasks, settings, and team members.
+                        </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="data-export" className="border-muted/60">
+                        <AccordionTrigger className="text-sm font-bold hover:no-underline py-4 text-left">How do I export my data?</AccordionTrigger>
+                        <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4">
+                            You can export individual tasks as <strong>PDFs</strong> or <strong>JSON</strong> files using the Share menu. To export your entire workspace, go to the main task list and select <strong>Export</strong> from the top actions bar.
+                        </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="bin-retention" className="border-muted/60">
+                        <AccordionTrigger className="text-sm font-bold hover:no-underline py-4 text-left">What happens to items in the Bin?</AccordionTrigger>
+                        <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4">
+                            When you delete a task, it is moved to the <strong>Bin</strong> for 30 days. You can restore these items at any time during this period. After 30 days, they are permanently deleted to keep your database clean.
+                        </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="custom-fields" className="border-muted/60">
+                        <AccordionTrigger className="text-sm font-bold hover:no-underline py-4 text-left">How do I add custom fields?</AccordionTrigger>
+                        <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4">
+                            Navigate to <strong>Settings → Field Configuration</strong>. From there, you can add new fields (like URLs, Dates, or Checkboxes), rename existing ones, or toggle their visibility and "required" status.
+                        </AccordionContent>
+                    </AccordionItem>
                     <AccordionItem value="unique-fields" className="border-muted/60">
                         <AccordionTrigger className="text-sm font-bold hover:no-underline py-4 text-left">What are "Unique Fields"?</AccordionTrigger>
                         <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4">
