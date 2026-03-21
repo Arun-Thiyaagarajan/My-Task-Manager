@@ -53,6 +53,7 @@ import { useFirebase } from '@/firebase';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ShareMenu } from '@/components/share-menu';
 import { triggerTransfer } from '@/components/file-transfer-indicator';
+import { Calendar } from '@/components/ui/calendar';
 
 
 const isImageUrl = (url: string): boolean => {

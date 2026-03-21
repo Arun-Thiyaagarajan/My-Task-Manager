@@ -743,7 +743,7 @@ export default function Home() {
             window.dispatchEvent(new Event('sync-end'));
         }
     };
-    reader.readAsDataURL(file);
+    reader.readAsText(file);
   };
   
   const handleBulkDelete = useCallback(() => {

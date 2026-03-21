@@ -135,9 +135,8 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
                                                     onChange={(e) => setEditingText(e.target.value)}
                                                     className="min-h-[100px] pb-12"
                                                     enableHotkeys
-                                                    showRefine={true}
                                                 />
-                                                <TextareaToolbar showRefine={true} onFormatClick={(type) => handleFormat(editCommentRef, type)} />
+                                                <TextareaToolbar onFormatClick={(type) => handleFormat(editCommentRef, type)} />
                                             </div>
                                             <div className="flex gap-2 justify-end">
                                                 <Button size="sm" variant="ghost" onClick={handleCancelEdit}><X className="h-4 w-4 mr-1" />Cancel</Button>
@@ -188,9 +187,8 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
                                             placeholder="Type your comment here..."
                                             className="min-h-[100px] pb-12"
                                             enableHotkeys
-                                            showRefine={true}
                                         />
-                                        <TextareaToolbar showRefine={true} onFormatClick={(type) => handleFormat(newCommentRef, type)} />
+                                        <TextareaToolbar onFormatClick={(type) => handleFormat(newCommentRef, type)} />
                                     </div>
                                     <div className="flex justify-end gap-2">
                                       {newComment && <Button variant="ghost" size="sm" onClick={handleCancelNewComment}>Cancel</Button>}
