@@ -1187,45 +1187,51 @@ export default function Home() {
 
       {/* Import Summary Dialog */}
       <Dialog open={!!importSummary} onOpenChange={(open) => !open && setImportSummary(null)}>
-        <DialogContent className="sm:max-w-md rounded-2xl">
-            <DialogHeader>
-                <div className="flex items-center gap-2 mb-1">
-                    <div className="p-2 bg-primary/10 rounded-full text-primary">
-                        <Download className="h-5 w-5" />
+        <DialogContent className="sm:max-w-md rounded-3xl p-0 overflow-hidden max-h-[90vh] flex flex-col border-none shadow-2xl">
+            <div className="p-6 pb-4 shrink-0">
+                <DialogHeader>
+                    <div className="flex items-center gap-2 mb-1">
+                        <div className="p-2 bg-primary/10 rounded-full text-primary">
+                            <Download className="h-5 w-5" />
+                        </div>
+                        <DialogTitle className="text-xl font-bold tracking-tight">Import Summary</DialogTitle>
                     </div>
-                    <DialogTitle>Import Summary</DialogTitle>
-                </div>
-                <DialogDescription className="font-normal text-sm">
-                    Processed {importSummary?.importedCount} tasks successfully. 
-                    {importSummary && importSummary.skippedDuplicates.length > 0 && ` ${importSummary.skippedDuplicates.length} items were omitted due to uniqueness constraints.`}
-                </DialogDescription>
-            </DialogHeader>
+                    <DialogDescription className="font-normal text-sm leading-relaxed">
+                        Processed {importSummary?.importedCount} tasks successfully. 
+                        {importSummary && importSummary.skippedDuplicates.length > 0 && ` ${importSummary.skippedDuplicates.length} items were omitted due to uniqueness constraints.`}
+                    </DialogDescription>
+                </DialogHeader>
+            </div>
             
-            {importSummary && importSummary.skippedDuplicates.length > 0 && (
-                <div className="py-4">
-                    <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
-                        <Fingerprint className="h-3 w-3" />
-                        Omitted Duplicates
-                    </p>
-                    <div className="border rounded-xl bg-muted/20 overflow-hidden">
-                        <ScrollArea className="h-48">
-                            <div className="divide-y divide-border/50">
-                                {importSummary.skippedDuplicates.map((item, i) => (
-                                    <div key={i} className="p-3 bg-background/50 hover:bg-background transition-colors">
-                                        <p className="text-sm font-bold truncate">{item.taskTitle}</p>
-                                        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tight mt-0.5">
-                                            Duplicate {item.field}: <span className="text-primary font-bold">{item.value}</span>
-                                        </p>
+            <div className="flex-1 overflow-hidden">
+                <ScrollArea className="h-full px-6">
+                    <div className="pb-6">
+                        {importSummary && importSummary.skippedDuplicates.length > 0 && (
+                            <>
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-3 flex items-center gap-2">
+                                    <Fingerprint className="h-3 w-3" />
+                                    Omitted Duplicates
+                                </p>
+                                <div className="border rounded-2xl bg-muted/20 overflow-hidden shadow-inner">
+                                    <div className="divide-y divide-border/50">
+                                        {importSummary.skippedDuplicates.map((item, i) => (
+                                            <div key={i} className="p-3 bg-background/50 hover:bg-background transition-colors">
+                                                <p className="text-sm font-bold truncate">{item.taskTitle}</p>
+                                                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tight mt-0.5">
+                                                    Duplicate {item.field}: <span className="text-primary font-bold">{item.value}</span>
+                                                </p>
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
-                            </div>
-                        </ScrollArea>
+                                </div>
+                            </>
+                        )}
                     </div>
-                </div>
-            )}
+                </ScrollArea>
+            </div>
 
-            <DialogFooter>
-                <Button onClick={() => setImportSummary(null)} className="w-full sm:w-auto px-8 font-bold">Close</Button>
+            <DialogFooter className="p-4 bg-muted/10 shrink-0">
+                <Button onClick={() => setImportSummary(null)} className="w-full font-bold h-11 rounded-xl shadow-lg">Close Summary</Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1248,7 +1254,7 @@ export default function Home() {
                 </div>
             </div>
 
-            <div className="flex-1 overflow-hidden bg-background">
+            <div className="flex-1 overflow-hidden bg-background overscroll-contain">
                 <ScrollArea className="h-full">
                     <div className="p-6 space-y-8">
                         {existingDuplicates.map((group, groupIdx) => (
@@ -1324,7 +1330,7 @@ export default function Home() {
                 <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest hidden sm:block">
                     {existingDuplicates.length} Conflict Group(s) Remaining
                 </p>
-                <Button onClick={() => setIsResolutionOpen(false)} className="w-full sm:w-auto px-8 font-black text-[10px] uppercase tracking-[0.2em] shadow-lg">
+                <Button onClick={() => setIsResolutionOpen(false)} className="w-full sm:w-auto px-8 font-black text-[10px] uppercase tracking-[0.2em] shadow-lg rounded-xl">
                     I'll Resolve Later
                 </Button>
             </DialogFooter>
