@@ -1,8 +1,7 @@
-
 'use client';
 
 import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile, Feedback, FeedbackMessage } from './types'; 
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile, Feedback, FeedbackMessage, FeedbackStatus } from './types'; 
 import cloneDeep from 'lodash/cloneDeep';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, setDoc, deleteDoc, updateDoc, collection, writeBatch, getDocs, query, orderBy, limit, getDoc, where, addDoc } from 'firebase/firestore';
@@ -1263,10 +1262,13 @@ export async function getMyFeedback(): Promise<Feedback[]> {
         const userId = auth.currentUser?.uid;
         if (!userId) return [];
 
-        const qFeedback = query(collection(db, 'feedback'), where('userId', '==', userId), orderBy('createdAt', 'desc'));
+        // Note: Querying by userId and sorting by createdAt requires a composite index.
+        // To ensure the app remains zero-config, we fetch and sort on the client.
+        const qFeedback = query(collection(db, 'feedback'), where('userId', '==', userId));
         try {
             const snap = await getDocs(qFeedback);
-            return snap.docs.map(d => d.data() as Feedback);
+            const items = snap.docs.map(d => d.data() as Feedback);
+            return items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         } catch (e) {
             console.error("Failed to fetch my feedback:", e);
             return [];
