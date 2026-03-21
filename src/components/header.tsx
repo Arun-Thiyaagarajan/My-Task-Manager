@@ -1,7 +1,8 @@
+
 'use client';
 
 import Link from 'next/navigation';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Icons } from './icons';
 import { Button } from './ui/button';
 import {
@@ -241,7 +242,9 @@ export function Header() {
     }
   };
 
-  const isAdmin = authMode === 'authenticate' && userProfile?.role === 'admin';
+  const isAdmin = useMemo(() => {
+    return (authMode === 'authenticate' || getAuthMode() === 'authenticate') && userProfile?.role === 'admin';
+  }, [authMode, userProfile]);
 
   return (
     <>
@@ -296,12 +299,25 @@ export function Header() {
                </HeaderLink>
             </nav>
           </div>
-          <div className="flex items-center gap-1 sm:gap-3">
-            {isAdmin && (
-                <HeaderLink href="/admin/feedback" id="header-nav-admin-feedback" className="flex items-center text-sm font-bold text-amber-600 hover:text-amber-700 transition-colors group whitespace-nowrap px-2 py-1.5 sm:px-3 bg-amber-500/5 rounded-full border border-amber-500/20 mr-1 shadow-sm">
-                    <Inbox className="h-4 w-4 sm:mr-2 opacity-90" />
-                    <span className="tracking-tight hidden sm:inline">Support Inbox</span>
-                </HeaderLink>
+          <div className="flex items-center gap-1 sm:gap-2">
+            {isAdmin && mounted && !isMobile && (
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <HeaderLink 
+                                href="/admin/feedback" 
+                                id="header-nav-admin-feedback" 
+                                className="flex items-center text-sm font-bold text-amber-600 hover:text-amber-700 transition-all group whitespace-nowrap px-2.5 py-1.5 sm:px-3.5 bg-amber-500/5 rounded-full border border-amber-500/20 shadow-sm active:scale-95"
+                            >
+                                <Inbox className="h-4 w-4 lg:mr-2 opacity-90" />
+                                <span className="tracking-tight hidden lg:inline">Support Inbox</span>
+                            </HeaderLink>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="lg:hidden">
+                            <p className="font-semibold">Support Inbox (Admin)</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
             )}
 
             {mounted && activeCompany && !isMobile && (
@@ -386,17 +402,19 @@ export function Header() {
 
             {uiConfig?.tutorialEnabled && (
                 <div id="tutorial-trigger-wrapper">
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={() => startTutorial()}>
-                                <Compass className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
-                                <span className="sr-only">Show Tour</span>
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent className="font-normal">
-                            <p>Take Workspace Tour</p>
-                        </TooltipContent>
-                    </Tooltip>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={() => startTutorial()}>
+                                    <Compass className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                                    <span className="sr-only">Show Tour</span>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent className="font-normal">
+                                <p>Take Workspace Tour</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                 </div>
             )}
             
