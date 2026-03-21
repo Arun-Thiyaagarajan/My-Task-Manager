@@ -99,10 +99,13 @@ const getInitialTaskData = (task?: Partial<Task>, uiConfig?: UiConfig | null) =>
                     let val = f.defaultValue;
                     if (f.type === 'date') val = safeParseDate(val);
 
-                    if (f.key === 'developers' || f.key === 'testers') {
-                        defaults[f.key] = Array.isArray(val) ? val : [val];
+                    if (f.key === 'developers' || f.key === 'testers' || f.key === 'tags' || f.type === 'multiselect') {
+                        defaults[f.key] = Array.isArray(val) ? val : (val ? [val] : []);
                     } else if (f.isCustom) {
-                        defaults.customFields = { ...defaults.customFields, [f.key]: val };
+                        const finalVal = (f.type === 'tags' || f.type === 'multiselect') 
+                            ? (Array.isArray(val) ? val : (val ? [val] : []))
+                            : val;
+                        defaults.customFields = { ...defaults.customFields, [f.key]: finalVal };
                     } else {
                         defaults[f.key] = val;
                     }

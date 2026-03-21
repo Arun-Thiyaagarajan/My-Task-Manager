@@ -89,7 +89,7 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
       options: field?.options || [],
       baseUrl: field?.baseUrl || '',
       sortDirection: field?.sortDirection || 'manual',
-      defaultValue: field?.defaultValue ?? ( (field?.key === 'developers' || field?.key === 'testers') ? [] : ''),
+      defaultValue: field?.defaultValue ?? ( (field?.type === 'tags' || field?.type === 'multiselect') ? [] : ''),
     },
   });
 
@@ -338,7 +338,13 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
                             <MultiSelect
                                 selected={Array.isArray(field.value) ? field.value : []}
                                 onChange={field.onChange}
-                                options={(isDevelopersField || isTestersField) ? defaultPersonOptions : currentOptions.map(o => ({ value: o.value, label: o.label }))}
+                                options={
+                                    (isDevelopersField || isTestersField) 
+                                        ? defaultPersonOptions 
+                                        : isTagsField 
+                                            ? allTags.map(o => ({ value: o.value, label: o.label })) 
+                                            : currentOptions.map(o => ({ value: o.value, label: o.label }))
+                                }
                                 placeholder="Select default values..."
                                 className="bg-background rounded-xl"
                             />

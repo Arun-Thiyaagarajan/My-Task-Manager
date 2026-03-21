@@ -260,7 +260,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
           options: field?.options || [],
           baseUrl: field?.baseUrl || '',
           sortDirection: field?.sortDirection || 'manual',
-          defaultValue: field?.defaultValue ?? ( (isDevelopersField || isTestersField) ? [] : ''),
+          defaultValue: field?.defaultValue ?? ( (field?.type === 'tags' || field?.type === 'multiselect') ? [] : ''),
         });
         setGroupSearch(field?.group || '');
 
@@ -416,7 +416,13 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
                             <MultiSelect
                                 selected={Array.isArray(field.value) ? field.value : []}
                                 onChange={field.onChange}
-                                options={(isDevelopersField || isTestersField) ? defaultPersonOptions : currentOptions.map(o => ({ value: o.value, label: o.label }))}
+                                options={
+                                    (isDevelopersField || isTestersField) 
+                                        ? defaultPersonOptions 
+                                        : isTagsField 
+                                            ? allTags.map(o => ({ value: o.value, label: o.label })) 
+                                            : currentOptions.map(o => ({ value: o.value, label: o.label }))
+                                }
                                 placeholder="Select default values..."
                                 className="bg-background"
                             />
