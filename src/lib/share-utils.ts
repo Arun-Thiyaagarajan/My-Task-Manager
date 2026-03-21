@@ -94,6 +94,7 @@ const _drawTaskOnPage = async (
     const VALUE_COLUMN_WIDTH = MAX_CONTENT_WIDTH - KEY_COLUMN_WIDTH;
 
     const FONT_SIZE_NORMAL = 10;
+    const FONT_SIZE_SMALL = 8;
     const FONT_SIZE_H1 = 18;
     const FONT_SIZE_H2 = 13;
     const LINE_HEIGHT_NORMAL = 6;
@@ -225,7 +226,8 @@ const _drawTaskOnPage = async (
     };
     
     const drawSectionHeader = (title: string) => {
-        checkPageBreak(15);
+        // Ensure header + at least 2 lines of content (approx 25mm) aren't orphaned
+        checkPageBreak(25);
         y += 5;
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(FONT_SIZE_H2);
@@ -357,9 +359,11 @@ const _drawTaskOnPage = async (
                     const displayWidth = Math.min(MAX_CONTENT_WIDTH, 120); 
                     const displayHeight = displayWidth * ratio;
                     
-                    checkPageBreak(displayHeight + 12);
+                    // Check if image + caption will fit
+                    checkPageBreak(displayHeight + 15);
+                    
                     doc.setFont('helvetica', 'italic');
-                    doc.setFontSize(8);
+                    doc.setFontSize(FONT_SIZE_SMALL);
                     doc.setTextColor(...COLORS.TEXT_MUTED);
                     doc.text(`Image: ${att.name}`, PADDING, y);
                     y += 4;
