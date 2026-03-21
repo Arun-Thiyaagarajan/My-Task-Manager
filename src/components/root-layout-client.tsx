@@ -1,4 +1,3 @@
-
 'use client';
 
 import { usePathname } from 'next/navigation';
@@ -20,6 +19,7 @@ import { FileTransferIndicator } from '@/components/file-transfer-indicator';
 export function RootLayoutClient({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isSharedPage = pathname?.startsWith('/share/');
+  const isTaskForm = pathname === '/tasks/new' || (pathname?.startsWith('/tasks/') && pathname?.endsWith('/edit'));
 
   return (
     <Providers>
@@ -28,7 +28,7 @@ export function RootLayoutClient({ children }: { children: React.ReactNode }) {
         {!isSharedPage && <Header />}
         <NavigationLoader />
         <PullToRefresh>
-          <main className={cn("flex-1", !isSharedPage && "pb-32 md:pb-0")}>
+          <main className={cn("flex-1", (!isSharedPage && !isTaskForm) && "pb-32 md:pb-0")}>
             {children}
           </main>
         </PullToRefresh>

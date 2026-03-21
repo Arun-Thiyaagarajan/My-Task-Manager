@@ -32,6 +32,24 @@ export function MobileBottomNav() {
     setMounted(true);
   }, []);
 
+  const isTaskForm = pathname === '/tasks/new' || (pathname?.startsWith('/tasks/') && pathname?.endsWith('/edit'));
+
+  // Prevent hydration mismatch by returning a stable shell on the server
+  if (!mounted) {
+    return (
+        <nav 
+          className="md:hidden fixed bottom-0 inset-x-0 z-[100] bg-background/95 border-t border-border"
+          style={{
+            paddingBottom: 'env(safe-area-inset-bottom)',
+            height: 'calc(5rem + env(safe-area-inset-bottom))'
+          }}
+        />
+    );
+  }
+
+  // Hide the navbar on task form pages for a focused mobile experience
+  if (isTaskForm) return null;
+
   const navItems = [
     { label: 'Tasks', href: '/', icon: Home },
     { label: 'Stats', href: '/dashboard', icon: LayoutDashboard },
@@ -55,19 +73,6 @@ export function MobileBottomNav() {
       handleNavigate('/tasks/new');
     }
   };
-
-  // Prevent hydration mismatch by returning a stable shell on the server
-  if (!mounted) {
-    return (
-        <nav 
-          className="md:hidden fixed bottom-0 inset-x-0 z-[100] bg-background/95 border-t border-border"
-          style={{
-            paddingBottom: 'env(safe-area-inset-bottom)',
-            height: 'calc(5rem + env(safe-area-inset-bottom))'
-          }}
-        />
-    );
-  }
 
   const authMode = getAuthMode();
   const localProfile = getLocalProfile();
