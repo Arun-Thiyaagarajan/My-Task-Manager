@@ -19,6 +19,7 @@ import {
     Monitor,
     X,
     Image as ImageIcon,
+    Lightbulb,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -152,7 +153,7 @@ export default function NewFeedbackPage() {
         <div className="container max-w-2xl mx-auto pt-6 sm:pt-10 pb-20 px-4 sm:px-6">
             <div className="flex items-center gap-3 sm:gap-4 mb-8 sm:mb-10">
                 <Button variant="ghost" size="icon" onClick={handleBack} className="rounded-full h-9 w-9 sm:h-10 sm:w-10">
-                    <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
+                    <ArrowLeft className="h-5 w-5" />
                 </Button>
                 <div>
                     <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Submit Feedback</h1>
