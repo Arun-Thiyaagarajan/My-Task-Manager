@@ -829,7 +829,10 @@ const handleCopyDescription = () => {
   const repoField = (uiConfig?.fields || []).find(f => f.key === 'repositories');
   
   const tagsOptions = [...new Set([...(tagsField?.options?.map(opt => opt.value) || []), ...(allTasks.flatMap(t => t.tags || []))])].map(t => ({value: t, label: t}));
-  const repoOptions = (repoField?.options || uiConfig?.repositoryConfigs || []).map(opt => ({ value: (opt as any).value ?? (opt as any).label, label: (any).label }));
+  const repoOptions = (repoField?.options || uiConfig?.repositoryConfigs || []).map(opt => ({ 
+    value: (opt as any).value ?? (opt as any).name, 
+    label: (opt as any).label ?? (opt as any).name 
+  }));
   const developerOptions = developers.map(d => ({value: d.id, label: d.name}));
   const testerOptions = testers.map(t => ({value: t.id, label: t.name}));
 
