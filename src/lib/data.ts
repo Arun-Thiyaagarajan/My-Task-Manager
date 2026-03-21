@@ -1,7 +1,7 @@
 'use client';
 
 import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile, Feedback, FeedbackMessage, FeedbackStatus } from './types'; 
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile, Feedback, FeedbackMessage, FeedbackStatus, UserProfile } from './types'; 
 import cloneDeep from 'lodash/cloneDeep';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, setDoc, deleteDoc, updateDoc, collection, writeBatch, getDocs, query, orderBy, limit, getDoc, where, addDoc } from 'firebase/firestore';
@@ -97,9 +97,6 @@ export const getAppData = (): MyTaskManagerData => {
         if (_cloudCache) {
             return _cloudCache;
         }
-        // In authenticate mode, if we don't have the cloud cache yet,
-        // we return an empty structure to prevent falling back to local storage
-        // which causes the "local -> cloud" jump.
         return getEmptyAppData();
     }
     
@@ -170,9 +167,6 @@ export async function updateUserPreferences(updates: Partial<UserPreferences>) {
         const userId = auth.currentUser?.uid;
         if (userId) {
             const prefRef = doc(db, 'users', userId, 'preferences', 'settings');
-            
-            // Firestore does not support 'undefined' as a value.
-            // We sanitize the object by stringifying and parsing it to remove undefined keys.
             const sanitizedNext = JSON.parse(JSON.stringify(next));
 
             setDoc(prefRef, sanitizedNext, { merge: true }).catch(e => {
@@ -366,7 +360,6 @@ export function updateEnvironment(id: string, updates: Partial<Environment>) {
         const oldName = envs[index].name;
         const newName = updates.name || oldName;
         
-        // Handle renaming across tasks if name changed
         if (newName !== oldName) {
             const tasks = data.companyData[companyId].tasks;
             const trash = data.companyData[companyId].trash;
@@ -410,12 +403,10 @@ export function deleteEnvironment(id: string): boolean {
     const env = envs.find(e => e.id === id);
     
     if (!env) return false;
-    // Safeguard mandatory environments
     if (env.isMandatory || ['dev', 'production'].includes(env.name?.toLowerCase() || '')) return false;
 
     data.companyData[companyId].uiConfig.environments = envs.filter(e => e.id !== id);
     
-    // Clean up task references
     const tasks = data.companyData[companyId].tasks;
     const trash = data.companyData[companyId].trash;
     const cleanup = (t: Task) => {
@@ -626,7 +617,6 @@ export function getRecentImportedTasks(limitCount = 5): Task[] {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    // Find task IDs that have an "Imported task" log recently
     const importedTaskIds = new Set(
         logs
             .filter(l => l.taskId && l.message.includes('Imported task') && new Date(l.timestamp) >= sevenDaysAgo)
@@ -639,10 +629,6 @@ export function getRecentImportedTasks(limitCount = 5): Task[] {
         .slice(0, limitCount);
 }
 
-/**
- * Checks for uniqueness violations.
- * @returns Object with isUnique (boolean) and violation detail if any.
- */
 export function checkUniqueness(
     taskData: Partial<Task>, 
     excludeTaskId?: string
@@ -673,9 +659,6 @@ export function checkUniqueness(
     return { isUnique: true };
 }
 
-/**
- * Finds all existing duplicate sets in the active tasks.
- */
 export function findExistingDuplicates(): { fieldLabel: string; value: string; tasks: Task[] }[] {
     const tasks = getTasks();
     const config = getUiConfig();
@@ -863,7 +846,6 @@ export function restoreTask(id: string) {
 
     const task = data.companyData[companyId].trash[taskIndex];
     
-    // Uniqueness Check
     const uniqueness = checkUniqueness(task);
     if (!uniqueness.isUnique) {
         throw new Error(`Cannot restore — duplicate exists in active tasks for unique field "${uniqueness.fieldLabel}"`);
@@ -1194,24 +1176,17 @@ export function deleteComment(taskId: string, index: number): Task | null {
     return null;
 }
 
-/**
- * Checks if a specific UI field is currently being used in any active or binned tasks.
- * @param key The unique key of the field to check.
- * @returns An array of Tasks that use this field.
- */
 export function getTasksUsingField(key: string): Task[] {
     const tasks = getTasks();
     const binned = getBinnedTasks();
     const all = [...tasks, ...binned];
     
     return all.filter(t => {
-        // 1. Check Standard Fields (where applicable and non-mandatory)
         const standardVal = (t as any)[key];
         if (standardVal !== undefined && standardVal !== null && standardVal !== '' && 
             (!Array.isArray(standardVal) || standardVal.length > 0)) {
             return true;
         }
-        // 2. Check Custom Fields payload
         if (t.customFields && t.customFields[key] !== undefined && t.customFields[key] !== null && t.customFields[key] !== '' && 
             (!Array.isArray(t.customFields[key]) || t.customFields[key].length > 0)) {
             return true;
@@ -1238,15 +1213,27 @@ export async function submitFeedback(feedback: Omit<Feedback, 'id' | 'status' | 
         updatedAt: now
     };
 
-    // We only store in Firestore if available, otherwise mock it for local users
-    // If auth is authenticated, we MUST use Firestore
+    const autoReply: FeedbackMessage = {
+        id: `msg-auto-${crypto.randomUUID()}`,
+        senderId: 'system-support',
+        senderName: 'TaskFlow Support',
+        senderRole: 'admin',
+        message: "Thanks for reaching out! We’ve received your request and will get back to you soon.",
+        timestamp: now
+    };
+
     if (getAuthMode() === 'authenticate') {
         await dispatchMutation('feedback', id, newFeedback, 'set');
+        await dispatchMutation('feedbackMessages', autoReply.id, autoReply, 'set', id);
     } else {
-        // Local mode fallback: Store in a local feedback array for the current session/localstorage
         const data = getAppData();
         if (!(data as any).localFeedback) (data as any).localFeedback = [];
         (data as any).localFeedback.push(newFeedback);
+        
+        if (!(data as any).localMessages) (data as any).localMessages = {};
+        if (!(data as any).localMessages[id]) (data as any).localMessages[id] = [];
+        (data as any).localMessages[id].push(autoReply);
+        
         setAppData(data);
     }
     
@@ -1262,8 +1249,6 @@ export async function getMyFeedback(): Promise<Feedback[]> {
         const userId = auth.currentUser?.uid;
         if (!userId) return [];
 
-        // Note: Querying by userId and sorting by createdAt requires a composite index.
-        // To ensure the app remains zero-config, we fetch and sort on the client.
         const qFeedback = query(collection(db, 'feedback'), where('userId', '==', userId));
         try {
             const snap = await getDocs(qFeedback);
@@ -1291,7 +1276,6 @@ export async function getFeedbackById(id: string): Promise<Feedback | null> {
                 const auth = getAuth();
                 const userId = auth.currentUser?.uid;
                 
-                // Allow admin to see any feedback, users see only their own
                 const userProfile = (await getDoc(doc(db, 'users', userId!))).data() as UserProfile;
                 if (userProfile?.role !== 'admin' && data.userId !== userId) return null;
                 
@@ -1347,10 +1331,8 @@ export async function sendFeedbackMessage(feedbackId: string, message: string, a
 
     if (getAuthMode() === 'authenticate') {
         await dispatchMutation('feedbackMessages', id, newMessage, 'set', feedbackId);
-        // Update the main feedback doc timestamp for sorting
         await dispatchMutation('feedback', feedbackId, { updatedAt: now }, 'update');
     } else {
-        // Mock local messaging
         const data = getAppData();
         if (!(data as any).localMessages) (data as any).localMessages = {};
         if (!(data as any).localMessages[feedbackId]) (data as any).localMessages[feedbackId] = [];
@@ -1407,13 +1389,11 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
     const activeTasks = getTasks();
     const uniqueFields = uiConfig.fields.filter(f => f.isActive && f.isUnique);
     
-    // Tracking for uniqueness within the import and against existing data
     const skippedTasks: { taskTitle: string; field: string; value: string }[] = [];
     const usedValuesByField = new Map<string, Set<string>>();
     
     uniqueFields.forEach(f => {
         const set = new Set<string>();
-        // Populate with existing active values
         activeTasks.forEach(t => {
             const val = f.isCustom ? t.customFields?.[f.key] : (t as any)[f.key];
             if (val && typeof val === 'string' && val.trim() !== '') {
@@ -1607,7 +1587,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             });
             
             comp.notes = [...jsonNotes.map(n => ({...n, id: `note-${crypto.randomUUID()}`})), ...comp.notes];
-            comp.notes = [...processedLogs, ...comp.logs];
+            comp.logs = [...processedLogs, ...comp.logs];
 
             if (repoConfigs.length > 0) {
                 repoConfigs.forEach((r: any) => {
