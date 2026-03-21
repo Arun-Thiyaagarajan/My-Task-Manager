@@ -69,7 +69,8 @@ import {
     Eraser,
     Palette,
     Sparkles,
-    Fingerprint
+    Fingerprint,
+    AlertTriangle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PeopleManagerDialog } from '@/components/people-manager-dialog';
@@ -289,6 +290,22 @@ export default function SettingsPage() {
 
   // Field Management Logic (Now Local-Only until saved)
   const handleFieldToggleLocal = (key: string, property: 'isActive' | 'isRequired' | 'isUnique') => {
+    // Strict Uniqueness Limit Check for toggles
+    if (property === 'isUnique') {
+        const fieldToToggle = localFields.find(f => f.key === key);
+        if (fieldToToggle && !fieldToToggle.isUnique) {
+            const currentUniqueCount = localFields.filter(f => f.isUnique).length;
+            if (currentUniqueCount >= 3) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Unique Limit Reached',
+                    description: 'Maximum 3 unique fields allowed to avoid configuration conflicts.'
+                });
+                return;
+            }
+        }
+    }
+
     const updatedFields = localFields.map(f => {
         if (f.key === key) {
             const updated = { ...f, [property]: !f[property] };
@@ -321,6 +338,17 @@ export default function SettingsPage() {
   };
 
   const handleSaveFields = () => {
+    // FINAL STRICT VALIDATION
+    const finalUniqueCount = localFields.filter(f => f.isActive && f.isUnique).length;
+    if (finalUniqueCount > 3) {
+        toast({
+            variant: 'destructive',
+            title: 'Configuration Error',
+            description: 'Cannot save: Maximum 3 unique fields allowed. Please disable some unique constraints before saving.'
+        });
+        return;
+    }
+
     const currentlyActive = uiConfig?.fields.filter(f => f.isActive).map(f => f.key) || [];
     const deactivating = localFields.filter(f => !f.isActive && currentlyActive.includes(f.key));
     
@@ -528,7 +556,7 @@ export default function SettingsPage() {
                     </div>
                 </div>
                 <DialogFooter className="p-4 bg-muted/10 border-t flex flex-row justify-center sm:justify-center shrink-0">
-                    <Button onClick={() => setInUseTasks([])} className="w-full sm:w-32 rounded-xl h-11 font-bold">Got it</Button>
+                    <Button onClick={() => setTasksUsingField([])} className="w-full sm:w-32 rounded-xl h-11 font-bold">Got it</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -693,7 +721,13 @@ export default function SettingsPage() {
                 {isPeopleManager && <PeopleManagementContent type={managerType} />}
                 {activeMobileSection === 'edit-field' && (
                     <div className="bg-background min-h-0 px-6 py-4">
-                        <FieldFormContent field={fieldToEdit} repositoryConfigs={uiConfig.repositoryConfigs} onSave={handleSaveField} onCancel={() => setActiveMobileSection('fields')} />
+                        <FieldFormContent 
+                            field={fieldToEdit} 
+                            existingFields={localFields}
+                            repositoryConfigs={uiConfig.repositoryConfigs} 
+                            onSave={handleSaveField} 
+                            onCancel={() => setActiveMobileSection('fields')} 
+                        />
                     </div>
                 )}
                 {activeMobileSection === 'edit-environment' && (
@@ -1190,13 +1224,20 @@ export default function SettingsPage() {
 
             <Card id="settings-environment-card" className="border-none shadow-lg">
                 <CardHeader className="pb-4"><CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider"><Rocket className="h-5 w-5 text-primary" />Environments</CardTitle></CardHeader>
-                <CardContent className="space-y-4"><div className="grid gap-2">{(uiConfig.environments || []).map(env => { const isMandatory = env.isMandatory || ['dev', 'production'].includes(env.name.toLowerCase()); return (<div key={env.id} className="flex items-center justify-between p-2.5 border rounded-xl bg-muted/20 group hover:bg-muted/40 transition-colors"><div className="flex items-center gap-3 min-w-0"><div className="h-3 w-3 rounded-full shadow-sm shrink-0" style={{ backgroundColor: env.color }} /><span className="capitalize font-medium text-sm truncate">{env.name}</span>{isMandatory && <Lock className="h-3 w-3 text-muted-foreground/50 shrink-0" />}</div><div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => { setEnvToEdit(env); setIsEnvDialogOpen(true); }}><Pencil className="h-3.5 w-3.5" /></Button>{!isMandatory && <AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10 rounded-full"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger><AlertDialogContent className="rounded-3xl"><AlertDialogHeader><AlertDialogTitle>Delete Environment?</AlertDialogTitle><AlertDialogDescription className="font-normal">Permanently remove the "**${env.name}**" environment?</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel className="font-medium">Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteEnv(env.id)} className="bg-destructive hover:bg-destructive/90 font-semibold">Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>}</div></div>) })}</div><div className="flex gap-2"><Input placeholder="New environment..." className="h-10 text-xs font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40" value={newEnvName} onChange={e => setNewEnvName(e.target.value)} /><Button size="sm" className="h-10 px-4 font-medium shrink-0 shadow-sm" onClick={handleAddEnv}>Add</Button></div></CardContent>
+                <CardContent className="space-y-4"><div className="grid gap-2">{(uiConfig.environments || []).map(env => { const isMandatory = env.isMandatory || ['dev', 'production'].includes(env.name.toLowerCase()); return (<div key={env.id} className="flex items-center justify-between p-2.5 border rounded-xl bg-muted/20 group hover:bg-muted/40 transition-colors"><div className="flex items-center gap-3 min-w-0"><div className="h-3 w-3 rounded-full shadow-sm shrink-0" style={{ backgroundColor: env.color }} /><span className="capitalize font-medium text-sm truncate">{env.name}</span>{isMandatory && <Lock className="h-3 w-3 text-muted-foreground/50 shrink-0" />}</div><div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => { setEnvToEdit(env); setIsEnvDialogOpen(true); }}><Pencil className="h-3.5 w-3.5" /></Button>{!isMandatory && <AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10 rounded-full"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger><AlertDialogContent className="rounded-3xl"><AlertDialogHeader><AlertDialogTitle>Delete Environment?</AlertDialogTitle><AlertDialogDescription className="font-normal">Permanently remove the "**${env.name}**" environment?</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="gap-3 mt-4"><AlertDialogCancel className="font-medium">Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteEnv(env.id)} className="bg-destructive hover:bg-destructive/90 font-semibold">Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>}</div></div>) })}</div><div className="flex gap-2"><Input placeholder="New environment..." className="h-10 text-xs font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40" value={newEnvName} onChange={e => setNewEnvName(e.target.value)} /><Button size="sm" className="h-10 px-4 font-medium shrink-0 shadow-sm" onClick={handleAddEnv}>Add</Button></div></CardContent>
             </Card>
             <Card className="border-2 border-destructive/20 shadow-lg bg-destructive/[0.02]"><CardHeader className="pb-4"><CardTitle className="text-xs font-semibold flex items-center gap-2 text-destructive uppercase tracking-wider"><Database className="h-5 w-5" />Danger Zone</CardTitle></CardHeader>
             <CardContent className="space-y-2"><Button variant="outline" className="w-full h-10 text-xs font-medium justify-start px-4 rounded-xl shadow-sm" onClick={handleExportSettings}><Download className="h-4 w-4 mr-3 text-muted-foreground" /> Export Settings</Button><Button variant="outline" className="w-full h-10 text-xs font-medium justify-start px-4 rounded-xl shadow-sm" onClick={() => fileInputRef.current?.click()}><Upload className="h-4 w-4 mr-3 text-muted-foreground" /> Import Configuration</Button><input type="file" ref={fileInputRef} onChange={handleImportSettings} className="hidden" accept=".json" /><AlertDialog><AlertDialogTrigger asChild><Button variant="destructive" className="w-full h-10 text-xs font-semibold justify-start px-4 rounded-xl bg-destructive hover:bg-destructive/90 shadow-lg"><Trash2 className="h-4 w-4 mr-3" /> Clear All Data</Button></AlertDialogTrigger><AlertDialogContent className="rounded-3xl"><AlertDialogHeader><AlertDialogTitle>Clear all data?</AlertDialogTitle><AlertDialogDescription>Permanently delete all tasks, notes, and settings?</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="gap-3 mt-4"><AlertDialogCancel className="rounded-xl font-medium" disabled={isClearing}>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleClearAllData} className="bg-destructive hover:bg-destructive/90 rounded-xl font-semibold px-6" disabled={isClearing}>Clear Data</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></CardContent></Card>
         </div>
       </div>
-      <EditFieldDialog isOpen={isFieldDialogOpen} onOpenChange={setIsFieldDialogOpen} field={fieldToEdit} repositoryConfigs={uiConfig.repositoryConfigs || []} onSave={handleSaveField} />
+      <EditFieldDialog 
+        isOpen={isFieldDialogOpen} 
+        onOpenChange={setIsFieldDialogOpen} 
+        field={fieldToEdit} 
+        existingFields={localFields}
+        repositoryConfigs={uiConfig.repositoryConfigs || []} 
+        onSave={handleSaveField} 
+      />
       <EditEnvironmentDialog isOpen={isEnvDialogOpen} onOpenChange={setIsEnvDialogOpen} environment={envToEdit} onSave={handleSaveEnv} />
       <AuthModal isOpen={isAuthModalOpen} onOpenChange={setIsAuthModalOpen} onSuccess={() => { setAuthMode('authenticate'); window.dispatchEvent(new Event('company-changed')); }} />
       {sharedDialogs}

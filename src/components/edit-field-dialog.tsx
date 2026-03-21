@@ -30,6 +30,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from './ui/badge';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useToast } from '@/hooks/use-toast';
 
 
 const fieldOptionSchema = z.object({
@@ -58,16 +59,20 @@ interface EditFieldDialogProps {
   onOpenChange: (open: boolean) => void;
   onSave: (field: FieldConfig, repoConfigs?: RepositoryConfig[]) => void;
   field: FieldConfig | null;
+  existingFields: FieldConfig[];
   repositoryConfigs?: RepositoryConfig[];
 }
 
-export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositoryConfigs }: EditFieldDialogProps) {
+export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingFields, repositoryConfigs }: EditFieldDialogProps) {
   const isCreating = field === null;
-  const config = React.useMemo(() => getUiConfig(), [isOpen]);
-  const uniqueFieldCount = React.useMemo(() => config.fields.filter(f => f.isUnique).length, [config]);
-  const isCurrentlyUnique = field?.isUnique || false;
-  const uniqueLimitReached = uniqueFieldCount >= 3;
-  const uniqueToggleDisabled = uniqueLimitReached && !isCurrentlyUnique;
+  const { toast } = useToast();
+  
+  // Robust Unique Field Count (using local session fields passed from parent)
+  const otherUniqueCount = React.useMemo(() => {
+      return existingFields.filter(f => f.isActive && f.isUnique && f.id !== field?.id).length;
+  }, [existingFields, field]);
+
+  const uniqueLimitReached = otherUniqueCount >= 3;
 
   const form = useForm<FieldFormData>({
     resolver: zodResolver(fieldSchema),
@@ -129,6 +134,10 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
   const isProtectedDevDate = field !== null && protectedDevDateFields.includes(field.key);
   const isActiveToggleDisabled = isRequiredValue || (field !== null && field.isRequired) || isProtectedDevDate;
 
+  // Real-time unique toggle restriction
+  const isUniqueValue = form.watch('isUnique');
+  const uniqueToggleDisabled = uniqueLimitReached && !isUniqueValue;
+
   const handleRepoChange = (index: number, fieldName: 'name' | 'baseUrl', value: string) => {
     setLocalRepoConfigs(prev => {
         const newConfigs = [...prev];
@@ -183,6 +192,19 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
 
 
   const onSubmit = (data: FieldFormData) => {
+    // FINAL STRICT SAVE-TIME VALIDATION
+    if (data.isActive && data.isUnique) {
+        const currentOtherUniqueCount = existingFields.filter(f => f.isActive && f.isUnique && f.id !== field?.id).length;
+        if (currentOtherUniqueCount >= 3) {
+            toast({
+                variant: 'destructive',
+                title: 'Constraint Blocked',
+                description: 'You can only have up to 3 unique fields across your workspace to avoid data conflicts.'
+            });
+            return;
+        }
+    }
+
     const finalField: FieldConfig = {
       ...(field || {
         id: `field_custom_${crypto.randomUUID()}`,
