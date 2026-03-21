@@ -218,7 +218,7 @@ export function FieldFormContent({ field, repositoryConfigs, onSave, onCancel }:
                 />
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
                 <FormField
                     control={form.control}
                     name="group"
@@ -255,14 +255,14 @@ export function FieldFormContent({ field, repositoryConfigs, onSave, onCancel }:
                     </FormItem>
                     )}
                 />
-                <div className="flex items-center gap-x-4">
+                <div className="flex flex-wrap items-center gap-4 sm:gap-6 pt-2">
                      <FormField
                         control={form.control}
                         name="isRequired"
                         render={({ field }) => (
-                        <FormItem className="flex flex-row items-center space-x-2 pt-2">
+                        <FormItem className="flex flex-row items-center space-x-2 space-y-0">
                             <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} disabled={isRequiredToggleDisabled} /></FormControl>
-                            <Label className="cursor-pointer font-semibold">Required</Label>
+                            <Label className="cursor-pointer font-semibold whitespace-nowrap">Required</Label>
                         </FormItem>
                         )}
                     />
@@ -270,9 +270,9 @@ export function FieldFormContent({ field, repositoryConfigs, onSave, onCancel }:
                         control={form.control}
                         name="isUnique"
                         render={({ field }) => (
-                        <FormItem className="flex flex-row items-center space-x-2 pt-2">
+                        <FormItem className="flex flex-row items-center space-x-2 space-y-0">
                             <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                            <Label className="cursor-pointer font-semibold flex items-center gap-1.5">
+                            <Label className="cursor-pointer font-semibold flex items-center gap-1.5 whitespace-nowrap">
                                 Unique
                                 <TooltipProvider>
                                     <Tooltip>
@@ -290,9 +290,9 @@ export function FieldFormContent({ field, repositoryConfigs, onSave, onCancel }:
                         control={form.control}
                         name="isActive"
                         render={({ field }) => (
-                        <FormItem className="flex flex-row items-center space-x-2 pt-2">
+                        <FormItem className="flex flex-row items-center space-x-2 space-y-0">
                             <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} disabled={isActiveToggleDisabled} /></FormControl>
-                            <Label className="cursor-pointer font-semibold">Active</Label>
+                            <Label className="cursor-pointer font-semibold whitespace-nowrap">Active</Label>
                         </FormItem>
                         )}
                     />

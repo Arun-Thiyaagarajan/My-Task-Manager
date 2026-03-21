@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X, Users, ClipboardCheck, Info } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X, Users, ClipboardCheck, Info, AlertTriangle } from 'lucide-react';
 import type { FieldConfig, FieldOption, FieldType, RepositoryConfig, Task } from '@/lib/types';
 import { FIELD_TYPES } from '@/lib/constants';
 import * as React from 'react';
@@ -29,6 +29,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { Badge } from './ui/badge';
 import { MultiSelect } from '@/components/ui/multi-select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 const fieldOptionSchema = z.object({
@@ -304,7 +305,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                         />
                     </div>
                     
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
                         <FormField
                             control={form.control}
                             name="group"
@@ -391,12 +392,12 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                             </FormItem>
                             )}
                         />
-                        <div className="flex items-center gap-x-4">
+                        <div className="flex flex-wrap items-center gap-4 sm:gap-6 pt-2">
                              <FormField
                                 control={form.control}
                                 name="isRequired"
                                 render={({ field }) => (
-                                <FormItem className="flex flex-row items-center space-x-2 pt-2">
+                                <FormItem className="flex flex-row items-center space-x-2 space-y-0">
                                     <FormControl>
                                         <Switch
                                             id={field.name}
@@ -405,7 +406,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                                             disabled={isRequiredToggleDisabled}
                                         />
                                     </FormControl>
-                                    <Label htmlFor={field.name} className="cursor-pointer font-semibold">
+                                    <Label htmlFor={field.name} className="cursor-pointer font-semibold whitespace-nowrap">
                                         Required
                                     </Label>
                                 </FormItem>
@@ -415,7 +416,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                                 control={form.control}
                                 name="isUnique"
                                 render={({ field }) => (
-                                <FormItem className="flex flex-row items-center space-x-2 pt-2">
+                                <FormItem className="flex flex-row items-center space-x-2 space-y-0">
                                     <FormControl>
                                         <Switch
                                             id={field.name}
@@ -423,7 +424,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                                             onCheckedChange={field.onChange}
                                         />
                                     </FormControl>
-                                    <Label htmlFor={field.name} className="cursor-pointer font-semibold flex items-center gap-1.5">
+                                    <Label htmlFor={field.name} className="cursor-pointer font-semibold flex items-center gap-1.5 whitespace-nowrap">
                                         Unique
                                         <TooltipProvider>
                                             <Tooltip>
@@ -441,7 +442,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                                 control={form.control}
                                 name="isActive"
                                 render={({ field }) => (
-                                <FormItem className="flex flex-row items-center space-x-2 pt-2">
+                                <FormItem className="flex flex-row items-center space-x-2 space-y-0">
                                     <FormControl>
                                         <Switch
                                             id={field.name}
@@ -450,7 +451,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                                             disabled={isActiveToggleDisabled}
                                         />
                                     </FormControl>
-                                    <Label htmlFor={field.name} className="cursor-pointer font-semibold">
+                                    <Label htmlFor={field.name} className="cursor-pointer font-semibold whitespace-nowrap">
                                         Active
                                     </Label>
                                 </FormItem>
