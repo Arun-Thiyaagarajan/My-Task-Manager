@@ -72,7 +72,9 @@ import {
   Palette,
   SearchX,
   DownloadCloud,
-  Plus
+  Plus,
+  HelpCircle,
+  MessageCircle
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
@@ -296,7 +298,7 @@ function WorkspaceListContent({ onCompanySelect }: { onCompanySelect?: (id: stri
 function WorkspaceDialog({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (open: boolean) => void }) {
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md p-0 overflow-hidden rounded-3xl w-[95%]">
+            <DialogContent className="sm:max-w-md p-0 overflow-hidden rounded-3xl w-[95%] overscroll-contain">
                 <DialogHeader className="p-6 pb-2">
                     <DialogTitle className="flex items-center gap-2 text-xl font-bold">
                         <Building className="h-5 w-5 text-primary" />
@@ -594,6 +596,7 @@ export default function ProfilePage() {
         { id: 'releases', title: 'What\'s New', subLabel: 'Latest updates and features', icon: Sparkles, type: 'link', href: '/releases', category: 'System', color: 'text-green-500', keywords: ['version', 'changelog', 'updates'] },
         { id: 'general-reminders', title: 'General Reminders', subLabel: 'Manage global workspace notes', icon: Bell, type: 'link', href: '/reminders', category: 'Productivity', color: 'text-amber-600', keywords: ['sticky notes', 'global notes', 'bulletin'] },
         { id: 'insights', title: 'Recent Activity', subLabel: 'Tasks added or imported recently', icon: Sparkles, type: 'link', href: '/insights', category: 'Insights', color: 'text-primary', keywords: ['recent', 'added', 'imported', 'insights', 'activity'] },
+        { id: 'about-help', title: 'Help & About', subLabel: 'FAQ, Contact, and App Info', icon: HelpCircle, type: 'link', href: '/about', category: 'Support', color: 'text-primary', keywords: ['faq', 'contact', 'help', 'about us', 'support'] },
     ];
     if (isLocal) {
         items.unshift({ id: 'auth', title: 'Sign In / Cloud Sync', subLabel: 'Securely sync your workspace', icon: ShieldCheck, type: 'event', event: 'open-auth-modal', category: 'Identity', color: 'text-primary font-bold', keywords: ['login', 'register', 'firebase', 'cloud'] } as any);
@@ -672,7 +675,7 @@ export default function ProfilePage() {
       />
 
       <AlertDialog open={isSignOutDialogOpen} onOpenChange={setIsSignOutDialogOpen}>
-        <AlertDialogContent className="rounded-3xl w-[90%] md:w-full">
+        <AlertDialogContent className="rounded-3xl w-[90%] md:w-full overscroll-contain">
             <AlertDialogHeader>
                 <AlertDialogTitle className="font-semibold text-center">Sign out of TaskFlow?</AlertDialogTitle>
                 <AlertDialogDescription className="text-sm font-normal text-center">
@@ -877,6 +880,13 @@ export default function ProfilePage() {
                         onClick={() => router.push('/releases')}
                         color="text-green-500"
                     />
+                    <MobileHubRow 
+                        icon={HelpCircle} 
+                        title="Help & About" 
+                        subLabel="FAQ, Contact, and App Info" 
+                        onClick={() => router.push('/about')}
+                        color="text-primary"
+                    />
                 </div>
             </div>
 
@@ -1069,7 +1079,7 @@ export default function ProfilePage() {
             {!isMobile && (
                 <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted/50 p-1 rounded-xl h-auto">
                     <TabsTrigger value="general" className="data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer font-medium rounded-lg">General</TabsTrigger>
-                    <TabsTrigger value="security" className="data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer font-medium rounded-lg">Security</TabsTrigger>
+                    <TabsTrigger value="security" className="data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-medium rounded-lg">Security</TabsTrigger>
                 </TabsList>
             )}
 
@@ -1279,7 +1289,7 @@ export default function ProfilePage() {
                                 <AlertDialogTrigger asChild>
                                     <Button variant="outline" size="sm" className="h-8 text-xs font-semibold group-hover:bg-destructive group-hover:text-white transition-all cursor-pointer">Sign Out</Button>
                                 </AlertDialogTrigger>
-                                <AlertDialogContent className="rounded-2xl">
+                                <AlertDialogContent className="rounded-2xl overscroll-contain">
                                     <AlertDialogHeader>
                                         <AlertDialogTitle className="font-semibold tracking-tight">Sign out of TaskFlow?</AlertDialogTitle>
                                         <AlertDialogDescription className="font-normal text-sm text-center">

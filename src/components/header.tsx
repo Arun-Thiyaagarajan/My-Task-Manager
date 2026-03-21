@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -44,6 +43,7 @@ import {
   Compass,
   Sparkles,
   ArrowLeft,
+  HelpCircle
 } from 'lucide-react';
 import { CompaniesManager } from './companies-manager';
 import { useToast } from '@/hooks/use-toast';
@@ -334,7 +334,7 @@ export function Header() {
                                               <Trash2 className="h-3.5 w-3.5" />
                                           </Button>
                                       </AlertDialogTrigger>
-                                      <AlertDialogContent className="rounded-2xl">
+                                      <AlertDialogContent className="rounded-2xl overscroll-contain">
                                           <AlertDialogHeader>
                                               <AlertDialogTitle className="font-semibold tracking-tight">Are you sure?</AlertDialogTitle>
                                               <AlertDialogDescription className="font-normal">
@@ -455,6 +455,18 @@ export function Header() {
                           <UserIcon className="mr-2 h-4 w-4 opacity-70" />
                           <span>My Profile</span>
                       </DropdownMenuItem>
+                      <DropdownMenuItem 
+                          onSelect={() => {
+                              prompt(() => { 
+                                  window.dispatchEvent(new Event('navigation-start')); 
+                                  router.push('/about'); 
+                              });
+                          }} 
+                          className="rounded-lg font-medium py-2"
+                      >
+                          <HelpCircle className="mr-2 h-4 w-4 opacity-70" />
+                          <span>Help & About</span>
+                      </DropdownMenuItem>
                       {!(authMode === 'authenticate' && user) && (
                         <DropdownMenuItem onSelect={handleOpenAuth} className="rounded-lg font-semibold text-primary focus:bg-primary/5 focus:text-primary py-2">
                           <ShieldCheck className="mr-2 h-4 w-4" />
@@ -496,7 +508,7 @@ export function Header() {
       />
 
       <AlertDialog open={isSignOutDialogOpen} onOpenChange={setIsSignOutDialogOpen}>
-        <AlertDialogContent className="rounded-2xl">
+        <AlertDialogContent className="rounded-2xl overscroll-contain">
           <AlertDialogHeader>
             <AlertDialogTitle className="font-semibold tracking-tight">Sign Out Confirmation</AlertDialogTitle>
             <AlertDialogDescription className="font-normal">

@@ -70,7 +70,9 @@ import {
     Palette,
     Sparkles,
     Fingerprint,
-    AlertTriangle
+    AlertTriangle,
+    HelpCircle,
+    MessageCircle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PeopleManagerDialog } from '@/components/people-manager-dialog';
@@ -454,7 +456,7 @@ export default function SettingsPage() {
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
     };
-    reader.readAsText(file);
+    reader.readAsDataURL(file);
   };
 
   const handleClearAllData = async () => {
@@ -529,7 +531,7 @@ export default function SettingsPage() {
   const sharedDialogs = (
     <>
         <Dialog open={tasksUsingField.length > 0} onOpenChange={(open) => !open && setTasksUsingField([])}>
-            <DialogContent className="sm:max-w-lg p-0 overflow-hidden rounded-3xl flex flex-col max-h-[90vh]">
+            <DialogContent className="sm:max-w-lg p-0 overflow-hidden rounded-3xl flex flex-col max-h-[90vh] overscroll-contain">
                 <div className="p-6 pb-0 flex-shrink-0">
                     <DialogHeader>
                         <div className="mx-auto w-14 h-14 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mb-4">
@@ -681,6 +683,14 @@ export default function SettingsPage() {
             <div className="px-4">
                 <div className="bg-card border rounded-3xl shadow-sm overflow-hidden">
                     <MobileHubRow icon={Users} title="Team Management" subLabel="Developers and testers" onClick={() => setActiveMobileSection('team')} color="text-indigo-500" />
+                </div>
+            </div>
+            <MobileSectionHeader title="About & Support" />
+            <div className="px-4">
+                <div className="bg-card border rounded-3xl shadow-sm overflow-hidden">
+                    <MobileHubRow icon={HelpCircle} title="App Overview" subLabel="What is TaskFlow?" onClick={() => router.push('/about?section=app')} color="text-primary" />
+                    <MobileHubRow icon={Info} title="About Us" subLabel="Meet the creators" onClick={() => router.push('/about?section=about')} color="text-indigo-500" />
+                    <MobileHubRow icon={MessageCircle} title="Support & FAQ" subLabel="Get help and answers" onClick={() => router.push('/about?section=faq')} color="text-green-600" />
                 </div>
             </div>
             <MobileSectionHeader title="System" />
