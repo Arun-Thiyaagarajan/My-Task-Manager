@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -19,7 +18,8 @@ import {
     CheckCircle2,
     Clock,
     Smartphone,
-    Monitor
+    Monitor,
+    Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -97,8 +97,6 @@ export default function FeedbackDetailPage() {
                 }, 100);
             },
             async (serverError) => {
-                // If we hit a permission error, it's often because the auth state is still resolving 
-                // or the user doesn't actually own this feedback.
                 const permissionError = new FirestorePermissionError({
                     path: messagesRef.path,
                     operation: 'list',
@@ -121,13 +119,12 @@ export default function FeedbackDetailPage() {
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newMessage.trim() || isSending || !item) return;
+        if (!newMessage.trim() || isSending || !item || item.status === 'Closed') return;
 
         setIsSending(true);
         try {
             await sendFeedbackMessage(item.id, newMessage.trim());
             setNewMessage('');
-            // If in local mode, we manually refresh since storage event might not fire in same tab
             if (getAuthMode() === 'localStorage') {
                 const data = getAppData();
                 setMessages((data as any).localMessages?.[item.id] || []);
@@ -191,6 +188,8 @@ export default function FeedbackDetailPage() {
             default: return 'bg-muted/50 text-muted-foreground border-muted';
         }
     };
+
+    const isClosed = item.status === 'Closed';
 
     return (
         <div className="container max-w-7xl mx-auto pt-6 sm:pt-10 pb-20 px-4 sm:px-6">
@@ -298,13 +297,17 @@ export default function FeedbackDetailPage() {
                         </CardContent>
                     </Card>
 
-                    <Alert className="bg-primary/5 border-primary/20 rounded-3xl">
-                        <ShieldCheck className="h-4 w-4 text-primary" />
-                        <AlertTitle className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">Support Status</AlertTitle>
+                    <Alert className={cn("rounded-3xl transition-colors", isClosed ? "bg-muted border-muted-foreground/20" : "bg-primary/5 border-primary/20")}>
+                        {isClosed ? <Lock className="h-4 w-4 text-muted-foreground" /> : <ShieldCheck className="h-4 w-4 text-primary" />}
+                        <AlertTitle className="text-[10px] font-black uppercase tracking-widest mb-1">
+                            {isClosed ? "Conversation Locked" : "Support Status"}
+                        </AlertTitle>
                         <AlertDescription className="text-xs font-medium text-muted-foreground leading-relaxed">
-                            {item.status === 'Resolved' || item.status === 'Closed' 
-                                ? "This conversation has been resolved. If you have further issues, please open a new request."
-                                : "Our support team is reviewing your report. You can send additional messages or updates using the conversation panel."}
+                            {isClosed 
+                                ? "This conversation has been closed and is now read-only. If you have further issues, please open a new request."
+                                : item.status === 'Resolved'
+                                    ? "This issue is marked as resolved. You can still send messages if you need further clarification."
+                                    : "Our support team is reviewing your report. You can send additional messages or updates using the conversation panel."}
                         </AlertDescription>
                     </Alert>
                 </div>
@@ -376,23 +379,26 @@ export default function FeedbackDetailPage() {
                         <div className="p-6 bg-muted/10 border-t shrink-0">
                             <form onSubmit={handleSendMessage} className="flex gap-2">
                                 <Input 
-                                    placeholder="Type a message..." 
+                                    placeholder={isClosed ? "Conversation closed" : "Type a message..."}
                                     className="h-12 rounded-2xl bg-background border-transparent focus-visible:ring-primary/20"
                                     value={newMessage}
                                     onChange={(e) => setNewMessage(e.target.value)}
-                                    disabled={isSending || item.status === 'Closed'}
+                                    disabled={isSending || isClosed}
                                 />
                                 <Button 
                                     type="submit" 
                                     size="icon" 
                                     className="h-12 w-12 shrink-0 rounded-2xl shadow-lg"
-                                    disabled={isSending || !newMessage.trim() || item.status === 'Closed'}
+                                    disabled={isSending || !newMessage.trim() || isClosed}
                                 >
                                     {isSending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
                                 </Button>
                             </form>
-                            {item.status === 'Closed' && (
-                                <p className="text-[10px] font-bold text-center text-muted-foreground uppercase tracking-widest mt-3">This request is closed</p>
+                            {isClosed && (
+                                <p className="text-[10px] font-bold text-center text-muted-foreground uppercase tracking-widest mt-3 flex items-center justify-center gap-2">
+                                    <Lock className="h-3 w-3" />
+                                    This request is closed
+                                </p>
                             )}
                         </div>
                     </Card>

@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import Link from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
 import { Icons } from './icons';
 import { Button } from './ui/button';
@@ -66,7 +66,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { ImagePreviewDialog } from './image-preview-dialog';
 import { GeneralRemindersDialog } from './general-reminders-dialog';
 import { useTutorial } from '@/hooks/use-tutorial';
-import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from './ui/tooltip';
 import { useFirebase } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
@@ -270,12 +270,6 @@ export function Header() {
                   <Home className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   <span className="hidden lg:inline">Tasks</span>
                </HeaderLink>
-               {isAdmin && (
-                  <HeaderLink href="/admin/feedback" id="header-nav-admin-feedback" className="flex items-center text-sm font-bold text-amber-600 hover:text-amber-700 transition-colors group whitespace-nowrap px-2 py-1 bg-amber-500/5 rounded-lg border border-amber-500/10">
-                    <Inbox className="md:mr-0 lg:mr-2 h-4 w-4 opacity-90 group-hover:opacity-100" />
-                    <span className="hidden lg:inline">Inbox</span>
-                  </HeaderLink>
-               )}
                <HeaderLink href="/dashboard" id="header-nav-dashboard" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap px-2 py-1">
                   <LayoutDashboard className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   <span className="hidden lg:inline">Dashboard</span>
@@ -303,6 +297,13 @@ export function Header() {
             </nav>
           </div>
           <div className="flex items-center gap-1 sm:gap-3">
+            {isAdmin && !isMobile && (
+                <HeaderLink href="/admin/feedback" id="header-nav-admin-feedback" className="flex items-center text-sm font-bold text-amber-600 hover:text-amber-700 transition-colors group whitespace-nowrap px-3 py-1.5 bg-amber-500/5 rounded-full border border-amber-500/20 mr-1 shadow-sm">
+                    <Inbox className="h-4 w-4 mr-2 opacity-90" />
+                    <span className="tracking-tight">Support Inbox</span>
+                </HeaderLink>
+            )}
+
             {mounted && activeCompany && !isMobile && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
