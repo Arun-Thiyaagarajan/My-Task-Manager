@@ -1,37 +1,55 @@
+
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { 
     ArrowLeft, 
-    Clock, 
     MessageSquareQuote, 
     BadgeAlert, 
     Lightbulb, 
     HelpCircle,
-    Smartphone,
-    Monitor,
     ShieldCheck,
     AlertCircle,
-    Info,
     Calendar,
-    ArrowUpCircle
+    ArrowUpCircle,
+    Send,
+    Loader2,
+    User,
+    CheckCircle2,
+    Clock,
+    Smartphone,
+    Monitor
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { getFeedbackById } from '@/lib/data';
-import type { Feedback } from '@/lib/types';
+import { getFeedbackById, sendFeedbackMessage, updateFeedbackStatus } from '@/lib/data';
+import type { Feedback, FeedbackMessage, FeedbackStatus } from '@/lib/types';
 import { formatTimestamp, cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
 import { Separator } from '@/components/ui/separator';
+import { Globe, Mail } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useFirebase } from '@/firebase';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function FeedbackDetailPage() {
     const params = useParams();
     const router = useRouter();
+    const { user, firestore, userProfile } = useFirebase();
     const [item, setItem] = useState<Feedback | null>(null);
+    const [messages, setMessages] = useState<FeedbackMessage[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [newMessage, setNewMessage] = useState('');
+    const [isSending, setIsSending] = useState(false);
+    const scrollRef = useRef<HTMLDivElement>(null);
+
+    const isAdmin = userProfile?.role === 'admin';
 
     useEffect(() => {
         const load = async () => {
@@ -43,9 +61,52 @@ export default function FeedbackDetailPage() {
         load();
     }, [params.id]);
 
+    useEffect(() => {
+        if (!firestore || !params.id) return;
+
+        const messagesRef = collection(firestore, 'feedback', params.id as string, 'messages');
+        const q = query(messagesRef, orderBy('timestamp', 'asc'));
+
+        const unsub = onSnapshot(q, (snapshot) => {
+            const msgs = snapshot.docs.map(doc => doc.data() as FeedbackMessage);
+            setMessages(msgs);
+            // Scroll to bottom on new message
+            setTimeout(() => {
+                if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+            }, 100);
+        });
+
+        return () => unsub();
+    }, [firestore, params.id]);
+
     const handleBack = () => {
         window.dispatchEvent(new Event('navigation-start'));
-        router.push('/feedback');
+        if (isAdmin && router.back) {
+            router.back();
+        } else {
+            router.push('/feedback');
+        }
+    };
+
+    const handleSendMessage = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newMessage.trim() || isSending || !item) return;
+
+        setIsSending(true);
+        try {
+            await sendFeedbackMessage(item.id, newMessage.trim());
+            setNewMessage('');
+        } catch (error) {
+            console.error("Failed to send message", error);
+        } finally {
+            setIsSending(false);
+        }
+    };
+
+    const handleStatusUpdate = async (status: FeedbackStatus) => {
+        if (!item) return;
+        await updateFeedbackStatus(item.id, status);
+        setItem(prev => prev ? { ...prev, status } : null);
     };
 
     if (isLoading) return <LoadingSpinner text="Loading submission details..." />;
@@ -79,7 +140,9 @@ export default function FeedbackDetailPage() {
     const getStatusStyle = (status: Feedback['status']) => {
         switch (status) {
             case 'Submitted': return 'bg-blue-500/10 text-blue-600 border-blue-200';
+            case 'In Progress': return 'bg-purple-500/10 text-purple-600 border-purple-200';
             case 'Reviewed': return 'bg-amber-500/10 text-amber-600 border-amber-200';
+            case 'Resolved': return 'bg-emerald-500/10 text-emerald-600 border-emerald-200';
             case 'Closed': return 'bg-green-500/10 text-green-600 border-green-200';
             default: return 'bg-muted text-muted-foreground';
         }
@@ -94,48 +157,77 @@ export default function FeedbackDetailPage() {
     };
 
     return (
-        <div className="container max-w-3xl mx-auto pt-6 sm:pt-10 pb-20 px-4 sm:px-6">
+        <div className="container max-w-7xl mx-auto pt-6 sm:pt-10 pb-20 px-4 sm:px-6">
             <div className="flex items-center gap-3 sm:gap-4 mb-8">
                 <Button variant="ghost" size="icon" onClick={handleBack} className="rounded-full h-9 w-9 sm:h-10 sm:w-10">
                     <ArrowLeft className="h-5 w-5" />
                 </Button>
-                <div>
-                    <h1 className="text-xl sm:text-2xl font-black tracking-tight flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                    <h1 className="text-xl sm:text-2xl font-black tracking-tight flex items-center gap-2 truncate">
                         {getTypeIcon(item.type)}
-                        Report Details
+                        {item.title}
                     </h1>
                     <p className="text-muted-foreground text-[10px] sm:text-xs font-bold uppercase tracking-widest">Tracking ID: {item.id.slice(0, 8)}</p>
                 </div>
+                {isAdmin && (
+                    <div className="hidden sm:block">
+                        <Select value={item.status} onValueChange={(val: any) => handleStatusUpdate(val)}>
+                            <SelectTrigger className="w-[160px] rounded-xl font-bold h-10 border-primary/20">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl">
+                                <SelectItem value="Submitted">Submitted</SelectItem>
+                                <SelectItem value="In Progress">In Progress</SelectItem>
+                                <SelectItem value="Reviewed">Reviewed</SelectItem>
+                                <SelectItem value="Resolved">Resolved</SelectItem>
+                                <SelectItem value="Closed">Closed</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Main Content */}
-                <div className="lg:col-span-2 space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8">
+                {/* Left Column: Report Details */}
+                <div className="space-y-6">
                     <Card className="border-none shadow-xl bg-card rounded-[2.5rem] overflow-hidden">
                         <CardHeader className="bg-primary/5 border-b border-muted/20 py-6 px-6 sm:px-8">
-                            <div className="flex justify-between items-start gap-4">
-                                <div className="space-y-1 min-w-0">
-                                    <Badge variant="outline" className={cn("text-[9px] font-black uppercase tracking-widest h-5 px-2 border mb-2", getStatusStyle(item.status))}>
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div className="space-y-1">
+                                    <Badge variant="outline" className={cn("text-[9px] font-black uppercase tracking-widest h-5 px-2 border", getStatusStyle(item.status))}>
                                         {item.status}
                                     </Badge>
-                                    <CardTitle className="text-2xl font-black tracking-tight leading-tight">{item.title}</CardTitle>
+                                    <CardTitle className="text-xl font-black tracking-tight">{item.title}</CardTitle>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="text-right hidden sm:block">
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground leading-none mb-1">Priority</p>
+                                        <Badge variant="outline" className={cn("text-[10px] font-bold h-6 px-2.5 border rounded-lg", getPriorityStyle(item.priority))}>
+                                            {item.priority}
+                                        </Badge>
+                                    </div>
+                                    <div className="h-10 w-px bg-muted-foreground/10 hidden sm:block" />
+                                    <div className="text-right">
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground leading-none mb-1">Submitted</p>
+                                        <p className="text-xs font-bold">{formatTimestamp(item.createdAt)}</p>
+                                    </div>
                                 </div>
                             </div>
                         </CardHeader>
-                        <CardContent className="p-6 sm:p-8 space-y-6">
+                        <CardContent className="p-6 sm:p-8 space-y-8">
                             <div className="space-y-3">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Description</p>
-                                <div className="text-base leading-relaxed text-foreground/90 font-normal">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Detailed Description</p>
+                                <div className="text-base leading-relaxed text-foreground/90 font-normal prose prose-sm max-w-none">
                                     <RichTextViewer text={item.description} />
                                 </div>
                             </div>
 
                             {item.attachments && item.attachments.length > 0 && (
-                                <div className="space-y-4 pt-4 border-t border-dashed">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Attachments</p>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                <div className="space-y-4 pt-6 border-t border-dashed">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Original Attachments</p>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                         {item.attachments.map((att, i) => (
-                                            <div key={i} className="group relative aspect-square rounded-2xl overflow-hidden border-2 border-muted bg-muted/20 shadow-sm hover:border-primary/20 transition-all">
+                                            <div key={i} className="group relative aspect-video rounded-2xl overflow-hidden border-2 border-muted bg-muted/20 shadow-sm hover:border-primary/20 transition-all">
                                                 <img src={att.url} alt="" className="h-full w-full object-cover" />
                                                 <a 
                                                     href={att.url} 
@@ -150,78 +242,124 @@ export default function FeedbackDetailPage() {
                                     </div>
                                 </div>
                             )}
-                        </CardContent>
-                    </Card>
-                </div>
 
-                {/* Sidebar Info */}
-                <div className="space-y-6">
-                    <Card className="border-none shadow-lg bg-card rounded-3xl overflow-hidden">
-                        <CardHeader className="pb-3"><CardTitle className="text-sm font-black uppercase tracking-widest text-primary/60">Metadata</CardTitle></CardHeader>
-                        <CardContent className="space-y-5">
-                            <div className="space-y-1">
-                                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Priority</p>
-                                <Badge variant="outline" className={cn("text-[10px] font-bold h-6 px-2.5 border rounded-lg w-full justify-center", getPriorityStyle(item.priority))}>
-                                    {item.priority} Priority
-                                </Badge>
-                            </div>
-                            
-                            <Separator className="opacity-50" />
-
-                            <div className="space-y-3">
-                                <div className="flex items-center gap-3">
-                                    <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0 text-muted-foreground">
-                                        <Calendar className="h-4 w-4" />
-                                    </div>
-                                    <div className="min-w-0">
-                                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground leading-none mb-1">Submitted</p>
-                                        <p className="text-xs font-bold truncate">{formatTimestamp(item.createdAt)}</p>
+                            <div className="grid grid-cols-2 gap-6 pt-6 border-t border-dashed">
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Environment</p>
+                                    <div className="flex items-center gap-2 font-bold text-sm">
+                                        <Globe className="h-4 w-4 text-primary/60" />
+                                        {item.environment || 'Production'}
                                     </div>
                                 </div>
-
-                                <div className="flex items-center gap-3">
-                                    <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0 text-muted-foreground">
-                                        <ArrowUpCircle className="h-4 w-4" />
-                                    </div>
-                                    <div className="min-w-0">
-                                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground leading-none mb-1">App Version</p>
-                                        <p className="text-xs font-bold truncate">v{item.appVersion || '1.1.0'}</p>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-3">
-                                    <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0 text-muted-foreground">
-                                        <Globe className="h-4 w-4" />
-                                    </div>
-                                    <div className="min-w-0">
-                                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground leading-none mb-1">Environment</p>
-                                        <p className="text-xs font-bold truncate">{item.environment || 'Production'}</p>
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">App Version</p>
+                                    <div className="flex items-center gap-2 font-bold text-sm">
+                                        <ArrowUpCircle className="h-4 w-4 text-primary/60" />
+                                        v{item.appVersion || '1.1.0'}
                                     </div>
                                 </div>
                             </div>
-
-                            {item.contactEmail && (
-                                <>
-                                    <Separator className="opacity-50" />
-                                    <div className="space-y-1">
-                                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Contact For Follow-up</p>
-                                        <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-xl border border-dashed border-muted-foreground/20 overflow-hidden">
-                                            <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                                            <p className="text-xs font-bold truncate text-foreground/80">{item.contactEmail}</p>
-                                        </div>
-                                    </div>
-                                </>
-                            )}
                         </CardContent>
                     </Card>
 
                     <Alert className="bg-primary/5 border-primary/20 rounded-3xl">
                         <ShieldCheck className="h-4 w-4 text-primary" />
-                        <AlertTitle className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">Secure Tracking</AlertTitle>
+                        <AlertTitle className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">Support Status</AlertTitle>
                         <AlertDescription className="text-xs font-medium text-muted-foreground leading-relaxed">
-                            Our team reviews all reports within 48 hours. You'll be notified via email of any updates.
+                            {item.status === 'Resolved' || item.status === 'Closed' 
+                                ? "This conversation has been resolved. If you have further issues, please open a new request."
+                                : "Our support team is reviewing your report. You can send additional messages or updates using the conversation panel."}
                         </AlertDescription>
                     </Alert>
+                </div>
+
+                {/* Right Column: Conversation */}
+                <div className="flex flex-col h-[600px] lg:h-[calc(100vh-200px)]">
+                    <Card className="flex-1 flex flex-col border-none shadow-2xl bg-card rounded-[2.5rem] overflow-hidden">
+                        <CardHeader className="bg-muted/30 border-b py-4 px-6 shrink-0">
+                            <CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
+                                <MessageSquareQuote className="h-4 w-4 text-primary" />
+                                Conversation
+                            </CardTitle>
+                        </CardHeader>
+                        
+                        <ScrollArea className="flex-1 p-6" viewportRef={scrollRef}>
+                            <div className="space-y-6">
+                                {/* Original Message */}
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center">
+                                            <User className="h-3 w-3 text-primary" />
+                                        </div>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{item.userName || 'User'}</span>
+                                        <span className="text-[9px] text-muted-foreground/60">{formatTimestamp(item.createdAt)}</span>
+                                    </div>
+                                    <div className="bg-muted/30 rounded-2xl rounded-tl-none p-4 text-sm font-medium border border-muted-foreground/10 max-w-[90%]">
+                                        Reported: {item.title}
+                                    </div>
+                                </div>
+
+                                {messages.map((msg) => {
+                                    const isMe = msg.senderId === user?.uid;
+                                    const isAdminMsg = msg.senderRole === 'admin';
+
+                                    return (
+                                        <div key={msg.id} className={cn("flex flex-col gap-2", isMe ? "items-end" : "items-start")}>
+                                            <div className="flex items-center gap-2">
+                                                {!isMe && (
+                                                    <div className={cn("h-6 w-6 rounded-full flex items-center justify-center", isAdminMsg ? "bg-amber-500/10" : "bg-primary/10")}>
+                                                        {isAdminMsg ? <ShieldCheck className="h-3 w-3 text-amber-600" /> : <User className="h-3 w-3 text-primary" />}
+                                                    </div>
+                                                )}
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                                    {isMe ? 'You' : msg.senderName}
+                                                    {isAdminMsg && !isMe && <span className="text-amber-600 ml-1">(Support)</span>}
+                                                </span>
+                                                <span className="text-[9px] text-muted-foreground/60">{formatTimestamp(msg.timestamp)}</span>
+                                            </div>
+                                            <div className={cn(
+                                                "p-4 text-sm font-medium max-w-[90%] shadow-sm",
+                                                isMe 
+                                                    ? "bg-primary text-primary-foreground rounded-2xl rounded-tr-none" 
+                                                    : "bg-muted rounded-2xl rounded-tl-none border border-muted-foreground/10"
+                                            )}>
+                                                <RichTextViewer text={msg.message} />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                {messages.length === 0 && (
+                                    <div className="text-center py-10 opacity-40">
+                                        <MessageSquareQuote className="h-10 w-10 mx-auto mb-2" />
+                                        <p className="text-[10px] font-black uppercase tracking-widest">No messages yet</p>
+                                    </div>
+                                )}
+                            </div>
+                        </ScrollArea>
+
+                        <div className="p-6 bg-muted/10 border-t shrink-0">
+                            <form onSubmit={handleSendMessage} className="flex gap-2">
+                                <Input 
+                                    placeholder="Type a message..." 
+                                    className="h-12 rounded-2xl bg-background border-transparent focus-visible:ring-primary/20"
+                                    value={newMessage}
+                                    onChange={(e) => setNewMessage(e.target.value)}
+                                    disabled={isSending || item.status === 'Closed'}
+                                />
+                                <Button 
+                                    type="submit" 
+                                    size="icon" 
+                                    className="h-12 w-12 shrink-0 rounded-2xl shadow-lg"
+                                    disabled={isSending || !newMessage.trim() || item.status === 'Closed'}
+                                >
+                                    {isSending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                                </Button>
+                            </form>
+                            {item.status === 'Closed' && (
+                                <p className="text-[10px] font-bold text-center text-muted-foreground uppercase tracking-widest mt-3">This request is closed</p>
+                            )}
+                        </div>
+                    </Card>
                 </div>
             </div>
         </div>

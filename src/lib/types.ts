@@ -248,11 +248,12 @@ export interface FieldConfig {
 
 export type FeedbackType = "Bug Report" | "Feature Request" | "Suggestion" | "Other";
 export type FeedbackPriority = "Low" | "Medium" | "High";
-export type FeedbackStatus = "Submitted" | "Reviewed" | "Closed";
+export type FeedbackStatus = "Submitted" | "Reviewed" | "Closed" | "In Progress" | "Resolved";
 
 export interface Feedback {
   id: string;
   userId: string;
+  userName?: string;
   type: FeedbackType;
   title: string;
   description: string;
@@ -264,4 +265,14 @@ export interface Feedback {
   attachments?: Attachment[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface FeedbackMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderRole: 'user' | 'admin';
+  message: string;
+  timestamp: string;
+  attachments?: Attachment[];
 }

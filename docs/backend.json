@@ -107,14 +107,30 @@
         "description": { "type": "string" },
         "priority": { "type": "string", "enum": ["Low", "Medium", "High"] },
         "contactEmail": { "type": "string", "format": "email" },
-        "status": { "type": "string", "enum": ["Submitted", "Reviewed", "Closed"] },
+        "status": { "type": "string", "enum": ["Submitted", "Reviewed", "Closed", "In Progress", "Resolved"] },
         "appVersion": { "type": "string" },
         "environment": { "type": "string" },
         "attachments": { "type": "array" },
         "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "userName": { "type": "string" }
       },
       "required": ["id", "type", "title", "description", "status", "createdAt"]
+    },
+    "FeedbackMessage": {
+      "title": "FeedbackMessage",
+      "type": "object",
+      "description": "An individual message within a feedback conversation thread.",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "senderRole": { "type": "string", "enum": ["user", "admin"] },
+        "message": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "attachments": { "type": "array" }
+      },
+      "required": ["id", "senderId", "senderRole", "message", "timestamp"]
     }
   },
   "auth": {
@@ -175,6 +191,13 @@
         "definition": {
           "entityName": "Feedback",
           "description": "Global collection for user support and feedback."
+        }
+      },
+      {
+        "path": "/feedback/{feedbackId}/messages/{messageId}",
+        "definition": {
+          "entityName": "FeedbackMessage",
+          "description": "Messages within a feedback conversation thread."
         }
       }
     ]

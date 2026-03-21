@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
@@ -74,7 +75,8 @@ import {
   DownloadCloud,
   Plus,
   HelpCircle,
-  MessageCircle
+  MessageCircle,
+  Inbox
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
@@ -331,6 +333,7 @@ export default function ProfilePage() {
 
   const authMode = getAuthMode();
   const isLocal = authMode === 'localStorage';
+  const isAdmin = userProfile?.role === 'admin';
 
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'general');
   const [showMobileSubPage, setShowMobileSubPage] = useState(false);
@@ -602,8 +605,11 @@ export default function ProfilePage() {
     if (isLocal) {
         items.unshift({ id: 'auth', title: 'Sign In / Cloud Sync', subLabel: 'Securely sync your workspace', icon: ShieldCheck, type: 'event', event: 'open-auth-modal', category: 'Identity', color: 'text-primary font-bold', keywords: ['login', 'register', 'firebase', 'cloud'] } as any);
     }
+    if (isAdmin) {
+        items.unshift({ id: 'admin-feedback', title: 'Support Inbox', subLabel: 'Manage user reports & feedback', icon: Inbox, type: 'link', href: '/admin/feedback', category: 'Admin', color: 'text-amber-600 font-bold', keywords: ['support', 'admin', 'inbox', 'tickets', 'replies'] } as any);
+    }
     return items;
-  }, [isLocal]);
+  }, [isLocal, isAdmin]);
 
   const filteredSearchItems = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -829,6 +835,15 @@ export default function ProfilePage() {
                             subLabel="Securely sync your workspace" 
                             onClick={() => window.dispatchEvent(new Event('open-auth-modal'))}
                             color="text-primary font-bold"
+                        />
+                    )}
+                    {isAdmin && (
+                        <MobileHubRow 
+                            icon={Inbox} 
+                            title="Support Inbox" 
+                            subLabel="Manage user submissions" 
+                            onClick={() => router.push('/admin/feedback')}
+                            color="text-amber-600 font-bold"
                         />
                     )}
                     <MobileHubRow 

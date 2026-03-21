@@ -1,10 +1,11 @@
+
 'use client';
 
 import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile, Feedback } from './types'; 
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile, Feedback, FeedbackMessage } from './types'; 
 import cloneDeep from 'lodash/cloneDeep';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, setDoc, deleteDoc, updateDoc, collection, writeBatch, getDocs, query, orderBy, limit, getDoc, where } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, deleteDoc, updateDoc, collection, writeBatch, getDocs, query, orderBy, limit, getDoc, where, addDoc } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { toast } from '@/hooks/use-toast';
@@ -188,18 +189,19 @@ export async function updateUserPreferences(updates: Partial<UserPreferences>) {
 }
 
 async function dispatchMutation(
-    type: 'tasks' | 'notes' | 'logs' | 'uiConfig' | 'developers' | 'testers' | 'generalReminders' | 'releaseUpdates' | 'companies' | 'feedback',
+    type: 'tasks' | 'notes' | 'logs' | 'uiConfig' | 'developers' | 'testers' | 'generalReminders' | 'releaseUpdates' | 'companies' | 'feedback' | 'feedbackMessages',
     id: string,
     data: any,
-    operation: 'create' | 'update' | 'delete' | 'set'
+    operation: 'create' | 'update' | 'delete' | 'set',
+    parentId?: string
 ) {
-    if (getAuthMode() !== 'authenticate' && type !== 'feedback') return;
+    if (getAuthMode() !== 'authenticate' && (type !== 'feedback' && type !== 'feedbackMessages')) return;
     const auth = getAuth();
     const db = getFirestore();
     const userId = auth.currentUser?.uid;
     const activeCompanyId = getActiveCompanyId();
     
-    if (!userId && type !== 'feedback') return;
+    if (!userId && (type !== 'feedback' && type !== 'feedbackMessages')) return;
 
     let docRef;
     let payload = data;
@@ -225,6 +227,9 @@ async function dispatchMutation(
         payload = { list: data };
     } else if (type === 'feedback') {
         docRef = doc(db, 'feedback', id);
+    } else if (type === 'feedbackMessages') {
+        if (!parentId) return;
+        docRef = doc(db, 'feedback', parentId, 'messages', id);
     } else {
         docRef = doc(db, 'users', userId!, 'companies', activeCompanyId, type, id);
     }
@@ -681,7 +686,7 @@ export function findExistingDuplicates(): { fieldLabel: string; value: string; t
     uniqueFields.forEach(field => {
         const valueMap = new Map<string, Task[]>();
         tasks.forEach(task => {
-            const val = field.isCustom ? task.customFields?.[field.key] : (task as any)[field.key];
+            const val = field.isCustom ? task.customFields?.[field.key] : (t as any)[field.key];
             if (val && typeof val === 'string' && val.trim() !== '') {
                 const norm = val.trim().toLowerCase();
                 if (!valueMap.has(norm)) valueMap.set(norm, []);
@@ -1220,9 +1225,15 @@ export function getTasksUsingField(key: string): Task[] {
 export async function submitFeedback(feedback: Omit<Feedback, 'id' | 'status' | 'createdAt' | 'updatedAt'>) {
     const id = `feedback-${crypto.randomUUID()}`;
     const now = new Date().toISOString();
+    
+    const auth = getAuth();
+    const user = auth.currentUser;
+    const userName = user?.displayName || user?.email?.split('@')[0] || 'Guest User';
+
     const newFeedback: Feedback = {
         ...feedback,
         id,
+        userName,
         status: 'Submitted',
         createdAt: now,
         updatedAt: now
@@ -1235,7 +1246,7 @@ export async function submitFeedback(feedback: Omit<Feedback, 'id' | 'status' | 
     } else {
         // Local mode fallback: Store in a local feedback array for the current session/localstorage
         const data = getAppData();
-        if (!data.localFeedback) (data as any).localFeedback = [];
+        if (!(data as any).localFeedback) (data as any).localFeedback = [];
         (data as any).localFeedback.push(newFeedback);
         setAppData(data);
     }
@@ -1275,11 +1286,13 @@ export async function getFeedbackById(id: string): Promise<Feedback | null> {
             const snap = await getDoc(docRef);
             if (snap.exists()) {
                 const data = snap.data() as Feedback;
-                // Security: Basic check to ensure user can only see their own feedback
-                // (Admins could override this logic in a real app)
                 const auth = getAuth();
                 const userId = auth.currentUser?.uid;
-                if (data.userId !== userId) return null;
+                
+                // Allow admin to see any feedback, users see only their own
+                const userProfile = (await getDoc(doc(db, 'users', userId!))).data() as UserProfile;
+                if (userProfile?.role !== 'admin' && data.userId !== userId) return null;
+                
                 return data;
             }
             return null;
@@ -1291,6 +1304,76 @@ export async function getFeedbackById(id: string): Promise<Feedback | null> {
         const data = getAppData();
         const localFeedback = (data as any).localFeedback || [];
         return localFeedback.find((f: any) => f.id === id) || null;
+    }
+}
+
+export async function updateFeedbackStatus(id: string, status: FeedbackStatus) {
+    if (getAuthMode() === 'authenticate') {
+        await dispatchMutation('feedback', id, { status, updatedAt: new Date().toISOString() }, 'update');
+    } else {
+        const data = getAppData();
+        const localFeedback = (data as any).localFeedback || [];
+        const index = localFeedback.findIndex((f: any) => f.id === id);
+        if (index !== -1) {
+            localFeedback[index].status = status;
+            localFeedback[index].updatedAt = new Date().toISOString();
+            setAppData(data);
+        }
+    }
+}
+
+export async function sendFeedbackMessage(feedbackId: string, message: string, attachments?: Attachment[]) {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const db = getFirestore();
+    const userSnap = await getDoc(doc(db, 'users', user.uid));
+    const userProfile = userSnap.data() as UserProfile;
+
+    const id = `msg-${crypto.randomUUID()}`;
+    const now = new Date().toISOString();
+    const newMessage: FeedbackMessage = {
+        id,
+        senderId: user.uid,
+        senderName: user.displayName || user.email || 'User',
+        senderRole: userProfile?.role === 'admin' ? 'admin' : 'user',
+        message,
+        timestamp: now,
+        attachments
+    };
+
+    if (getAuthMode() === 'authenticate') {
+        await dispatchMutation('feedbackMessages', id, newMessage, 'set', feedbackId);
+        // Update the main feedback doc timestamp for sorting
+        await dispatchMutation('feedback', feedbackId, { updatedAt: now }, 'update');
+    } else {
+        // Mock local messaging
+        const data = getAppData();
+        if (!(data as any).localMessages) (data as any).localMessages = {};
+        if (!(data as any).localMessages[feedbackId]) (data as any).localMessages[feedbackId] = [];
+        (data as any).localMessages[feedbackId].push(newMessage);
+        setAppData(data);
+    }
+}
+
+export async function getFeedbackAdmin(): Promise<Feedback[]> {
+    const auth = getAuth();
+    const db = getFirestore();
+    const userId = auth.currentUser?.uid;
+    if (!userId) return [];
+
+    const userSnap = await getDoc(doc(db, 'users', userId));
+    const userProfile = userSnap.data() as UserProfile;
+    if (userProfile?.role !== 'admin') return [];
+
+    const qFeedback = query(collection(db, 'feedback'), orderBy('updatedAt', 'desc'));
+    try {
+        const snap = await getDocs(qFeedback);
+        return snap.docs.map(d => d.data() as Feedback);
+    } catch (e) {
+        console.error("Admin fetch feedback error:", e);
+        return [];
     }
 }
 
