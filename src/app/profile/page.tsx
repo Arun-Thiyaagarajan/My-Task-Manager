@@ -324,6 +324,7 @@ export default function ProfilePage() {
   const { user, firestore, auth, isUserLoading, userProfile, isProfileLoading } = useFirebase();
   const { toast } = useToast();
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const activeCompanyId = useActiveCompany();
@@ -636,6 +637,11 @@ export default function ProfilePage() {
     router.push(`/profile?tab=${tab}`);
   };
 
+  const handleNavigateAbout = () => {
+    if (pathname === '/about') return;
+    router.push('/about');
+  };
+
   const MobileHubRow = ({ icon: Icon, title, subLabel, onClick, color = 'text-muted-foreground' }: { icon: any, title: string, subLabel: string, onClick?: () => void, color?: string }) => (
     <button 
         onClick={onClick}
@@ -678,7 +684,7 @@ export default function ProfilePage() {
         <AlertDialogContent className="rounded-3xl w-[90%] md:w-full overscroll-contain">
             <AlertDialogHeader>
                 <AlertDialogTitle className="font-semibold text-center">Sign out of TaskFlow?</AlertDialogTitle>
-                <AlertDialogDescription className="text-sm font-normal text-center">
+                <AlertDialogDescription className="font-normal text-center">
                     Your cloud data is safe and will sync back next time you sign in.
                 </AlertDialogDescription>
             </AlertDialogHeader>
@@ -779,6 +785,7 @@ export default function ProfilePage() {
                                         if (item.type === 'tab') {
                                             router.push(`/profile?tab=${item.id}`);
                                         } else if (item.type === 'link') {
+                                            if (item.href === '/about' && pathname === '/about') return;
                                             router.push(item.href);
                                         } else if (item.type === 'settings') {
                                             router.push(`/settings?section=${item.section}`);
@@ -884,7 +891,7 @@ export default function ProfilePage() {
                         icon={HelpCircle} 
                         title="Help & About" 
                         subLabel="FAQ, Contact, and App Info" 
-                        onClick={() => router.push('/about')}
+                        onClick={handleNavigateAbout}
                         color="text-primary"
                     />
                 </div>

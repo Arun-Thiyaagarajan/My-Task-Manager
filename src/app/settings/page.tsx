@@ -120,6 +120,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 export default function SettingsPage() {
   const isMobile = useIsMobile();
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const { userProfile } = useFirebase();
   const { theme, setTheme } = useTheme();
@@ -453,7 +454,7 @@ export default function SettingsPage() {
       } catch (error: any) {
         toast({ variant: 'destructive', title: 'Import Failed', description: error.message || 'An error occurred.' });
       } finally {
-        if (fileInputRef.current) fileInputRef.current.value = '';
+        if (fileInputRef.current) { fileInputRef.current.value = ''; }
       }
     };
     reader.readAsDataURL(file);
@@ -688,9 +689,9 @@ export default function SettingsPage() {
             <MobileSectionHeader title="About & Support" />
             <div className="px-4">
                 <div className="bg-card border rounded-3xl shadow-sm overflow-hidden">
-                    <MobileHubRow icon={HelpCircle} title="App Overview" subLabel="What is TaskFlow?" onClick={() => router.push('/about?section=app')} color="text-primary" />
-                    <MobileHubRow icon={Info} title="About Us" subLabel="Meet the creators" onClick={() => router.push('/about?section=about')} color="text-indigo-500" />
-                    <MobileHubRow icon={MessageCircle} title="Support & FAQ" subLabel="Get help and answers" onClick={() => router.push('/about?section=faq')} color="text-green-600" />
+                    <MobileHubRow icon={HelpCircle} title="App Overview" subLabel="What is TaskFlow?" onClick={() => { if (pathname === '/about' && searchParams.get('section') === 'app') return; router.push('/about?section=app'); }} color="text-primary" />
+                    <MobileHubRow icon={Info} title="About Us" subLabel="Meet the creators" onClick={() => { if (pathname === '/about' && searchParams.get('section') === 'about') return; router.push('/about?section=about'); }} color="text-indigo-500" />
+                    <MobileHubRow icon={MessageCircle} title="Support & FAQ" subLabel="Get help and answers" onClick={() => { if (pathname === '/about' && searchParams.get('section') === 'faq') return; router.push('/about?section=faq'); }} color="text-green-600" />
                 </div>
             </div>
             <MobileSectionHeader title="System" />

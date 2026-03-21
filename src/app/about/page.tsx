@@ -88,24 +88,24 @@ function AboutContent() {
                             <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
                                 <Avatar className="h-16 w-16 sm:h-20 sm:w-20 border-4 border-background shadow-lg shrink-0">
                                     <AvatarImage src="https://picsum.photos/seed/creator/200" />
-                                    <AvatarFallback className="bg-primary text-primary-foreground font-bold">TF</AvatarFallback>
+                                    <AvatarFallback className="bg-primary text-primary-foreground font-bold">AT</AvatarFallback>
                                 </Avatar>
                                 <div className="text-center sm:text-left space-y-1 min-w-0 flex-1">
-                                    <h4 className="text-lg sm:text-xl font-black tracking-tight truncate">Your Name Here</h4>
-                                    <p className="text-[10px] sm:text-sm font-medium text-muted-foreground uppercase tracking-widest">Lead Engineer & Designer</p>
+                                    <h4 className="text-lg sm:text-xl font-black tracking-tight truncate">Arun Thiyaagarajan</h4>
+                                    <p className="text-[10px] sm:text-sm font-medium text-muted-foreground uppercase tracking-widest">Software Developer</p>
                                     <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-4">
                                         <Button asChild variant="outline" size="sm" className="rounded-xl h-8 sm:h-9 text-[10px] sm:text-xs font-bold border-muted-foreground/20">
-                                            <a href="https://github.com/yourusername" target="_blank" rel="noopener noreferrer">
+                                            <a href="https://github.com/Arun-Thiyaagarajan" target="_blank" rel="noopener noreferrer">
                                                 <Github className="mr-1.5 h-3.5 w-3.5" /> GitHub
                                             </a>
                                         </Button>
                                         <Button asChild variant="outline" size="sm" className="rounded-xl h-8 sm:h-9 text-[10px] sm:text-xs font-bold border-muted-foreground/20">
-                                            <a href="https://yourportfolio.com" target="_blank" rel="noopener noreferrer">
+                                            <a href="https://arunthiyaagarajan.vercel.app/" target="_blank" rel="noopener noreferrer">
                                                 <Globe className="mr-1.5 h-3.5 w-3.5" /> Portfolio
                                             </a>
                                         </Button>
                                         <Button asChild variant="outline" size="sm" className="rounded-xl h-8 sm:h-9 text-[10px] sm:text-xs font-bold border-muted-foreground/20">
-                                            <a href="https://linkedin.com/in/yourusername" target="_blank" rel="noopener noreferrer">
+                                            <a href="https://www.linkedin.com/in/thiyaagarajan-n/" target="_blank" rel="noopener noreferrer">
                                                 <Linkedin className="mr-1.5 h-3.5 w-3.5 text-blue-600" /> LinkedIn
                                             </a>
                                         </Button>
@@ -134,11 +134,11 @@ function AboutContent() {
                                 </div>
                                 <div className="min-w-0 flex-1">
                                     <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-primary/60">Official Support Email</p>
-                                    <p className="text-sm sm:text-lg font-black tracking-tight text-foreground break-all">support@yourdomain.com</p>
+                                    <p className="text-sm sm:text-lg font-black tracking-tight text-foreground break-all">mytaskflow.help@gmail.com</p>
                                 </div>
                             </div>
                             <Button asChild className="w-full sm:w-auto rounded-xl sm:rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] h-11 sm:h-12 px-8 shadow-lg shadow-primary/20">
-                                <a href="mailto:support@yourdomain.com">Email Me Now</a>
+                                <a href="mailto:mytaskflow.help@gmail.com">Email Me Now</a>
                             </Button>
                         </CardContent>
                     </Card>

@@ -457,6 +457,7 @@ export function Header() {
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                           onSelect={() => {
+                              if (pathname === '/about') return;
                               prompt(() => { 
                                   window.dispatchEvent(new Event('navigation-start')); 
                                   router.push('/about'); 
