@@ -281,18 +281,18 @@ export default function FeedbackDetailPage() {
                                 </div>
                             )}
 
-                            <div className="grid grid-cols-2 gap-6 pt-6 border-t border-dashed">
-                                <div className="space-y-1">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6 border-t border-dashed">
+                                <div className="space-y-1 min-w-0">
                                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Environment</p>
-                                    <div className="flex items-center gap-2 font-bold text-sm">
-                                        <Globe className="h-4 w-4 text-primary/60" />
-                                        {item.environment || 'Production'}
+                                    <div className="flex items-center gap-2 font-bold text-sm truncate">
+                                        <Globe className="h-4 w-4 text-primary/60 shrink-0" />
+                                        <span className="truncate" title={item.environment}>{item.environment || 'Production'}</span>
                                     </div>
                                 </div>
-                                <div className="space-y-1">
+                                <div className="space-y-1 min-w-0">
                                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">App Version</p>
-                                    <div className="flex items-center gap-2 font-bold text-sm">
-                                        <ArrowUpCircle className="h-4 w-4 text-primary/60" />
+                                    <div className="flex items-center gap-2 font-bold text-sm truncate">
+                                        <ArrowUpCircle className="h-4 w-4 text-primary/60 shrink-0" />
                                         v{item.appVersion || '1.1.0'}
                                     </div>
                                 </div>
