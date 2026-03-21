@@ -95,13 +95,16 @@ const getInitialTaskData = (task?: Partial<Task>, uiConfig?: UiConfig | null) =>
 
         if (uiConfig) {
             uiConfig.fields.forEach(f => {
-                if (f.defaultValue !== undefined && f.defaultValue !== null) {
+                if (f.defaultValue !== undefined && f.defaultValue !== null && f.defaultValue !== '') {
+                    let val = f.defaultValue;
+                    if (f.type === 'date') val = safeParseDate(val);
+
                     if (f.key === 'developers' || f.key === 'testers') {
-                        defaults[f.key] = Array.isArray(f.defaultValue) ? f.defaultValue : [f.defaultValue];
+                        defaults[f.key] = Array.isArray(val) ? val : [val];
                     } else if (f.isCustom) {
-                        defaults.customFields = { ...defaults.customFields, [f.key]: f.defaultValue };
+                        defaults.customFields = { ...defaults.customFields, [f.key]: val };
                     } else {
-                        defaults[f.key] = f.defaultValue;
+                        defaults[f.key] = val;
                     }
                 }
             });
@@ -390,7 +393,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
      try {
         const newTester = addTester({ name });
         setTestersList(prev => {
-            if (prev.some(t => t.id === newTester.id)) return prev;
+            if (prev.some(t => d.id === newTester.id)) return prev;
             return [...prev, newTester];
         });
         return newTester.id;
@@ -1157,7 +1160,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                                 render={({ field }) => (
                                                     <FormItem>
                                                         <FormLabel className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Name</FormLabel>
-                                                        <FormControl><Input {...field} placeholder="Attachment name" className="h-9 font-normal" /></FormControl>
+                                                        <FormControl><Input {...field} value={field.value ?? ""} placeholder="Attachment name" className="h-9 font-normal" /></FormControl>
                                                     </FormItem>
                                                 )}
                                             />
@@ -1168,7 +1171,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                                     render={({ field }) => (
                                                         <FormItem>
                                                             <FormLabel className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">URL</FormLabel>
-                                                            <FormControl><Input {...field} placeholder="https://example.com/file" className="h-9 font-normal" /></FormControl>
+                                                            <FormControl><Input {...field} value={field.value ?? ""} placeholder="https://example.com/file" className="h-9 font-normal" /></FormControl>
                                                         </FormItem>
                                                     )}
                                                 />

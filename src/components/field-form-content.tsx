@@ -41,6 +41,19 @@ const fieldSchema = z.object({
   baseUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
   sortDirection: z.enum(['asc', 'desc', 'manual']).optional(),
   defaultValue: z.any().optional(),
+}).refine(data => {
+  if (data.type === 'url' && data.defaultValue && data.defaultValue !== '') {
+    try {
+      new URL(data.defaultValue);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}, {
+  message: "Default value must be a valid URL.",
+  path: ["defaultValue"]
 });
 
 type FieldFormData = z.infer<typeof fieldSchema>;
@@ -218,9 +231,12 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
                     control={form.control}
                     name="defaultValue"
                     render={({ field }) => (
-                        <FormControl>
-                            <Input {...field} value={field.value ?? ""} type={type === 'number' ? 'number' : 'text'} className="h-11 rounded-xl bg-background" />
-                        </FormControl>
+                        <FormItem>
+                            <FormControl>
+                                <Input {...field} value={field.value ?? ""} type={type === 'number' ? 'number' : 'text'} className="h-11 rounded-xl bg-background" />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
                     )}
                 />
             );
@@ -230,9 +246,12 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
                     control={form.control}
                     name="defaultValue"
                     render={({ field }) => (
-                        <FormControl>
-                            <Textarea {...field} value={field.value ?? ""} className="min-h-[100px] rounded-xl bg-background" />
-                        </FormControl>
+                        <FormItem>
+                            <FormControl>
+                                <Textarea {...field} value={field.value ?? ""} className="min-h-[100px] rounded-xl bg-background" />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
                     )}
                 />
             );
@@ -242,12 +261,15 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
                     control={form.control}
                     name="defaultValue"
                     render={({ field }) => (
-                        <FormControl>
-                            <div className="flex items-center gap-3 h-11 px-1">
-                                <Switch checked={!!field.value} onCheckedChange={field.onChange} />
-                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">{field.value ? 'Enabled by default' : 'Disabled by default'}</span>
-                            </div>
-                        </FormControl>
+                        <FormItem>
+                            <FormControl>
+                                <div className="flex items-center gap-3 h-11 px-1">
+                                    <Switch checked={!!field.value} onCheckedChange={field.onChange} />
+                                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">{field.value ? 'Enabled by default' : 'Disabled by default'}</span>
+                                </div>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
                     )}
                 />
             );
@@ -257,24 +279,27 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
                     control={form.control}
                     name="defaultValue"
                     render={({ field }) => (
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <FormControl>
-                                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal h-11 rounded-xl bg-background", !field.value && "text-muted-foreground")}>
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {field.value ? format(new Date(field.value), "PPP") : <span>Pick a fixed date</span>}
-                                    </Button>
-                                </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                    mode="single"
-                                    selected={field.value ? new Date(field.value) : undefined}
-                                    onSelect={(date) => field.onChange(date?.toISOString())}
-                                    initialFocus
-                                />
-                            </PopoverContent>
-                        </Popover>
+                        <FormItem>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <FormControl>
+                                        <Button variant="outline" className={cn("w-full justify-start text-left font-normal h-11 rounded-xl bg-background", !field.value && "text-muted-foreground")}>
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {field.value ? format(new Date(field.value), "PPP") : <span>Pick a fixed date</span>}
+                                        </Button>
+                                    </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                        mode="single"
+                                        selected={field.value ? new Date(field.value) : undefined}
+                                        onSelect={(date) => field.onChange(date?.toISOString())}
+                                        initialFocus
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                        </FormItem>
                     )}
                 />
             );
@@ -284,18 +309,21 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
                     control={form.control}
                     name="defaultValue"
                     render={({ field }) => (
-                        <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                                <SelectTrigger className="h-11 rounded-xl bg-background">
-                                    <SelectValue placeholder="Select default option" />
-                                </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {currentOptions.map(opt => (
-                                    <SelectItem key={opt.id} value={opt.value}>{opt.label}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <FormItem>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                    <SelectTrigger className="h-11 rounded-xl bg-background">
+                                        <SelectValue placeholder="Select default option" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {currentOptions.map(opt => (
+                                        <SelectItem key={opt.id} value={opt.value}>{opt.label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
                     )}
                 />
             );
@@ -306,13 +334,16 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
                     control={form.control}
                     name="defaultValue"
                     render={({ field }) => (
-                        <MultiSelect
-                            selected={Array.isArray(field.value) ? field.value : []}
-                            onChange={field.onChange}
-                            options={(isDevelopersField || isTestersField) ? defaultPersonOptions : currentOptions.map(o => ({ value: o.value, label: o.label }))}
-                            placeholder="Select default values..."
-                            className="bg-background rounded-xl"
-                        />
+                        <FormItem>
+                            <MultiSelect
+                                selected={Array.isArray(field.value) ? field.value : []}
+                                onChange={field.onChange}
+                                options={(isDevelopersField || isTestersField) ? defaultPersonOptions : currentOptions.map(o => ({ value: o.value, label: o.label }))}
+                                placeholder="Select default values..."
+                                className="bg-background rounded-xl"
+                            />
+                            <FormMessage />
+                        </FormItem>
                     )}
                 />
             );
@@ -338,7 +369,7 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
                     render={({ field }) => (
                     <FormItem>
                         <FormLabel className="font-bold">Field Label</FormLabel>
-                        <FormControl><Input {...field} className="h-11 rounded-xl" /></FormControl>
+                        <FormControl><Input {...field} value={field.value ?? ""} className="h-11 rounded-xl" /></FormControl>
                         <FormMessage />
                     </FormItem>
                     )}
@@ -467,8 +498,8 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
                     <h4 className="font-bold">Options</h4>
                     {options.map((option, index) => (
                         <div key={option.id} className="flex items-end gap-2 p-3 border rounded-xl bg-muted/20">
-                            <Input {...form.register(`options.${index}.label`)} placeholder="Label" className="h-9 rounded-lg" />
-                            <Input {...form.register(`options.${index}.value`)} placeholder="Value" className="h-9 font-mono text-xs rounded-lg" />
+                            <Input {...form.register(`options.${index}.label`)} value={form.watch(`options.${index}.label`) ?? ""} placeholder="Label" className="h-9 rounded-lg" />
+                            <Input {...form.register(`options.${index}.value`)} value={form.watch(`options.${index}.value`) ?? ""} placeholder="Value" className="h-9 font-mono text-xs rounded-lg" />
                             <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)} className="shrink-0 h-9 w-9 rounded-full"><Trash2 className="h-4 w-4" /></Button>
                         </div>
                     ))}

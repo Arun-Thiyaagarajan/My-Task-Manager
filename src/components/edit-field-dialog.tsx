@@ -29,7 +29,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { Badge } from './ui/badge';
 import { MultiSelect } from '@/components/ui/multi-select';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from './ui/textarea';
 import { Calendar } from './ui/calendar';
@@ -53,6 +53,19 @@ const fieldSchema = z.object({
   baseUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
   sortDirection: z.enum(['asc', 'desc', 'manual']).optional(),
   defaultValue: z.any().optional(),
+}).refine(data => {
+  if (data.type === 'url' && data.defaultValue && data.defaultValue !== '') {
+    try {
+      new URL(data.defaultValue);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}, {
+  message: "Default value must be a valid URL.",
+  path: ["defaultValue"]
 });
 
 type FieldFormData = z.infer<typeof fieldSchema>;
@@ -296,9 +309,12 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
                     control={form.control}
                     name="defaultValue"
                     render={({ field }) => (
-                        <FormControl>
-                            <Input {...field} value={field.value ?? ""} type={type === 'number' ? 'number' : 'text'} className="h-10 bg-background" />
-                        </FormControl>
+                        <FormItem>
+                            <FormControl>
+                                <Input {...field} value={field.value ?? ""} type={type === 'number' ? 'number' : 'text'} className="h-10 bg-background" />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
                     )}
                 />
             );
@@ -308,9 +324,12 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
                     control={form.control}
                     name="defaultValue"
                     render={({ field }) => (
-                        <FormControl>
-                            <Textarea {...field} value={field.value ?? ""} className="min-h-[80px] bg-background" />
-                        </FormControl>
+                        <FormItem>
+                            <FormControl>
+                                <Textarea {...field} value={field.value ?? ""} className="min-h-[80px] bg-background" />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
                     )}
                 />
             );
@@ -320,12 +339,15 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
                     control={form.control}
                     name="defaultValue"
                     render={({ field }) => (
-                        <FormControl>
-                            <div className="flex items-center gap-3 h-10 px-1">
-                                <Switch checked={!!field.value} onCheckedChange={field.onChange} />
-                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">{field.value ? 'Enabled by default' : 'Disabled by default'}</span>
-                            </div>
-                        </FormControl>
+                        <FormItem>
+                            <FormControl>
+                                <div className="flex items-center gap-3 h-10 px-1">
+                                    <Switch checked={!!field.value} onCheckedChange={field.onChange} />
+                                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">{field.value ? 'Enabled by default' : 'Disabled by default'}</span>
+                                </div>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
                     )}
                 />
             );
@@ -335,24 +357,27 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
                     control={form.control}
                     name="defaultValue"
                     render={({ field }) => (
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <FormControl>
-                                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal h-10 bg-background", !field.value && "text-muted-foreground")}>
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {field.value ? format(new Date(field.value), "PPP") : <span>Pick a fixed date</span>}
-                                    </Button>
-                                </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                    mode="single"
-                                    selected={field.value ? new Date(field.value) : undefined}
-                                    onSelect={(date) => field.onChange(date?.toISOString())}
-                                    initialFocus
-                                />
-                            </PopoverContent>
-                        </Popover>
+                        <FormItem>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <FormControl>
+                                        <Button variant="outline" className={cn("w-full justify-start text-left font-normal h-10 bg-background", !field.value && "text-muted-foreground")}>
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {field.value ? format(new Date(field.value), "PPP") : <span>Pick a fixed date</span>}
+                                        </Button>
+                                    </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                        mode="single"
+                                        selected={field.value ? new Date(field.value) : undefined}
+                                        onSelect={(date) => field.onChange(date?.toISOString())}
+                                        initialFocus
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                        </FormItem>
                     )}
                 />
             );
@@ -362,18 +387,21 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
                     control={form.control}
                     name="defaultValue"
                     render={({ field }) => (
-                        <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                                <SelectTrigger className="h-10 bg-background">
-                                    <SelectValue placeholder="Select default option" />
-                                </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {currentOptions.map(opt => (
-                                    <SelectItem key={opt.id} value={opt.value}>{opt.label}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <FormItem>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                    <SelectTrigger className="h-10 bg-background">
+                                        <SelectValue placeholder="Select default option" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {currentOptions.map(opt => (
+                                        <SelectItem key={opt.id} value={opt.value}>{opt.label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
                     )}
                 />
             );
@@ -384,13 +412,16 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
                     control={form.control}
                     name="defaultValue"
                     render={({ field }) => (
-                        <MultiSelect
-                            selected={Array.isArray(field.value) ? field.value : []}
-                            onChange={field.onChange}
-                            options={(isDevelopersField || isTestersField) ? defaultPersonOptions : currentOptions.map(o => ({ value: o.value, label: o.label }))}
-                            placeholder="Select default values..."
-                            className="bg-background"
-                        />
+                        <FormItem>
+                            <MultiSelect
+                                selected={Array.isArray(field.value) ? field.value : []}
+                                onChange={field.onChange}
+                                options={(isDevelopersField || isTestersField) ? defaultPersonOptions : currentOptions.map(o => ({ value: o.value, label: o.label }))}
+                                placeholder="Select default values..."
+                                className="bg-background"
+                            />
+                            <FormMessage />
+                        </FormItem>
                     )}
                 />
             );
@@ -419,7 +450,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
                             <FormItem>
                                 <FormLabel>Field Label</FormLabel>
                                 <FormControl>
-                                    <Input {...field} />
+                                    <Input {...field} value={field.value ?? ""} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -618,7 +649,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
                                 <FormItem>
                                 <FormLabel>Base URL (Optional)</FormLabel>
                                 <FormControl>
-                                    <Input {...field} placeholder="e.g. https://example.com/items/" className="font-mono text-xs" />
+                                    <Input {...field} value={field.value ?? ""} placeholder="e.g. https://example.com/items/" className="font-mono text-xs" />
                                 </FormControl>
                                 <FormDescription className="text-[10px]">If provided, the field value will be appended to this URL to create a link.</FormDescription>
                                 <FormMessage />
@@ -725,7 +756,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
                                                     <FormItem>
                                                     <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Label</FormLabel>
                                                     <FormControl>
-                                                        <Input {...field} placeholder="e.g. High Priority" className="h-9" />
+                                                        <Input {...field} value={field.value ?? ""} placeholder="e.g. High Priority" className="h-9" />
                                                     </FormControl>
                                                     <FormMessage />
                                                     </FormItem>
@@ -738,7 +769,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
                                                     <FormItem>
                                                     <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Value</FormLabel>
                                                     <FormControl>
-                                                        <Input {...field} placeholder="e.g. high_priority" className="h-9 font-mono text-xs" />
+                                                        <Input {...field} value={field.value ?? ""} placeholder="e.g. high_priority" className="h-9 font-mono text-xs" />
                                                     </FormControl>
                                                     <FormMessage />
                                                     </FormItem>
