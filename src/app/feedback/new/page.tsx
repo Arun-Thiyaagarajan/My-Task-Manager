@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -33,6 +32,7 @@ import { submitFeedback, getUiConfig } from '@/lib/data';
 import { compressImage } from '@/lib/utils';
 import type { FeedbackType, FeedbackPriority, Attachment } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const feedbackSchema = z.object({
     type: z.enum(["Bug Report", "Feature Request", "Suggestion", "Other"]),
@@ -45,13 +45,14 @@ const feedbackSchema = z.object({
 type FeedbackFormData = z.infer<typeof feedbackSchema>;
 
 export default function NewFeedbackPage() {
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const isMobile = useIsMobile();
     const router = useRouter();
     const { toast } = useToast();
     const { user, userProfile } = useFirebase();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
     const [attachments, setAttachments] = useState<Attachment[]>([]);
+    const [isMounted, setIsMounted] = useState(false);
     
     const form = useForm<FeedbackFormData>({
         resolver: zodResolver(feedbackSchema),
@@ -65,6 +66,7 @@ export default function NewFeedbackPage() {
     });
 
     useEffect(() => {
+        setIsMounted(true);
         window.dispatchEvent(new Event('navigation-end'));
     }, []);
 
@@ -283,7 +285,7 @@ export default function NewFeedbackPage() {
                 </CardContent>
                 <CardFooter className="bg-muted/10 border-t p-6 sm:p-10 flex flex-col sm:flex-row items-center gap-6">
                     <div className="flex items-center gap-4 text-muted-foreground/40 shrink-0">
-                        {isMobile ? <Smartphone className="h-5 w-5" /> : <Monitor className="h-5 w-5" />}
+                        {isMounted ? (isMobile ? <Smartphone className="h-5 w-5" /> : <Monitor className="h-5 w-5" />) : <Monitor className="h-5 w-5" />}
                         <div className="h-4 w-px bg-muted-foreground/20" />
                         <span className="text-[10px] font-black uppercase tracking-[0.2em]">Build Info Logs Attached</span>
                     </div>

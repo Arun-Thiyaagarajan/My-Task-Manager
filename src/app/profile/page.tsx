@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useFirebase } from '@/firebase';
 import { updateProfile, updatePassword, sendEmailVerification, signOut } from 'firebase/auth';
