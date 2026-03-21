@@ -7,18 +7,16 @@ import {
     Info, 
     HelpCircle, 
     Mail, 
-    MessageCircle, 
     Globe, 
     Github, 
     Twitter, 
     ShieldCheck, 
     Zap, 
-    Layout, 
     Users,
     ExternalLink,
-    ChevronRight,
-    Sparkles,
-    Rocket
+    Rocket,
+    Linkedin,
+    LinkedinIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -26,6 +24,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 function AboutContent() {
     const isMobile = useIsMobile();
@@ -77,24 +76,45 @@ function AboutContent() {
         },
         {
             id: 'about',
-            title: 'About Us',
+            title: 'About the Creator',
             icon: Users,
             content: (
-                <div className="space-y-4">
+                <div className="space-y-6">
                     <p className="text-muted-foreground leading-relaxed">
-                        Crafted by a dedicated team of engineers and designers, TaskFlow was born out of the frustration of using tools that didn't understand the nuances of a modern PR-driven development cycle.
+                        TaskFlow is built and maintained by a developer passionate about creating tools that actually understand the modern development cycle.
                     </p>
-                    <div className="flex flex-wrap gap-3 pt-2">
-                        <Button variant="outline" size="sm" className="rounded-full gap-2">
-                            <Github className="h-4 w-4" /> GitHub
-                        </Button>
-                        <Button variant="outline" size="sm" className="rounded-full gap-2">
-                            <Twitter className="h-4 w-4 text-blue-400" /> Twitter
-                        </Button>
-                        <Button variant="outline" size="sm" className="rounded-full gap-2">
-                            <Globe className="h-4 w-4" /> Website
-                        </Button>
-                    </div>
+                    
+                    <Card className="bg-muted/30 border-none rounded-3xl overflow-hidden">
+                        <CardContent className="p-6">
+                            <div className="flex flex-col sm:flex-row items-center gap-6">
+                                <Avatar className="h-20 w-20 border-4 border-background shadow-lg">
+                                    <AvatarImage src="https://picsum.photos/seed/creator/200" />
+                                    <AvatarFallback className="bg-primary text-primary-foreground font-bold">TF</AvatarFallback>
+                                </Avatar>
+                                <div className="text-center sm:text-left space-y-1 flex-1">
+                                    <h4 className="text-xl font-black tracking-tight">Your Name Here</h4>
+                                    <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest">Lead Engineer & Designer</p>
+                                    <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-4">
+                                        <Button asChild variant="outline" size="sm" className="rounded-xl h-9 font-bold border-muted-foreground/20">
+                                            <a href="https://github.com/yourusername" target="_blank" rel="noopener noreferrer">
+                                                <Github className="mr-2 h-4 w-4" /> GitHub
+                                            </a>
+                                        </Button>
+                                        <Button asChild variant="outline" size="sm" className="rounded-xl h-9 font-bold border-muted-foreground/20">
+                                            <a href="https://yourportfolio.com" target="_blank" rel="noopener noreferrer">
+                                                <Globe className="mr-2 h-4 w-4" /> Portfolio
+                                            </a>
+                                        </Button>
+                                        <Button asChild variant="outline" size="sm" className="rounded-xl h-9 font-bold border-muted-foreground/20">
+                                            <a href="https://linkedin.com/in/yourusername" target="_blank" rel="noopener noreferrer">
+                                                <Linkedin className="mr-2 h-4 w-4 text-blue-600" /> LinkedIn
+                                            </a>
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
             )
         },
@@ -105,20 +125,22 @@ function AboutContent() {
             content: (
                 <div className="space-y-4">
                     <p className="text-muted-foreground leading-relaxed">
-                        Need help or have a feature request? Our team is always ready to listen. We aim to respond to all inquiries within 24 hours.
+                        Need help or have a feature request? I aim to respond to all inquiries within 24 hours.
                     </p>
-                    <Card className="bg-muted/30 border-none rounded-2xl">
-                        <CardContent className="p-4 flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-full bg-background flex items-center justify-center text-primary shadow-sm">
-                                    <Mail className="h-5 w-5" />
+                    <Card className="bg-primary/5 border-2 border-dashed border-primary/20 rounded-3xl">
+                        <CardContent className="p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
+                            <div className="flex items-center gap-4 text-center sm:text-left">
+                                <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+                                    <Mail className="h-6 w-6" />
                                 </div>
-                                <div className="min-w-0">
-                                    <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Email Support</p>
-                                    <p className="text-sm font-bold truncate">support@taskflow.app</p>
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60">Official Support Email</p>
+                                    <p className="text-lg font-black tracking-tight text-foreground">support@yourdomain.com</p>
                                 </div>
                             </div>
-                            <Button size="sm" className="rounded-xl font-bold h-9">Email Now</Button>
+                            <Button asChild className="rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] h-12 px-8 shadow-lg shadow-primary/20">
+                                <a href="mailto:support@yourdomain.com">Email Me Now</a>
+                            </Button>
                         </CardContent>
                     </Card>
                 </div>
@@ -131,25 +153,25 @@ function AboutContent() {
             content: (
                 <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value="cloud-sync" className="border-muted/60">
-                        <AccordionTrigger className="text-sm font-bold hover:no-underline py-4">How do I enable Cloud Sync?</AccordionTrigger>
+                        <AccordionTrigger className="text-sm font-bold hover:no-underline py-4 text-left">How do I enable Cloud Sync?</AccordionTrigger>
                         <AccordionContent className="text-sm text-muted-foreground leading-relaxed pb-4">
                             Go to <strong>Settings → Storage Mode</strong> and select "Cloud Sync". You'll be prompted to sign in with your email or Google account. Once authenticated, your local data will automatically sync to your cloud workspace.
                         </AccordionContent>
                     </AccordionItem>
                     <AccordionItem value="privacy" className="border-muted/60">
-                        <AccordionTrigger className="text-sm font-bold hover:no-underline py-4">Is my data private?</AccordionTrigger>
+                        <AccordionTrigger className="text-sm font-bold hover:no-underline py-4 text-left">Is my data private?</AccordionTrigger>
                         <AccordionContent className="text-sm text-muted-foreground leading-relaxed pb-4">
                             Absolutely. In Local Mode, your data never leaves your browser. In Cloud Mode, your data is protected by Firebase Security Rules, ensuring that only you (and people you explicitly grant access to) can see your tasks.
                         </AccordionContent>
                     </AccordionItem>
                     <AccordionItem value="unique-fields" className="border-muted/60">
-                        <AccordionTrigger className="text-sm font-bold hover:no-underline py-4">What are "Unique Fields"?</AccordionTrigger>
+                        <AccordionTrigger className="text-sm font-bold hover:no-underline py-4 text-left">What are "Unique Fields"?</AccordionTrigger>
                         <AccordionContent className="text-sm text-muted-foreground leading-relaxed pb-4">
                             Unique fields (like Azure Work Item ID) prevent you from creating multiple tasks with the same reference number. This ensures your tracking system remains clean and free of conflicting duplicates.
                         </AccordionContent>
                     </AccordionItem>
                     <AccordionItem value="pwa" className="border-muted/60">
-                        <AccordionTrigger className="text-sm font-bold hover:no-underline py-4">Can I use TaskFlow offline?</AccordionTrigger>
+                        <AccordionTrigger className="text-sm font-bold hover:no-underline py-4 text-left">Can I use TaskFlow offline?</AccordionTrigger>
                         <AccordionContent className="text-sm text-muted-foreground leading-relaxed pb-4">
                             Yes! TaskFlow is a Progressive Web App (PWA). You can install it on your mobile device or desktop via the browser's "Add to Home Screen" or "Install" menu for a full offline experience.
                         </AccordionContent>
@@ -165,7 +187,7 @@ function AboutContent() {
 
     return (
         <div className="container max-w-4xl mx-auto pt-10 pb-20 px-4 sm:px-6">
-            <div className="flex items-center gap-4 mb-8">
+            <div className="flex items-center gap-4 mb-10">
                 <Button variant="ghost" size="icon" onClick={handleBack} className="rounded-full h-10 w-10">
                     <ArrowLeft className="h-6 w-6" />
                 </Button>
@@ -174,33 +196,35 @@ function AboutContent() {
                         <HelpCircle className="h-8 w-8 text-primary" />
                         Help & About
                     </h1>
-                    <p className="text-muted-foreground text-sm font-medium">Learn more about TaskFlow or get in touch.</p>
+                    <p className="text-muted-foreground text-sm font-medium">Find answers or get in touch with the creator.</p>
                 </div>
             </div>
 
             <div className="space-y-8">
                 {displaySections.map((section, idx) => (
                     <Card key={section.id} id={section.id} className="border-none shadow-xl bg-card rounded-[2.5rem] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${idx * 100}ms` }}>
-                        <CardHeader className="pb-2 flex flex-row items-center gap-4">
+                        <CardHeader className="pb-2 flex flex-row items-center gap-4 bg-muted/10 border-b border-muted/20">
                             <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0 shadow-inner">
                                 <section.icon className="h-6 w-6" />
                             </div>
                             <div>
-                                <CardTitle className="text-2xl font-bold tracking-tight">{section.title}</CardTitle>
-                                <CardDescription className="text-xs font-medium uppercase tracking-widest text-primary/60">TASKFLOW RESOURCE</CardDescription>
+                                <CardTitle className="text-xl font-bold tracking-tight">{section.title}</CardTitle>
+                                <CardDescription className="text-[10px] font-black uppercase tracking-widest text-primary/60">Help Center Resource</CardDescription>
                             </div>
                         </CardHeader>
-                        <CardContent className="pt-4 px-8 pb-8">
+                        <CardContent className="pt-8 px-8 pb-8">
                             {section.content}
                         </CardContent>
                     </Card>
                 ))}
 
                 {/* Bottom Branding */}
-                <div className="pt-10 text-center space-y-2 opacity-40">
-                    <div className="h-1 w-12 bg-primary/30 mx-auto rounded-full mb-4" />
-                    <p className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">TaskFlow Productivity Engine</p>
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Version 1.1.0 • Built with Passion</p>
+                <div className="pt-10 text-center space-y-4">
+                    <div className="h-1 w-12 bg-primary/30 mx-auto rounded-full" />
+                    <div className="space-y-1">
+                        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">TaskFlow Productivity Engine</p>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Version 1.1.0 • Crafting Better Workflows</p>
+                    </div>
                 </div>
             </div>
         </div>
