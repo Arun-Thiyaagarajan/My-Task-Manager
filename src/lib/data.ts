@@ -686,7 +686,7 @@ export function findExistingDuplicates(): { fieldLabel: string; value: string; t
     uniqueFields.forEach(field => {
         const valueMap = new Map<string, Task[]>();
         tasks.forEach(task => {
-            const val = field.isCustom ? task.customFields?.[field.key] : (t as any)[field.key];
+            const val = field.isCustom ? task.customFields?.[field.key] : (task as any)[field.key];
             if (val && typeof val === 'string' && val.trim() !== '') {
                 const norm = val.trim().toLowerCase();
                 if (!valueMap.has(norm)) valueMap.set(norm, []);
