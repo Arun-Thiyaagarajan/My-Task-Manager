@@ -38,11 +38,11 @@ import { useTransition, useEffect, useState, useRef, useMemo, useCallback } from
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn, compressImage } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { addDeveloper, getUiConfig, addTester, updateTask, checkUniqueness } from '@/lib/data';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -154,7 +154,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   
   // Draft State
   const [showDraftPrompt, setShowDraftPrompt] = useState(false);
-  const [draftData, setDraftData] = useState<any>(null);
+  const [draftData, setDraftData] = useState<{ data: any; updatedAt: string } | null>(null);
   const DRAFT_PREFIX = 'taskflow_draft_';
   const draftKey = task?.id ? `${DRAFT_PREFIX}${task.id}` : `${DRAFT_PREFIX}new`;
 
@@ -226,8 +226,9 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     if (savedDraft) {
         try {
             const parsed = JSON.parse(savedDraft);
-            // Only show prompt if the draft actually contains data different from current (very basic check)
-            if (JSON.stringify(parsed) !== JSON.stringify(initialData)) {
+            const actualData = parsed.data || parsed;
+            // Only show prompt if the draft actually contains data different from current
+            if (JSON.stringify(actualData) !== JSON.stringify(initialData)) {
                 setDraftData(parsed);
                 setShowDraftPrompt(true);
             }
@@ -243,7 +244,10 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     if (!isDirty) return;
     
     const timer = setTimeout(() => {
-        localStorage.setItem(draftKey, JSON.stringify(watchedValues));
+        localStorage.setItem(draftKey, JSON.stringify({
+            data: watchedValues,
+            updatedAt: new Date().toISOString()
+        }));
     }, 1500); // Silent debounced save
 
     return () => clearTimeout(timer);
@@ -253,7 +257,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     if (!draftData) return;
     
     // Process string dates back into Date objects for the form
-    const restored = { ...draftData };
+    const restored = { ...(draftData.data || draftData) };
     restored.devStartDate = safeParseDate(restored.devStartDate);
     restored.devEndDate = safeParseDate(restored.devEndDate);
     restored.qaStartDate = safeParseDate(restored.qaStartDate);
@@ -880,17 +884,31 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
             <h2 className="text-lg font-semibold tracking-tight truncate flex-1 text-right">{formTitle}</h2>
         </div>
 
-        {/* Mobile Draft Prompt (WhatsApp Style) */}
+        {/* MOBILE DRAFT RESTORE DRAWER */}
         {isMobile && showDraftPrompt && (
-            <div className="lg:hidden -mx-4 px-4 py-3 bg-primary/10 border-b border-primary/20 flex items-center justify-between animate-in slide-in-from-top duration-300 mb-2">
-                <div className="flex items-center gap-2">
-                    <History className="h-4 w-4 text-primary" />
-                    <span className="text-xs font-bold text-primary uppercase tracking-tight">Unsaved draft found</span>
-                </div>
-                <div className="flex gap-3">
-                    <button type="button" onClick={discardDraft} className="text-[10px] font-black uppercase text-muted-foreground hover:text-foreground transition-colors">Discard</button>
-                    <button type="button" onClick={restoreDraft} className="text-[10px] font-black uppercase text-primary hover:underline transition-all">Restore</button>
-                </div>
+            <div className="lg:hidden fixed inset-0 z-[100] flex items-end justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">
+                <Card className="w-full max-w-sm rounded-[2.5rem] shadow-2xl border-none bg-background overflow-hidden animate-in slide-in-from-bottom-8 duration-500">
+                    <CardHeader className="pt-8 pb-4 text-center">
+                        <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                            <History className="h-6 w-6 text-primary" />
+                        </div>
+                        <CardTitle className="text-xl font-bold tracking-tight">Unsaved Draft Found</CardTitle>
+                        <CardDescription className="text-sm font-medium">You have unsaved changes from last time.</CardDescription>
+                        {draftData?.updatedAt && (
+                            <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mt-2">
+                                Last edited {formatDistanceToNow(new Date(draftData.updatedAt), { addSuffix: true })}
+                            </p>
+                        )}
+                    </CardHeader>
+                    <CardContent className="px-6 pb-8 flex flex-col gap-3">
+                        <Button type="button" onClick={restoreDraft} size="lg" className="w-full h-12 rounded-2xl font-bold text-base shadow-lg shadow-primary/20">
+                            Restore Draft
+                        </Button>
+                        <Button type="button" onClick={discardDraft} variant="ghost" className="w-full h-12 rounded-2xl font-semibold text-muted-foreground hover:text-foreground">
+                            Discard Changes
+                        </Button>
+                    </CardContent>
+                </Card>
             </div>
         )}
 
