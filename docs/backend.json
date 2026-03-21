@@ -94,6 +94,27 @@
         "attachments": { "type": "array" },
         "customFields": { "type": "object" }
       }
+    },
+    "Feedback": {
+      "title": "Feedback",
+      "type": "object",
+      "description": "User submitted support requests, bug reports, or feature suggestions.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["Bug Report", "Feature Request", "Suggestion", "Other"] },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "priority": { "type": "string", "enum": ["Low", "Medium", "High"] },
+        "contactEmail": { "type": "string", "format": "email" },
+        "status": { "type": "string", "enum": ["Submitted", "Reviewed", "Closed"] },
+        "appVersion": { "type": "string" },
+        "environment": { "type": "string" },
+        "attachments": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "type", "title", "description", "status", "createdAt"]
     }
   },
   "auth": {
@@ -150,34 +171,10 @@
         }
       },
       {
-        "path": "/users/{userId}/companies/{companyId}/settings/uiConfig",
+        "path": "/feedback/{feedbackId}",
         "definition": {
-          "entityName": "UiConfig",
-          "description": "Application configuration for a specific company."
-        }
-      },
-      {
-        "path": "/users/{userId}/companies/{companyId}/people/developers",
-        "definition": {
-          "description": "List of developers for a company."
-        }
-      },
-      {
-        "path": "/users/{userId}/companies/{companyId}/people/testers",
-        "definition": {
-          "description": "List of testers for a company."
-        }
-      },
-      {
-        "path": "/users/{userId}/companies/{companyId}/reminders/general",
-        "definition": {
-          "description": "General reminders for a company."
-        }
-      },
-      {
-        "path": "/users/{userId}/companies/{companyId}/releases/updates",
-        "definition": {
-          "description": "Release history for a company."
+          "entityName": "Feedback",
+          "description": "Global collection for user support and feedback."
         }
       }
     ]

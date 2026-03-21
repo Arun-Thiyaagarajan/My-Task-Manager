@@ -1,3 +1,4 @@
+
 import type { TASK_STATUSES } from './constants';
 
 export type TaskStatus = string;
@@ -243,4 +244,24 @@ export interface FieldConfig {
   baseUrl?: string;
   sortDirection?: 'asc' | 'desc' | 'manual';
   defaultValue?: any;
+}
+
+export type FeedbackType = "Bug Report" | "Feature Request" | "Suggestion" | "Other";
+export type FeedbackPriority = "Low" | "Medium" | "High";
+export type FeedbackStatus = "Submitted" | "Reviewed" | "Closed";
+
+export interface Feedback {
+  id: string;
+  userId: string;
+  type: FeedbackType;
+  title: string;
+  description: string;
+  priority: FeedbackPriority;
+  contactEmail?: string;
+  status: FeedbackStatus;
+  appVersion: string;
+  environment: string;
+  attachments?: Attachment[];
+  createdAt: string;
+  updatedAt: string;
 }

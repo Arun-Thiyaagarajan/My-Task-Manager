@@ -1,10 +1,11 @@
+
 'use client';
 
 import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile } from './types'; 
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile, Feedback } from './types'; 
 import cloneDeep from 'lodash/cloneDeep';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, setDoc, deleteDoc, updateDoc, collection, writeBatch, getDocs, query, orderBy, limit, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, deleteDoc, updateDoc, collection, writeBatch, getDocs, query, orderBy, limit, getDoc, where } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { toast } from '@/hooks/use-toast';
@@ -188,25 +189,26 @@ export async function updateUserPreferences(updates: Partial<UserPreferences>) {
 }
 
 async function dispatchMutation(
-    type: 'tasks' | 'notes' | 'logs' | 'uiConfig' | 'developers' | 'testers' | 'generalReminders' | 'releaseUpdates' | 'companies',
+    type: 'tasks' | 'notes' | 'logs' | 'uiConfig' | 'developers' | 'testers' | 'generalReminders' | 'releaseUpdates' | 'companies' | 'feedback',
     id: string,
     data: any,
     operation: 'create' | 'update' | 'delete' | 'set'
 ) {
-    if (getAuthMode() !== 'authenticate') return;
+    if (getAuthMode() !== 'authenticate' && type !== 'feedback') return;
     const auth = getAuth();
     const db = getFirestore();
     const userId = auth.currentUser?.uid;
     const activeCompanyId = getActiveCompanyId();
-    if (!userId) return;
+    
+    if (!userId && type !== 'feedback') return;
 
     let docRef;
     let payload = data;
 
     if (type === 'companies') {
-        docRef = doc(db, 'users', userId, 'companies', id);
+        docRef = doc(db, 'users', userId!, 'companies', id);
     } else if (type === 'uiConfig') {
-        docRef = doc(db, 'users', userId, 'companies', activeCompanyId, 'settings', 'uiConfig');
+        docRef = doc(db, 'users', userId!, 'companies', activeCompanyId, 'settings', 'uiConfig');
     } else if (type === 'developers' || type === 'testers' || type === 'generalReminders' || type === 'releaseUpdates') {
         const parentMap: Record<string, string> = {
             developers: 'people',
@@ -220,15 +222,15 @@ async function dispatchMutation(
             generalReminders: 'general',
             releaseUpdates: 'updates'
         };
-        docRef = doc(db, 'users', userId, 'companies', activeCompanyId, parentMap[type], docNameMap[type]);
+        docRef = doc(db, 'users', userId!, 'companies', activeCompanyId, parentMap[type], docNameMap[type]);
         payload = { list: data };
+    } else if (type === 'feedback') {
+        docRef = doc(db, 'feedback', id);
     } else {
-        docRef = doc(db, 'users', userId, 'companies', activeCompanyId, type, id);
+        docRef = doc(db, 'users', userId!, 'companies', activeCompanyId, type, id);
     }
 
     try {
-        // Firestore does not support 'undefined' as a value.
-        // We sanitize the payload by stringifying and parsing it to remove undefined keys.
         const sanitizedPayload = (operation !== 'delete' && payload !== null) 
             ? JSON.parse(JSON.stringify(payload)) 
             : payload;
@@ -244,10 +246,6 @@ async function dispatchMutation(
                 requestResourceData: sanitizedPayload,
             });
             errorEmitter.emit('permission-error', permissionError);
-            
-            if (type === 'logs') {
-                toast({ variant: 'destructive', title: 'Logging Failed', description: 'Some changes could not be logged. Please try again.' });
-            }
         });
     } catch (e) {
         console.error("Mutation dispatch error:", e);
@@ -1217,6 +1215,56 @@ export function getTasksUsingField(key: string): Task[] {
         }
         return false;
     });
+}
+
+// Support & Feedback
+export async function submitFeedback(feedback: Omit<Feedback, 'id' | 'status' | 'createdAt' | 'updatedAt'>) {
+    const id = `feedback-${crypto.randomUUID()}`;
+    const now = new Date().toISOString();
+    const newFeedback: Feedback = {
+        ...feedback,
+        id,
+        status: 'Submitted',
+        createdAt: now,
+        updatedAt: now
+    };
+
+    // We only store in Firestore if available, otherwise mock it for local users
+    // If auth is authenticated, we MUST use Firestore
+    if (getAuthMode() === 'authenticate') {
+        await dispatchMutation('feedback', id, newFeedback, 'set');
+    } else {
+        // Local mode fallback: Store in a local feedback array for the current session/localstorage
+        const data = getAppData();
+        if (!data.localFeedback) (data as any).localFeedback = [];
+        (data as any).localFeedback.push(newFeedback);
+        setAppData(data);
+    }
+    
+    addLog({ message: `Submitted a **${feedback.type}**: "**${feedback.title}**"` });
+    return newFeedback;
+}
+
+export async function getMyFeedback(): Promise<Feedback[]> {
+    const mode = getAuthMode();
+    if (mode === 'authenticate') {
+        const auth = getAuth();
+        const db = getFirestore();
+        const userId = auth.currentUser?.uid;
+        if (!userId) return [];
+
+        const qFeedback = query(collection(db, 'feedback'), where('userId', '==', userId), orderBy('createdAt', 'desc'));
+        try {
+            const snap = await getDocs(qFeedback);
+            return snap.docs.map(d => d.data() as Feedback);
+        } catch (e) {
+            console.error("Failed to fetch my feedback:", e);
+            return [];
+        }
+    } else {
+        const data = getAppData();
+        return ((data as any).localFeedback || []).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
 }
 
 // Data Utility Functions
