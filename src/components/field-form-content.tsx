@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X, Info, Users, ClipboardCheck } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X, Info, Users, ClipboardCheck, ListChecks, CalendarIcon } from 'lucide-react';
 import type { FieldConfig, FieldOption, FieldType, RepositoryConfig } from '@/lib/types';
 import { FIELD_TYPES } from '@/lib/constants';
 import * as React from 'react';
@@ -20,6 +20,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from './ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { Textarea } from './ui/textarea';
+import { Calendar } from './ui/calendar';
+import { format } from 'date-fns';
 
 const fieldOptionSchema = z.object({
     id: z.string(),
@@ -203,6 +206,121 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
       return [];
   }, [isDevelopersField, isTestersField]);
 
+  const renderDefaultValueInput = (type: FieldType) => {
+    const currentOptions = form.watch('options') || [];
+    
+    switch (type) {
+        case 'text':
+        case 'url':
+        case 'number':
+            return (
+                <FormField
+                    control={form.control}
+                    name="defaultValue"
+                    render={({ field }) => (
+                        <FormControl>
+                            <Input {...field} type={type === 'number' ? 'number' : 'text'} className="h-11 rounded-xl bg-background" />
+                        </FormControl>
+                    )}
+                />
+            );
+        case 'textarea':
+            return (
+                <FormField
+                    control={form.control}
+                    name="defaultValue"
+                    render={({ field }) => (
+                        <FormControl>
+                            <Textarea {...field} className="min-h-[100px] rounded-xl bg-background" />
+                        </FormControl>
+                    )}
+                />
+            );
+        case 'checkbox':
+            return (
+                <FormField
+                    control={form.control}
+                    name="defaultValue"
+                    render={({ field }) => (
+                        <FormControl>
+                            <div className="flex items-center gap-3 h-11 px-1">
+                                <Switch checked={!!field.value} onCheckedChange={field.onChange} />
+                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">{field.value ? 'Enabled by default' : 'Disabled by default'}</span>
+                            </div>
+                        </FormControl>
+                    )}
+                />
+            );
+        case 'date':
+            return (
+                <FormField
+                    control={form.control}
+                    name="defaultValue"
+                    render={({ field }) => (
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <FormControl>
+                                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal h-11 rounded-xl bg-background", !field.value && "text-muted-foreground")}>
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {field.value ? format(new Date(field.value), "PPP") : <span>Pick a fixed date</span>}
+                                    </Button>
+                                </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    mode="single"
+                                    selected={field.value ? new Date(field.value) : undefined}
+                                    onSelect={(date) => field.onChange(date?.toISOString())}
+                                    initialFocus
+                                />
+                            </PopoverContent>
+                        </Popover>
+                    )}
+                />
+            );
+        case 'select':
+            return (
+                <FormField
+                    control={form.control}
+                    name="defaultValue"
+                    render={({ field }) => (
+                        <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                                <SelectTrigger className="h-11 rounded-xl bg-background">
+                                    <SelectValue placeholder="Select default option" />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                {currentOptions.map(opt => (
+                                    <SelectItem key={opt.id} value={opt.value}>{opt.label}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+                />
+            );
+        case 'multiselect':
+        case 'tags':
+            return (
+                <FormField
+                    control={form.control}
+                    name="defaultValue"
+                    render={({ field }) => (
+                        <MultiSelect
+                            selected={Array.isArray(field.value) ? field.value : []}
+                            onChange={field.onChange}
+                            options={(isDevelopersField || isTestersField) ? defaultPersonOptions : currentOptions.map(o => ({ value: o.value, label: o.label }))}
+                            placeholder="Select default values..."
+                            className="bg-background rounded-xl"
+                        />
+                    )}
+                />
+            );
+        default:
+            return null;
+    }
+  };
+
   return (
     <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -219,8 +337,8 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
                     name="label"
                     render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Field Label</FormLabel>
-                        <FormControl><Input {...field} /></FormControl>
+                        <FormLabel className="font-bold">Field Label</FormLabel>
+                        <FormControl><Input {...field} className="h-11 rounded-xl" /></FormControl>
                         <FormMessage />
                     </FormItem>
                     )}
@@ -230,9 +348,9 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
                     name="type"
                     render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Field Type</FormLabel>
+                        <FormLabel className="font-bold">Field Type</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value} disabled={!isCreating}>
-                            <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                            <FormControl><SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger></FormControl>
                             <SelectContent>
                                 {FIELD_TYPES.map(type => (
                                     <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
@@ -251,11 +369,11 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
                     name="group"
                     render={({ field }) => (
                     <FormItem className="flex flex-col">
-                        <FormLabel>Group Name</FormLabel>
+                        <FormLabel className="font-bold">Group Name</FormLabel>
                         <Popover open={isGroupPopoverOpen} onOpenChange={setIsGroupPopoverOpen}>
                         <PopoverTrigger asChild>
                             <FormControl>
-                            <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
+                            <Button variant="outline" role="combobox" className="w-full justify-between font-normal h-11 rounded-xl">
                                 {field.value || "Select group..."}
                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
@@ -330,32 +448,18 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
                 </div>
             </div>
 
-            {(isDevelopersField || isTestersField) && (
-                <FormField
-                    control={form.control}
-                    name="defaultValue"
-                    render={({ field }) => (
-                        <FormItem className="pt-4 border-t space-y-3">
-                            <div className="flex items-center gap-2">
-                                {isDevelopersField ? <Users className="h-4 w-4 text-primary" /> : <ClipboardCheck className="h-4 w-4 text-primary" />}
-                                <FormLabel className="font-bold tracking-tight">Default {isDevelopersField ? 'Developers' : 'Testers'}</FormLabel>
-                            </div>
-                            <FormDescription className="text-[10px] leading-relaxed uppercase font-black tracking-widest text-muted-foreground/60">
-                                Pre-selected for new tasks
-                            </FormDescription>
-                            <FormControl>
-                                <MultiSelect
-                                    selected={field.value || []}
-                                    onChange={field.onChange}
-                                    options={defaultPersonOptions}
-                                    placeholder={`Select default ${isDevelopersField ? 'developers' : 'testers'}...`}
-                                    className="bg-background"
-                                />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+            {/* DEFAULT VALUE SECTION */}
+            {selectedType !== 'object' && (
+                <div className="pt-4 border-t space-y-3">
+                    <div className="flex items-center gap-2">
+                        <ListChecks className="h-4 w-4 text-primary" />
+                        <Label className="font-bold tracking-tight">Default Value</Label>
+                    </div>
+                    <FormDescription className="text-xs leading-relaxed">
+                        This value will be automatically filled when creating a new task.
+                    </FormDescription>
+                    {renderDefaultValueInput(selectedType)}
+                </div>
             )}
 
             {showCustomOptionsUI && !isTagsField && (
@@ -363,12 +467,12 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
                     <h4 className="font-bold">Options</h4>
                     {options.map((option, index) => (
                         <div key={option.id} className="flex items-end gap-2 p-3 border rounded-xl bg-muted/20">
-                            <Input {...form.register(`options.${index}.label`)} placeholder="Label" className="h-9" />
-                            <Input {...form.register(`options.${index}.value`)} placeholder="Value" className="h-9 font-mono text-xs" />
+                            <Input {...form.register(`options.${index}.label`)} placeholder="Label" className="h-9 rounded-lg" />
+                            <Input {...form.register(`options.${index}.value`)} placeholder="Value" className="h-9 font-mono text-xs rounded-lg" />
                             <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)} className="shrink-0 h-9 w-9 rounded-full"><Trash2 className="h-4 w-4" /></Button>
                         </div>
                     ))}
-                    <Button type="button" variant="outline" size="sm" onClick={() => append({id: `option_${crypto.randomUUID()}`, label: '', value: ''})} className="w-full h-10 border-dashed rounded-xl font-bold">
+                    <Button type="button" variant="outline" size="sm" onClick={() => append({id: `option_${crypto.randomUUID()}`, label: '', value: ''})} className="w-full h-11 border-dashed rounded-xl font-bold">
                         <PlusCircle className="h-4 w-4 mr-2" /> Add Option
                     </Button>
                 </div>
@@ -378,12 +482,12 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
                  <div className="space-y-3 pt-4 border-t">
                     <h4 className="font-bold">Tag Management</h4>
                     <div className="flex gap-2">
-                        <Input value={newTag} onChange={e => setNewTag(e.target.value)} placeholder="New predefined tag" onKeyDown={e => {if (e.key === 'Enter') { e.preventDefault(); handleAddTag();}}} />
-                        <Button type="button" onClick={handleAddTag} disabled={!newTag.trim()} className="shrink-0"><PlusCircle className="h-4 w-4 mr-2" /> Add</Button>
+                        <Input value={newTag} onChange={e => setNewTag(e.target.value)} placeholder="New predefined tag" className="h-11 rounded-xl" onKeyDown={e => {if (e.key === 'Enter') { e.preventDefault(); handleAddTag();}}} />
+                        <Button type="button" onClick={handleAddTag} disabled={!newTag.trim()} className="h-11 px-4 rounded-xl shrink-0"><PlusCircle className="h-4 w-4 mr-2" /> Add</Button>
                     </div>
                     <div className="flex flex-wrap gap-2 pt-2">
                         {allTags.map((tag) => (
-                            <Badge key={tag.id} variant="secondary" className="pl-3 pr-1 py-1 h-8 text-sm gap-2">
+                            <Badge key={tag.id} variant="secondary" className="pl-3 pr-1 py-1 h-8 text-sm gap-2 border-primary/10">
                                 {tag.label}
                                 <button type="button" className="h-6 w-6 rounded-full hover:bg-destructive hover:text-white flex items-center justify-center transition-colors" onClick={() => remove(options.findIndex(o => o.value === tag.value))}>
                                     <X className="h-3 w-3" />
@@ -395,8 +499,8 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
             )}
 
             <div className="flex flex-col sm:flex-row gap-2 pt-6 border-t mt-auto">
-                <Button type="submit" className="flex-1 rounded-xl h-12 font-bold shadow-lg">Save Changes</Button>
-                <Button type="button" variant="ghost" className="flex-1 rounded-xl h-12 font-medium" onClick={onCancel}>Cancel</Button>
+                <Button type="submit" className="flex-1 rounded-2xl h-12 font-bold shadow-lg">Save Changes</Button>
+                <Button type="button" variant="ghost" className="flex-1 rounded-2xl h-12 font-medium" onClick={onCancel}>Cancel</Button>
             </div>
         </form>
     </Form>

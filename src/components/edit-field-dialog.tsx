@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X, Users, ClipboardCheck, Info, AlertTriangle } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X, Users, ClipboardCheck, Info, AlertTriangle, CalendarIcon, Layout, Type, ListChecks } from 'lucide-react';
 import type { FieldConfig, FieldOption, FieldType, RepositoryConfig, Task } from '@/lib/types';
 import { FIELD_TYPES } from '@/lib/constants';
 import * as React from 'react';
@@ -31,6 +31,9 @@ import { Badge } from './ui/badge';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
+import { Textarea } from './ui/textarea';
+import { Calendar } from './ui/calendar';
+import { format } from 'date-fns';
 
 
 const fieldOptionSchema = z.object({
@@ -281,6 +284,121 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
       return [];
   }, [isDevelopersField, isTestersField]);
 
+  const renderDefaultValueInput = (type: FieldType) => {
+    const currentOptions = form.watch('options') || [];
+    
+    switch (type) {
+        case 'text':
+        case 'url':
+        case 'number':
+            return (
+                <FormField
+                    control={form.control}
+                    name="defaultValue"
+                    render={({ field }) => (
+                        <FormControl>
+                            <Input {...field} type={type === 'number' ? 'number' : 'text'} className="h-10 bg-background" />
+                        </FormControl>
+                    )}
+                />
+            );
+        case 'textarea':
+            return (
+                <FormField
+                    control={form.control}
+                    name="defaultValue"
+                    render={({ field }) => (
+                        <FormControl>
+                            <Textarea {...field} className="min-h-[80px] bg-background" />
+                        </FormControl>
+                    )}
+                />
+            );
+        case 'checkbox':
+            return (
+                <FormField
+                    control={form.control}
+                    name="defaultValue"
+                    render={({ field }) => (
+                        <FormControl>
+                            <div className="flex items-center gap-3 h-10 px-1">
+                                <Switch checked={!!field.value} onCheckedChange={field.onChange} />
+                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">{field.value ? 'Enabled by default' : 'Disabled by default'}</span>
+                            </div>
+                        </FormControl>
+                    )}
+                />
+            );
+        case 'date':
+            return (
+                <FormField
+                    control={form.control}
+                    name="defaultValue"
+                    render={({ field }) => (
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <FormControl>
+                                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal h-10 bg-background", !field.value && "text-muted-foreground")}>
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {field.value ? format(new Date(field.value), "PPP") : <span>Pick a fixed date</span>}
+                                    </Button>
+                                </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    mode="single"
+                                    selected={field.value ? new Date(field.value) : undefined}
+                                    onSelect={(date) => field.onChange(date?.toISOString())}
+                                    initialFocus
+                                />
+                            </PopoverContent>
+                        </Popover>
+                    )}
+                />
+            );
+        case 'select':
+            return (
+                <FormField
+                    control={form.control}
+                    name="defaultValue"
+                    render={({ field }) => (
+                        <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                                <SelectTrigger className="h-10 bg-background">
+                                    <SelectValue placeholder="Select default option" />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                {currentOptions.map(opt => (
+                                    <SelectItem key={opt.id} value={opt.value}>{opt.label}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+                />
+            );
+        case 'multiselect':
+        case 'tags':
+            return (
+                <FormField
+                    control={form.control}
+                    name="defaultValue"
+                    render={({ field }) => (
+                        <MultiSelect
+                            selected={Array.isArray(field.value) ? field.value : []}
+                            onChange={field.onChange}
+                            options={(isDevelopersField || isTestersField) ? defaultPersonOptions : currentOptions.map(o => ({ value: o.value, label: o.label }))}
+                            placeholder="Select default values..."
+                            className="bg-background"
+                        />
+                    )}
+                />
+            );
+        default:
+            return null;
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogChange}>
       <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[90vh] flex flex-col p-4 sm:p-6 overflow-hidden">
@@ -509,32 +627,18 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
                         />
                      )}
 
-                    {(isDevelopersField || isTestersField) && (
-                        <FormField
-                            control={form.control}
-                            name="defaultValue"
-                            render={({ field }) => (
-                                <FormItem className="pt-4 border-t space-y-3">
-                                    <div className="flex items-center gap-2">
-                                        {isDevelopersField ? <Users className="h-4 w-4 text-primary" /> : <ClipboardCheck className="h-4 w-4 text-primary" />}
-                                        <FormLabel className="font-bold tracking-tight">Default {isDevelopersField ? 'Developers' : 'Testers'}</FormLabel>
-                                    </div>
-                                    <FormDescription className="text-xs leading-relaxed">
-                                        These people will be automatically assigned to every new task created.
-                                    </FormDescription>
-                                    <FormControl>
-                                        <MultiSelect
-                                            selected={field.value || []}
-                                            onChange={field.onChange}
-                                            options={defaultPersonOptions}
-                                            placeholder={`Select default ${isDevelopersField ? 'developers' : 'testers'}...`}
-                                            className="bg-background"
-                                        />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                    {/* DEFAULT VALUE SECTION */}
+                    {selectedType !== 'object' && (
+                        <div className="pt-4 border-t space-y-3">
+                            <div className="flex items-center gap-2">
+                                <ListChecks className="h-4 w-4 text-primary" />
+                                <Label className="font-bold tracking-tight">Default Value</Label>
+                            </div>
+                            <FormDescription className="text-xs leading-relaxed">
+                                This value will be automatically filled when creating a new task.
+                            </FormDescription>
+                            {renderDefaultValueInput(selectedType)}
+                        </div>
                     )}
                      
                     {isSortableField && (
