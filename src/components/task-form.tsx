@@ -31,7 +31,7 @@ import {
     ArrowLeft, 
     AlertTriangle,
     History,
-    Undo2
+    X
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTransition, useEffect, useState, useRef, useMemo, useCallback } from 'react';
@@ -144,8 +144,8 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   const [developersList, setDevelopersList] = useState<Person[]>(propDevelopersList);
   const [testersList, setTestersList] = useState<Person[]>(propTestersList);
   const { toast } = useToast();
-  const imageInputRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const [commandKey, setCommandKey] = useState('Ctrl');
   const [activeId, setActiveId] = useState<string>('');
   
@@ -248,7 +248,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
             data: watchedValues,
             updatedAt: new Date().toISOString()
         }));
-    }, 1500); // Silent debounced save
+    }, 1500);
 
     return () => clearTimeout(timer);
   }, [watchedValues, isDirty, draftKey]);
@@ -256,7 +256,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   const restoreDraft = () => {
     if (!draftData) return;
     
-    // Process string dates back into Date objects for the form
     const restored = { ...(draftData.data || draftData) };
     restored.devStartDate = safeParseDate(restored.devStartDate);
     restored.devEndDate = safeParseDate(restored.devEndDate);
@@ -460,7 +459,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
 
     startTransition(() => {
         setIsDirty(false);
-        // Clear draft on successful save
         localStorage.removeItem(draftKey);
         onSubmit(data);
     });
@@ -904,7 +902,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                         <Button type="button" onClick={restoreDraft} size="lg" className="w-full h-12 rounded-2xl font-bold text-base shadow-lg shadow-primary/20">
                             Restore Draft
                         </Button>
-                        <Button type="button" onClick={discardDraft} variant="ghost" className="w-full h-12 rounded-2xl font-semibold text-muted-foreground hover:text-foreground">
+                        <Button type="button" onClick={discardDraft} variant="secondary" className="w-full h-12 rounded-2xl font-bold text-base bg-muted text-foreground hover:bg-muted/80">
                             Discard Changes
                         </Button>
                     </CardContent>
