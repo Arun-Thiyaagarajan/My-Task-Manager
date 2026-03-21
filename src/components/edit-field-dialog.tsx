@@ -63,6 +63,11 @@ interface EditFieldDialogProps {
 
 export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositoryConfigs }: EditFieldDialogProps) {
   const isCreating = field === null;
+  const config = React.useMemo(() => getUiConfig(), [isOpen]);
+  const uniqueFieldCount = React.useMemo(() => config.fields.filter(f => f.isUnique).length, [config]);
+  const isCurrentlyUnique = field?.isUnique || false;
+  const uniqueLimitReached = uniqueFieldCount >= 3;
+  const uniqueToggleDisabled = uniqueLimitReached && !isCurrentlyUnique;
 
   const form = useForm<FieldFormData>({
     resolver: zodResolver(fieldSchema),
@@ -422,16 +427,21 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, repositor
                                             id={field.name}
                                             checked={field.value}
                                             onCheckedChange={field.onChange}
+                                            disabled={uniqueToggleDisabled}
                                         />
                                     </FormControl>
-                                    <Label htmlFor={field.name} className="cursor-pointer font-semibold flex items-center gap-1.5 whitespace-nowrap">
+                                    <Label htmlFor={field.name} className={cn("cursor-pointer font-semibold flex items-center gap-1.5 whitespace-nowrap", uniqueToggleDisabled && "opacity-50 cursor-not-allowed")}>
                                         Unique
                                         <TooltipProvider>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
                                                     <Info className="h-3 w-3 text-muted-foreground" />
                                                 </TooltipTrigger>
-                                                <TooltipContent className="text-xs font-normal">Values in this field must be unique across active tasks</TooltipContent>
+                                                <TooltipContent className="text-xs font-normal">
+                                                    {uniqueToggleDisabled 
+                                                        ? "Maximum of 3 unique fields allowed" 
+                                                        : "Values in this field must be unique across active tasks"}
+                                                </TooltipContent>
                                             </Tooltip>
                                         </TooltipProvider>
                                     </Label>
