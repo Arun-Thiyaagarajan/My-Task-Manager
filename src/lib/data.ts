@@ -1,4 +1,3 @@
-
 'use client';
 
 import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
@@ -1267,6 +1266,34 @@ export async function getMyFeedback(): Promise<Feedback[]> {
     }
 }
 
+export async function getFeedbackById(id: string): Promise<Feedback | null> {
+    const mode = getAuthMode();
+    if (mode === 'authenticate') {
+        const db = getFirestore();
+        const docRef = doc(db, 'feedback', id);
+        try {
+            const snap = await getDoc(docRef);
+            if (snap.exists()) {
+                const data = snap.data() as Feedback;
+                // Security: Basic check to ensure user can only see their own feedback
+                // (Admins could override this logic in a real app)
+                const auth = getAuth();
+                const userId = auth.currentUser?.uid;
+                if (data.userId !== userId) return null;
+                return data;
+            }
+            return null;
+        } catch (e) {
+            console.error("Failed to fetch feedback:", e);
+            return null;
+        }
+    } else {
+        const data = getAppData();
+        const localFeedback = (data as any).localFeedback || [];
+        return localFeedback.find((f: any) => f.id === id) || null;
+    }
+}
+
 // Data Utility Functions
 export async function importWorkspaceData(parsedJson: any, onProgress?: (percent: number) => void) {
     const mode = getAuthMode();
@@ -1495,7 +1522,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             });
             
             comp.notes = [...jsonNotes.map(n => ({...n, id: `note-${crypto.randomUUID()}`})), ...comp.notes];
-            comp.logs = [...processedLogs, ...comp.logs];
+            comp.notes = [...processedLogs, ...comp.logs];
 
             if (repoConfigs.length > 0) {
                 repoConfigs.forEach((r: any) => {

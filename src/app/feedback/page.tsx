@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -7,9 +6,7 @@ import {
     ArrowLeft, 
     MessageSquareQuote, 
     Clock, 
-    CheckCircle2, 
     ChevronRight, 
-    Send,
     Plus,
     History,
     Mail,
@@ -18,7 +15,7 @@ import {
     HelpCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { getMyFeedback } from '@/lib/data';
 import type { Feedback } from '@/lib/types';
@@ -51,6 +48,11 @@ export default function FeedbackPage() {
     const handleNewFeedback = () => {
         window.dispatchEvent(new Event('navigation-start'));
         router.push('/feedback/new');
+    };
+
+    const handleDetailNavigate = (id: string) => {
+        window.dispatchEvent(new Event('navigation-start'));
+        router.push(`/feedback/${id}`);
     };
 
     const getStatusStyle = (status: Feedback['status']) => {
@@ -112,7 +114,11 @@ export default function FeedbackPage() {
                 ) : (
                     <div className="grid gap-4">
                         {submissions.map((item) => (
-                            <Card key={item.id} className="border-muted/60 shadow-sm hover:shadow-md transition-all active:scale-[0.99] rounded-2xl overflow-hidden group">
+                            <Card 
+                                key={item.id} 
+                                className="border-muted/60 shadow-sm hover:shadow-md transition-all active:scale-[0.99] rounded-2xl overflow-hidden group cursor-pointer"
+                                onClick={() => handleDetailNavigate(item.id)}
+                            >
                                 <CardContent className="p-0">
                                     <div className="p-5 flex items-start gap-4">
                                         <div className="h-10 w-10 rounded-xl bg-muted/30 flex items-center justify-center shrink-0">
