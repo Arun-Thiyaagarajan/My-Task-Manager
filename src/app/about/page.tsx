@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
@@ -27,12 +26,16 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useFirebase } from '@/firebase';
 
 function AboutContent() {
     const isMobile = useIsMobile();
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { userProfile } = useFirebase();
     const activeSection = searchParams.get('section');
+
+    const isAdmin = userProfile?.role === 'admin';
 
     useEffect(() => {
         window.dispatchEvent(new Event('navigation-end'));
@@ -132,25 +135,29 @@ function AboutContent() {
             content: (
                 <div className="space-y-4">
                     <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-                        Have a feature request, found a bug, or just want to say hi? Use our structured feedback system for the fastest response.
+                        {isAdmin 
+                            ? "Administrators can manage user feedback and provide support through the Support Inbox."
+                            : "Have a feature request, found a bug, or just want to say hi? Use our structured feedback system for the fastest response."}
                     </p>
-                    <Card className="bg-primary/5 border-2 border-dashed border-primary/20 rounded-2xl sm:rounded-3xl overflow-hidden">
-                        <CardContent className="p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
-                            <div className="flex items-center gap-4 text-center sm:text-left min-w-0 w-full">
-                                <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner shrink-0">
-                                    <MessageSquareQuote className="h-5 w-5 sm:h-6 sm:w-6" />
+                    {!isAdmin && (
+                        <Card className="bg-primary/5 border-2 border-dashed border-primary/20 rounded-2xl sm:rounded-[2.5rem] overflow-hidden">
+                            <CardContent className="p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
+                                <div className="flex items-center gap-4 text-center sm:text-left min-w-0 w-full">
+                                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner shrink-0">
+                                        <MessageSquareQuote className="h-5 w-5 sm:h-6 sm:w-6" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-primary/60">Quick Support Channels</p>
+                                        <p className="text-sm sm:text-lg font-black tracking-tight text-foreground truncate">Submit Feedback or Bug Report</p>
+                                    </div>
                                 </div>
-                                <div className="min-w-0 flex-1">
-                                    <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-primary/60">Quick Support Channels</p>
-                                    <p className="text-sm sm:text-lg font-black tracking-tight text-foreground truncate">Submit Feedback or Bug Report</p>
-                                </div>
-                            </div>
-                            <Button onClick={handleNavigateFeedback} className="w-full sm:w-auto rounded-xl sm:rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] h-11 sm:h-12 px-8 shadow-lg shadow-primary/20">
-                                <Send className="mr-2 h-3.5 w-3.5" />
-                                Open Form
-                            </Button>
-                        </CardContent>
-                    </Card>
+                                <Button onClick={handleNavigateFeedback} className="w-full sm:w-auto rounded-xl sm:rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] h-11 sm:h-12 px-8 shadow-lg shadow-primary/20">
+                                    <Send className="mr-2 h-3.5 w-3.5" />
+                                    Open Form
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
             )
         },

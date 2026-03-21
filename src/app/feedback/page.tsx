@@ -22,12 +22,16 @@ import type { Feedback } from '@/lib/types';
 import { formatTimestamp, cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { useFirebase } from '@/firebase';
 
 export default function FeedbackPage() {
     const isMobile = useIsMobile();
     const router = useRouter();
+    const { userProfile } = useFirebase();
     const [submissions, setSubmissions] = useState<Feedback[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+
+    const isAdmin = userProfile?.role === 'admin';
 
     const load = async () => {
         const data = await getMyFeedback();
@@ -90,10 +94,12 @@ export default function FeedbackPage() {
                         <p className="text-muted-foreground text-xs sm:text-sm font-medium">Manage your feedback and support requests.</p>
                     </div>
                 </div>
-                <Button onClick={handleNewFeedback} className="w-full sm:w-auto h-11 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-primary/20">
-                    <Plus className="mr-2 h-4 w-4" />
-                    New Request
-                </Button>
+                {!isAdmin && (
+                    <Button onClick={handleNewFeedback} className="w-full sm:w-auto h-11 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-primary/20">
+                        <Plus className="mr-2 h-4 w-4" />
+                        New Request
+                    </Button>
+                )}
             </div>
 
             <div className="space-y-6">
@@ -109,7 +115,9 @@ export default function FeedbackPage() {
                             <Mail className="h-8 w-8" />
                         </div>
                         <p className="text-muted-foreground font-bold tracking-tight">No active requests.</p>
-                        <p className="text-xs text-muted-foreground/60 max-w-[200px] mt-1">Submit a feedback or bug report to see it tracked here.</p>
+                        <p className="text-xs text-muted-foreground/60 max-w-[200px] mt-1">
+                            {isAdmin ? 'Admins manage user submissions in the Support Inbox.' : 'Submit a feedback or bug report to see it tracked here.'}
+                        </p>
                     </div>
                 ) : (
                     <div className="grid gap-4">

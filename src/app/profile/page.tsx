@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
@@ -1099,9 +1098,10 @@ export default function ProfilePage() {
         <div className="flex-1">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             {!isMobile && (
-                <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted/50 p-1 rounded-xl h-auto">
+                <TabsList className={cn("grid w-full mb-6 bg-muted/50 p-1 rounded-xl h-auto", isAdmin ? "grid-cols-3" : "grid-cols-2")}>
                     <TabsTrigger value="general" className="data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer font-medium rounded-lg">General</TabsTrigger>
                     <TabsTrigger value="security" className="data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-medium rounded-lg">Security</TabsTrigger>
+                    {isAdmin && <TabsTrigger value="admin" className="data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-medium rounded-lg">Admin</TabsTrigger>}
                 </TabsList>
             )}
 
@@ -1330,6 +1330,33 @@ export default function ProfilePage() {
                 </Card>
               )}
             </TabsContent>
+
+            {isAdmin && (
+                <TabsContent value="admin" className="space-y-6">
+                    <Card className="shadow-sm border-none lg:border rounded-3xl lg:rounded-xl">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-lg font-semibold text-amber-600">
+                                <Inbox className="h-5 w-5" />
+                                Admin Controls
+                            </CardTitle>
+                            <CardDescription className="text-sm font-normal">Manage global application resources and user support.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <Button 
+                                variant="outline" 
+                                className="w-full h-14 text-sm justify-between rounded-2xl font-bold px-4 border-amber-200 bg-amber-50/30 hover:bg-amber-50 hover:border-amber-300" 
+                                onClick={() => router.push('/admin/feedback')}
+                            >
+                                <span className="flex items-center gap-3">
+                                    <Inbox className="h-5 w-5 text-amber-600" /> 
+                                    Support Inbox
+                                </span>
+                                <ChevronRight className="h-4 w-4 text-amber-400" />
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            )}
 
             <TabsContent value="workspaces" className="space-y-6">
                 <Card className="shadow-sm border-none lg:border rounded-3xl lg:rounded-xl">

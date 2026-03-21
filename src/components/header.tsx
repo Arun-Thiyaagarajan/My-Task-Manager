@@ -43,7 +43,8 @@ import {
   Compass,
   Sparkles,
   ArrowLeft,
-  HelpCircle
+  HelpCircle,
+  Inbox
 } from 'lucide-react';
 import { CompaniesManager } from './companies-manager';
 import { useToast } from '@/hooks/use-toast';
@@ -240,6 +241,8 @@ export function Header() {
     }
   };
 
+  const isAdmin = authMode === 'authenticate' && userProfile?.role === 'admin';
+
   return (
     <>
       <header id="main-header" className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -267,6 +270,12 @@ export function Header() {
                   <Home className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   <span className="hidden lg:inline">Tasks</span>
                </HeaderLink>
+               {isAdmin && (
+                  <HeaderLink href="/admin/feedback" id="header-nav-admin-feedback" className="flex items-center text-sm font-bold text-amber-600 hover:text-amber-700 transition-colors group whitespace-nowrap px-2 py-1 bg-amber-500/5 rounded-lg border border-amber-500/10">
+                    <Inbox className="md:mr-0 lg:mr-2 h-4 w-4 opacity-90 group-hover:opacity-100" />
+                    <span className="hidden lg:inline">Inbox</span>
+                  </HeaderLink>
+               )}
                <HeaderLink href="/dashboard" id="header-nav-dashboard" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap px-2 py-1">
                   <LayoutDashboard className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   <span className="hidden lg:inline">Dashboard</span>
