@@ -25,8 +25,17 @@ export function PullToRefresh({ children }: PullToRefreshProps) {
   const MAX_PULL_DISTANCE = 130;
 
   const onTouchStart = useCallback((e: TouchEvent) => {
-    // Only pull if we are at the top of the document
-    if (window.scrollY > 0 || isRefreshing) return;
+    // Detect if a modal/dialog is open. 
+    // Radix UI (ShadCN) sets overflow: hidden on the body when a dialog is open.
+    const bodyStyles = window.getComputedStyle(document.body);
+    const isDialogOpen = bodyStyles.overflow === 'hidden' || !!document.querySelector('[role="dialog"]');
+
+    // Only allow pull-to-refresh if:
+    // 1. We are at the top of the main window
+    // 2. Not already refreshing
+    // 3. NO dialog is currently open (to avoid scroll conflicts)
+    if (window.scrollY > 0 || isRefreshing || isDialogOpen) return;
+    
     pullStartRef.current = e.touches[0].clientY;
   }, [isRefreshing]);
 
