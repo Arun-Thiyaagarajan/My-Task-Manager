@@ -180,20 +180,28 @@ export const MultiSelect = React.memo(function MultiSelect({
             </div>
             </div>
         </PopoverTrigger>
-        <PopoverContent className="w-[300px] p-0" align="start">
+        <PopoverContent 
+            className="w-[300px] p-0" 
+            align="start"
+            onOpenAutoFocus={(e) => e.preventDefault()}
+            onPointerDownCapture={(e) => e.stopPropagation()}
+        >
             <Command onKeyDown={handleKeyDown} className={cn('overflow-visible bg-transparent', className)}>
                 <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
                     <CommandPrimitive.Input
                         ref={inputRef}
                         value={query}
                         onValueChange={setQuery}
-                        onBlur={() => setIsOpen(false)}
-                        onFocus={() => setIsOpen(true)}
                         placeholder={placeholder}
                         className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
                     />
                 </div>
-                <CommandList className="max-h-60 overscroll-contain">
+                <CommandList 
+                    className="max-h-60 overscroll-contain"
+                    onWheel={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onTouchMove={(e) => e.stopPropagation()}
+                >
                     <CommandEmpty>No results found.</CommandEmpty>
                     <CommandGroup>
                         {filteredOptions.map((option) => (
@@ -269,7 +277,10 @@ export const MultiSelect = React.memo(function MultiSelect({
         </Popover>
 
         <Dialog open={isListOpen} onOpenChange={setIsListOpen}>
-            <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col p-0 overflow-hidden">
+            <DialogContent 
+                className="sm:max-w-md max-h-[90vh] flex flex-col p-0 overflow-hidden"
+                onOpenAutoFocus={(e) => e.preventDefault()}
+            >
                 <div className="p-6 pb-2 shrink-0">
                     <DialogHeader>
                         <div className="flex items-center gap-2 mb-1">
