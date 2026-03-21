@@ -68,7 +68,7 @@ service cloud.firestore {
       // Conversation Messages Subcollection
       match /messages/{messageId} {
         // Access depends on the parent feedback report ownership
-        allow read, create: if isSignedIn() && (
+        allow read, list, create: if isSignedIn() && (
           get(/databases/$(database)/documents/feedback/$(feedbackId)).data.userId == request.auth.uid || 
           isAdmin()
         );

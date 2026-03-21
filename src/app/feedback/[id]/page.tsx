@@ -24,7 +24,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { getFeedbackById, sendFeedbackMessage, updateFeedbackStatus } from '@/lib/data';
+import { getFeedbackById, sendFeedbackMessage, updateFeedbackStatus, getAuthMode, getAppData } from '@/lib/data';
 import type { Feedback, FeedbackMessage, FeedbackStatus } from '@/lib/types';
 import { formatTimestamp, cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -43,7 +43,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 export default function FeedbackDetailPage() {
     const params = useParams();
     const router = useRouter();
-    const { user, firestore, userProfile } = useFirebase();
+    const { user, firestore, userProfile, isUserLoading } = useFirebase();
     const [item, setItem] = useState<Feedback | null>(null);
     const [messages, setMessages] = useState<FeedbackMessage[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -64,7 +64,25 @@ export default function FeedbackDetailPage() {
     }, [params.id]);
 
     useEffect(() => {
-        if (!firestore || !params.id) return;
+        const mode = getAuthMode();
+        
+        // Handle Local Mode Messages
+        if (mode === 'localStorage') {
+            const loadLocalMessages = () => {
+                const data = getAppData();
+                const localMsgs = (data as any).localMessages?.[params.id as string] || [];
+                setMessages(localMsgs);
+                setTimeout(() => {
+                    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+                }, 100);
+            };
+            loadLocalMessages();
+            window.addEventListener('storage', loadLocalMessages);
+            return () => window.removeEventListener('storage', loadLocalMessages);
+        }
+
+        // Handle Cloud Mode Messages
+        if (!firestore || !params.id || isUserLoading || !user) return;
 
         const messagesRef = collection(firestore, 'feedback', params.id as string, 'messages');
         const q = query(messagesRef, orderBy('timestamp', 'asc'));
@@ -79,6 +97,8 @@ export default function FeedbackDetailPage() {
                 }, 100);
             },
             async (serverError) => {
+                // If we hit a permission error, it's often because the auth state is still resolving 
+                // or the user doesn't actually own this feedback.
                 const permissionError = new FirestorePermissionError({
                     path: messagesRef.path,
                     operation: 'list',
@@ -88,7 +108,7 @@ export default function FeedbackDetailPage() {
         );
 
         return () => unsub();
-    }, [firestore, params.id]);
+    }, [firestore, params.id, user, isUserLoading]);
 
     const handleBack = () => {
         window.dispatchEvent(new Event('navigation-start'));
@@ -107,6 +127,11 @@ export default function FeedbackDetailPage() {
         try {
             await sendFeedbackMessage(item.id, newMessage.trim());
             setNewMessage('');
+            // If in local mode, we manually refresh since storage event might not fire in same tab
+            if (getAuthMode() === 'localStorage') {
+                const data = getAppData();
+                setMessages((data as any).localMessages?.[item.id] || []);
+            }
         } catch (error) {
             console.error("Failed to send message", error);
         } finally {
@@ -311,7 +336,7 @@ export default function FeedbackDetailPage() {
                                 </div>
 
                                 {messages.map((msg) => {
-                                    const isMe = msg.senderId === user?.uid;
+                                    const isMe = user ? msg.senderId === user.uid : false;
                                     const isAdminMsg = msg.senderRole === 'admin';
 
                                     return (
