@@ -16,7 +16,7 @@ export interface TextareaProps
 }
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className, enableHotkeys = false, value, ...props }, ref) => {
+  ({ className, enableHotkeys = false, ...props }, ref) => {
     
     const localRef = React.useRef<HTMLTextAreaElement>(null);
     const combinedRef = (el: HTMLTextAreaElement) => {
@@ -61,7 +61,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       };
 
       adjustHeight();
-    }, [value]);
+    }, [props.value]);
     
     React.useEffect(() => {
         const textarea = localRef.current;
@@ -168,7 +168,6 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                     ref={combinedRef}
                     onKeyDown={handleKeyDown}
                     onChange={handleTextareaInput}
-                    value={value ?? ""}
                     {...props}
                 />
             </PopoverAnchor>
