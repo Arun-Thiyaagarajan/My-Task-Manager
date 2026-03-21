@@ -9,7 +9,30 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, CalendarIcon, Trash2, PlusCircle, Image, Link2, HelpCircle, Layout, Users, Calendar as CalendarIconLucide, Paperclip, Rocket, GitMerge, ChevronRight, PanelLeft, PanelRight, CircleDot, Save, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { 
+    Loader2, 
+    CalendarIcon, 
+    Trash2, 
+    PlusCircle, 
+    Image, 
+    Link2, 
+    HelpCircle, 
+    Layout, 
+    Users, 
+    Calendar as CalendarIconLucide, 
+    Paperclip, 
+    Rocket, 
+    GitMerge, 
+    ChevronRight, 
+    PanelLeft, 
+    PanelRight, 
+    CircleDot, 
+    Save, 
+    ArrowLeft, 
+    AlertTriangle,
+    History,
+    Undo2
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTransition, useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -27,7 +50,7 @@ import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Textarea } from '@/components/ui/textarea';
-import { TextareaToolbar, applyFormat, FormatType } from '@/components/ui/textarea-toolbar';
+import { TextareaToolbar, applyFormat, type FormatType } from '@/components/ui/textarea-toolbar';
 import { getLinkAlias } from '@/ai/flows/alias-flow';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
@@ -129,6 +152,12 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   const [sidebarPosition, setSidebarPosition] = useState<'left' | 'right'>('left');
   const [uniquenessViolation, setUniquenessViolation] = useState<{ fieldLabel: string; value: string; fieldKey: string } | null>(null);
   
+  // Draft State
+  const [showDraftPrompt, setShowDraftPrompt] = useState(false);
+  const [draftData, setDraftData] = useState<any>(null);
+  const DRAFT_PREFIX = 'taskflow_draft_';
+  const draftKey = task?.id ? `${DRAFT_PREFIX}${task.id}` : `${DRAFT_PREFIX}new`;
+
   const isJumpingRef = useRef(false);
   const jumpTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -191,7 +220,67 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
         initialData.status = currentUiConfig.taskStatuses[0];
     }
     form.reset(initialData);
-  }, [task, form.reset, uiConfig]);
+
+    // Check for existing draft on mount
+    const savedDraft = localStorage.getItem(draftKey);
+    if (savedDraft) {
+        try {
+            const parsed = JSON.parse(savedDraft);
+            // Only show prompt if the draft actually contains data different from current (very basic check)
+            if (JSON.stringify(parsed) !== JSON.stringify(initialData)) {
+                setDraftData(parsed);
+                setShowDraftPrompt(true);
+            }
+        } catch (e) {
+            console.error("Failed to load draft:", e);
+        }
+    }
+  }, [task, form.reset, uiConfig, draftKey]);
+
+  // Auto-save draft logic
+  const watchedValues = form.watch();
+  useEffect(() => {
+    if (!isDirty) return;
+    
+    const timer = setTimeout(() => {
+        localStorage.setItem(draftKey, JSON.stringify(watchedValues));
+    }, 1500); // Silent debounced save
+
+    return () => clearTimeout(timer);
+  }, [watchedValues, isDirty, draftKey]);
+
+  const restoreDraft = () => {
+    if (!draftData) return;
+    
+    // Process string dates back into Date objects for the form
+    const restored = { ...draftData };
+    restored.devStartDate = safeParseDate(restored.devStartDate);
+    restored.devEndDate = safeParseDate(restored.devEndDate);
+    restored.qaStartDate = safeParseDate(restored.qaStartDate);
+    restored.qaEndDate = safeParseDate(restored.qaEndDate);
+    
+    if (restored.deploymentDates) {
+        const dates: any = {};
+        for (const k in restored.deploymentDates) {
+            dates[k] = safeParseDate(restored.deploymentDates[k]);
+        }
+        restored.deploymentDates = dates;
+    }
+    
+    form.reset(restored);
+    setShowDraftPrompt(false);
+    toast({ 
+        variant: 'default', 
+        title: 'Draft Restored', 
+        description: 'Your previous unsaved changes have been loaded.' 
+    });
+  };
+
+  const discardDraft = () => {
+    localStorage.removeItem(draftKey);
+    setShowDraftPrompt(false);
+    toast({ title: 'Draft discarded' });
+  };
   
   const devStartDate = form.watch('devStartDate');
   const qaStartDate = form.watch('qaStartDate');
@@ -348,7 +437,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   };
 
   const handleFormSubmit = (data: TaskFormData) => {
-    // Uniqueness Check
     const uniqueness = checkUniqueness(data, task?.id);
     if (!uniqueness.isUnique) {
         const fieldKey = uiConfig?.fields.find(f => f.label === uniqueness.fieldLabel)?.key || 'title';
@@ -368,6 +456,8 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
 
     startTransition(() => {
         setIsDirty(false);
+        // Clear draft on successful save
+        localStorage.removeItem(draftKey);
         onSubmit(data);
     });
   };
@@ -678,6 +768,18 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     return sections;
   }, [groupOrder, uiConfig, fieldLabels, deploymentFieldConfig, groupedFields]);
 
+  const useIsMobile = () => {
+    const [isMobile, setIsMobile] = useState(false);
+    useEffect(() => {
+        const check = () => setIsMobile(window.innerWidth < 1024);
+        check();
+        window.addEventListener('resize', check);
+        return () => window.removeEventListener('resize', check);
+    }, []);
+    return isMobile;
+  };
+  const isMobile = useIsMobile();
+
   useEffect(() => {
     if (!uiConfig || navigableSections.length === 0) return;
 
@@ -763,7 +865,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit, onInvalid)}>
-        {/* MOBILE HEADER - Standard Back-on-Left Pattern */}
+        {/* MOBILE HEADER */}
         <div className="lg:hidden -mx-4 px-4 bg-background border-b h-14 flex items-center justify-between mb-2 animate-in fade-in duration-300">
             <Button
                 type="button"
@@ -777,6 +879,20 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
             </Button>
             <h2 className="text-lg font-semibold tracking-tight truncate flex-1 text-right">{formTitle}</h2>
         </div>
+
+        {/* Mobile Draft Prompt (WhatsApp Style) */}
+        {isMobile && showDraftPrompt && (
+            <div className="lg:hidden -mx-4 px-4 py-3 bg-primary/10 border-b border-primary/20 flex items-center justify-between animate-in slide-in-from-top duration-300 mb-2">
+                <div className="flex items-center gap-2">
+                    <History className="h-4 w-4 text-primary" />
+                    <span className="text-xs font-bold text-primary uppercase tracking-tight">Unsaved draft found</span>
+                </div>
+                <div className="flex gap-3">
+                    <button type="button" onClick={discardDraft} className="text-[10px] font-black uppercase text-muted-foreground hover:text-foreground transition-colors">Discard</button>
+                    <button type="button" onClick={restoreDraft} className="text-[10px] font-black uppercase text-primary hover:underline transition-all">Restore</button>
+                </div>
+            </div>
+        )}
 
         {/* DESKTOP ACTION BAR - Fixed at bottom */}
         <div className={cn(
@@ -932,8 +1048,29 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                 </aside>
 
             <div className="flex-1 space-y-6 max-w-full">
-                {/* Desktop-only Page Title (hidden on mobile since we have the header component) */}
+                {/* Desktop-only Page Title */}
                 <h1 className="hidden lg:block text-2xl font-semibold tracking-tight mb-2 px-6">{formTitle}</h1>
+
+                {/* Desktop Draft Prompt */}
+                {!isMobile && showDraftPrompt && (
+                    <div className="px-6">
+                        <Alert className="bg-primary/5 border-primary/20 rounded-2xl animate-in slide-in-from-top-2 duration-500 shadow-xl shadow-primary/5">
+                            <History className="h-5 w-5 text-primary" />
+                            <div className="flex-1 flex items-center justify-between ml-2">
+                                <div className="space-y-0.5">
+                                    <AlertTitle className="font-bold text-primary text-sm">Resume Editing?</AlertTitle>
+                                    <AlertDescription className="text-xs font-medium text-muted-foreground">
+                                        We found an unsaved draft from your last visit. Would you like to restore it?
+                                    </AlertDescription>
+                                </div>
+                                <div className="flex gap-2 shrink-0">
+                                    <Button type="button" variant="ghost" size="sm" onClick={discardDraft} className="h-8 text-[10px] font-black uppercase hover:bg-destructive/10 hover:text-destructive transition-all">Discard</Button>
+                                    <Button type="button" variant="outline" size="sm" onClick={restoreDraft} className="h-8 text-[10px] font-black uppercase border-primary/20 text-primary bg-primary/5 hover:bg-primary/10 shadow-sm">Restore Draft</Button>
+                                </div>
+                            </div>
+                        </Alert>
+                    </div>
+                )}
 
                 {uniquenessViolation && (
                     <div className="px-6">
