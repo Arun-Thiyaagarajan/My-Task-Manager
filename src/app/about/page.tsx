@@ -178,10 +178,22 @@ function AboutContent() {
                             Yes! Use the <strong>Workspace Switcher</strong> in the top navigation (or under <strong>Profile → Workspaces</strong> on mobile) to create different organizational profiles.
                         </AccordionContent>
                     </AccordionItem>
+                    <AccordionItem value="bin-policy" className="border-muted/60">
+                        <AccordionTrigger className="text-sm font-bold hover:no-underline py-4 text-left">What happens to deleted tasks?</AccordionTrigger>
+                        <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4">
+                            Tasks moved to the <strong>Bin</strong> are kept for 30 days. You can restore them anytime during this period. After 30 days, they are automatically purged to keep your workspace clean.
+                        </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="unique-fields" className="border-muted/60">
+                        <AccordionTrigger className="text-sm font-bold hover:no-underline py-4 text-left">What are &quot;Unique&quot; fields?</AccordionTrigger>
+                        <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4">
+                            Unique fields (like Task IDs or Azure Work Item IDs) ensure that no two active tasks have the same value. This prevents duplicate tracking and keeps your data clean. You can enable this for any custom field in settings.
+                        </AccordionContent>
+                    </AccordionItem>
                     <AccordionItem value="data-export" className="border-muted/60">
                         <AccordionTrigger className="text-sm font-bold hover:no-underline py-4 text-left">How do I export my data?</AccordionTrigger>
                         <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4">
-                            You can export tasks as <strong>PDFs</strong> or <strong>JSON</strong> using the Share menu. To export your entire workspace, select <strong>Export</strong> from the main task list.
+                            You can export tasks as <strong>PDFs</strong> or <strong>JSON</strong> using the Share menu. To export your entire workspace, select <strong>Export</strong> from the main task list header.
                         </AccordionContent>
                     </AccordionItem>
                 </Accordion>
