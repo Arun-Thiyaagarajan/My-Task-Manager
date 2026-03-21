@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -1203,31 +1204,29 @@ export default function Home() {
                 </DialogHeader>
             </div>
             
-            <div className="flex-1 overflow-hidden">
-                <ScrollArea className="h-full px-6">
-                    <div className="pb-6">
-                        {importSummary && importSummary.skippedDuplicates.length > 0 && (
-                            <>
-                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-3 flex items-center gap-2">
-                                    <Fingerprint className="h-3 w-3" />
-                                    Omitted Duplicates
-                                </p>
-                                <div className="border rounded-2xl bg-muted/20 overflow-hidden shadow-inner">
-                                    <div className="divide-y divide-border/50">
-                                        {importSummary.skippedDuplicates.map((item, i) => (
-                                            <div key={i} className="p-3 bg-background/50 hover:bg-background transition-colors">
-                                                <p className="text-sm font-bold truncate">{item.taskTitle}</p>
-                                                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tight mt-0.5">
-                                                    Duplicate {item.field}: <span className="text-primary font-bold">{item.value}</span>
-                                                </p>
-                                            </div>
-                                        ))}
-                                    </div>
+            <div className="flex-1 overflow-y-auto overscroll-contain px-6">
+                <div className="pb-6">
+                    {importSummary && importSummary.skippedDuplicates.length > 0 && (
+                        <>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-3 flex items-center gap-2">
+                                <Fingerprint className="h-3 w-3" />
+                                Omitted Duplicates
+                            </p>
+                            <div className="border rounded-2xl bg-muted/20 overflow-hidden shadow-inner">
+                                <div className="divide-y divide-border/50">
+                                    {importSummary.skippedDuplicates.map((item, i) => (
+                                        <div key={i} className="p-3 bg-background/50 hover:bg-background transition-colors">
+                                            <p className="text-sm font-bold truncate">{item.taskTitle}</p>
+                                            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tight mt-0.5">
+                                                Duplicate {item.field}: <span className="text-primary font-bold">{item.value}</span>
+                                            </p>
+                                        </div>
+                                    ))}
                                 </div>
-                            </>
-                        )}
-                    </div>
-                </ScrollArea>
+                            </div>
+                        </>
+                    )}
+                </div>
             </div>
 
             <DialogFooter className="p-4 bg-muted/10 shrink-0">
@@ -1254,76 +1253,74 @@ export default function Home() {
                 </div>
             </div>
 
-            <div className="flex-1 overflow-hidden bg-background overscroll-contain">
-                <ScrollArea className="h-full">
-                    <div className="p-6 space-y-8">
-                        {existingDuplicates.map((group, groupIdx) => (
-                            <div key={groupIdx} className="space-y-4">
-                                <div className="flex items-center gap-2 px-1">
-                                    <div className="h-2 w-2 rounded-full bg-amber-500" />
-                                    <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
-                                        {group.fieldLabel}: <span className="text-foreground">{group.value}</span>
-                                    </h3>
-                                </div>
-                                <div className="grid gap-3">
-                                    {group.tasks.map(task => (
-                                        <Card key={task.id} className="border-muted/60 bg-muted/5 hover:bg-muted/10 transition-all">
-                                            <CardContent className="p-4 flex items-center justify-between gap-4">
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="text-sm font-bold truncate">{task.title}</p>
-                                                    <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tight mt-0.5">
-                                                        Added {format(new Date(task.createdAt), 'MMM d, yyyy')}
-                                                    </p>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <Button 
-                                                        variant="ghost" 
-                                                        size="sm" 
-                                                        className="h-8 text-[10px] font-black uppercase tracking-widest px-3 rounded-lg"
-                                                        onClick={() => router.push(`/tasks/${task.id}`)}
-                                                    >
-                                                        View
-                                                    </Button>
-                                                    <AlertDialog>
-                                                        <AlertDialogTrigger asChild>
-                                                            <Button 
-                                                                variant="ghost" 
-                                                                size="icon" 
-                                                                className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-full"
-                                                            >
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </Button>
-                                                        </AlertDialogTrigger>
-                                                        <AlertDialogContent className="rounded-3xl">
-                                                            <AlertDialogHeader>
-                                                                <AlertDialogTitle className="font-bold">Delete Duplicate Task?</AlertDialogTitle>
-                                                                <AlertDialogDescription className="text-sm font-normal">
-                                                                    This task will be moved to the bin. This value ("{group.value}") will then be available for other tasks.
-                                                                </AlertDialogDescription>
-                                                            </AlertDialogHeader>
-                                                            <AlertDialogFooter className="pt-4 gap-2">
-                                                                <AlertDialogCancel className="rounded-xl font-medium">Cancel</AlertDialogCancel>
-                                                                <AlertDialogAction 
-                                                                    className="bg-destructive hover:bg-destructive/90 rounded-xl font-bold"
-                                                                    onClick={() => {
-                                                                        moveMultipleTasksToBin([task.id]);
-                                                                        refreshData();
-                                                                    }}
-                                                                >
-                                                                    Delete Task
-                                                                </AlertDialogAction>
-                                                            </AlertDialogFooter>
-                                                        </AlertDialogContent>
-                                                    </AlertDialog>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    ))}
-                                </div>
+            <div className="flex-1 overflow-y-auto overscroll-contain bg-background">
+                <div className="p-6 space-y-8">
+                    {existingDuplicates.map((group, groupIdx) => (
+                        <div key={groupIdx} className="space-y-4">
+                            <div className="flex items-center gap-2 px-1">
+                                <div className="h-2 w-2 rounded-full bg-amber-500" />
+                                <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
+                                    {group.fieldLabel}: <span className="text-foreground">{group.value}</span>
+                                </h3>
                             </div>
-                        ))}
-                    </div>
-                </ScrollArea>
+                            <div className="grid gap-3">
+                                {group.tasks.map(task => (
+                                    <Card key={task.id} className="border-muted/60 bg-muted/5 hover:bg-muted/10 transition-all">
+                                        <CardContent className="p-4 flex items-center justify-between gap-4">
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-sm font-bold truncate">{task.title}</p>
+                                                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tight mt-0.5">
+                                                    Added {format(new Date(task.createdAt), 'MMM d, yyyy')}
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="sm" 
+                                                    className="h-8 text-[10px] font-black uppercase tracking-widest px-3 rounded-lg"
+                                                    onClick={() => router.push(`/tasks/${task.id}`)}
+                                                >
+                                                    View
+                                                </Button>
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            size="icon" 
+                                                            className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-full"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent className="rounded-3xl">
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle className="font-bold">Delete Duplicate Task?</AlertDialogTitle>
+                                                            <AlertDialogDescription className="text-sm font-normal">
+                                                                This task will be moved to the bin. This value ("{group.value}") will then be available for other tasks.
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter className="pt-4 gap-2">
+                                                            <AlertDialogCancel className="rounded-xl font-medium">Cancel</AlertDialogCancel>
+                                                            <AlertDialogAction 
+                                                                className="bg-destructive hover:bg-destructive/90 rounded-xl font-bold"
+                                                                onClick={() => {
+                                                                    moveMultipleTasksToBin([task.id]);
+                                                                    refreshData();
+                                                                }}
+                                                            >
+                                                                Delete Task
+                                                            </AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </div>
 
             <DialogFooter className="p-6 bg-muted/30 border-t shrink-0 flex flex-row items-center justify-between">
