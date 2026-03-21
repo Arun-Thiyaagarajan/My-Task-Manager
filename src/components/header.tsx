@@ -297,10 +297,10 @@ export function Header() {
             </nav>
           </div>
           <div className="flex items-center gap-1 sm:gap-3">
-            {isAdmin && !isMobile && (
-                <HeaderLink href="/admin/feedback" id="header-nav-admin-feedback" className="flex items-center text-sm font-bold text-amber-600 hover:text-amber-700 transition-colors group whitespace-nowrap px-3 py-1.5 bg-amber-500/5 rounded-full border border-amber-500/20 mr-1 shadow-sm">
-                    <Inbox className="h-4 w-4 mr-2 opacity-90" />
-                    <span className="tracking-tight">Support Inbox</span>
+            {isAdmin && (
+                <HeaderLink href="/admin/feedback" id="header-nav-admin-feedback" className="flex items-center text-sm font-bold text-amber-600 hover:text-amber-700 transition-colors group whitespace-nowrap px-2 py-1.5 sm:px-3 bg-amber-500/5 rounded-full border border-amber-500/20 mr-1 shadow-sm">
+                    <Inbox className="h-4 w-4 sm:mr-2 opacity-90" />
+                    <span className="tracking-tight hidden sm:inline">Support Inbox</span>
                 </HeaderLink>
             )}
 
