@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useToast } from "@/hooks/use-toast"
@@ -17,16 +16,28 @@ export function Toaster() {
   return (
     <ToastProvider>
       {toasts.map(function ({ id, title, description, action, ...props }) {
+        const isPremium = props.variant === 'premium';
+
         return (
           <Toast key={id} {...props}>
-            <div className="grid gap-1">
-              {title && <ToastTitle>{title}</ToastTitle>}
-              {description && (
-                <ToastDescription>{typeof description === 'function' ? description({}) : description}</ToastDescription>
-              )}
-            </div>
-            {action}
-            <ToastClose />
+            {!isPremium ? (
+                <>
+                    <div className="grid gap-1">
+                    {title && <ToastTitle>{title}</ToastTitle>}
+                    {description && (
+                        <ToastDescription>{typeof description === 'function' ? description({}) : description}</ToastDescription>
+                    )}
+                    </div>
+                    {action}
+                    <ToastClose />
+                </>
+            ) : (
+                <div className="w-full">
+                    {description && (
+                        <ToastDescription>{typeof description === 'function' ? description({}) : description}</ToastDescription>
+                    )}
+                </div>
+            )}
           </Toast>
         )
       })}

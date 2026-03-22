@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -17,7 +16,7 @@ const ToastViewport = React.forwardRef<
   <ToastPrimitives.Viewport
     ref={ref}
     className={cn(
-      "fixed top-0 z-[200] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]",
+      "fixed top-0 z-[200] flex max-h-screen w-full flex-col gap-3 p-4 pt-[calc(env(safe-area-inset-top)+0.5rem)] sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]",
       className
     )}
     {...props}
@@ -35,6 +34,7 @@ const toastVariants = cva(
           "destructive group border-destructive bg-destructive text-destructive-foreground",
         success: "success group border-transparent bg-green-600 text-white",
         warning: "warning group border-transparent bg-yellow-500 text-black",
+        premium: "premium group bg-background/95 backdrop-blur-lg border-muted/40 shadow-2xl rounded-[22px] p-0 border-l-[4px] border-l-primary data-[state=open]:animate-in data-[state=open]:zoom-in-95 data-[state=open]:slide-in-from-top-full data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-full",
       },
     },
     defaultVariants: {
@@ -99,6 +99,7 @@ const ToastClose = React.forwardRef<
       "group-[.destructive]:text-destructive-foreground/80 group-[.destructive]:hover:text-destructive-foreground group-[.destructive]:focus:ring-destructive",
       "group-[.success]:text-green-300 group-[.success]:hover:text-green-50 group-[.success]:focus:ring-green-400 group-[.success]:focus:ring-offset-green-600",
       "group-[.warning]:text-yellow-900 group-[.warning]:hover:text-black group-[.warning]:focus:ring-yellow-400 group-[.warning]:focus:ring-offset-yellow-600",
+      "group-[.premium]:hidden",
       className
     )}
     toast-close=""
@@ -127,7 +128,7 @@ const ToastDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ToastPrimitives.Description
     ref={ref}
-    className={cn("text-sm opacity-90", className)}
+    className={cn("text-sm opacity-90 group-[.premium]:opacity-100 group-[.premium]:text-current group-[.premium]:w-full", className)}
     {...props}
   />
 ))

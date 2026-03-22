@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useEffect, useRef } from 'react';
@@ -24,16 +23,18 @@ import {
     getUserPreferences,
     markNotificationRead
 } from '@/lib/data';
-import type { Task, Note, Log, Company, MyTaskManagerData, CompanyData, UserPreferences, AppNotification } from '@/lib/types';
+import type { Task, Note, Log, Company, MyTaskManagerData, CompanyData, UserPreferences, AppNotification, UserProfile } from '@/lib/types';
 import { INITIAL_RELEASES, INITIAL_UI_CONFIG, TASK_STATUSES, INITIAL_REPOSITORY_CONFIGS, ENVIRONMENTS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { usePathname, useRouter } from 'next/navigation';
 import { useToast } from './use-toast';
 import { Button } from '@/components/ui/button';
+import { Rocket, MessageSquare, Bell, ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export function useTaskFlowData() {
-    const { user, firestore, userProfile } = useFirebase();
+    const { user, firestore, userProfile, isUserLoading } = useFirebase();
     const activeCompanyId = getActiveCompanyId();
     const pathname = usePathname();
     const { toast } = useToast();
@@ -43,7 +44,6 @@ export function useTaskFlowData() {
     const processedIds = useRef<Set<string>>(new Set());
     const pathnameRef = useRef(pathname);
     
-    // PERSISTENT AUDIO: Using a single ref to manage the audio instance across the app lifecycle
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const audioUnlocked = useRef(false);
 
@@ -51,17 +51,13 @@ export function useTaskFlowData() {
         pathnameRef.current = pathname;
     }, [pathname]);
 
-    // Handle Pending Navigation (from Push Notifications / App Boot)
     useEffect(() => {
         if (!activeCompanyId || isUserLoading) return;
 
         const checkPendingNavigation = () => {
             const pendingLink = localStorage.getItem('taskflow_pending_push_link');
             if (pendingLink) {
-                // Remove immediately to prevent loops
                 localStorage.removeItem('taskflow_pending_push_link');
-                
-                // Navigate after a short delay to ensure router is ready
                 setTimeout(() => {
                     window.dispatchEvent(new Event('navigation-start'));
                     router.push(pendingLink);
@@ -70,17 +66,15 @@ export function useTaskFlowData() {
         };
 
         checkPendingNavigation();
-    }, [activeCompanyId, router]);
+    }, [activeCompanyId, router, isUserLoading]);
 
     useEffect(() => {
-        // 1. INITIALIZE: Create the persistent audio instance once
         if (typeof window !== 'undefined' && !audioRef.current) {
             audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
             audioRef.current.volume = 0.35;
             audioRef.current.preload = 'auto';
         }
 
-        // 2. UNLOCK: Audio context must be unlocked via user interaction on mobile
         const unlockAudio = () => {
             if (audioRef.current && !audioUnlocked.current) {
                 audioRef.current.play()
@@ -104,8 +98,6 @@ export function useTaskFlowData() {
             window.removeEventListener('touchstart', unlockAudio);
         };
     }, []);
-
-    const { isUserLoading } = useFirebase();
 
     useEffect(() => {
         const authMode = getAuthMode();
@@ -188,16 +180,39 @@ export function useTaskFlowData() {
                             }
 
                             toast({
-                                title: newNotif.title,
-                                description: newNotif.message,
-                                action: React.createElement(Button, {
-                                    size: 'sm',
-                                    variant: 'outline',
+                                variant: 'premium',
+                                duration: 5000,
+                                description: React.createElement('div', {
+                                    className: "w-full cursor-pointer overflow-hidden",
                                     onClick: () => {
                                         markNotificationRead(id);
+                                        window.dispatchEvent(new Event('navigation-start'));
                                         router.push(newNotif.link);
                                     }
-                                }, 'View')
+                                }, 
+                                    React.createElement('div', { className: "flex items-center gap-3 p-4 w-full active:bg-muted/50 transition-colors" },
+                                        React.createElement('div', {
+                                            className: cn(
+                                                "h-10 w-10 rounded-full flex items-center justify-center shrink-0 shadow-inner border border-white/5",
+                                                newNotif.type === 'user_request' ? "bg-amber-500/10 text-amber-600" : 
+                                                newNotif.type === 'admin_reply' ? "bg-blue-500/10 text-blue-600" : 
+                                                "bg-primary/10 text-primary"
+                                            )
+                                        }, 
+                                            newNotif.type === 'user_request' ? React.createElement(Rocket, { className: "h-5 w-5" }) : 
+                                            newNotif.type === 'admin_reply' ? React.createElement(MessageSquare, { className: "h-5 w-5" }) : 
+                                            React.createElement(Bell, { className: "h-5 w-5" })
+                                        ),
+                                        React.createElement('div', { className: "flex-1 min-w-0" },
+                                            React.createElement('p', { className: "text-[13px] font-black text-foreground truncate leading-tight mb-0.5 tracking-tight" }, newNotif.title),
+                                            React.createElement('p', { className: "text-[11px] text-muted-foreground line-clamp-2 leading-snug font-medium" }, newNotif.message)
+                                        ),
+                                        React.createElement('div', { className: "shrink-0 flex flex-col items-end gap-1.5 pl-2" },
+                                            React.createElement('span', { className: "text-[9px] font-black text-muted-foreground/40 uppercase tracking-tighter" }, "Now"),
+                                            React.createElement(ChevronRight, { className: "h-3 w-3 text-muted-foreground/20" })
+                                        )
+                                    )
+                                )
                             });
                         }
                     });
