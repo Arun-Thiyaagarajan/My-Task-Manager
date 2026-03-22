@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -34,10 +35,8 @@ export function NotificationsHub() {
     const [isOpen, setIsOpen] = useState(false);
     const [isNavigatingId, setIsNavigatingId] = useState<string | null>(null);
     
-    // Immediate reactive state for sound icon
     const [isMuted, setIsMuted] = useState(getUserPreferences().notificationSounds === false);
 
-    // Sync isMuted state with external changes (e.g. from Settings)
     useEffect(() => {
         const handlePrefsChange = () => {
             setIsMuted(getUserPreferences().notificationSounds === false);
@@ -46,7 +45,6 @@ export function NotificationsHub() {
         return () => window.removeEventListener('preferences-changed', handlePrefsChange);
     }, []);
 
-    // Lock body scroll when popup is open
     useEffect(() => {
         if (isOpen) {
             const originalStyle = window.getComputedStyle(document.body).overflow;
@@ -192,29 +190,30 @@ export function NotificationsHub() {
             </PopoverTrigger>
             <PopoverContent 
                 align="end" 
-                className="w-[calc(100vw-2rem)] sm:w-[360px] max-h-[80vh] p-0 rounded-[1.5rem] shadow-2xl border-none bg-background/95 backdrop-blur-md animate-in zoom-in-95 duration-200 flex flex-col overflow-hidden"
+                className="w-[calc(100vw-1.5rem)] sm:w-[380px] max-h-[85vh] p-0 rounded-[2rem] shadow-2xl border-none bg-background/95 backdrop-blur-md animate-in zoom-in-95 duration-200 flex flex-col overflow-hidden"
                 onOpenAutoFocus={(e) => e.preventDefault()}
             >
-                <div className="bg-primary/5 p-4 border-b flex items-center justify-between shrink-0">
-                    <div className="flex items-center gap-2">
+                {/* Fixed Header */}
+                <div className="bg-primary/5 p-5 border-b flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-3">
                         <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-                        <h3 className="font-black text-xs uppercase tracking-[0.1em] text-foreground/80">Notifications</h3>
+                        <h3 className="font-black text-xs uppercase tracking-[0.2em] text-foreground/80">Inbox</h3>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-2">
                         <Button 
                             variant="ghost" 
                             size="icon" 
                             onClick={toggleMute}
-                            className="h-7 w-7 text-muted-foreground hover:text-primary transition-colors"
+                            className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors rounded-full"
                         >
-                            {isMuted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+                            {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                         </Button>
                         {unreadCount > 0 && (
                             <Button 
                                 variant="ghost" 
                                 size="sm" 
                                 onClick={markAllRead} 
-                                className="h-7 px-2 text-[10px] font-bold uppercase tracking-widest text-primary hover:bg-primary/10 transition-colors"
+                                className="h-8 px-3 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/10 transition-colors rounded-full"
                             >
                                 Mark all read
                             </Button>
@@ -222,79 +221,83 @@ export function NotificationsHub() {
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto overscroll-contain custom-scrollbar scroll-smooth">
+                {/* Scrollable Content */}
+                <div className="flex-1 overflow-y-auto overscroll-contain custom-scrollbar scroll-smooth p-3 space-y-3">
                     {isLoading ? (
-                        <div className="flex flex-col items-center justify-center py-16 gap-3">
-                            <Loader2 className="h-6 w-6 animate-spin text-primary/40" />
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Syncing alerts...</p>
+                        <div className="flex flex-col items-center justify-center py-20 gap-4">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary/40" />
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Reconciling alerts...</p>
                         </div>
                     ) : notifications.length === 0 ? (
-                        <div className="flex-1 flex flex-col items-center justify-center py-12 gap-4 text-center px-8 animate-in fade-in duration-500 min-h-[180px]">
-                            <div className="h-16 w-16 rounded-full bg-muted/30 flex items-center justify-center mb-2 shadow-inner">
-                                <Inbox className="h-8 w-8 text-muted-foreground/30" />
+                        <div className="flex-1 flex flex-col items-center justify-center py-16 gap-4 text-center px-10 animate-in fade-in duration-500">
+                            <div className="h-20 w-20 rounded-[2.5rem] bg-muted/30 flex items-center justify-center mb-2 shadow-inner rotate-3">
+                                <Inbox className="h-10 w-10 text-muted-foreground/20" />
                             </div>
-                            <div className="space-y-1">
-                                <p className="text-sm font-bold text-foreground/60">No new alerts</p>
-                                <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest leading-relaxed max-w-[200px] mx-auto">
-                                    Your inbox is empty. Support activity and replies will appear here.
+                            <div className="space-y-2">
+                                <p className="text-base font-black tracking-tight text-foreground/60">No new alerts</p>
+                                <p className="text-[11px] text-muted-foreground font-medium leading-relaxed uppercase tracking-widest">
+                                    Support activity and system updates will appear here in real-time.
                                 </p>
                             </div>
                         </div>
                     ) : (
-                        <div className="divide-y divide-border/40">
+                        <div className="space-y-2.5 pb-4">
                             {notifications.map((notif) => (
                                 <button
                                     key={notif.id}
                                     onClick={() => handleAction(notif)}
                                     disabled={isNavigatingId !== null}
                                     className={cn(
-                                        "w-full flex items-start gap-4 p-4 text-left transition-all hover:bg-muted/50 relative group",
-                                        !notif.read ? "bg-primary/[0.03]" : "opacity-80",
+                                        "w-full flex items-start gap-4 p-4 text-left transition-all rounded-[1.25rem] border border-transparent relative group animate-in slide-in-from-top-2 duration-300",
+                                        !notif.read 
+                                            ? "bg-primary/[0.04] border-primary/10 shadow-sm" 
+                                            : "bg-card border-muted/40 opacity-70 hover:opacity-100",
                                         isNavigatingId === notif.id && "bg-muted cursor-wait"
                                     )}
                                 >
                                     {!notif.read && (
-                                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-full" />
+                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-primary rounded-full ml-1.5 shadow-[0_0_8px_rgba(61,90,254,0.5)]" />
                                     )}
+                                    
                                     <div className={cn(
-                                        "h-10 w-10 rounded-xl flex items-center justify-center shrink-0 border shadow-sm transition-transform group-hover:scale-105",
+                                        "h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 border shadow-inner transition-transform group-hover:scale-105",
                                         notif.type === 'user_request' ? "bg-amber-500/10 text-amber-600 border-amber-500/20" : 
                                         notif.type === 'admin_reply' ? "bg-blue-500/10 text-blue-600 border-blue-500/20" :
                                         "bg-primary/10 text-primary border-primary/20"
                                     )}>
                                         {isNavigatingId === notif.id ? (
-                                            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
                                         ) : (
-                                            notif.type === 'user_request' ? <Rocket className="h-5 w-5" /> : 
-                                            notif.type === 'admin_reply' ? <MessageSquare className="h-5 w-5" /> :
-                                            <Bell className="h-5 w-5" />
+                                            notif.type === 'user_request' ? <Rocket className="h-6 w-6" /> : 
+                                            notif.type === 'admin_reply' ? <MessageSquare className="h-6 w-6" /> :
+                                            <Bell className="h-6 w-6" />
                                         )}
                                     </div>
+
                                     <div className="flex-1 min-w-0 space-y-1">
                                         <div className="flex justify-between items-start gap-2">
                                             <p className={cn(
-                                                "text-xs font-black truncate tracking-tight uppercase",
-                                                !notif.read ? "text-foreground" : "text-muted-foreground"
+                                                "text-xs tracking-tight uppercase leading-tight",
+                                                !notif.read ? "font-black text-foreground" : "font-bold text-muted-foreground"
                                             )}>
                                                 {notif.title}
                                             </p>
-                                            <span className="text-[9px] font-bold text-muted-foreground/40 whitespace-nowrap pt-0.5 uppercase">
+                                            <span className="text-[9px] font-black text-muted-foreground/40 whitespace-nowrap pt-0.5 uppercase tracking-tighter">
                                                 {notif.timestamp ? formatTimestamp(notif.timestamp) : 'Now'}
                                             </span>
                                         </div>
-                                        <p className="text-[11px] leading-relaxed text-muted-foreground line-clamp-2 pr-2">
+                                        <p className="text-[11px] leading-relaxed text-muted-foreground line-clamp-2 pr-4 font-medium">
                                             {notif.message}
                                         </p>
-                                        <div className="flex items-center gap-1.5 pt-1.5">
+                                        <div className="flex items-center gap-2 pt-2">
                                             {notif.senderName && (
-                                                <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-muted-foreground/60 mr-auto">
+                                                <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-muted-foreground/50 mr-auto">
                                                     <User className="h-2.5 w-2.5" />
                                                     {notif.senderName}
                                                 </div>
                                             )}
-                                            <span className="text-[9px] font-black uppercase tracking-widest text-primary/60 group-hover:text-primary transition-colors flex items-center">
-                                                Open
-                                                <ChevronRight className="h-3 w-3 ml-0.5" />
+                                            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/60 group-hover:text-primary transition-colors flex items-center">
+                                                OPEN <ChevronRight className="h-2.5 w-2.5 ml-0.5" />
                                             </span>
                                         </div>
                                     </div>
@@ -304,14 +307,15 @@ export function NotificationsHub() {
                     )}
                 </div>
 
+                {/* Fixed Footer */}
                 {getAppData().localProfile && user && notifications.length > 0 && (
-                    <div className="p-4 bg-muted/20 border-t shrink-0">
+                    <div className="p-5 bg-muted/20 border-t shrink-0">
                         <Button 
                             onClick={() => { setIsOpen(false); router.push('/admin/feedback'); }}
-                            className="w-full h-11 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] gap-2 shadow-xl shadow-primary/10 group"
+                            className="w-full h-12 rounded-2xl font-black text-[10px] uppercase tracking-[0.3em] gap-2 shadow-2xl shadow-primary/20 group"
                         >
                             <Inbox className="h-4 w-4" />
-                            Support Command Center
+                            Command Center
                         </Button>
                     </div>
                 )}

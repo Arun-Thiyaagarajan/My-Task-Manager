@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useRef } from 'react';
@@ -50,6 +51,27 @@ export function useTaskFlowData() {
         pathnameRef.current = pathname;
     }, [pathname]);
 
+    // Handle Pending Navigation (from Push Notifications / App Boot)
+    useEffect(() => {
+        if (!activeCompanyId || isUserLoading) return;
+
+        const checkPendingNavigation = () => {
+            const pendingLink = localStorage.getItem('taskflow_pending_push_link');
+            if (pendingLink) {
+                // Remove immediately to prevent loops
+                localStorage.removeItem('taskflow_pending_push_link');
+                
+                // Navigate after a short delay to ensure router is ready
+                setTimeout(() => {
+                    window.dispatchEvent(new Event('navigation-start'));
+                    router.push(pendingLink);
+                }, 100);
+            }
+        };
+
+        checkPendingNavigation();
+    }, [activeCompanyId, router]);
+
     useEffect(() => {
         // 1. INITIALIZE: Create the persistent audio instance once
         if (typeof window !== 'undefined' && !audioRef.current) {
@@ -61,16 +83,13 @@ export function useTaskFlowData() {
         // 2. UNLOCK: Audio context must be unlocked via user interaction on mobile
         const unlockAudio = () => {
             if (audioRef.current && !audioUnlocked.current) {
-                // Play a brief silent segment or the actual sound once to prime the browser's audio engine
                 audioRef.current.play()
                     .then(() => {
                         audioRef.current?.pause();
                         if (audioRef.current) audioRef.current.currentTime = 0;
                         audioUnlocked.current = true;
                     })
-                    .catch(() => {
-                        // Silent fail: browser might still be blocking or interaction wasn't sufficient
-                    });
+                    .catch(() => {});
                 
                 window.removeEventListener('click', unlockAudio);
                 window.removeEventListener('touchstart', unlockAudio);
@@ -85,6 +104,8 @@ export function useTaskFlowData() {
             window.removeEventListener('touchstart', unlockAudio);
         };
     }, []);
+
+    const { isUserLoading } = useFirebase();
 
     useEffect(() => {
         const authMode = getAuthMode();
@@ -136,7 +157,6 @@ export function useTaskFlowData() {
                             const newNotif = change.doc.data() as AppNotification;
                             const id = change.doc.id;
                             
-                            // 3. DEDUPLICATION: Play sound and show toast exactly once per message ID
                             if (processedIds.current.has(id)) return;
                             processedIds.current.add(id);
                             
@@ -147,7 +167,6 @@ export function useTaskFlowData() {
 
                             if (newNotif.senderId === userId) return;
 
-                            // 4. REACTIVE PLAYBACK: Only play if foregrounded and sounds are enabled in latest prefs
                             const isForeground = typeof document !== 'undefined' && document.visibilityState === 'visible';
                             const prefs = getUserPreferences();
                             const isMuted = prefs.notificationSounds === false;
@@ -156,7 +175,6 @@ export function useTaskFlowData() {
                                 try {
                                     audioRef.current.currentTime = 0;
                                     audioRef.current.play().catch(e => {
-                                        // Browsers may still block if interaction hasn't happened yet
                                         console.warn("Notification audio blocked by browser policy.", e);
                                     });
                                 } catch (e) {
@@ -164,7 +182,6 @@ export function useTaskFlowData() {
                                 }
                             }
 
-                            // If already on chat page, mark read instantly and skip toast
                             if (pathnameRef.current === newNotif.link) {
                                 markNotificationRead(id);
                                 return;
