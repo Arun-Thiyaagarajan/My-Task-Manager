@@ -725,7 +725,7 @@ export function checkUniqueness(
             const normalized = valToCheck.trim().toLowerCase();
             const conflict = activeTasks.find(t => {
                 if (excludeTaskId && t.id === excludeTaskId) return false;
-                const otherVal = field.isCustom ? t.customFields?.[field.key] : (t as any)[field.key];
+                const otherVal = field.isCustom ? t.customFields?.[field.key] : ()[field.key];
                 return otherVal && typeof otherVal === 'string' && otherVal.trim().toLowerCase() === normalized;
             });
 
