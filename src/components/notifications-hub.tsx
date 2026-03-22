@@ -315,7 +315,7 @@ export function NotificationsHub() {
                             className="w-full h-12 rounded-2xl font-black text-[10px] uppercase tracking-[0.3em] gap-2 shadow-2xl shadow-primary/20 group"
                         >
                             <Inbox className="h-4 w-4" />
-                            Command Center
+                            Support Inbox
                         </Button>
                     </div>
                 )}
