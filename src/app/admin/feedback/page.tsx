@@ -28,6 +28,8 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useFirebase } from '@/firebase';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
+type AdminFilterCategory = 'All' | 'New' | 'Active' | 'Resolved';
+
 export default function AdminFeedbackPage() {
     const { userProfile, isUserLoading } = useFirebase();
     const router = useRouter();
@@ -35,7 +37,7 @@ export default function AdminFeedbackPage() {
     const [submissions, setSubmissions] = useState<Feedback[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState<Feedback['status'] | 'All'>('All');
+    const [statusFilter, setStatusFilter] = useState<AdminFilterCategory>('All');
 
     const isAdmin = userProfile?.role === 'admin';
 
@@ -65,16 +67,26 @@ export default function AdminFeedbackPage() {
         if (pathname === target) return;
 
         window.dispatchEvent(new Event('navigation-start'));
-        // FIX: Use replace to prevent history stacking, ensuring Back exits correctly
         router.replace(target);
     };
 
     const filtered = submissions.filter(item => {
+        // Search filter
         const matchesSearch = 
             item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
             item.userName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             item.contactEmail?.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesStatus = statusFilter === 'All' || item.status === statusFilter;
+        
+        // Status Category filter
+        let matchesStatus = true;
+        if (statusFilter === 'New') {
+            matchesStatus = item.status === 'Submitted';
+        } else if (statusFilter === 'Active') {
+            matchesStatus = ['In Progress', 'Reviewed'].includes(item.status);
+        } else if (statusFilter === 'Resolved') {
+            matchesStatus = ['Resolved', 'Closed'].includes(item.status);
+        }
+
         return matchesSearch && matchesStatus;
     });
 
@@ -95,6 +107,7 @@ export default function AdminFeedbackPage() {
             case 'In Progress': return 'bg-purple-500/10 text-purple-600 border-purple-200';
             case 'Resolved': return 'bg-emerald-500/10 text-emerald-600 border-emerald-200';
             case 'Closed': return 'bg-green-500/10 text-green-600 border-green-200';
+            case 'Reviewed': return 'bg-amber-500/10 text-amber-600 border-amber-200';
             default: return 'bg-muted text-muted-foreground';
         }
     };
@@ -137,9 +150,9 @@ export default function AdminFeedbackPage() {
                     <Tabs value={statusFilter} onValueChange={(val: any) => setStatusFilter(val)} className="w-full md:w-auto">
                         <TabsList className="bg-muted/50 p-1 h-12 rounded-2xl border w-full md:w-auto overflow-x-auto no-scrollbar">
                             <TabsTrigger value="All" className="rounded-xl font-bold px-4 data-[state=active]:shadow-sm">All</TabsTrigger>
-                            <TabsTrigger value="Submitted" className="rounded-xl font-bold px-4 data-[state=active]:shadow-sm">New</TabsTrigger>
-                            <TabsTrigger value="In Progress" className="rounded-xl font-bold px-4 data-[state=active]:shadow-sm">Active</TabsTrigger>
-                            <TabsTrigger value="Resolved" className="rounded-xl font-bold px-4 data-[state=active]:shadow-sm text-emerald-600">Resolved</TabsTrigger>
+                            <TabsTrigger value="New" className="rounded-xl font-bold px-4 data-[state=active]:shadow-sm">New</TabsTrigger>
+                            <TabsTrigger value="Active" className="rounded-xl font-bold px-4 data-[state=active]:shadow-sm">Active</TabsTrigger>
+                            <TabsTrigger value="Resolved" className="rounded-xl font-bold px-4 data-[state=active]:shadow-sm text-emerald-600 data-[state=active]:text-emerald-600">Resolved</TabsTrigger>
                         </TabsList>
                     </Tabs>
                 </div>
