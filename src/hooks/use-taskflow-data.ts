@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useEffect, useRef } from 'react';
@@ -32,10 +31,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useToast } from './use-toast';
 import { Button } from '@/components/ui/button';
 
-/**
- * Hook to manage real-time data synchronization between Firestore and the application cache.
- * Only active in 'authenticate' mode.
- */
 export function useTaskFlowData() {
     const { user, firestore, userProfile } = useFirebase();
     const activeCompanyId = getActiveCompanyId();
@@ -48,12 +43,10 @@ export function useTaskFlowData() {
     const pathnameRef = useRef(pathname);
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
-    // Ensure logic uses current pathname without restarting listener
     useEffect(() => {
         pathnameRef.current = pathname;
     }, [pathname]);
 
-    // Pre-initialize notification sound
     useEffect(() => {
         audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
         audioRef.current.volume = 0.35;
@@ -62,7 +55,6 @@ export function useTaskFlowData() {
     useEffect(() => {
         const authMode = getAuthMode();
         if (authMode !== 'authenticate' || !user || !firestore) {
-            // Clear cloud cache and stop listeners if not in sync mode
             unsubscribers.current.forEach(unsub => unsub());
             unsubscribers.current = [];
             setCloudCache(null);
@@ -73,21 +65,16 @@ export function useTaskFlowData() {
         const db = firestore;
 
         const setupListeners = () => {
-            // Cleanup existing listeners before re-establishing
             unsubscribers.current.forEach(unsub => unsub());
             unsubscribers.current = [];
 
-            // 0. User Preferences Fetch (Initial only, then local-first write-back)
             const prefRef = doc(db, 'users', userId, 'preferences', 'settings');
             getDoc(prefRef).then(snap => {
                 if (snap.exists()) {
                     updateUserPreferences(snap.data() as UserPreferences);
                 }
-            }).catch(e => {
-                // Ignore initial pref fetch error
-            });
+            }).catch(() => {});
 
-            // 1. GLOBAL NOTIFICATIONS LISTENER (Unified Singleton)
             const isAdmin = userProfile?.role === 'admin';
             const notifRef = collection(db, 'notifications');
             const recipientIds = [userId];
@@ -104,43 +91,39 @@ export function useTaskFlowData() {
             const unsubNotif = onSnapshot(qNotif, (snapshot) => {
                 const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as AppNotification));
                 
-                // Update Global Cache
                 const currentAppData = getAppData();
                 currentAppData.notifications = items;
                 setCloudCache(currentAppData);
                 window.dispatchEvent(new Event('company-changed'));
 
-                // Notification Alert Trigger Logic
                 if (!isFirstSnapshot) {
                     snapshot.docChanges().forEach(change => {
                         if (change.type === 'added') {
                             const newNotif = change.doc.data() as AppNotification;
                             const id = change.doc.id;
                             
-                            // FIX: Prevent Duplicate Processing (Deduplication)
+                            // Deduplication: Play sound and show toast exactly once per message ID
                             if (processedIds.current.has(id)) return;
                             processedIds.current.add(id);
                             
-                            // Keep set size manageable
                             if (processedIds.current.size > 100) {
                                 const firstItem = processedIds.current.values().next().value;
                                 if (firstItem) processedIds.current.delete(firstItem);
                             }
 
-                            // FIX: Filter out self-actions
                             if (newNotif.senderId === userId) return;
 
-                            // FIX: Mark as read immediately if already on the linked page (e.g. Chat)
-                            if (pathnameRef.current === newNotif.link) {
-                                markNotificationRead(id);
-                                return;
-                            }
-
-                            // FIX: Conditional Alert (Sound + Toast)
+                            // Consistent Audio Behavior: Play sound for every new message
                             const prefs = getUserPreferences();
                             if (prefs.notificationSounds !== false && audioRef.current) {
                                 audioRef.current.currentTime = 0;
                                 audioRef.current.play().catch(() => {});
+                            }
+
+                            // If already on chat page, mark read instantly and skip toast
+                            if (pathnameRef.current === newNotif.link) {
+                                markNotificationRead(id);
+                                return;
                             }
 
                             toast({
@@ -167,13 +150,11 @@ export function useTaskFlowData() {
             });
             unsubscribers.current.push(unsubNotif);
 
-            // 2. Companies Metadata Listener
             const companiesRef = collection(db, 'users', userId, 'companies');
             const unsubCompanies = onSnapshot(companiesRef, (snapshot) => {
                 const companies: Company[] = snapshot.docs.map(d => d.data() as Company);
                 
                 if (companies.length === 0) {
-                    // Bootstrap default company if none exists in cloud for this user
                     const defaultId = 'company-default';
                     const defaultCompany = { id: defaultId, name: 'My Cloud Workspace' };
                     const docRef = doc(db, 'users', userId, 'companies', defaultId);
@@ -195,7 +176,6 @@ export function useTaskFlowData() {
                     activeCompanyId: companies.some(c => c.id === activeCompanyId) ? activeCompanyId : companies[0].id
                 };
 
-                // Initialize data containers for new companies
                 companies.forEach(company => {
                     if (!updatedData.companyData[company.id]) {
                         updatedData.companyData[company.id] = _getEmptyCompanyData();
@@ -212,15 +192,12 @@ export function useTaskFlowData() {
             });
             unsubscribers.current.push(unsubCompanies);
 
-            // 3. Active Company Sub-resource Listeners
             if (activeCompanyId) {
                 const companyBase = `users/${userId}/companies/${activeCompanyId}`;
 
-                // Tasks Listener
                 const tasksRef = collection(db, companyBase, 'tasks');
                 const unsubTasks = onSnapshot(tasksRef, (snap) => {
                     _updateCloudCachePart(activeCompanyId, 'tasks', snap.docs.map(d => d.data() as Task));
-                    // Mark sync as complete once we get the initial tasks snapshot
                     markInitialSyncComplete(activeCompanyId);
                 }, (error) => {
                     errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -230,7 +207,6 @@ export function useTaskFlowData() {
                 });
                 unsubscribers.current.push(unsubTasks);
 
-                // Notes Listener
                 const notesRef = collection(db, companyBase, 'notes');
                 const unsubNotes = onSnapshot(notesRef, (snap) => {
                     _updateCloudCachePart(activeCompanyId, 'notes', snap.docs.map(d => d.data() as Note));
@@ -242,7 +218,6 @@ export function useTaskFlowData() {
                 });
                 unsubscribers.current.push(unsubNotes);
 
-                // Logs Listener
                 const logsQuery = query(collection(db, companyBase, 'logs'), orderBy('timestamp', 'desc'));
                 const unsubLogs = onSnapshot(logsQuery, (snap) => {
                     _updateCloudCachePart(activeCompanyId, 'logs', snap.docs.map(d => d.data() as Log));
@@ -254,7 +229,6 @@ export function useTaskFlowData() {
                 });
                 unsubscribers.current.push(unsubLogs);
 
-                // UI Config Listener
                 const configRef = doc(db, companyBase, 'settings', 'uiConfig');
                 const unsubConfig = onSnapshot(configRef, (snap) => {
                     if (snap.exists()) {
@@ -268,7 +242,6 @@ export function useTaskFlowData() {
                 });
                 unsubscribers.current.push(unsubConfig);
 
-                // People Listeners (Developers & Testers)
                 const devsRef = doc(db, companyBase, 'people', 'developers');
                 const unsubDevs = onSnapshot(devsRef, (snap) => {
                     if (snap.exists()) _updateCloudCachePart(activeCompanyId, 'developers', snap.data().list || []);
@@ -291,7 +264,6 @@ export function useTaskFlowData() {
                 });
                 unsubscribers.current.push(unsubTesters);
 
-                // General Reminders Listener
                 const remindersRef = doc(db, companyBase, 'reminders', 'general');
                 const unsubReminders = onSnapshot(remindersRef, (snap) => {
                     if (snap.exists()) _updateCloudCachePart(activeCompanyId, 'generalReminders', snap.data().list || []);
@@ -303,7 +275,6 @@ export function useTaskFlowData() {
                 });
                 unsubscribers.current.push(unsubReminders);
 
-                // Release Updates Listener
                 const releasesRef = doc(db, companyBase, 'releases', 'updates');
                 const unsubReleases = onSnapshot(releasesRef, (snap) => {
                     if (snap.exists()) _updateCloudCachePart(activeCompanyId, 'releaseUpdates', snap.data().list || []);
@@ -322,7 +293,7 @@ export function useTaskFlowData() {
         return () => {
             unsubscribers.current.forEach(unsub => unsub());
         };
-    }, [user, firestore, activeCompanyId, userProfile?.role]); // Added role to re-listen correctly if admin mode changes
+    }, [user, firestore, activeCompanyId, userProfile?.role]);
 }
 
 function _updateCloudCachePart(companyId: string, part: keyof CompanyData, data: any) {
@@ -331,7 +302,6 @@ function _updateCloudCachePart(companyId: string, part: keyof CompanyData, data:
         current.companyData[companyId] = _getEmptyCompanyData();
     }
 
-    // Separate tasks into active and trash based on deletedAt presence
     if (part === 'tasks') {
         const allTasks = data as Task[];
         current.companyData[companyId].tasks = allTasks.filter(t => !t.deletedAt);

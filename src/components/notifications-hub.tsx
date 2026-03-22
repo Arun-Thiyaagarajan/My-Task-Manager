@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -26,13 +25,14 @@ import { Button } from '@/components/ui/button';
 import { useFirebase } from '@/firebase';
 import type { AppNotification } from '@/lib/types';
 import { formatTimestamp, cn } from '@/lib/utils';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { markNotificationRead, getAuthMode, getUserPreferences, updateUserPreferences, getAppData } from '@/lib/data';
 
 export function NotificationsHub() {
     const { user, isUserLoading } = useFirebase();
     const router = useRouter();
+    const pathname = usePathname();
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isOpen, setIsOpen] = useState(false);
@@ -42,14 +42,11 @@ export function NotificationsHub() {
     const prefs = getUserPreferences();
     const isMuted = prefs.notificationSounds === false;
 
-    // FIX: Removed internal onSnapshot listener. 
-    // Now consumes globally synced data from the Root Layout's useTaskFlowData hook.
     useEffect(() => {
         const loadNotifications = () => {
             const data = getAppData();
             const items = data.notifications || [];
             
-            // Client-side sort: Newest first
             const sortedItems = [...items].sort((a, b) => 
                 new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
             );
@@ -60,7 +57,6 @@ export function NotificationsHub() {
 
         loadNotifications();
 
-        // Listen for cache updates triggered by the global sync hook
         window.addEventListener('company-changed', loadNotifications);
         window.addEventListener('storage', loadNotifications);
 
@@ -117,10 +113,18 @@ export function NotificationsHub() {
     const handleAction = (notif: AppNotification) => {
         if (isNavigatingId) return;
         
+        // Prevent re-routing if already on the target page
+        if (pathname === notif.link) {
+            setIsOpen(false);
+            if (!notif.read) {
+                markNotificationRead(notif.id);
+            }
+            return;
+        }
+
         setIsNavigatingId(notif.id);
         window.dispatchEvent(new Event('navigation-start'));
 
-        // FIX: Non-blocking background read update
         if (!notif.read) {
             markNotificationRead(notif.id);
         }
@@ -128,7 +132,6 @@ export function NotificationsHub() {
         setIsOpen(false);
         router.push(notif.link);
         
-        // Safety reset
         setTimeout(() => setIsNavigatingId(null), 3000);
     };
 
@@ -249,7 +252,7 @@ export function NotificationsHub() {
                                                     {notif.title}
                                                 </p>
                                                 <span className="text-[9px] font-bold text-muted-foreground/40 whitespace-nowrap pt-0.5 uppercase">
-                                                    {formatTimestamp(notif.timestamp)}
+                                                    {notif.timestamp ? formatTimestamp(notif.timestamp) : 'Now'}
                                                 </span>
                                             </div>
                                             <p className="text-[11px] leading-relaxed text-muted-foreground line-clamp-2 pr-2">
