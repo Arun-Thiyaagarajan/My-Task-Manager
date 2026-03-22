@@ -117,37 +117,23 @@
       },
       "required": ["id", "type", "title", "description", "status", "createdAt"]
     },
-    "FeedbackMessage": {
-      "title": "FeedbackMessage",
+    "AppNotification": {
+      "title": "AppNotification",
       "type": "object",
-      "description": "An individual message within a feedback conversation thread.",
+      "description": "A real-time notification for users or administrators regarding system events or support activity.",
       "properties": {
         "id": { "type": "string" },
-        "senderId": { "type": "string" },
-        "senderName": { "type": "string" },
-        "senderRole": { "type": "string", "enum": ["user", "admin"] },
-        "message": { "type": "string" },
-        "timestamp": { "type": "string", "format": "date-time" },
-        "attachments": { "type": "array" }
-      },
-      "required": ["id", "senderId", "senderRole", "message", "timestamp"]
-    },
-    "AdminNotification": {
-      "title": "AdminNotification",
-      "type": "object",
-      "description": "A notification for administrators regarding user requests or system events.",
-      "properties": {
-        "id": { "type": "string" },
-        "type": { "type": "string", "enum": ["user_request", "admin_reply"] },
+        "recipientId": { "type": "string", "description": "The UID of the recipient user, or 'admin' for administrative alerts." },
+        "type": { "type": "string", "enum": ["user_request", "admin_reply", "system"] },
         "title": { "type": "string" },
         "message": { "type": "string" },
         "link": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" },
         "read": { "type": "boolean" },
-        "userId": { "type": "string" },
-        "userName": { "type": "string" }
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" }
       },
-      "required": ["id", "type", "title", "message", "link", "timestamp", "read"]
+      "required": ["id", "recipientId", "type", "title", "message", "link", "timestamp", "read"]
     }
   },
   "auth": {
@@ -197,13 +183,6 @@
         }
       },
       {
-        "path": "/users/{userId}/companies/{companyId}/logs/{logId}",
-        "definition": {
-          "entityName": "Log",
-          "description": "Activity logs for a specific company."
-        }
-      },
-      {
         "path": "/feedback/{feedbackId}",
         "definition": {
           "entityName": "Feedback",
@@ -211,17 +190,10 @@
         }
       },
       {
-        "path": "/feedback/{feedbackId}/messages/{messageId}",
+        "path": "/notifications/{notificationId}",
         "definition": {
-          "entityName": "FeedbackMessage",
-          "description": "Messages within a feedback conversation thread."
-        }
-      },
-      {
-        "path": "/admin_notifications/{notificationId}",
-        "definition": {
-          "entityName": "AdminNotification",
-          "description": "Collection of notifications for workspace administrators."
+          "entityName": "AppNotification",
+          "description": "Collection of real-time notifications for users and administrators."
         }
       }
     ]

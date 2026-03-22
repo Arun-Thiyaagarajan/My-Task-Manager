@@ -51,11 +51,16 @@ export function NotificationsHub() {
     const [isNavigatingId, setIsNavigatingId] = useState<string | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const initialLoadRef = useRef(true);
+    const isOpenRef = useRef(false);
 
     const isAdmin = userProfile?.role === 'admin';
     const authMode = getAuthMode();
     const prefs = getUserPreferences();
     const isMuted = prefs.notificationSounds === false;
+
+    useEffect(() => {
+        isOpenRef.current = isOpen;
+    }, [isOpen]);
 
     useEffect(() => {
         audioRef.current = new Audio(NOTIFICATION_SOUND_URL);
@@ -65,10 +70,10 @@ export function NotificationsHub() {
 
     const playNotificationSound = React.useCallback(() => {
         // Condition: Trigger only when muted is OFF and HUB is CLOSED
-        if (isMuted || !audioRef.current || isOpen) return;
+        if (isMuted || !audioRef.current || isOpenRef.current) return;
         audioRef.current.currentTime = 0;
         audioRef.current.play().catch(() => {});
-    }, [isMuted, isOpen]);
+    }, [isMuted]);
 
     useEffect(() => {
         if (!firestore || !user || authMode !== 'authenticate') {
@@ -80,7 +85,7 @@ export function NotificationsHub() {
         const recipientIds = [user.uid];
         if (isAdmin) recipientIds.push('admin');
 
-        // Note: No server-side sorting here to avoid the need for a composite index.
+        // Note: No server-side sorting here to avoid index requirements.
         const q = query(
             notifRef, 
             where('recipientId', 'in', recipientIds),
@@ -103,8 +108,8 @@ export function NotificationsHub() {
                         // Don't notify for actions the user performed themselves
                         if (newNotif.senderId !== user.uid) {
                             playNotificationSound();
-                            // Optional: Show toast if the popup is closed
-                            if (!isOpen) {
+                            // Show toast if the popup is closed
+                            if (!isOpenRef.current) {
                                 toast({
                                     title: newNotif.title,
                                     description: newNotif.message,
@@ -132,7 +137,7 @@ export function NotificationsHub() {
         });
 
         return () => unsub();
-    }, [firestore, isAdmin, user, authMode, router, toast, isOpen, playNotificationSound]);
+    }, [firestore, isAdmin, user, authMode, router, toast, playNotificationSound]);
 
     const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
 
@@ -153,7 +158,7 @@ export function NotificationsHub() {
         setIsOpen(false);
         router.push(notif.link);
         
-        // Safety timeout to reset navigation state if router takes too long
+        // Safety timeout to reset navigation state
         setTimeout(() => setIsNavigatingId(null), 3000);
     };
 
@@ -189,7 +194,6 @@ export function NotificationsHub() {
                 align="end" 
                 className="w-[360px] p-0 overflow-hidden rounded-[1.5rem] shadow-2xl border-none bg-background/95 backdrop-blur-md animate-in zoom-in-95 duration-200"
             >
-                {/* Header with Mute & Mark All Controls */}
                 <div className="bg-primary/5 p-4 border-b flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-2">
                         <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
@@ -289,7 +293,7 @@ export function NotificationsHub() {
                                                     </div>
                                                 )}
                                                 <span className="text-[9px] font-black uppercase tracking-widest text-primary/60 group-hover:text-primary transition-colors flex items-center">
-                                                    {notif.recipientId === 'admin' ? 'View Report' : 'Open Thread'}
+                                                    Open
                                                     <ChevronRight className="h-3 w-3 ml-0.5" />
                                                 </span>
                                             </div>
