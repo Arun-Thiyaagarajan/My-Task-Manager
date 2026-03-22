@@ -1,4 +1,3 @@
-
 'use client';
 
 import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
@@ -85,7 +84,7 @@ const getInitialData = (): MyTaskManagerData => {
                 },
                 logs: [],
                 generalReminders: [],
-                releaseUpdates: [],
+                releaseUpdates: [...INITIAL_RELEASES],
             },
         },
         notifications: [],
@@ -311,7 +310,7 @@ export function addCompany(name: string) {
         uiConfig: getInitialData().companyData['company-default'].uiConfig,
         logs: [],
         generalReminders: [],
-        releaseUpdates: [],
+        releaseUpdates: [...INITIAL_RELEASES],
     };
     data.activeCompanyId = id;
     setAppData(data);
