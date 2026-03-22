@@ -1,21 +1,17 @@
-
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
     Inbox, 
     Bell, 
     MessageSquare, 
     Rocket, 
     ChevronRight, 
-    X,
-    Check,
-    Loader2,
-    ArrowRight,
-    User,
     Volume2,
     VolumeX,
-    ShieldCheck
+    ShieldCheck,
+    User,
+    Loader2
 } from 'lucide-react';
 import { 
     Popover, 
@@ -37,10 +33,18 @@ export function NotificationsHub() {
     const [isLoading, setIsLoading] = useState(true);
     const [isOpen, setIsOpen] = useState(false);
     const [isNavigatingId, setIsNavigatingId] = useState<string | null>(null);
+    
+    // Immediate reactive state for sound icon
+    const [isMuted, setIsMuted] = useState(getUserPreferences().notificationSounds === false);
 
-    const authMode = getAuthMode();
-    const prefs = getUserPreferences();
-    const isMuted = prefs.notificationSounds === false;
+    // Sync isMuted state with external changes (e.g. from Settings)
+    useEffect(() => {
+        const handlePrefsChange = () => {
+            setIsMuted(getUserPreferences().notificationSounds === false);
+        };
+        window.addEventListener('preferences-changed', handlePrefsChange);
+        return () => window.removeEventListener('preferences-changed', handlePrefsChange);
+    }, []);
 
     // Lock body scroll when popup is open
     useEffect(() => {
@@ -75,7 +79,7 @@ export function NotificationsHub() {
             window.removeEventListener('company-changed', loadNotifications);
             window.removeEventListener('storage', loadNotifications);
         };
-    }, [authMode, user]);
+    }, [user]);
 
     const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
 
@@ -86,6 +90,8 @@ export function NotificationsHub() {
             </Button>
         );
     }
+
+    const authMode = getAuthMode();
 
     if (authMode !== 'authenticate' || !user) {
         return (
@@ -162,8 +168,9 @@ export function NotificationsHub() {
     };
 
     const toggleMute = () => {
-        const newMuteState = !isMuted;
-        updateUserPreferences({ notificationSounds: !newMuteState });
+        const nextMuteState = !isMuted;
+        setIsMuted(nextMuteState);
+        updateUserPreferences({ notificationSounds: !nextMuteState });
     };
 
     return (
@@ -185,10 +192,9 @@ export function NotificationsHub() {
             </PopoverTrigger>
             <PopoverContent 
                 align="end" 
-                className="w-[calc(100vw-2rem)] sm:w-[360px] max-h-[80vh] p-0 overflow-hidden rounded-[1.5rem] shadow-2xl border-none bg-background/95 backdrop-blur-md animate-in zoom-in-95 duration-200 flex flex-col"
+                className="w-[calc(100vw-2rem)] sm:w-[360px] max-h-[80vh] p-0 rounded-[1.5rem] shadow-2xl border-none bg-background/95 backdrop-blur-md animate-in zoom-in-95 duration-200 flex flex-col overflow-hidden"
                 onOpenAutoFocus={(e) => e.preventDefault()}
             >
-                {/* Header Section */}
                 <div className="bg-primary/5 p-4 border-b flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-2">
                         <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
@@ -216,8 +222,7 @@ export function NotificationsHub() {
                     </div>
                 </div>
 
-                {/* Main Scrollable Content Area */}
-                <div className="flex-1 overflow-y-auto overscroll-contain custom-scrollbar">
+                <div className="flex-1 overflow-y-auto overscroll-contain custom-scrollbar scroll-smooth">
                     {isLoading ? (
                         <div className="flex flex-col items-center justify-center py-16 gap-3">
                             <Loader2 className="h-6 w-6 animate-spin text-primary/40" />
@@ -307,7 +312,6 @@ export function NotificationsHub() {
                         >
                             <Inbox className="h-4 w-4" />
                             Support Command Center
-                            <ArrowRight className="h-3.5 w-3.5 ml-auto transition-transform group-hover:translate-x-1" />
                         </Button>
                     </div>
                 )}

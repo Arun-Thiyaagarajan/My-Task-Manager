@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/navigation';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Icons } from './icons';
 import { Button } from './ui/button';
@@ -243,6 +242,15 @@ export function Header() {
     }
   };
 
+  const handleLogoClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (pathname === '/') return;
+    prompt(() => {
+        window.dispatchEvent(new Event('navigation-start'));
+        router.push('/');
+    });
+  };
+
   const activeCompany = companies.find((c) => c.id === activeCompanyId);
   
   const localProfile = getLocalProfile();
@@ -286,9 +294,12 @@ export function Header() {
                     <Icons.logo className="h-6 w-6 text-primary drop-shadow-sm" />
                 )}
 
-              <HeaderLink href="/" className="hidden sm:inline-block">
-                <span className="font-semibold tracking-tight text-lg whitespace-nowrap">{uiConfig?.appName || 'Task Manager'}</span>
-              </HeaderLink>
+              <button 
+                onClick={handleLogoClick} 
+                className="hidden sm:inline-block font-semibold tracking-tight text-lg whitespace-nowrap hover:text-primary transition-colors"
+              >
+                {uiConfig?.appName || 'Task Manager'}
+              </button>
             </div>
 
             <nav className="hidden md:flex items-center gap-2 lg:gap-4 xl:gap-6 overflow-hidden h-14">
