@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/navigation';
@@ -251,7 +250,7 @@ export function Header() {
     <>
       <header id="main-header" className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-14 max-w-screen-2xl items-center justify-between relative px-4 sm:px-6">
-          <div className="flex items-center gap-2 md:gap-4 lg:gap-8">
+          <div className="flex items-center gap-2 md:gap-4 lg:gap-8 min-w-0">
             <div className="flex items-center space-x-2 shrink-0">
                 {uiConfig?.appIcon && isDataURI(uiConfig.appIcon) ? (
                     <button onClick={() => setIsImagePreviewOpen(true)} className="flex-shrink-0 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-transform active:scale-95">
@@ -269,7 +268,7 @@ export function Header() {
               </HeaderLink>
             </div>
 
-            <nav className="hidden md:flex items-center gap-2 lg:gap-4 xl:gap-6">
+            <nav className="hidden md:flex items-center gap-2 lg:gap-4 xl:gap-6 overflow-hidden">
                <HeaderLink href="/" id="header-nav-home" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap px-1 py-1">
                   <Home className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   <span className="hidden lg:inline">Tasks</span>
@@ -300,7 +299,7 @@ export function Header() {
                </HeaderLink>
             </nav>
           </div>
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex items-center gap-0.5 sm:gap-2 shrink-0">
             {mounted && activeCompany && !isMobile && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -364,16 +363,16 @@ export function Header() {
               </DropdownMenu>
             )}
             
-            {/* Unified Notification Hub - Now for all cloud users */}
-            {mounted && <NotificationsHub />}
+            {/* Unified Notification Hub - Prominent on both mobile and desktop */}
+            {mounted && <div className="shrink-0"><NotificationsHub /></div>}
 
             {/* Recent Activity Shortcut (Mobile Only) */}
-            <HeaderLink href="/insights" className="md:hidden h-9 w-9 rounded-full flex items-center justify-center hover:bg-muted transition-colors">
+            <HeaderLink href="/insights" className="md:hidden h-9 w-9 rounded-full flex items-center justify-center hover:bg-muted transition-colors shrink-0">
                 <Sparkles className="h-5 w-5 text-muted-foreground" />
                 <span className="sr-only">Recent Activity</span>
             </HeaderLink>
 
-            <Button variant="ghost" size="icon" onClick={handleRemindersClick} className="relative h-9 w-9 rounded-full group">
+            <Button variant="ghost" size="icon" onClick={handleRemindersClick} className="relative h-9 w-9 rounded-full group shrink-0">
                 <Bell className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
                 {generalRemindersCount > 0 && (
                     <div className="absolute top-1 right-1 flex h-2.5 w-2.5">
@@ -385,11 +384,11 @@ export function Header() {
             </Button>
 
             {uiConfig?.tutorialEnabled && (
-                <div id="tutorial-trigger-wrapper">
+                <div id="tutorial-trigger-wrapper" className="shrink-0">
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={() => startTutorial()}>
+                                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full group">
                                     <Compass className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
                                     <span className="sr-only">Show Tour</span>
                                 </Button>
@@ -402,7 +401,7 @@ export function Header() {
                 </div>
             )}
             
-            <ThemeToggle />
+            <div className="shrink-0"><ThemeToggle /></div>
 
             {/* Sign In Button - Only for Mobile, hidden on Auth page */}
             {mounted && authMode === 'localStorage' && !pathname.startsWith('/auth') && (
@@ -420,7 +419,7 @@ export function Header() {
                 </Button>
             )}
 
-            <div className="hidden sm:block">
+            <div className="hidden sm:block shrink-0">
               {mounted && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>

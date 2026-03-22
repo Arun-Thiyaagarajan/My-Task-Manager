@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -42,7 +41,7 @@ import { markNotificationRead, getAuthMode, getUserPreferences, updateUserPrefer
 const NOTIFICATION_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3';
 
 export function NotificationsHub() {
-    const { user, userProfile, firestore } = useFirebase();
+    const { user, userProfile, firestore, isUserLoading } = useFirebase();
     const router = useRouter();
     const { toast } = useToast();
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -141,7 +140,20 @@ export function NotificationsHub() {
 
     const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
 
-    if (authMode !== 'authenticate' || !user) return null;
+    // Visibility logic: only show in Cloud Mode
+    if (authMode !== 'authenticate') return null;
+
+    // Show a loading/placeholder state if auth is still processing
+    if (isUserLoading && !user) {
+        return (
+            <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-full opacity-50 cursor-wait">
+                <Inbox className="h-5 w-5 text-muted-foreground" />
+            </Button>
+        );
+    }
+
+    // Hide if explicitly not logged in
+    if (!user) return null;
 
     const handleAction = (notif: AppNotification) => {
         if (isNavigatingId) return;
@@ -175,7 +187,7 @@ export function NotificationsHub() {
     return (
         <Popover open={isOpen} onOpenChange={setIsOpen}>
             <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-full group">
+                <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-full group shrink-0">
                     <Inbox className={cn(
                         "h-5 w-5 transition-all duration-300",
                         unreadCount > 0 ? "text-primary scale-110" : "text-muted-foreground group-hover:text-foreground"
