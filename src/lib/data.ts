@@ -7,7 +7,6 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, setDoc, deleteDoc, updateDoc, collection, writeBatch, getDocs, query, orderBy, limit, getDoc, where, addDoc } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { toast } from '@/hooks/use-toast';
 
 export const DATA_KEY = 'my_task_manager_data';
 const AUTH_MODE_KEY = 'taskflow_auth_mode';
@@ -1374,7 +1373,7 @@ export async function sendFeedbackMessage(feedbackId: string, message: string, a
         dispatchMutation('feedbackMessages', id, newMessage, 'set', feedbackId);
         dispatchMutation('feedback', feedbackId, { updatedAt: now }, 'update');
         
-        // Async Notification triggers
+        // Notify the OTHER party
         if (userProfile?.role === 'admin') {
             getDoc(doc(db, 'feedback', feedbackId)).then(fbSnap => {
                 if (fbSnap.exists()) {
@@ -1565,7 +1564,6 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             deletedAt: t.deletedAt || null 
         });
         
-        // Periodic yield to main thread for large imports
         if (processedTasks.length % 100 === 0) await new Promise(r => setTimeout(r, 0));
     }
 
@@ -1601,7 +1599,6 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             bumpProgress();
 
             const currentUi = getUiConfig();
-            // Merge workspace settings from JSON
             if (parsedJson.appName) currentUi.appName = parsedJson.appName;
             if (parsedJson.appIcon) currentUi.appIcon = parsedJson.appIcon;
             if (parsedJson.timeFormat) currentUi.timeFormat = parsedJson.timeFormat;
@@ -1631,7 +1628,6 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
                         const id = item.id;
                         if (!id) return; 
                         
-                        // Sanitize to remove undefined fields which Firestore rejects
                         const sanitizedItem = JSON.parse(JSON.stringify(item));
                         batch.set(doc(db, companyBase, collectionName, id), sanitizedItem);
                         
@@ -1663,7 +1659,6 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             comp.developers = currentDevs;
             comp.testers = currentTesters;
             
-            // Merge workspace settings for local mode
             if (parsedJson.appName) comp.uiConfig.appName = parsedJson.appName;
             if (parsedJson.appIcon) comp.uiConfig.appIcon = parsedJson.appIcon;
             if (parsedJson.timeFormat) comp.uiConfig.timeFormat = parsedJson.timeFormat;

@@ -30,7 +30,7 @@ import {
     onSnapshot,
     where,
 } from 'firebase/firestore';
-import type { AppNotification, UserPreferences } from '@/lib/types';
+import type { AppNotification } from '@/lib/types';
 import { formatTimestamp, cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -59,15 +59,14 @@ export function NotificationsHub() {
     useEffect(() => {
         audioRef.current = new Audio(NOTIFICATION_SOUND_URL);
         audioRef.current.volume = 0.35;
-        // Pre-load the sound for instant trigger
         audioRef.current.load();
     }, []);
 
     const playNotificationSound = React.useCallback(() => {
-        if (isMuted || !audioRef.current) return;
+        if (isMuted || !audioRef.current || isOpen) return;
         audioRef.current.currentTime = 0;
         audioRef.current.play().catch(() => {});
-    }, [isMuted]);
+    }, [isMuted, isOpen]);
 
     useEffect(() => {
         if (!firestore || !user || authMode !== 'authenticate') {
@@ -82,7 +81,7 @@ export function NotificationsHub() {
         const q = query(
             notifRef, 
             where('recipientId', 'in', recipientIds),
-            limit(50) 
+            limit(100) 
         );
 
         const unsub = onSnapshot(q, (snapshot) => {
@@ -92,12 +91,10 @@ export function NotificationsHub() {
                 new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
             );
 
-            // Real-time sound and toast logic
             if (!initialLoadRef.current) {
                 snapshot.docChanges().forEach(change => {
                     if (change.type === 'added') {
                         const newNotif = change.doc.data() as AppNotification;
-                        // Avoid notifying self
                         if (newNotif.senderId !== user.uid) {
                             playNotificationSound();
                             if (!isOpen) {
@@ -140,7 +137,6 @@ export function NotificationsHub() {
         setIsNavigatingId(notif.id);
         window.dispatchEvent(new Event('navigation-start'));
 
-        // Instant, non-blocking read update
         if (!notif.read) {
             markNotificationRead(notif.id);
         }
@@ -163,7 +159,7 @@ export function NotificationsHub() {
     };
 
     return (
-        <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <Popover open={isOpen} onValueChange={setIsOpen}>
             <PopoverTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-full group">
                     <Inbox className={cn(
@@ -294,16 +290,18 @@ export function NotificationsHub() {
                     </ScrollArea>
                 </div>
 
-                <div className="p-4 bg-muted/20 border-t shrink-0">
-                    <Button 
-                        onClick={() => { setIsOpen(false); router.push(isAdmin ? '/admin/feedback' : '/feedback'); }}
-                        className="w-full h-11 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] gap-2 shadow-xl shadow-primary/10 group"
-                    >
-                        {isAdmin ? <Inbox className="h-4 w-4" /> : <MessageSquare className="h-4 w-4" />}
-                        {isAdmin ? 'Support Control' : 'My Conversations'}
-                        <ArrowRight className="h-3.5 w-3.5 ml-auto transition-transform group-hover:translate-x-1" />
-                    </Button>
-                </div>
+                {isAdmin && (
+                    <div className="p-4 bg-muted/20 border-t shrink-0">
+                        <Button 
+                            onClick={() => { setIsOpen(false); router.push('/admin/feedback'); }}
+                            className="w-full h-11 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] gap-2 shadow-xl shadow-primary/10 group"
+                        >
+                            <Inbox className="h-4 w-4" />
+                            Support Command Center
+                            <ArrowRight className="h-3.5 w-3.5 ml-auto transition-transform group-hover:translate-x-1" />
+                        </Button>
+                    </div>
+                )}
             </PopoverContent>
         </Popover>
     );
