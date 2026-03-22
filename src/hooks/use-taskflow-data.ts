@@ -115,16 +115,26 @@ export function useTaskFlowData() {
                     snapshot.docChanges().forEach(change => {
                         if (change.type === 'added') {
                             const newNotif = change.doc.data() as AppNotification;
+                            const id = change.doc.id;
                             
-                            // FIX: Prevent Duplicate Processing
-                            if (processedIds.current.has(change.doc.id)) return;
-                            processedIds.current.add(change.doc.id);
+                            // FIX: Prevent Duplicate Processing (Deduplication)
+                            if (processedIds.current.has(id)) return;
+                            processedIds.current.add(id);
+                            
+                            // Keep set size manageable
+                            if (processedIds.current.size > 100) {
+                                const firstItem = processedIds.current.values().next().value;
+                                if (firstItem) processedIds.current.delete(firstItem);
+                            }
 
                             // FIX: Filter out self-actions
                             if (newNotif.senderId === userId) return;
 
-                            // FIX: Filter out if already on the linked page
-                            if (pathnameRef.current === newNotif.link) return;
+                            // FIX: Mark as read immediately if already on the linked page (e.g. Chat)
+                            if (pathnameRef.current === newNotif.link) {
+                                markNotificationRead(id);
+                                return;
+                            }
 
                             // FIX: Conditional Alert (Sound + Toast)
                             const prefs = getUserPreferences();
@@ -140,7 +150,7 @@ export function useTaskFlowData() {
                                     size: 'sm',
                                     variant: 'outline',
                                     onClick: () => {
-                                        markNotificationRead(change.doc.id);
+                                        markNotificationRead(id);
                                         router.push(newNotif.link);
                                     }
                                 }, 'View')
