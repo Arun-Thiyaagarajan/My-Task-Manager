@@ -1,10 +1,14 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * Helper functions for cleaner rules
+     * TASKFLOW SECURITY RULES
+     * 
+     * Enforces strict user-ownership and role-based access control.
      */
+
     function isSignedIn() {
       return request.auth != null;
     }
@@ -13,85 +17,62 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    // Robust admin check that handles cases where profile might not exist yet
     function isAdmin() {
       return isSignedIn() && 
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    /**
-     * USER DATA HIERARCHY
-     * Users have full access to their own branch.
-     * This includes listing companies, settings, and logs.
-     */
     match /users/{userId} {
-      allow read, write: if isOwner(userId) || isAdmin();
+      // Allow read/list if it's the owner or an admin
+      allow get, list: if isOwner(userId) || isAdmin();
       
-      match /{allPaths=**} {
+      // Allow creation only if the role is set to 'user' (prevents self-promotion on signup)
+      allow create: if isOwner(userId) && request.resource.data.role == 'user';
+
+      // Allow updates to own profile, but FORBID changing the 'role' field unless the requester is an admin
+      allow update: if isOwner(userId) 
+                    && (request.resource.data.role == resource.data.role || isAdmin());
+
+      // Only admins can delete user profiles
+      allow delete: if isAdmin();
+
+      // Allow access to user preferences
+      match /preferences/{any=**} {
         allow read, write: if isOwner(userId) || isAdmin();
+      }
+
+      // Access to subcollections (companies, tasks, etc.)
+      match /companies/{companyId} {
+        // Ownership check is prioritized to avoid unnecessary lookups
+        allow get, list, create, update, delete: if isOwner(userId) || isAdmin();
+        
+        match /{allPaths=**} {
+          allow get, list, create, update, delete: if isOwner(userId) || isAdmin();
+        }
       }
     }
 
-    /**
-     * GLOBAL FEEDBACK SYSTEM
-     */
+    // Global Feedback Collection Rules
     match /feedback/{feedbackId} {
+      // Any signed-in user can submit feedback
       allow create: if isSignedIn();
+      
+      // Users can only read/update their own reports. Admins see everything.
       allow read, update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      
+      // Admin list access for the Support Inbox
       allow list: if isAdmin();
 
+      // Conversation Messages Subcollection
       match /messages/{messageId} {
+        // Access depends on the parent feedback report ownership
         allow read, list, create: if isSignedIn() && (
           get(/databases/$(database)/documents/feedback/$(feedbackId)).data.userId == request.auth.uid || 
           isAdmin()
         );
       }
-    }
-
-    /**
-     * TEAM COLLABORATION SYSTEM (TASKS)
-     * Access is controlled by the task document itself.
-     */
-    match /tasks/{taskId} {
-      // Read access: Owner, accepted collaborators, and pending invitees
-      allow read: if isSignedIn() && (
-        resource.data.ownerId == request.auth.uid ||
-        request.auth.uid in resource.data.collaborators ||
-        request.auth.uid in resource.data.pendingInvites
-      );
-
-      // Write access: Only Owner and accepted collaborators
-      allow write: if isSignedIn() && (
-        resource.data.ownerId == request.auth.uid ||
-        request.auth.uid in resource.data.collaborators
-      );
-
-      // Task Chat: Restricted to owner and collaborators
-      match /chat/{messageId} {
-        allow read, create: if isSignedIn() && (
-          get(/databases/$(database)/documents/tasks/$(taskId)).data.ownerId == request.auth.uid ||
-          request.auth.uid in get(/databases/$(database)/documents/tasks/$(taskId)).data.collaborators
-        );
-      }
-    }
-
-    /**
-     * INVITATION TRACKING
-     */
-    match /invites/{inviteId} {
-      // Users can only see invites sent to them or by them
-      // Note: Frontend MUST filter queries by toUserId/fromUserId to avoid permission errors
-      allow read: if isSignedIn() && (
-        resource.data.toUserId == request.auth.uid || 
-        resource.data.fromUserId == request.auth.uid
-      );
-      
-      allow create: if isSignedIn();
-      
-      allow update, delete: if isSignedIn() && (
-        resource.data.toUserId == request.auth.uid || 
-        resource.data.fromUserId == request.auth.uid
-      );
     }
   }
 }
