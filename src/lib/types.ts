@@ -122,6 +122,7 @@ export interface UserPreferences {
   sidebarPosition?: 'left' | 'right';
   favoritesOnly?: boolean;
   tutorialSeen?: boolean;
+  notificationSounds?: boolean;
 }
 
 export interface Task {

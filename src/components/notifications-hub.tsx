@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
     Inbox, 
     Bell, 
@@ -12,7 +12,9 @@ import {
     Check,
     Loader2,
     ArrowRight,
-    User
+    User,
+    Volume2,
+    VolumeX
 } from 'lucide-react';
 import { 
     Popover, 
@@ -29,12 +31,15 @@ import {
     onSnapshot,
     where,
 } from 'firebase/firestore';
-import type { AppNotification } from '@/lib/types';
+import type { AppNotification, UserPreferences } from '@/lib/types';
 import { formatTimestamp, cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { markNotificationRead, getAuthMode } from '@/lib/data';
+import { markNotificationRead, getAuthMode, getUserPreferences, updateUserPreferences } from '@/lib/data';
+
+// Standard professional notification sound
+const NOTIFICATION_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3';
 
 /**
  * NotificationsHub Component
@@ -48,9 +53,28 @@ export function NotificationsHub() {
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isOpen, setIsOpen] = useState(false);
+    const [isNavigatingId, setIsNavigatingId] = useState<string | null>(null);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+    const initialLoadRef = useRef(true);
 
     const isAdmin = userProfile?.role === 'admin';
     const authMode = getAuthMode();
+    const prefs = getUserPreferences();
+    const isMuted = prefs.notificationSounds === false;
+
+    // Initialize audio on mount
+    useEffect(() => {
+        audioRef.current = new Audio(NOTIFICATION_SOUND_URL);
+        audioRef.current.volume = 0.4;
+    }, []);
+
+    const playNotificationSound = () => {
+        if (isMuted || !audioRef.current) return;
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(() => {
+            // Audio playback might be blocked by browser until user interaction
+        });
+    };
 
     useEffect(() => {
         if (!firestore || !user || authMode !== 'authenticate') {
@@ -59,12 +83,9 @@ export function NotificationsHub() {
         }
 
         const notifRef = collection(firestore, 'notifications');
-        
-        // Listen for notifications intended for THIS user OR 'admin' broadcast group
         const recipientIds = [user.uid];
         if (isAdmin) recipientIds.push('admin');
 
-        // We query by recipient and sort client-side to avoid composite index requirements
         const q = query(
             notifRef, 
             where('recipientId', 'in', recipientIds),
@@ -74,50 +95,68 @@ export function NotificationsHub() {
         const unsub = onSnapshot(q, (snapshot) => {
             const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as AppNotification));
             
-            // Client-side sort by timestamp descending
             const sortedItems = items.sort((a, b) => 
                 new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
             );
 
-            // Handle incoming new unread notifications with a system toast
+            // Handle incoming new unread notifications
             const newUnread = sortedItems.filter(n => !n.read && !notifications.some(on => on.id === n.id));
-            if (newUnread.length > 0 && isOpen === false) {
+            
+            if (newUnread.length > 0 && !initialLoadRef.current) {
                 const latest = newUnread[0];
-                toast({
-                    title: latest.title,
-                    description: latest.message,
-                    action: (
-                        <Button size="sm" variant="outline" onClick={() => {
-                            if (!latest.read) markNotificationRead(latest.id);
-                            router.push(latest.link);
-                        }}>
-                            View
-                        </Button>
-                    )
-                });
+                
+                // 1. Play sound
+                playNotificationSound();
+
+                // 2. Show toast if inbox is closed
+                if (!isOpen) {
+                    toast({
+                        title: latest.title,
+                        description: latest.message,
+                        action: (
+                            <Button size="sm" variant="outline" onClick={() => {
+                                markNotificationRead(latest.id);
+                                router.push(latest.link);
+                            }}>
+                                View
+                            </Button>
+                        )
+                    });
+                }
             }
 
             setNotifications(sortedItems);
             setIsLoading(false);
+            initialLoadRef.current = false;
         }, (error) => {
             console.error("Notifications Sync Error:", error);
             setIsLoading(false);
         });
 
         return () => unsub();
-    }, [firestore, isAdmin, user, authMode, router, toast, notifications, isOpen]);
+    }, [firestore, isAdmin, user, authMode, router, toast, notifications, isOpen, isMuted]);
 
     const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
 
-    // System is additive: only render if cloud sync is active
     if (authMode !== 'authenticate' || !user) return null;
 
-    const handleAction = async (notif: AppNotification) => {
+    const handleAction = (notif: AppNotification) => {
+        if (isNavigatingId) return; // Prevent double clicks
+        
+        setIsNavigatingId(notif.id);
+        window.dispatchEvent(new Event('navigation-start'));
+
+        // Non-blocking update: Trigger read status change but navigate immediately
         if (!notif.read) {
-            await markNotificationRead(notif.id);
+            markNotificationRead(notif.id);
         }
+        
+        // Immediate UI feedback
         setIsOpen(false);
         router.push(notif.link);
+        
+        // Safety timeout to reset navigation state if router takes too long
+        setTimeout(() => setIsNavigatingId(null), 5000);
     };
 
     const markAllRead = async () => {
@@ -125,6 +164,15 @@ export function NotificationsHub() {
             .filter(n => !n.read)
             .map(n => markNotificationRead(n.id));
         await Promise.all(batchPromises);
+    };
+
+    const toggleMute = () => {
+        const newMuteState = !isMuted;
+        updateUserPreferences({ notificationSounds: !newMuteState });
+        toast({
+            title: newMuteState ? 'Sounds muted' : 'Sounds enabled',
+            duration: 2000
+        });
     };
 
     return (
@@ -153,19 +201,28 @@ export function NotificationsHub() {
                         <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
                         <h3 className="font-black text-xs uppercase tracking-[0.1em] text-foreground/80">Inbox</h3>
                     </div>
-                    {unreadCount > 0 && (
+                    <div className="flex items-center gap-1">
                         <Button 
                             variant="ghost" 
-                            size="sm" 
-                            onClick={markAllRead} 
-                            className="h-7 px-2 text-[10px] font-bold uppercase tracking-widest text-primary hover:bg-primary/10 transition-colors"
+                            size="icon" 
+                            onClick={toggleMute}
+                            className="h-7 w-7 text-muted-foreground hover:text-primary transition-colors"
                         >
-                            Mark all read
+                            {isMuted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
                         </Button>
-                    )}
+                        {unreadCount > 0 && (
+                            <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={markAllRead} 
+                                className="h-7 px-2 text-[10px] font-bold uppercase tracking-widest text-primary hover:bg-primary/10 transition-colors"
+                            >
+                                Mark all read
+                            </Button>
+                        )}
+                    </div>
                 </div>
 
-                {/* Dynamic Height Container */}
                 <div className="min-h-[180px] flex flex-col">
                     <ScrollArea className="flex-1 max-h-[420px]">
                         {isLoading ? (
@@ -191,9 +248,11 @@ export function NotificationsHub() {
                                     <button
                                         key={notif.id}
                                         onClick={() => handleAction(notif)}
+                                        disabled={isNavigatingId !== null}
                                         className={cn(
                                             "w-full flex items-start gap-4 p-4 text-left transition-all hover:bg-muted/50 relative group",
-                                            !notif.read ? "bg-primary/[0.03]" : "opacity-80"
+                                            !notif.read ? "bg-primary/[0.03]" : "opacity-80",
+                                            isNavigatingId === notif.id && "bg-muted cursor-wait"
                                         )}
                                     >
                                         {!notif.read && (
@@ -205,9 +264,13 @@ export function NotificationsHub() {
                                             notif.type === 'admin_reply' ? "bg-blue-500/10 text-blue-600 border-blue-500/20" :
                                             "bg-primary/10 text-primary border-primary/20"
                                         )}>
-                                            {notif.type === 'user_request' ? <Rocket className="h-5 w-5" /> : 
-                                             notif.type === 'admin_reply' ? <MessageSquare className="h-5 w-5" /> :
-                                             <Bell className="h-5 w-5" />}
+                                            {isNavigatingId === notif.id ? (
+                                                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                                            ) : (
+                                                notif.type === 'user_request' ? <Rocket className="h-5 w-5" /> : 
+                                                notif.type === 'admin_reply' ? <MessageSquare className="h-5 w-5" /> :
+                                                <Bell className="h-5 w-5" />
+                                            )}
                                         </div>
                                         <div className="flex-1 min-w-0 space-y-1">
                                             <div className="flex justify-between items-start gap-2">

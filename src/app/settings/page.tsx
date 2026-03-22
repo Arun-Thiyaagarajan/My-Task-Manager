@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -14,9 +15,11 @@ import {
     updateEnvironment,
     deleteEnvironment,
     updateCompany,
-    getTasksUsingField
+    getTasksUsingField,
+    getUserPreferences,
+    updateUserPreferences
 } from '@/lib/data';
-import type { Task, UiConfig, FieldConfig, Person, RepositoryConfig, Environment, BackupFrequency, AuthMode } from '@/lib/types';
+import type { Task, UiConfig, FieldConfig, Person, RepositoryConfig, Environment, BackupFrequency, AuthMode, UserPreferences } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -72,7 +75,8 @@ import {
     Fingerprint,
     AlertTriangle,
     HelpCircle,
-    MessageCircle
+    MessageCircle,
+    Volume2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PeopleManagerDialog } from '@/components/people-manager-dialog';
@@ -515,6 +519,8 @@ export default function SettingsPage() {
     return { activeGroups, inactiveFields };
   }, [localFields, searchQuery]);
 
+  const preferences = getUserPreferences();
+
   if (!mounted || isLoading || !uiConfig) return <div className="container mx-auto pt-10 pb-6 px-4"><LoadingSpinner /></div>;
 
   const authMode = getAuthMode();
@@ -690,7 +696,7 @@ export default function SettingsPage() {
                     <MobileHubRow icon={ShieldCheck} title="Storage Mode" subLabel={authMode === 'localStorage' ? 'Local Only' : 'Cloud Sync Enabled'} onClick={() => setActiveMobileSection('storage')} color="text-primary" />
                     <MobileHubRow icon={Globe} title="Appearance" subLabel="Branding, theme, and time" onClick={() => setActiveMobileSection('appearance')} color="text-blue-500" />
                     <MobileHubRow icon={DownloadCloud} title="App Installation" subLabel={installStatus === 'installed' ? 'App Installed' : 'Install for best experience'} onClick={() => setActiveMobileSection('install')} color="text-green-600" />
-                    <MobileHubRow icon={Bell} title="Features" subLabel="Reminders and tutorials" onClick={() => setActiveMobileSection('features')} color="text-amber-500" />
+                    <MobileHubRow icon={Bell} title="Features" subLabel="Reminders, sounds, and tutorials" onClick={() => setActiveMobileSection('features')} color="text-amber-500" />
                 </div>
             </div>
             <MobileSectionHeader title="Insights" />
@@ -907,6 +913,16 @@ export default function SettingsPage() {
                         <CardContent className="space-y-4">
                             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20"><div className="space-y-0.5"><Label className="text-sm font-semibold tracking-tight">Task Reminders</Label><p className="text-[10px] font-normal text-muted-foreground uppercase">Sticky notes on tasks.</p></div><Switch checked={uiConfig.remindersEnabled} onCheckedChange={(checked) => handleUpdateConfig({ remindersEnabled: checked })} /></div>
                             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20"><div className="space-y-0.5"><Label className="text-sm font-semibold tracking-tight">Guided Tour</Label><p className="text-[10px] font-normal text-muted-foreground uppercase">Onboarding tips.</p></div><Switch checked={uiConfig.tutorialEnabled} onCheckedChange={(checked) => handleUpdateConfig({ tutorialEnabled: checked })} /></div>
+                            <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20">
+                                <div className="space-y-0.5">
+                                    <Label className="text-sm font-semibold tracking-tight">Notification Sounds</Label>
+                                    <p className="text-[10px] font-normal text-muted-foreground uppercase">Play sound on new alerts.</p>
+                                </div>
+                                <Switch 
+                                    checked={preferences.notificationSounds !== false} 
+                                    onCheckedChange={(checked) => updateUserPreferences({ notificationSounds: checked })} 
+                                />
+                            </div>
                         </CardContent>
                     </Card>
                 )}
@@ -1285,6 +1301,19 @@ export default function SettingsPage() {
                             <p className="text-[10px] font-normal text-muted-foreground uppercase">Guided walkthrough.</p>
                         </div>
                         <Switch checked={uiConfig.tutorialEnabled} onCheckedChange={(checked) => handleUpdateConfig({ tutorialEnabled: checked })} />
+                    </div>
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-transparent hover:border-border transition-colors">
+                        <div className="space-y-0.5">
+                            <Label className="text-sm font-semibold tracking-tight flex items-center gap-2">
+                                <Volume2 className="h-3.5 w-3.5 text-muted-foreground" />
+                                Notification Sounds
+                            </Label>
+                            <p className="text-[10px] font-normal text-muted-foreground uppercase">Play sound on new alerts.</p>
+                        </div>
+                        <Switch 
+                            checked={preferences.notificationSounds !== false} 
+                            onCheckedChange={(checked) => updateUserPreferences({ notificationSounds: checked })} 
+                        />
                     </div>
                 </CardContent>
             </Card>
