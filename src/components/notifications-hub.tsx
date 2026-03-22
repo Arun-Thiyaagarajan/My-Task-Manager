@@ -136,7 +136,6 @@ export function NotificationsHub() {
         const separator = notif.link.includes('?') ? '&' : '?';
         const targetWithReturn = `${notif.link}${separator}from=${encodeURIComponent(fromPath)}`;
 
-        // FIX: Use replace for Support Request details to avoid history looping
         if (notif.link.startsWith('/feedback/')) {
             router.replace(targetWithReturn);
         } else {
@@ -176,8 +175,9 @@ export function NotificationsHub() {
             </PopoverTrigger>
             <PopoverContent 
                 align="end" 
-                className="w-[calc(100vw-2rem)] sm:w-[360px] p-0 overflow-hidden rounded-[1.5rem] shadow-2xl border-none bg-background/95 backdrop-blur-md animate-in zoom-in-95 duration-200"
+                className="w-[calc(100vw-2rem)] sm:w-[360px] max-h-[80vh] p-0 overflow-hidden rounded-[1.5rem] shadow-2xl border-none bg-background/95 backdrop-blur-md animate-in zoom-in-95 duration-200 flex flex-col"
             >
+                {/* Header Section */}
                 <div className="bg-primary/5 p-4 border-b flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-2">
                         <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
@@ -205,27 +205,28 @@ export function NotificationsHub() {
                     </div>
                 </div>
 
-                <div className="min-h-[180px] flex flex-col">
-                    <ScrollArea className="flex-1 max-h-[420px]">
-                        {isLoading ? (
-                            <div className="flex flex-col items-center justify-center py-16 gap-3">
-                                <Loader2 className="h-6 w-6 animate-spin text-primary/40" />
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Syncing alerts...</p>
+                {/* Main Scrollable Content Area */}
+                <div className="flex-1 min-h-0 flex flex-col">
+                    {isLoading ? (
+                        <div className="flex flex-col items-center justify-center py-16 gap-3">
+                            <Loader2 className="h-6 w-6 animate-spin text-primary/40" />
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Syncing alerts...</p>
+                        </div>
+                    ) : notifications.length === 0 ? (
+                        <div className="flex-1 flex flex-col items-center justify-center py-12 gap-4 text-center px-8 animate-in fade-in duration-500 min-h-[180px]">
+                            <div className="h-16 w-16 rounded-full bg-muted/30 flex items-center justify-center mb-2 shadow-inner">
+                                <Inbox className="h-8 w-8 text-muted-foreground/30" />
                             </div>
-                        ) : notifications.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-12 gap-4 text-center px-8 animate-in fade-in duration-500 min-h-[180px]">
-                                <div className="h-16 w-16 rounded-full bg-muted/30 flex items-center justify-center mb-2 shadow-inner">
-                                    <Inbox className="h-8 w-8 text-muted-foreground/30" />
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-sm font-bold text-foreground/60">No new alerts</p>
-                                    <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest leading-relaxed max-w-[200px] mx-auto">
-                                        Your inbox is empty. Support activity and replies will appear here.
-                                    </p>
-                                </div>
+                            <div className="space-y-1">
+                                <p className="text-sm font-bold text-foreground/60">No new alerts</p>
+                                <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest leading-relaxed max-w-[200px] mx-auto">
+                                    Your inbox is empty. Support activity and replies will appear here.
+                                </p>
                             </div>
-                        ) : (
-                            <div className="divide-y divide-border/40">
+                        </div>
+                    ) : (
+                        <ScrollArea className="flex-1">
+                            <div className="divide-y divide-border/40 overscroll-contain">
                                 {notifications.map((notif) => (
                                     <button
                                         key={notif.id}
@@ -285,8 +286,8 @@ export function NotificationsHub() {
                                     </button>
                                 ))}
                             </div>
-                        )}
-                    </ScrollArea>
+                        </ScrollArea>
+                    )}
                 </div>
 
                 {getAppData().localProfile && user && notifications.length > 0 && (
