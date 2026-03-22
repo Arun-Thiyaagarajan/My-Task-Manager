@@ -1,5 +1,3 @@
-
-
 import { z } from 'zod';
 import { TASK_STATUSES } from './constants';
 import type { UiConfig } from './types';
@@ -110,7 +108,7 @@ export const createTaskSchema = (uiConfig: UiConfig) => {
               });
           } else if (field.type === 'multiselect' || field.type === 'tags' || field.key === 'developers' || field.key === 'testers' || field.key === 'repositories') {
               // For arrays, check if they are not empty
-              fieldSchema = fieldSchema.refine((val: string[] | undefined) => val !== undefined && val.length > 0, {
+              fieldSchema = fieldSchema.refine((val: any) => Array.isArray(val) && val.length > 0, {
                   message: `${field.label} is required.`,
               });
           } else if (field.type === 'text' || field.type === 'textarea') {
@@ -163,4 +161,6 @@ export const taskSchema = createTaskSchema({
   environments: [],
   repositoryConfigs: [],
   taskStatuses: [],
+  currentVersion: '1.1.0',
+  authenticationMode: 'localStorage'
 });

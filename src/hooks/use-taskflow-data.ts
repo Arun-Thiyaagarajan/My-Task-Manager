@@ -103,19 +103,10 @@ export function useTaskFlowData() {
     useEffect(() => {
         const authMode = getAuthMode();
         
-        // Handle Local Mode Initialization & Cleanup
-        if (authMode === 'localStorage') {
-            const loadLocal = () => {
-                // Periodically clean up old local notifications
-                purgeExpiredNotifications();
-            };
-            loadLocal();
-            // Optional: run every hour while open
-            const timer = setInterval(loadLocal, 1000 * 60 * 60);
-            return () => clearInterval(timer);
-        }
+        // Always run purge on initialization
+        purgeExpiredNotifications();
 
-        if (!user || !firestore) {
+        if (authMode !== 'authenticate' || !user || !firestore) {
             unsubscribers.current.forEach(unsub => unsub());
             unsubscribers.current = [];
             setCloudCache(null);
@@ -353,7 +344,7 @@ export function useTaskFlowData() {
                     if (snap.exists()) _updateCloudCachePart(activeCompanyId, 'testers', snap.data().list || []);
                 }, (error) => {
                     errorEmitter.emit('permission-error', new FirestorePermissionError({
-                        path: testersRef.path,
+                        path: devsRef.path,
                         operation: 'get',
                     }));
                 });

@@ -281,50 +281,32 @@ export function markNotificationRead(id: string) {
     }
 }
 
-export function deleteNotification(id: string) {
-    const mode = getAuthMode();
-    if (mode === 'authenticate') {
-        dispatchMutation('notifications', id, null, 'delete');
-    } else {
-        const data = getAppData();
-        data.notifications = (data.notifications || []).filter(n => n.id !== id);
-        setAppData(data);
-    }
-}
-
 /**
- * Purges notifications older than 24 hours.
- * Runs automatically on app load/sync to keep the inbox clean.
+ * Daily cleanup of expired notifications (older than 24h).
  */
 export function purgeExpiredNotifications() {
-    const mode = getAuthMode();
     const data = getAppData();
-    const notifications = data.notifications || [];
-    if (notifications.length === 0) return;
+    const now = new Date().getTime();
+    const threshold = 24 * 60 * 60 * 1000; // 24 hours
 
-    const now = new Date();
-    // Calculate 24 hours ago
-    const threshold = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
-    const expired = notifications.filter(n => {
-        const ts = n.timestamp ? new Date(n.timestamp) : new Date();
-        return ts < threshold;
+    const initialCount = data.notifications?.length || 0;
+    const activeNotifications = (data.notifications || []).filter(n => {
+        const timestamp = new Date(n.timestamp).getTime();
+        return (now - timestamp) < threshold;
     });
 
-    if (expired.length === 0) return;
+    if (activeNotifications.length !== initialCount) {
+        const expiredIds = (data.notifications || [])
+            .filter(n => !activeNotifications.find(an => an.id === n.id))
+            .map(n => n.id);
 
-    if (mode === 'authenticate') {
-        // Issue delete mutations for Firestore items
-        expired.forEach(n => {
-            dispatchMutation('notifications', n.id, null, 'delete');
-        });
-    } else {
-        // Bulk filter and save for local items
-        data.notifications = notifications.filter(n => {
-            const ts = n.timestamp ? new Date(n.timestamp) : new Date();
-            return ts >= threshold;
-        });
+        data.notifications = activeNotifications;
         setAppData(data);
+
+        // Sync deletions to cloud
+        if (getAuthMode() === 'authenticate') {
+            expiredIds.forEach(id => dispatchMutation('notifications', id, null, 'delete'));
+        }
     }
 }
 
@@ -1631,6 +1613,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             id: newId,
             developers: devIds,
             testers: testerIds,
+            repositories: Array.isArray(t.repositories) ? t.repositories : (t.repositories ? [t.repositories] : []),
             createdAt: t.createdAt || new Date().toISOString(),
             updatedAt: t.updatedAt || new Date().toISOString(),
             deletedAt: t.deletedAt || null 

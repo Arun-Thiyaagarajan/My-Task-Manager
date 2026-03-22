@@ -99,7 +99,7 @@ const getInitialTaskData = (task?: Partial<Task>, uiConfig?: UiConfig | null) =>
                     let val = f.defaultValue;
                     if (f.type === 'date') val = safeParseDate(val);
 
-                    if (f.key === 'developers' || f.key === 'testers' || f.key === 'tags' || f.type === 'multiselect') {
+                    if (f.key === 'developers' || f.key === 'testers' || f.key === 'tags' || f.key === 'repositories' || f.type === 'multiselect') {
                         defaults[f.key] = Array.isArray(val) ? val : (val ? [val] : []);
                     } else if (f.isCustom) {
                         const finalVal = (f.type === 'tags' || f.type === 'multiselect') 
@@ -125,6 +125,7 @@ const getInitialTaskData = (task?: Partial<Task>, uiConfig?: UiConfig | null) =>
     
     return {
         ...task,
+        repositories: Array.isArray(task.repositories) ? task.repositories : (task.repositories ? [task.repositories as any] : []),
         devStartDate: safeParseDate(task.devStartDate),
         devEndDate: safeParseDate(task.devEndDate),
         qaStartDate: safeParseDate(task.qaStartDate),
@@ -370,6 +371,8 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   }, [appendAttachment, toast, updateAttachment, attachments.length]);
 
   const watchedRepositories = form.watch('repositories', []);
+  const safeWatchedRepositories = Array.isArray(watchedRepositories) ? watchedRepositories : [];
+  
   const watchedRelevantEnvs = form.watch('relevantEnvironments', []);
   const allConfiguredEnvs = uiConfig?.environments || [];
   const activeEnvs = allConfiguredEnvs.filter(env => env && env.name && watchedRelevantEnvs?.includes(env.name));
@@ -639,7 +642,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
             case 'multiselect':
                  return (
                      <MultiSelect
-                        selected={field.value ?? []}
+                        selected={Array.isArray(field.value) ? field.value : []}
                         onChange={field.onChange}
                         options={getFieldOptions(fieldConfig)}
                         placeholder={`Select ${label}...`}
@@ -653,7 +656,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                 const isGeneralTagField = key === 'tags';
                 return (
                      <MultiSelect
-                        selected={field.value ?? []}
+                        selected={Array.isArray(field.value) ? field.value : []}
                         onChange={field.onChange}
                         options={getFieldOptions(fieldConfig)}
                         placeholder={`Add ${label}...`}
@@ -701,32 +704,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
         />
     )
   }
-
-  const fieldLabels = useMemo(() => new Map((uiConfig?.fields || []).map(f => [f.key, f.label])), [uiConfig]);
-  const deploymentFieldConfig = (uiConfig?.fields || []).find(f => f.key === 'deploymentStatus');
-  const relevantEnvsFieldConfig = (uiConfig?.fields || []).find(f => f.key === 'relevantEnvironments');
-
-  const groupedFields = useMemo(() => {
-    return (uiConfig?.fields || [])
-      .filter(f => f.isActive && f.key !== 'comments')
-      .sort((a,b) => a.order - b.order)
-      .reduce((acc, field) => {
-          const group = field.group || 'Other';
-          if (!acc[group]) acc[group] = [];
-          acc[group].push(field);
-          return acc;
-      }, {} as Record<string, FieldConfig[]>);
-  }, [uiConfig]);
-    
-  const groupOrder = useMemo(() => {
-    return Object.keys(groupedFields).sort((a, b) => {
-        const aFields = groupedFields[a];
-        const bFields = groupedFields[b];
-        const aMinOrder = Math.min(...aFields.map(f => f.order));
-        const bMinOrder = Math.min(...bFields.map(f => f.order));
-        return aMinOrder - bMinOrder;
-    });
-  }, [groupedFields]);
 
   const navigableSections = useMemo(() => {
     if (!uiConfig) return [];
@@ -1287,11 +1264,11 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            {watchedRepositories && watchedRepositories.length > 0 ? (
-                                <Tabs defaultValue={watchedRepositories[0]} className="w-full">
+                            {safeWatchedRepositories && safeWatchedRepositories.length > 0 ? (
+                                <Tabs defaultValue={safeWatchedRepositories[0]} className="w-full">
                                     <ScrollArea className="w-full whitespace-nowrap border-b">
                                         <TabsList className="bg-transparent h-12 p-0 gap-6">
-                                            {watchedRepositories.map(repo => (
+                                            {safeWatchedRepositories.map(repo => (
                                                 <TabsTrigger 
                                                     key={repo} 
                                                     value={repo} 
@@ -1304,7 +1281,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                         <ScrollBar orientation="horizontal" />
                                     </ScrollArea>
 
-                                    {watchedRepositories.map(repo => (
+                                    {safeWatchedRepositories.map(repo => (
                                         <TabsContent key={repo} value={repo}>
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6">
                                             {activeEnvs.length > 0 ? activeEnvs.map(env => (
