@@ -41,6 +41,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { ImagePreviewDialog } from '@/components/image-preview-dialog';
 
 export default function FeedbackDetailPage() {
     const params = useParams();
@@ -51,6 +52,7 @@ export default function FeedbackDetailPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [newMessage, setNewMessage] = useState('');
     const [isSending, setIsSending] = useState(false);
+    const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
 
     const isAdmin = userProfile?.role === 'admin';
@@ -278,6 +280,12 @@ export default function FeedbackDetailPage() {
                                                     target="_blank" 
                                                     rel="noopener noreferrer"
                                                     className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                                                    onClick={(e) => {
+                                                        if (att.type === 'image' || att.url.startsWith('data:image')) {
+                                                            e.preventDefault();
+                                                            setPreviewImage({ url: att.url, name: att.name || `Attachment ${i + 1}` });
+                                                        }
+                                                    }}
                                                 >
                                                     <Badge variant="secondary" className="bg-white/90 text-black border-none font-bold text-[9px] uppercase">View Full</Badge>
                                                 </a>
@@ -436,6 +444,12 @@ export default function FeedbackDetailPage() {
                     </Card>
                 </div>
             </div>
+            <ImagePreviewDialog 
+                isOpen={!!previewImage}
+                onOpenChange={(open) => !open && setPreviewImage(null)}
+                imageUrl={previewImage?.url ?? null}
+                imageName={previewImage?.name ?? null}
+            />
         </div>
     );
 }
