@@ -276,3 +276,15 @@ export interface FeedbackMessage {
   timestamp: string;
   attachments?: Attachment[];
 }
+
+export interface AdminNotification {
+  id: string;
+  type: 'user_request' | 'admin_reply';
+  title: string;
+  message: string;
+  link: string;
+  timestamp: string;
+  read: boolean;
+  userId?: string;
+  userName?: string;
+}

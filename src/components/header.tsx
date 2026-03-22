@@ -74,6 +74,7 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { getInitials, getAvatarGradient, cn } from '@/lib/utils';
 import { AuthModal } from './auth-modal';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { NotificationsHub } from './notifications-hub';
 
 const HeaderLink = ({ href, children, className, onClick, id }: { href: string; children: React.ReactNode, className?: string; onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void; id?: string; }) => {
     const router = useRouter();
@@ -390,6 +391,9 @@ export function Header() {
                     <span className="sr-only">Support Inbox</span>
                 </HeaderLink>
             )}
+
+            {/* Admin Notifications Hub (Additive Only) */}
+            {mounted && <NotificationsHub />}
 
             {/* Recent Activity Shortcut (Mobile Only) */}
             <HeaderLink href="/insights" className="md:hidden h-9 w-9 rounded-full flex items-center justify-center hover:bg-muted transition-colors">
