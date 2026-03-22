@@ -4,7 +4,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
 import { createTaskSchema } from '@/lib/validators';
-import type { Task, FieldConfig, FieldType, UiConfig, Attachment, Person, Environment } from '@/lib/types';
+import type { Task, FieldConfig, FieldType, UiConfig, Attachment, Person, Environment, RepositoryConfig } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -726,7 +726,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     const sections: { id: string; label: string; icon: any; fields: { id: string; label: string }[] }[] = [];
     
     groupOrder.forEach(groupName => {
-        if (!['Attachments', 'Deployment', 'Pull Requests'].includes(groupName)) {
+        if (!['Attachments', 'Deployment', 'Pull Requests', 'Comments'].includes(groupName)) {
             let icon = Layout;
             if (groupName === 'Core Details') icon = Layout;
             else if (groupName === 'Assignment & Tracking') icon = Users;
@@ -1101,7 +1101,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                 )}
 
                 {groupOrder.map(groupName => {
-                    if (['Attachments', 'Deployment', 'Pull Requests'].includes(groupName)) {
+                    if (['Attachments', 'Deployment', 'Pull Requests', 'Comments'].includes(groupName)) {
                         return null;
                     }
 
