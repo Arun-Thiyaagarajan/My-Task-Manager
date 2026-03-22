@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { 
     ArrowLeft, 
     Info, 
@@ -31,6 +31,7 @@ import { useFirebase } from '@/firebase';
 function AboutContent() {
     const isMobile = useIsMobile();
     const router = useRouter();
+    const pathname = usePathname();
     const searchParams = useSearchParams();
     const { userProfile } = useFirebase();
     const activeSection = searchParams.get('section');
@@ -51,6 +52,7 @@ function AboutContent() {
     };
 
     const handleNavigateFeedback = () => {
+        if (pathname === '/feedback') return;
         window.dispatchEvent(new Event('navigation-start'));
         router.push('/feedback');
     };
@@ -104,7 +106,7 @@ function AboutContent() {
                                 <div className="text-center sm:text-left space-y-1 min-w-0 flex-1">
                                     <h4 className="text-lg sm:text-xl font-black tracking-tight truncate">Arun Thiyaagarajan</h4>
                                     <p className="text-[10px] sm:text-sm font-medium text-muted-foreground uppercase tracking-widest">Software Developer</p>
-                                    <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-4">
+                                    <div className="flex wrap justify-center sm:justify-start gap-2 mt-4">
                                         <Button asChild variant="outline" size="sm" className="rounded-xl h-8 sm:h-9 text-[10px] sm:text-xs font-bold border-muted-foreground/20">
                                             <a href="https://github.com/Arun-Thiyaagarajan" target="_blank" rel="noopener noreferrer">
                                                 <Github className="mr-1.5 h-3.5 w-3.5" /> GitHub

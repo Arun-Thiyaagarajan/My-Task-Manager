@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { 
     ArrowLeft, 
     MessageSquareQuote, 
@@ -27,6 +27,7 @@ import { useFirebase } from '@/firebase';
 export default function FeedbackPage() {
     const isMobile = useIsMobile();
     const router = useRouter();
+    const pathname = usePathname();
     const { userProfile } = useFirebase();
     const [submissions, setSubmissions] = useState<Feedback[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -45,18 +46,25 @@ export default function FeedbackPage() {
     }, []);
 
     const handleBack = () => {
+        // FIX: Check if already on target to prevent history redundancy
+        if (pathname === '/about') return;
         window.dispatchEvent(new Event('navigation-start'));
         router.push('/about');
     };
 
     const handleNewFeedback = () => {
+        if (pathname === '/feedback/new') return;
         window.dispatchEvent(new Event('navigation-start'));
         router.push('/feedback/new');
     };
 
     const handleDetailNavigate = (id: string) => {
+        const target = `/feedback/${id}`;
+        if (pathname === target) return;
+
         window.dispatchEvent(new Event('navigation-start'));
-        router.push(`/feedback/${id}`);
+        // FIX: Use replace to prevent history stacking, making back-button behavior much cleaner
+        router.replace(target);
     };
 
     const getStatusStyle = (status: Feedback['status']) => {

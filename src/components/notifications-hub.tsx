@@ -130,7 +130,12 @@ export function NotificationsHub() {
         }
         
         setIsOpen(false);
-        router.push(notif.link);
+        // FIX: Use replace for Support Request details to avoid history looping
+        if (notif.link.startsWith('/feedback/')) {
+            router.replace(notif.link);
+        } else {
+            router.push(notif.link);
+        }
         
         setTimeout(() => setIsNavigatingId(null), 3000);
     };

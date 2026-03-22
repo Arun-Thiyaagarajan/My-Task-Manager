@@ -1,8 +1,7 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { 
     MessageSquareQuote, 
     Search, 
@@ -32,6 +31,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 export default function AdminFeedbackPage() {
     const { userProfile, isUserLoading } = useFirebase();
     const router = useRouter();
+    const pathname = usePathname();
     const [submissions, setSubmissions] = useState<Feedback[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -56,12 +56,17 @@ export default function AdminFeedbackPage() {
     }, [isAdmin, isUserLoading, router]);
 
     const handleBack = () => {
+        if (pathname === '/profile') return;
         router.push('/profile');
     };
 
     const handleDetail = (id: string) => {
+        const target = `/feedback/${id}`;
+        if (pathname === target) return;
+
         window.dispatchEvent(new Event('navigation-start'));
-        router.push(`/feedback/${id}`);
+        // FIX: Use replace to prevent history stacking, ensuring Back exits correctly
+        router.replace(target);
     };
 
     const filtered = submissions.filter(item => {
