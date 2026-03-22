@@ -1,3 +1,4 @@
+
 'use client';
 
 import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
@@ -852,7 +853,8 @@ export function restoreTask(id: string) {
     }
 
     data.companyData[companyId].trash.splice(taskIndex, 1);
-    delete task.deletedAt;
+    task.deletedAt = null;
+    task.updatedAt = new Date().toISOString();
     data.companyData[companyId].tasks.unshift(task);
     setAppData(data);
     addLog({ message: `Restored task "**${task.title}**" from the bin`, taskId: id });

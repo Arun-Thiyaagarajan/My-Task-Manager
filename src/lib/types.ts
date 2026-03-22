@@ -132,7 +132,7 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   summary?: string | null;
-  deletedAt?: string;
+  deletedAt?: string | null;
   isFavorite?: boolean;
   reminder?: string | null;
   reminderExpiresAt?: string | null;
