@@ -1344,7 +1344,7 @@ export default function ProfilePage() {
                         <CardContent className="space-y-4">
                             <Button 
                                 variant="outline" 
-                                className="w-full h-14 text-sm justify-between rounded-2xl font-bold px-4 border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 transition-all shadow-sm" 
+                                className="w-full h-14 text-sm justify-between rounded-2xl font-bold px-4 border-amber-500/10 bg-amber-500/[0.03] hover:bg-amber-500/5 transition-all shadow-sm" 
                                 onClick={() => router.push('/admin/feedback')}
                             >
                                 <span className="flex items-center gap-3">

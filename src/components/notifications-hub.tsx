@@ -33,7 +33,7 @@ import {
 } from 'firebase/firestore';
 import type { AppNotification } from '@/lib/types';
 import { formatTimestamp, cn } from '@/lib/utils';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { markNotificationRead, getAuthMode, getUserPreferences, updateUserPreferences } from '@/lib/data';
@@ -44,6 +44,7 @@ const NOTIFICATION_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/2358
 export function NotificationsHub() {
     const { user, userProfile, firestore, isUserLoading } = useFirebase();
     const router = useRouter();
+    const pathname = usePathname();
     const { toast } = useToast();
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -106,7 +107,10 @@ export function NotificationsHub() {
                     if (change.type === 'added') {
                         const newNotif = change.doc.data() as AppNotification;
                         // Don't notify for actions the user performed themselves
-                        if (newNotif.senderId !== user.uid) {
+                        // CRITICAL: Also don't notify if the user is ALREADY on the target page
+                        const isCurrentPage = pathname === newNotif.link;
+                        
+                        if (newNotif.senderId !== user.uid && !isCurrentPage) {
                             playNotificationSound();
                             // Show toast if the popup is closed
                             if (!isOpenRef.current) {
@@ -137,7 +141,7 @@ export function NotificationsHub() {
         });
 
         return () => unsub();
-    }, [firestore, isAdmin, user, authMode, router, toast, playNotificationSound]);
+    }, [firestore, isAdmin, user, authMode, router, toast, playNotificationSound, pathname]);
 
     const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
 

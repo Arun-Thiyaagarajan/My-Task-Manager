@@ -299,7 +299,7 @@ export function Header() {
                </HeaderLink>
             </nav>
           </div>
-          <div className="flex items-center gap-0.5 sm:gap-2 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             {mounted && activeCompany && !isMobile && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -363,7 +363,7 @@ export function Header() {
               </DropdownMenu>
             )}
             
-            {/* Unified Notification Hub - Prominent on both mobile and desktop */}
+            {/* Unified Notification Hub - Prominent on both mobile and desktop for ALL users */}
             {mounted && <div className="shrink-0"><NotificationsHub /></div>}
 
             {/* Recent Activity Shortcut (Mobile Only) */}
