@@ -1476,7 +1476,8 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
     });
 
     const taskIdMap = new Map<string, string>();
-    const processedTasks = tasksToImport.map((t: any) => {
+    const processedTasks = [];
+    for (const t of tasksToImport) {
         const devIds = (t.developers || []).map((val: any) => {
             if (typeof val !== 'string') return val;
             return devMap.get(val.toLowerCase()) || val;
@@ -1490,7 +1491,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
         const newId = `task-${crypto.randomUUID()}`;
         if (t.id) taskIdMap.set(t.id, newId);
 
-        return {
+        processedTasks.push({
             ...t,
             id: newId,
             developers: devIds,
@@ -1498,8 +1499,11 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             createdAt: t.createdAt || new Date().toISOString(),
             updatedAt: t.updatedAt || new Date().toISOString(),
             deletedAt: t.deletedAt || null 
-        };
-    });
+        });
+        
+        // Periodic yield to main thread for large imports
+        if (processedTasks.length % 100 === 0) await new Promise(r => setTimeout(r, 0));
+    }
 
     const processedNotes = jsonNotes.map((n: any) => ({
         ...n,
@@ -1511,7 +1515,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
     const processedLogs = jsonLogs.map((l: any) => ({
         ...l,
         id: `log-${crypto.randomUUID()}`,
-        taskId: l.taskId ? (taskIdMap.get(l.taskId) || l.taskId) : undefined,
+        taskId: l.taskId ? (taskIdMap.get(l.taskId) || l.taskId) : null,
         userName: l.userName || 'Importer',
         timestamp: l.timestamp || new Date().toISOString()
     }));
@@ -1533,6 +1537,11 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             bumpProgress();
 
             const currentUi = getUiConfig();
+            // Merge workspace settings from JSON
+            if (parsedJson.appName) currentUi.appName = parsedJson.appName;
+            if (parsedJson.appIcon) currentUi.appIcon = parsedJson.appIcon;
+            if (parsedJson.timeFormat) currentUi.timeFormat = parsedJson.timeFormat;
+
             if (repoConfigs.length > 0) {
                 repoConfigs.forEach((r: any) => {
                     if (!currentUi.repositoryConfigs.some(mr => mr.name === r.name)) {
@@ -1556,19 +1565,22 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
                     const batch = writeBatch(db);
                     chunk.forEach(item => {
                         const id = item.id;
-                        if (!id) return; // safety
-                        batch.set(doc(db, companyBase, collectionName, id), item);
+                        if (!id) return; 
+                        
+                        // Sanitize to remove undefined fields which Firestore rejects
+                        const sanitizedItem = JSON.parse(JSON.stringify(item));
+                        batch.set(doc(db, companyBase, collectionName, id), sanitizedItem);
                         
                         if (collectionName === 'tasks') {
                             const logId = `log-${crypto.randomUUID()}`;
-                            const logEntry = {
+                            const logEntry = JSON.parse(JSON.stringify({
                                 id: logId,
                                 timestamp: new Date().toISOString(),
                                 message: `Imported task "**${item.title}**" from external source.`,
                                 taskId: id,
                                 userId: userId,
                                 userName: userName
-                            };
+                            }));
                             batch.set(doc(db, companyBase, 'logs', logId), logEntry);
                         }
                         bumpProgress();
@@ -1587,6 +1599,11 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             comp.developers = currentDevs;
             comp.testers = currentTesters;
             
+            // Merge workspace settings for local mode
+            if (parsedJson.appName) comp.uiConfig.appName = parsedJson.appName;
+            if (parsedJson.appIcon) comp.uiConfig.appIcon = parsedJson.appIcon;
+            if (parsedJson.timeFormat) comp.uiConfig.timeFormat = parsedJson.timeFormat;
+
             processedTasks.forEach(newTask => {
                 comp.tasks.unshift(newTask);
                 _addLog(comp, { 
