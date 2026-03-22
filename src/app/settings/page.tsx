@@ -447,8 +447,12 @@ export default function SettingsPage() {
         if (typeof importedConfig !== 'object' || importedConfig === null || !Array.isArray(importedConfig.fields)) {
             throw new Error("Invalid settings file format.");
         }
-        setUiConfigState(importedConfig);
-        setUiConfig(importedConfig);
+        
+        // Merge with existing config to preserve missing properties
+        const mergedConfig = { ...getUiConfig(), ...importedConfig };
+        
+        setUiConfigState(mergedConfig);
+        setUiConfig(mergedConfig);
         window.dispatchEvent(new Event('config-changed'));
         toast({ variant: 'success', title: 'Settings Imported' });
       } catch (error: any) {
@@ -815,7 +819,7 @@ export default function SettingsPage() {
 
                             {installStatus !== 'installed' && (
                                 <div className="space-y-4">
-                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Installation Guide</p>
+                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">How to install</p>
                                     {platform === 'ios' ? (
                                         <div className="space-y-3">
                                             <div className="flex items-center gap-3 p-3 bg-card border rounded-xl shadow-sm">

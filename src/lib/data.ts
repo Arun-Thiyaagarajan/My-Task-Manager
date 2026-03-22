@@ -1276,7 +1276,8 @@ export async function getFeedbackById(id: string): Promise<Feedback | null> {
                 const auth = getAuth();
                 const userId = auth.currentUser?.uid;
                 
-                const userProfile = (await getDoc(doc(db, 'users', userId!))).data() as UserProfile;
+                const userProfileSnap = await getDoc(doc(db, 'users', userId!));
+                const userProfile = userProfileSnap.data() as UserProfile;
                 if (userProfile?.role !== 'admin' && data.userId !== userId) return null;
                 
                 return data;
@@ -1496,18 +1497,26 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             testers: testerIds,
             createdAt: t.createdAt || new Date().toISOString(),
             updatedAt: t.updatedAt || new Date().toISOString(),
-            deletedAt: null 
+            deletedAt: t.deletedAt || null 
         };
     });
+
+    const processedNotes = jsonNotes.map((n: any) => ({
+        ...n,
+        id: `note-${crypto.randomUUID()}`,
+        createdAt: n.createdAt || new Date().toISOString(),
+        updatedAt: n.updatedAt || new Date().toISOString()
+    }));
 
     const processedLogs = jsonLogs.map((l: any) => ({
         ...l,
         id: `log-${crypto.randomUUID()}`,
         taskId: l.taskId ? (taskIdMap.get(l.taskId) || l.taskId) : undefined,
-        userName: l.userName || 'Importer'
+        userName: l.userName || 'Importer',
+        timestamp: l.timestamp || new Date().toISOString()
     }));
 
-    const totalOperations = processedTasks.length + jsonNotes.length + processedLogs.length + 3;
+    const totalOperations = processedTasks.length + processedNotes.length + processedLogs.length + 3;
     let completedOps = 0;
     const bumpProgress = () => {
         completedOps++;
@@ -1547,6 +1556,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
                     const batch = writeBatch(db);
                     chunk.forEach(item => {
                         const id = item.id;
+                        if (!id) return; // safety
                         batch.set(doc(db, companyBase, collectionName, id), item);
                         
                         if (collectionName === 'tasks') {
@@ -1568,7 +1578,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             };
 
             await importInBatches(processedTasks, 'tasks');
-            await importInBatches(jsonNotes, 'notes');
+            await importInBatches(processedNotes, 'notes');
             await importInBatches(processedLogs, 'logs');
         } else {
             const data = getAppData();
@@ -1586,7 +1596,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
                 });
             });
             
-            comp.notes = [...jsonNotes.map(n => ({...n, id: `note-${crypto.randomUUID()}`})), ...comp.notes];
+            comp.notes = [...processedNotes, ...comp.notes];
             comp.logs = [...processedLogs, ...comp.logs];
 
             if (repoConfigs.length > 0) {

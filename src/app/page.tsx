@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -186,8 +185,6 @@ export default function Home() {
   const [showSlowSearchMessage, setShowSlowSearchMessage] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
-  const [isImporting, setIsImporting] = useState(false);
-  const [importProgress, setImportProgress] = useState(0);
   const [importSummary, setImportSummary] = useState<{ importedCount: number; skippedDuplicates: any[] } | null>(null);
 
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
@@ -699,6 +696,14 @@ export default function Home() {
         return;
     }
 
+    const transferId = `import-${Date.now()}`;
+    triggerTransfer({
+        id: transferId,
+        filename: file.name,
+        status: 'preparing',
+        progress: 0
+    });
+
     const reader = new FileReader();
     reader.onload = async (e) => {
         try {
@@ -707,63 +712,42 @@ export default function Home() {
             const mode = getAuthMode();
 
             window.dispatchEvent(new Event('sync-start'));
-            if (mode === 'authenticate') {
-                setIsImporting(true);
-                setImportProgress(0);
+            triggerTransfer({ id: transferId, filename: file.name, status: 'uploading', progress: 5 });
+
+            try {
+                const result = await importWorkspaceData(parsedJson, (progress) => {
+                    triggerTransfer({ id: transferId, filename: file.name, status: 'uploading', progress: Math.max(5, progress) });
+                });
                 
-                try {
-                    const result = await importWorkspaceData(parsedJson, (progress) => {
-                        setImportProgress(progress);
-                    });
-                    
-                    if (result.success) {
-                        if (result.skippedDuplicates.length > 0) {
-                            setImportSummary({ 
-                                importedCount: result.importedCount, 
-                                skippedDuplicates: result.skippedDuplicates 
-                            });
-                        } else {
-                            toast({ 
-                                variant: 'success', 
-                                title: 'Import Complete', 
-                                description: `Successfully imported ${result.importedCount} tasks.` 
-                            });
-                        }
-                    }
-                } catch (error: any) {
-                    toast({ 
-                        variant: 'destructive', 
-                        title: 'Import Failed', 
-                        description: error.message || 'Some tasks could not be imported.' 
-                    });
-                } finally {
-                    setIsImporting(false);
-                    setImportProgress(0);
-                }
-            } else {
-                try {
-                    const result = await importWorkspaceData(parsedJson);
+                if (result.success) {
+                    triggerTransfer({ id: transferId, filename: file.name, status: 'complete', progress: 100 });
                     if (result.skippedDuplicates.length > 0) {
                         setImportSummary({ 
                             importedCount: result.importedCount, 
                             skippedDuplicates: result.skippedDuplicates 
                         });
                     } else {
-                        toast({ variant: 'success', title: 'Local Import Successful', description: `Successfully imported ${result.importedCount} tasks.` });
+                        toast({ 
+                            variant: 'success', 
+                            title: 'Import Complete', 
+                            description: `Successfully imported ${result.importedCount} tasks.` 
+                        });
                     }
-                } catch (error: any) {
-                    toast({ 
-                        variant: 'destructive', 
-                        title: 'Import Failed', 
-                        description: error.message || 'Some tasks could not be imported.' 
-                    });
                 }
+            } catch (error: any) {
+                triggerTransfer({ id: transferId, filename: file.name, status: 'error', progress: 0, error: 'Import failed' });
+                toast({ 
+                    variant: 'destructive', 
+                    title: 'Import Failed', 
+                    description: error.message || 'Some tasks could not be imported.' 
+                });
             }
             refreshData();
             
         } catch (error: any) {
             console.error("Error importing file:", error);
-            toast({ variant: 'destructive', title: 'Import Failed', description: "The imported file is invalid or corrupted. Please check the file and try again." });
+            triggerTransfer({ id: transferId, filename: file.name, status: 'error', progress: 0, error: 'Invalid format' });
+            toast({ variant: 'destructive', title: 'Import Failed', description: "The imported file is invalid or corrupted." });
         } finally {
             if(fileInputRef.current) { fileInputRef.current.value = ''; }
             window.dispatchEvent(new Event('sync-end'));
@@ -1162,30 +1146,6 @@ export default function Home() {
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      {isImporting && (
-          <div className="fixed inset-0 z-[200] bg-background/95 backdrop-blur-md flex items-center justify-center p-6 text-center">
-              <Card className="w-full max-w-md shadow-2xl border-primary/20">
-                  <CardContent className="pt-8 pb-10 flex flex-col items-center gap-6">
-                      <div className="relative">
-                        <Loader2 className="h-16 w-16 text-primary animate-spin" />
-                        {isImporting && <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold uppercase">{importProgress}%</span>}
-                      </div>
-                      <div className="space-y-2">
-                        <h2 className="text-xl font-semibold tracking-tight">Importing Data</h2>
-                        <p className="text-muted-foreground text-sm max-w-xs mx-auto font-normal">
-                            Your data is being synced to the cloud. This may take a few minutes.
-                        </p>
-                      </div>
-                      {isImporting && (
-                        <div className="w-full px-4">
-                            <Progress value={importProgress} className="h-2" />
-                        </div>
-                      )}
-                  </CardContent>
-              </Card>
-          </div>
-      )}
-
       {/* Import Summary Dialog */}
       <Dialog open={!!importSummary} onOpenChange={(open) => !open && setImportSummary(null)}>
         <DialogContent className="sm:max-w-md rounded-3xl p-0 overflow-hidden max-h-[90vh] flex flex-col border-none shadow-2xl">
@@ -1389,7 +1349,7 @@ export default function Home() {
             <div className="hidden md:flex items-center gap-2">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" disabled={isImporting} className="w-full sm:w-auto h-11 font-medium">
+                    <Button variant="outline" size="sm" className="w-full sm:w-auto h-11 font-medium">
                         <Download className="mr-2 h-4 w-4" />
                         Export
                     </Button>
@@ -1401,13 +1361,13 @@ export default function Home() {
                     </DropdownMenuContent>
                 </DropdownMenu>
 
-                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isImporting} className="w-full sm:w-auto h-11 font-medium">
+                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="w-full sm:w-auto h-11 font-medium">
                     <Upload className="mr-2 h-4 w-4" />
                     Import
                 </Button>
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />
                 
-                <Button onClick={handleNavigateNewTask} id="new-task-btn" disabled={isImporting} className="w-full sm:w-auto h-11 shadow-lg font-medium active:scale-95 transition-transform">
+                <Button onClick={handleNavigateNewTask} id="new-task-btn" className="w-full sm:w-auto h-11 shadow-lg font-medium active:scale-95 transition-transform">
                     <Plus className="mr-2 h-5 w-5" /> New Task
                 </Button>
             </div>
@@ -1591,7 +1551,7 @@ export default function Home() {
                       <h2 className="text-xl font-bold tracking-tight text-foreground/90 leading-tight">
                           {favoritesOnly ? 'Favorite Tasks' : `${filteredTasks.length} Results`}
                       </h2>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mt-0.5 whitespace-nowrap">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 mt-0.5 whitespace-nowrap">
                           {favoritesOnly 
                               ? `Showing ${filteredTasks.length} favorited items.` 
                               : (dateView === 'all' ? 'Based on active filters.' : dateView === 'monthly' ? `Start date in ${format(selectedDate, 'MMM yyyy')}` : `Start date in ${format(selectedDate, 'yyyy')}`)}
