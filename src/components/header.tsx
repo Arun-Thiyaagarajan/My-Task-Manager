@@ -301,26 +301,6 @@ export function Header() {
             </nav>
           </div>
           <div className="flex items-center gap-1 sm:gap-2">
-            {isAdmin && mounted && !isMobile && (
-                <TooltipProvider>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <HeaderLink 
-                                href="/admin/feedback" 
-                                id="header-nav-admin-feedback" 
-                                className="flex items-center text-sm font-bold text-amber-600 hover:text-amber-700 transition-all group whitespace-nowrap px-2.5 py-1.5 sm:px-3.5 bg-amber-500/5 rounded-full border border-amber-500/20 shadow-sm active:scale-95"
-                            >
-                                <Inbox className="h-4 w-4 lg:mr-2 opacity-90" />
-                                <span className="tracking-tight hidden lg:inline">Support Inbox</span>
-                            </HeaderLink>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" className="lg:hidden">
-                            <p className="font-semibold">Support Inbox (Admin)</p>
-                        </TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
-            )}
-
             {mounted && activeCompany && !isMobile && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -384,15 +364,7 @@ export function Header() {
               </DropdownMenu>
             )}
             
-            {/* Support Inbox Shortcut (Mobile Only - Admin) */}
-            {/* {isAdmin && mounted && (
-                <HeaderLink href="/admin/feedback" className="md:hidden h-9 w-9 rounded-full flex items-center justify-center hover:bg-muted transition-colors text-amber-600">
-                    <Inbox className="h-5 w-5" />
-                    <span className="sr-only">Support Inbox</span>
-                </HeaderLink>
-            )} */}
-
-            {/* Admin Notifications Hub (Additive Only) */}
+            {/* Admin Notifications Hub (Unified signaling) */}
             {mounted && <NotificationsHub />}
 
             {/* Recent Activity Shortcut (Mobile Only) */}
