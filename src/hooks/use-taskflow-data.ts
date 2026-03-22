@@ -179,12 +179,13 @@ export function useTaskFlowData() {
                                 return;
                             }
 
-                            toast({
+                            const t = toast({
                                 variant: 'premium',
-                                duration: 5000,
+                                duration: 4000,
                                 description: React.createElement('div', {
                                     className: "w-full cursor-pointer overflow-hidden",
                                     onClick: () => {
+                                        t.dismiss();
                                         markNotificationRead(id);
                                         window.dispatchEvent(new Event('navigation-start'));
                                         router.push(newNotif.link);

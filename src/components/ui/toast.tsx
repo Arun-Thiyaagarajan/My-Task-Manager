@@ -56,9 +56,9 @@ const Toast = React.forwardRef<
     >
         {props.children}
         {props.duration && props.duration < Infinity && (
-            <div className="absolute bottom-0 left-0 h-1 bg-black/20 w-full">
+            <div className="absolute bottom-0 left-0 h-1 bg-black/5 w-full overflow-hidden">
                 <div 
-                    className="h-full bg-white/50 animate-timer" 
+                    className="h-full bg-primary/20 animate-timer" 
                     style={{'--toast-duration': `${props.duration / 1000}s`} as React.CSSProperties}
                 />
             </div>
@@ -99,7 +99,7 @@ const ToastClose = React.forwardRef<
       "group-[.destructive]:text-destructive-foreground/80 group-[.destructive]:hover:text-destructive-foreground group-[.destructive]:focus:ring-destructive",
       "group-[.success]:text-green-300 group-[.success]:hover:text-green-50 group-[.success]:focus:ring-green-400 group-[.success]:focus:ring-offset-green-600",
       "group-[.warning]:text-yellow-900 group-[.warning]:hover:text-black group-[.warning]:focus:ring-yellow-400 group-[.warning]:focus:ring-offset-yellow-600",
-      "group-[.premium]:hidden",
+      "group-[.premium]:right-4 group-[.premium]:top-4",
       className
     )}
     toast-close=""
