@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -38,14 +37,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { markNotificationRead, getAuthMode, getUserPreferences, updateUserPreferences } from '@/lib/data';
 
-// Standard professional notification sound
+// Subtle professional alert sound
 const NOTIFICATION_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3';
 
-/**
- * NotificationsHub Component
- * Provides a bi-directional notification inbox for both users and admins.
- * Features dynamic height based on content and a polished native-style UI.
- */
 export function NotificationsHub() {
     const { user, userProfile, firestore } = useFirebase();
     const router = useRouter();
@@ -62,19 +56,18 @@ export function NotificationsHub() {
     const prefs = getUserPreferences();
     const isMuted = prefs.notificationSounds === false;
 
-    // Initialize audio on mount
     useEffect(() => {
         audioRef.current = new Audio(NOTIFICATION_SOUND_URL);
-        audioRef.current.volume = 0.4;
+        audioRef.current.volume = 0.35;
+        // Pre-load the sound for instant trigger
+        audioRef.current.load();
     }, []);
 
-    const playNotificationSound = () => {
+    const playNotificationSound = React.useCallback(() => {
         if (isMuted || !audioRef.current) return;
         audioRef.current.currentTime = 0;
-        audioRef.current.play().catch(() => {
-            // Audio playback might be blocked by browser until user interaction
-        });
-    };
+        audioRef.current.play().catch(() => {});
+    }, [isMuted]);
 
     useEffect(() => {
         if (!firestore || !user || authMode !== 'authenticate') {
@@ -99,30 +92,31 @@ export function NotificationsHub() {
                 new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
             );
 
-            // Handle incoming new unread notifications
-            const newUnread = sortedItems.filter(n => !n.read && !notifications.some(on => on.id === n.id));
-            
-            if (newUnread.length > 0 && !initialLoadRef.current) {
-                const latest = newUnread[0];
-                
-                // 1. Play sound
-                playNotificationSound();
-
-                // 2. Show toast if inbox is closed
-                if (!isOpen) {
-                    toast({
-                        title: latest.title,
-                        description: latest.message,
-                        action: (
-                            <Button size="sm" variant="outline" onClick={() => {
-                                markNotificationRead(latest.id);
-                                router.push(latest.link);
-                            }}>
-                                View
-                            </Button>
-                        )
-                    });
-                }
+            // Real-time sound and toast logic
+            if (!initialLoadRef.current) {
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === 'added') {
+                        const newNotif = change.doc.data() as AppNotification;
+                        // Avoid notifying self
+                        if (newNotif.senderId !== user.uid) {
+                            playNotificationSound();
+                            if (!isOpen) {
+                                toast({
+                                    title: newNotif.title,
+                                    description: newNotif.message,
+                                    action: (
+                                        <Button size="sm" variant="outline" onClick={() => {
+                                            markNotificationRead(change.doc.id);
+                                            router.push(newNotif.link);
+                                        }}>
+                                            View
+                                        </Button>
+                                    )
+                                });
+                            }
+                        }
+                    }
+                });
             }
 
             setNotifications(sortedItems);
@@ -134,45 +128,38 @@ export function NotificationsHub() {
         });
 
         return () => unsub();
-    }, [firestore, isAdmin, user, authMode, router, toast, notifications, isOpen, isMuted]);
+    }, [firestore, isAdmin, user, authMode, router, toast, isOpen, playNotificationSound]);
 
     const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
 
     if (authMode !== 'authenticate' || !user) return null;
 
     const handleAction = (notif: AppNotification) => {
-        if (isNavigatingId) return; // Prevent double clicks
+        if (isNavigatingId) return;
         
         setIsNavigatingId(notif.id);
         window.dispatchEvent(new Event('navigation-start'));
 
-        // Non-blocking update: Trigger read status change but navigate immediately
+        // Instant, non-blocking read update
         if (!notif.read) {
             markNotificationRead(notif.id);
         }
         
-        // Immediate UI feedback
         setIsOpen(false);
         router.push(notif.link);
         
-        // Safety timeout to reset navigation state if router takes too long
-        setTimeout(() => setIsNavigatingId(null), 5000);
+        setTimeout(() => setIsNavigatingId(null), 3000);
     };
 
-    const markAllRead = async () => {
-        const batchPromises = notifications
+    const markAllRead = () => {
+        notifications
             .filter(n => !n.read)
-            .map(n => markNotificationRead(n.id));
-        await Promise.all(batchPromises);
+            .forEach(n => markNotificationRead(n.id));
     };
 
     const toggleMute = () => {
         const newMuteState = !isMuted;
         updateUserPreferences({ notificationSounds: !newMuteState });
-        toast({
-            title: newMuteState ? 'Sounds muted' : 'Sounds enabled',
-            duration: 2000
-        });
     };
 
     return (

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
@@ -182,7 +181,7 @@ export async function updateUserPreferences(updates: Partial<UserPreferences>) {
     window.dispatchEvent(new Event('preferences-changed'));
 }
 
-async function dispatchMutation(
+function dispatchMutation(
     type: 'tasks' | 'notes' | 'logs' | 'uiConfig' | 'developers' | 'testers' | 'generalReminders' | 'releaseUpdates' | 'companies' | 'feedback' | 'feedbackMessages' | 'notifications',
     id: string,
     data: any,
@@ -252,12 +251,11 @@ async function dispatchMutation(
     }
 }
 
-// Unified Notification logic
-export async function createNotification(notification: Omit<AppNotification, 'id' | 'timestamp' | 'read'>) {
+// Non-blocking notification creation
+export function createNotification(notification: Omit<AppNotification, 'id' | 'timestamp' | 'read'>) {
     const auth = getAuth();
     if (!auth.currentUser) return;
 
-    // Don't notify the sender
     if (notification.recipientId === auth.currentUser.uid) return;
 
     const id = `notif-${crypto.randomUUID()}`;
@@ -271,13 +269,13 @@ export async function createNotification(notification: Omit<AppNotification, 'id
     };
     
     if (getAuthMode() === 'authenticate') {
-        await dispatchMutation('notifications', id, newNotif, 'set');
+        dispatchMutation('notifications', id, newNotif, 'set');
     }
 }
 
-export async function markNotificationRead(id: string) {
+export function markNotificationRead(id: string) {
     if (getAuthMode() === 'authenticate') {
-        await dispatchMutation('notifications', id, { read: true }, 'update');
+        dispatchMutation('notifications', id, { read: true }, 'update');
     }
 }
 
@@ -1256,11 +1254,11 @@ export async function submitFeedback(feedback: Omit<Feedback, 'id' | 'status' | 
     };
 
     if (getAuthMode() === 'authenticate') {
-        await dispatchMutation('feedback', id, newFeedback, 'set');
-        await dispatchMutation('feedbackMessages', autoReply.id, autoReply, 'set', id);
+        dispatchMutation('feedback', id, newFeedback, 'set');
+        dispatchMutation('feedbackMessages', autoReply.id, autoReply, 'set', id);
         
-        // Trigger Notification for Admins
-        await createNotification({
+        // Instant Notification for Admins
+        createNotification({
             recipientId: 'admin',
             type: 'user_request',
             title: 'New Support Request',
@@ -1338,7 +1336,7 @@ export async function getFeedbackById(id: string): Promise<Feedback | null> {
 
 export async function updateFeedbackStatus(id: string, status: FeedbackStatus) {
     if (getAuthMode() === 'authenticate') {
-        await dispatchMutation('feedback', id, { status, updatedAt: new Date().toISOString() }, 'update');
+        dispatchMutation('feedback', id, { status, updatedAt: new Date().toISOString() }, 'update');
     } else {
         const data = getAppData();
         const localFeedback = (data as any).localFeedback || [];
@@ -1373,27 +1371,25 @@ export async function sendFeedbackMessage(feedbackId: string, message: string, a
     };
 
     if (getAuthMode() === 'authenticate') {
-        await dispatchMutation('feedbackMessages', id, newMessage, 'set', feedbackId);
-        await dispatchMutation('feedback', feedbackId, { updatedAt: now }, 'update');
+        dispatchMutation('feedbackMessages', id, newMessage, 'set', feedbackId);
+        dispatchMutation('feedback', feedbackId, { updatedAt: now }, 'update');
         
-        // Trigger Notifications
+        // Async Notification triggers
         if (userProfile?.role === 'admin') {
-            // Admin replied -> Notify original User
-            const fbRef = doc(db, 'feedback', feedbackId);
-            const fbSnap = await getDoc(fbRef);
-            if (fbSnap.exists()) {
-                const fbData = fbSnap.data() as Feedback;
-                await createNotification({
-                    recipientId: fbData.userId,
-                    type: 'admin_reply',
-                    title: 'New Support Message',
-                    message: `Admin replied: ${message.substring(0, 50)}${message.length > 50 ? '...' : ''}`,
-                    link: `/feedback/${feedbackId}`,
-                });
-            }
+            getDoc(doc(db, 'feedback', feedbackId)).then(fbSnap => {
+                if (fbSnap.exists()) {
+                    const fbData = fbSnap.data() as Feedback;
+                    createNotification({
+                        recipientId: fbData.userId,
+                        type: 'admin_reply',
+                        title: 'New Support Message',
+                        message: `Admin replied: ${message.substring(0, 50)}${message.length > 50 ? '...' : ''}`,
+                        link: `/feedback/${feedbackId}`,
+                    });
+                }
+            });
         } else {
-            // User replied -> Notify Admin
-            await createNotification({
+            createNotification({
                 recipientId: 'admin',
                 type: 'user_request',
                 title: 'New Feedback Reply',

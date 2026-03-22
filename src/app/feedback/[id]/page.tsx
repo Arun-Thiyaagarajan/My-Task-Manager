@@ -30,7 +30,7 @@ import { Badge } from '@/components/ui/badge';
 import { getFeedbackById, sendFeedbackMessage, updateFeedbackStatus, getAuthMode, getAppData } from '@/lib/data';
 import type { Feedback, FeedbackMessage, FeedbackStatus } from '@/lib/types';
 import { formatTimestamp, cn } from '@/lib/utils';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { FeedbackSkeleton } from '@/components/feedback-skeleton';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -128,15 +128,17 @@ export default function FeedbackDetailPage() {
         if (!newMessage.trim() || isSending || !item || item.status === 'Closed' || isLocalMode) return;
 
         setIsSending(true);
+        const msg = newMessage.trim();
+        setNewMessage('');
         try {
-            await sendFeedbackMessage(item.id, newMessage.trim());
-            setNewMessage('');
+            await sendFeedbackMessage(item.id, msg);
             if (getAuthMode() === 'localStorage') {
                 const data = getAppData();
                 setMessages((data as any).localMessages?.[item.id] || []);
             }
         } catch (error) {
             console.error("Failed to send message", error);
+            setNewMessage(msg); // Restore if failed
         } finally {
             setIsSending(false);
         }
@@ -148,7 +150,7 @@ export default function FeedbackDetailPage() {
         setItem(prev => prev ? { ...prev, status } : null);
     };
 
-    if (isLoading) return <LoadingSpinner text="Loading submission details..." />;
+    if (isLoading) return <FeedbackSkeleton />;
 
     if (!item) {
         return (
