@@ -25,7 +25,6 @@ import { useFirebase } from '@/firebase';
 import { 
     collection, 
     query, 
-    orderBy, 
     limit, 
     onSnapshot,
     where,
@@ -60,18 +59,24 @@ export function NotificationsHub() {
         const recipientIds = [user.uid];
         if (isAdmin) recipientIds.push('admin');
 
+        // Note: Removed orderBy('timestamp', 'desc') to avoid composite index requirement.
+        // We handle sorting client-side in the snapshot listener.
         const q = query(
             notifRef, 
             where('recipientId', 'in', recipientIds),
-            orderBy('timestamp', 'desc'), 
-            limit(30)
+            limit(100) 
         );
 
         const unsub = onSnapshot(q, (snapshot) => {
             const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as AppNotification));
             
+            // Sort client-side by timestamp descending
+            const sortedItems = items.sort((a, b) => 
+                new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+            ).slice(0, 30);
+
             // Filter out items that are strictly for admins if user is no longer admin (safety)
-            const filteredItems = items.filter(n => n.recipientId === user.uid || (n.recipientId === 'admin' && isAdmin));
+            const filteredItems = sortedItems.filter(n => n.recipientId === user.uid || (n.recipientId === 'admin' && isAdmin));
 
             // Trigger toast for new unread notifications
             const newUnread = filteredItems.filter(n => !n.read && !notifications.some(on => on.id === n.id));
@@ -99,7 +104,7 @@ export function NotificationsHub() {
         });
 
         return () => unsub();
-    }, [firestore, isAdmin, user, authMode, router, toast]);
+    }, [firestore, isAdmin, user, authMode, router, toast, notifications]);
 
     const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
 
