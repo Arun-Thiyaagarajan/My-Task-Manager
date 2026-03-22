@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'react';
 import { addNote, getNotes, updateNote, deleteNote, getUiConfig, updateNoteLayouts, resetNotesLayout, deleteMultipleNotes, importNotes, addLog, getAuthMode, getUserPreferences, updateUserPreferences, isInitialSyncComplete, getActiveCompanyId } from '@/lib/data';
 import type { Note, UiConfig, NoteLayout, UserPreferences } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -53,7 +52,7 @@ interface NoteSuggestion {
     note: Note;
 }
 
-export default function NotesPage() {
+function NotesPageContent() {
   const isMobile = useIsMobile();
   const { isUserLoading } = useFirebase();
   const router = useRouter();
@@ -186,13 +185,6 @@ export default function NotesPage() {
     };
   }, [refreshData]);
 
-  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        triggerSearch();
-    }
-  };
-
   const triggerSearch = () => {
     const trimmed = searchQuery.trim();
     if (trimmed === executedSearchQuery.trim()) {
@@ -310,10 +302,6 @@ export default function NotesPage() {
     setSelectedNoteIds([]);
   };
 
-  const handleToggleSelectAll = (checked: boolean | 'indeterminate') => {
-    setSelectedNoteIds(checked === true ? notes.map(n => n.id) : []);
-  };
-  
   const handleBulkDelete = () => {
     deleteMultipleNotes(selectedNoteIds);
     toast({
@@ -491,8 +479,8 @@ export default function NotesPage() {
   };
 
   const authMode = getAuthMode();
-  const activeCompanyId = getActiveCompanyId();
-  const isSyncing = authMode === 'authenticate' && (!activeCompanyId || !isInitialSyncComplete(activeCompanyId));
+  const activeCompanyIdForSync = getActiveCompanyId();
+  const isSyncing = authMode === 'authenticate' && (!activeCompanyIdForSync || !isInitialSyncComplete(activeCompanyIdForSync));
   const activeSkeletons = !mounted || isLoading || isUserLoading || isSyncing;
 
   if (activeSkeletons || !uiConfig) {
@@ -534,7 +522,6 @@ export default function NotesPage() {
       </div>
       
        <div className="space-y-4 mb-8">
-            {/* HIDDEN ON MOBILE: Notes page actions are in the bottom navbar */}
             <button
                 onClick={handleOpenNewNoteDialog}
                 className="hidden lg:flex w-full text-left p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors text-muted-foreground shadow-sm justify-between items-center h-11"
@@ -596,7 +583,7 @@ export default function NotesPage() {
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         onFocus={() => setIsSearchFocused(true)}
                                         onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
-                                        onKeyDown={handleSearchKeyDown}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') triggerSearch(); }}
                                         className={cn(
                                             "w-full pl-10 h-11 font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40 rounded-xl",
                                             executedSearchQuery && "border-primary/40 bg-primary/5 shadow-sm"
@@ -859,5 +846,13 @@ export default function NotesPage() {
         onSave={handleSaveNote}
       />
     </div>
+  );
+}
+
+export default function NotesPage() {
+  return (
+    <Suspense fallback={<NotesSkeleton />}>
+      <NotesPageContent />
+    </Suspense>
   );
 }

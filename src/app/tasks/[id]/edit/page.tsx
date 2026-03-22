@@ -110,7 +110,7 @@ export default function EditTaskPage() {
   };
 
   if (isLoading) {
-    return null;
+    return <LoadingSpinner text="Loading task editor..." />;
   }
 
   if (!task) {

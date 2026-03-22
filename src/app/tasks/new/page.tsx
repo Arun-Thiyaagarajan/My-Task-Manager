@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { TaskForm } from '@/components/task-form';
 import { addTask, getDevelopers, getTesters, getUiConfig, getTasks } from '@/lib/data';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,7 +11,7 @@ import { createTaskSchema } from '@/lib/validators';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { generateSummary } from '@/ai/flows/summary-flow';
 
-export default function NewTaskPage() {
+function NewTaskContent() {
   const router = useRouter();
   const { toast } = useToast();
   const [developersList, setDevelopersList] = useState<Person[]>([]);
@@ -48,7 +48,6 @@ export default function NewTaskPage() {
     }
 
     setIsLoading(false);
-    // Notify global loader that navigation and initial data loading is complete
     window.dispatchEvent(new Event('navigation-end'));
   }, [toast]);
 
@@ -128,5 +127,13 @@ export default function NewTaskPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function NewTaskPage() {
+  return (
+    <Suspense fallback={<LoadingSpinner text="Initializing form..." />}>
+      <NewTaskContent />
+    </Suspense>
   );
 }

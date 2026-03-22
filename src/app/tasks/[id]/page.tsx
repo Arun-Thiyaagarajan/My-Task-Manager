@@ -1,13 +1,12 @@
-
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, Suspense } from 'react';
 import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask, addDeveloper, addTester, getActiveCompanyId, getAuthMode, isInitialSyncComplete } from '@/lib/data';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, Image, X, Ban, Share2, History, BellRing, MoreVertical, Trash2, Copy, Tag, Download, CalendarIcon, Save, Share } from 'lucide-react';
+import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, Image, X, Ban, Share2, History, BellRing, MoreVertical, Trash2, Copy, Tag, Download, CalendarIcon, Save, Share, Loader2 } from 'lucide-react';
 import { getStatusConfig, TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -55,7 +54,6 @@ import { ShareMenu } from '@/components/share-menu';
 import { triggerTransfer } from '@/components/file-transfer-indicator';
 import { Calendar } from '@/components/ui/calendar';
 
-
 const isImageUrl = (url: string): boolean => {
   try {
     const path = new URL(url).pathname;
@@ -65,8 +63,7 @@ const isImageUrl = (url: string): boolean => {
   }
 };
 
-
-export default function TaskPage() {
+function TaskPageContent() {
   const { isUserLoading } = useFirebase();
   const isMobile = useIsMobile();
   const params = useParams();
@@ -786,8 +783,8 @@ const handleCopyDescription = () => {
   };
 
   const authMode = getAuthMode();
-  const activeCompanyId = getActiveCompanyId();
-  const isSyncing = authMode === 'authenticate' && (!activeCompanyId || !isInitialSyncComplete(activeCompanyId));
+  const activeCompanyIdForSync = getActiveCompanyId();
+  const isSyncing = authMode === 'authenticate' && (!activeCompanyIdForSync || !isInitialSyncComplete(activeCompanyIdForSync));
   const activeSkeletons = isLoading || isUserLoading || isSyncing;
 
   if (activeSkeletons || !uiConfig) {
@@ -1227,7 +1224,7 @@ const handleCopyDescription = () => {
                         </div>
                         <div>
                             <Label className="font-semibold">{fieldLabels.get('repositories') || 'Repositories'}</Label>
-                            <MultiSelect selected={Array.isArray(task.repositories) ? task.repositories : (task.repositories ? [task.repositories] : [])} onChange={val => handleSaveEditing('repositories', false, val)} options={repoOptions} />
+                            <MultiSelect selected={Array.isArray(task.repositories) ? task.repositories : (task.repositories ? [task.repositories as any] : [])} onChange={val => handleSaveEditing('repositories', false, val)} options={repoOptions} />
                         </div>
                         {azureWorkItemIdFieldConfig?.isActive && (
                             <div>
@@ -1520,6 +1517,14 @@ const handleCopyDescription = () => {
         />
       )}
     </>
+  );
+}
+
+export default function TaskPage() {
+  return (
+    <Suspense fallback={<TaskDetailSkeleton />}>
+      <TaskPageContent />
+    </Suspense>
   );
 }
 

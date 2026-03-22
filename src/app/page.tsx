@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { getTasks, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addTagsToMultipleTasks, addEnvironment, DATA_KEY, getAuthMode, importWorkspaceData, getUserPreferences, updateUserPreferences, isInitialSyncComplete, getActiveCompanyId, findExistingDuplicates } from '@/lib/data';
@@ -131,7 +131,7 @@ interface SearchSuggestion {
     isBinned?: boolean;
 }
 
-export default function Home() {
+function HomePageContent() {
   const { user, isUserLoading } = useFirebase();
   const activeCompanyId = useActiveCompany();
   const router = useRouter();
@@ -298,7 +298,6 @@ export default function Home() {
         document.title = config.appName || 'My Task Manager';
         setSelectedTaskIds([]);
         
-        // Detect duplicates for resolution
         const duplicates = findExistingDuplicates();
         setExistingDuplicates(duplicates);
         if (duplicates.length > 0) setIsResolutionOpen(true);
@@ -494,7 +493,6 @@ export default function Home() {
             console.error("Filtering logic failed:", e);
             setSearchError("Search temporarily unavailable. Please try again later.");
         } finally {
-            // Artificial delay to make transition smooth and visible
             setTimeout(() => {
                 setIsSearching(false);
                 window.dispatchEvent(new Event('sync-end'));
@@ -963,7 +961,6 @@ export default function Home() {
                     {selectedTaskIds.length > 0 ? `${selectedTaskIds.length} Selected` : `Select All`}
                 </Label>
                 
-                {/* Desktop/Tablet Action buttons pulled to the right */}
                 <div className={cn(
                     'hidden md:flex md:flex-row md:items-center items-stretch justify-end gap-2 w-full transition-opacity duration-300 ml-auto', 
                     selectedTaskIds.length > 0 ? 'opacity-100' : 'opacity-40 pointer-events-none'
@@ -1001,7 +998,6 @@ export default function Home() {
                 </div>
             </div>
 
-            {/* Mobile Action buttons stacked below */}
             <div className={cn(
                 'grid grid-cols-2 gap-2 md:hidden transition-opacity duration-300', 
                 selectedTaskIds.length > 0 ? 'opacity-100' : 'opacity-40 pointer-events-none'
@@ -1146,7 +1142,6 @@ export default function Home() {
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      {/* Import Summary Dialog */}
       <Dialog open={!!importSummary} onOpenChange={(open) => !open && setImportSummary(null)}>
         <DialogContent className="sm:max-w-md rounded-3xl p-0 overflow-hidden max-h-[90vh] flex flex-col border-none shadow-2xl">
             <div className="p-6 pb-4 shrink-0">
@@ -1195,7 +1190,6 @@ export default function Home() {
         </DialogContent>
       </Dialog>
 
-      {/* Duplicate Resolution Dialog */}
       <Dialog open={isResolutionOpen} onOpenChange={setIsResolutionOpen}>
         <DialogContent className="sm:max-w-2xl rounded-3xl max-h-[90vh] flex flex-col p-0 overflow-hidden border-none shadow-2xl">
             <div className="bg-amber-500 p-6 text-white shrink-0 relative overflow-hidden">
@@ -1376,9 +1370,7 @@ export default function Home() {
       
       <div className="space-y-4 md:space-y-6">
           <div className="space-y-3">
-              {/* MOBILE ONLY TOOLS - Preserved Strict Order from Reference */}
               <div className="md:hidden flex flex-col gap-4 mb-2">
-                  {/* 1. Export / Import Buttons */}
                   <div className="grid grid-cols-2 gap-2 px-1">
                       <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -1401,7 +1393,6 @@ export default function Home() {
                       </Button>
                   </div>
 
-                  {/* 2. Filters Toggle Button */}
                   <div className="px-1">
                       <Button 
                         variant="secondary" 
@@ -1420,7 +1411,6 @@ export default function Home() {
                         <ChevronDown className={cn("h-4 w-4 transition-transform duration-300", isFiltersOpen && "rotate-180")} />
                       </Button>
 
-                      {/* Filter Grid - Mobile Positioning Fix (Directly below trigger) */}
                       <div className={cn(
                           "transition-all duration-300 overflow-hidden mt-2",
                           isFiltersOpen ? "opacity-100 max-h-[1000px] mb-4" : "opacity-0 max-h-0 pointer-events-none"
@@ -1462,7 +1452,6 @@ export default function Home() {
                       </div>
                   </div>
 
-                  {/* 3. Date navigation (if monthly/yearly) */}
                   {(dateView === 'monthly' || dateView === 'yearly') && !favoritesOnly && (
                       <div className="flex items-center justify-between gap-2 w-full px-1">
                           <Button variant="outline" size="icon" onClick={handlePreviousDate} className="h-11 w-11 shrink-0 shadow-sm rounded-xl"><ChevronLeft className="h-5 w-5" /></Button>
@@ -1546,7 +1535,6 @@ export default function Home() {
                       </div>
                   )}
 
-                  {/* 4. Results heading */}
                   <div className="px-2">
                       <h2 className="text-xl font-bold tracking-tight text-foreground/90 leading-tight">
                           {favoritesOnly ? 'Favorite Tasks' : `${filteredTasks.length} Results`}
@@ -1558,7 +1546,6 @@ export default function Home() {
                       </p>
                   </div>
 
-                  {/* 5. Sort & View toggles row */}
                   <div className="flex items-center gap-2 w-full px-1 overflow-x-auto no-scrollbar pb-1">
                       <Select value={sortDescriptor} onValueChange={handleSortChange}>
                           <SelectTrigger className="flex-1 min-w-[140px] h-11 font-bold rounded-xl shadow-sm"><SelectValue placeholder="Sort by" /></SelectTrigger>
@@ -1592,7 +1579,6 @@ export default function Home() {
                       </div>
                   </div>
 
-                  {/* 6. Favourites / Select Toggle row */}
                   <div className="flex items-center gap-2 px-1 w-full">
                       <Button 
                           variant={favoritesOnly ? 'secondary' : 'outline'} 
@@ -1625,20 +1611,17 @@ export default function Home() {
                       </Button>
                   </div>
 
-                  {/* 6.5 STRICT FIX: Select Multiple actions container (Mobile Only) */}
                   {isSelectMode && (
                       <div className="px-1 animate-in slide-in-from-top-2 duration-300">
                           {selectionBarContent}
                       </div>
                   )}
 
-                  {/* 7. Search Input Field */}
                   <div className="px-1 animate-in fade-in slide-in-from-top-2 duration-500">
                       {searchInputContent}
                   </div>
               </div>
 
-              {/* DESKTOP FILTER BAR - Restored to be persistently visible */}
               <div className="hidden md:block overflow-visible mb-4">
                 <Card id="task-filters" className="border-none bg-transparent overflow-visible">
                     <CardContent className="p-0 overflow-visible">
@@ -1865,7 +1848,6 @@ export default function Home() {
                     </div>
                 </div>
 
-                {/* DESKTOP/TABLET SELECTION BAR - Positioned below the control row */}
                 {isSelectMode && (
                     <div className="hidden md:block animate-in slide-in-from-top-2 duration-300">
                         {selectionBarContent}
@@ -1948,5 +1930,13 @@ export default function Home() {
         </DialogContent>
      </Dialog>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<LoadingSpinner text="Loading workspace..." />}>
+      <HomePageContent />
+    </Suspense>
   );
 }

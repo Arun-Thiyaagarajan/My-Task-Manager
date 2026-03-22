@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, memo } from 'react';
-import Link from 'next/navigation';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Table,
@@ -132,12 +132,10 @@ const TasksTableRow = memo(function TasksTableRow({
     }
 
     const target = e.target as HTMLElement;
-    // Prevent navigation if clicking interactive elements
     if (target.closest('button') || target.closest('.dropdown-trigger') || target.closest('[role="menuitem"]')) {
         return;
     }
 
-    // Standard browser behaviors for new tabs
     if (e.metaKey || e.ctrlKey || e.button === 1) return;
 
     e.preventDefault();
