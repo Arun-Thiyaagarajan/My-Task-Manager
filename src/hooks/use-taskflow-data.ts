@@ -41,15 +41,49 @@ export function useTaskFlowData() {
     const unsubscribers = useRef<(() => void)[]>([]);
     const processedIds = useRef<Set<string>>(new Set());
     const pathnameRef = useRef(pathname);
+    
+    // PERSISTENT AUDIO: Using a single ref to manage the audio instance across the app lifecycle
     const audioRef = useRef<HTMLAudioElement | null>(null);
+    const audioUnlocked = useRef(false);
 
     useEffect(() => {
         pathnameRef.current = pathname;
     }, [pathname]);
 
     useEffect(() => {
-        audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
-        audioRef.current.volume = 0.35;
+        // 1. INITIALIZE: Create the persistent audio instance once
+        if (typeof window !== 'undefined' && !audioRef.current) {
+            audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
+            audioRef.current.volume = 0.35;
+            audioRef.current.preload = 'auto';
+        }
+
+        // 2. UNLOCK: Audio context must be unlocked via user interaction on mobile
+        const unlockAudio = () => {
+            if (audioRef.current && !audioUnlocked.current) {
+                // Play a brief silent segment or the actual sound once to prime the browser's audio engine
+                audioRef.current.play()
+                    .then(() => {
+                        audioRef.current?.pause();
+                        if (audioRef.current) audioRef.current.currentTime = 0;
+                        audioUnlocked.current = true;
+                    })
+                    .catch(() => {
+                        // Silent fail: browser might still be blocking or interaction wasn't sufficient
+                    });
+                
+                window.removeEventListener('click', unlockAudio);
+                window.removeEventListener('touchstart', unlockAudio);
+            }
+        };
+
+        window.addEventListener('click', unlockAudio);
+        window.addEventListener('touchstart', unlockAudio);
+
+        return () => {
+            window.removeEventListener('click', unlockAudio);
+            window.removeEventListener('touchstart', unlockAudio);
+        };
     }, []);
 
     useEffect(() => {
@@ -102,7 +136,7 @@ export function useTaskFlowData() {
                             const newNotif = change.doc.data() as AppNotification;
                             const id = change.doc.id;
                             
-                            // Deduplication: Play sound and show toast exactly once per message ID
+                            // 3. DEDUPLICATION: Play sound and show toast exactly once per message ID
                             if (processedIds.current.has(id)) return;
                             processedIds.current.add(id);
                             
@@ -113,11 +147,21 @@ export function useTaskFlowData() {
 
                             if (newNotif.senderId === userId) return;
 
-                            // Consistent Audio Behavior: Play sound for every new message
+                            // 4. REACTIVE PLAYBACK: Only play if foregrounded and sounds are enabled in latest prefs
+                            const isForeground = typeof document !== 'undefined' && document.visibilityState === 'visible';
                             const prefs = getUserPreferences();
-                            if (prefs.notificationSounds !== false && audioRef.current) {
-                                audioRef.current.currentTime = 0;
-                                audioRef.current.play().catch(() => {});
+                            const isMuted = prefs.notificationSounds === false;
+
+                            if (isForeground && !isMuted && audioRef.current) {
+                                try {
+                                    audioRef.current.currentTime = 0;
+                                    audioRef.current.play().catch(e => {
+                                        // Browsers may still block if interaction hasn't happened yet
+                                        console.warn("Notification audio blocked by browser policy.", e);
+                                    });
+                                } catch (e) {
+                                    console.error("Audio playback error:", e);
+                                }
                             }
 
                             // If already on chat page, mark read instantly and skip toast
