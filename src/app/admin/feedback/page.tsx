@@ -112,7 +112,7 @@ export default function AdminFeedbackPage() {
                         </p>
                     </div>
                 </div>
-                <Button onClick={load} variant="outline" className="rounded-xl h-11 px-4 font-bold border-primary/20 bg-primary/5">
+                <Button onClick={load} variant="outline" className="hidden md:flex rounded-xl h-11 px-4 font-bold border-primary/20 bg-primary/5">
                     <RefreshCcw className="mr-2 h-4 w-4" />
                     Refresh
                 </Button>
