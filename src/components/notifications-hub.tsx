@@ -42,6 +42,17 @@ export function NotificationsHub() {
     const prefs = getUserPreferences();
     const isMuted = prefs.notificationSounds === false;
 
+    // FIX: Lock body scroll when popup is open
+    useEffect(() => {
+        if (isOpen) {
+            const originalStyle = window.getComputedStyle(document.body).overflow;
+            document.body.style.overflow = 'hidden';
+            return () => {
+                document.body.style.overflow = originalStyle;
+            };
+        }
+    }, [isOpen]);
+
     useEffect(() => {
         const loadNotifications = () => {
             const data = getAppData();
@@ -114,7 +125,6 @@ export function NotificationsHub() {
     const handleAction = (notif: AppNotification) => {
         if (isNavigatingId) return;
         
-        // Prevent re-routing if already on the target page
         if (pathname === notif.link) {
             setIsOpen(false);
             if (!notif.read) {
@@ -175,7 +185,7 @@ export function NotificationsHub() {
             </PopoverTrigger>
             <PopoverContent 
                 align="end" 
-                className="w-[calc(100vw-2rem)] sm:w-[360px] max-h-[80vh] p-0 overflow-hidden rounded-[1.5rem] shadow-2xl border-none bg-background/95 backdrop-blur-md animate-in zoom-in-95 duration-200 flex flex-col"
+                className="w-[calc(100vw-2rem)] sm:w-[360px] max-h-[80vh] p-0 overflow-hidden rounded-[1.5rem] shadow-2xl border-none bg-background/95 backdrop-blur-md animate-in zoom-in-95 duration-200 flex flex-col overscroll-contain"
                 onOpenAutoFocus={(e) => e.preventDefault()}
                 onPointerDownCapture={(e) => e.stopPropagation()}
             >

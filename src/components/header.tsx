@@ -80,6 +80,16 @@ const HeaderLink = ({ href, children, className, onClick, id }: { href: string; 
     const pathname = usePathname();
     const { prompt } = useUnsavedChanges();
 
+    // Fix: Robust Active State Detection for highlighting
+    const isActive = useMemo(() => {
+        if (href === '/') {
+            // "Tasks" tab stays active when viewing / or nested /tasks/...
+            return pathname === '/' || pathname?.startsWith('/tasks/');
+        }
+        // Sub-routes trigger active state for parent (e.g. /feedback/123 -> /feedback)
+        return pathname === href || pathname?.startsWith(`${href}/`);
+    }, [pathname, href]);
+
     const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
         if (onClick) {
             onClick(e);
@@ -98,7 +108,20 @@ const HeaderLink = ({ href, children, className, onClick, id }: { href: string; 
         });
     };
 
-    return <a href={href} onClick={handleClick} className={className} id={id}>{children}</a>;
+    return (
+        <a 
+            href={href} 
+            onClick={handleClick} 
+            className={cn(
+                className,
+                // Active Navigation Highlight Styling
+                isActive && "text-primary bg-primary/5 font-bold shadow-[inset_0_-2px_0_0_hsl(var(--primary))]"
+            )} 
+            id={id}
+        >
+            {children}
+        </a>
+    );
 }
 
 const isActualImage = (url: string | null | undefined) => {
@@ -268,32 +291,32 @@ export function Header() {
               </HeaderLink>
             </div>
 
-            <nav className="hidden md:flex items-center gap-2 lg:gap-4 xl:gap-6 overflow-hidden">
-               <HeaderLink href="/" id="header-nav-home" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap px-1 py-1">
+            <nav className="hidden md:flex items-center gap-2 lg:gap-4 xl:gap-6 overflow-hidden h-14">
+               <HeaderLink href="/" id="header-nav-home" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-all group whitespace-nowrap px-3 h-full">
                   <Home className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   <span className="hidden lg:inline">Tasks</span>
                </HeaderLink>
-               <HeaderLink href="/dashboard" id="header-nav-dashboard" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap px-1 py-1">
+               <HeaderLink href="/dashboard" id="header-nav-dashboard" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-all group whitespace-nowrap px-3 h-full">
                   <LayoutDashboard className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   <span className="hidden lg:inline">Dashboard</span>
                </HeaderLink>
-               <HeaderLink href="/insights" id="header-nav-insights" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap px-1 py-1">
+               <HeaderLink href="/insights" id="header-nav-insights" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-all group whitespace-nowrap px-3 h-full">
                   <Sparkles className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   <span className="hidden lg:inline">Recent</span>
                </HeaderLink>
-               <HeaderLink href="/settings" id="header-nav-settings" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap px-1 py-1">
+               <HeaderLink href="/settings" id="header-nav-settings" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-all group whitespace-nowrap px-3 h-full">
                   <Cog className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   <span className="hidden lg:inline">Settings</span>
                </HeaderLink>
-               <HeaderLink href="/releases" id="header-nav-releases" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap px-1 py-1">
+               <HeaderLink href="/releases" id="header-nav-releases" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-all group whitespace-nowrap px-3 h-full">
                   <History className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   <span className="hidden lg:inline">Releases</span>
                </HeaderLink>
-               <HeaderLink href="/logs" id="header-nav-logs" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap px-1 py-1">
+               <HeaderLink href="/logs" id="header-nav-logs" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-all group whitespace-nowrap px-3 h-full">
                   <FileClock className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   <span className="hidden lg:inline">Logs</span>
                </HeaderLink>
-               <HeaderLink href="/bin" id="header-nav-bin" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group whitespace-nowrap px-1 py-1">
+               <HeaderLink href="/bin" id="header-nav-bin" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-all group whitespace-nowrap px-3 h-full">
                   <Trash2 className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
                   <span className="hidden lg:inline">Bin</span>
                </HeaderLink>
