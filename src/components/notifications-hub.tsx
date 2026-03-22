@@ -85,7 +85,7 @@ export function NotificationsHub() {
         const recipientIds = [user.uid];
         if (isAdmin) recipientIds.push('admin');
 
-        // Note: No server-side sorting here to avoid index requirements.
+        // Fetch notifications targeting the current user UID or the global admin broadcast
         const q = query(
             notifRef, 
             where('recipientId', 'in', recipientIds),
@@ -147,10 +147,9 @@ export function NotificationsHub() {
         if (isNavigatingId) return;
         
         setIsNavigatingId(notif.id);
-        // Instant Feedback: Navigation starts immediately
         window.dispatchEvent(new Event('navigation-start'));
 
-        // Fire-and-forget read status update in background
+        // Background update for read status
         if (!notif.read) {
             markNotificationRead(notif.id);
         }
@@ -158,7 +157,7 @@ export function NotificationsHub() {
         setIsOpen(false);
         router.push(notif.link);
         
-        // Safety timeout to reset navigation state
+        // Navigation timeout safety
         setTimeout(() => setIsNavigatingId(null), 3000);
     };
 
@@ -187,17 +186,17 @@ export function NotificationsHub() {
                             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary border border-background"></span>
                         </div>
                     )}
-                    <span className="sr-only">Activity Inbox</span>
+                    <span className="sr-only">Notification Hub</span>
                 </Button>
             </PopoverTrigger>
             <PopoverContent 
                 align="end" 
-                className="w-[360px] p-0 overflow-hidden rounded-[1.5rem] shadow-2xl border-none bg-background/95 backdrop-blur-md animate-in zoom-in-95 duration-200"
+                className="w-[calc(100vw-2rem)] sm:w-[360px] p-0 overflow-hidden rounded-[1.5rem] shadow-2xl border-none bg-background/95 backdrop-blur-md animate-in zoom-in-95 duration-200"
             >
                 <div className="bg-primary/5 p-4 border-b flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-2">
                         <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-                        <h3 className="font-black text-xs uppercase tracking-[0.1em] text-foreground/80">Inbox</h3>
+                        <h3 className="font-black text-xs uppercase tracking-[0.1em] text-foreground/80">Notifications</h3>
                     </div>
                     <div className="flex items-center gap-1">
                         <Button 
@@ -229,14 +228,14 @@ export function NotificationsHub() {
                                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Syncing alerts...</p>
                             </div>
                         ) : notifications.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-12 gap-4 text-center px-8 animate-in fade-in duration-500">
+                            <div className="flex flex-col items-center justify-center py-12 gap-4 text-center px-8 animate-in fade-in duration-500 min-h-[180px]">
                                 <div className="h-16 w-16 rounded-full bg-muted/30 flex items-center justify-center mb-2 shadow-inner">
                                     <Inbox className="h-8 w-8 text-muted-foreground/30" />
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-sm font-bold text-foreground/60">No new alerts</p>
                                     <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest leading-relaxed max-w-[200px] mx-auto">
-                                        Support requests and replies will appear here in real-time.
+                                        Your inbox is empty. Support activity and replies will appear here.
                                     </p>
                                 </div>
                             </div>
