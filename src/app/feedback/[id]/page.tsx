@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useRouter, usePathname } from 'next/navigation';
+import { useParams, useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { 
     ArrowLeft, 
     MessageSquareQuote, 
@@ -47,6 +47,7 @@ export default function FeedbackDetailPage() {
     const params = useParams();
     const router = useRouter();
     const pathname = usePathname();
+    const searchParams = useSearchParams();
     const { user, firestore, userProfile, isUserLoading } = useFirebase();
     const [item, setItem] = useState<Feedback | null>(null);
     const [messages, setMessages] = useState<FeedbackMessage[]>([]);
@@ -116,10 +117,19 @@ export default function FeedbackDetailPage() {
     }, [firestore, params.id, user, isUserLoading]);
 
     const handleBack = () => {
-        // FIX: Navigate to a stable list route to break potential history loops between About/Help/Support
+        const from = searchParams.get('from');
+        
+        // If we came from a specific page (e.g. via notification), return to it
+        if (from) {
+            window.dispatchEvent(new Event('navigation-start'));
+            router.push(from);
+            return;
+        }
+
+        // Default stable list route fallback to break potential loops
         const target = isAdmin ? '/admin/feedback' : '/feedback';
         
-        // Prevent redundant navigation if already there (unlikely in detail view)
+        // Prevent redundant navigation if already there
         if (pathname === target) return;
 
         window.dispatchEvent(new Event('navigation-start'));

@@ -130,11 +130,17 @@ export function NotificationsHub() {
         }
         
         setIsOpen(false);
+
+        // Capture current context to allow returning to the page from where it came
+        const fromPath = pathname || '/';
+        const separator = notif.link.includes('?') ? '&' : '?';
+        const targetWithReturn = `${notif.link}${separator}from=${encodeURIComponent(fromPath)}`;
+
         // FIX: Use replace for Support Request details to avoid history looping
         if (notif.link.startsWith('/feedback/')) {
-            router.replace(notif.link);
+            router.replace(targetWithReturn);
         } else {
-            router.push(notif.link);
+            router.push(targetWithReturn);
         }
         
         setTimeout(() => setIsNavigatingId(null), 3000);
