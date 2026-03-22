@@ -13,7 +13,8 @@ import {
     ArrowRight,
     User,
     Volume2,
-    VolumeX
+    VolumeX,
+    ShieldCheck
 } from 'lucide-react';
 import { 
     Popover, 
@@ -140,9 +141,6 @@ export function NotificationsHub() {
 
     const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
 
-    // Visibility logic: only show in Cloud Mode
-    if (authMode !== 'authenticate') return null;
-
     // Show a loading/placeholder state if auth is still processing
     if (isUserLoading && !user) {
         return (
@@ -152,8 +150,42 @@ export function NotificationsHub() {
         );
     }
 
-    // Hide if explicitly not logged in
-    if (!user) return null;
+    // Visibility logic: show hub always if mounted, prompt for login if not cloud
+    const showAuthPrompt = authMode !== 'authenticate' || !user;
+
+    if (showAuthPrompt) {
+        return (
+            <Popover open={isOpen} onOpenChange={setIsOpen}>
+                <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-full group shrink-0">
+                        <Inbox className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent 
+                    align="end" 
+                    className="w-[calc(100vw-2rem)] sm:w-[320px] p-6 rounded-[1.5rem] shadow-2xl border-none bg-background/95 backdrop-blur-md animate-in zoom-in-95 duration-200"
+                >
+                    <div className="flex flex-col items-center text-center gap-4">
+                        <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+                            <ShieldCheck className="h-6 w-6" />
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-sm font-black uppercase tracking-tight">Cloud Sync Required</p>
+                            <p className="text-[11px] leading-relaxed text-muted-foreground font-medium">
+                                Real-time notifications and support alerts are only available in Cloud mode. Sign in to stay updated.
+                            </p>
+                        </div>
+                        <Button 
+                            className="w-full font-black text-[10px] uppercase tracking-widest h-11 rounded-xl shadow-lg shadow-primary/20"
+                            onClick={() => { setIsOpen(false); window.dispatchEvent(new Event('open-auth-modal')); }}
+                        >
+                            Sign In / Connect
+                        </Button>
+                    </div>
+                </PopoverContent>
+            </Popover>
+        );
+    }
 
     const handleAction = (notif: AppNotification) => {
         if (isNavigatingId) return;

@@ -1067,7 +1067,7 @@ export default function ProfilePage() {
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={handleRestorePrevious}>
-                                        <RotateCcw className="h-3 w-3" />
+                                        <RotateCcw className="h-3.5 w-3.5" />
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>Restore this photo</TooltipContent>
@@ -1344,7 +1344,7 @@ export default function ProfilePage() {
                         <CardContent className="space-y-4">
                             <Button 
                                 variant="outline" 
-                                className="w-full h-14 text-sm justify-between rounded-2xl font-bold px-4 border-amber-200 bg-amber-50/30 hover:bg-amber-50 hover:border-amber-300" 
+                                className="w-full h-14 text-sm justify-between rounded-2xl font-bold px-4 border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 transition-all shadow-sm" 
                                 onClick={() => router.push('/admin/feedback')}
                             >
                                 <span className="flex items-center gap-3">
