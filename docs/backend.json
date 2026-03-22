@@ -131,6 +131,23 @@
         "attachments": { "type": "array" }
       },
       "required": ["id", "senderId", "senderRole", "message", "timestamp"]
+    },
+    "AdminNotification": {
+      "title": "AdminNotification",
+      "type": "object",
+      "description": "A notification for administrators regarding user requests or system events.",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["user_request", "admin_reply"] },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "link": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "read": { "type": "boolean" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" }
+      },
+      "required": ["id", "type", "title", "message", "link", "timestamp", "read"]
     }
   },
   "auth": {
@@ -198,6 +215,13 @@
         "definition": {
           "entityName": "FeedbackMessage",
           "description": "Messages within a feedback conversation thread."
+        }
+      },
+      {
+        "path": "/admin_notifications/{notificationId}",
+        "definition": {
+          "entityName": "AdminNotification",
+          "description": "Collection of notifications for workspace administrators."
         }
       }
     ]

@@ -74,5 +74,13 @@ service cloud.firestore {
         );
       }
     }
+
+    // Admin Notifications Collection
+    match /admin_notifications/{notificationId} {
+      // Any user can create a notification (e.g. when submitting feedback)
+      allow create: if isSignedIn();
+      // Only admins can see the inbox or mark notifications as read
+      allow read, list, update, delete: if isAdmin();
+    }
   }
 }
