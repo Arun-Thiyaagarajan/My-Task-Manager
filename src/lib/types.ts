@@ -277,14 +277,17 @@ export interface FeedbackMessage {
   attachments?: Attachment[];
 }
 
-export interface AdminNotification {
+export interface AppNotification {
   id: string;
-  type: 'user_request' | 'admin_reply';
+  recipientId: string; // User UID or 'admin'
+  type: 'user_request' | 'admin_reply' | 'system';
   title: string;
   message: string;
   link: string;
   timestamp: string;
   read: boolean;
-  userId?: string;
-  userName?: string;
+  senderId?: string;
+  senderName?: string;
 }
+
+export type AdminNotification = AppNotification;

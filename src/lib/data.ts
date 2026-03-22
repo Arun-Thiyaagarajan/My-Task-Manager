@@ -2,7 +2,7 @@
 'use client';
 
 import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile, Feedback, FeedbackMessage, FeedbackStatus, UserProfile, AdminNotification } from './types'; 
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile, Feedback, FeedbackMessage, FeedbackStatus, UserProfile, AppNotification } from './types'; 
 import cloneDeep from 'lodash/cloneDeep';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, setDoc, deleteDoc, updateDoc, collection, writeBatch, getDocs, query, orderBy, limit, getDoc, where, addDoc } from 'firebase/firestore';
@@ -183,7 +183,7 @@ export async function updateUserPreferences(updates: Partial<UserPreferences>) {
 }
 
 async function dispatchMutation(
-    type: 'tasks' | 'notes' | 'logs' | 'uiConfig' | 'developers' | 'testers' | 'generalReminders' | 'releaseUpdates' | 'companies' | 'feedback' | 'feedbackMessages' | 'adminNotifications',
+    type: 'tasks' | 'notes' | 'logs' | 'uiConfig' | 'developers' | 'testers' | 'generalReminders' | 'releaseUpdates' | 'companies' | 'feedback' | 'feedbackMessages' | 'notifications',
     id: string,
     data: any,
     operation: 'create' | 'update' | 'delete' | 'set',
@@ -224,8 +224,8 @@ async function dispatchMutation(
     } else if (type === 'feedbackMessages') {
         if (!parentId) return;
         docRef = doc(db, 'feedback', parentId, 'messages', id);
-    } else if (type === 'adminNotifications') {
-        docRef = doc(db, 'admin_notifications', id);
+    } else if (type === 'notifications') {
+        docRef = doc(db, 'notifications', id);
     } else {
         docRef = doc(db, 'users', userId!, 'companies', activeCompanyId, type, id);
     }
@@ -252,24 +252,32 @@ async function dispatchMutation(
     }
 }
 
-// Admin Notifications logic
-export async function createAdminNotification(notification: Omit<AdminNotification, 'id' | 'timestamp' | 'read'>) {
+// Unified Notification logic
+export async function createNotification(notification: Omit<AppNotification, 'id' | 'timestamp' | 'read'>) {
+    const auth = getAuth();
+    if (!auth.currentUser) return;
+
+    // Don't notify the sender
+    if (notification.recipientId === auth.currentUser.uid) return;
+
     const id = `notif-${crypto.randomUUID()}`;
-    const newNotif: AdminNotification = {
+    const newNotif: AppNotification = {
         ...notification,
         id,
         timestamp: new Date().toISOString(),
-        read: false
+        read: false,
+        senderId: auth.currentUser.uid,
+        senderName: auth.currentUser.displayName || auth.currentUser.email || 'System'
     };
     
     if (getAuthMode() === 'authenticate') {
-        await dispatchMutation('adminNotifications', id, newNotif, 'set');
+        await dispatchMutation('notifications', id, newNotif, 'set');
     }
 }
 
-export async function markAdminNotificationRead(id: string) {
+export async function markNotificationRead(id: string) {
     if (getAuthMode() === 'authenticate') {
-        await dispatchMutation('adminNotifications', id, { read: true }, 'update');
+        await dispatchMutation('notifications', id, { read: true }, 'update');
     }
 }
 
@@ -1251,14 +1259,13 @@ export async function submitFeedback(feedback: Omit<Feedback, 'id' | 'status' | 
         await dispatchMutation('feedback', id, newFeedback, 'set');
         await dispatchMutation('feedbackMessages', autoReply.id, autoReply, 'set', id);
         
-        // Trigger Admin Notification
-        await createAdminNotification({
+        // Trigger Notification for Admins
+        await createNotification({
+            recipientId: 'admin',
             type: 'user_request',
             title: 'New Support Request',
             message: `${userName} submitted: ${feedback.title}`,
             link: `/feedback/${id}`,
-            userId: user?.uid,
-            userName: userName
         });
     } else {
         const data = getAppData();
@@ -1369,15 +1376,29 @@ export async function sendFeedbackMessage(feedbackId: string, message: string, a
         await dispatchMutation('feedbackMessages', id, newMessage, 'set', feedbackId);
         await dispatchMutation('feedback', feedbackId, { updatedAt: now }, 'update');
         
-        // Trigger Admin Notification for replies
+        // Trigger Notifications
         if (userProfile?.role === 'admin') {
-            await createAdminNotification({
-                type: 'admin_reply',
-                title: 'Admin Response',
-                message: `Admin ${user.displayName || user.email} replied to a request.`,
+            // Admin replied -> Notify original User
+            const fbRef = doc(db, 'feedback', feedbackId);
+            const fbSnap = await getDoc(fbRef);
+            if (fbSnap.exists()) {
+                const fbData = fbSnap.data() as Feedback;
+                await createNotification({
+                    recipientId: fbData.userId,
+                    type: 'admin_reply',
+                    title: 'New Support Message',
+                    message: `Admin replied: ${message.substring(0, 50)}${message.length > 50 ? '...' : ''}`,
+                    link: `/feedback/${feedbackId}`,
+                });
+            }
+        } else {
+            // User replied -> Notify Admin
+            await createNotification({
+                recipientId: 'admin',
+                type: 'user_request',
+                title: 'New Feedback Reply',
+                message: `${user.displayName || user.email} replied: ${message.substring(0, 50)}${message.length > 50 ? '...' : ''}`,
                 link: `/feedback/${feedbackId}`,
-                userId: user.uid,
-                userName: user.displayName || user.email || 'Admin'
             });
         }
     } else {

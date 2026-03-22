@@ -11,7 +11,8 @@ import {
     X,
     Check,
     Loader2,
-    ArrowRight
+    ArrowRight,
+    User
 } from 'lucide-react';
 import { 
     Popover, 
@@ -28,70 +29,86 @@ import {
     limit, 
     onSnapshot,
     where,
-    doc,
-    updateDoc
 } from 'firebase/firestore';
-import type { AdminNotification } from '@/lib/types';
+import type { AppNotification } from '@/lib/types';
 import { formatTimestamp, cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { markAdminNotificationRead } from '@/lib/data';
+import { markNotificationRead, getAuthMode } from '@/lib/data';
 
 export function NotificationsHub() {
     const { user, userProfile, firestore } = useFirebase();
     const router = useRouter();
     const { toast } = useToast();
-    const [notifications, setNotifications] = useState<AdminNotification[]>([]);
+    const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isOpen, setIsOpen] = useState(false);
 
     const isAdmin = userProfile?.role === 'admin';
+    const authMode = getAuthMode();
 
     useEffect(() => {
-        if (!firestore || !isAdmin || !user) return;
+        if (!firestore || !user || authMode !== 'authenticate') {
+            setIsLoading(false);
+            return;
+        }
 
-        const notifRef = collection(firestore, 'admin_notifications');
+        const notifRef = collection(firestore, 'notifications');
+        
+        // Listen for notifications intended for THIS user OR 'admin' if they are an admin
+        const recipientIds = [user.uid];
+        if (isAdmin) recipientIds.push('admin');
+
         const q = query(
             notifRef, 
+            where('recipientId', 'in', recipientIds),
             orderBy('timestamp', 'desc'), 
-            limit(20)
+            limit(30)
         );
 
         const unsub = onSnapshot(q, (snapshot) => {
-            const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as AdminNotification));
+            const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as AppNotification));
             
-            // Trigger toast for new notifications if not already seen
-            const newItems = items.filter(n => !n.read);
-            if (newItems.length > notifications.filter(n => !n.read).length) {
-                const latest = newItems[0];
-                if (latest) {
-                    toast({
-                        title: latest.title,
-                        description: latest.message,
-                        action: (
-                            <Button size="sm" variant="outline" onClick={() => router.push(latest.link)}>
-                                View
-                            </Button>
-                        )
-                    });
-                }
+            // Filter out items that are strictly for admins if user is no longer admin (safety)
+            const filteredItems = items.filter(n => n.recipientId === user.uid || (n.recipientId === 'admin' && isAdmin));
+
+            // Trigger toast for new unread notifications
+            const newUnread = filteredItems.filter(n => !n.read && !notifications.some(on => on.id === n.id));
+            if (newUnread.length > 0) {
+                const latest = newUnread[0];
+                toast({
+                    title: latest.title,
+                    description: latest.message,
+                    action: (
+                        <Button size="sm" variant="outline" onClick={() => {
+                            if (!latest.read) markNotificationRead(latest.id);
+                            router.push(latest.link);
+                        }}>
+                            View
+                        </Button>
+                    )
+                });
             }
 
-            setNotifications(items);
+            setNotifications(filteredItems);
+            setIsLoading(false);
+        }, (error) => {
+            console.error("Notifications fetch error:", error);
             setIsLoading(false);
         });
 
         return () => unsub();
-    }, [firestore, isAdmin, user, toast, router]);
+    }, [firestore, isAdmin, user, authMode, router, toast]);
 
     const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
 
-    if (!isAdmin) return null;
+    // Hidden in local mode or if not signed in
+    if (authMode !== 'authenticate' || !user) return null;
 
-    const handleAction = async (notif: AdminNotification) => {
+    const handleAction = async (notif: AppNotification) => {
         if (!notif.read) {
-            await markAdminNotificationRead(notif.id);
+            await markNotificationRead(notif.id);
         }
         setIsOpen(false);
         router.push(notif.link);
@@ -100,7 +117,7 @@ export function NotificationsHub() {
     const markAllRead = async () => {
         const batchPromises = notifications
             .filter(n => !n.read)
-            .map(n => markAdminNotificationRead(n.id));
+            .map(n => markNotificationRead(n.id));
         await Promise.all(batchPromises);
     };
 
@@ -118,14 +135,14 @@ export function NotificationsHub() {
                             <span className="relative inline-flex rounded-full h-3 w-3 bg-primary border-2 border-background"></span>
                         </div>
                     )}
-                    <span className="sr-only">Admin Notifications</span>
+                    <span className="sr-only">Notifications</span>
                 </Button>
             </PopoverTrigger>
             <PopoverContent align="end" className="w-[350px] p-0 overflow-hidden rounded-2xl shadow-2xl border-none bg-background/95 backdrop-blur-md">
                 <div className="bg-primary/5 p-4 border-b flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 font-black text-[10px] uppercase tracking-widest px-2 h-5">ADMIN</Badge>
-                        <h3 className="font-bold text-sm tracking-tight">Notification Hub</h3>
+                        {isAdmin && <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 font-black text-[10px] uppercase tracking-widest px-2 h-5">SYNC ACTIVE</Badge>}
+                        <h3 className="font-bold text-sm tracking-tight">Activity Inbox</h3>
                     </div>
                     {unreadCount > 0 && (
                         <Button variant="ghost" size="sm" onClick={markAllRead} className="h-7 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/10">
@@ -147,7 +164,7 @@ export function NotificationsHub() {
                             </div>
                             <div className="space-y-1">
                                 <p className="text-sm font-bold text-foreground/80">Inbox is empty</p>
-                                <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest leading-relaxed">No administrative actions requiring your attention.</p>
+                                <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest leading-relaxed">Notifications regarding feedback and replies will appear here.</p>
                             </div>
                         </div>
                     ) : (
@@ -166,9 +183,13 @@ export function NotificationsHub() {
                                     )}
                                     <div className={cn(
                                         "h-10 w-10 rounded-xl flex items-center justify-center shrink-0 border shadow-inner",
-                                        notif.type === 'user_request' ? "bg-amber-500/10 text-amber-600 border-amber-500/20" : "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                                        notif.type === 'user_request' ? "bg-amber-500/10 text-amber-600 border-amber-500/20" : 
+                                        notif.type === 'admin_reply' ? "bg-blue-500/10 text-blue-600 border-blue-500/20" :
+                                        "bg-primary/10 text-primary border-primary/20"
                                     )}>
-                                        {notif.type === 'user_request' ? <Rocket className="h-5 w-5" /> : <MessageSquare className="h-5 w-5" />}
+                                        {notif.type === 'user_request' ? <Rocket className="h-5 w-5" /> : 
+                                         notif.type === 'admin_reply' ? <MessageSquare className="h-5 w-5" /> :
+                                         <Bell className="h-5 w-5" />}
                                     </div>
                                     <div className="flex-1 min-w-0 space-y-1">
                                         <div className="flex justify-between items-start gap-2">
@@ -186,7 +207,15 @@ export function NotificationsHub() {
                                             {notif.message}
                                         </p>
                                         <div className="flex items-center gap-1.5 pt-1">
-                                            <span className="text-[9px] font-black uppercase tracking-widest text-primary/60 group-hover:text-primary transition-colors">View Details</span>
+                                            {notif.senderName && (
+                                                <div className="flex items-center gap-1 text-[9px] font-bold text-muted-foreground/60 mr-auto">
+                                                    <User className="h-2 w-2" />
+                                                    {notif.senderName}
+                                                </div>
+                                            )}
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-primary/60 group-hover:text-primary transition-colors">
+                                                {notif.recipientId === 'admin' ? 'View Report' : 'Open Thread'}
+                                            </span>
                                             <ChevronRight className="h-2.5 w-2.5 text-primary/40 group-hover:text-primary transition-colors" />
                                         </div>
                                     </div>
@@ -198,11 +227,11 @@ export function NotificationsHub() {
 
                 <div className="p-4 bg-muted/10 border-t">
                     <Button 
-                        onClick={() => { setIsOpen(false); router.push('/admin/feedback'); }}
+                        onClick={() => { setIsOpen(false); router.push(isAdmin ? '/admin/feedback' : '/feedback'); }}
                         className="w-full h-11 rounded-xl font-bold gap-2 shadow-lg"
                     >
-                        <Inbox className="h-4 w-4" />
-                        Go to Support Inbox
+                        {isAdmin ? <Inbox className="h-4 w-4" /> : <MessageSquare className="h-4 w-4" />}
+                        {isAdmin ? 'Go to Support Inbox' : 'My Feedback History'}
                         <ArrowRight className="h-4 w-4 ml-auto" />
                     </Button>
                 </div>
