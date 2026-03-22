@@ -27,7 +27,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { markNotificationRead, getAuthMode, getUserPreferences, updateUserPreferences, getAppData } from '@/lib/data';
 
 export function NotificationsHub() {
-    const { user, isUserLoading } = useFirebase();
+    const { user, userProfile, isUserLoading } = useFirebase();
     const router = useRouter();
     const pathname = usePathname();
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -308,7 +308,7 @@ export function NotificationsHub() {
                 </div>
 
                 {/* Fixed Footer */}
-                {getAppData().localProfile && user && notifications.length > 0 && (
+                {userProfile?.role === 'admin' && notifications.length > 0 && (
                     <div className="p-5 bg-muted/20 border-t shrink-0">
                         <Button 
                             onClick={() => { setIsOpen(false); router.push('/admin/feedback'); }}
