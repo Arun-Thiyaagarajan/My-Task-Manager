@@ -385,12 +385,12 @@ export function Header() {
             )}
             
             {/* Support Inbox Shortcut (Mobile Only - Admin) */}
-            {isAdmin && mounted && (
+            {/* {isAdmin && mounted && (
                 <HeaderLink href="/admin/feedback" className="md:hidden h-9 w-9 rounded-full flex items-center justify-center hover:bg-muted transition-colors text-amber-600">
                     <Inbox className="h-5 w-5" />
                     <span className="sr-only">Support Inbox</span>
                 </HeaderLink>
-            )}
+            )} */}
 
             {/* Admin Notifications Hub (Additive Only) */}
             {mounted && <NotificationsHub />}
