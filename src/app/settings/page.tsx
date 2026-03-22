@@ -115,7 +115,7 @@ import { useTheme } from 'next-themes';
 import { FieldFormContent } from '@/components/field-form-content';
 import { EnvironmentFormContent } from '@/components/environment-form-content';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const isActualImage = (url: string | null | undefined) => {
     if (!url) return false;

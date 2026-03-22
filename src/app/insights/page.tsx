@@ -20,8 +20,19 @@ export default function InsightsPage() {
     const [pinnedTaskIds, setPinnedTaskIds] = useState<string[]>([]);
 
     const load = useCallback(() => {
-        setRecentAdded(getRecentTasks(12));
-        setRecentImported(getRecentImportedTasks(12));
+        // 1. Get recent imported tasks (authoritative pool)
+        const imported = getRecentImportedTasks(12);
+        const importedIds = new Set(imported.map(t => t.id));
+        
+        // 2. Get recent added tasks and strictly exclude those that are in the imported list
+        // Fetch a larger pool initially to maintain the count after deduplication
+        const added = getRecentTasks(30)
+            .filter(t => !importedIds.has(t.id))
+            .slice(0, 12);
+
+        setRecentAdded(added);
+        setRecentImported(imported);
+        
         setUiConfig(getUiConfig());
         setDevelopers(getDevelopers());
         setTesters(getTesters());
@@ -35,11 +46,18 @@ export default function InsightsPage() {
 
     useEffect(() => {
         load();
+        
+        // Essential listeners for cross-tab and same-tab updates (e.g. deletion, sync)
         window.addEventListener('storage', load);
         window.addEventListener('company-changed', load);
+        window.addEventListener('sync-complete', load);
+        window.addEventListener('config-changed', load);
+        
         return () => {
             window.removeEventListener('storage', load);
             window.removeEventListener('company-changed', load);
+            window.removeEventListener('sync-complete', load);
+            window.removeEventListener('config-changed', load);
         };
     }, [load]);
 
@@ -74,7 +92,7 @@ export default function InsightsPage() {
                         <h2 className="text-2xl font-bold tracking-tight">Recently Added</h2>
                     </div>
                     {recentAdded.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                             {recentAdded.map(task => (
                                 <TaskCard 
                                     key={task.id} 
@@ -106,7 +124,7 @@ export default function InsightsPage() {
                         <h2 className="text-2xl font-bold tracking-tight">Recently Imported</h2>
                     </div>
                     {recentImported.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                             {recentImported.map(task => (
                                 <TaskCard 
                                     key={task.id} 
