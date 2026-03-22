@@ -87,6 +87,7 @@ export function NotificationsHub() {
                 <PopoverContent 
                     align="end" 
                     className="w-[calc(100vw-2rem)] sm:w-[320px] p-6 rounded-[1.5rem] shadow-2xl border-none bg-background/95 backdrop-blur-md animate-in zoom-in-95 duration-200"
+                    onOpenAutoFocus={(e) => e.preventDefault()}
                 >
                     <div className="flex flex-col items-center text-center gap-4">
                         <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
@@ -131,7 +132,6 @@ export function NotificationsHub() {
         
         setIsOpen(false);
 
-        // Capture current context to allow returning to the page from where it came
         const fromPath = pathname || '/';
         const separator = notif.link.includes('?') ? '&' : '?';
         const targetWithReturn = `${notif.link}${separator}from=${encodeURIComponent(fromPath)}`;
@@ -176,6 +176,8 @@ export function NotificationsHub() {
             <PopoverContent 
                 align="end" 
                 className="w-[calc(100vw-2rem)] sm:w-[360px] max-h-[80vh] p-0 overflow-hidden rounded-[1.5rem] shadow-2xl border-none bg-background/95 backdrop-blur-md animate-in zoom-in-95 duration-200 flex flex-col"
+                onOpenAutoFocus={(e) => e.preventDefault()}
+                onPointerDownCapture={(e) => e.stopPropagation()}
             >
                 {/* Header Section */}
                 <div className="bg-primary/5 p-4 border-b flex items-center justify-between shrink-0">
@@ -206,7 +208,7 @@ export function NotificationsHub() {
                 </div>
 
                 {/* Main Scrollable Content Area */}
-                <div className="flex-1 min-h-0 flex flex-col">
+                <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
                     {isLoading ? (
                         <div className="flex flex-col items-center justify-center py-16 gap-3">
                             <Loader2 className="h-6 w-6 animate-spin text-primary/40" />
@@ -225,7 +227,12 @@ export function NotificationsHub() {
                             </div>
                         </div>
                     ) : (
-                        <ScrollArea className="flex-1">
+                        <ScrollArea 
+                            className="flex-1"
+                            onWheel={(e) => e.stopPropagation()}
+                            onTouchStart={(e) => e.stopPropagation()}
+                            onTouchMove={(e) => e.stopPropagation()}
+                        >
                             <div className="divide-y divide-border/40 overscroll-contain">
                                 {notifications.map((notif) => (
                                     <button
