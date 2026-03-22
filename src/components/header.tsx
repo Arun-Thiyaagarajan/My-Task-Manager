@@ -364,7 +364,7 @@ export function Header() {
               </DropdownMenu>
             )}
             
-            {/* Admin Notifications Hub (Unified signaling) */}
+            {/* Unified Notification Hub - Now for all cloud users */}
             {mounted && <NotificationsHub />}
 
             {/* Recent Activity Shortcut (Mobile Only) */}

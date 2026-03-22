@@ -1,3 +1,4 @@
+
 'use client';
 
 import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
@@ -187,13 +188,13 @@ function dispatchMutation(
     operation: 'create' | 'update' | 'delete' | 'set',
     parentId?: string
 ) {
-    if (getAuthMode() !== 'authenticate' && (type !== 'feedback' && type !== 'feedbackMessages')) return;
+    if (getAuthMode() !== 'authenticate' && (type !== 'feedback' && type !== 'feedbackMessages' && type !== 'notifications')) return;
     const auth = getAuth();
     const db = getFirestore();
     const userId = auth.currentUser?.uid;
     const activeCompanyId = getActiveCompanyId();
     
-    if (!userId && (type !== 'feedback' && type !== 'feedbackMessages')) return;
+    if (!userId && (type !== 'feedback' && type !== 'feedbackMessages' && type !== 'notifications')) return;
 
     let docRef;
     let payload = data;
@@ -255,6 +256,7 @@ export function createNotification(notification: Omit<AppNotification, 'id' | 't
     const auth = getAuth();
     if (!auth.currentUser) return;
 
+    // Standardize: Don't notify the sender themselves
     if (notification.recipientId === auth.currentUser.uid) return;
 
     const id = `notif-${crypto.randomUUID()}`;

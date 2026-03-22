@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -63,6 +64,7 @@ export function NotificationsHub() {
     }, []);
 
     const playNotificationSound = React.useCallback(() => {
+        // Condition: Trigger only when muted is OFF and HUB is CLOSED
         if (isMuted || !audioRef.current || isOpen) return;
         audioRef.current.currentTime = 0;
         audioRef.current.play().catch(() => {});
@@ -78,6 +80,7 @@ export function NotificationsHub() {
         const recipientIds = [user.uid];
         if (isAdmin) recipientIds.push('admin');
 
+        // Note: No server-side sorting here to avoid the need for a composite index.
         const q = query(
             notifRef, 
             where('recipientId', 'in', recipientIds),
@@ -87,16 +90,20 @@ export function NotificationsHub() {
         const unsub = onSnapshot(q, (snapshot) => {
             const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as AppNotification));
             
+            // Client-side sort: Always show newest first
             const sortedItems = items.sort((a, b) => 
                 new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
             );
 
+            // Handle New Notification Events
             if (!initialLoadRef.current) {
                 snapshot.docChanges().forEach(change => {
                     if (change.type === 'added') {
                         const newNotif = change.doc.data() as AppNotification;
+                        // Don't notify for actions the user performed themselves
                         if (newNotif.senderId !== user.uid) {
                             playNotificationSound();
+                            // Optional: Show toast if the popup is closed
                             if (!isOpen) {
                                 toast({
                                     title: newNotif.title,
@@ -135,8 +142,10 @@ export function NotificationsHub() {
         if (isNavigatingId) return;
         
         setIsNavigatingId(notif.id);
+        // Instant Feedback: Navigation starts immediately
         window.dispatchEvent(new Event('navigation-start'));
 
+        // Fire-and-forget read status update in background
         if (!notif.read) {
             markNotificationRead(notif.id);
         }
@@ -144,6 +153,7 @@ export function NotificationsHub() {
         setIsOpen(false);
         router.push(notif.link);
         
+        // Safety timeout to reset navigation state if router takes too long
         setTimeout(() => setIsNavigatingId(null), 3000);
     };
 
@@ -179,6 +189,7 @@ export function NotificationsHub() {
                 align="end" 
                 className="w-[360px] p-0 overflow-hidden rounded-[1.5rem] shadow-2xl border-none bg-background/95 backdrop-blur-md animate-in zoom-in-95 duration-200"
             >
+                {/* Header with Mute & Mark All Controls */}
                 <div className="bg-primary/5 p-4 border-b flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-2">
                         <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
