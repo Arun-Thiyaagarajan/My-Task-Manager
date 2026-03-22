@@ -115,7 +115,12 @@ import { useTheme } from 'next-themes';
 import { FieldFormContent } from '@/components/field-form-content';
 import { EnvironmentFormContent } from '@/components/environment-form-content';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+
+const isActualImage = (url: string | null | undefined) => {
+    if (!url) return false;
+    return url.startsWith('data:image') || url.startsWith('http') || url.startsWith('/');
+};
 
 export default function SettingsPage() {
   const isMobile = useIsMobile();
@@ -210,7 +215,11 @@ export default function SettingsPage() {
   useEffect(() => {
     loadConfig();
     window.addEventListener('company-changed', loadConfig);
-    return () => window.removeEventListener('company-changed', loadConfig);
+    window.addEventListener('config-changed', loadConfig);
+    return () => {
+        window.removeEventListener('company-changed', loadConfig);
+        window.removeEventListener('config-changed', loadConfig);
+    };
   }, [searchParams]);
 
   const hasUnsavedFieldChanges = useMemo(() => {
@@ -461,7 +470,7 @@ export default function SettingsPage() {
         if (fileInputRef.current) { fileInputRef.current.value = ''; }
       }
     };
-    reader.readAsDataURL(file);
+    reader.readAsText(file);
   };
 
   const handleClearAllData = async () => {
@@ -611,6 +620,25 @@ export default function SettingsPage() {
                 </div>
             </AlertDialogContent>
         </AlertDialog>
+
+        <ProfileImageCropper 
+            isOpen={isCropperOpen} 
+            onOpenChange={setIsCropperOpen} 
+            imageSrc={pendingIconImage} 
+            onCropComplete={handleCropComplete} 
+        />
+
+        <ImagePreviewDialog 
+            isOpen={isPreviewOpen} 
+            onOpenChange={setIsPreviewOpen} 
+            imageUrl={appIcon} 
+            imageName="Icon Preview" 
+            isProfilePreview 
+            onChange={() => { setIsPreviewOpen(false); iconFileInputRef.current?.click(); }} 
+            onRemove={handleRemoveIcon} 
+            previousImageUrl={uiConfig.previousAppIcon} 
+            onRestore={handleRestorePreviousIcon} 
+        />
     </>
   );
 
@@ -782,7 +810,32 @@ export default function SettingsPage() {
                                 </RadioGroup>
                             </div>
                             <div className="space-y-2"><Label className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Workspace Name</Label><Input value={appName} onChange={e => setAppName(e.target.value)} className="h-10 font-medium transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40" /></div>
-                            <div className="space-y-2"><Label className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Workspace Icon</Label><div className="flex gap-2"><Input value={isDataURIIcon ? '' : (appIcon || '')} onChange={e => setAppIcon(e.target.value)} placeholder={isDataURIIcon ? "Custom image uploaded" : "Emoji or URL..."} className="h-10 flex-1 font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40" /><Button variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => iconFileInputRef.current?.click()}><Upload className="h-4 w-4" /></Button><input type="file" ref={iconFileInputRef} onChange={handleIconUpload} className="hidden" accept="image/*" /></div></div>
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Workspace Icon</Label>
+                                <div className="flex items-center gap-3">
+                                    <button 
+                                        type="button"
+                                        onClick={() => (appIcon || uiConfig?.previousAppIcon) ? setIsPreviewOpen(true) : iconFileInputRef.current?.click()}
+                                        className="relative h-12 w-12 rounded-xl overflow-hidden border-2 border-primary/20 shadow-sm flex-shrink-0 group hover:border-primary/40 transition-all active:scale-95"
+                                    >
+                                        {isActualImage(appIcon) ? (
+                                            <img src={appIcon!} alt="App Icon" className="h-full w-full object-cover" />
+                                        ) : (
+                                            <div className="h-full w-full flex items-center justify-center text-2xl bg-muted/30">
+                                                {appIcon || '🚀'}
+                                            </div>
+                                        )}
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                            <Maximize2 className="h-4 w-4 text-white" />
+                                        </div>
+                                    </button>
+                                    <div className="flex-1 flex gap-2">
+                                        <Input value={isDataURIIcon ? '' : (appIcon || '')} onChange={e => setAppIcon(e.target.value)} placeholder={isDataURIIcon ? "Custom image uploaded" : "Emoji or URL..."} className="h-10 flex-1 font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40" />
+                                        <Button variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => iconFileInputRef.current?.click()}><Upload className="h-4 w-4" /></Button>
+                                    </div>
+                                </div>
+                                <input type="file" ref={iconFileInputRef} onChange={handleIconUpload} className="hidden" accept="image/*" />
+                            </div>
                             <div className="space-y-2"><Label className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Time Display</Label><div className="grid grid-cols-2 gap-2"><button onClick={() => setTimeFormat('12h')} className={cn("flex items-center justify-center p-2.5 border rounded-xl gap-2 transition-all", timeFormat === '12h' ? "bg-primary/10 border-primary text-primary font-medium" : "bg-muted text-muted-foreground")}>12-hour</button><button onClick={() => setTimeFormat('24h')} className={cn("flex items-center justify-center p-2.5 border rounded-xl gap-2 transition-all", timeFormat === '24h' ? "bg-primary/10 border-primary text-primary font-medium" : "bg-muted text-muted-foreground")}>24-hour</button></div></div>
                             <Button onClick={handleSaveDisplaySettings} className="w-full h-11 font-medium">Save Display Settings</Button>
                         </CardContent>
@@ -991,9 +1044,6 @@ export default function SettingsPage() {
             </div>
             <PeopleManagerDialog type={peopleManagerType === 'developer' ? 'developer' : 'tester'} isOpen={peopleManagerType !== null} onOpenChange={(open) => !open && setPeopleManagerType(null)} onSuccess={() => {}} />
             <AuthModal isOpen={isAuthModalOpen} onOpenChange={setIsAuthModalOpen} onSuccess={() => { setAuthMode('authenticate'); window.dispatchEvent(new Event('company-changed')); }} />
-            <ProfileImageCropper isOpen={isCropperOpen} onOpenChange={setIsCropperOpen} imageSrc={pendingIconImage} onCropComplete={handleCropComplete} />
-            <ImagePreviewDialog isOpen={isPreviewOpen} onOpenChange={setIsPreviewOpen} imageUrl={appIcon} imageName="Icon Preview" isProfilePreview onChange={() => { setIsPreviewOpen(false); iconFileInputRef.current?.click(); }} onRemove={handleRemoveIcon} previousImageUrl={uiConfig.previousAppIcon} onRestore={handleRestorePreviousIcon} />
-            <AlertDialog open={isModeConfirmOpen} onOpenChange={setIsModeConfirmOpen}><AlertDialogContent className="rounded-3xl"><AlertDialogHeader><AlertDialogTitle>Change Mode?</AlertDialogTitle><AlertDialogDescription>{pendingModeChange === 'authenticate' ? "Switch to Cloud sync?" : "Switch to Local Storage?"}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="mt-4 gap-3"><AlertDialogCancel onClick={() => setPendingModeChange(null)}>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleConfirmModeChange}>Confirm</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
             {sharedDialogs}
         </div>
     );
@@ -1144,7 +1194,32 @@ export default function SettingsPage() {
                 <CardContent className="space-y-6">
                     <div className="space-y-3 pb-2 border-b border-dashed"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Theme Preference</Label><RadioGroup value={theme} onValueChange={setTheme} className="grid grid-cols-3 gap-2"><button onClick={() => setTheme('light')} className={cn("flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all gap-2", theme === 'light' ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent hover:bg-muted/50")}><div className={cn("h-5 w-5", theme === 'light' ? "text-primary" : "text-muted-foreground")}><Sun /></div><span className={cn("text-[10px] font-bold uppercase", theme === 'light' ? "text-primary" : "text-muted-foreground")}>Light</span></button><button onClick={() => setTheme('dark')} className={cn("flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all gap-2", theme === 'dark' ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent hover:bg-muted/50")}><div className={cn("h-5 w-5", theme === 'dark' ? "text-primary" : "text-muted-foreground")}><Moon /></div><span className={cn("text-[10px] font-bold uppercase", theme === 'dark' ? "text-primary" : "text-muted-foreground")}>Dark</span></button><button onClick={() => setTheme('system')} className={cn("flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all gap-2", theme === 'system' ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent hover:bg-muted/50")}><div className={cn("h-5 w-5", theme === 'system' ? "text-primary" : "text-muted-foreground")}><Monitor /></div><span className={cn("text-[10px] font-bold uppercase", theme === 'system' ? "text-primary" : "text-muted-foreground")}>System</span></button></RadioGroup></div>
                     <div className="space-y-2"><Label className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Workspace Name</Label><Input value={appName} onChange={e => setAppName(e.target.value)} className="h-10 font-medium transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40" /></div>
-                    <div className="space-y-2"><Label className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Workspace Icon</Label><div className="flex gap-2"><Input value={isDataURIIcon ? '' : (appIcon || '')} onChange={e => setAppIcon(e.target.value)} placeholder={isDataURIIcon ? "Custom image uploaded" : "Emoji or URL..."} className="h-10 flex-1 font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40" /><TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-10 w-10 border-dashed shadow-sm" onClick={() => iconFileInputRef.current?.click()} type="button"><Upload className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Upload Brand Icon</TooltipContent></Tooltip></TooltipProvider><input type="file" ref={iconFileInputRef} onChange={handleIconUpload} className="hidden" accept="image/*" /></div></div>
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Workspace Icon</Label>
+                        <div className="flex items-center gap-3">
+                            <button 
+                                type="button"
+                                onClick={() => (appIcon || uiConfig?.previousAppIcon) ? setIsPreviewOpen(true) : iconFileInputRef.current?.click()}
+                                className="relative h-12 w-12 rounded-xl overflow-hidden border-2 border-primary/20 shadow-sm flex-shrink-0 group hover:border-primary/40 transition-all active:scale-95"
+                            >
+                                {isActualImage(appIcon) ? (
+                                    <img src={appIcon!} alt="App Icon" className="h-full w-full object-cover" />
+                                ) : (
+                                    <div className="h-full w-full flex items-center justify-center text-2xl bg-muted/30">
+                                        {appIcon || '🚀'}
+                                    </div>
+                                )}
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                    <Maximize2 className="h-4 w-4 text-white" />
+                                </div>
+                            </button>
+                            <div className="flex-1 flex gap-2">
+                                <Input value={isDataURIIcon ? '' : (appIcon || '')} onChange={e => setAppIcon(e.target.value)} placeholder={isDataURIIcon ? "Custom image uploaded" : "Emoji or URL..."} className="h-10 flex-1 font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40" />
+                                <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-10 w-10 border-dashed shadow-sm" onClick={() => iconFileInputRef.current?.click()} type="button"><Upload className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Upload Brand Icon</TooltipContent></Tooltip></TooltipProvider>
+                            </div>
+                        </div>
+                        <input type="file" ref={iconFileInputRef} onChange={handleIconUpload} className="hidden" accept="image/*" />
+                    </div>
                     <Button onClick={handleSaveDisplaySettings} className="w-full h-11 font-medium shadow-md">Save Display Settings</Button>
                 </CardContent>
             </Card>
