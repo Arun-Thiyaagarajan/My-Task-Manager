@@ -1,4 +1,3 @@
-
 'use client';
 
 import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
@@ -1337,7 +1336,29 @@ export async function getFeedbackById(id: string): Promise<Feedback | null> {
 
 export async function updateFeedbackStatus(id: string, status: FeedbackStatus) {
     if (getAuthMode() === 'authenticate') {
-        dispatchMutation('feedback', id, { status, updatedAt: new Date().toISOString() }, 'update');
+        const db = getFirestore();
+        const docRef = doc(db, 'feedback', id);
+        
+        try {
+            const snap = await getDoc(docRef);
+            if (snap.exists()) {
+                const data = snap.data() as Feedback;
+                
+                dispatchMutation('feedback', id, { status, updatedAt: new Date().toISOString() }, 'update');
+                
+                // Notify the User about status update
+                createNotification({
+                    recipientId: data.userId,
+                    type: 'admin_reply',
+                    title: 'Support Update',
+                    message: `Status changed to "${status}" for: ${data.title}`,
+                    link: `/feedback/${id}`,
+                });
+            }
+        } catch (e) {
+            console.error("Failed to fetch feedback for status update notification", e);
+            dispatchMutation('feedback', id, { status, updatedAt: new Date().toISOString() }, 'update');
+        }
     } else {
         const data = getAppData();
         const localFeedback = (data as any).localFeedback || [];
