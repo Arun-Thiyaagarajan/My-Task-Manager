@@ -141,6 +141,9 @@ export default function SettingsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
   
+  // Reactive Preferences
+  const [preferences, setPreferences] = useState<UserPreferences>({});
+
   // Mobile Nav States
   const [activeMobileSection, setActiveMobileSection] = useState<string | null>(null);
 
@@ -198,6 +201,12 @@ export default function SettingsPage() {
     if (/iphone|ipad|ipod/.test(userAgent)) setPlatform('ios');
     else if (/android/.test(userAgent)) setPlatform('android');
     else setPlatform('desktop');
+
+    // Load reactive preferences
+    const loadPrefs = () => setPreferences(getUserPreferences());
+    loadPrefs();
+    window.addEventListener('preferences-changed', loadPrefs);
+    return () => window.removeEventListener('preferences-changed', loadPrefs);
   }, []);
 
   const loadConfig = () => {
@@ -518,8 +527,6 @@ export default function SettingsPage() {
     const inactiveFields = allFields.filter(f => !f.isActive);
     return { activeGroups, inactiveFields };
   }, [localFields, searchQuery]);
-
-  const preferences = getUserPreferences();
 
   if (!mounted || isLoading || !uiConfig) return <div className="container mx-auto pt-10 pb-6 px-4"><LoadingSpinner /></div>;
 
