@@ -1,3 +1,4 @@
+
 'use client';
 
 import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
@@ -41,6 +42,7 @@ const getEmptyAppData = (): MyTaskManagerData => ({
     companies: [],
     activeCompanyId: '',
     companyData: {},
+    notifications: [],
     localProfile: { username: 'Guest User', photoURL: null, previousPhotoURL: null },
 });
 
@@ -86,6 +88,7 @@ const getInitialData = (): MyTaskManagerData => {
                 releaseUpdates: [],
             },
         },
+        notifications: [],
         localProfile: { username: 'Guest User', photoURL: null, previousPhotoURL: null },
     };
 };

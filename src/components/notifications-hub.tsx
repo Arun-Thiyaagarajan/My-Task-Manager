@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -22,130 +23,55 @@ import {
     PopoverTrigger 
 } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { useFirebase } from '@/firebase';
-import { 
-    collection, 
-    query, 
-    limit, 
-    onSnapshot,
-    where,
-} from 'firebase/firestore';
 import type { AppNotification } from '@/lib/types';
 import { formatTimestamp, cn } from '@/lib/utils';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useToast } from '@/hooks/use-toast';
-import { markNotificationRead, getAuthMode, getUserPreferences, updateUserPreferences } from '@/lib/data';
-
-// Subtle professional alert sound
-const NOTIFICATION_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3';
+import { markNotificationRead, getAuthMode, getUserPreferences, updateUserPreferences, getAppData } from '@/lib/data';
 
 export function NotificationsHub() {
-    const { user, userProfile, firestore, isUserLoading } = useFirebase();
+    const { user, isUserLoading } = useFirebase();
     const router = useRouter();
-    const pathname = usePathname();
-    const { toast } = useToast();
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isOpen, setIsOpen] = useState(false);
     const [isNavigatingId, setIsNavigatingId] = useState<string | null>(null);
-    const audioRef = useRef<HTMLAudioElement | null>(null);
-    const initialLoadRef = useRef(true);
-    const isOpenRef = useRef(false);
 
-    const isAdmin = userProfile?.role === 'admin';
     const authMode = getAuthMode();
     const prefs = getUserPreferences();
     const isMuted = prefs.notificationSounds === false;
 
+    // FIX: Removed internal onSnapshot listener. 
+    // Now consumes globally synced data from the Root Layout's useTaskFlowData hook.
     useEffect(() => {
-        isOpenRef.current = isOpen;
-    }, [isOpen]);
-
-    useEffect(() => {
-        audioRef.current = new Audio(NOTIFICATION_SOUND_URL);
-        audioRef.current.volume = 0.35;
-        audioRef.current.load();
-    }, []);
-
-    const playNotificationSound = React.useCallback(() => {
-        // Condition: Trigger only when muted is OFF and HUB is CLOSED
-        if (isMuted || !audioRef.current || isOpenRef.current) return;
-        audioRef.current.currentTime = 0;
-        audioRef.current.play().catch(() => {});
-    }, [isMuted]);
-
-    useEffect(() => {
-        if (!firestore || !user || authMode !== 'authenticate') {
-            setIsLoading(false);
-            return;
-        }
-
-        const notifRef = collection(firestore, 'notifications');
-        const recipientIds = [user.uid];
-        if (isAdmin) recipientIds.push('admin');
-
-        // Fetch notifications targeting the current user UID or the global admin broadcast
-        const q = query(
-            notifRef, 
-            where('recipientId', 'in', recipientIds),
-            limit(100) 
-        );
-
-        const unsub = onSnapshot(q, (snapshot) => {
-            const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as AppNotification));
+        const loadNotifications = () => {
+            const data = getAppData();
+            const items = data.notifications || [];
             
-            // Client-side sort: Always show newest first
-            const sortedItems = items.sort((a, b) => 
+            // Client-side sort: Newest first
+            const sortedItems = [...items].sort((a, b) => 
                 new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
             );
 
-            // Handle New Notification Events
-            if (!initialLoadRef.current) {
-                snapshot.docChanges().forEach(change => {
-                    if (change.type === 'added') {
-                        const newNotif = change.doc.data() as AppNotification;
-                        // Don't notify for actions the user performed themselves
-                        // CRITICAL: Also don't notify if the user is ALREADY on the target page
-                        const isCurrentPage = pathname === newNotif.link;
-                        
-                        if (newNotif.senderId !== user.uid && !isCurrentPage) {
-                            playNotificationSound();
-                            // Show toast if the popup is closed
-                            if (!isOpenRef.current) {
-                                toast({
-                                    title: newNotif.title,
-                                    description: newNotif.message,
-                                    action: (
-                                        <Button size="sm" variant="outline" onClick={() => {
-                                            markNotificationRead(change.doc.id);
-                                            router.push(newNotif.link);
-                                        }}>
-                                            View
-                                        </Button>
-                                    )
-                                });
-                            }
-                        }
-                    }
-                });
-            }
-
             setNotifications(sortedItems);
             setIsLoading(false);
-            initialLoadRef.current = false;
-        }, (error) => {
-            console.error("Notifications Sync Error:", error);
-            setIsLoading(false);
-        });
+        };
 
-        return () => unsub();
-    }, [firestore, isAdmin, user, authMode, router, toast, playNotificationSound, pathname]);
+        loadNotifications();
+
+        // Listen for cache updates triggered by the global sync hook
+        window.addEventListener('company-changed', loadNotifications);
+        window.addEventListener('storage', loadNotifications);
+
+        return () => {
+            window.removeEventListener('company-changed', loadNotifications);
+            window.removeEventListener('storage', loadNotifications);
+        };
+    }, [authMode, user]);
 
     const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
 
-    // Show a loading/placeholder state if auth is still processing
     if (isUserLoading && !user) {
         return (
             <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-full opacity-50 cursor-wait">
@@ -154,10 +80,7 @@ export function NotificationsHub() {
         );
     }
 
-    // Visibility logic: show hub always if mounted, prompt for login if not cloud
-    const showAuthPrompt = authMode !== 'authenticate' || !user;
-
-    if (showAuthPrompt) {
+    if (authMode !== 'authenticate' || !user) {
         return (
             <Popover open={isOpen} onOpenChange={setIsOpen}>
                 <PopoverTrigger asChild>
@@ -197,7 +120,7 @@ export function NotificationsHub() {
         setIsNavigatingId(notif.id);
         window.dispatchEvent(new Event('navigation-start'));
 
-        // Background update for read status
+        // FIX: Non-blocking background read update
         if (!notif.read) {
             markNotificationRead(notif.id);
         }
@@ -205,7 +128,7 @@ export function NotificationsHub() {
         setIsOpen(false);
         router.push(notif.link);
         
-        // Navigation timeout safety
+        // Safety reset
         setTimeout(() => setIsNavigatingId(null), 3000);
     };
 
@@ -352,7 +275,7 @@ export function NotificationsHub() {
                     </ScrollArea>
                 </div>
 
-                {isAdmin && (
+                {getAppData().localProfile && user && notifications.length > 0 && (
                     <div className="p-4 bg-muted/20 border-t shrink-0">
                         <Button 
                             onClick={() => { setIsOpen(false); router.push('/admin/feedback'); }}

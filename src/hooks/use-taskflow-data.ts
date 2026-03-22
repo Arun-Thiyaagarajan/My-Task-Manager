@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useFirebase } from '@/firebase';
 import { 
     collection, 
@@ -9,7 +10,9 @@ import {
     query, 
     orderBy,
     setDoc,
-    getDoc
+    getDoc,
+    where,
+    limit
 } from 'firebase/firestore';
 import { 
     getAppData, 
@@ -17,21 +20,44 @@ import {
     getActiveCompanyId,
     getAuthMode,
     updateUserPreferences,
-    markInitialSyncComplete
+    markInitialSyncComplete,
+    getUserPreferences,
+    markNotificationRead
 } from '@/lib/data';
-import type { Task, Note, Log, Company, MyTaskManagerData, CompanyData, UserPreferences } from '@/lib/types';
+import type { Task, Note, Log, Company, MyTaskManagerData, CompanyData, UserPreferences, AppNotification } from '@/lib/types';
 import { INITIAL_RELEASES, INITIAL_UI_CONFIG, TASK_STATUSES, INITIAL_REPOSITORY_CONFIGS, ENVIRONMENTS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { usePathname, useRouter } from 'next/navigation';
+import { useToast } from './use-toast';
+import { Button } from '@/components/ui/button';
 
 /**
  * Hook to manage real-time data synchronization between Firestore and the application cache.
  * Only active in 'authenticate' mode.
  */
 export function useTaskFlowData() {
-    const { user, firestore } = useFirebase();
+    const { user, firestore, userProfile } = useFirebase();
     const activeCompanyId = getActiveCompanyId();
+    const pathname = usePathname();
+    const { toast } = useToast();
+    const router = useRouter();
+    
     const unsubscribers = useRef<(() => void)[]>([]);
+    const processedIds = useRef<Set<string>>(new Set());
+    const pathnameRef = useRef(pathname);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    // Ensure logic uses current pathname without restarting listener
+    useEffect(() => {
+        pathnameRef.current = pathname;
+    }, [pathname]);
+
+    // Pre-initialize notification sound
+    useEffect(() => {
+        audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
+        audioRef.current.volume = 0.35;
+    }, []);
 
     useEffect(() => {
         const authMode = getAuthMode();
@@ -61,7 +87,77 @@ export function useTaskFlowData() {
                 // Ignore initial pref fetch error
             });
 
-            // 1. Companies Metadata Listener
+            // 1. GLOBAL NOTIFICATIONS LISTENER (Unified Singleton)
+            const isAdmin = userProfile?.role === 'admin';
+            const notifRef = collection(db, 'notifications');
+            const recipientIds = [userId];
+            if (isAdmin) recipientIds.push('admin');
+
+            const qNotif = query(
+                notifRef,
+                where('recipientId', 'in', recipientIds),
+                limit(50)
+            );
+
+            let isFirstSnapshot = true;
+
+            const unsubNotif = onSnapshot(qNotif, (snapshot) => {
+                const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as AppNotification));
+                
+                // Update Global Cache
+                const currentAppData = getAppData();
+                currentAppData.notifications = items;
+                setCloudCache(currentAppData);
+                window.dispatchEvent(new Event('company-changed'));
+
+                // Notification Alert Trigger Logic
+                if (!isFirstSnapshot) {
+                    snapshot.docChanges().forEach(change => {
+                        if (change.type === 'added') {
+                            const newNotif = change.doc.data() as AppNotification;
+                            
+                            // FIX: Prevent Duplicate Processing
+                            if (processedIds.current.has(change.doc.id)) return;
+                            processedIds.current.add(change.doc.id);
+
+                            // FIX: Filter out self-actions
+                            if (newNotif.senderId === userId) return;
+
+                            // FIX: Filter out if already on the linked page
+                            if (pathnameRef.current === newNotif.link) return;
+
+                            // FIX: Conditional Alert (Sound + Toast)
+                            const prefs = getUserPreferences();
+                            if (prefs.notificationSounds !== false && audioRef.current) {
+                                audioRef.current.currentTime = 0;
+                                audioRef.current.play().catch(() => {});
+                            }
+
+                            toast({
+                                title: newNotif.title,
+                                description: newNotif.message,
+                                action: React.createElement(Button, {
+                                    size: 'sm',
+                                    variant: 'outline',
+                                    onClick: () => {
+                                        markNotificationRead(change.doc.id);
+                                        router.push(newNotif.link);
+                                    }
+                                }, 'View')
+                            });
+                        }
+                    });
+                }
+                isFirstSnapshot = false;
+            }, (error) => {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({
+                    path: notifRef.path,
+                    operation: 'list',
+                }));
+            });
+            unsubscribers.current.push(unsubNotif);
+
+            // 2. Companies Metadata Listener
             const companiesRef = collection(db, 'users', userId, 'companies');
             const unsubCompanies = onSnapshot(companiesRef, (snapshot) => {
                 const companies: Company[] = snapshot.docs.map(d => d.data() as Company);
@@ -106,7 +202,7 @@ export function useTaskFlowData() {
             });
             unsubscribers.current.push(unsubCompanies);
 
-            // 2. Active Company Sub-resource Listeners
+            // 3. Active Company Sub-resource Listeners
             if (activeCompanyId) {
                 const companyBase = `users/${userId}/companies/${activeCompanyId}`;
 
@@ -216,7 +312,7 @@ export function useTaskFlowData() {
         return () => {
             unsubscribers.current.forEach(unsub => unsub());
         };
-    }, [user, firestore, activeCompanyId]);
+    }, [user, firestore, activeCompanyId, userProfile?.role]); // Added role to re-listen correctly if admin mode changes
 }
 
 function _updateCloudCachePart(companyId: string, part: keyof CompanyData, data: any) {

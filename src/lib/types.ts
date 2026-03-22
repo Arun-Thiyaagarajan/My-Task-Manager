@@ -227,6 +227,7 @@ export interface MyTaskManagerData {
     companyData: {
         [companyId: string]: CompanyData;
     };
+    notifications?: AppNotification[];
     localProfile?: LocalProfile;
 }
 
