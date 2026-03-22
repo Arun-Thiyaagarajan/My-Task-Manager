@@ -30,8 +30,7 @@ import {
     Save, 
     ArrowLeft, 
     AlertTriangle,
-    History,
-    X
+    History
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTransition, useEffect, useState, useRef, useMemo, useCallback } from 'react';
@@ -159,7 +158,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   const [sidebarPosition, setSidebarPosition] = useState<'left' | 'right'>('left');
   const [uniquenessViolation, setUniquenessViolation] = useState<{ fieldLabel: string; value: string; fieldKey: string } | null>(null);
   
-  // Draft State
   const [showDraftPrompt, setShowDraftPrompt] = useState(false);
   const [draftData, setDraftData] = useState<{ data: any; updatedAt: string } | null>(null);
   const DRAFT_PREFIX = 'taskflow_draft_';
@@ -169,6 +167,28 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   const jumpTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const SCROLL_THRESHOLD = 140; 
+
+  const fieldLabels = useMemo(() => new Map((uiConfig?.fields || []).map(f => [f.key, f.label])), [uiConfig]);
+
+  const { groupedFields, groupOrder } = useMemo(() => {
+    const groups: Record<string, FieldConfig[]> = {};
+    const order: string[] = [];
+
+    (uiConfig?.fields || []).forEach(f => {
+      if (!f.isActive) return;
+      const g = f.group || 'Other';
+      if (!groups[g]) {
+        groups[g] = [];
+        order.push(g);
+      }
+      groups[g].push(f);
+    });
+
+    return { groupedFields: groups, groupOrder: order };
+  }, [uiConfig]);
+
+  const deploymentFieldConfig = useMemo(() => (uiConfig?.fields || []).find(f => f.key === 'deploymentStatus'), [uiConfig]);
+  const relevantEnvsFieldConfig = useMemo(() => (uiConfig?.fields || []).find(f => f.key === 'relevantEnvironments'), [uiConfig]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -228,13 +248,11 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     }
     form.reset(initialData);
 
-    // Check for existing draft on mount
     const savedDraft = localStorage.getItem(draftKey);
     if (savedDraft) {
         try {
             const parsed = JSON.parse(savedDraft);
             const actualData = parsed.data || parsed;
-            // Only show prompt if the draft actually contains data different from current
             if (JSON.stringify(actualData) !== JSON.stringify(initialData)) {
                 setDraftData(parsed);
                 setShowDraftPrompt(true);
@@ -245,7 +263,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     }
   }, [task, form.reset, uiConfig, draftKey]);
 
-  // Auto-save draft logic
   const watchedValues = form.watch();
   useEffect(() => {
     if (!isDirty) return;
@@ -399,7 +416,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
      try {
         const newTester = addTester({ name });
         setTestersList(prev => {
-            if (prev.some(t => d.id === newTester.id)) return prev;
+            if (prev.some(t => t.id === newTester.id)) return prev;
             return [...prev, newTester];
         });
         return newTester.id;
@@ -414,7 +431,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   };
   
   const onInvalid = (errors: any) => {
-      const fieldLabels = new Map((uiConfig?.fields || []).map(f => [f.key, f.label]));
       const errorFields = Object.keys(errors);
 
       const getLabel = (fieldName: string) => {
@@ -763,7 +779,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     }, []);
     return isMobile;
   };
-  const isMobile = useIsMobile();
+  const isMobileView = useIsMobile();
 
   useEffect(() => {
     if (!uiConfig || navigableSections.length === 0) return;
@@ -866,7 +882,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
         </div>
 
         {/* MOBILE DRAFT RESTORE DRAWER */}
-        {isMobile && showDraftPrompt && (
+        {isMobileView && showDraftPrompt && (
             <div className="lg:hidden fixed inset-0 z-[100] flex items-end justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">
                 <Card className="w-full max-w-sm rounded-[2.5rem] shadow-2xl border-none bg-background overflow-hidden animate-in slide-in-from-bottom-8 duration-500">
                     <CardHeader className="pt-8 pb-4 text-center">
@@ -1051,7 +1067,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                 <h1 className="hidden lg:block text-2xl font-semibold tracking-tight mb-2 px-6">{formTitle}</h1>
 
                 {/* Desktop Draft Prompt */}
-                {!isMobile && showDraftPrompt && (
+                {!isMobileView && showDraftPrompt && (
                     <div className="px-6">
                         <Alert className="bg-primary/5 border-primary/20 rounded-2xl animate-in slide-in-from-top-2 duration-500 shadow-xl shadow-primary/5">
                             <History className="h-5 w-5 text-primary" />
