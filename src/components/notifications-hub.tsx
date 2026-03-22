@@ -159,7 +159,7 @@ export function NotificationsHub() {
     };
 
     return (
-        <Popover open={isOpen} onValueChange={setIsOpen}>
+        <Popover open={isOpen} onOpenChange={setIsOpen}>
             <PopoverTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-full group">
                     <Inbox className={cn(
