@@ -21,7 +21,8 @@ import {
     updateUserPreferences,
     markInitialSyncComplete,
     getUserPreferences,
-    markNotificationRead
+    markNotificationRead,
+    purgeExpiredNotifications
 } from '@/lib/data';
 import type { Task, Note, Log, Company, MyTaskManagerData, CompanyData, UserPreferences, AppNotification, UserProfile } from '@/lib/types';
 import { INITIAL_RELEASES, INITIAL_UI_CONFIG, TASK_STATUSES, INITIAL_REPOSITORY_CONFIGS, ENVIRONMENTS } from '@/lib/constants';
@@ -101,7 +102,20 @@ export function useTaskFlowData() {
 
     useEffect(() => {
         const authMode = getAuthMode();
-        if (authMode !== 'authenticate' || !user || !firestore) {
+        
+        // Handle Local Mode Initialization & Cleanup
+        if (authMode === 'localStorage') {
+            const loadLocal = () => {
+                // Periodically clean up old local notifications
+                purgeExpiredNotifications();
+            };
+            loadLocal();
+            // Optional: run every hour while open
+            const timer = setInterval(loadLocal, 1000 * 60 * 60);
+            return () => clearInterval(timer);
+        }
+
+        if (!user || !firestore) {
             unsubscribers.current.forEach(unsub => unsub());
             unsubscribers.current = [];
             setCloudCache(null);
@@ -141,6 +155,10 @@ export function useTaskFlowData() {
                 const currentAppData = getAppData();
                 currentAppData.notifications = items;
                 setCloudCache(currentAppData);
+                
+                // Keep the inbox fresh by purging expired items on every sync
+                purgeExpiredNotifications();
+                
                 window.dispatchEvent(new Event('company-changed'));
 
                 if (!isFirstSnapshot) {

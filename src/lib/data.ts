@@ -281,6 +281,53 @@ export function markNotificationRead(id: string) {
     }
 }
 
+export function deleteNotification(id: string) {
+    const mode = getAuthMode();
+    if (mode === 'authenticate') {
+        dispatchMutation('notifications', id, null, 'delete');
+    } else {
+        const data = getAppData();
+        data.notifications = (data.notifications || []).filter(n => n.id !== id);
+        setAppData(data);
+    }
+}
+
+/**
+ * Purges notifications older than 24 hours.
+ * Runs automatically on app load/sync to keep the inbox clean.
+ */
+export function purgeExpiredNotifications() {
+    const mode = getAuthMode();
+    const data = getAppData();
+    const notifications = data.notifications || [];
+    if (notifications.length === 0) return;
+
+    const now = new Date();
+    // Calculate 24 hours ago
+    const threshold = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    const expired = notifications.filter(n => {
+        const ts = n.timestamp ? new Date(n.timestamp) : new Date();
+        return ts < threshold;
+    });
+
+    if (expired.length === 0) return;
+
+    if (mode === 'authenticate') {
+        // Issue delete mutations for Firestore items
+        expired.forEach(n => {
+            dispatchMutation('notifications', n.id, null, 'delete');
+        });
+    } else {
+        // Bulk filter and save for local items
+        data.notifications = notifications.filter(n => {
+            const ts = n.timestamp ? new Date(n.timestamp) : new Date();
+            return ts >= threshold;
+        });
+        setAppData(data);
+    }
+}
+
 // Company Management
 export function getCompanies(): Company[] {
     return getAppData().companies;
@@ -700,7 +747,7 @@ export function findExistingDuplicates(): { fieldLabel: string; value: string; t
     uniqueFields.forEach(field => {
         const valueMap = new Map<string, Task[]>();
         tasks.forEach(task => {
-            const val = field.isCustom ? task.customFields?.[field.key] : (task as any)[field.key];
+            const val = field.isCustom ? task.customFields?.[field.key] : (t as any)[field.key];
             if (val && typeof val === 'string' && val.trim() !== '') {
                 const norm = val.trim().toLowerCase();
                 if (!valueMap.has(norm)) valueMap.set(norm, []);
@@ -1484,7 +1531,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
     uniqueFields.forEach(f => {
         const set = new Set<string>();
         activeTasks.forEach(t => {
-            const val = f.isCustom ? t.customFields?.[f.key] : (t as any)[f.key];
+            const val = f.isCustom ? t.customFields?.[field.key] : (t as any)[field.key];
             if (val && typeof val === 'string' && val.trim() !== '') {
                 set.add(val.trim().toLowerCase());
             }
