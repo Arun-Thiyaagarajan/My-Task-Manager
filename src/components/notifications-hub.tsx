@@ -101,7 +101,7 @@ export function NotificationsHub() {
                 </PopoverTrigger>
                 <PopoverContent 
                     align="end" 
-                    className="w-[calc(100vw-2rem)] sm:w-[320px] p-6 rounded-[1.5rem] shadow-2xl border-none bg-background/95 backdrop-blur-md animate-in zoom-in-95 duration-200"
+                    className="w-[calc(100vw-2rem)] sm:w-[320px] p-6 rounded-[1.5rem] shadow-2xl border border-primary/10 bg-background/95 backdrop-blur-md animate-in zoom-in-95 duration-200"
                     onOpenAutoFocus={(e) => e.preventDefault()}
                 >
                     <div className="flex flex-col items-center text-center gap-4">
@@ -190,7 +190,7 @@ export function NotificationsHub() {
             </PopoverTrigger>
             <PopoverContent 
                 align="end" 
-                className="w-[calc(100vw-1.5rem)] sm:w-[380px] max-h-[85vh] p-0 rounded-[2rem] shadow-2xl border-none bg-background/95 backdrop-blur-md animate-in zoom-in-95 duration-200 flex flex-col overflow-hidden"
+                className="w-[calc(100vw-1.5rem)] sm:w-[380px] max-h-[85vh] p-0 rounded-[2rem] shadow-2xl border border-primary/10 bg-background/95 backdrop-blur-md animate-in zoom-in-95 duration-200 flex flex-col overflow-hidden"
                 onOpenAutoFocus={(e) => e.preventDefault()}
             >
                 {/* Fixed Header */}
