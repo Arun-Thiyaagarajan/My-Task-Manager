@@ -69,7 +69,7 @@ export default function InsightsPage() {
     if (!uiConfig) return null;
 
     return (
-        <div className="container mx-auto py-12 px-4 sm:px-6 lg:px-8 max-w-7xl">
+        <div id="insights-page" className="container mx-auto py-12 px-4 sm:px-6 lg:px-8 max-w-7xl">
             <div className="flex items-center gap-4 mb-10">
                 <Button variant="ghost" size="icon" onClick={handleBack} className="rounded-full">
                     <ArrowLeft className="h-6 w-6" />
@@ -84,7 +84,7 @@ export default function InsightsPage() {
             </div>
 
             <div className="space-y-16">
-                <section>
+                <section id="insights-added">
                     <div className="flex items-center gap-3 mb-6">
                         <div className="h-10 w-10 rounded-xl bg-green-500/10 flex items-center justify-center text-green-600 shadow-sm">
                             <Clock className="h-5 w-5" />
@@ -116,7 +116,7 @@ export default function InsightsPage() {
                     )}
                 </section>
 
-                <section>
+                <section id="insights-imported">
                     <div className="flex items-center gap-3 mb-6">
                         <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-600 shadow-sm">
                             <Download className="h-5 w-5" />

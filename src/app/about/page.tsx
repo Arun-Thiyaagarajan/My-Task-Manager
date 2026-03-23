@@ -18,6 +18,7 @@ import {
     Linkedin,
     MessageSquareQuote,
     Send,
+    Compass,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -55,6 +56,12 @@ function AboutContent() {
         if (pathname === '/feedback') return;
         window.dispatchEvent(new Event('navigation-start'));
         router.push('/feedback');
+    };
+
+    const handleNavigateHelpCenter = () => {
+        if (pathname === '/help-center') return;
+        window.dispatchEvent(new Event('navigation-start'));
+        router.push('/help-center');
     };
 
     const sections = [
@@ -141,25 +148,47 @@ function AboutContent() {
                             ? "Administrators can manage user feedback and provide support through the Support Inbox."
                             : "Have a feature request, found a bug, or just want to say hi? Use our structured feedback system for the fastest response."}
                     </p>
-                    {!isAdmin && (
-                        <Card className="bg-primary/5 border-2 border-dashed border-primary/20 rounded-2xl sm:rounded-[2.5rem] overflow-hidden">
-                            <CardContent className="p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
-                                <div className="flex items-center gap-4 text-center sm:text-left min-w-0 w-full">
-                                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner shrink-0">
-                                        <MessageSquareQuote className="h-5 w-5 sm:h-6 sm:w-6" />
+                    <div className={cn("grid gap-4", !isAdmin && "sm:grid-cols-2")}>
+                        {!isAdmin && (
+                            <Card className="bg-primary/5 border-2 border-dashed border-primary/20 rounded-2xl sm:rounded-[2.5rem] overflow-hidden">
+                                <CardContent className="p-4 sm:p-6 flex flex-col items-start justify-between gap-6 h-full">
+                                    <div className="flex items-center gap-4 text-left min-w-0 w-full">
+                                        <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner shrink-0">
+                                            <MessageSquareQuote className="h-5 w-5 sm:h-6 sm:w-6" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-primary/60">Quick Support Channel</p>
+                                            <p className="text-sm sm:text-lg font-black tracking-tight text-foreground">Submit Feedback or Bug Report</p>
+                                        </div>
+                                    </div>
+                                    <Button onClick={handleNavigateFeedback} className="w-full rounded-xl sm:rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] h-11 sm:h-12 px-8 shadow-lg shadow-primary/20">
+                                        <Send className="mr-2 h-3.5 w-3.5" />
+                                        Open Form
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        )}
+                        <Card className="bg-blue-500/5 border-2 border-dashed border-blue-500/20 rounded-2xl sm:rounded-[2.5rem] overflow-hidden">
+                            <CardContent className="p-4 sm:p-6 flex flex-col items-start justify-between gap-6 h-full">
+                                <div className="flex items-center gap-4 text-left min-w-0 w-full">
+                                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-600 shadow-inner shrink-0">
+                                        <Compass className="h-5 w-5 sm:h-6 sm:w-6" />
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-primary/60">Quick Support Channels</p>
-                                        <p className="text-sm sm:text-lg font-black tracking-tight text-foreground truncate">Submit Feedback or Bug Report</p>
+                                        <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-blue-600/70">Help Center</p>
+                                        <p className="text-sm sm:text-lg font-black tracking-tight text-foreground">Find Which Page Does What</p>
+                                        <p className="mt-1 text-[11px] font-medium leading-relaxed text-muted-foreground">
+                                            Explore feature locations, page guides, and common workflow entry points across the app.
+                                        </p>
                                     </div>
                                 </div>
-                                <Button onClick={handleNavigateFeedback} className="w-full sm:w-auto rounded-xl sm:rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] h-11 sm:h-12 px-8 shadow-lg shadow-primary/20">
-                                    <Send className="mr-2 h-3.5 w-3.5" />
-                                    Open Form
+                                <Button variant="outline" onClick={handleNavigateHelpCenter} className="w-full rounded-xl sm:rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] h-11 sm:h-12 px-8 border-blue-500/20 text-blue-700 hover:bg-blue-500/10">
+                                    <Compass className="mr-2 h-3.5 w-3.5" />
+                                    Open Help Center
                                 </Button>
                             </CardContent>
                         </Card>
-                    )}
+                    </div>
                 </div>
             )
         },
@@ -203,6 +232,60 @@ function AboutContent() {
                         <AccordionTrigger className="text-sm font-bold hover:no-underline py-4 text-left">How do I export my data?</AccordionTrigger>
                         <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4">
                             You can export tasks as <strong>PDFs</strong> or <strong>JSON</strong> using the Share menu. To export your entire workspace, select <strong>Export</strong> from the main task list header.
+                        </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="tutorials" className="border-muted/60">
+                        <AccordionTrigger className="text-sm font-bold hover:no-underline py-4 text-left">How do I learn what each page does?</AccordionTrigger>
+                        <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4">
+                            Use the <strong>Tutorial</strong> button with the compass icon in the header. It gives page-specific guided tours, so you can restart help from the current page anytime instead of relying only on the first welcome popup.
+                        </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="notes" className="border-muted/60">
+                        <AccordionTrigger className="text-sm font-bold hover:no-underline py-4 text-left">Where do I create notes or quick documentation?</AccordionTrigger>
+                        <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4">
+                            On desktop, use the floating <strong>Notes</strong> button from the tasks page or a task detail page. You can create a note instantly, then open the full <strong>Notes</strong> workspace for searching, editing, importing, exporting, and organizing note content.
+                        </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="reminders" className="border-muted/60">
+                        <AccordionTrigger className="text-sm font-bold hover:no-underline py-4 text-left">What is the difference between task reminders and general reminders?</AccordionTrigger>
+                        <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4">
+                            <strong>Task reminders</strong> belong to a specific task, while <strong>General Reminders</strong> are workspace-wide notes for broader follow-ups. Use the bell icon in the header for general reminders, and use reminder actions inside a task when the reminder should stay attached to that task.
+                        </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="bulk-actions" className="border-muted/60">
+                        <AccordionTrigger className="text-sm font-bold hover:no-underline py-4 text-left">How do bulk actions and Select All work?</AccordionTrigger>
+                        <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4">
+                            From the main tasks page, turn on <strong>Select Multiple</strong>. That opens the bulk actions bar where you can use <strong>Select All</strong> for the current filtered view, then apply tags, copy task content, export selected tasks as PDF, or move them to the bin in one operation.
+                        </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="imports" className="border-muted/60">
+                        <AccordionTrigger className="text-sm font-bold hover:no-underline py-4 text-left">Why were some imported tasks skipped?</AccordionTrigger>
+                        <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4">
+                            TaskFlow validates imported data against your current workspace rules, including unique-field constraints. If imported tasks conflict with existing unique values, those items can be skipped and shown in the import summary so you can review them safely instead of creating duplicates.
+                        </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="custom-fields" className="border-muted/60">
+                        <AccordionTrigger className="text-sm font-bold hover:no-underline py-4 text-left">Can I customize the task form for my workflow?</AccordionTrigger>
+                        <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4">
+                            Yes. Go to <strong>Settings → Field Configuration</strong> to add custom fields, change labels, group fields, define default values, manage options, and control whether fields are active, required, or unique.
+                        </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="repositories-and-prs" className="border-muted/60">
+                        <AccordionTrigger className="text-sm font-bold hover:no-underline py-4 text-left">How do repositories, pull requests, and deployments connect to tasks?</AccordionTrigger>
+                        <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4">
+                            Repositories are configured in your workspace settings and then attached to tasks. Once a task has repositories and relevant environments, you can track <strong>Pull Request links</strong> and <strong>Deployment status</strong> directly from the task form and task detail page.
+                        </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="notifications-inbox" className="border-muted/60">
+                        <AccordionTrigger className="text-sm font-bold hover:no-underline py-4 text-left">What is the Inbox in the header for?</AccordionTrigger>
+                        <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4">
+                            The <strong>Inbox</strong> shows notifications, support updates, and cloud-related activity. In local mode, it also explains that live synced notifications require sign-in and cloud mode.
+                        </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="where-to-get-help" className="border-muted/60">
+                        <AccordionTrigger className="text-sm font-bold hover:no-underline py-4 text-left">Where should I go if I get stuck?</AccordionTrigger>
+                        <AccordionContent className="text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4">
+                            Start with the <strong>Tutorial</strong> button for the page you are on, then check <strong>Help & About</strong> for FAQs, and finally use the <strong>Feedback / Support</strong> form if you think something is broken or missing.
                         </AccordionContent>
                     </AccordionItem>
                 </Accordion>

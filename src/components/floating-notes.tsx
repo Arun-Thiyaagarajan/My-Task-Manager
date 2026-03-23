@@ -158,7 +158,8 @@ export function FloatingNotes() {
                      <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                 <Button 
+                                 <Button
+                                    id="floating-notes-trigger"
                                     size="icon" 
                                     className="h-14 w-14 rounded-full shadow-lg"
                                     onClick={() => setIsOpen(!isOpen)}

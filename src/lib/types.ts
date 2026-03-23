@@ -122,6 +122,7 @@ export interface UserPreferences {
   sidebarPosition?: 'left' | 'right';
   favoritesOnly?: boolean;
   tutorialSeen?: boolean;
+  tutorialButtonHintSeen?: boolean;
   notificationSounds?: boolean;
 }
 

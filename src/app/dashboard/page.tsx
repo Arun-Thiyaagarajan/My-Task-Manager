@@ -205,7 +205,7 @@ export default function DashboardPage() {
   }, {} as ChartConfig);
 
   return (
-    <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <div id="dashboard-page" className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <h1 className="text-3xl font-semibold tracking-tight text-foreground mb-2">
         Dashboard
       </h1>

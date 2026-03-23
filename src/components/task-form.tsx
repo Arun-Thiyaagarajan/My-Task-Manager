@@ -987,7 +987,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
         </div>
 
         {/* FORM CONTENT */}
-        <div className={cn(
+        <div id="task-form-main-card" className={cn(
             "flex flex-col gap-8 pb-32 pt-2 lg:pt-0 lg:pb-32 relative px-4 lg:px-0",
             sidebarPosition === 'left' ? "lg:flex-row" : "lg:flex-row-reverse"
         )}>
@@ -1015,7 +1015,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                             </Tooltip>
                         </TooltipProvider>
                     </div>
-                    <ScrollArea className="h-[calc(100vh-200px)] pr-4">
+                    <ScrollArea className="h-100vh pr-4">
                         <nav className="flex flex-col gap-1 pb-10">
                             {navigableSections.map((section) => {
                                 const Icon = section.icon;

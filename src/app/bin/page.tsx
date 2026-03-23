@@ -233,7 +233,7 @@ export default function BinPage() {
   };
 
   return (
-    <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <div id="bin-page" className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <div className="flex items-start gap-4">
             <Button variant="ghost" size="icon" onClick={handleBack} className="h-10 w-10 -ml-2 rounded-full shrink-0">

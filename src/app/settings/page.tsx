@@ -58,6 +58,7 @@ import {
     Maximize2,
     Camera,
     Loader2,
+    Compass,
     Lock,
     ArrowLeft,
     Sun,
@@ -136,6 +137,7 @@ export default function SettingsPage() {
   const [mounted, setMounted] = useState(false);
   const [uiConfig, setUiConfigState] = useState<UiConfig | null>(null);
   const [localFields, setLocalFields] = useState<FieldConfig[]>([]);
+  const [localRepositoryConfigs, setLocalRepositoryConfigs] = useState<RepositoryConfig[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isClearing, setIsClearing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -213,6 +215,7 @@ export default function SettingsPage() {
     const config = getUiConfig();
     setUiConfigState(config);
     setLocalFields(config?.fields || []);
+    setLocalRepositoryConfigs(config?.repositoryConfigs || []);
     setAppName(config?.appName || '');
     setAppIcon(config?.appIcon || '');
     setTimeFormat(config?.timeFormat || '12h');
@@ -237,8 +240,11 @@ export default function SettingsPage() {
 
   const hasUnsavedFieldChanges = useMemo(() => {
     if (!uiConfig) return false;
-    return JSON.stringify(localFields) !== JSON.stringify(uiConfig.fields);
-  }, [localFields, uiConfig]);
+    return (
+      JSON.stringify(localFields) !== JSON.stringify(uiConfig.fields) ||
+      JSON.stringify(localRepositoryConfigs) !== JSON.stringify(uiConfig.repositoryConfigs || [])
+    );
+  }, [localFields, localRepositoryConfigs, uiConfig]);
 
   // Auto-scroll to top when unsaved changes alert appears
   useEffect(() => {
@@ -387,7 +393,7 @@ export default function SettingsPage() {
   };
 
   const performSaveFields = () => {
-    handleUpdateConfig({ fields: localFields });
+    handleUpdateConfig({ fields: localFields, repositoryConfigs: localRepositoryConfigs });
     toast({ variant: 'success', title: 'Field configuration saved successfully.' });
     setIsDeactivateConfirmOpen(false);
     setPendingDeactivateFields([]);
@@ -406,7 +412,7 @@ export default function SettingsPage() {
         newFields.push(updatedField);
     }
     setLocalFields(newFields);
-    if (repoConfigs) handleUpdateConfig({ repositoryConfigs: repoConfigs });
+    if (repoConfigs) setLocalRepositoryConfigs(repoConfigs);
     
     if (isMobile) setActiveMobileSection('fields');
   };
@@ -735,6 +741,7 @@ export default function SettingsPage() {
             <div className="px-4">
                 <div className="bg-card border rounded-3xl shadow-sm overflow-hidden">
                     <MobileHubRow icon={HelpCircle} title="App Overview" subLabel="What is TaskFlow?" onClick={() => { if (pathname === '/about' && searchParams.get('section') === 'app') return; router.push('/about?section=app'); }} color="text-primary" />
+                    <MobileHubRow icon={Compass} title="Feature Explorer" subLabel="Find where features live" onClick={() => router.push('/help-center')} color="text-cyan-500" />
                     <MobileHubRow icon={Info} title="About Us" subLabel="Meet the creators" onClick={() => { if (pathname === '/about' && searchParams.get('section') === 'about') return; router.push('/about?section=about'); }} color="text-indigo-500" />
                     <MobileHubRow icon={MessageCircle} title="Support & FAQ" subLabel="Get help and answers" onClick={() => { if (pathname === '/about' && searchParams.get('section') === 'faq') return; router.push('/about?section=faq'); }} color="text-green-600" />
                 </div>
@@ -782,7 +789,7 @@ export default function SettingsPage() {
                         <FieldFormContent 
                             field={fieldToEdit} 
                             existingFields={localFields}
-                            repositoryConfigs={uiConfig.repositoryConfigs} 
+                            repositoryConfigs={localRepositoryConfigs} 
                             onSave={handleSaveField} 
                             onCancel={() => setActiveMobileSection('fields')} 
                         />
@@ -1108,7 +1115,7 @@ export default function SettingsPage() {
                                     <Save className="h-4 w-4 mr-2" /> Save Changes
                                 </Button>
                             )}
-                            <Button size="sm" variant="outline" className="font-bold px-4 h-10 shadow-sm" onClick={() => { setFieldToEdit(null); setIsFieldDialogOpen(true); }}>
+                            <Button id="add-field-button" size="sm" variant="outline" className="font-bold px-4 h-10 shadow-sm" onClick={() => { setFieldToEdit(null); setIsFieldDialogOpen(true); }}>
                                 <PlusCircle className="h-4 w-4 mr-2" /> Add Field
                             </Button>
                         </div>
@@ -1203,7 +1210,7 @@ export default function SettingsPage() {
         </div>
 
         <div className="space-y-6">
-            <Card className="border-none shadow-lg">
+            <Card id="settings-storage-card" className="border-none shadow-lg">
                 <CardHeader className="pb-4"><CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider"><ShieldCheck className="h-5 w-5 text-primary" />STORAGE MODE</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid gap-3">
@@ -1212,7 +1219,7 @@ export default function SettingsPage() {
                     </div>
                 </CardContent>
             </Card>
-            <Card className="border-none shadow-lg">
+            <Card id="settings-appearance-card" className="border-none shadow-lg">
                 <CardHeader className="pb-4"><CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider"><Globe className="h-5 w-5 text-primary" />Appearance</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
                     <div className="space-y-3 pb-2 border-b border-dashed"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Theme Preference</Label><RadioGroup value={theme} onValueChange={setTheme} className="grid grid-cols-3 gap-2"><button onClick={() => setTheme('light')} className={cn("flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all gap-2", theme === 'light' ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent hover:bg-muted/50")}><div className={cn("h-5 w-5", theme === 'light' ? "text-primary" : "text-muted-foreground")}><Sun /></div><span className={cn("text-[10px] font-bold uppercase", theme === 'light' ? "text-primary" : "text-muted-foreground")}>Light</span></button><button onClick={() => setTheme('dark')} className={cn("flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all gap-2", theme === 'dark' ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent hover:bg-muted/50")}><div className={cn("h-5 w-5", theme === 'dark' ? "text-primary" : "text-muted-foreground")}><Moon /></div><span className={cn("text-[10px] font-bold uppercase", theme === 'dark' ? "text-primary" : "text-muted-foreground")}>Dark</span></button><button onClick={() => setTheme('system')} className={cn("flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all gap-2", theme === 'system' ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent hover:bg-muted/50")}><div className={cn("h-5 w-5", theme === 'system' ? "text-primary" : "text-muted-foreground")}><Monitor /></div><span className={cn("text-[10px] font-bold uppercase", theme === 'system' ? "text-primary" : "text-muted-foreground")}>System</span></button></RadioGroup></div>
@@ -1243,11 +1250,11 @@ export default function SettingsPage() {
                         </div>
                         <input type="file" ref={iconFileInputRef} onChange={handleIconUpload} className="hidden" accept="image/*" />
                     </div>
-                    <Button onClick={handleSaveDisplaySettings} className="w-full h-11 font-medium shadow-md">Save Display Settings</Button>
+                    <Button id="settings-display-save" onClick={handleSaveDisplaySettings} className="w-full h-11 font-medium shadow-md">Save Display Settings</Button>
                 </CardContent>
             </Card>
             
-            <Card className="border-none shadow-lg">
+            <Card id="settings-install-card" className="border-none shadow-lg">
                 <CardHeader className="pb-4">
                     <CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider">
                         <DownloadCloud className="h-5 w-5 text-primary" />
@@ -1290,7 +1297,7 @@ export default function SettingsPage() {
                 </CardContent>
             </Card>
 
-            <Card className="border-none shadow-lg">
+            <Card id="settings-features-card" className="border-none shadow-lg">
                 <CardHeader className="pb-4">
                     <CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider"><Bell className="h-5 w-5 text-primary" />FEATURES</CardTitle>
                 </CardHeader>
@@ -1354,7 +1361,7 @@ export default function SettingsPage() {
                 <CardHeader className="pb-4"><CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider"><Rocket className="h-5 w-5 text-primary" />Environments</CardTitle></CardHeader>
                 <CardContent className="space-y-4"><div className="grid gap-2">{(uiConfig.environments || []).map(env => { const isMandatory = env.isMandatory || ['dev', 'production'].includes(env.name.toLowerCase()); return (<div key={env.id} className="flex items-center justify-between p-2.5 border rounded-xl bg-muted/20 group hover:bg-muted/40 transition-colors"><div className="flex items-center gap-3 min-w-0"><div className="h-3 w-3 rounded-full shadow-sm shrink-0" style={{ backgroundColor: env.color }} /><span className="capitalize font-medium text-sm truncate">{env.name}</span>{isMandatory && <Lock className="h-3 w-3 text-muted-foreground/50 shrink-0" />}</div><div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => { setEnvToEdit(env); setIsEnvDialogOpen(true); }}><Pencil className="h-3.5 w-3.5" /></Button>{!isMandatory && <AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10 rounded-full"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger><AlertDialogContent className="rounded-3xl"><AlertDialogHeader> <AlertDialogTitle>Delete Environment?</AlertDialogTitle><AlertDialogDescription className="font-normal">Permanently remove the "**${env.name}**" environment?</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="gap-3 mt-4"><AlertDialogCancel className="font-medium">Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteEnv(env.id)} className="bg-destructive hover:bg-destructive/90 font-semibold">Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>}</div></div>) })}</div><div className="flex gap-2"><Input placeholder="New environment..." className="h-10 text-xs font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40" value={newEnvName} onChange={e => setNewEnvName(e.target.value)} /><Button size="sm" className="h-10 px-4 font-medium shrink-0 shadow-sm" onClick={handleAddEnv}>Add</Button></div></CardContent>
             </Card>
-            <Card className="border-2 border-destructive/20 shadow-lg bg-destructive/[0.02]"><CardHeader className="pb-4"><CardTitle className="text-xs font-semibold flex items-center gap-2 text-destructive uppercase tracking-wider"><Database className="h-5 w-5" />Danger Zone</CardTitle></CardHeader>
+            <Card id="settings-data-card" className="border-2 border-destructive/20 shadow-lg bg-destructive/[0.02]"><CardHeader className="pb-4"><CardTitle className="text-xs font-semibold flex items-center gap-2 text-destructive uppercase tracking-wider"><Database className="h-5 w-5" />Danger Zone</CardTitle></CardHeader>
             <CardContent className="space-y-2"><Button variant="outline" className="w-full h-10 text-xs font-medium justify-start px-4 rounded-xl shadow-sm" onClick={handleExportSettings}><Download className="h-4 w-4 mr-3 text-muted-foreground" /> Export Settings</Button><Button variant="outline" className="w-full h-10 text-xs font-medium justify-start px-4 rounded-xl shadow-sm" onClick={() => fileInputRef.current?.click()}><Upload className="h-4 w-4 mr-3 text-muted-foreground" /> Import Configuration</Button><input type="file" ref={fileInputRef} onChange={handleImportSettings} className="hidden" accept=".json" /><AlertDialog><AlertDialogTrigger asChild><Button variant="destructive" className="w-full h-10 text-xs font-semibold justify-start px-4 rounded-xl bg-destructive hover:bg-destructive/90 shadow-lg"><Trash2 className="h-4 w-4 mr-3" /> Clear All Data</Button></AlertDialogTrigger><AlertDialogContent className="rounded-3xl"><AlertDialogHeader><AlertDialogTitle>Clear all data?</AlertDialogTitle><AlertDialogDescription>Permanently delete all tasks, notes, and settings?</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="gap-3 mt-4"><AlertDialogCancel className="rounded-xl font-medium" disabled={isClearing}>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleClearAllData} className="bg-destructive hover:bg-destructive/90 rounded-xl font-semibold px-6" disabled={isClearing}>Clear Data</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></CardContent></Card>
         </div>
       </div>
@@ -1363,7 +1370,7 @@ export default function SettingsPage() {
         onOpenChange={setIsFieldDialogOpen} 
         field={fieldToEdit} 
         existingFields={localFields}
-        repositoryConfigs={uiConfig.repositoryConfigs || []} 
+        repositoryConfigs={localRepositoryConfigs} 
         onSave={handleSaveField} 
       />
       <EditEnvironmentDialog isOpen={isEnvDialogOpen} onOpenChange={setIsEnvDialogOpen} environment={envToEdit} onSave={handleSaveEnv} />

@@ -190,6 +190,7 @@ export default function Home() {
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   const [existingDuplicates, setExistingDuplicates] = useState<{ fieldLabel: string; value: string; tasks: Task[] }[]>([]);
   const [isResolutionOpen, setIsResolutionOpen] = useState(false);
+  const tutorialOpenedSelectModeRef = useRef(false);
   
   useEffect(() => {
     setMounted(true);
@@ -349,6 +350,50 @@ export default function Home() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  useEffect(() => {
+    const tutorialBulkSelectors = new Set([
+      '#home-select-multiple-trigger',
+      '#select-all-tasks',
+      '#bulk-tags-trigger',
+      '#bulk-copy-trigger',
+      '#bulk-pdf-trigger',
+      '#bulk-delete-trigger',
+    ]);
+
+    const handleTutorialStepHighlighted = (event: Event) => {
+      const selector = (event as CustomEvent<{ selector?: string }>).detail?.selector;
+      const shouldShowBulkBar = !!selector && tutorialBulkSelectors.has(selector);
+
+      if (shouldShowBulkBar && !isSelectMode) {
+        tutorialOpenedSelectModeRef.current = true;
+        setIsSelectMode(true);
+        setSelectedTaskIds([]);
+        return;
+      }
+
+      if (!shouldShowBulkBar && tutorialOpenedSelectModeRef.current) {
+        tutorialOpenedSelectModeRef.current = false;
+        setIsSelectMode(false);
+        setSelectedTaskIds([]);
+      }
+    };
+
+    const handleTutorialClosed = () => {
+      if (!tutorialOpenedSelectModeRef.current) return;
+      tutorialOpenedSelectModeRef.current = false;
+      setIsSelectMode(false);
+      setSelectedTaskIds([]);
+    };
+
+    window.addEventListener('tutorial-step-highlighted', handleTutorialStepHighlighted as EventListener);
+    window.addEventListener('tutorial-closed', handleTutorialClosed);
+
+    return () => {
+      window.removeEventListener('tutorial-step-highlighted', handleTutorialStepHighlighted as EventListener);
+      window.removeEventListener('tutorial-closed', handleTutorialClosed);
+    };
+  }, [isSelectMode]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -968,18 +1013,18 @@ export default function Home() {
                     'hidden md:flex md:flex-row md:items-center items-stretch justify-end gap-2 w-full transition-opacity duration-300 ml-auto', 
                     selectedTaskIds.length > 0 ? 'opacity-100' : 'opacity-40 pointer-events-none'
                 )}>
-                    <Button variant="outline" size="sm" onClick={() => setIsTagsDialogOpen(true)} className="font-medium h-10 px-3">
+                    <Button id="bulk-tags-trigger" variant="outline" size="sm" onClick={() => setIsTagsDialogOpen(true)} className="font-medium h-10 px-3">
                         <Tag className="mr-2 h-4 w-4" /> Tags
                     </Button>
-                    <Button variant="outline" size="sm" onClick={handleBulkCopyText} className="font-medium h-10 px-3">
+                    <Button id="bulk-copy-trigger" variant="outline" size="sm" onClick={handleBulkCopyText} className="font-medium h-10 px-3">
                         <Copy className="mr-2 h-4 w-4" /> Copy
                     </Button>
-                    <Button variant="outline" size="sm" onClick={handleBulkExportPdf} className="font-medium h-10 px-3">
+                    <Button id="bulk-pdf-trigger" variant="outline" size="sm" onClick={handleBulkExportPdf} className="font-medium h-10 px-3">
                         <Download className="mr-2 h-4 w-4" /> PDF
                     </Button>
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="sm" className="font-semibold h-10 px-3">
+                            <Button id="bulk-delete-trigger" variant="destructive" size="sm" className="font-semibold h-10 px-3">
                                 <Trash2 className="mr-2 h-4 w-4" /> Delete
                             </Button>
                         </AlertDialogTrigger>
@@ -1318,7 +1363,9 @@ export default function Home() {
                            <GraduationCap className="h-6 w-6 text-primary" />
                         </div>
                         <DialogTitle className="text-xl font-semibold">Welcome!</DialogTitle>
-                        <DialogDescription className="font-normal">Want a quick tour?</DialogDescription>
+                        <DialogDescription className="font-normal">
+                            Start with a quick tour now, and use the compass tutorial button on each page anytime you want page-specific guidance.
+                        </DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="flex-row justify-center sm:justify-center gap-2 pt-4">
                         <Button variant="ghost" onClick={() => {
@@ -1349,7 +1396,7 @@ export default function Home() {
             <div className="hidden md:flex items-center gap-2">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="w-full sm:w-auto h-11 font-medium">
+                    <Button id="home-export-trigger" variant="outline" size="sm" className="w-full sm:w-auto h-11 font-medium">
                         <Download className="mr-2 h-4 w-4" />
                         Export
                     </Button>
@@ -1361,7 +1408,7 @@ export default function Home() {
                     </DropdownMenuContent>
                 </DropdownMenu>
 
-                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="w-full sm:w-auto h-11 font-medium">
+                <Button id="home-import-trigger" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="w-full sm:w-auto h-11 font-medium">
                     <Upload className="mr-2 h-4 w-4" />
                     Import
                 </Button>
@@ -1850,6 +1897,7 @@ export default function Home() {
                                 </TooltipProvider>
 
                                 <Button 
+                                    id="home-select-multiple-trigger"
                                     variant={isSelectMode ? 'secondary' : 'outline'} 
                                     size="icon"
                                     onClick={handleToggleSelectMode} 

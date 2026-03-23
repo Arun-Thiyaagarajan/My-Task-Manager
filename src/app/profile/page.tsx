@@ -58,6 +58,7 @@ import {
   Edit,
   Trash2,
   Search,
+  Compass,
   X,
   Globe,
   Rocket,
@@ -902,6 +903,13 @@ export default function ProfilePage() {
                         color="text-green-500"
                     />
                     <MobileHubRow 
+                        icon={Compass} 
+                        title="Feature Explorer" 
+                        subLabel="Find pages by feature" 
+                        onClick={() => router.push('/help-center')}
+                        color="text-cyan-500"
+                    />
+                    <MobileHubRow 
                         icon={HelpCircle} 
                         title="Help & About" 
                         subLabel="FAQ, Contact, and App Info" 
@@ -950,7 +958,7 @@ export default function ProfilePage() {
 
   // SUB-PAGE OR DESKTOP VIEW
   return (
-    <div className="container max-w-4xl mx-auto pt-10 pb-6 px-4">
+    <div id="profile-page" className="container max-w-4xl mx-auto pt-10 pb-6 px-4">
       {/* Mobile Back Header */}
       {isMobile && showMobileSubPage && (
           <div className="flex items-center gap-2 mb-8 -mt-4">
@@ -1096,7 +1104,7 @@ export default function ProfilePage() {
         )}
 
         <div className="flex-1">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full" id="profile-tabs">
             {!isMobile && (
                 <TabsList className={cn("grid w-full mb-6 bg-muted/50 p-1 rounded-xl h-auto", isAdmin ? "grid-cols-3" : "grid-cols-2")}>
                     <TabsTrigger value="general" className="data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer font-medium rounded-lg">General</TabsTrigger>

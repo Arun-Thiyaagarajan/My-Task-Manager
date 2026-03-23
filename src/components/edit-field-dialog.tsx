@@ -82,6 +82,15 @@ interface EditFieldDialogProps {
 export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingFields, repositoryConfigs }: EditFieldDialogProps) {
   const isCreating = field === null;
   const { toast } = useToast();
+  const getDefaultValueFallback = React.useCallback(
+    (fieldType?: FieldType, fieldKey?: string) => {
+      if (fieldKey === 'repositories' || fieldType === 'tags' || fieldType === 'multiselect') {
+        return [];
+      }
+      return '';
+    },
+    []
+  );
   
   // Robust Unique Field Count (using local session fields passed from parent)
   const otherUniqueCount = React.useMemo(() => {
@@ -102,7 +111,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
       options: field?.options || [],
       baseUrl: field?.baseUrl || '',
       sortDirection: field?.sortDirection || 'manual',
-      defaultValue: field?.defaultValue ?? '',
+      defaultValue: field?.defaultValue ?? getDefaultValueFallback(field?.type, field?.key),
     },
   });
 
@@ -260,7 +269,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
           options: field?.options || [],
           baseUrl: field?.baseUrl || '',
           sortDirection: field?.sortDirection || 'manual',
-          defaultValue: field?.defaultValue ?? ( (field?.type === 'tags' || field?.type === 'multiselect') ? [] : ''),
+          defaultValue: field?.defaultValue ?? getDefaultValueFallback(field?.type, field?.key),
         });
         setGroupSearch(field?.group || '');
 
@@ -285,7 +294,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
             replace(predefinedOptions);
         }
     }
-  }, [field, form, isOpen, repositoryConfigs, isRepoField, isTagsField, replace, isDevelopersField, isTestersField]);
+  }, [field, form, isOpen, repositoryConfigs, isRepoField, isTagsField, replace, isDevelopersField, isTestersField, getDefaultValueFallback]);
 
   const defaultPersonOptions = React.useMemo(() => {
       if (isDevelopersField) {
@@ -296,6 +305,10 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
       }
       return [];
   }, [isDevelopersField, isTestersField]);
+
+  const repositoryOptions = React.useMemo(() => {
+      return localRepoConfigs.map(repo => ({ value: repo.name, label: repo.name }));
+  }, [localRepoConfigs]);
 
   const renderDefaultValueInput = (type: FieldType) => {
     const currentOptions = form.watch('options') || [];
@@ -419,6 +432,8 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
                                 options={
                                     (isDevelopersField || isTestersField) 
                                         ? defaultPersonOptions 
+                                        : isRepoField
+                                            ? repositoryOptions
                                         : isTagsField 
                                             ? allTags.map(o => ({ value: o.value, label: o.label })) 
                                             : currentOptions.map(o => ({ value: o.value, label: o.label }))

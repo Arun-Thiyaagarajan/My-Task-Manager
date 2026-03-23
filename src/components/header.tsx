@@ -23,6 +23,8 @@ import {
   getAuthMode,
   setAuthMode,
   getLocalProfile,
+  getUserPreferences,
+  updateUserPreferences,
 } from '@/lib/data';
 import type { Company, UiConfig } from '@/lib/types';
 import { 
@@ -35,7 +37,6 @@ import {
   FileClock, 
   Home, 
   Bell, 
-  History,
   User as UserIcon,
   LogOut,
   ShieldCheck,
@@ -43,7 +44,8 @@ import {
   Sparkles,
   ArrowLeft,
   HelpCircle,
-  Inbox
+  Inbox,
+  type LucideIcon,
 } from 'lucide-react';
 import { CompaniesManager } from './companies-manager';
 import { useToast } from '@/hooks/use-toast';
@@ -73,6 +75,7 @@ import { getInitials, getAvatarGradient, cn } from '@/lib/utils';
 import { AuthModal } from './auth-modal';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { NotificationsHub } from './notifications-hub';
+import { Popover, PopoverAnchor, PopoverContent } from './ui/popover';
 
 const HeaderLink = ({ href, children, className, onClick, id }: { href: string; children: React.ReactNode, className?: string; onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void; id?: string; }) => {
     const router = useRouter();
@@ -123,6 +126,13 @@ const HeaderLink = ({ href, children, className, onClick, id }: { href: string; 
     );
 }
 
+type HeaderNavItem = {
+    href: string;
+    id: string;
+    label: string;
+    icon: LucideIcon;
+};
+
 const isActualImage = (url: string | null | undefined) => {
     if (!url) return false;
     return url.startsWith('data:image') || url.startsWith('http') || url.startsWith('/');
@@ -146,11 +156,13 @@ export function Header() {
   const [generalRemindersCount, setGeneralRemindersCount] = useState(0);
   const { startTutorial } = useTutorial();
   const [isImagePreviewOpen, setIsImagePreviewOpen] = useState(false);
+  const [isTutorialHintOpen, setIsTutorialHintOpen] = useState(false);
   
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthModeState] = useState<'localStorage' | 'authenticate'>('localStorage');
   const [isSignOutDialogOpen, setIsSignOutDialogOpen] = useState(false);
   const [isGlobalLoading, setIsGlobalLoading] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
   const refreshAllData = useCallback(() => {
     const config = getUiConfig();
@@ -199,6 +211,43 @@ export function Header() {
     };
 
   }, [isMobile, router, refreshAllData, handleOpenAuth]);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    const handleInstallPromptDismissed = () => {
+      const prefs = getUserPreferences();
+      if (!uiConfig?.tutorialEnabled || prefs.tutorialButtonHintSeen) return;
+
+      window.setTimeout(() => {
+        setIsTutorialHintOpen(true);
+      }, 350);
+    };
+
+    window.addEventListener('app-install-prompt-dismissed', handleInstallPromptDismissed);
+    return () => {
+      window.removeEventListener('app-install-prompt-dismissed', handleInstallPromptDismissed);
+    };
+  }, [mounted, uiConfig?.tutorialEnabled]);
+
+  useEffect(() => {
+    const handleTutorialStepHighlighted = (event: Event) => {
+      const selector = (event as CustomEvent<{ selector?: string }>).detail?.selector;
+      setIsProfileMenuOpen(selector === '#header-profile-trigger');
+    };
+
+    const handleTutorialClosed = () => {
+      setIsProfileMenuOpen(false);
+    };
+
+    window.addEventListener('tutorial-step-highlighted', handleTutorialStepHighlighted as EventListener);
+    window.addEventListener('tutorial-closed', handleTutorialClosed);
+
+    return () => {
+      window.removeEventListener('tutorial-step-highlighted', handleTutorialStepHighlighted as EventListener);
+      window.removeEventListener('tutorial-closed', handleTutorialClosed);
+    };
+  }, []);
   
   const isDataURI = (str: string | null | undefined): str is string => !!str && str.startsWith('data:image');
 
@@ -277,6 +326,32 @@ export function Header() {
     return (authMode === 'authenticate' || getAuthMode() === 'authenticate') && userProfile?.role === 'admin';
   }, [authMode, userProfile]);
 
+  const headerNavItems: HeaderNavItem[] = [
+    { href: '/', id: 'header-nav-home', label: 'Tasks', icon: Home },
+    { href: '/dashboard', id: 'header-nav-dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/insights', id: 'header-nav-insights', label: 'Recent', icon: Sparkles },
+    { href: '/logs', id: 'header-nav-logs', label: 'Logs', icon: FileClock },
+    { href: '/bin', id: 'header-nav-bin', label: 'Bin', icon: Trash2 },
+    // { href: '/releases', id: 'header-nav-releases', label: 'Releases', icon: History },
+  ]; 
+
+  const handleTutorialHintOpenChange = (open: boolean) => {
+    if (open) return;
+    setIsTutorialHintOpen(false);
+    updateUserPreferences({ tutorialButtonHintSeen: true });
+  };
+
+  const handleTutorialHintDismiss = () => {
+    setIsTutorialHintOpen(false);
+    updateUserPreferences({ tutorialButtonHintSeen: true });
+  };
+
+  const handleTutorialHintStart = () => {
+    setIsTutorialHintOpen(false);
+    updateUserPreferences({ tutorialButtonHintSeen: true, tutorialSeen: true });
+    startTutorial();
+  };
+
   return (
     <>
       <header id="main-header" className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -302,42 +377,29 @@ export function Header() {
               </button>
             </div>
 
-            <nav className="hidden md:flex items-center gap-2 lg:gap-4 xl:gap-6 overflow-hidden h-14">
-               <HeaderLink href="/" id="header-nav-home" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-all group whitespace-nowrap px-3 h-full">
-                  <Home className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
-                  <span className="hidden lg:inline">Tasks</span>
-               </HeaderLink>
-               <HeaderLink href="/dashboard" id="header-nav-dashboard" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-all group whitespace-nowrap px-3 h-full">
-                  <LayoutDashboard className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
-                  <span className="hidden lg:inline">Dashboard</span>
-               </HeaderLink>
-               <HeaderLink href="/insights" id="header-nav-insights" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-all group whitespace-nowrap px-3 h-full">
-                  <Sparkles className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
-                  <span className="hidden lg:inline">Recent</span>
-               </HeaderLink>
-               <HeaderLink href="/settings" id="header-nav-settings" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-all group whitespace-nowrap px-3 h-full">
-                  <Cog className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
-                  <span className="hidden lg:inline">Settings</span>
-               </HeaderLink>
-               <HeaderLink href="/releases" id="header-nav-releases" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-all group whitespace-nowrap px-3 h-full">
-                  <History className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
-                  <span className="hidden lg:inline">Releases</span>
-               </HeaderLink>
-               <HeaderLink href="/logs" id="header-nav-logs" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-all group whitespace-nowrap px-3 h-full">
-                  <FileClock className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
-                  <span className="hidden lg:inline">Logs</span>
-               </HeaderLink>
-               <HeaderLink href="/bin" id="header-nav-bin" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-all group whitespace-nowrap px-3 h-full">
-                  <Trash2 className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
-                  <span className="hidden lg:inline">Bin</span>
-               </HeaderLink>
+            <nav className="hidden md:flex items-center gap-2 lg:gap-3 xl:gap-4 overflow-hidden h-14">
+               {headerNavItems.map((item) => {
+                  const Icon = item.icon;
+
+                  return (
+                    <HeaderLink
+                      key={item.id}
+                      href={item.href}
+                      id={item.id}
+                      className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-all group whitespace-nowrap px-3 h-full"
+                    >
+                      <Icon className="md:mr-0 lg:mr-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
+                      <span className="hidden lg:inline">{item.label}</span>
+                    </HeaderLink>
+                  );
+               })}
             </nav>
           </div>
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             {mounted && activeCompany && !isMobile && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="px-2 sm:px-4 font-medium shadow-sm border-primary/10 bg-primary/5 hover:bg-primary/10 h-9 rounded-full transition-all">
+                  <Button id="header-workspace-trigger" variant="outline" className="px-2 sm:px-4 font-medium shadow-sm border-primary/10 bg-primary/5 hover:bg-primary/10 h-9 rounded-full transition-all">
                       <Building className="h-4 w-4 lg:mr-2 text-primary" />
                       <span className="hidden lg:inline tracking-tight truncate max-w-[100px] xl:max-w-none">{activeCompany.name}</span>
                   </Button>
@@ -406,7 +468,7 @@ export function Header() {
                 <span className="sr-only">Recent Activity</span>
             </HeaderLink>
 
-            <Button variant="ghost" size="icon" onClick={handleRemindersClick} className="relative h-9 w-9 rounded-full group shrink-0">
+            <Button id="header-reminders-trigger" variant="ghost" size="icon" onClick={handleRemindersClick} className="relative h-9 w-9 rounded-full group shrink-0">
                 <Bell className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
                 {generalRemindersCount > 0 && (
                     <div className="absolute top-1 right-1 flex h-2.5 w-2.5">
@@ -419,19 +481,54 @@ export function Header() {
 
             {uiConfig?.tutorialEnabled && (
                 <div id="tutorial-trigger-wrapper" className="shrink-0">
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full group">
-                                    <Compass className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
-                                    <span className="sr-only">Show Tour</span>
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent className="font-normal">
-                                <p>Take Workspace Tour</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
+                    <Popover open={isTutorialHintOpen} onOpenChange={handleTutorialHintOpenChange}>
+                        <PopoverAnchor asChild>
+                            <div>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className={cn("h-9 w-9 rounded-full group", isTutorialHintOpen && "bg-primary/10 text-primary")}
+                                                onClick={() => {
+                                                    if (isTutorialHintOpen) {
+                                                        handleTutorialHintDismiss();
+                                                    }
+                                                    startTutorial();
+                                                }}
+                                            >
+                                                <Compass className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                                                <span className="sr-only">Show Tour</span>
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent className="font-normal">
+                                            <p>Take Workspace Tour</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </div>
+                        </PopoverAnchor>
+                        <PopoverContent align="end" sideOffset={12} className="w-80 rounded-2xl border-primary/15 bg-background/95 p-0 shadow-2xl backdrop-blur">
+                            <div className="space-y-4 p-5">
+                                <div className="space-y-1.5">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-primary/70">Quick Tip</p>
+                                    <h3 className="text-base font-semibold tracking-tight">The tour is always here</h3>
+                                    <p className="text-sm leading-relaxed text-muted-foreground">
+                                        Use this compass button any time to restart the guided tutorial and explore the workspace again.
+                                    </p>
+                                </div>
+                                <div className="flex items-center justify-end gap-2">
+                                    <Button variant="ghost" size="sm" className="rounded-xl" onClick={handleTutorialHintDismiss}>
+                                        Maybe later
+                                    </Button>
+                                    <Button size="sm" className="rounded-xl shadow-sm" onClick={handleTutorialHintStart}>
+                                        Start Tour
+                                    </Button>
+                                </div>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
                 </div>
             )}
             
@@ -455,9 +552,9 @@ export function Header() {
 
             <div className="hidden sm:block shrink-0">
               {mounted && (
-                <DropdownMenu>
+                <DropdownMenu open={isProfileMenuOpen} onOpenChange={setIsProfileMenuOpen}>
                   <DropdownMenuTrigger asChild>
-                    <button className="relative h-9 w-9 rounded-full group ring-offset-background transition-all hover:ring-2 hover:ring-primary/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                    <button id="header-profile-trigger" className="relative h-9 w-9 rounded-full group ring-offset-background transition-all hover:ring-2 hover:ring-primary/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                       <div className={cn(
                         "flex h-full w-full items-center justify-center rounded-full border-2 transition-all overflow-hidden",
                         authMode === 'authenticate' && user ? "border-primary p-0.5" : "border-muted-foreground/20"
@@ -474,7 +571,7 @@ export function Header() {
                       </div>
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-60 p-2 rounded-xl shadow-xl" align="end" sideOffset={8}>
+                  <DropdownMenuContent id="header-profile-menu" className="w-60 p-2 rounded-xl shadow-xl" align="end" sideOffset={8}>
                     <DropdownMenuLabel className="font-normal p-2">
                       <div className="flex flex-col space-y-1">
                         <p className="text-sm font-semibold leading-none truncate tracking-tight">
@@ -488,6 +585,7 @@ export function Header() {
                     <DropdownMenuSeparator className="my-2" />
                     <DropdownMenuGroup className="space-y-1">
                       <DropdownMenuItem 
+                          id="header-profile-menu-profile"
                           onSelect={() => {
                               if (pathname === '/profile') return;
                               prompt(() => { 
@@ -500,7 +598,22 @@ export function Header() {
                           <UserIcon className="mr-2 h-4 w-4 opacity-70" />
                           <span>My Profile</span>
                       </DropdownMenuItem>
+                      <DropdownMenuItem
+                          id="header-profile-menu-settings"
+                          onSelect={() => {
+                            if (pathname === '/settings') return;
+                            prompt(() => { 
+                                  window.dispatchEvent(new Event('navigation-start')); 
+                                  router.push('/settings'); 
+                              });
+                          }}
+                          className="rounded-lg font-medium py-2"
+                      >
+                          <Cog className="mr-2 h-4 w-4 opacity-70" />
+                          <span>Settings</span>
+                      </DropdownMenuItem>
                       <DropdownMenuItem 
+                          id="header-profile-menu-help"
                           onSelect={() => {
                               if (pathname === '/about') return;
                               prompt(() => { 
@@ -514,7 +627,7 @@ export function Header() {
                           <span>Help & About</span>
                       </DropdownMenuItem>
                       {!(authMode === 'authenticate' && user) && (
-                        <DropdownMenuItem onSelect={handleOpenAuth} className="rounded-lg font-semibold text-primary focus:bg-primary/5 focus:text-primary py-2">
+                        <DropdownMenuItem id="header-profile-menu-signin" onSelect={handleOpenAuth} className="rounded-lg font-semibold text-primary focus:bg-primary/5 focus:text-primary py-2">
                           <ShieldCheck className="mr-2 h-4 w-4" />
                           <span>Sign In / Cloud Sync</span>
                         </DropdownMenuItem>

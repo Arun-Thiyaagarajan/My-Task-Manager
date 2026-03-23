@@ -891,7 +891,7 @@ const handleCopyDescription = () => {
                     </Button>
                 </ShareMenu>
 
-                <Button onClick={handleNavigateEdit} variant="outline" size={isMobile ? "icon" : "sm"} className="active:scale-95 transition-transform font-medium">
+                <Button id="task-detail-edit" onClick={handleNavigateEdit} variant="outline" size={isMobile ? "icon" : "sm"} className="active:scale-95 transition-transform font-medium">
                     <Pencil className={cn("h-4 w-4", !isMobile && "mr-2")} />
                     {!isMobile && "Edit"}
                 </Button>
@@ -960,7 +960,7 @@ const handleCopyDescription = () => {
         )}
 
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
+        <div id="task-detail-main" className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
           <div className="lg:col-span-2 space-y-6">
             <Card className={cn("relative overflow-hidden group/card", cardClassName)}>
                 <Icon className={cn('absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none transition-transform duration-300 ease-in-out', iconColorClassName, task.status !== 'In Progress' && 'group-hover/card:scale-110 group-hover/card:-rotate-6')} />
@@ -1105,7 +1105,7 @@ const handleCopyDescription = () => {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {deploymentField && (
-                  <Card>
+                  <Card id="task-detail-deployment">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-xl font-semibold"><CheckCircle2 className="h-5 w-5" />{fieldLabels.get('deploymentStatus') || 'Deployments'}</CardTitle>
                     </CardHeader>

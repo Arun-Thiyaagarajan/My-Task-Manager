@@ -8,10 +8,10 @@ export const ENVIRONMENTS: Environment[] = [
 ];
 
 export const INITIAL_REPOSITORY_CONFIGS: RepositoryConfig[] = [
-    { id: 'repo_1', name: 'UI-Dashboard', baseUrl: 'https://dev.azure.com/ideaelan/Infinity/_git/UI-Dashboard/pullrequest/' },
-    { id: 'repo_2', name: 'UI-Admin', baseUrl: 'https://dev.azure.com/ideaelan/Infinity/_git/UI-Admin/pullrequest/' },
-    { id: 'repo_3', name: 'Templates', baseUrl: 'https://dev.azure.com/ideaelan/Infinity/_git/Templates/pullrequest/' },
-    { id: 'repo_4', name: 'API-Export', baseUrl: 'https://dev.azure.com/ideaelan/Infinity/_git/API-Export/pullrequest/' },
+    // { id: 'repo_1', name: 'UI-Dashboard', baseUrl: 'https://dev.azure.com/ideaelan/Infinity/_git/UI-Dashboard/pullrequest/' },
+    // { id: 'repo_2', name: 'UI-Admin', baseUrl: 'https://dev.azure.com/ideaelan/Infinity/_git/UI-Admin/pullrequest/' },
+    // { id: 'repo_3', name: 'Templates', baseUrl: 'https://dev.azure.com/ideaelan/Infinity/_git/Templates/pullrequest/' },
+    // { id: 'repo_4', name: 'API-Export', baseUrl: 'https://dev.azure.com/ideaelan/Infinity/_git/API-Export/pullrequest/' },
 ];
 
 export const FIELD_TYPES: {value: FieldType, label: string}[] = [

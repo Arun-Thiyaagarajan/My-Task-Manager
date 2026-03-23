@@ -118,7 +118,7 @@ export default function ViewNotePage() {
   }
 
   return (
-    <div className="bg-background min-h-screen flex flex-col">
+    <div id="note-detail-page" className="bg-background min-h-screen flex flex-col">
         {/* Header */}
         <div className="px-4 h-14 flex items-center justify-between border-b bg-background/95 backdrop-blur sticky top-0 z-30">
             <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -197,6 +197,7 @@ export default function ViewNotePage() {
         <div className="fixed bottom-24 left-0 right-0 px-6 z-20 pointer-events-none">
             <div className="flex justify-center pointer-events-auto">
                 <Button 
+                    id="note-detail-copy"
                     variant="secondary" 
                     size="lg"
                     className={cn(

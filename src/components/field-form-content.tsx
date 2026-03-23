@@ -70,6 +70,15 @@ interface FieldFormContentProps {
 export function FieldFormContent({ field, existingFields, repositoryConfigs, onSave, onCancel }: FieldFormContentProps) {
   const isCreating = field === null;
   const { toast } = useToast();
+  const getDefaultValueFallback = React.useCallback(
+    (fieldType?: FieldType, fieldKey?: string) => {
+      if (fieldKey === 'repositories' || fieldType === 'tags' || fieldType === 'multiselect') {
+        return [];
+      }
+      return '';
+    },
+    []
+  );
   
   // Robust Unique Field Count
   const otherUniqueCount = React.useMemo(() => {
@@ -90,7 +99,7 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
       options: field?.options || [],
       baseUrl: field?.baseUrl || '',
       sortDirection: field?.sortDirection || 'manual',
-      defaultValue: field?.defaultValue ?? ( (field?.type === 'tags' || field?.type === 'multiselect') ? [] : ''),
+      defaultValue: field?.defaultValue ?? getDefaultValueFallback(field?.type, field?.key),
     },
   });
 
@@ -220,6 +229,10 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
       return [];
   }, [isDevelopersField, isTestersField]);
 
+  const repositoryOptions = React.useMemo(() => {
+      return localRepoConfigs.map(repo => ({ value: repo.name, label: repo.name }));
+  }, [localRepoConfigs]);
+
   const renderDefaultValueInput = (type: FieldType) => {
     const currentOptions = form.watch('options') || [];
     
@@ -342,6 +355,8 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
                                 options={
                                     (isDevelopersField || isTestersField) 
                                         ? defaultPersonOptions 
+                                        : isRepoField
+                                            ? repositoryOptions
                                         : isTagsField 
                                             ? allTags.map(o => ({ value: o.value, label: o.label })) 
                                             : currentOptions.map(o => ({ value: o.value, label: o.label }))
@@ -531,6 +546,37 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
                                     <X className="h-3 w-3" />
                                 </button>
                             </Badge>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {isRepoField && (
+                <div className="space-y-3 pt-4 border-t">
+                    <h4 className="font-bold">Repository Configurations</h4>
+                    <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                        {localRepoConfigs.map((repo, index) => (
+                            <div key={repo.id} className="p-4 border rounded-2xl bg-muted/20 space-y-3">
+                                <div className="space-y-1">
+                                    <Label htmlFor={`repo-name-${index}`} className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Name</Label>
+                                    <Input
+                                        id={`repo-name-${index}`}
+                                        value={repo.name}
+                                        onChange={(e) => handleRepoChange(index, 'name', e.target.value)}
+                                        className="h-9 rounded-lg bg-background font-bold"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label htmlFor={`repo-url-${index}`} className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Base PR URL</Label>
+                                    <Input
+                                        id={`repo-url-${index}`}
+                                        value={repo.baseUrl}
+                                        onChange={(e) => handleRepoChange(index, 'baseUrl', e.target.value)}
+                                        placeholder="e.g. https://github.com/..."
+                                        className="h-9 rounded-lg bg-background font-mono text-xs"
+                                    />
+                                </div>
+                            </div>
                         ))}
                     </div>
                 </div>

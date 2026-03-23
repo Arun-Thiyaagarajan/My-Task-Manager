@@ -67,7 +67,7 @@ export function NoteForm({
   };
 
   return (
-    <div className={cn("flex flex-col", isPage ? "min-h-[85vh] pt-2" : "gap-4")} onKeyDown={handleKeyDown}>
+    <div id={isPage ? "note-form-page" : undefined} className={cn("flex flex-col", isPage ? "min-h-[85vh] pt-2" : "gap-4")} onKeyDown={handleKeyDown}>
       {isPage && (
           <div className="flex items-center justify-between mb-6">
               <Button variant="ghost" size="icon" onClick={onCancel} className="rounded-full h-10 w-10 -ml-2">
@@ -119,6 +119,7 @@ export function NoteForm({
       )}>
         {!isPage && <Button variant="ghost" onClick={onCancel} disabled={isPending} className="font-medium">Cancel</Button>}
         <Button 
+            id={isPage ? "note-form-submit" : undefined}
             onClick={handleSave} 
             disabled={isPending} 
             className={cn(

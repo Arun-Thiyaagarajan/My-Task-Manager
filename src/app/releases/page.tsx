@@ -73,8 +73,8 @@ export default function ReleasesPage() {
     };
 
     return (
-        <div className="container mx-auto py-12 px-4 sm:px-6 lg:px-8 max-w-4xl">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-12 gap-4">
+        <div id="releases-page" className="container mx-auto py-12 px-4 sm:px-6 lg:px-8 max-w-4xl">
+            {/* <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-12 gap-4">
                 <div className="flex items-start gap-4">
                     {isMobile && (
                         <Button variant="ghost" size="icon" onClick={handleBack} className="h-10 w-10 -ml-2 rounded-full shrink-0">
@@ -95,6 +95,19 @@ export default function ReleasesPage() {
                         Back to Tasks
                     </Button>
                 )}
+            </div> */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <div className="flex items-start gap-4">
+                    <Button variant="ghost" size="icon" onClick={handleBack} className="h-10 w-10 -ml-2 rounded-full shrink-0">
+                        <ArrowLeft className="h-6 w-6" />
+                    </Button>
+                    <div>
+                        <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
+                            <History className="h-10 w-10 text-primary" /> Release History
+                        </h1>
+                        <p className="text-muted-foreground mt-1 font-normal">Keep track of the latest features, improvements, and fixes.</p>
+                    </div>
+                </div>
             </div>
 
             {error ? (
@@ -199,7 +212,7 @@ export default function ReleasesPage() {
                     ))}
 
                     {releases.length === 0 && (
-                        <div className="text-center py-24 bg-muted/10 rounded-[2.5rem] border-2 border-dashed border-muted-foreground/20 max-w-2xl mx-auto">
+                        <div className="text-center py-24 bg-muted/10 rounded-[2.5rem] border-2 border-dashed border-muted-foreground/20 max-w-6xl mx-auto">
                             <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-6">
                                 <History className="h-8 w-8 text-muted-foreground/40" />
                             </div>

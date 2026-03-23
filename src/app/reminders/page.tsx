@@ -100,7 +100,7 @@ export default function RemindersPage() {
     };
 
     return (
-        <div className="bg-background min-h-0 pb-6">
+        <div id="reminders-page" className="bg-background min-h-0 pb-6">
             {/* Mobile Header */}
             <div className="px-6 pt-10 pb-6 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
@@ -141,7 +141,7 @@ export default function RemindersPage() {
                     </Card>
                 )}
 
-                <div className="bg-card border rounded-3xl shadow-sm overflow-hidden divide-y">
+                <div id="reminders-list" className="bg-card border rounded-3xl shadow-sm overflow-hidden divide-y">
                     {reminders.map((reminder) => (
                         <div key={reminder.id} className="p-5 space-y-3">
                             {editingId === reminder.id ? (

@@ -50,6 +50,7 @@ export function AppInstallPrompt() {
     const handleDismiss = () => {
         setIsVisible(false);
         localStorage.setItem(PROMPT_STORAGE_KEY, 'true');
+        window.dispatchEvent(new Event('app-install-prompt-dismissed'));
     };
 
     if (!isVisible || isInstalled) return null;

@@ -503,7 +503,7 @@ export default function NotesPage() {
   const isSearchActive = searchQuery.trim().length >= 2;
 
   return (
-    <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <div id="notes-page" className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <div className="flex items-start lg:items-center justify-between mb-6 flex-col lg:flex-row gap-4">
         <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
@@ -513,7 +513,7 @@ export default function NotesPage() {
                 {mode === 'authenticate' ? 'Cloud Sync' : 'Local Only'}
             </Badge>
         </div>
-         <div className="hidden lg:flex items-center gap-2 flex-wrap">
+         <div id="notes-toolbar" className="hidden lg:flex items-center gap-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={handleExportNotes} className="font-medium"><Upload className="mr-2 h-4 w-4"/>Export Notes</Button>
             <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="font-medium"><Download className="mr-2 h-4 w-4"/>Import Notes</Button>
             <input type="file" ref={fileInputRef} onChange={handleImportNotes} className="hidden" accept=".json" />
@@ -536,6 +536,7 @@ export default function NotesPage() {
        <div className="space-y-4 mb-8">
             {/* HIDDEN ON MOBILE: Notes page actions are in the bottom navbar */}
             <button
+                id="notes-new-note"
                 onClick={handleOpenNewNoteDialog}
                 className="hidden lg:flex w-full text-left p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors text-muted-foreground shadow-sm justify-between items-center h-11"
             >
@@ -584,7 +585,7 @@ export default function NotesPage() {
                   "lg:block", 
                   isFiltersOpen ? "block opacity-100 max-h-[500px]" : "hidden lg:opacity-100 lg:max-h-none opacity-0 max-h-0"
               )}>
-                <Card className="border shadow-lg lg:shadow-none bg-card lg:bg-transparent lg:border-none overflow-visible rounded-3xl lg:rounded-none">
+                <Card id="notes-search" className="border shadow-lg lg:shadow-none bg-card lg:bg-transparent lg:border-none overflow-visible rounded-3xl lg:rounded-none">
                     <CardContent className="p-4 lg:p-3 overflow-visible">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="relative flex flex-col w-full">
@@ -792,7 +793,7 @@ export default function NotesPage() {
           </div>
       )}
       
-      <div className="pb-8">
+      <div id="notes-grid" className="pb-8">
         {filteredNotes.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-[2.5rem] mt-8 bg-muted/5">
               <FolderSearch className="h-16 w-16 mb-4 text-muted-foreground/50 mx-auto"/>
