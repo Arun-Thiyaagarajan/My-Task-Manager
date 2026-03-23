@@ -11,9 +11,10 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { cn } from '@/lib/utils';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 
 export default function ReleasesPage() {
     const isMobile = useIsMobile();
@@ -21,6 +22,9 @@ export default function ReleasesPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const from = searchParams.get('from');
+    const { prompt } = useUnsavedChanges();
 
     useEffect(() => {
         const load = () => {
@@ -69,6 +73,10 @@ export default function ReleasesPage() {
 
     const handleBack = () => {
         window.dispatchEvent(new Event('navigation-start'));
+        if (isMobile && from === 'profile') {
+            router.push('/profile');
+            return;
+        }
         router.push(isMobile ? '/profile' : '/');
     };
 

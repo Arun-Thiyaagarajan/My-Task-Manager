@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -51,12 +51,14 @@ type ReminderFormData = z.infer<typeof reminderSchema>;
 
 export default function RemindersPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { toast } = useToast();
     const [reminders, setReminders] = useState<GeneralReminder[]>([]);
     const [isPending, setIsPending] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [isAdding, setIsAdding] = useState(false);
     const [newText, setNewText] = useState('');
+    const from = searchParams.get('from');
 
     const refreshReminders = () => setReminders(getGeneralReminders());
 
@@ -96,6 +98,10 @@ export default function RemindersPage() {
 
     const handleBack = () => {
         window.dispatchEvent(new Event('navigation-start'));
+        if (from === 'profile') {
+            router.push('/profile');
+            return;
+        }
         router.back();
     };
 

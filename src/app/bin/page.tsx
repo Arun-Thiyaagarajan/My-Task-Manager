@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { getBinnedTasks, getUiConfig, getDevelopers, getTesters, restoreMultipleTasks, permanentlyDeleteMultipleTasks, emptyBin, restoreTask } from '@/lib/data';
 import type { Task, UiConfig, Person } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -113,6 +113,7 @@ export default function BinPage() {
   const isMobile = useIsMobile();
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const activeCompanyId = useActiveCompany();
   const [binnedTasks, setBinnedTasks] = useState<Task[]>([]);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
@@ -226,9 +227,14 @@ export default function BinPage() {
   const testers = getTesters();
   const developersById = new Map(developers.map(d => [d.id, d]));
   const testersById = new Map(testers.map(t => [t.id, t]));
+  const from = searchParams.get('from');
 
   const handleBack = () => {
     window.dispatchEvent(new Event('navigation-start'));
+    if (isMobile && from === 'profile') {
+      router.push('/profile');
+      return;
+    }
     router.push(isMobile ? '/profile' : '/');
   };
 

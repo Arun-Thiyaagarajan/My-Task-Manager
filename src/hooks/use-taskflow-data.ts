@@ -34,6 +34,13 @@ import { Button } from '@/components/ui/button';
 import { Rocket, MessageSquare, Bell, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+const LAST_NOTIFICATION_MARKER_KEY = 'taskflow_last_notification_marker';
+
+type NotificationMarker = {
+    timestamp: string;
+    id: string;
+};
+
 export function useTaskFlowData() {
     const { user, firestore, userProfile, isUserLoading } = useFirebase();
     const activeCompanyId = getActiveCompanyId();
@@ -44,6 +51,7 @@ export function useTaskFlowData() {
     const unsubscribers = useRef<(() => void)[]>([]);
     const processedIds = useRef<Set<string>>(new Set());
     const pathnameRef = useRef(pathname);
+    const notificationMarkerRef = useRef<NotificationMarker | null>(null);
     
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const audioUnlocked = useRef(false);
@@ -51,6 +59,10 @@ export function useTaskFlowData() {
     useEffect(() => {
         pathnameRef.current = pathname;
     }, [pathname]);
+
+    useEffect(() => {
+        notificationMarkerRef.current = getStoredNotificationMarker();
+    }, []);
 
     useEffect(() => {
         if (!activeCompanyId || isUserLoading) return;
@@ -147,10 +159,9 @@ export function useTaskFlowData() {
                 limit(50)
             );
 
-            let isFirstSnapshot = true;
-
             const unsubNotif = onSnapshot(qNotif, (snapshot) => {
                 const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as AppNotification));
+                const latestSnapshotMarker = getLatestNotificationMarker(items);
                 
                 const currentAppData = getAppData();
                 currentAppData.notifications = items;
@@ -161,82 +172,97 @@ export function useTaskFlowData() {
                 
                 window.dispatchEvent(new Event('company-changed'));
 
-                if (!isFirstSnapshot) {
-                    snapshot.docChanges().forEach(change => {
-                        if (change.type === 'added') {
-                            const newNotif = change.doc.data() as AppNotification;
-                            const id = change.doc.id;
-                            
-                            if (processedIds.current.has(id)) return;
-                            processedIds.current.add(id);
-                            
-                            if (processedIds.current.size > 100) {
-                                const firstItem = processedIds.current.values().next().value;
-                                if (firstItem) processedIds.current.delete(firstItem);
-                            }
-
-                            if (newNotif.senderId === userId) return;
-
-                            const isForeground = typeof document !== 'undefined' && document.visibilityState === 'visible';
-                            const prefs = getUserPreferences();
-                            const isMuted = prefs.notificationSounds === false;
-
-                            if (isForeground && !isMuted && audioRef.current) {
-                                try {
-                                    audioRef.current.currentTime = 0;
-                                    audioRef.current.play().catch(e => {
-                                        console.warn("Notification audio blocked by browser policy.", e);
-                                    });
-                                } catch (e) {
-                                    console.error("Audio playback error:", e);
-                                }
-                            }
-
-                            if (pathnameRef.current === newNotif.link) {
-                                markNotificationRead(id);
-                                return;
-                            }
-
-                            const t = toast({
-                                variant: 'premium',
-                                duration: 4000,
-                                description: React.createElement('div', {
-                                    className: "w-full cursor-pointer overflow-hidden",
-                                    onClick: () => {
-                                        t.dismiss();
-                                        markNotificationRead(id);
-                                        window.dispatchEvent(new Event('navigation-start'));
-                                        router.push(newNotif.link);
-                                    }
-                                }, 
-                                    React.createElement('div', { className: "flex items-center gap-3 p-4 w-full active:bg-muted/50 transition-colors" },
-                                        React.createElement('div', {
-                                            className: cn(
-                                                "h-10 w-10 rounded-full flex items-center justify-center shrink-0 shadow-inner border border-white/5",
-                                                newNotif.type === 'user_request' ? "bg-amber-500/10 text-amber-600" : 
-                                                newNotif.type === 'admin_reply' ? "bg-blue-500/10 text-blue-600" : 
-                                                "bg-primary/10 text-primary"
-                                            )
-                                        }, 
-                                            newNotif.type === 'user_request' ? React.createElement(Rocket, { className: "h-5 w-5" }) : 
-                                            newNotif.type === 'admin_reply' ? React.createElement(MessageSquare, { className: "h-5 w-5" }) : 
-                                            React.createElement(Bell, { className: "h-5 w-5" })
-                                        ),
-                                        React.createElement('div', { className: "flex-1 min-w-0" },
-                                            React.createElement('p', { className: "text-[13px] font-black text-foreground truncate leading-tight mb-0.5 tracking-tight" }, newNotif.title),
-                                            React.createElement('p', { className: "text-[11px] text-muted-foreground line-clamp-2 leading-snug font-medium" }, newNotif.message)
-                                        ),
-                                        React.createElement('div', { className: "shrink-0 flex flex-col items-end gap-1.5 pl-2" },
-                                            React.createElement('span', { className: "text-[9px] font-black text-muted-foreground/40 uppercase tracking-tighter" }, "Now"),
-                                            React.createElement(ChevronRight, { className: "h-3 w-3 text-muted-foreground/20" })
-                                        )
-                                    )
-                                )
-                            });
-                        }
-                    });
+                if (!notificationMarkerRef.current && latestSnapshotMarker) {
+                    setStoredNotificationMarker(latestSnapshotMarker);
+                    notificationMarkerRef.current = latestSnapshotMarker;
                 }
-                isFirstSnapshot = false;
+
+                const addedNotifications = snapshot.docChanges()
+                    .filter(change => change.type === 'added')
+                    .map(change => ({ ...change.doc.data(), id: change.doc.id } as AppNotification))
+                    .sort(compareNotificationsByMarker);
+
+                addedNotifications.forEach((newNotif) => {
+                    const id = newNotif.id;
+
+                    if (processedIds.current.has(id)) return;
+                    processedIds.current.add(id);
+
+                    if (processedIds.current.size > 100) {
+                        const firstItem = processedIds.current.values().next().value;
+                        if (firstItem) processedIds.current.delete(firstItem);
+                    }
+
+                    if (!isNotificationNewer(newNotif, notificationMarkerRef.current)) return;
+
+                    const nextMarker = { timestamp: newNotif.timestamp, id };
+                    setStoredNotificationMarker(nextMarker);
+                    notificationMarkerRef.current = nextMarker;
+
+                    if (newNotif.senderId === userId) return;
+
+                    const isForeground = typeof document !== 'undefined' && document.visibilityState === 'visible';
+                    const prefs = getUserPreferences();
+                    const isMuted = prefs.notificationSounds === false;
+
+                    if (isForeground && !isMuted && audioRef.current) {
+                        try {
+                            audioRef.current.currentTime = 0;
+                            audioRef.current.play().catch(e => {
+                                console.warn("Notification audio blocked by browser policy.", e);
+                            });
+                        } catch (e) {
+                            console.error("Audio playback error:", e);
+                        }
+                    }
+
+                    if (pathnameRef.current === newNotif.link) {
+                        markNotificationRead(id);
+                        return;
+                    }
+
+                    const t = toast({
+                        variant: 'premium',
+                        duration: 4000,
+                        description: React.createElement('div', {
+                            className: "w-full cursor-pointer overflow-hidden",
+                            onClick: () => {
+                                t.dismiss();
+                                markNotificationRead(id);
+                                window.dispatchEvent(new Event('navigation-start'));
+                                router.push(newNotif.link);
+                            }
+                        }, 
+                            React.createElement('div', { className: "flex items-center gap-3 p-4 w-full active:bg-muted/50 transition-colors" },
+                                React.createElement('div', {
+                                    className: cn(
+                                        "h-10 w-10 rounded-full flex items-center justify-center shrink-0 shadow-inner border border-white/5",
+                                        newNotif.type === 'user_request' ? "bg-amber-500/10 text-amber-600" : 
+                                        newNotif.type === 'admin_reply' ? "bg-blue-500/10 text-blue-600" : 
+                                        "bg-primary/10 text-primary"
+                                    )
+                                }, 
+                                    newNotif.type === 'user_request' ? React.createElement(Rocket, { className: "h-5 w-5" }) : 
+                                    newNotif.type === 'admin_reply' ? React.createElement(MessageSquare, { className: "h-5 w-5" }) : 
+                                    React.createElement(Bell, { className: "h-5 w-5" })
+                                ),
+                                React.createElement('div', { className: "flex-1 min-w-0" },
+                                    React.createElement('p', { className: "text-[13px] font-black text-foreground truncate leading-tight mb-0.5 tracking-tight" }, newNotif.title),
+                                    React.createElement('p', { className: "text-[11px] text-muted-foreground line-clamp-2 leading-snug font-medium" }, newNotif.message)
+                                ),
+                                React.createElement('div', { className: "shrink-0 flex flex-col items-end gap-1.5 pl-2" },
+                                    React.createElement('span', { className: "text-[9px] font-black text-muted-foreground/40 uppercase tracking-tighter" }, "Now"),
+                                    React.createElement(ChevronRight, { className: "h-3 w-3 text-muted-foreground/20" })
+                                )
+                            )
+                        )
+                    });
+                });
+
+                if (latestSnapshotMarker && isNotificationNewer(latestSnapshotMarker, notificationMarkerRef.current)) {
+                    setStoredNotificationMarker(latestSnapshotMarker);
+                    notificationMarkerRef.current = latestSnapshotMarker;
+                }
             }, (error) => {
                 errorEmitter.emit('permission-error', new FirestorePermissionError({
                     path: notifRef.path,
@@ -389,6 +415,64 @@ export function useTaskFlowData() {
             unsubscribers.current.forEach(unsub => unsub());
         };
     }, [user, firestore, activeCompanyId, userProfile?.role]);
+}
+
+function compareNotificationsByMarker(a: AppNotification, b: AppNotification) {
+    return compareNotificationMarkers(
+        { timestamp: a.timestamp, id: a.id },
+        { timestamp: b.timestamp, id: b.id }
+    );
+}
+
+function compareNotificationMarkers(a: NotificationMarker, b: NotificationMarker) {
+    if (a.timestamp === b.timestamp) {
+        return a.id.localeCompare(b.id);
+    }
+    return a.timestamp.localeCompare(b.timestamp);
+}
+
+function isNotificationNewer(
+    notification: Pick<AppNotification, 'timestamp' | 'id'>,
+    marker: NotificationMarker | null
+) {
+    if (!marker) return true;
+    return compareNotificationMarkers(
+        { timestamp: notification.timestamp, id: notification.id },
+        marker
+    ) > 0;
+}
+
+function getLatestNotificationMarker(notifications: Pick<AppNotification, 'timestamp' | 'id'>[]) {
+    if (notifications.length === 0) return null;
+
+    return notifications.reduce<NotificationMarker>((latest, notification) => {
+        const current = { timestamp: notification.timestamp, id: notification.id };
+        return compareNotificationMarkers(current, latest) > 0 ? current : latest;
+    }, { timestamp: notifications[0].timestamp, id: notifications[0].id });
+}
+
+function getStoredNotificationMarker(): NotificationMarker | null {
+    if (typeof window === 'undefined') return null;
+
+    try {
+        const raw = localStorage.getItem(LAST_NOTIFICATION_MARKER_KEY);
+        if (!raw) return null;
+
+        const parsed = JSON.parse(raw) as Partial<NotificationMarker>;
+        if (typeof parsed.timestamp !== 'string' || typeof parsed.id !== 'string') {
+            return null;
+        }
+
+        return { timestamp: parsed.timestamp, id: parsed.id };
+    } catch {
+        return null;
+    }
+}
+
+function setStoredNotificationMarker(marker: NotificationMarker) {
+    if (typeof window === 'undefined') return;
+
+    localStorage.setItem(LAST_NOTIFICATION_MARKER_KEY, JSON.stringify(marker));
 }
 
 function _updateCloudCachePart(companyId: string, part: keyof CompanyData, data: any) {

@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft,
   Bell,
@@ -211,11 +211,13 @@ type FeatureSuggestion = {
 
 export default function HelpCenterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const isMobile = useIsMobile();
   const { userProfile } = useFirebase();
   const [searchQuery, setSearchQuery] = React.useState('');
   const [isSearchFocused, setIsSearchFocused] = React.useState(false);
   const isAdmin = userProfile?.role === 'admin';
+  const from = searchParams.get('from');
 
   React.useEffect(() => {
     window.dispatchEvent(new Event('navigation-end'));
@@ -287,6 +289,15 @@ export default function HelpCenterPage() {
     router.push(href);
   };
 
+  const handleBack = () => {
+    window.dispatchEvent(new Event('navigation-start'));
+    if (isMobile && from === 'profile') {
+      router.push('/profile');
+      return;
+    }
+    router.back();
+  };
+
   const renderFeatureRow = (item: FeatureItem) => (
     <button
       key={item.id}
@@ -323,7 +334,7 @@ export default function HelpCenterPage() {
         <div className="relative p-5 sm:p-8">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-4">
-              <Button variant="ghost" size="icon" onClick={() => router.back()} className="mt-1 h-10 w-10 rounded-full">
+              <Button variant="ghost" size="icon" onClick={handleBack} className="mt-1 h-10 w-10 rounded-full">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div className="space-y-3">

@@ -643,9 +643,15 @@ export default function ProfilePage() {
     router.push(`/profile?tab=${tab}`);
   };
 
+  const getMobileProfileChildHref = (href: string) => {
+    if (!isMobile) return href;
+    const separator = href.includes('?') ? '&' : '?';
+    return `${href}${separator}from=profile`;
+  };
+
   const handleNavigateAbout = () => {
     if (pathname === '/about') return;
-    router.push('/about');
+    router.push(getMobileProfileChildHref('/about'));
   };
 
   const MobileHubRow = ({ icon: Icon, title, subLabel, onClick, color = 'text-muted-foreground' }: { icon: any, title: string, subLabel: string, onClick?: () => void, color?: string }) => (
@@ -792,11 +798,16 @@ export default function ProfilePage() {
                                             router.push(`/profile?tab=${item.id}`);
                                         } else if (item.type === 'link') {
                                             if (item.href === '/about' && pathname === '/about') return;
-                                            router.push(item.href);
+                                            if (item.href) {
+                                                router.push(getMobileProfileChildHref(item.href));
+                                            }
                                         } else if (item.type === 'settings') {
-                                            router.push(`/settings?section=${item.section}`);
-                                        } else if (item.type === 'event') {
-                                            window.dispatchEvent(new Event(item.event!));
+                                            router.push(getMobileProfileChildHref(`/settings?section=${item.section}`));
+                                        } else if (item.type === 'event' && 'event' in item) {
+                                            const eventName = typeof item.event === 'string' ? item.event : null;
+                                            if (eventName) {
+                                                window.dispatchEvent(new Event(eventName));
+                                            }
                                         }
                                         setSearchQuery('');
                                     }}
@@ -842,7 +853,7 @@ export default function ProfilePage() {
                             icon={Inbox} 
                             title="Support Inbox" 
                             subLabel="Manage user submissions" 
-                            onClick={() => router.push('/admin/feedback')}
+                            onClick={() => router.push(getMobileProfileChildHref('/admin/feedback'))}
                             color="text-amber-600 font-bold"
                         />
                     )}
@@ -871,42 +882,43 @@ export default function ProfilePage() {
                         icon={Bell} 
                         title="General Reminders" 
                         subLabel="Workspace global notes" 
-                        onClick={() => router.push('/reminders')}
+                        onClick={() => router.push(getMobileProfileChildHref('/reminders'))}
                         color="text-amber-600"
                     />
                     <MobileHubRow 
                         icon={FileClock} 
                         title="Activity Logs" 
                         subLabel="Your workspace history" 
-                        onClick={() => router.push('/logs')}
+                        onClick={() => router.push(getMobileProfileChildHref('/logs'))}
                         color="text-blue-500"
                     />
                     <MobileHubRow 
                         icon={Trash2} 
                         title="Bin (Trash)" 
                         subLabel="Deleted tasks and items" 
-                        onClick={() => router.push('/bin')}
+                        onClick={() => router.push(getMobileProfileChildHref('/bin'))}
                         color="text-zinc-500"
                     />
                     <MobileHubRow 
                         icon={Settings} 
                         title="Workspace Settings" 
                         subLabel="Fields, environments, team" 
-                        onClick={() => router.push('/settings')}
+                        onClick={() => router.push(getMobileProfileChildHref('/settings'))}
                         color="text-purple-500"
                     />
-                    <MobileHubRow 
+                    {/* Release History will be implmented later */}
+                    {/* <MobileHubRow 
                         icon={Sparkles} 
                         title="What's New" 
                         subLabel="Release notes and updates" 
-                        onClick={() => router.push('/releases')}
+                        onClick={() => router.push(getMobileProfileChildHref('/releases'))}
                         color="text-green-500"
-                    />
+                    /> */}
                     <MobileHubRow 
                         icon={Compass} 
                         title="Feature Explorer" 
                         subLabel="Find pages by feature" 
-                        onClick={() => router.push('/help-center')}
+                        onClick={() => router.push(getMobileProfileChildHref('/help-center'))}
                         color="text-cyan-500"
                     />
                     <MobileHubRow 

@@ -36,6 +36,7 @@ function AboutContent() {
     const searchParams = useSearchParams();
     const { userProfile } = useFirebase();
     const activeSection = searchParams.get('section');
+    const from = searchParams.get('from');
 
     const isAdmin = userProfile?.role === 'admin';
 
@@ -46,6 +47,10 @@ function AboutContent() {
     const handleBack = () => {
         window.dispatchEvent(new Event('navigation-start'));
         if (isMobile) {
+            if (from === 'profile') {
+                router.push('/profile');
+                return;
+            }
             router.push('/settings');
         } else {
             router.back();
@@ -61,7 +66,7 @@ function AboutContent() {
     const handleNavigateHelpCenter = () => {
         if (pathname === '/help-center') return;
         window.dispatchEvent(new Event('navigation-start'));
-        router.push('/help-center');
+        router.push(isMobile && from === 'profile' ? '/help-center?from=profile' : '/help-center');
     };
 
     const sections = [

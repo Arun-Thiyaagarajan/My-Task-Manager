@@ -737,19 +737,9 @@ export default function SettingsPage() {
                     <MobileHubRow icon={Users} title="Team Management" subLabel="Developers and testers" onClick={() => setActiveMobileSection('team')} color="text-indigo-500" />
                 </div>
             </div>
-            <MobileSectionHeader title="About & Support" />
-            <div className="px-4">
-                <div className="bg-card border rounded-3xl shadow-sm overflow-hidden">
-                    <MobileHubRow icon={HelpCircle} title="App Overview" subLabel="What is TaskFlow?" onClick={() => { if (pathname === '/about' && searchParams.get('section') === 'app') return; router.push('/about?section=app'); }} color="text-primary" />
-                    <MobileHubRow icon={Compass} title="Feature Explorer" subLabel="Find where features live" onClick={() => router.push('/help-center')} color="text-cyan-500" />
-                    <MobileHubRow icon={Info} title="About Us" subLabel="Meet the creators" onClick={() => { if (pathname === '/about' && searchParams.get('section') === 'about') return; router.push('/about?section=about'); }} color="text-indigo-500" />
-                    <MobileHubRow icon={MessageCircle} title="Support & FAQ" subLabel="Get help and answers" onClick={() => { if (pathname === '/about' && searchParams.get('section') === 'faq') return; router.push('/about?section=faq'); }} color="text-green-600" />
-                </div>
-            </div>
             <MobileSectionHeader title="System" />
             <div className="px-4">
                 <div className="bg-card border rounded-3xl shadow-sm overflow-hidden">
-                    <MobileHubRow icon={History} title="Releases" subLabel={isAdmin ? 'Manage updates' : 'View updates'} onClick={() => setActiveMobileSection('releases')} color="text-orange-500" />
                     <MobileHubRow icon={Database} title="Data & Safety" subLabel="Import, export, clear data" onClick={() => setActiveMobileSection('data')} color="text-red-500" />
                 </div>
             </div>

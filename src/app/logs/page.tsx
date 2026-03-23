@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { fuzzySearch, formatTimestamp, cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 const parseLogMessage = (message: string) => {
     const parts = message.split(/(\*\*.*?\*\*|\*.*?\*)/g);
@@ -92,6 +92,7 @@ function MobileLogCard({ log, uiConfig }: { log: Log, uiConfig: UiConfig }) {
 export default function LogsPage() {
     const isMobile = useIsMobile();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [logs, setLogs] = useState<Log[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
@@ -106,6 +107,7 @@ export default function LogsPage() {
     const [commandKey, setCommandKey] = useState('Ctrl');
     const [isFiltering, setIsFiltering] = useState(false);
     const [filteredLogs, setFilteredLogs] = useState<Log[]>([]);
+    const from = searchParams.get('from');
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -233,6 +235,10 @@ export default function LogsPage() {
 
     const handleBack = () => {
         window.dispatchEvent(new Event('navigation-start'));
+        if (isMobile && from === 'profile') {
+            router.push('/profile');
+            return;
+        }
         router.push(isMobile ? '/profile' : '/');
     };
     
