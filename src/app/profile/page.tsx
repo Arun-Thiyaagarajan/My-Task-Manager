@@ -600,6 +600,7 @@ export default function ProfilePage() {
         { id: 'general-reminders', title: 'General Reminders', subLabel: 'Manage global workspace notes', icon: Bell, type: 'link', href: '/reminders', category: 'Productivity', color: 'text-amber-600', keywords: ['sticky notes', 'global notes', 'bulletin'] },
         { id: 'insights', title: 'Recent Activity', subLabel: 'Tasks added or imported recently', icon: Sparkles, type: 'link', href: '/insights', category: 'Insights', color: 'text-primary', keywords: ['recent', 'added', 'imported', 'insights', 'activity'] },
         { id: 'about-help', title: 'Help & About', subLabel: 'FAQ, Contact, and App Info', icon: HelpCircle, type: 'link', href: '/about', category: 'Support', color: 'text-primary', keywords: ['faq', 'contact', 'help', 'about us', 'support'] },
+        { id: 'help-center', title: 'Help Center', subLabel: 'Features List', icon: Compass, type: 'link', href: '/help-center', category: 'Support', color: 'text-primary', keywords: ['features', 'new', 'what all', 'help center', 'help'] },
     ];
     if (isLocal) {
         items.unshift({ id: 'auth', title: 'Sign In / Cloud Sync', subLabel: 'Securely sync your workspace', icon: ShieldCheck, type: 'event', event: 'open-auth-modal', category: 'Identity', color: 'text-primary font-bold', keywords: ['login', 'register', 'firebase', 'cloud'] } as any);
