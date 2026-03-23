@@ -23,6 +23,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Textarea } from './ui/textarea';
 import { Calendar } from './ui/calendar';
 import { format } from 'date-fns';
+import { MultiSelect } from '@/components/ui/multi-select';
 
 const fieldOptionSchema = z.object({
     id: z.string(),
