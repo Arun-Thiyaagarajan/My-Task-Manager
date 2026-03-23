@@ -592,12 +592,11 @@ export default function ProfilePage() {
         { id: 'clear-data', title: 'Clear All Data', subLabel: 'Permanently reset workspace', icon: Eraser, type: 'settings', section: 'data', category: 'Danger Zone', color: 'text-destructive', keywords: ['reset', 'delete all', 'wipe', 'nuke'] },
         { id: 'import-data', title: 'Import Configuration', subLabel: 'Load settings from JSON', icon: Upload, type: 'settings', section: 'data', category: 'Data Ops', color: 'text-blue-600', keywords: ['restore', 'json', 'upload config'] },
         { id: 'export-data', title: 'Export Settings', subLabel: 'Download workspace config', icon: Download, type: 'settings', section: 'data', category: 'Data Ops', color: 'text-green-600', keywords: ['backup', 'json', 'download config'] },
-        { id: 'manage-releases', title: 'Publish Update', subLabel: 'Manage release notes (Admin)', icon: Sparkles, type: 'settings', section: 'releases', category: 'System', color: 'text-primary', keywords: ['publish', 'whats new', 'admin only'] },
 
         // Standalone Links
         { id: 'logs', title: 'Activity Logs', subLabel: 'Audit trail of all changes', icon: FileClock, type: 'link', href: '/logs', category: 'System', color: 'text-blue-500', keywords: ['history', 'audit', 'track', 'changes'] },
         { id: 'bin', title: 'Bin (Trash)', subLabel: 'Restore or delete deleted tasks', icon: Trash2, type: 'link', href: '/bin', category: 'System', color: 'text-zinc-500', keywords: ['trash', 'deleted', 'restore', 'recycle'] },
-        { id: 'releases', title: 'What\'s New', subLabel: 'Latest updates and features', icon: Sparkles, type: 'link', href: '/releases', category: 'System', color: 'text-green-500', keywords: ['version', 'changelog', 'updates'] },
+        // { id: 'releases', title: 'What\'s New', subLabel: 'Latest updates and features', icon: Sparkles, type: 'link', href: '/releases', category: 'System', color: 'text-green-500', keywords: ['version', 'changelog', 'updates'] },
         { id: 'general-reminders', title: 'General Reminders', subLabel: 'Manage global workspace notes', icon: Bell, type: 'link', href: '/reminders', category: 'Productivity', color: 'text-amber-600', keywords: ['sticky notes', 'global notes', 'bulletin'] },
         { id: 'insights', title: 'Recent Activity', subLabel: 'Tasks added or imported recently', icon: Sparkles, type: 'link', href: '/insights', category: 'Insights', color: 'text-primary', keywords: ['recent', 'added', 'imported', 'insights', 'activity'] },
         { id: 'about-help', title: 'Help & About', subLabel: 'FAQ, Contact, and App Info', icon: HelpCircle, type: 'link', href: '/about', category: 'Support', color: 'text-primary', keywords: ['faq', 'contact', 'help', 'about us', 'support'] },
@@ -606,6 +605,7 @@ export default function ProfilePage() {
         items.unshift({ id: 'auth', title: 'Sign In / Cloud Sync', subLabel: 'Securely sync your workspace', icon: ShieldCheck, type: 'event', event: 'open-auth-modal', category: 'Identity', color: 'text-primary font-bold', keywords: ['login', 'register', 'firebase', 'cloud'] } as any);
     }
     if (isAdmin) {
+        items.push({ id: 'manage-releases', title: 'Publish Update', subLabel: 'Manage release notes (Admin)', icon: Sparkles, type: 'settings', section: 'releases', category: 'System', color: 'text-primary', keywords: ['publish', 'whats new', 'admin only'] })
         items.unshift({ id: 'admin-feedback', title: 'Support Inbox', subLabel: 'Manage user reports & feedback', icon: Inbox, type: 'link', href: '/admin/feedback', category: 'Admin', color: 'text-amber-600 font-bold', keywords: ['support', 'admin', 'inbox', 'tickets', 'replies'] } as any);
     }
     return items;
