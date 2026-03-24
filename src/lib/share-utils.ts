@@ -3,15 +3,30 @@
 import jsPDF from 'jspdf';
 import { format } from 'date-fns';
 import type { Task, UiConfig, Person, FieldConfig, Environment, Comment, Attachment } from './types';
+import { pickDefaultIconName, resolveStatusConfig } from './status-config';
 
 // --- SVG ICONS FOR PDF WATERMARK ---
 const STATUS_SVG_ICONS: Record<string, string> = {
-  'Done': `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>`,
-  'To Do': `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>`,
-  'In Progress': `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`,
-  'Code Review': `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M6 9v12"/></svg>`,
-  'QA': `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 2 1.88 1.88"/><path d="M14.12 3.88 16 2"/><path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 9 3 7.7 3 6"/><path d="M17.47 9c1.93 0 3.5-1.7 3.5-3"/><path d="M3 13h18"/><path d="M18 13v-2a4 4 0 0 0-4-4h-4a4 4 0 0 0-4 4v2"/></svg>`,
-  'Hold': `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="10" x2="10" y1="15" y2="9"/><line x1="14" x2="14" y1="15" y2="9"/></svg>`,
+  'check-circle-2': `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>`,
+  circle: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>`,
+  'loader-2': `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`,
+  'git-pull-request': `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M6 9v12"/></svg>`,
+  bug: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 2 1.88 1.88"/><path d="M14.12 3.88 16 2"/><path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 9 3 7.7 3 6"/><path d="M17.47 9c1.93 0 3.5-1.7 3.5-3"/><path d="M3 13h18"/><path d="M18 13v-2a4 4 0 0 0-4-4h-4a4 4 0 0 0-4 4v2"/></svg>`,
+  'pause-circle': `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="10" x2="10" y1="15" y2="9"/><line x1="14" x2="14" y1="15" y2="9"/></svg>`,
+  'clock-3': `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16.5 12"/></svg>`,
+  'play-circle': `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>`,
+  'list-checks': `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg>`,
+};
+
+type RgbTuple = [number, number, number];
+type StatusPdfAssets = {
+    label: string;
+    colorHex: string;
+    textColorHex: string;
+    watermarkImage: string | null;
+    badgeIconImage: string | null;
+    watermarkImageFormat: 'PNG' | 'JPEG' | 'WEBP';
+    badgeIconImageFormat: 'PNG' | 'JPEG' | 'WEBP';
 };
 
 const svgToDataURL = (svg: string): Promise<string> => {
@@ -51,6 +66,93 @@ const svgToDataURL = (svg: string): Promise<string> => {
 
 const isDataURI = (str: string | null | undefined): str is string => !!str && str.startsWith('data:image');
 
+const hexToRgb = (hex: string): RgbTuple => {
+    const normalized = hex.replace('#', '');
+    const value = normalized.length === 3
+        ? normalized.split('').map(char => char + char).join('')
+        : normalized;
+    const parsed = Number.parseInt(value, 16);
+
+    if (Number.isNaN(parsed)) return [107, 114, 128];
+
+    return [
+        (parsed >> 16) & 255,
+        (parsed >> 8) & 255,
+        parsed & 255,
+    ];
+};
+
+const getContrastTextHex = (hex: string): string => {
+    const [r, g, b] = hexToRgb(hex);
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    return brightness > 160 ? '#1f2937' : '#f8fafc';
+};
+
+const mixWithWhite = (hex: string, ratio: number): RgbTuple => {
+    const [r, g, b] = hexToRgb(hex);
+    const mix = (channel: number) => Math.round(channel + (255 - channel) * ratio);
+    return [mix(r), mix(g), mix(b)];
+};
+
+const getImageFormat = (dataUri: string): 'PNG' | 'JPEG' | 'WEBP' => {
+    if (dataUri.startsWith('data:image/jpeg') || dataUri.startsWith('data:image/jpg')) return 'JPEG';
+    if (dataUri.startsWith('data:image/webp')) return 'WEBP';
+    return 'PNG';
+};
+
+const colorSvg = (svg: string, hex: string) => svg.replace(/currentColor/g, hex);
+
+const getStatusSvg = (iconName: string) => {
+    return STATUS_SVG_ICONS[iconName] || STATUS_SVG_ICONS[pickDefaultIconName(iconName)] || STATUS_SVG_ICONS.circle;
+};
+
+const prepareStatusPdfAssets = async (task: Task, uiConfig: UiConfig): Promise<StatusPdfAssets> => {
+    const status = resolveStatusConfig(task.status, uiConfig);
+    const colorHex = status.color || '#64748b';
+    const textColorHex = getContrastTextHex(colorHex);
+
+    const fallbackIconName = pickDefaultIconName(status.name, colorHex);
+    const iconName = status.iconType === 'image' ? fallbackIconName : (status.icon || fallbackIconName);
+    const fallbackSvg = colorSvg(getStatusSvg(iconName), colorHex);
+
+    let watermarkImage: string | null = null;
+    let badgeIconImage: string | null = null;
+    let watermarkImageFormat: 'PNG' | 'JPEG' | 'WEBP' = 'PNG';
+    let badgeIconImageFormat: 'PNG' | 'JPEG' | 'WEBP' = 'PNG';
+
+    try {
+        if (status.iconType === 'image' && isDataURI(status.icon)) {
+            watermarkImage = status.icon;
+            badgeIconImage = status.icon;
+            watermarkImageFormat = getImageFormat(status.icon);
+            badgeIconImageFormat = getImageFormat(status.icon);
+        } else {
+            const pngData = await svgToDataURL(fallbackSvg);
+            watermarkImage = pngData;
+            badgeIconImage = pngData;
+        }
+    } catch {
+        try {
+            const pngData = await svgToDataURL(colorSvg(getStatusSvg(fallbackIconName), colorHex));
+            watermarkImage = pngData;
+            badgeIconImage = pngData;
+        } catch {
+            watermarkImage = null;
+            badgeIconImage = null;
+        }
+    }
+
+    return {
+        label: status.name || task.status || 'To Do',
+        colorHex,
+        textColorHex,
+        watermarkImage,
+        badgeIconImage,
+        watermarkImageFormat,
+        badgeIconImageFormat,
+    };
+};
+
 const renderCustomFieldValue = (fieldConfig: FieldConfig, value: any) => {
   if (value === null || value === undefined || value === '') return 'N/A';
   switch (fieldConfig.type) {
@@ -82,6 +184,7 @@ const _drawTaskOnPage = async (
     testers: Person[]
 ) => {
     let y = 0;
+    const statusAssets = await prepareStatusPdfAssets(task, uiConfig);
 
     // --- LAYOUT CONSTANTS & HELPERS ---
     const PADDING = 15;
@@ -99,35 +202,13 @@ const _drawTaskOnPage = async (
     const FONT_SIZE_H2 = 13;
     const LINE_HEIGHT_NORMAL = 6;
 
-    const COLORS = {
+    const COLORS: Record<string, RgbTuple> = {
         TEXT_PRIMARY: [31, 41, 55],
         TEXT_MUTED: [107, 114, 128],
         CARD_BORDER: [229, 231, 235],
         LINK: [11, 87, 208],
         WATERMARK: [240, 240, 240],
     };
-
-    const WATERMARK_COLORS: Record<string, [number, number, number]> = {
-        'To Do': [107, 114, 128],
-        'In Progress': [59, 130, 246],
-        'Code Review': [139, 92, 246],
-        'QA': [234, 179, 8],
-        'Hold': [113, 113, 122],
-        'Done': [34, 197, 94],
-    };
-
-    const STATUS_COLORS: Record<string, { bg: [number, number, number], text: [number, number, number] }> = {
-        'To Do': { bg: [243, 244, 246], text: [31, 41, 55] },
-        'In Progress': { bg: [219, 234, 254], text: [30, 64, 175] },
-        'Code Review': { bg: [237, 233, 254], text: [91, 33, 182] },
-        'QA': { bg: [254, 243, 199], text: [180, 83, 9] },
-        'Hold': { bg: [229, 231, 235], text: [31, 41, 55] },
-        'Done': { bg: [209, 250, 229], text: [6, 95, 70] },
-    };
-
-    const rgbToHex = (r: number, g: number, b: number): string => {
-        return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).padStart(6, '0');
-    }
 
     const checkPageBreak = (neededHeight = 0) => {
         if (y + neededHeight > PAGE_HEIGHT - PADDING - 15) {
@@ -172,32 +253,23 @@ const _drawTaskOnPage = async (
         doc.text(task.title, PAGE_WIDTH - PADDING, footerY, { align: 'right', baseline: 'middle' });
     };
     
-    const drawWatermark = async () => {
-        const status = task.status;
-        const svgString = STATUS_SVG_ICONS[status] || STATUS_SVG_ICONS['To Do'];
-        const colorRGB = WATERMARK_COLORS[status] || WATERMARK_COLORS['To Do'];
-        
-        if (!svgString) return;
-
-        const colorHex = rgbToHex(colorRGB[0], colorRGB[1], colorRGB[2]);
-        const coloredSvg = svgString.replace(/currentColor/g, colorHex);
-
+    const drawWatermark = () => {
+        if (!statusAssets.watermarkImage) return;
         const iconSize = 140;
         const x = (PAGE_WIDTH - iconSize) / 2;
         const y_pos = (PAGE_HEIGHT - iconSize) / 2;
 
         try {
-            const pngDataUrl = await svgToDataURL(coloredSvg);
-            doc.setGState(new doc.GState({ opacity: 0.05 }));
-            doc.addImage(pngDataUrl, 'PNG', x, y_pos, iconSize, iconSize);
-            doc.setGState(new doc.GState({ opacity: 1 }));
+            doc.saveGraphicsState();
+            doc.setGState(new (doc as any).GState({ opacity: 0.05 }));
+            doc.addImage(statusAssets.watermarkImage, statusAssets.watermarkImageFormat, x, y_pos, iconSize, iconSize);
+            doc.restoreGraphicsState();
         } catch (e) {
             console.error("Failed to render watermark:", e);
         }
     };
 
     const drawTitleAndBadge = (text: string, status: string) => {
-        const statusColors = STATUS_COLORS[status] || STATUS_COLORS['To Do'];
         doc.setFontSize(FONT_SIZE_H1);
         doc.setFont('helvetica', 'bold');
         
@@ -210,24 +282,53 @@ const _drawTaskOnPage = async (
 
         // Badge at top right
         doc.setFontSize(9);
-        const statusWidth = doc.getTextWidth(status);
-        const badgeWidth = statusWidth + 10;
+        const badgeLabel = statusAssets.label || status;
+        const iconSpace = statusAssets.badgeIconImage ? 7 : 0;
+        const statusWidth = doc.getTextWidth(badgeLabel);
+        const badgeWidth = statusWidth + 10 + iconSpace;
         const badgeHeight = 7;
         const badgeX = PAGE_WIDTH - PADDING - badgeWidth;
         const badgeY = y;
+        const badgeBg = mixWithWhite(statusAssets.colorHex, 0.82);
+        const badgeText = hexToRgb(statusAssets.colorHex);
+        const badgeBorder = mixWithWhite(statusAssets.colorHex, 0.58);
 
-        doc.setFillColor(statusColors.bg[0], statusColors.bg[1], statusColors.bg[2]);
+        doc.setFillColor(...badgeBg);
         doc.roundedRect(badgeX, badgeY, badgeWidth, badgeHeight, 3, 3, 'F');
+        doc.setDrawColor(...badgeBorder);
+        doc.roundedRect(badgeX, badgeY, badgeWidth, badgeHeight, 3, 3, 'S');
+
+        if (statusAssets.badgeIconImage) {
+            try {
+                doc.addImage(statusAssets.badgeIconImage, statusAssets.badgeIconImageFormat, badgeX + 2.5, badgeY + 1.5, 4, 4);
+            } catch {}
+        }
         
-        doc.setTextColor(statusColors.text[0], statusColors.text[1], statusColors.text[2]);
-        doc.text(status, badgeX + 5, badgeY + badgeHeight / 2, { baseline: 'middle' });
+        doc.setTextColor(...badgeText);
+        doc.text(badgeLabel, badgeX + 5 + iconSpace, badgeY + badgeHeight / 2, { baseline: 'middle' });
 
         y += titleHeight + 8;
     };
+
+    const estimateKeyValueHeight = (key: string, value: any) => {
+        if (value === undefined || value === null || value === '') return 0;
+
+        let textValue: string;
+        if (typeof value === 'object' && value !== null && 'text' in value) {
+            textValue = value.text;
+        } else {
+            textValue = String(value);
+        }
+
+        doc.setFontSize(FONT_SIZE_NORMAL);
+        const keyLines = doc.splitTextToSize(`${key}:`, KEY_COLUMN_WIDTH - 5);
+        const valueLines = doc.splitTextToSize(textValue, VALUE_COLUMN_WIDTH);
+        return Math.max(keyLines.length, valueLines.length) * LINE_HEIGHT_NORMAL + 2;
+    };
     
-    const drawSectionHeader = (title: string) => {
-        // Ensure header + at least 2 lines of content (approx 25mm) aren't orphaned
-        checkPageBreak(25);
+    const drawSectionHeader = (title: string, firstContentHeight = 0) => {
+        // Keep the section title with the first content block on the same page.
+        checkPageBreak(25 + firstContentHeight);
         y += 5;
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(FONT_SIZE_H2);
@@ -282,12 +383,12 @@ const _drawTaskOnPage = async (
 
     // --- PDF DRAWING ---
     drawHeader();
-    await drawWatermark();
+    drawWatermark();
     
-    drawTitleAndBadge(task.title, task.status);
+    drawTitleAndBadge(task.title, statusAssets.label);
 
     if (task.description) {
-        drawSectionHeader(fieldLabels.get('description') || 'Description');
+        drawSectionHeader(fieldLabels.get('description') || 'Description', 12);
         const cleanDescription = task.description.replace(/(\*\*|_(.*?)_|\`|\~)/g, '');
         const lines = doc.splitTextToSize(cleanDescription, MAX_CONTENT_WIDTH);
         const descHeight = lines.length * LINE_HEIGHT_NORMAL;
@@ -299,8 +400,12 @@ const _drawTaskOnPage = async (
         y += descHeight + 10;
     }
 
-    drawSectionHeader('Task Details');
     const assignedDevs = (task.developers || []).map(id => developersById.get(id)).filter(Boolean).join(', ');
+    const firstTaskDetailsHeight = estimateKeyValueHeight(
+        fieldLabels.get('developers') || 'Developers',
+        assignedDevs || 'None'
+    );
+    drawSectionHeader('Task Details', firstTaskDetailsHeight);
     drawKeyValue(fieldLabels.get('developers') || 'Developers', assignedDevs || 'None');
     const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter(Boolean).join(', ');
     drawKeyValue(fieldLabels.get('testers') || 'Testers', assignedTesters || 'None');
@@ -313,7 +418,19 @@ const _drawTaskOnPage = async (
         drawKeyValue(fieldLabels.get('azureWorkItemId') || 'Azure Work Item ID', { text: `#${task.azureWorkItemId}`, link: url });
     }
 
-    drawSectionHeader('Timeline & Deployments');
+    const firstTimelineValue =
+        task.devStartDate ? format(new Date(task.devStartDate), 'MMMM do, yyyy') :
+        task.devEndDate ? format(new Date(task.devEndDate), 'MMMM do, yyyy') :
+        task.qaStartDate ? format(new Date(task.qaStartDate), 'MMMM do, yyyy') :
+        task.qaEndDate ? format(new Date(task.qaEndDate), 'MMMM do, yyyy') :
+        '';
+    const firstTimelineLabel =
+        task.devStartDate ? (fieldLabels.get('devStartDate') || 'Dev Start Date') :
+        task.devEndDate ? (fieldLabels.get('devEndDate') || 'Dev End Date') :
+        task.qaStartDate ? (fieldLabels.get('qaStartDate') || 'QA Start Date') :
+        task.qaEndDate ? (fieldLabels.get('qaEndDate') || 'QA End Date') :
+        '';
+    drawSectionHeader('Timeline & Deployments', estimateKeyValueHeight(firstTimelineLabel, firstTimelineValue));
     if (task.devStartDate) drawKeyValue(fieldLabels.get('devStartDate') || 'Dev Start Date', format(new Date(task.devStartDate), 'MMMM do, yyyy'));
     if (task.devEndDate) drawKeyValue(fieldLabels.get('devEndDate') || 'Dev End Date', format(new Date(task.devEndDate), 'MMMM do, yyyy'));
     if (task.qaStartDate) drawKeyValue(fieldLabels.get('qaStartDate') || 'QA Start Date', format(new Date(task.qaStartDate), 'MMMM do, yyyy'));
@@ -331,7 +448,23 @@ const _drawTaskOnPage = async (
     });
 
     if (task.prLinks && Object.keys(task.prLinks).length > 0) {
-        drawSectionHeader('Pull Requests');
+        let firstPrLabel = '';
+        let firstPrValue: { text: string; link: string } | '' = '';
+        outer: for (const [env, repos] of Object.entries(task.prLinks)) {
+            if (!repos) continue;
+            for (const [repoName, prIdString] of Object.entries(repos)) {
+                if (!prIdString) continue;
+                const firstPrId = prIdString.split(',').map(s => s.trim()).filter(Boolean)[0];
+                if (!firstPrId) continue;
+                const repoConfig = uiConfig.repositoryConfigs.find(rc => rc.name === repoName);
+                const baseUrl = repoConfig?.baseUrl || '';
+                const fullUrl = baseUrl ? `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}${firstPrId}` : '';
+                firstPrLabel = `${repoName} #${firstPrId} (${env})`;
+                firstPrValue = { text: `PR #${firstPrId}`, link: fullUrl };
+                break outer;
+            }
+        }
+        drawSectionHeader('Pull Requests', estimateKeyValueHeight(firstPrLabel, firstPrValue));
         Object.entries(task.prLinks).forEach(([env, repos]) => {
             if (!repos) return;
             Object.entries(repos).forEach(([repoName, prIdString]) => {
@@ -343,14 +476,31 @@ const _drawTaskOnPage = async (
                     const baseUrl = repoConfig?.baseUrl || '';
                     const fullUrl = baseUrl ? `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}${id}` : '';
                     const label = `${repoName} #${id} (${env})`;
-                    drawKeyValue(label, { text: fullUrl || 'Link not available', link: fullUrl });
+                    drawKeyValue(label, { text: fullUrl ? `PR #${id}` : 'Link not available', link: fullUrl });
                 });
             });
         });
     }
 
     if (task.attachments && task.attachments.length > 0) {
-        drawSectionHeader(fieldLabels.get('attachments') || 'Attachments');
+        let firstAttachmentHeight = 0;
+        const firstAttachment = task.attachments[0];
+        if (firstAttachment) {
+            if (firstAttachment.type === 'image' && isDataURI(firstAttachment.url)) {
+                try {
+                    const props = doc.getImageProperties(firstAttachment.url);
+                    const ratio = props.height / props.width;
+                    const displayWidth = Math.min(MAX_CONTENT_WIDTH, 120);
+                    const displayHeight = displayWidth * ratio;
+                    firstAttachmentHeight = displayHeight + 15;
+                } catch {
+                    firstAttachmentHeight = estimateKeyValueHeight(firstAttachment.name, { text: firstAttachment.url, link: firstAttachment.url });
+                }
+            } else {
+                firstAttachmentHeight = estimateKeyValueHeight(firstAttachment.name, { text: firstAttachment.url, link: firstAttachment.url });
+            }
+        }
+        drawSectionHeader(fieldLabels.get('attachments') || 'Attachments', firstAttachmentHeight);
         for (const att of task.attachments) {
             if (att.type === 'image' && isDataURI(att.url)) {
                 try {
@@ -380,7 +530,9 @@ const _drawTaskOnPage = async (
     }
 
     if (customFields.length > 0) {
-        drawSectionHeader('Other Details');
+        const firstField = customFields[0];
+        const firstFieldDisplay = firstField ? renderCustomFieldValue(firstField, task.customFields![firstField.key]) : '';
+        drawSectionHeader('Other Details', firstField ? estimateKeyValueHeight(firstField.label, firstFieldDisplay) : 0);
         customFields.forEach(field => {
             const val = task.customFields![field.key];
             const display = renderCustomFieldValue(field, val);
@@ -389,7 +541,10 @@ const _drawTaskOnPage = async (
     }
 
     if (task.comments && task.comments.length > 0) {
-        drawSectionHeader(fieldLabels.get('comments') || 'Comments');
+        const firstComment = task.comments[0];
+        const firstCommentLabel = firstComment ? format(new Date(firstComment.timestamp), 'MMM d, h:mm a') : '';
+        const firstCommentValue = firstComment?.text || '';
+        drawSectionHeader(fieldLabels.get('comments') || 'Comments', estimateKeyValueHeight(firstCommentLabel, firstCommentValue));
         task.comments.forEach(comment => {
             const date = format(new Date(comment.timestamp), 'MMM d, h:mm a');
             drawKeyValue(date, comment.text);

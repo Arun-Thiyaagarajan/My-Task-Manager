@@ -53,6 +53,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { TextareaToolbar, applyFormat, type FormatType } from '@/components/ui/textarea-toolbar';
 import { getLinkAlias } from '@/ai/flows/alias-flow';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { getStatusDisplayName } from '@/lib/status-config';
 
 
 type TaskFormData = z.infer<ReturnType<typeof createTaskSchema>>;
@@ -78,7 +79,7 @@ const getInitialTaskData = (task?: Partial<Task>, uiConfig?: UiConfig | null) =>
         const defaults: any = {
             title: '',
             description: '',
-            status: 'To Do',
+            status: uiConfig?.taskStatuses?.[0] || 'To Do',
             repositories: [],
             developers: [],
             testers: [],
@@ -125,6 +126,7 @@ const getInitialTaskData = (task?: Partial<Task>, uiConfig?: UiConfig | null) =>
     
     return {
         ...task,
+        status: getStatusDisplayName(task.status || (uiConfig?.taskStatuses?.[0] || 'To Do'), uiConfig),
         devStartDate: safeParseDate(task.devStartDate),
         devEndDate: safeParseDate(task.devEndDate),
         qaStartDate: safeParseDate(task.qaStartDate),
@@ -222,9 +224,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   useEffect(() => {
     const currentUiConfig = getUiConfig();
     const initialData = getInitialTaskData(task, currentUiConfig);
-    if (!initialData.status && currentUiConfig?.taskStatuses?.length) {
-        initialData.status = currentUiConfig.taskStatuses[0];
-    }
+    initialData.status = getStatusDisplayName(initialData.status || currentUiConfig?.taskStatuses?.[0] || 'To Do', currentUiConfig);
     form.reset(initialData);
 
     // Check for existing draft on mount

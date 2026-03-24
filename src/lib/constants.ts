@@ -1,6 +1,14 @@
-import type { FieldConfig, FieldType, RepositoryConfig, Environment, ReleaseUpdate } from './types';
+import type { FieldConfig, FieldType, RepositoryConfig, Environment, ReleaseUpdate, StatusConfigItem } from './types';
 
 export const TASK_STATUSES = ['To Do', 'In Progress', 'Code Review', 'QA', 'Hold', 'Done'] as const;
+export const DEFAULT_STATUS_CONFIGS: StatusConfigItem[] = [
+  { id: 'todo', name: 'To Do', color: '#64748b', icon: 'circle', iconType: 'lucide', aliases: ['To Do'], isDefault: true, order: 0 },
+  { id: 'in_progress', name: 'In Progress', color: '#2563eb', icon: 'loader-2', iconType: 'lucide', aliases: ['In Progress'], isDefault: true, order: 1 },
+  { id: 'code_review', name: 'Code Review', color: '#9333ea', icon: 'git-pull-request', iconType: 'lucide', aliases: ['Code Review'], isDefault: true, order: 2 },
+  { id: 'qa', name: 'QA', color: '#d97706', icon: 'bug', iconType: 'lucide', aliases: ['QA'], isDefault: true, order: 3 },
+  { id: 'hold', name: 'Hold', color: '#52525b', icon: 'pause-circle', iconType: 'lucide', aliases: ['Hold'], isDefault: true, order: 4 },
+  { id: 'done', name: 'Done', color: '#16a34a', icon: 'check-circle-2', iconType: 'lucide', aliases: ['Done'], isDefault: true, order: 5 },
+];
 export const ENVIRONMENTS: Environment[] = [
     { id: 'env_1', name: 'dev', color: '#3b82f6', isMandatory: true },
     { id: 'env_2', name: 'stage', color: '#f59e0b' },
@@ -29,7 +37,7 @@ export const FIELD_TYPES: {value: FieldType, label: string}[] = [
 export const INITIAL_UI_CONFIG: FieldConfig[] = [
   { id: 'field_title', key: 'title', label: 'Title', type: 'text', group: 'Core Details', isActive: true, isRequired: true, isUnique: true, isCustom: false, order: 0 },
   { id: 'field_description', key: 'description', label: 'Description', type: 'textarea', group: 'Core Details', isActive: true, isRequired: true, isUnique: false, isCustom: false, order: 1 },
-  { id: 'field_status', key: 'status', label: 'Status', type: 'select', group: 'Core Details', isActive: true, isRequired: true, isUnique: false, isCustom: false, order: 2, options: TASK_STATUSES.map(s => ({id: s, value: s, label: s})) },
+  { id: 'field_status', key: 'status', label: 'Status', type: 'select', group: 'Core Details', isActive: true, isRequired: true, isUnique: false, isCustom: false, order: 2, options: DEFAULT_STATUS_CONFIGS.map(s => ({id: s.id, value: s.name, label: s.name})) },
   { id: 'field_repositories', key: 'repositories', label: 'Repositories', type: 'multiselect', group: 'Assignment & Tracking', isActive: true, isRequired: true, isUnique: false, isCustom: false, order: 3, options: INITIAL_REPOSITORY_CONFIGS.map(r => ({id: r.id, value: r.name, label: r.name})) },
   { id: 'field_developers', key: 'developers', label: 'Developers', type: 'tags', group: 'Assignment & Tracking', isActive: true, isRequired: true, isUnique: false, isCustom: false, order: 4, options: [] },
   { id: 'field_testers', key: 'testers', label: 'Testers', type: 'tags', group: 'Assignment & Tracking', isActive: true, isRequired: false, isUnique: false, isCustom: false, order: 5, options: [] },

@@ -25,7 +25,7 @@ import {
     purgeExpiredNotifications
 } from '@/lib/data';
 import type { Task, Note, Log, Company, MyTaskManagerData, CompanyData, UserPreferences, AppNotification, UserProfile } from '@/lib/types';
-import { INITIAL_RELEASES, INITIAL_UI_CONFIG, TASK_STATUSES, INITIAL_REPOSITORY_CONFIGS, ENVIRONMENTS } from '@/lib/constants';
+import { INITIAL_RELEASES, INITIAL_UI_CONFIG, TASK_STATUSES, INITIAL_REPOSITORY_CONFIGS, ENVIRONMENTS, DEFAULT_STATUS_CONFIGS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { usePathname, useRouter } from 'next/navigation';
@@ -33,6 +33,7 @@ import { useToast } from './use-toast';
 import { Button } from '@/components/ui/button';
 import { Rocket, MessageSquare, Bell, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { syncTaskStatuses } from '@/lib/status-config';
 
 const LAST_NOTIFICATION_MARKER_KEY = 'taskflow_last_notification_marker';
 
@@ -500,11 +501,12 @@ function _getEmptyCompanyData(): CompanyData {
         developers: [],
         testers: [],
         notes: [],
-        uiConfig: {
+        uiConfig: syncTaskStatuses({
             fields: INITIAL_UI_CONFIG,
             environments: [...ENVIRONMENTS],
             repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
             taskStatuses: [...TASK_STATUSES],
+            statusConfigs: [...DEFAULT_STATUS_CONFIGS],
             appName: 'New Cloud Company',
             appIcon: null,
             remindersEnabled: true,
@@ -514,7 +516,7 @@ function _getEmptyCompanyData(): CompanyData {
             autoBackupTime: 6,
             currentVersion: '1.1.0',
             authenticationMode: 'authenticate',
-        },
+        }),
         logs: [],
         generalReminders: [],
         releaseUpdates: [...INITIAL_RELEASES],

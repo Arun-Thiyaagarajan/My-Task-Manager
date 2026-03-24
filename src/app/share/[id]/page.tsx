@@ -6,6 +6,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { getTaskById, getUiConfig } from '@/lib/data';
 import type { Task, UiConfig, Environment, Attachment } from '@/lib/types';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
+import { StatusIcon } from '@/lib/status-config';
 import { TaskStatusBadge, getStatusConfig } from '@/components/task-status-badge';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -206,8 +207,8 @@ function SharedTaskContent() {
     }
 
     const relevantEnvs = (task.relevantEnvironments || []).map(name => uiConfig.environments.find(e => e.name === name)).filter((e): e is Environment => !!e);
-    const statusConfig = getStatusConfig(task.status);
-    const { Icon, cardClassName, iconColorClassName } = statusConfig;
+    const statusConfig = getStatusConfig(task.status, uiConfig);
+    const { cardClassName } = statusConfig;
 
     const deploymentLabel = fieldLabels.get('deploymentStatus') || 'Deployments';
     const prLinksLabel = fieldLabels.get('prLinks') || 'Pull Request Links';
@@ -251,13 +252,13 @@ function SharedTaskContent() {
                     
                     {/* MAIN COLUMN */}
                     <div className="lg:col-span-2 space-y-6">
-                        <Card className={cn("relative overflow-hidden", cardClassName)}>
-                            <Icon className={cn('absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none opacity-20', iconColorClassName)} />
+                        <Card className={cn("relative overflow-hidden", cardClassName)} style={statusConfig.cardStyle}>
+                            <StatusIcon status={task.status} uiConfig={uiConfig} className="absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none opacity-20" style={statusConfig.backgroundIconStyle} />
                             <div className="relative z-10 flex flex-col h-full">
                                 <CardHeader className="pb-2">
                                     <div className="flex justify-between items-start gap-4">
                                         <CardTitle className="text-3xl font-semibold tracking-tight">{task.title}</CardTitle>
-                                        <TaskStatusBadge status={task.status} variant="prominent" />
+                                        <TaskStatusBadge status={task.status} variant="prominent" uiConfig={uiConfig} />
                                     </div>
                                     <CardDescription className="font-normal">Snapshot Timestamp: {formatTimestamp(task.updatedAt, uiConfig.timeFormat)}</CardDescription>
                                 </CardHeader>

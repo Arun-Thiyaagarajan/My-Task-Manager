@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, memo } from 'react';
+import React, { useState, useEffect, memo, useRef } from 'react';
 import Link from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import {
@@ -45,6 +45,8 @@ import { Checkbox } from './ui/checkbox';
 import { EnvironmentStatus } from './environment-status';
 import { TaskTableRowSkeleton } from './task-card-skeleton';
 import { Skeleton } from './ui/skeleton';
+import { StatusIcon, getStatusDisplayName, isStatusValue, getStatusId } from '@/lib/status-config';
+import { scheduleStatusUpdate } from '@/lib/status-update';
 
 interface TasksTableRowProps {
   task: Task;
@@ -73,31 +75,63 @@ const TasksTableRow = memo(function TasksTableRow({
 }: TasksTableRowProps) {
   const [task, setTask] = useState(initialTask);
   const [justUpdatedEnv, setJustUpdatedEnv] = useState<string | null>(null);
+  const [justUpdatedStatus, setJustUpdatedStatus] = useState<string | null>(null);
+  const [isStatusSaving, setIsStatusSaving] = useState(false);
   const [isOpening, setIsOpening] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  const statusDebounceRef = useRef<number | null>(null);
+  const statusRequestRef = useRef(0);
 
   useEffect(() => {
     setTask(initialTask);
   }, [initialTask]);
 
+  useEffect(() => {
+    return () => {
+      if (statusDebounceRef.current) {
+        window.clearTimeout(statusDebounceRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!justUpdatedStatus) return;
+    const timer = window.setTimeout(() => setJustUpdatedStatus(null), 280);
+    return () => window.clearTimeout(timer);
+  }, [justUpdatedStatus]);
+
   const handleStatusChange = (newStatus: TaskStatus) => {
-    const updatedTask = updateTask(task.id, { status: newStatus });
-    if (updatedTask) {
-      setTask(updatedTask);
-      onTaskUpdate();
-      toast({
-        variant: 'success',
-        title: 'Status Updated',
-        description: `Task status changed to "${newStatus}".`,
-      });
-    } else {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to update task status.',
-      });
-    }
+    if (newStatus === task.status || isStatusSaving && newStatus === justUpdatedStatus) return;
+
+    setIsStatusSaving(true);
+    setJustUpdatedStatus(newStatus);
+
+    scheduleStatusUpdate({
+      task,
+      newStatus,
+      debounceRef: statusDebounceRef,
+      requestRef: statusRequestRef,
+      applyOptimistic: setTask,
+      onPersisted: () => {
+        setIsStatusSaving(false);
+        toast({
+          variant: 'success',
+          title: 'Status Updated',
+          description: `Task status changed to "${newStatus}".`,
+          duration: 2000,
+        });
+      },
+      onError: () => {
+        setIsStatusSaving(false);
+        setJustUpdatedStatus(null);
+        toast({
+          variant: 'destructive',
+          title: 'Status Reverted',
+          description: 'Could not save the status change.',
+        });
+      },
+    });
   };
 
   const handleToggleDeployment = (env: string) => {
@@ -153,8 +187,7 @@ const TasksTableRow = memo(function TasksTableRow({
     .map((id) => testersById.get(id))
     .filter((t): t is Person => !!t);
 
-  const statusConfig = getStatusConfig(task.status);
-  const { Icon, iconColorClassName } = statusConfig;
+  const statusConfig = getStatusConfig(task.status, uiConfig);
   
   const allRelevantEnvs = (uiConfig?.environments || []).filter(e => (task.relevantEnvironments || ['dev','stage','production']).includes(e.name));
 
@@ -178,11 +211,10 @@ const TasksTableRow = memo(function TasksTableRow({
         </TableCell>
        )}
       <TableCell className="font-medium max-w-xs relative overflow-hidden align-top">
-        <Icon className={cn(
+        <StatusIcon status={task.status} uiConfig={uiConfig} className={cn(
           "absolute -bottom-8 -left-8 h-24 w-24 pointer-events-none transition-transform duration-300 ease-in-out z-0",
-          iconColorClassName,
-          task.status !== 'In Progress' && 'group-hover/row:scale-110 group-hover/row:rotate-6'
-        )} />
+          !isStatusValue(task.status, 'in_progress', uiConfig) && 'group-hover/row:scale-110 group-hover/row:rotate-6'
+        )} style={statusConfig.backgroundIconStyle} />
         <div className="relative z-10">
             <a
               href={`/tasks/${task.id}?${currentQueryString}`}
@@ -208,22 +240,21 @@ const TasksTableRow = memo(function TasksTableRow({
               disabled={isOpening}
               className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
             >
-              <TaskStatusBadge status={task.status} />
+              <TaskStatusBadge status={task.status} uiConfig={uiConfig} className={cn((isStatusSaving || justUpdatedStatus === task.status) && 'animate-status-in', isStatusSaving && 'opacity-90')} />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel className="font-medium">Set Status</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {(uiConfig?.taskStatuses || []).map((s) => {
-              const currentStatusConfig = getStatusConfig(s);
-              const { Icon } = currentStatusConfig;
+              const currentStatusConfig = getStatusConfig(s, uiConfig);
               return (
                 <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)} className="font-normal">
                   <div className="flex items-center gap-2">
-                    <Icon className={cn("h-3 w-3", s === 'In Progress' && 'animate-spin')} />
+                    <StatusIcon status={s} uiConfig={uiConfig} className={cn("h-3 w-3", currentStatusConfig.shouldSpin && 'animate-spin')} />
                     <span>{s}</span>
                   </div>
-                  {task.status === s && <Check className="ml-auto h-4 w-4" />}
+                  {getStatusDisplayName(task.status, uiConfig) === s && <Check className="ml-auto h-4 w-4" />}
                 </DropdownMenuItem>
               )
             })}
@@ -369,15 +400,15 @@ export const TasksTable = memo(function TasksTable({
     isDeveloper: boolean;
   } | null>(null);
 
-  const priorityStatuses = ['To Do', 'In Progress', 'Code Review', 'QA'];
+  const priorityStatusIds = ['todo', 'in_progress', 'code_review', 'qa'];
   
-  const priorityTasks = tasks.filter(task => priorityStatuses.includes(task.status));
-  const completedTasks = tasks.filter(task => task.status === 'Done');
-  const holdTasks = tasks.filter(task => task.status === 'Hold');
+  const priorityTasks = tasks.filter(task => priorityStatusIds.includes(getStatusId(task.status, uiConfig)));
+  const completedTasks = tasks.filter(task => getStatusId(task.status, uiConfig) === 'done');
+  const holdTasks = tasks.filter(task => getStatusId(task.status, uiConfig) === 'hold');
   const otherTasks = tasks.filter(task => 
-    !priorityStatuses.includes(task.status) && 
-    task.status !== 'Done' && 
-    task.status !== 'Hold'
+    !priorityStatusIds.includes(getStatusId(task.status, uiConfig)) && 
+    getStatusId(task.status, uiConfig) !== 'done' && 
+    getStatusId(task.status, uiConfig) !== 'hold'
   );
 
   const fieldLabels = new Map((uiConfig?.fields || []).map((f) => [f.key, f.label]));

@@ -58,6 +58,7 @@ import {
   Fingerprint,
 } from 'lucide-react';
 import { cn, fuzzySearch } from '@/lib/utils';
+import { getStatusDisplayName } from '@/lib/status-config';
 import type { Task, Person, UiConfig, RepositoryConfig, Log, GeneralReminder, BackupFrequency, Environment, UserPreferences, AuthMode } from '@/lib/types';
 import {
   Popover,
@@ -453,7 +454,8 @@ export default function Home() {
             const results = tasks.filter((task: Task) => {
                 if (favoritesOnly && !task.isFavorite) return false;
 
-                const statusMatch = statusFilter.length === 0 || statusFilter.includes(task.status);
+                const resolvedStatus = getStatusDisplayName(task.status, uiConfig);
+                const statusMatch = statusFilter.length === 0 || statusFilter.includes(resolvedStatus);
                 const repoMatch = repoFilter.length === 0 || (Array.isArray(task.repositories) && task.repositories?.some(repo => repoFilter.includes(repo)) || false);
                 const tagsMatch = tagsFilter.length === 0 || (task.tags?.some(tag => tagsFilter.includes(tag)) ?? false);
 
@@ -509,8 +511,8 @@ export default function Home() {
                 }
 
                 if (sortBy === 'status') {
-                    const aIndex = taskStatuses.indexOf(a.status);
-                    const bIndex = taskStatuses.indexOf(b.status);
+                    const aIndex = taskStatuses.indexOf(getStatusDisplayName(a.status, uiConfig));
+                    const bIndex = taskStatuses.indexOf(getStatusDisplayName(b.status, uiConfig));
                     return sortDirection === 'asc' ? aIndex - bIndex : bIndex - aIndex;
                 }
 

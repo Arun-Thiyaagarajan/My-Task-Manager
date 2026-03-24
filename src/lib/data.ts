@@ -1,12 +1,13 @@
 'use client';
 
-import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
+import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES, DEFAULT_STATUS_CONFIGS } from './constants';
 import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile, Feedback, FeedbackMessage, FeedbackStatus, UserProfile, AppNotification } from './types'; 
 import cloneDeep from 'lodash/cloneDeep';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, setDoc, deleteDoc, updateDoc, collection, writeBatch, getDocs, query, orderBy, limit, getDoc, where, addDoc } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { syncTaskStatuses } from './status-config';
 
 export const DATA_KEY = 'my_task_manager_data';
 const AUTH_MODE_KEY = 'taskflow_auth_mode';
@@ -67,11 +68,12 @@ const getInitialData = (): MyTaskManagerData => {
                 developers: [],
                 testers: [],
                 notes: [],
-                uiConfig: { 
+                uiConfig: syncTaskStatuses({ 
                     fields: initialFields,
                     environments: [...ENVIRONMENTS],
                     repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
                     taskStatuses: [...TASK_STATUSES],
+                    statusConfigs: [...DEFAULT_STATUS_CONFIGS],
                     appName: 'My Task Manager',
                     appIcon: null,
                     remindersEnabled: true,
@@ -81,7 +83,7 @@ const getInitialData = (): MyTaskManagerData => {
                     autoBackupTime: 6,
                     currentVersion: '1.1.0',
                     authenticationMode: 'localStorage',
-                },
+                }),
                 logs: [],
                 generalReminders: [],
                 releaseUpdates: [...INITIAL_RELEASES],
@@ -404,15 +406,15 @@ export function getUiConfig(): UiConfig {
     const companyId = getActiveCompanyId();
     const config = data.companyData[companyId]?.uiConfig;
     if (!config) return getInitialData().companyData['company-default'].uiConfig;
-    return config;
+    return syncTaskStatuses(config);
 }
 
 export function setUiConfig(config: UiConfig) {
     const data = getAppData();
-    data.companyData[getActiveCompanyId()].uiConfig = config;
+    data.companyData[getActiveCompanyId()].uiConfig = syncTaskStatuses(config);
     setAppData(data);
     if (getAuthMode() === 'authenticate') {
-        dispatchMutation('uiConfig', '', config, 'set');
+        dispatchMutation('uiConfig', '', data.companyData[getActiveCompanyId()].uiConfig, 'set');
     }
 }
 
@@ -770,8 +772,9 @@ export function addTask(task: Partial<Task>): Task {
     const companyId = getActiveCompanyId();
     const id = `task-${crypto.randomUUID()}`;
     const now = new Date().toISOString();
+    const defaultStatus = getUiConfig().taskStatuses[0] || 'To Do';
     const newTask: Task = {
-        title: '', description: '', status: 'To Do',
+        title: '', description: '', status: defaultStatus,
         ...task,
         id, createdAt: now, updatedAt: now
     } as Task;

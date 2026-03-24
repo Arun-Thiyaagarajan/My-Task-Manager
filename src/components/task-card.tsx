@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, memo } from 'react';
+import { useState, useEffect, memo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { Task, TaskStatus, UiConfig, Person, Environment } from '@/lib/types';
@@ -36,6 +36,8 @@ import { Checkbox } from './ui/checkbox';
 import { FavoriteToggleButton } from './favorite-toggle';
 import { ReminderDialog } from './reminder-dialog';
 import { ShareMenu } from './share-menu';
+import { StatusIcon, getStatusDisplayName, isStatusValue } from '@/lib/status-config';
+import { scheduleStatusUpdate } from '@/lib/status-update';
 
 interface TaskCardProps {
   task: Task;
@@ -59,8 +61,12 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
   const [taskStatuses, setTaskStatuses] = useState<string[]>([]);
   const [personInView, setPersonInView] = useState<{person: Person, isDeveloper: boolean} | null>(null);
   const [justUpdatedEnv, setJustUpdatedEnv] = useState<string | null>(null);
+  const [justUpdatedStatus, setJustUpdatedStatus] = useState<string | null>(null);
+  const [isStatusSaving, setIsStatusSaving] = useState(false);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
   const [isOpening, setIsOpening] = useState(false);
+  const statusDebounceRef = useRef<number | null>(null);
+  const statusRequestRef = useRef(0);
   
   const isSelectable = selectedTaskIds !== undefined && setSelectedTaskIds !== undefined;
   const isSelected = isSelectable && (selectedTaskIds || []).includes(task.id);
@@ -70,29 +76,56 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
   }, [initialTask]);
 
   useEffect(() => {
+    return () => {
+      if (statusDebounceRef.current) {
+        window.clearTimeout(statusDebounceRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!justUpdatedStatus) return;
+    const timer = window.setTimeout(() => setJustUpdatedStatus(null), 280);
+    return () => window.clearTimeout(timer);
+  }, [justUpdatedStatus]);
+
+  useEffect(() => {
       if (uiConfig?.taskStatuses) {
           setTaskStatuses(uiConfig.taskStatuses);
       }
   }, [uiConfig]);
 
   const handleStatusChange = (newStatus: TaskStatus) => {
-    const updatedTask = updateTask(task.id, { status: newStatus });
-    if (updatedTask) {
-      setTask(updatedTask);
-      onTaskUpdate();
-      toast({
-        variant: 'success',
-        title: 'Status Updated',
-        description: `Task status changed to "${newStatus}".`,
-        duration: 3000,
-      });
-    } else {
-       toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to update task status.',
-      });
-    }
+    if (newStatus === task.status || isStatusSaving && newStatus === justUpdatedStatus) return;
+
+    setIsStatusSaving(true);
+    setJustUpdatedStatus(newStatus);
+
+    scheduleStatusUpdate({
+      task,
+      newStatus,
+      debounceRef: statusDebounceRef,
+      requestRef: statusRequestRef,
+      applyOptimistic: setTask,
+      onPersisted: () => {
+        setIsStatusSaving(false);
+        toast({
+          variant: 'success',
+          title: 'Status Updated',
+          description: `Task status changed to "${newStatus}".`,
+          duration: 2000,
+        });
+      },
+      onError: () => {
+        setIsStatusSaving(false);
+        setJustUpdatedStatus(null);
+        toast({
+          variant: 'destructive',
+          title: 'Status Reverted',
+          description: 'Could not save the status change.',
+        });
+      },
+    });
   };
 
   const handleToggleDeployment = (env: string) => {
@@ -183,8 +216,8 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
 
   const showMoreOptions = assignedDevelopers.length > 2 || assignedTesters.length > 2;
 
-  const statusConfig = getStatusConfig(task.status);
-  const { Icon, cardClassName, iconColorClassName } = statusConfig;
+  const statusConfig = getStatusConfig(task.status, uiConfig);
+  const { cardClassName } = statusConfig;
 
   const allRelevantEnvs = (uiConfig?.environments || []).filter(e => (task.relevantEnvironments || ['dev','stage','production']).includes(e.name));
 
@@ -203,6 +236,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
             isSelected && "selected-card",
             isOpening && "opacity-80"
           )}
+          style={statusConfig.cardStyle}
         >
           {isOpening && (
             <div className="absolute inset-0 z-50 bg-background/60 backdrop-blur-[2px] flex items-center justify-center rounded-lg animate-in fade-in duration-200">
@@ -222,11 +256,10 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
               onClick={(e) => e.stopPropagation()}
             />
           )}
-          <Icon className={cn(
+          <StatusIcon status={task.status} uiConfig={uiConfig} className={cn(
             "absolute -bottom-8 -right-8 h-36 w-36 pointer-events-none transition-transform duration-300 ease-in-out",
-            iconColorClassName,
-            task.status !== 'In Progress' && 'group-hover/card:scale-110 group-hover/card:-rotate-6'
-          )} />
+            !isStatusValue(task.status, 'in_progress', uiConfig) && 'group-hover/card:scale-110 group-hover/card:-rotate-6'
+          )} style={statusConfig.backgroundIconStyle} />
           <div className="flex flex-col flex-grow z-10">
             <CardHeader className="p-4 pb-2">
                 <div className="flex items-start justify-between gap-2">
@@ -274,22 +307,21 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" disabled={isOpening} className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0" onClick={e => e.stopPropagation()}>
-                              <TaskStatusBadge status={task.status} />
+                              <TaskStatusBadge status={task.status} uiConfig={uiConfig} className={cn((isStatusSaving || justUpdatedStatus === task.status) && 'animate-status-in', isStatusSaving && 'opacity-90')} />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" onClick={e => e.stopPropagation()}>
                             <DropdownMenuLabel className="font-medium">Set Status</DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             {(taskStatuses || []).map(s => {
-                              const currentStatusConfig = getStatusConfig(s);
-                              const { Icon } = currentStatusConfig;
+                              const currentStatusConfig = getStatusConfig(s, uiConfig);
                               return (
                                 <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)} className="font-normal">
                                   <div className="flex items-center gap-2">
-                                    <Icon className={cn("h-3 w-3", s === 'In Progress' && 'animate-spin')} />
+                                    <StatusIcon status={s} uiConfig={uiConfig} className={cn("h-3 w-3", currentStatusConfig.shouldSpin && 'animate-spin')} />
                                     <span>{s}</span>
                                   </div>
-                                  {task.status === s && <Check className="ml-auto h-4 w-4" />}
+                                  {getStatusDisplayName(task.status, uiConfig) === s && <Check className="ml-auto h-4 w-4" />}
                                 </DropdownMenuItem>
                               )
                             })}

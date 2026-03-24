@@ -121,6 +121,8 @@ import { FieldFormContent } from '@/components/field-form-content';
 import { EnvironmentFormContent } from '@/components/environment-form-content';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import type { StatusConfigItem } from '@/lib/types';
+import { getStatusConfigs, syncTaskStatuses } from '@/lib/status-config';
 
 const isActualImage = (url: string | null | undefined) => {
     if (!url) return false;
@@ -138,6 +140,7 @@ export default function SettingsPage() {
   const [uiConfig, setUiConfigState] = useState<UiConfig | null>(null);
   const [localFields, setLocalFields] = useState<FieldConfig[]>([]);
   const [localRepositoryConfigs, setLocalRepositoryConfigs] = useState<RepositoryConfig[]>([]);
+  const [localStatusConfigs, setLocalStatusConfigs] = useState<StatusConfigItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isClearing, setIsClearing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -216,6 +219,7 @@ export default function SettingsPage() {
     setUiConfigState(config);
     setLocalFields(config?.fields || []);
     setLocalRepositoryConfigs(config?.repositoryConfigs || []);
+    setLocalStatusConfigs(getStatusConfigs(config));
     setAppName(config?.appName || '');
     setAppIcon(config?.appIcon || '');
     setTimeFormat(config?.timeFormat || '12h');
@@ -242,9 +246,10 @@ export default function SettingsPage() {
     if (!uiConfig) return false;
     return (
       JSON.stringify(localFields) !== JSON.stringify(uiConfig.fields) ||
-      JSON.stringify(localRepositoryConfigs) !== JSON.stringify(uiConfig.repositoryConfigs || [])
+      JSON.stringify(localRepositoryConfigs) !== JSON.stringify(uiConfig.repositoryConfigs || []) ||
+      JSON.stringify(localStatusConfigs) !== JSON.stringify(getStatusConfigs(uiConfig))
     );
-  }, [localFields, localRepositoryConfigs, uiConfig]);
+  }, [localFields, localRepositoryConfigs, localStatusConfigs, uiConfig]);
 
   // Auto-scroll to top when unsaved changes alert appears
   useEffect(() => {
@@ -393,14 +398,21 @@ export default function SettingsPage() {
   };
 
   const performSaveFields = () => {
-    handleUpdateConfig({ fields: localFields, repositoryConfigs: localRepositoryConfigs });
+    const nextConfig = syncTaskStatuses({
+      ...uiConfig!,
+      fields: localFields,
+      repositoryConfigs: localRepositoryConfigs,
+      statusConfigs: localStatusConfigs,
+      taskStatuses: localStatusConfigs.map(status => status.name),
+    });
+    handleUpdateConfig(nextConfig);
     toast({ variant: 'success', title: 'Field configuration saved successfully.' });
     setIsDeactivateConfirmOpen(false);
     setPendingDeactivateFields([]);
     if (isMobile) setActiveMobileSection('fields');
   };
 
-  const handleSaveField = (updatedField: FieldConfig, repoConfigs?: RepositoryConfig[]) => {
+  const handleSaveField = (updatedField: FieldConfig, repoConfigs?: RepositoryConfig[], statusConfigs?: StatusConfigItem[]) => {
     let newFields = [...localFields];
     const index = newFields.findIndex(f => f.id === updatedField.id);
     if (index !== -1) {
@@ -413,6 +425,15 @@ export default function SettingsPage() {
     }
     setLocalFields(newFields);
     if (repoConfigs) setLocalRepositoryConfigs(repoConfigs);
+    if (updatedField.key === 'status' && statusConfigs) {
+      setLocalStatusConfigs(getStatusConfigs({
+        ...uiConfig!,
+        fields: newFields,
+        repositoryConfigs: repoConfigs || localRepositoryConfigs,
+        statusConfigs,
+        taskStatuses: statusConfigs.map(status => status.name),
+      }));
+    }
     
     if (isMobile) setActiveMobileSection('fields');
   };
@@ -779,9 +800,10 @@ export default function SettingsPage() {
                         <FieldFormContent 
                             field={fieldToEdit} 
                             existingFields={localFields}
-                            repositoryConfigs={localRepositoryConfigs} 
+                            repositoryConfigs={localRepositoryConfigs}
+                            statusConfigs={localStatusConfigs}
                             onSave={handleSaveField} 
-                            onCancel={() => setActiveMobileSection('fields')} 
+                            onCancel={() => setActiveMobileSection('fields')}
                         />
                     </div>
                 )}
@@ -1360,7 +1382,8 @@ export default function SettingsPage() {
         onOpenChange={setIsFieldDialogOpen} 
         field={fieldToEdit} 
         existingFields={localFields}
-        repositoryConfigs={localRepositoryConfigs} 
+        repositoryConfigs={localRepositoryConfigs}
+        statusConfigs={localStatusConfigs}
         onSave={handleSaveField} 
       />
       <EditEnvironmentDialog isOpen={isEnvDialogOpen} onOpenChange={setIsEnvDialogOpen} environment={envToEdit} onSave={handleSaveEnv} />

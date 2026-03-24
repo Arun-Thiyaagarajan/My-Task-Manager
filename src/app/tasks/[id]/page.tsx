@@ -54,6 +54,8 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { ShareMenu } from '@/components/share-menu';
 import { triggerTransfer } from '@/components/file-transfer-indicator';
 import { Calendar } from '@/components/ui/calendar';
+import { StatusIcon, getStatusDisplayName, isStatusValue } from '@/lib/status-config';
+import { scheduleStatusUpdate } from '@/lib/status-update';
 
 
 const isImageUrl = (url: string): boolean => {
@@ -100,9 +102,13 @@ export default function TaskPage() {
   const [isCopying, setIsCopying] = useState(false);
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState<any>('');
+  const [justUpdatedStatus, setJustUpdatedStatus] = useState<string | null>(null);
+  const [isStatusSaving, setIsStatusSaving] = useState(false);
 
   const titleInputRef = useRef<HTMLInputElement>(null);
   const descriptionEditorRef = useRef<HTMLTextAreaElement>(null);
+  const statusDebounceRef = useRef<number | null>(null);
+  const statusRequestRef = useRef(0);
   
   const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
   const taskId = params.id as string;
@@ -154,6 +160,20 @@ export default function TaskPage() {
         window.removeEventListener('sync-complete', loadData);
     };
   }, [taskId, isUserLoading]);
+
+  useEffect(() => {
+    return () => {
+      if (statusDebounceRef.current) {
+        window.clearTimeout(statusDebounceRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!justUpdatedStatus) return;
+    const timer = window.setTimeout(() => setJustUpdatedStatus(null), 280);
+    return () => window.clearTimeout(timer);
+  }, [justUpdatedStatus]);
 
   useEffect(() => {
     if (!task || task.deletedAt) {
@@ -329,23 +349,37 @@ export default function TaskPage() {
 
   const handleStatusChange = (newStatus: TaskStatus) => {
     if (!task) return;
+    if (newStatus === task.status || isStatusSaving && newStatus === justUpdatedStatus) return;
 
-    const updatedTask = updateTask(task.id, { status: newStatus });
-    if(updatedTask) {
-        setTask(updatedTask);
-        setTaskLogs(getLogsForTask(task.id));
-        toast({
-            variant: 'success',
-            title: 'Status Updated',
-            description: `Task status changed to "${newStatus}".`,
-        });
-    } else {
-        toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'Failed to update task status.',
-        });
-    }
+    setIsStatusSaving(true);
+    setJustUpdatedStatus(newStatus);
+
+    scheduleStatusUpdate({
+        task,
+        newStatus,
+        debounceRef: statusDebounceRef,
+        requestRef: statusRequestRef,
+        applyOptimistic: setTask,
+        onPersisted: (updatedTask) => {
+            setIsStatusSaving(false);
+            setTaskLogs(getLogsForTask(updatedTask.id));
+            toast({
+                variant: 'success',
+                title: 'Status Updated',
+                description: `Task status changed to "${newStatus}".`,
+                duration: 2000,
+            });
+        },
+        onError: () => {
+            setIsStatusSaving(false);
+            setJustUpdatedStatus(null);
+            toast({
+                variant: 'destructive',
+                title: 'Status Reverted',
+                description: 'Could not save the status change.',
+            });
+        }
+    });
   };
 
   const handleToggleDeployment = (env: string) => {
@@ -812,8 +846,8 @@ const handleCopyDescription = () => {
   const isBinned = !!task.deletedAt;
   const backLink = isBinned ? '/bin' : `/?${searchParams.toString()}`;
   
-  const statusConfig = getStatusConfig(task.status);
-  const { Icon, cardClassName, iconColorClassName } = statusConfig;
+  const statusConfig = getStatusConfig(task.status, uiConfig);
+  const { cardClassName } = statusConfig;
 
   const fieldLabels = new Map((uiConfig?.fields || []).map(f => [f.key, f.label]));
 
@@ -962,8 +996,8 @@ const handleCopyDescription = () => {
 
         <div id="task-detail-main" className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
           <div className="lg:col-span-2 space-y-6">
-            <Card className={cn("relative overflow-hidden group/card", cardClassName)}>
-                <Icon className={cn('absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none transition-transform duration-300 ease-in-out', iconColorClassName, task.status !== 'In Progress' && 'group-hover/card:scale-110 group-hover/card:-rotate-6')} />
+            <Card className={cn("relative overflow-hidden group/card", cardClassName)} style={statusConfig.cardStyle}>
+                <StatusIcon status={task.status} uiConfig={uiConfig} className={cn('absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none transition-transform duration-300 ease-in-out', !isStatusValue(task.status, 'in_progress', uiConfig) && 'group-hover/card:scale-110 group-hover/card:-rotate-6')} style={statusConfig.backgroundIconStyle} />
                 <div className="relative z-10 flex flex-col h-full">
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start gap-4">
@@ -1011,22 +1045,21 @@ const handleCopyDescription = () => {
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" disabled={isBinned} className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-100">
-                              <TaskStatusBadge status={task.status} variant="prominent" />
+                              <TaskStatusBadge status={task.status} variant="prominent" uiConfig={uiConfig} className={cn((isStatusSaving || justUpdatedStatus === task.status) && 'animate-status-in', isStatusSaving && 'opacity-90')} />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel className="font-medium">Set Status</DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             {(uiConfig?.taskStatuses || []).map(s => {
-                              const currentStatusConfig = getStatusConfig(s);
-                              const { Icon } = currentStatusConfig;
+                              const currentStatusConfig = getStatusConfig(s, uiConfig);
                               return (
                                 <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)} className="font-normal">
                                   <div className="flex items-center gap-2">
-                                    <Icon className={cn("h-3 w-3", s === 'In Progress' && 'animate-spin')} />
+                                    <StatusIcon status={s} uiConfig={uiConfig} className={cn("h-3 w-3", currentStatusConfig.shouldSpin && 'animate-spin')} />
                                     <span>{s}</span>
                                   </div>
-                                  {task.status === s && <Check className="ml-auto h-4 w-4" />}
+                                  {getStatusDisplayName(task.status, uiConfig) === s && <Check className="ml-auto h-4 w-4" />}
                                 </DropdownMenuItem>
                               )
                             })}
