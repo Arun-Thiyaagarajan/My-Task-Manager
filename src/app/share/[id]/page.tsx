@@ -218,7 +218,7 @@ function SharedTaskContent() {
     const attachmentsLabel = fieldLabels.get('attachments') || 'Attachments';
     const otherDetailsLabel = fieldLabels.get('customFields') || 'Other Details';
 
-    const prField = () => uiConfig?.fields?.find(f => f.key === 'prLinks' && f.isActive);
+    const isPrFieldExist = () => uiConfig?.fields?.find(f => f.key === 'prLinks' && f.isActive);
     
     // Standard fields we don't treat as "custom" in the other details section
     const standardKeys = ['title', 'description', 'status', 'repositories', 'developers', 'testers', 'azureWorkItemId', 'tags', 'prLinks', 'attachments', 'deploymentStatus', 'relevantEnvironments', 'devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate', 'comments', 'summary'];
@@ -275,7 +275,7 @@ function SharedTaskContent() {
                             </div>
                         </Card>
 
-                        <div className={cn("grid grid-cols-1 gap-6", prField() ? "md:grid-cols-2" : "")}>
+                        <div className={cn("grid grid-cols-1 gap-6", isPrFieldExist() ? "md:grid-cols-2" : "")}>
                             <Card>
                                 <CardHeader><CardTitle className="flex items-center gap-2 text-xl font-semibold"><CheckCircle2 className="h-5 w-5" />{deploymentLabel}</CardTitle></CardHeader>
                                 <CardContent>
@@ -295,7 +295,7 @@ function SharedTaskContent() {
                                 </CardContent>
                             </Card>
                             {
-                                prField() && (
+                                isPrFieldExist() && (
                                     <Card>
                                         <CardHeader><CardTitle className="flex items-center gap-2 text-xl font-semibold"><GitMerge className="h-5 w-5" />{prLinksLabel}</CardTitle></CardHeader>
                                         <CardContent><PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} configuredEnvs={relevantEnvs.map(e => e.name)} repositoryConfigs={uiConfig.repositoryConfigs} isEditing={false} /></CardContent>

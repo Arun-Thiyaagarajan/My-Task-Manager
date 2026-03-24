@@ -447,9 +447,9 @@ const _drawTaskOnPage = async (
         }
     });
 
-    const prField = () => uiConfig?.fields?.find(f => f.key === 'prLinks' && f.isActive);
+    const isPrFieldExist = () => uiConfig?.fields?.find(f => f.key === 'prLinks' && f.isActive);
 
-    if (prField() && task.prLinks && Object.keys(task.prLinks).length > 0) {
+    if (isPrFieldExist() && task.prLinks && Object.keys(task.prLinks).length > 0) {
         let firstPrLabel = '';
         let firstPrValue: { text: string; link: string } | '' = '';
         outer: for (const [env, repos] of Object.entries(task.prLinks)) {
