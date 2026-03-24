@@ -1136,7 +1136,7 @@ const handleCopyDescription = () => {
                 </div>
             </Card>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className={cn("grid grid-cols-1 gap-6", prField ? "md:grid-cols-2" : "")}>
                 {deploymentField && (
                   <Card id="task-detail-deployment">
                     <CardHeader>
