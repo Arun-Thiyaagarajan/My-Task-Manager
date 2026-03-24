@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X, Info, Users, ClipboardCheck, ListChecks, CalendarIcon } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X, Info, Users, ClipboardCheck, ListChecks, CalendarIcon, Save, Cross } from 'lucide-react';
 import type { FieldConfig, FieldOption, FieldType, RepositoryConfig, StatusConfigItem } from '@/lib/types';
 import { FIELD_TYPES } from '@/lib/constants';
 import * as React from 'react';
@@ -25,12 +25,15 @@ import { Calendar } from './ui/calendar';
 import { format } from 'date-fns';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { AVAILABLE_STATUS_ICONS, STATUS_COLOR_SWATCHES, buildStatusConfigItem, pickDefaultIconName, StatusIcon } from '@/lib/status-config';
+import { v4 as uuidv4 } from 'uuid';
 
 const fieldOptionSchema = z.object({
     id: z.string(),
     label: z.string().min(1, "Label is required"),
     value: z.string().min(1, "Value is required"),
 });
+
+const randomId = () => uuidv4();
 
 const fieldSchema = z.object({
   label: z.string().min(2, { message: 'Label must be at least 2 characters.' }),
@@ -180,7 +183,7 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, sta
   const handleAddTag = () => {
     const trimmedTag = newTag.trim();
     if (trimmedTag && !options.some(opt => opt.value.toLowerCase() === trimmedTag.toLowerCase())) {
-        const newOption = { id: `option_${crypto.randomUUID()}`, label: trimmedTag, value: trimmedTag };
+        const newOption = { id: `option_${randomId}`, label: trimmedTag, value: trimmedTag };
         append(newOption);
         setAllTags(prev => {
             const filtered = prev.filter(t => t.value.toLowerCase() !== trimmedTag.toLowerCase());
@@ -225,7 +228,7 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, sta
 
     const finalField: FieldConfig = {
       ...(field || {
-        id: `field_custom_${crypto.randomUUID()}`,
+        id: `field_custom_${randomId}`,
         key: '',
         order: 0,
         isCustom: true,
@@ -264,7 +267,7 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, sta
       ...prev,
       buildStatusConfigItem(
         {
-          id: `custom_status_${crypto.randomUUID()}`,
+          id: `custom_status_${randomId}`,
           name: `New Status ${order + 1}`,
           color: '#64748b',
           icon: 'circle',
@@ -603,7 +606,7 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, sta
                             <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)} className="shrink-0 h-9 w-9 rounded-full"><Trash2 className="h-4 w-4" /></Button>
                         </div>
                     ))}
-                    <Button type="button" variant="outline" size="sm" onClick={() => append({id: `option_${crypto.randomUUID()}`, label: '', value: ''})} className="w-full h-11 border-dashed rounded-xl font-bold">
+                    <Button type="button" variant="outline" size="sm" onClick={() => append({id: `option_${randomId}`, label: '', value: ''})} className="w-full h-11 border-dashed rounded-xl font-bold">
                         <PlusCircle className="h-4 w-4 mr-2" /> Add Option
                     </Button>
                 </div>
@@ -663,7 +666,10 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, sta
             {isStatusField && (
                 <div className="space-y-3 pt-4 border-t">
                     <h4 className="font-bold">Status Configurations</h4>
-                    <div className="space-y-3 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
+                    <FormDescription className="text-xs leading-relaxed">
+                        Rename built-in statuses or add your own. Existing task values remain mapped through aliases, and at least one status is always required.
+                    </FormDescription>                    
+                    <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar">
                         {localStatusConfigs.map((status) => (
                             <div key={status.id} className="p-3 border rounded-2xl bg-muted/20 space-y-3">
                                 <div className="flex items-start gap-3">
@@ -759,11 +765,23 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, sta
                     </Button>
                 </div>
             )}
+            
+            <div className="lg:hidden fixed bottom-24 right-6 z-[60] animate-in zoom-in-50 duration-500">
+                <Button
+                    type="submit"
+                    size="icon"
+                    className="h-14 w-14 rounded-full shadow-2xl transition-all active:scale-90 shadow-black/20"
+                >
+                    <Save className="h-6 w-6" />
+                    <span className="sr-only">Save Task</span>
+                </Button>
+            </div>
 
-            <div className="flex flex-col sm:flex-row gap-2 pt-6 border-t mt-auto">
+            {/* Will remove later */}
+            {/* <div className="flex flex-col sm:flex-row gap-2 pt-6 border-t mt-auto">
                 <Button type="submit" className="flex-1 rounded-2xl h-12 font-bold shadow-lg">Save Changes</Button>
                 <Button type="button" variant="ghost" className="flex-1 rounded-2xl h-12 font-medium" onClick={onCancel}>Cancel</Button>
-            </div>
+            </div> */}
         </form>
     </Form>
   );
