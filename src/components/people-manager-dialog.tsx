@@ -25,7 +25,7 @@ export function PeopleManagerDialog({ type, isOpen, onOpenChange, onSuccess }: P
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl h-[90vh] flex flex-col p-0 overflow-hidden">
+      <DialogContent hideClose className="max-w-3xl h-[90vh] flex flex-col p-0 overflow-hidden">
         <DialogHeader className="sr-only">
           <DialogTitle>Manage {title}s</DialogTitle>
           <DialogDescription>View and manage the list of {title.toLowerCase()}s in your workspace.</DialogDescription>
