@@ -479,7 +479,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
                     name="defaultValue"
                     render={({ field }) => (
                         <FormItem>
-                            <Select onValueChange={field.onChange} value={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value || 'Default'}>
                                 <FormControl>
                                     <SelectTrigger className="h-10 bg-background">
                                         <SelectValue placeholder="Select default option" />
@@ -487,7 +487,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
                                 </FormControl>
                                 <SelectContent>
                                     {currentOptions.map(opt => (
-                                        <SelectItem key={opt.id} value={opt.value}>{opt.label}</SelectItem>
+                                        <SelectItem key={opt.id} value={opt.value || 'Default'}>{opt.label}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
