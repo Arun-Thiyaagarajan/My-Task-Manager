@@ -58,7 +58,7 @@ import {
   Fingerprint,
 } from 'lucide-react';
 import { cn, fuzzySearch } from '@/lib/utils';
-import { getStatusDisplayName } from '@/lib/status-config';
+import { getSortedStatusOptions, getStatusDisplayName } from '@/lib/status-config';
 import type { Task, Person, UiConfig, RepositoryConfig, Log, GeneralReminder, BackupFrequency, Environment, UserPreferences, AuthMode } from '@/lib/types';
 import {
   Popover,
@@ -1480,7 +1480,7 @@ export default function Home() {
                                     selected={statusFilter} 
                                     className={cn(statusFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
                                     onChange={(val) => { setIsSearching(true); setStatusFilter(val); }} 
-                                    options={(uiConfig?.taskStatuses || []).map(s => ({ value: s, label: s }))} 
+                                    options={getSortedStatusOptions(uiConfig).map(option => ({ value: option.value, label: option.label }))} 
                                     placeholder="Status..." 
                                 />
                                 <MultiSelect 
@@ -1695,7 +1695,7 @@ export default function Home() {
                             <div className="hidden md:flex flex-col w-full col-span-1 sm:col-span-2 md:col-span-1">
                                 {searchInputContent}
                             </div>
-                            <MultiSelect selected={statusFilter} className={cn(statusFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")} onChange={(val) => { setIsSearching(true); setStatusFilter(val); }} options={(uiConfig?.taskStatuses || []).map(s => ({ value: s, label: s }))} placeholder="Status..." />
+                            <MultiSelect selected={statusFilter} className={cn(statusFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")} onChange={(val) => { setIsSearching(true); setStatusFilter(val); }} options={getSortedStatusOptions(uiConfig).map(option => ({ value: option.value, label: option.label }))} placeholder="Status..." />
                             <MultiSelect selected={repoFilter} className={cn(repoFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")} onChange={(val) => { setIsSearching(true); setRepoFilter(val); }} options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} placeholder="Repository..." />
                             {(uiConfig?.fields || []).find(f => f.key === 'tags')?.isActive && (
                                 <MultiSelect selected={tagsFilter} className={cn(tagsFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")} onChange={(val) => { setIsSearching(true); setTagsFilter(val); }} options={[...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({value: t, label: t}))} placeholder="Tags..." />

@@ -10,8 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createTaskSchema } from '@/lib/validators';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { generateSummary } from '@/ai/flows/summary-flow';
+import { LoadingSpinner } from '@/components/ui/loading-spinnerimport { generateSummarySafely } from '@/ai/flows/summary-flow';
 
 export default function EditTaskPage() {
   const params = useParams();
@@ -75,13 +74,17 @@ export default function EditTaskPage() {
         deploymentDates: {}
     };
 
+    let summaryGenerationFailed = false;
+
     if (taskDataToUpdate.description && taskDataToUpdate.description !== task.description && taskDataToUpdate.description.length > 200) {
-      try {
-        const summary = await generateSummary({ text: taskDataToUpdate.description });
-        taskDataToUpdate.summary = summary.summary;
-      } catch (error) {
-        console.error('Failed to generate summary:', error);
-        taskDataToUpdate.summary = null;
+      const summaryResult = await generateSummarySafely({ text: taskDataToUpdate.description });
+
+      if (summaryResult.ok) {
+        taskDataToUpdate.summary = summaryResult.summary;
+      } else {
+        summaryGenerationFailed = true;
+        taskDataToUpdate.summary = task.summary ?? null;
+        console.error('Failed to generate summary:', summaryResult.error ?? summaryResult.reason);
       }
     } else if (taskDataToUpdate.description && taskDataToUpdate.description.length <= 200) {
       taskDataToUpdate.summary = null;
@@ -105,6 +108,14 @@ export default function EditTaskPage() {
         title: `Task updated`,
         description: "Your changes have been saved.",
     });
+
+    if (summaryGenerationFailed) {
+      toast({
+        variant: 'warning',
+        title: 'Task updated without a new AI summary',
+        description: 'The description summary could not be refreshed right now. Your task changes were still saved.',
+      });
+    }
 
     router.push(`/tasks/${task.id}`);
   };

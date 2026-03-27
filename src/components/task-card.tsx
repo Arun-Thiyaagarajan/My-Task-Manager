@@ -36,7 +36,7 @@ import { Checkbox } from './ui/checkbox';
 import { FavoriteToggleButton } from './favorite-toggle';
 import { ReminderDialog } from './reminder-dialog';
 import { ShareMenu } from './share-menu';
-import { StatusIcon, getStatusDisplayName, isStatusValue } from '@/lib/status-config';
+import { StatusIcon, getSortedStatusNames, getStatusDisplayName, isStatusValue } from '@/lib/status-config';
 import { scheduleStatusUpdate } from '@/lib/status-update';
 
 interface TaskCardProps {
@@ -90,8 +90,8 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
   }, [justUpdatedStatus]);
 
   useEffect(() => {
-      if (uiConfig?.taskStatuses) {
-          setTaskStatuses(uiConfig.taskStatuses);
+      if (uiConfig) {
+          setTaskStatuses(getSortedStatusNames(uiConfig));
       }
   }, [uiConfig]);
 

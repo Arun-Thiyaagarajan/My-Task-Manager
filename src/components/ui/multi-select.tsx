@@ -150,16 +150,14 @@ export const MultiSelect = React.memo(function MultiSelect({
                     return (
                         <Badge key={value} variant="secondary" className="whitespace-nowrap max-w-[120px] truncate">
                             {label}
-                            {safeSelected.length === 1 && (
-                                <button
-                                    className="ml-1 rounded-full outline-none transition-colors"
-                                    onKeyDown={(e) => { if (e.key === 'Enter') handleUnselect(e, value); }}
-                                    onMouseDown={(e) => e.preventDefault()}
-                                    onClick={(e) => handleUnselect(e, value)}
-                                >
-                                    <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                                </button>
-                            )}
+                            <button
+                                className="ml-1 rounded-full outline-none transition-colors"
+                                onKeyDown={(e) => { if (e.key === 'Enter') handleUnselect(e, value); }}
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={(e) => handleUnselect(e, value)}
+                            >
+                                <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                            </button>
                         </Badge>
                     );
                 })}

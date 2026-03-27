@@ -86,22 +86,25 @@ export function buildStatusConfigItem(
   partial: Partial<StatusConfigItem> & Pick<StatusConfigItem, 'name'>,
   order: number
 ): StatusConfigItem {
-  const id = partial.id || partial.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_') || `status_${order + 1}`;
+  const normalizedName = partial.name.trim();
+  const normalizedGroup = partial.group?.trim() || undefined;
+  const id = partial.id || normalizedName.toLowerCase().replace(/[^a-z0-9]+/g, '_') || `status_${order + 1}`;
   const color = partial.color || DEFAULT_STATUS_CONFIGS[Math.min(order, DEFAULT_STATUS_CONFIGS.length - 1)]?.color || '#64748b';
   const iconData = normalizeStatusIcon({
     icon: partial.icon || '',
     iconType: partial.iconType,
-    name: partial.name,
+    name: normalizedName,
     color,
   });
 
   return {
     id,
-    name: partial.name.trim(),
+    name: normalizedName,
+    group: normalizedGroup,
     color,
     order,
     isDefault: partial.isDefault ?? false,
-    aliases: normalizeStatusAliases({ id, name: partial.name.trim(), aliases: partial.aliases }),
+    aliases: normalizeStatusAliases({ id, name: normalizedName, aliases: partial.aliases }),
     ...iconData,
   };
 }
@@ -130,6 +133,25 @@ export function getStatusConfigs(uiConfig?: UiConfig | null): StatusConfigItem[]
 
 export function getStatusOptions(uiConfig?: UiConfig | null) {
   return getStatusConfigs(uiConfig).map(status => ({ id: status.id, label: status.name, value: status.name }));
+}
+
+export function getSortedStatusOptions(uiConfig?: UiConfig | null) {
+  const options = getStatusOptions(uiConfig);
+  const statusField = uiConfig?.fields?.find(field => field.key === 'status');
+
+  if (statusField?.sortDirection === 'asc') {
+    return [...options].sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  if (statusField?.sortDirection === 'desc') {
+    return [...options].sort((a, b) => b.label.localeCompare(a.label));
+  }
+
+  return options;
+}
+
+export function getSortedStatusNames(uiConfig?: UiConfig | null) {
+  return getSortedStatusOptions(uiConfig).map(option => option.value);
 }
 
 export function resolveStatusConfig(statusValue: TaskStatus, uiConfig?: UiConfig | null): StatusConfigItem {
@@ -163,7 +185,8 @@ export function isStatusValue(statusValue: TaskStatus, statusId: string, uiConfi
 
 export function syncTaskStatuses(config: UiConfig): UiConfig {
   const statusConfigs = getStatusConfigs(config);
-  const statusOptions = getStatusOptions({ ...config, statusConfigs });
+  const normalizedConfig = { ...config, statusConfigs };
+  const statusOptions = getSortedStatusOptions(normalizedConfig);
 
   return {
     ...config,

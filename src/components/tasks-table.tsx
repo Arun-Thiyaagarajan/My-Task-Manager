@@ -45,7 +45,7 @@ import { Checkbox } from './ui/checkbox';
 import { EnvironmentStatus } from './environment-status';
 import { TaskTableRowSkeleton } from './task-card-skeleton';
 import { Skeleton } from './ui/skeleton';
-import { StatusIcon, getStatusDisplayName, isStatusValue, getStatusId } from '@/lib/status-config';
+import { StatusIcon, getSortedStatusNames, getStatusDisplayName, isStatusValue, getStatusId } from '@/lib/status-config';
 import { scheduleStatusUpdate } from '@/lib/status-update';
 
 interface TasksTableRowProps {
@@ -246,7 +246,7 @@ const TasksTableRow = memo(function TasksTableRow({
           <DropdownMenuContent align="end">
             <DropdownMenuLabel className="font-medium">Set Status</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {(uiConfig?.taskStatuses || []).map((s) => {
+            {getSortedStatusNames(uiConfig).map((s) => {
               const currentStatusConfig = getStatusConfig(s, uiConfig);
               return (
                 <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)} className="font-normal">

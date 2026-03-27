@@ -2,12 +2,12 @@ import type { FieldConfig, FieldType, RepositoryConfig, Environment, ReleaseUpda
 
 export const TASK_STATUSES = ['To Do', 'In Progress', 'Code Review', 'QA', 'Hold', 'Done'] as const;
 export const DEFAULT_STATUS_CONFIGS: StatusConfigItem[] = [
-  { id: 'todo', name: 'To Do', color: '#64748b', icon: 'circle', iconType: 'lucide', aliases: ['To Do'], isDefault: true, order: 0 },
-  { id: 'in_progress', name: 'In Progress', color: '#2563eb', icon: 'loader-2', iconType: 'lucide', aliases: ['In Progress'], isDefault: true, order: 1 },
-  { id: 'code_review', name: 'Code Review', color: '#9333ea', icon: 'git-pull-request', iconType: 'lucide', aliases: ['Code Review'], isDefault: true, order: 2 },
-  { id: 'qa', name: 'QA', color: '#d97706', icon: 'bug', iconType: 'lucide', aliases: ['QA'], isDefault: true, order: 3 },
+  { id: 'todo', name: 'To Do', group: 'Backlog', color: '#64748b', icon: 'circle', iconType: 'lucide', aliases: ['To Do'], isDefault: true, order: 0 },
+  { id: 'in_progress', name: 'In Progress', group: 'Active', color: '#2563eb', icon: 'loader-2', iconType: 'lucide', aliases: ['In Progress'], isDefault: true, order: 1 },
+  { id: 'code_review', name: 'Code Review', group: 'Active', color: '#9333ea', icon: 'git-pull-request', iconType: 'lucide', aliases: ['Code Review'], isDefault: true, order: 2 },
+  { id: 'qa', name: 'QA', group: 'Testing', color: '#d97706', icon: 'bug', iconType: 'lucide', aliases: ['QA'], isDefault: true, order: 3 },
   { id: 'hold', name: 'Hold', color: '#52525b', icon: 'pause-circle', iconType: 'lucide', aliases: ['Hold'], isDefault: true, order: 4 },
-  { id: 'done', name: 'Done', color: '#16a34a', icon: 'check-circle-2', iconType: 'lucide', aliases: ['Done'], isDefault: true, order: 5 },
+  { id: 'done', name: 'Done', group: 'Closed', color: '#16a34a', icon: 'check-circle-2', iconType: 'lucide', aliases: ['Done'], isDefault: true, order: 5 },
 ];
 export const ENVIRONMENTS: Environment[] = [
     { id: 'env_1', name: 'dev', color: '#3b82f6', isMandatory: true },

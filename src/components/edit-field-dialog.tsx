@@ -18,7 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X, Users, ClipboardCheck, Info, AlertTriangle, CalendarIcon, Layout, Type, ListChecks } from 'lucide-react';
-import type { FieldConfig, FieldOption, FieldType, RepositoryConfig, Task, StatusConfigItem } from '@/lib/types';
+import type { FieldConfig, FieldOption, FieldType, PendingStatusConversion, RepositoryConfig, Task, StatusConfigItem } from '@/lib/types';
 import { FIELD_TYPES } from '@/lib/constants';
 import * as React from 'react';
 import { getUiConfig, getTasks, updateTask, addLog, getDevelopers, getTesters } from '@/lib/data';
@@ -34,7 +34,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Textarea } from './ui/textarea';
 import { Calendar } from './ui/calendar';
 import { format } from 'date-fns';
-import { AVAILABLE_STATUS_ICONS, STATUS_COLOR_SWATCHES, buildStatusConfigItem, pickDefaultIconName, StatusIcon } from '@/lib/status-config';
+import { buildStatusConfigItem } from '@/lib/status-config';
+import { StatusManagementContent } from '@/components/status-management-content';
 
 
 const fieldOptionSchema = z.object({
@@ -74,14 +75,29 @@ type FieldFormData = z.infer<typeof fieldSchema>;
 interface EditFieldDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (field: FieldConfig, repoConfigs?: RepositoryConfig[], statusConfigs?: StatusConfigItem[]) => void;
+  onSave: (
+    field: FieldConfig,
+    repoConfigs?: RepositoryConfig[],
+    statusConfigs?: StatusConfigItem[],
+    pendingStatusConversions?: PendingStatusConversion[]
+  ) => void;
   field: FieldConfig | null;
   existingFields: FieldConfig[];
   repositoryConfigs?: RepositoryConfig[];
   statusConfigs?: StatusConfigItem[];
+  pendingStatusConversions?: PendingStatusConversion[];
 }
 
-export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingFields, repositoryConfigs, statusConfigs }: EditFieldDialogProps) {
+export function EditFieldDialog({
+  isOpen,
+  onOpenChange,
+  onSave,
+  field,
+  existingFields,
+  repositoryConfigs,
+  statusConfigs,
+  pendingStatusConversions,
+}: EditFieldDialogProps) {
   const isCreating = field === null;
   const { toast } = useToast();
   const getDefaultValueFallback = React.useCallback(
@@ -132,7 +148,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
 
   const selectedType = form.watch('type');
   const showOptions = selectedType === 'select' || selectedType === 'multiselect' || selectedType === 'tags';
-  const isSortableField = showOptions && (!field || field.key !== 'status');
+  const isSortableField = showOptions;
   
   const [allGroups, setAllGroups] = React.useState<string[]>([]);
   const [isGroupPopoverOpen, setIsGroupPopoverOpen] = React.useState(false);
@@ -140,6 +156,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
   
   const [localRepoConfigs, setLocalRepoConfigs] = React.useState<RepositoryConfig[]>([]);
   const [localStatusConfigs, setLocalStatusConfigs] = React.useState<StatusConfigItem[]>([]);
+  const [localPendingStatusConversions, setLocalPendingStatusConversions] = React.useState<PendingStatusConversion[]>(pendingStatusConversions || []);
   const [newTag, setNewTag] = React.useState('');
   
   const [allTags, setAllTags] = React.useState<FieldOption[]>([]);
@@ -218,57 +235,6 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
     }
   };
 
-  const handleAddStatus = () => {
-    const order = localStatusConfigs.length;
-    setLocalStatusConfigs(prev => [
-      ...prev,
-      buildStatusConfigItem(
-        {
-          id: `custom_status_${crypto.randomUUID()}`,
-          name: `New Status ${order + 1}`,
-          color: '#64748b',
-          icon: 'circle',
-          iconType: 'lucide',
-          aliases: [],
-        },
-        order
-      ),
-    ]);
-  };
-
-  const handleUpdateStatus = (id: string, updates: Partial<StatusConfigItem>) => {
-    setLocalStatusConfigs(prev =>
-      prev.map((status, index) => {
-        if (status.id !== id) return status;
-        const nextName = updates.name ?? status.name;
-        return buildStatusConfigItem(
-          {
-            ...status,
-            ...updates,
-            name: nextName,
-            aliases: Array.from(new Set([...(status.aliases || []), status.name].filter(Boolean))),
-            icon: updates.iconType === 'image'
-              ? (updates.icon || status.icon)
-              : (updates.icon || status.icon || pickDefaultIconName(nextName, updates.color || status.color)),
-          },
-          index
-        );
-      })
-    );
-  };
-
-  const handleDeleteStatus = (id: string) => {
-    if (localStatusConfigs.length <= 1) {
-      toast({
-        variant: 'destructive',
-        title: 'Deletion Blocked',
-        description: 'At least one status must always exist.',
-      });
-      return;
-    }
-    setLocalStatusConfigs(prev => prev.filter(status => status.id !== id).map((status, index) => buildStatusConfigItem(status, index)));
-  };
-
   const onSubmit = (data: FieldFormData) => {
     // FINAL STRICT SAVE-TIME VALIDATION
     if (data.isActive && data.isUnique) {
@@ -311,7 +277,8 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
     onSave(
       isStatusField ? { ...finalField, options: finalOptions } : finalField,
       isRepoField ? localRepoConfigs : undefined,
-      finalStatusConfigs
+      finalStatusConfigs,
+      isStatusField ? localPendingStatusConversions : undefined
     );
     onOpenChange(false);
   };
@@ -351,6 +318,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
 
         if (isStatusField) {
           setLocalStatusConfigs((statusConfigs || []).map((status, index) => buildStatusConfigItem(status, index)));
+          setLocalPendingStatusConversions(pendingStatusConversions || []);
         }
 
         if (isTagsField) {
@@ -370,7 +338,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
             replace(predefinedOptions);
         }
     }
-  }, [field, form, isOpen, repositoryConfigs, statusConfigs, isRepoField, isStatusField, isTagsField, replace, isDevelopersField, isTestersField, getDefaultValueFallback]);
+  }, [field, form, isOpen, repositoryConfigs, statusConfigs, pendingStatusConversions, isRepoField, isStatusField, isTagsField, replace, isDevelopersField, isTestersField, getDefaultValueFallback]);
 
   const defaultPersonOptions = React.useMemo(() => {
       if (isDevelopersField) {
@@ -942,106 +910,13 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
                     )}
 
                     {isStatusField && (
-                        <div className="space-y-3 pt-4 border-t">
-                            <h4 className="font-bold tracking-tight">Status Configurations</h4>
-                            <FormDescription className="text-xs leading-relaxed">
-                                Rename built-in statuses or add your own. Existing task values remain mapped through aliases, and at least one status is always required.
-                            </FormDescription>
-                            <div className="space-y-3 max-h-72 overflow-y-auto pr-2 custom-scrollbar">
-                                {localStatusConfigs.map((status) => (
-                                    <div key={status.id} className="p-3 border rounded-2xl bg-muted/20 space-y-3">
-                                        <div className="flex items-start gap-3">
-                                            <div className="h-9 w-9 rounded-xl border bg-background flex items-center justify-center overflow-hidden shrink-0">
-                                                <StatusIcon status={status.name} uiConfig={{ fields: [], environments: [], repositoryConfigs: [], taskStatuses: [], statusConfigs: [status], currentVersion: '', authenticationMode: 'localStorage' }} className="h-4 w-4 object-contain" />
-                                            </div>
-                                            <div className="min-w-0 flex-1 space-y-3">
-                                                <div className="flex items-start gap-2">
-                                                    <div className="flex-1 min-w-0 space-y-1">
-                                                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Name</Label>
-                                                        <Input
-                                                            value={status.name}
-                                                            onChange={(e) => handleUpdateStatus(status.id, { name: e.target.value })}
-                                                            className="h-9 bg-background"
-                                                        />
-                                                    </div>
-                                                    <Button type="button" variant="ghost" size="icon" className="h-9 w-9 mt-5 text-destructive shrink-0" onClick={() => handleDeleteStatus(status.id)}>
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </div>
-                                                <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
-                                                    <div className="space-y-1">
-                                                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Color</Label>
-                                                        <div className="flex gap-2">
-                                                            <Input
-                                                                type="color"
-                                                                value={status.color}
-                                                                onChange={(e) => handleUpdateStatus(status.id, { color: e.target.value })}
-                                                                className="h-9 w-12 bg-background p-1 shrink-0"
-                                                            />
-                                                            <Input
-                                                                value={status.color}
-                                                                onChange={(e) => handleUpdateStatus(status.id, { color: e.target.value })}
-                                                                className="h-9 bg-background font-mono text-xs min-w-0"
-                                                            />
-                                                        </div>
-                                                        <div className="flex flex-wrap gap-1.5 pt-1">
-                                                            {STATUS_COLOR_SWATCHES.map(color => (
-                                                                <button
-                                                                    key={color}
-                                                                    type="button"
-                                                                    onClick={() => handleUpdateStatus(status.id, { color })}
-                                                                    className={cn(
-                                                                        "h-5 w-5 rounded-full border-2 transition-transform",
-                                                                        status.color.toLowerCase() === color.toLowerCase() ? "scale-110 border-foreground" : "border-transparent"
-                                                                    )}
-                                                                    style={{ backgroundColor: color }}
-                                                                    aria-label={`Use color ${color}`}
-                                                                />
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Icon</Label>
-                                                        <Select
-                                                            value={status.iconType !== 'image' ? status.icon : pickDefaultIconName(status.name, status.color)}
-                                                            onValueChange={(value) => handleUpdateStatus(status.id, { icon: value, iconType: 'lucide' })}
-                                                        >
-                                                            <SelectTrigger className="h-9 bg-background">
-                                                                <div className="flex items-center gap-2 min-w-0">
-                                                                    <StatusIcon status={status.name} uiConfig={{ fields: [], environments: [], repositoryConfigs: [], taskStatuses: [], statusConfigs: [{ ...status, icon: status.iconType !== 'image' ? status.icon : pickDefaultIconName(status.name, status.color), iconType: 'lucide' }], currentVersion: '', authenticationMode: 'localStorage' }} className="h-4 w-4 shrink-0" style={{ color: status.color }} />
-                                                                    <span className="truncate text-sm">
-                                                                        {AVAILABLE_STATUS_ICONS.find(icon => icon.value === (status.iconType !== 'image' ? status.icon : pickDefaultIconName(status.name, status.color)))?.label || 'Choose icon'}
-                                                                    </span>
-                                                                </div>
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                {AVAILABLE_STATUS_ICONS.map(icon => {
-                                                                    const previewStatus = { ...status, icon: icon.value, iconType: 'lucide' as const };
-                                                                    return (
-                                                                        <SelectItem key={icon.value} value={icon.value}>
-                                                                            <div className="flex items-center gap-2">
-                                                                                <StatusIcon status={status.name} uiConfig={{ fields: [], environments: [], repositoryConfigs: [], taskStatuses: [], statusConfigs: [previewStatus], currentVersion: '', authenticationMode: 'localStorage' }} className="h-4 w-4 shrink-0" style={{ color: status.color }} />
-                                                                                <span>{icon.label}</span>
-                                                                            </div>
-                                                                        </SelectItem>
-                                                                    );
-                                                                })}
-                                                            </SelectContent>
-                                                        </Select>
-                                                        <p className="text-[11px] text-muted-foreground leading-relaxed">
-                                                            Preset icons are more reliable across status badges and exports.
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                            <Button type="button" variant="outline" size="sm" onClick={handleAddStatus} className="w-full h-10 border-dashed rounded-xl font-bold">
-                                <PlusCircle className="h-4 w-4 mr-2" /> Add Status
-                            </Button>
-                        </div>
+                        <StatusManagementContent
+                            statuses={localStatusConfigs}
+                            pendingConversions={localPendingStatusConversions}
+                            onStatusesChange={setLocalStatusConfigs}
+                            onPendingConversionsChange={setLocalPendingStatusConversions}
+                            existingFields={existingFields}
+                        />
                     )}
                 </form>
             </Form>

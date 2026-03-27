@@ -16,10 +16,12 @@ import {
     deleteEnvironment,
     updateCompany,
     getTasksUsingField,
+    getTasks,
     getUserPreferences,
-    updateUserPreferences
+    updateUserPreferences,
+    updateTask
 } from '@/lib/data';
-import type { Task, UiConfig, FieldConfig, Person, RepositoryConfig, Environment, BackupFrequency, AuthMode, UserPreferences } from '@/lib/types';
+import type { Task, UiConfig, FieldConfig, Person, RepositoryConfig, Environment, BackupFrequency, AuthMode, UserPreferences, PendingStatusConversion } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -141,6 +143,7 @@ export default function SettingsPage() {
   const [localFields, setLocalFields] = useState<FieldConfig[]>([]);
   const [localRepositoryConfigs, setLocalRepositoryConfigs] = useState<RepositoryConfig[]>([]);
   const [localStatusConfigs, setLocalStatusConfigs] = useState<StatusConfigItem[]>([]);
+  const [localPendingStatusConversions, setLocalPendingStatusConversions] = useState<PendingStatusConversion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isClearing, setIsClearing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -220,6 +223,7 @@ export default function SettingsPage() {
     setLocalFields(config?.fields || []);
     setLocalRepositoryConfigs(config?.repositoryConfigs || []);
     setLocalStatusConfigs(getStatusConfigs(config));
+    setLocalPendingStatusConversions([]);
     setAppName(config?.appName || '');
     setAppIcon(config?.appIcon || '');
     setTimeFormat(config?.timeFormat || '12h');
@@ -247,9 +251,10 @@ export default function SettingsPage() {
     return (
       JSON.stringify(localFields) !== JSON.stringify(uiConfig.fields) ||
       JSON.stringify(localRepositoryConfigs) !== JSON.stringify(uiConfig.repositoryConfigs || []) ||
-      JSON.stringify(localStatusConfigs) !== JSON.stringify(getStatusConfigs(uiConfig))
+      JSON.stringify(localStatusConfigs) !== JSON.stringify(getStatusConfigs(uiConfig)) ||
+      localPendingStatusConversions.length > 0
     );
-  }, [localFields, localRepositoryConfigs, localStatusConfigs, uiConfig]);
+  }, [localFields, localRepositoryConfigs, localStatusConfigs, localPendingStatusConversions, uiConfig]);
 
   // Auto-scroll to top when unsaved changes alert appears
   useEffect(() => {
@@ -398,6 +403,38 @@ export default function SettingsPage() {
   };
 
   const performSaveFields = () => {
+    const validStatusIds = new Set(localStatusConfigs.map(status => status.id));
+
+    const invalidConversion = localPendingStatusConversions.find(
+      conversion => !validStatusIds.has(conversion.targetStatusId)
+    );
+
+    if (invalidConversion) {
+      toast({
+        variant: 'destructive',
+        title: 'Status Conversion Incomplete',
+        description: 'One or more status deletions still point to a removed replacement status.',
+      });
+      return;
+    }
+
+    const taskMap = new Map(getTasks().map(task => [task.id, task]));
+    localPendingStatusConversions.forEach((conversion) => {
+      const targetStatus = localStatusConfigs.find(status => status.id === conversion.targetStatusId);
+      if (!targetStatus) return;
+
+      conversion.affectedTaskIds.forEach((taskId) => {
+        const task = taskMap.get(taskId);
+        if (!task || task.status === targetStatus.name) return;
+        updateTask(taskId, { status: targetStatus.name }, true);
+      });
+      if (conversion.affectedTaskIds.length > 0) {
+        addLog({
+          message: `Converted **${conversion.affectedTaskIds.length}** task(s) from status **${conversion.sourceStatusName}** to **${targetStatus.name}** before deleting the original status.`,
+        });
+      }
+    });
+
     const nextConfig = syncTaskStatuses({
       ...uiConfig!,
       fields: localFields,
@@ -406,13 +443,19 @@ export default function SettingsPage() {
       taskStatuses: localStatusConfigs.map(status => status.name),
     });
     handleUpdateConfig(nextConfig);
+    setLocalPendingStatusConversions([]);
     toast({ variant: 'success', title: 'Field configuration saved successfully.' });
     setIsDeactivateConfirmOpen(false);
     setPendingDeactivateFields([]);
     if (isMobile) setActiveMobileSection('fields');
   };
 
-  const handleSaveField = (updatedField: FieldConfig, repoConfigs?: RepositoryConfig[], statusConfigs?: StatusConfigItem[]) => {
+  const handleSaveField = (
+    updatedField: FieldConfig,
+    repoConfigs?: RepositoryConfig[],
+    statusConfigs?: StatusConfigItem[],
+    pendingStatusConversions?: PendingStatusConversion[]
+  ) => {
     let newFields = [...localFields];
     const index = newFields.findIndex(f => f.id === updatedField.id);
     if (index !== -1) {
@@ -433,6 +476,7 @@ export default function SettingsPage() {
         statusConfigs,
         taskStatuses: statusConfigs.map(status => status.name),
       }));
+      setLocalPendingStatusConversions(pendingStatusConversions || []);
     }
     
     if (isMobile) setActiveMobileSection('fields');
@@ -802,6 +846,7 @@ export default function SettingsPage() {
                             existingFields={localFields}
                             repositoryConfigs={localRepositoryConfigs}
                             statusConfigs={localStatusConfigs}
+                            pendingStatusConversions={localPendingStatusConversions}
                             onSave={handleSaveField} 
                             onCancel={() => setActiveMobileSection('fields')}
                         />
@@ -1384,6 +1429,7 @@ export default function SettingsPage() {
         existingFields={localFields}
         repositoryConfigs={localRepositoryConfigs}
         statusConfigs={localStatusConfigs}
+        pendingStatusConversions={localPendingStatusConversions}
         onSave={handleSaveField} 
       />
       <EditEnvironmentDialog isOpen={isEnvDialogOpen} onOpenChange={setIsEnvDialogOpen} environment={envToEdit} onSave={handleSaveEnv} />

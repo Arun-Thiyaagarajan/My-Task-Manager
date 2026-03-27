@@ -60,11 +60,17 @@ To run TaskFlow locally, follow these steps:
    ```bash
    npm install
    ```
-2. **Run the development server**:
+2. **Create your local environment file**:
+   - Copy `.env.example` to `.env.local`
+   - Fill in the Firebase values
+   - Add `GEMINI_API_KEY` if you want AI summaries and smart link aliases to work locally
+3. **Run the development server**:
    ```bash
    npm run dev
    ```
-3. Open [http://localhost:9003](http://localhost:9003) in your browser to see the application.
+4. Open [http://localhost:9003](http://localhost:9003) in your browser to see the application.
+
+For deployed environments, make sure `GEMINI_API_KEY` is also configured in Vercel anywhere AI features should be available.
 
 ---
 *Built with ❤️ for productive teams.*

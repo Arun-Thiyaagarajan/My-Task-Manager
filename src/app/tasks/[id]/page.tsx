@@ -54,7 +54,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { ShareMenu } from '@/components/share-menu';
 import { triggerTransfer } from '@/components/file-transfer-indicator';
 import { Calendar } from '@/components/ui/calendar';
-import { StatusIcon, getStatusDisplayName, isStatusValue } from '@/lib/status-config';
+import { StatusIcon, getSortedStatusNames, getStatusDisplayName, isStatusValue } from '@/lib/status-config';
 import { scheduleStatusUpdate } from '@/lib/status-update';
 
 
@@ -1051,7 +1051,7 @@ const handleCopyDescription = () => {
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel className="font-medium">Set Status</DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            {(uiConfig?.taskStatuses || []).map(s => {
+                            {getSortedStatusNames(uiConfig).map(s => {
                               const currentStatusConfig = getStatusConfig(s, uiConfig);
                               return (
                                 <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)} className="font-normal">

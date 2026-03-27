@@ -188,12 +188,21 @@ export type StatusIconType = 'lucide' | 'image';
 export interface StatusConfigItem {
   id: string;
   name: string;
+  group?: string;
   color: string;
   icon: string;
   iconType?: StatusIconType;
   aliases?: string[];
   isDefault?: boolean;
   order: number;
+}
+
+export interface PendingStatusConversion {
+  sourceStatusId: string;
+  sourceStatusName: string;
+  targetStatusId: string;
+  targetStatusName: string;
+  affectedTaskIds: string[];
 }
 
 export type AuthMode = 'localStorage' | 'authenticate';

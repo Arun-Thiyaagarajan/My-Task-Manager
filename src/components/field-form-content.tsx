@@ -8,8 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X, Info, Users, ClipboardCheck, ListChecks, CalendarIcon, Save, Cross } from 'lucide-react';
-import type { FieldConfig, FieldOption, FieldType, RepositoryConfig, StatusConfigItem } from '@/lib/types';
+import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X, Info, Users, ClipboardCheck, ListChecks, CalendarIcon, Save } from 'lucide-react';
+import type { FieldConfig, FieldOption, FieldType, PendingStatusConversion, RepositoryConfig, StatusConfigItem } from '@/lib/types';
 import { FIELD_TYPES } from '@/lib/constants';
 import * as React from 'react';
 import { getUiConfig, getTasks, updateTask, addLog, getDevelopers, getTesters } from '@/lib/data';
@@ -24,8 +24,8 @@ import { Textarea } from './ui/textarea';
 import { Calendar } from './ui/calendar';
 import { format } from 'date-fns';
 import { MultiSelect } from '@/components/ui/multi-select';
-import { AVAILABLE_STATUS_ICONS, STATUS_COLOR_SWATCHES, buildStatusConfigItem, pickDefaultIconName, StatusIcon } from '@/lib/status-config';
-import { v4 as uuidv4 } from 'uuid';
+import { buildStatusConfigItem } from '@/lib/status-config';
+import { StatusManagementContent } from '@/components/status-management-content';
 
 const fieldOptionSchema = z.object({
     id: z.string(),
@@ -33,7 +33,7 @@ const fieldOptionSchema = z.object({
     value: z.string().min(1, "Value is required"),
 });
 
-const randomId = () => uuidv4();
+const randomId = () => crypto.randomUUID();
 
 const fieldSchema = z.object({
   label: z.string().min(2, { message: 'Label must be at least 2 characters.' }),
@@ -68,11 +68,25 @@ interface FieldFormContentProps {
   existingFields: FieldConfig[];
   repositoryConfigs?: RepositoryConfig[];
   statusConfigs?: StatusConfigItem[];
-  onSave: (field: FieldConfig, repoConfigs?: RepositoryConfig[], statusConfigs?: StatusConfigItem[]) => void;
+  pendingStatusConversions?: PendingStatusConversion[];
+  onSave: (
+    field: FieldConfig,
+    repoConfigs?: RepositoryConfig[],
+    statusConfigs?: StatusConfigItem[],
+    pendingStatusConversions?: PendingStatusConversion[]
+  ) => void;
   onCancel: () => void;
 }
 
-export function FieldFormContent({ field, existingFields, repositoryConfigs, statusConfigs, onSave, onCancel }: FieldFormContentProps) {
+export function FieldFormContent({
+  field,
+  existingFields,
+  repositoryConfigs,
+  statusConfigs,
+  pendingStatusConversions,
+  onSave,
+  onCancel,
+}: FieldFormContentProps) {
   const isCreating = field === null;
   const { toast } = useToast();
   const getDefaultValueFallback = React.useCallback(
@@ -122,7 +136,7 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, sta
 
   const selectedType = form.watch('type');
   const showOptions = selectedType === 'select' || selectedType === 'multiselect' || selectedType === 'tags';
-  const isSortableField = showOptions && (!field || field.key !== 'status');
+  const isSortableField = showOptions;
   
   const [allGroups, setAllGroups] = React.useState<string[]>([]);
   const [isGroupPopoverOpen, setIsGroupPopoverOpen] = React.useState(false);
@@ -130,6 +144,8 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, sta
   
   const [localRepoConfigs, setLocalRepoConfigs] = React.useState<RepositoryConfig[]>([]);
   const [localStatusConfigs, setLocalStatusConfigs] = React.useState<StatusConfigItem[]>([]);
+  const [localPendingStatusConversions, setLocalPendingStatusConversions] = React.useState<PendingStatusConversion[]>(pendingStatusConversions || []);
+  const [isStatusEditorOpen, setIsStatusEditorOpen] = React.useState(false);
   const [newTag, setNewTag] = React.useState('');
   const [allTags, setAllTags] = React.useState<FieldOption[]>([]);
   const isRepoField = field?.key === 'repositories';
@@ -161,6 +177,7 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, sta
     }
     if (isStatusField) {
       setLocalStatusConfigs((statusConfigs || []).map((status, index) => buildStatusConfigItem(status, index)));
+      setLocalPendingStatusConversions(pendingStatusConversions || []);
     }
 
     if (isTagsField) {
@@ -178,7 +195,7 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, sta
         combinedTags.sort((a,b) => a.label.localeCompare(b.label));
         setAllTags(combinedTags);
     }
-  }, [field, isRepoField, isStatusField, isTagsField, repositoryConfigs, statusConfigs]);
+  }, [field, isRepoField, isStatusField, isTagsField, repositoryConfigs, statusConfigs, pendingStatusConversions]);
 
   const handleAddTag = () => {
     const trimmedTag = newTag.trim();
@@ -243,7 +260,8 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, sta
     onSave(
       isStatusField ? { ...finalField, options: finalOptions } : finalField,
       isRepoField ? localRepoConfigs : undefined,
-      finalStatusConfigs
+      finalStatusConfigs,
+      isStatusField ? localPendingStatusConversions : undefined
     );
   };
 
@@ -260,57 +278,6 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, sta
   const repositoryOptions = React.useMemo(() => {
       return localRepoConfigs.map(repo => ({ value: repo.name, label: repo.name }));
   }, [localRepoConfigs]);
-
-  const handleAddStatus = () => {
-    const order = localStatusConfigs.length;
-    setLocalStatusConfigs(prev => [
-      ...prev,
-      buildStatusConfigItem(
-        {
-          id: `custom_status_${randomId}`,
-          name: `New Status ${order + 1}`,
-          color: '#64748b',
-          icon: 'circle',
-          iconType: 'lucide',
-          aliases: [],
-        },
-        order
-      ),
-    ]);
-  };
-
-  const handleUpdateStatus = (id: string, updates: Partial<StatusConfigItem>) => {
-    setLocalStatusConfigs(prev =>
-      prev.map((status, index) => {
-        if (status.id !== id) return status;
-        const nextName = updates.name ?? status.name;
-        return buildStatusConfigItem(
-          {
-            ...status,
-            ...updates,
-            name: nextName,
-            aliases: Array.from(new Set([...(status.aliases || []), status.name].filter(Boolean))),
-            icon: updates.iconType === 'image'
-              ? (updates.icon || status.icon)
-              : (updates.icon || status.icon || pickDefaultIconName(nextName, updates.color || status.color)),
-          },
-          index
-        );
-      })
-    );
-  };
-
-  const handleDeleteStatus = (id: string) => {
-    if (localStatusConfigs.length <= 1) {
-      toast({
-        variant: 'destructive',
-        title: 'Deletion Blocked',
-        description: 'At least one status must always exist.',
-      });
-      return;
-    }
-    setLocalStatusConfigs(prev => prev.filter(status => status.id !== id).map((status, index) => buildStatusConfigItem(status, index)));
-  };
 
   const renderDefaultValueInput = (type: FieldType) => {
     const currentOptions = isStatusField
@@ -664,109 +631,17 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, sta
             )}
 
             {isStatusField && (
-                <div className="space-y-3 pt-4 border-t">
-                    <h4 className="font-bold">Status Configurations</h4>
-                    <FormDescription className="text-xs leading-relaxed">
-                        Rename built-in statuses or add your own. Existing task values remain mapped through aliases, and at least one status is always required.
-                    </FormDescription>                    
-                    <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar">
-                        {localStatusConfigs.map((status) => (
-                            <div key={status.id} className="p-3 border rounded-2xl bg-muted/20 space-y-3">
-                                <div className="flex items-start gap-3">
-                                    <div className="h-10 w-10 rounded-xl border bg-background flex items-center justify-center overflow-hidden shrink-0">
-                                        <StatusIcon status={status.name} uiConfig={{ fields: [], environments: [], repositoryConfigs: [], taskStatuses: [], statusConfigs: [status], currentVersion: '', authenticationMode: 'localStorage' }} className="h-5 w-5 object-contain" />
-                                    </div>
-                                    <div className="min-w-0 flex-1 space-y-3">
-                                        <div className="flex items-start gap-2">
-                                            <div className="flex-1 min-w-0 space-y-1">
-                                                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Name</Label>
-                                                <Input
-                                                    value={status.name}
-                                                    onChange={(e) => handleUpdateStatus(status.id, { name: e.target.value })}
-                                                    className="h-9 rounded-lg bg-background"
-                                                />
-                                            </div>
-                                            <Button type="button" variant="ghost" size="icon" className="h-9 w-9 mt-5 text-destructive shrink-0" onClick={() => handleDeleteStatus(status.id)}>
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
-                                            <div className="space-y-1">
-                                                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Color</Label>
-                                                <div className="flex gap-2">
-                                                    <Input
-                                                        type="color"
-                                                        value={status.color}
-                                                        onChange={(e) => handleUpdateStatus(status.id, { color: e.target.value })}
-                                                        className="h-9 w-12 rounded-lg bg-background p-1 shrink-0"
-                                                    />
-                                                    <Input
-                                                        value={status.color}
-                                                        onChange={(e) => handleUpdateStatus(status.id, { color: e.target.value })}
-                                                        className="h-9 rounded-lg bg-background font-mono text-xs min-w-0"
-                                                    />
-                                                </div>
-                                                <div className="flex flex-wrap gap-1.5 pt-1">
-                                                    {STATUS_COLOR_SWATCHES.map(color => (
-                                                        <button
-                                                            key={color}
-                                                            type="button"
-                                                            onClick={() => handleUpdateStatus(status.id, { color })}
-                                                            className={cn(
-                                                                "h-5 w-5 rounded-full border-2 transition-transform",
-                                                                status.color.toLowerCase() === color.toLowerCase() ? "scale-110 border-foreground" : "border-transparent"
-                                                            )}
-                                                            style={{ backgroundColor: color }}
-                                                            aria-label={`Use color ${color}`}
-                                                        />
-                                                    ))}
-                                                </div>
-                                            </div>
-                                            <div className="space-y-1">
-                                                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Icon</Label>
-                                                <Select
-                                                    value={status.iconType !== 'image' ? status.icon : pickDefaultIconName(status.name, status.color)}
-                                                    onValueChange={(value) => handleUpdateStatus(status.id, { icon: value, iconType: 'lucide' })}
-                                                >
-                                                    <SelectTrigger className="h-9 rounded-lg bg-background">
-                                                        <div className="flex items-center gap-2 min-w-0">
-                                                            <StatusIcon status={status.name} uiConfig={{ fields: [], environments: [], repositoryConfigs: [], taskStatuses: [], statusConfigs: [{ ...status, icon: status.iconType !== 'image' ? status.icon : pickDefaultIconName(status.name, status.color), iconType: 'lucide' }], currentVersion: '', authenticationMode: 'localStorage' }} className="h-4 w-4 shrink-0" style={{ color: status.color }} />
-                                                            <span className="truncate text-sm">
-                                                                {AVAILABLE_STATUS_ICONS.find(icon => icon.value === (status.iconType !== 'image' ? status.icon : pickDefaultIconName(status.name, status.color)))?.label || 'Choose icon'}
-                                                            </span>
-                                                        </div>
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {AVAILABLE_STATUS_ICONS.map(icon => {
-                                                            const previewStatus = { ...status, icon: icon.value, iconType: 'lucide' as const };
-                                                            return (
-                                                                <SelectItem key={icon.value} value={icon.value}>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <StatusIcon status={status.name} uiConfig={{ fields: [], environments: [], repositoryConfigs: [], taskStatuses: [], statusConfigs: [previewStatus], currentVersion: '', authenticationMode: 'localStorage' }} className="h-4 w-4 shrink-0" style={{ color: status.color }} />
-                                                                        <span>{icon.label}</span>
-                                                                    </div>
-                                                                </SelectItem>
-                                                            );
-                                                        })}
-                                                    </SelectContent>
-                                                </Select>
-                                                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                                                    Preset icons are reliable across cards, detail view, and PDF export.
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                    <Button type="button" variant="outline" size="sm" onClick={handleAddStatus} className="w-full h-11 border-dashed rounded-xl font-bold">
-                        <PlusCircle className="h-4 w-4 mr-2" /> Add Status
-                    </Button>
-                </div>
+                <StatusManagementContent
+                    statuses={localStatusConfigs}
+                    pendingConversions={localPendingStatusConversions}
+                    onStatusesChange={setLocalStatusConfigs}
+                    onPendingConversionsChange={setLocalPendingStatusConversions}
+                    existingFields={existingFields}
+                    onEditorOpenChange={setIsStatusEditorOpen}
+                />
             )}
             
-            <div className="lg:hidden fixed bottom-24 right-6 z-[60] animate-in zoom-in-50 duration-500">
+            <div className={cn("lg:hidden fixed bottom-24 right-6 z-[60] animate-in zoom-in-50 duration-500", isStatusField && isStatusEditorOpen && "hidden")}>
                 <Button
                     type="submit"
                     size="icon"

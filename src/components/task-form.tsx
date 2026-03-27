@@ -53,7 +53,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { TextareaToolbar, applyFormat, type FormatType } from '@/components/ui/textarea-toolbar';
 import { getLinkAlias } from '@/ai/flows/alias-flow';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { getStatusDisplayName } from '@/lib/status-config';
+import { getSortedStatusOptions, getStatusDisplayName } from '@/lib/status-config';
 
 
 type TaskFormData = z.infer<ReturnType<typeof createTaskSchema>>;
@@ -499,7 +499,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     if (field.key === 'repositories') {
         options = (uiConfig?.repositoryConfigs || []).map(rc => ({ value: rc.name, label: rc.name }));
     } else if (field.key === 'status') {
-      options = (uiConfig?.taskStatuses || []).map(s => ({ value: s, label: s}));
+      options = getSortedStatusOptions(uiConfig).map(option => ({ value: option.value, label: option.label }));
       return options;
     } else if (field.key === 'relevantEnvironments') {
         options = (uiConfig?.environments || []).map(e => ({ value: e.name, label: e.name }));
