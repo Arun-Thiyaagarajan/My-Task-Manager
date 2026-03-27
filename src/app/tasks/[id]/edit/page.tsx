@@ -10,7 +10,8 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createTaskSchema } from '@/lib/validators';
-import { LoadingSpinner } from '@/components/ui/loading-spinnerimport { generateSummarySafely } from '@/ai/flows/summary-flow';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { generateSummarySafely } from '@/ai/flows/summary-flow';
 
 export default function EditTaskPage() {
   const params = useParams();
