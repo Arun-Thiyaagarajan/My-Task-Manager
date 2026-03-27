@@ -70,7 +70,7 @@ export default function NewTaskPage() {
 
     const taskDataToCreate: Partial<Task> = {
         ...otherData,
-        devStartDate: devStartDate ? devStartDate.toISOString() : null,
+        devStartDate: devStartDate ? devStartDate.toISOString() : new Date().toISOString(),
         devEndDate: devEndDate ? devEndDate.toISOString() : null,
         qaStartDate: qaStartDate ? qaStartDate.toISOString() : null,
         qaEndDate: qaEndDate ? qaEndDate.toISOString() : null,
