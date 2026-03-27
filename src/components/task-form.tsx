@@ -396,7 +396,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
      try {
         const newTester = addTester({ name });
         setTestersList(prev => {
-            if (prev.some(t => d.id === newTester.id)) return prev;
+            if (prev.some(t => prev.id === newTester.id)) return prev;
             return [...prev, newTester];
         });
         return newTester.id;
