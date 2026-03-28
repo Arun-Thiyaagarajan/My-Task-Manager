@@ -9,7 +9,6 @@ import {
   GoogleAuthProvider, 
   signInWithPopup,
   signInWithRedirect,
-  getRedirectResult,
   sendPasswordResetEmail,
   sendEmailVerification,
   updateProfile,
@@ -34,7 +33,7 @@ import {
   KeyRound
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { setAuthMode } from '@/lib/data';
+import { getAuthMode, setAuthMode } from '@/lib/data';
 
 function GoogleMark({ className = "h-5 w-5" }: { className?: string }) {
   return (
@@ -49,7 +48,7 @@ function GoogleMark({ className = "h-5 w-5" }: { className?: string }) {
 
 export default function AuthPage() {
   const isMobile = useIsMobile();
-  const { auth, firestore } = useFirebase();
+  const { auth, firestore, user, isUserLoading } = useFirebase();
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -72,6 +71,13 @@ export default function AuthPage() {
   useEffect(() => {
     window.dispatchEvent(new Event('navigation-end'));
   }, []);
+
+  useEffect(() => {
+    if (isUserLoading) return;
+    if (getAuthMode() === 'authenticate' && user) {
+      router.replace('/');
+    }
+  }, [isUserLoading, router, user]);
 
   const completeGoogleSignIn = async (user: FirebaseUser) => {
     if (!firestore) return;
@@ -113,29 +119,6 @@ export default function AuthPage() {
         return error?.message || 'Google Sign-In could not be completed.';
     }
   };
-
-  useEffect(() => {
-    if (!auth || !firestore) return;
-
-    let isMounted = true;
-
-    getRedirectResult(auth)
-      .then(async (result) => {
-        if (!result?.user || !isMounted) return;
-        await completeGoogleSignIn(result.user);
-      })
-      .catch((error) => {
-        if (!isMounted) return;
-        const description = getGoogleErrorMessage(error);
-        if (!description) return;
-        setGoogleError(description);
-        toast({ variant: 'destructive', title: 'Google Sign-In Failed', description });
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [auth, firestore, router, toast]);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -246,7 +229,7 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-[100dvh] overflow-hidden bg-background overscroll-none flex flex-col">
       {/* WhatsApp Style Back Header */}
       <div className="px-4 h-14 flex items-center shrink-0">
         <Button variant="ghost" size="icon" onClick={handleBack} className="h-10 w-10 -ml-2 rounded-full">
@@ -254,7 +237,7 @@ export default function AuthPage() {
         </Button>
       </div>
 
-      <div className="flex-1 flex flex-col px-6 pb-12 pt-4 max-w-md mx-auto w-full">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 pb-8 pt-4 max-w-md mx-auto w-full">
         <div className="text-center space-y-2 mb-8">
           <div className="mx-auto w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-4 rotate-3">
             <ShieldCheck className="h-10 w-10 text-primary" />

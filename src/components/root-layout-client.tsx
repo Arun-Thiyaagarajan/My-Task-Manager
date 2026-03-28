@@ -13,6 +13,7 @@ import { FaviconSync } from '@/components/favicon-sync';
 import { FileTransferIndicator } from '@/components/file-transfer-indicator';
 import { GlobalSpotlightSearch } from '@/components/global-spotlight-search';
 import { OfflineScreen } from '@/components/offline-screen';
+import { GoogleAuthRedirectHandler } from '@/components/google-auth-redirect-handler';
 
 /**
  * Handles client-side layout logic such as pathname-based conditional 
@@ -25,6 +26,7 @@ export function RootLayoutClient({ children }: { children: React.ReactNode }) {
 
   return (
     <Providers>
+        <GoogleAuthRedirectHandler />
         <FaviconSync />
         <div className="relative flex min-h-screen flex-col">
         {!isSharedPage && <Header />}

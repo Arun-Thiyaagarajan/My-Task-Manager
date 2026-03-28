@@ -17,7 +17,6 @@ import {
   GoogleAuthProvider, 
   signInWithPopup,
   signInWithRedirect,
-  getRedirectResult,
   sendPasswordResetEmail,
   sendEmailVerification,
   updateProfile,
@@ -29,6 +28,7 @@ import { Loader2, Eye, EyeOff, Mail, Lock, User, Chrome, ShieldCheck, AlertCircl
 import { useFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { setAuthMode } from '@/lib/data';
 
 function GoogleMark({ className = "h-5 w-5" }: { className?: string }) {
   return (
@@ -82,6 +82,7 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
     }
     
     toast({ variant: 'success', title: 'Signed in with Google' });
+    setAuthMode('authenticate');
     onSuccess();
     onOpenChange(false);
     window.dispatchEvent(new Event('company-changed'));
@@ -104,29 +105,6 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
         return error?.message || 'Google Sign-In could not be completed.';
     }
   }, []);
-
-  React.useEffect(() => {
-    if (!isOpen || !auth || !firestore) return;
-
-    let isMounted = true;
-
-    getRedirectResult(auth)
-      .then(async (result) => {
-        if (!result?.user || !isMounted) return;
-        await completeGoogleSignIn(result.user);
-      })
-      .catch((error) => {
-        if (!isMounted) return;
-        const description = getGoogleErrorMessage(error);
-        if (!description) return;
-        setGoogleError(description);
-        toast({ variant: 'destructive', title: 'Google Sign-In Failed', description });
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [auth, firestore, isOpen, completeGoogleSignIn, getGoogleErrorMessage, toast]);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,6 +156,7 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
         return;
       }
       
+      setAuthMode('authenticate');
       onSuccess();
       onOpenChange(false);
       window.dispatchEvent(new Event('company-changed'));

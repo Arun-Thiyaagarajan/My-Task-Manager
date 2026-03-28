@@ -187,6 +187,7 @@ export default function Home() {
   const [searchError, setSearchError] = useState<string | null>(null);
 
   const [importSummary, setImportSummary] = useState<{ importedCount: number; skippedDuplicates: any[] } | null>(null);
+  const importInFlightRef = useRef(false);
 
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   const [filteredBinnedTasks, setFilteredBinnedTasks] = useState<Task[]>([]);
@@ -741,6 +742,11 @@ export default function Home() {
   }, []);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (importInFlightRef.current) {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -765,6 +771,7 @@ export default function Home() {
 
     const reader = new FileReader();
     reader.onload = async (e) => {
+        importInFlightRef.current = true;
         try {
             const text = e.target?.result as string;
             const parsedJson = JSON.parse(text);
@@ -808,10 +815,19 @@ export default function Home() {
             triggerTransfer({ id: transferId, filename: file.name, kind: 'import', status: 'error', progress: 0, error: 'Invalid format' });
             toast({ variant: 'destructive', title: 'Import Failed', description: "The imported file is invalid or corrupted." });
         } finally {
+            importInFlightRef.current = false;
             if(fileInputRef.current) { fileInputRef.current.value = ''; }
             window.dispatchEvent(new Event('sync-end'));
         }
     };
+
+    reader.onerror = () => {
+        importInFlightRef.current = false;
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        window.dispatchEvent(new Event('sync-end'));
+        toast({ variant: 'destructive', title: 'Import Failed', description: 'Unable to read the selected file.' });
+    };
+
     reader.readAsText(file);
   };
   

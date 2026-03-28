@@ -19,6 +19,24 @@ const PREFERENCES_KEY = 'taskflow_user_preferences';
 let _cloudCache: MyTaskManagerData | null = null;
 let _initialSyncStatus: Record<string, boolean> = {}; // companyId -> status
 
+function sanitizeForFirestore<T>(value: T): T {
+    if (Array.isArray(value)) {
+        return value
+            .map(item => sanitizeForFirestore(item))
+            .filter(item => typeof item !== 'undefined') as T;
+    }
+
+    if (value && typeof value === 'object') {
+        const entries = Object.entries(value as Record<string, unknown>)
+            .filter(([, entryValue]) => typeof entryValue !== 'undefined')
+            .map(([key, entryValue]) => [key, sanitizeForFirestore(entryValue)]);
+
+        return Object.fromEntries(entries) as T;
+    }
+
+    return value;
+}
+
 export function setCloudCache(data: MyTaskManagerData | null) {
     _cloudCache = data;
 }
@@ -237,7 +255,7 @@ function dispatchMutation(
 
     try {
         const sanitizedPayload = (operation !== 'delete' && payload !== null) 
-            ? JSON.parse(JSON.stringify(payload)) 
+            ? sanitizeForFirestore(payload)
             : payload;
 
         const promise = operation === 'delete' ? deleteDoc(docRef) : 
@@ -1889,7 +1907,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             bumpProgress();
 
             const currentUi = mergeImportedUiConfig(getUiConfig(), parsedJson, currentDevs, currentTesters);
-            await setDoc(doc(db, companyBase, 'settings', 'uiConfig'), currentUi);
+            await setDoc(doc(db, companyBase, 'settings', 'uiConfig'), sanitizeForFirestore(currentUi));
             bumpProgress();
 
             const importInBatches = async (items: any[], collectionName: 'tasks' | 'notes' | 'logs') => {
@@ -1900,19 +1918,19 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
                         const id = item.id;
                         if (!id) return; 
                         
-                        const sanitizedItem = JSON.parse(JSON.stringify(item));
+                        const sanitizedItem = sanitizeForFirestore(item);
                         batch.set(doc(db, companyBase, collectionName, id), sanitizedItem);
                         
                         if (collectionName === 'tasks') {
                             const logId = createId('log-');
-                            const logEntry = JSON.parse(JSON.stringify({
+                            const logEntry = sanitizeForFirestore({
                                 id: logId,
                                 timestamp: new Date().toISOString(),
                                 message: `Imported task "**${item.title}**" from external source.`,
                                 taskId: id,
                                 userId: userId,
                                 userName: userName
-                            }));
+                            });
                             batch.set(doc(db, companyBase, 'logs', logId), logEntry);
                         }
                         bumpProgress();
