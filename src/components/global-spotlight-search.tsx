@@ -71,7 +71,7 @@ const SETTINGS_SECTIONS: Array<{
     anchorId: 'settings-field-config-card',
     icon: Settings2,
     accentClassName: 'text-violet-500',
-    keywords: ['fields', 'status', 'repositories', 'custom field', 'visibility'],
+    keywords: ['fields', 'status', 'repositories', 'custom field', 'visibility', 'settings'],
   },
   {
     id: 'settings-appearance',
@@ -167,7 +167,7 @@ const QUICK_LINKS: SpotlightItem[] = [
     href: '/help-center',
     icon: HelpCircle,
     accentClassName: 'text-sky-500',
-    keywords: ['help', 'faq', 'guide', 'documentation'],
+    keywords: ['help', 'faq', 'guide', 'documentation', 'features'],
   },
   {
     id: 'other-profile',

@@ -1477,6 +1477,7 @@ export default function Home() {
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button
+                                id="global-search-option"
                                 type="button"
                                 variant="outline"
                                 size="sm"
