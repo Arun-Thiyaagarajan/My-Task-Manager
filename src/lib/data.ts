@@ -8,6 +8,7 @@ import { getFirestore, doc, setDoc, deleteDoc, updateDoc, collection, writeBatch
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { syncTaskStatuses } from './status-config';
+import { createId } from './id';
 
 export const DATA_KEY = 'my_task_manager_data';
 const AUTH_MODE_KEY = 'taskflow_auth_mode';
@@ -262,7 +263,7 @@ export function createNotification(notification: Omit<AppNotification, 'id' | 't
     // Standardize: Don't notify the sender themselves
     if (notification.recipientId === auth.currentUser.uid) return;
 
-    const id = `notif-${crypto.randomUUID()}`;
+    const id = createId('notif-');
     const newNotif: AppNotification = {
         ...notification,
         id,
@@ -347,7 +348,7 @@ export function setActiveCompanyId(id: string) {
 
 export function addCompany(name: string) {
     const data = getAppData();
-    const id = `company-${crypto.randomUUID()}`;
+    const id = createId('company-');
     const newCompany = { id, name };
     data.companies.push(newCompany);
     data.companyData[id] = {
@@ -422,7 +423,7 @@ export function setUiConfig(config: UiConfig) {
 export function addEnvironment(env: Omit<Environment, 'id'>) {
     const data = getAppData();
     const companyId = getActiveCompanyId();
-    const id = `env-${crypto.randomUUID()}`;
+    const id = createId('env-');
     const newEnv = { ...env, id };
     data.companyData[companyId].uiConfig.environments.push(newEnv);
     setAppData(data);
@@ -518,7 +519,7 @@ export function getDevelopers(): Person[] {
 
 export function addDeveloper(person: Omit<Person, 'id'>): Person {
     const data = getAppData();
-    const id = `dev-${crypto.randomUUID()}`;
+    const id = createId('dev-');
     const newPerson = { ...person, id };
     const companyId = getActiveCompanyId();
     data.companyData[companyId].developers.push(newPerson);
@@ -567,7 +568,7 @@ export function getTesters(): Person[] {
 
 export function addTester(person: Omit<Person, 'id'>): Person {
     const data = getAppData();
-    const id = `tester-${crypto.randomUUID()}`;
+    const id = createId('tester-');
     const newPerson = { ...person, id };
     const companyId = getActiveCompanyId();
     data.companyData[companyId].testers.push(newPerson);
@@ -625,7 +626,7 @@ export function getLogsForTask(taskId: string): Log[] {
 
 function _addLog(companyData: CompanyData, logData: Omit<Log, 'id' | 'timestamp'>) {
     const newLog: Log = {
-        id: `log-${crypto.randomUUID()}`,
+        id: createId('log-'),
         timestamp: new Date().toISOString(),
         ...logData,
     };
@@ -770,7 +771,7 @@ export function findExistingDuplicates(): { fieldLabel: string; value: string; t
 export function addTask(task: Partial<Task>): Task {
     const data = getAppData();
     const companyId = getActiveCompanyId();
-    const id = `task-${crypto.randomUUID()}`;
+    const id = createId('task-');
     const now = new Date().toISOString();
     const defaultStatus = getUiConfig().taskStatuses[0] || 'To Do';
     const newTask: Task = {
@@ -1006,7 +1007,7 @@ export function getNotes(): Note[] {
 export function addNote(note: Partial<Note>): Note {
     const data = getAppData();
     const companyId = getActiveCompanyId();
-    const id = `note-${crypto.randomUUID()}`;
+    const id = createId('note-');
     const now = new Date().toISOString();
     const newNote: Note = {
         title: '', content: '',
@@ -1101,7 +1102,7 @@ export function getGeneralReminders(): GeneralReminder[] {
 export function addGeneralReminder(text: string) {
     const data = getAppData();
     const companyId = getActiveCompanyId();
-    const id = `rem-${crypto.randomUUID()}`;
+    const id = createId('rem-');
     const now = new Date().toISOString();
     const newRem = { id, text, createdAt: now };
     data.companyData[companyId].generalReminders.unshift(newRem);
@@ -1176,7 +1177,7 @@ export function getReleaseUpdates(publishedOnly = true): ReleaseUpdate[] {
 export function addReleaseUpdate(release: Partial<ReleaseUpdate>) {
     const data = getAppData();
     const companyId = getActiveCompanyId();
-    const id = `rel-${crypto.randomUUID()}`;
+    const id = createId('rel-');
     const now = new Date().toISOString();
     const newRel = { id, version: '', title: '', items: [], date: now, isPublished: false, ...release } as ReleaseUpdate;
     data.companyData[companyId].releaseUpdates.unshift(newRel);
@@ -1280,7 +1281,7 @@ export function getTasksUsingField(key: string): Task[] {
 
 // Support & Feedback
 export async function submitFeedback(feedback: Omit<Feedback, 'id' | 'status' | 'createdAt' | 'updatedAt'>) {
-    const id = `feedback-${crypto.randomUUID()}`;
+    const id = createId('feedback-');
     const now = new Date().toISOString();
     
     const auth = getAuth();
@@ -1297,7 +1298,7 @@ export async function submitFeedback(feedback: Omit<Feedback, 'id' | 'status' | 
     };
 
     const autoReply: FeedbackMessage = {
-        id: `msg-auto-${crypto.randomUUID()}`,
+        id: createId('msg-auto-'),
         senderId: 'system-support',
         senderName: 'TaskFlow Support',
         senderRole: 'admin',
@@ -1432,7 +1433,7 @@ export async function sendFeedbackMessage(feedbackId: string, message: string, a
     const userSnap = await getDoc(doc(db, 'users', user.uid));
     const userProfile = userSnap.data() as UserProfile;
 
-    const id = `msg-${crypto.randomUUID()}`;
+    const id = createId('msg-');
     const now = new Date().toISOString();
     const newMessage: FeedbackMessage = {
         id,
@@ -1571,7 +1572,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
 
     const ensureDev = (name: string, details?: any) => {
         if (!name || devMap.has(name.toLowerCase())) return devMap.get(name.toLowerCase())!;
-        const id = `dev-${crypto.randomUUID()}`;
+        const id = createId('dev-');
         currentDevs.push({ 
             id, name, 
             email: details?.email || '', 
@@ -1584,7 +1585,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
 
     const ensureTester = (name: string, details?: any) => {
         if (!name || testerMap.has(name.toLowerCase())) return testerMap.get(name.toLowerCase())!;
-        const id = `tester-${crypto.randomUUID()}`;
+        const id = createId('tester-');
         currentTesters.push({ 
             id, name, 
             email: details?.email || '', 
@@ -1626,7 +1627,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             return testerMap.get(val.toLowerCase()) || val;
         }).filter(Boolean);
 
-        const newId = `task-${crypto.randomUUID()}`;
+        const newId = createId('task-');
         if (t.id) taskIdMap.set(t.id, newId);
 
         processedTasks.push({
@@ -1644,14 +1645,14 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
 
     const processedNotes = jsonNotes.map((n: any) => ({
         ...n,
-        id: `note-${crypto.randomUUID()}`,
+        id: createId('note-'),
         createdAt: n.createdAt || new Date().toISOString(),
         updatedAt: n.updatedAt || new Date().toISOString()
     }));
 
     const processedLogs = jsonLogs.map((l: any) => ({
         ...l,
-        id: `log-${crypto.randomUUID()}`,
+        id: createId('log-'),
         taskId: l.taskId ? (taskIdMap.get(l.taskId) || l.taskId) : null,
         userName: l.userName || 'Importer',
         timestamp: l.timestamp || new Date().toISOString()
@@ -1681,14 +1682,14 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             if (repoConfigs.length > 0) {
                 repoConfigs.forEach((r: any) => {
                     if (!currentUi.repositoryConfigs.some(mr => mr.name === r.name)) {
-                        currentUi.repositoryConfigs.push({ ...r, id: r.id || `repo_${crypto.randomUUID()}` });
+                        currentUi.repositoryConfigs.push({ ...r, id: r.id || createId('repo_') });
                     }
                 });
             }
             if (envs.length > 0) {
                 envs.forEach((e: any) => {
                     if (!currentUi.environments.some(me => me.name.toLowerCase() === e.name.toLowerCase())) {
-                        currentUi.environments.push({ ...e, id: e.id || `env_${crypto.randomUUID()}` });
+                        currentUi.environments.push({ ...e, id: e.id || createId('env_') });
                     }
                 });
             }
@@ -1707,7 +1708,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
                         batch.set(doc(db, companyBase, collectionName, id), sanitizedItem);
                         
                         if (collectionName === 'tasks') {
-                            const logId = `log-${crypto.randomUUID()}`;
+                            const logId = createId('log-');
                             const logEntry = JSON.parse(JSON.stringify({
                                 id: logId,
                                 timestamp: new Date().toISOString(),
@@ -1753,14 +1754,14 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             if (repoConfigs.length > 0) {
                 repoConfigs.forEach((r: any) => {
                     if (!comp.uiConfig.repositoryConfigs.some(mr => mr.name === r.name)) {
-                        comp.uiConfig.repositoryConfigs.push({ ...r, id: r.id || `repo_${crypto.randomUUID()}` });
+                        comp.uiConfig.repositoryConfigs.push({ ...r, id: r.id || createId('repo_') });
                     }
                 });
             }
             if (envs.length > 0) {
                 envs.forEach((e: any) => {
                     if (!comp.uiConfig.environments.some(me => me.name.toLowerCase() === e.name.toLowerCase())) {
-                        comp.uiConfig.environments.push({ ...e, id: e.id || `env_${crypto.randomUUID()}` });
+                        comp.uiConfig.environments.push({ ...e, id: e.id || createId('env_') });
                     }
                 });
             }

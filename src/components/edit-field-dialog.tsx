@@ -36,6 +36,7 @@ import { Calendar } from './ui/calendar';
 import { format } from 'date-fns';
 import { buildStatusConfigItem } from '@/lib/status-config';
 import { StatusManagementContent } from '@/components/status-management-content';
+import { createId } from '@/lib/id';
 
 
 const fieldOptionSchema = z.object({
@@ -172,7 +173,7 @@ export function EditFieldDialog({
     field?.key === 'testers';
   const showCustomOptionsUI = showOptions && !isRepoField && !fieldHasManagedOptions;
 
-  const unchangeableRequiredKeys = ['title', 'description', 'status', 'repositories', 'developers'];
+  const unchangeableRequiredKeys = ['title', 'description', 'status', 'developers'];
   const isRequiredToggleDisabled = field !== null && !field.isCustom && unchangeableRequiredKeys.includes(field.key);
   
   const protectedDevDateFields = ['devStartDate', 'devEndDate'];
@@ -192,7 +193,7 @@ export function EditFieldDialog({
   };
 
   const handleAddRepo = () => {
-    setLocalRepoConfigs(prev => [...prev, { id: `repo_${crypto.randomUUID()}`, name: 'New-Repo', baseUrl: 'https://github.com/org/repo/pull/' }]);
+    setLocalRepoConfigs(prev => [...prev, { id: createId('repo_'), name: 'New-Repo', baseUrl: 'https://github.com/org/repo/pull/' }]);
   };
 
   const handleDeleteRepo = (id: string) => {
@@ -202,7 +203,7 @@ export function EditFieldDialog({
   const handleAddTag = () => {
     const trimmedTag = newTag.trim();
     if (trimmedTag && !options.some(opt => opt.value.toLowerCase() === trimmedTag.toLowerCase())) {
-        const newOption = { id: `option_${crypto.randomUUID()}`, label: trimmedTag, value: trimmedTag };
+        const newOption = { id: createId('option_'), label: trimmedTag, value: trimmedTag };
         append(newOption);
         
         setAllTags(prev => {
@@ -262,7 +263,7 @@ export function EditFieldDialog({
 
     const finalField: FieldConfig = {
       ...(field || {
-        id: `field_custom_${crypto.randomUUID()}`,
+        id: createId('field_custom_'),
         key: '', 
         order: 0, 
         isCustom: true,
@@ -848,7 +849,7 @@ export function EditFieldDialog({
                                 ))}
                             </div>
                              {form.formState.errors.options && <p className="text-sm text-destructive mt-1 font-semibold">{form.formState.errors.options.message}</p>}
-                            <Button type="button" variant="outline" size="sm" onClick={() => append({id: `option_${crypto.randomUUID()}`, label: '', value: ''})} className="w-full h-10 border-dashed rounded-xl font-bold">
+                            <Button type="button" variant="outline" size="sm" onClick={() => append({id: createId('option_'), label: '', value: ''})} className="w-full h-10 border-dashed rounded-xl font-bold">
                                 <PlusCircle className="h-4 w-4 mr-2" /> Add Option
                             </Button>
                         </div>

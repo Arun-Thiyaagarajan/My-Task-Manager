@@ -14,6 +14,7 @@ export interface TransferEvent {
     filename: string;
     status: TransferStatus;
     progress: number;
+    kind?: 'import' | 'export' | 'upload';
     error?: string;
 }
 
@@ -27,7 +28,10 @@ export function FileTransferIndicator() {
                 const existing = prev.findIndex(t => t.id === event.id);
                 if (existing !== -1) {
                     const next = [...prev];
-                    next[existing] = event;
+                    next[existing] = {
+                        ...next[existing],
+                        ...event,
+                    };
                     return next;
                 }
                 return [event, ...prev];
@@ -46,6 +50,22 @@ export function FileTransferIndicator() {
     }, []);
 
     if (transfers.length === 0) return null;
+
+    const getTransferLabel = (transfer: TransferEvent) => {
+        if (transfer.status === 'preparing') return 'Preparing...';
+        if (transfer.status === 'uploading') {
+            if (transfer.kind === 'import') return `Importing (${transfer.progress}%)`;
+            return `Uploading (${transfer.progress}%)`;
+        }
+        if (transfer.status === 'downloading') return `Receiving (${transfer.progress}%)`;
+        if (transfer.status === 'generating') return `Generating PDF (${transfer.progress}%)`;
+        if (transfer.status === 'complete') {
+            if (transfer.kind === 'import') return 'Import Complete';
+            if (transfer.kind === 'upload') return 'Upload Complete';
+            return 'Export Complete';
+        }
+        return transfer.error || 'Failed';
+    };
 
     return (
         <div className="fixed bottom-24 md:bottom-6 right-6 md:right-12 z-[150] flex flex-col gap-3 max-w-xs w-full pointer-events-none">
@@ -87,12 +107,7 @@ export function FileTransferIndicator() {
                             </div>
                             
                             <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
-                                {transfer.status === 'preparing' ? 'Preparing...' : 
-                                 transfer.status === 'uploading' ? `Sending (${transfer.progress}%)` :
-                                 transfer.status === 'downloading' ? `Receiving (${transfer.progress}%)` :
-                                 transfer.status === 'generating' ? `Generating PDF (${transfer.progress}%)` :
-                                 transfer.status === 'complete' ? 'Export Complete' : 
-                                 transfer.error || 'Failed'}
+                                {getTransferLabel(transfer)}
                             </p>
 
                             {(transfer.status === 'uploading' || transfer.status === 'downloading' || transfer.status === 'generating') && (

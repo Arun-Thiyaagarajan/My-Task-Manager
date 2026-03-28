@@ -56,6 +56,7 @@ import { triggerTransfer } from '@/components/file-transfer-indicator';
 import { Calendar } from '@/components/ui/calendar';
 import { StatusIcon, getSortedStatusNames, getStatusDisplayName, isStatusValue } from '@/lib/status-config';
 import { scheduleStatusUpdate } from '@/lib/status-update';
+import { getTaskRepositories, isRepositoryFieldActive, shouldShowPrLinks } from '@/lib/repository-config';
 
 
 const isImageUrl = (url: string): boolean => {
@@ -488,6 +489,7 @@ export default function TaskPage() {
     triggerTransfer({
         id: transferId,
         filename: file.name,
+        kind: 'upload',
         status: 'uploading',
         progress: 0
     });
@@ -495,7 +497,7 @@ export default function TaskPage() {
     const reader = new FileReader();
     reader.onload = async (e) => {
         const rawDataUri = e.target?.result as string;
-        triggerTransfer({ id: transferId, filename: file.name, status: 'uploading', progress: 50 });
+        triggerTransfer({ id: transferId, filename: file.name, kind: 'upload', status: 'uploading', progress: 50 });
         
         const optimizedUri = await compressImage(rawDataUri);
         const newAttachment: Attachment = { 
@@ -508,7 +510,7 @@ export default function TaskPage() {
         };
         
         setLocalAttachments(prev => [...prev, newAttachment]);
-        triggerTransfer({ id: transferId, filename: file.name, status: 'complete', progress: 100 });
+        triggerTransfer({ id: transferId, filename: file.name, kind: 'upload', status: 'complete', progress: 100 });
         toast({ variant: 'success', title: 'Image optimized and added.'});
     };
     reader.readAsDataURL(file);
@@ -862,6 +864,8 @@ const handleCopyDescription = () => {
   
   const tagsField = (uiConfig?.fields || []).find(f => f.key === 'tags');
   const repoField = (uiConfig?.fields || []).find(f => f.key === 'repositories');
+  const visibleRepositories = getTaskRepositories(task, uiConfig);
+  const isRepositorySectionVisible = isRepositoryFieldActive(uiConfig);
   
   const tagsOptions = [...new Set([...(tagsField?.options?.map(opt => opt.value) || []), ...(allTasks.flatMap(t => t.tags || []))])].map(t => ({value: t, label: t}));
   const repoOptions = (repoField?.options || uiConfig?.repositoryConfigs || []).map(opt => ({ 
@@ -871,7 +875,7 @@ const handleCopyDescription = () => {
   const developerOptions = developers.map(d => ({value: d.id, label: d.name}));
   const testerOptions = testers.map(t => ({value: t.id, label: t.name}));
 
-  const prField = (uiConfig?.fields || []).find(f => f.key === 'prLinks' && f.isActive);
+  const prField = shouldShowPrLinks(uiConfig) ? (uiConfig?.fields || []).find(f => f.key === 'prLinks' && f.isActive) : undefined;
   const deploymentField = (uiConfig?.fields || []).find(f => f.key === 'deploymentStatus' && f.isActive);
   const attachmentsField = (uiConfig?.fields || []).find(f => f.key === 'attachments' && f.isActive);
   const commentsField = (uiConfig?.fields || []).find(f => f.key === 'comments' && f.isActive);
@@ -1136,7 +1140,7 @@ const handleCopyDescription = () => {
                 </div>
             </Card>
             
-            <div className={cn("grid grid-cols-1 gap-6", prField ? "md:grid-cols-2" : "")}>
+            <div className={cn("grid grid-cols-1 gap-6", prField && visibleRepositories.length > 0 ? "md:grid-cols-2" : "")}>
                 {deploymentField && (
                   <Card id="task-detail-deployment">
                     <CardHeader>
@@ -1162,18 +1166,18 @@ const handleCopyDescription = () => {
                     </CardContent>
                   </Card>
                 )}
-                {prField && (
+                {prField && visibleRepositories.length > 0 && (
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
                       <CardTitle className="flex items-center gap-2 text-xl font-semibold"><GitMerge className="h-5 w-5" />{fieldLabels.get('prLinks') || 'Pull Requests'}</CardTitle>
-                      {!isBinned && Array.isArray(task.repositories) && task.repositories.length > 0 && allConfiguredEnvs.length > 0 && (
+                      {!isBinned && visibleRepositories.length > 0 && allConfiguredEnvs.length > 0 && (
                         <Button variant="ghost" size="sm" onClick={() => setIsEditingPrLinks(!isEditingPrLinks)} className="font-medium">
                           {isEditingPrLinks ? 'Done' : (<><Pencil className="h-3 w-3 mr-1.5" /> Edit</>)}
                         </Button>
                       )}
                     </CardHeader>
                     <CardContent>
-                      <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} configuredEnvs={allConfiguredEnvs.map(e => e.name)} repositoryConfigs={uiConfig.repositoryConfigs} onUpdate={handlePrLinksUpdate} isEditing={isEditingPrLinks && !isBinned} />
+                      <PrLinksGroup prLinks={task.prLinks} repositories={visibleRepositories} configuredEnvs={allConfiguredEnvs.map(e => e.name)} repositoryConfigs={uiConfig.repositoryConfigs} onUpdate={handlePrLinksUpdate} isEditing={isEditingPrLinks && !isBinned} />
                     </CardContent>
                   </Card>
                 )}
@@ -1258,10 +1262,12 @@ const handleCopyDescription = () => {
                             <Label className="font-semibold">{fieldLabels.get('testers') || 'Testers'}</Label>
                             <MultiSelect selected={task.testers || []} onChange={val => handleSaveEditing('testers', false, val)} options={testerOptions} creatable onCreate={handleCreateTester}/>
                         </div>
-                        <div>
-                            <Label className="font-semibold">{fieldLabels.get('repositories') || 'Repositories'}</Label>
-                            <MultiSelect selected={Array.isArray(task.repositories) ? task.repositories : (task.repositories ? [task.repositories] : [])} onChange={val => handleSaveEditing('repositories', false, val)} options={repoOptions} />
-                        </div>
+                        {isRepositorySectionVisible && (
+                          <div>
+                              <Label className="font-semibold">{fieldLabels.get('repositories') || 'Repositories'}</Label>
+                              <MultiSelect selected={visibleRepositories} onChange={val => handleSaveEditing('repositories', false, val)} options={repoOptions} />
+                          </div>
+                        )}
                         {azureWorkItemIdFieldConfig?.isActive && (
                             <div>
                                 <Label className="font-semibold">{azureWorkItemIdFieldConfig.label || 'Azure DevOps'}</Label>
@@ -1275,15 +1281,19 @@ const handleCopyDescription = () => {
                       <TaskDetailSection title={fieldLabels.get('developers') || 'Developers'} people={assignedDevelopers} setPersonInView={setPersonInView} isDeveloper={true} />
                       <Separator />
                       <TaskDetailSection title={fieldLabels.get('testers') || 'Testers'} people={assignedTesters} setPersonInView={setPersonInView} isDeveloper={false} />
-                      <Separator />
-                      <div>
-                        <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('repositories') || 'Repositories'}</h4>
-                        <div className="flex flex-wrap gap-1">
-                          {(Array.isArray(task.repositories) && task.repositories.length > 0) ? (task.repositories || []).map(repo => (
-                            <Badge key={repo} variant="repo" style={getRepoBadgeStyle(repo)} className="font-medium">{repo}</Badge>
-                          )) : (<p className="text-sm text-muted-foreground font-normal">No repositories assigned.</p>)}
-                        </div>
-                      </div>
+                      {isRepositorySectionVisible && (
+                        <>
+                          <Separator />
+                          <div>
+                            <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('repositories') || 'Repositories'}</h4>
+                            <div className="flex flex-wrap gap-1">
+                              {visibleRepositories.length > 0 ? visibleRepositories.map(repo => (
+                                <Badge key={repo} variant="repo" style={getRepoBadgeStyle(repo)} className="font-medium">{repo}</Badge>
+                              )) : (<p className="text-sm text-muted-foreground font-normal">No repositories assigned.</p>)}
+                            </div>
+                          </div>
+                        </>
+                      )}
                       {azureWorkItemIdFieldConfig && azureWorkItemIdFieldConfig.isActive && task.azureWorkItemId && (<>
                         <Separator />
                         <div>

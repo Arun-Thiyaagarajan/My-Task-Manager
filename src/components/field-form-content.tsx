@@ -26,14 +26,13 @@ import { format } from 'date-fns';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { buildStatusConfigItem } from '@/lib/status-config';
 import { StatusManagementContent } from '@/components/status-management-content';
+import { randomId } from '@/lib/id';
 
 const fieldOptionSchema = z.object({
     id: z.string(),
     label: z.string().min(1, "Label is required"),
     value: z.string().min(1, "Value is required"),
 });
-
-const randomId = () => crypto.randomUUID();
 
 const fieldSchema = z.object({
   label: z.string().min(2, { message: 'Label must be at least 2 characters.' }),
@@ -156,7 +155,7 @@ export function FieldFormContent({
   const fieldHasManagedOptions = field?.key === 'status' || field?.key === 'developers' || field?.key === 'testers';
   const showCustomOptionsUI = showOptions && !isRepoField && !fieldHasManagedOptions;
 
-  const unchangeableRequiredKeys = ['title', 'description', 'status', 'repositories', 'developers'];
+  const unchangeableRequiredKeys = ['title', 'description', 'status', 'developers'];
   const isRequiredToggleDisabled = field !== null && !field.isCustom && unchangeableRequiredKeys.includes(field.key);
   
   const protectedDevDateFields = ['devStartDate', 'devEndDate'];

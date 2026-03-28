@@ -34,6 +34,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { PrLinksGroup } from '@/components/pr-links-group';
 import { CommentsSection } from '@/components/comments-section';
 import LZString from 'lz-string';
+import { getTaskRepositories, isRepositoryFieldActive, shouldShowPrLinks } from '@/lib/repository-config';
 
 // Built-in defaults to keep shared URLs short
 const DEFAULT_METADATA: Record<string, { l: string, t: string, u?: string }> = {
@@ -217,9 +218,10 @@ function SharedTaskContent() {
     const repositoriesLabel = fieldLabels.get('repositories') || 'Repositories';
     const attachmentsLabel = fieldLabels.get('attachments') || 'Attachments';
     const otherDetailsLabel = fieldLabels.get('customFields') || 'Other Details';
+    const visibleRepositories = getTaskRepositories(task, uiConfig);
+    const showRepositories = isRepositoryFieldActive(uiConfig);
+    const showPrSection = shouldShowPrLinks(uiConfig) && visibleRepositories.length > 0;
 
-    const isPrFieldExist = () => uiConfig?.fields?.find(f => f.key === 'prLinks' && f.isActive);
-    
     // Standard fields we don't treat as "custom" in the other details section
     const standardKeys = ['title', 'description', 'status', 'repositories', 'developers', 'testers', 'azureWorkItemId', 'tags', 'prLinks', 'attachments', 'deploymentStatus', 'relevantEnvironments', 'devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate', 'comments', 'summary'];
 
@@ -275,7 +277,7 @@ function SharedTaskContent() {
                             </div>
                         </Card>
 
-                        <div className={cn("grid grid-cols-1 gap-6", isPrFieldExist() ? "md:grid-cols-2" : "")}>
+                        <div className={cn("grid grid-cols-1 gap-6", showPrSection ? "md:grid-cols-2" : "")}>
                             <Card>
                                 <CardHeader><CardTitle className="flex items-center gap-2 text-xl font-semibold"><CheckCircle2 className="h-5 w-5" />{deploymentLabel}</CardTitle></CardHeader>
                                 <CardContent>
@@ -295,10 +297,10 @@ function SharedTaskContent() {
                                 </CardContent>
                             </Card>
                             {
-                                isPrFieldExist() && (
+                                showPrSection && (
                                     <Card>
                                         <CardHeader><CardTitle className="flex items-center gap-2 text-xl font-semibold"><GitMerge className="h-5 w-5" />{prLinksLabel}</CardTitle></CardHeader>
-                                        <CardContent><PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} configuredEnvs={relevantEnvs.map(e => e.name)} repositoryConfigs={uiConfig.repositoryConfigs} isEditing={false} /></CardContent>
+                                        <CardContent><PrLinksGroup prLinks={task.prLinks} repositories={visibleRepositories} configuredEnvs={relevantEnvs.map(e => e.name)} repositoryConfigs={uiConfig.repositoryConfigs} isEditing={false} /></CardContent>
                                     </Card>
                                 )
                             }
@@ -363,15 +365,19 @@ function SharedTaskContent() {
                                         {!task.testers?.length && <p className="text-xs text-muted-foreground font-normal italic">None assigned.</p>}
                                     </div>
                                 </div>
-                                <Separator className="opacity-50" />
-                                <div>
-                                    <h4 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-                                        <GitMerge className="h-4 w-4" /> {repositoriesLabel}
-                                    </h4>
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {task.repositories?.map(repo => <Badge key={repo} variant="repo" style={getRepoBadgeStyle(repo)} className="text-[10px] font-bold uppercase">{repo}</Badge>)}
-                                    </div>
-                                </div>
+                                {showRepositories && (
+                                    <>
+                                        <Separator className="opacity-50" />
+                                        <div>
+                                            <h4 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+                                                <GitMerge className="h-4 w-4" /> {repositoriesLabel}
+                                            </h4>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {visibleRepositories.map(repo => <Badge key={repo} variant="repo" style={getRepoBadgeStyle(repo)} className="text-[10px] font-bold uppercase">{repo}</Badge>)}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
                                 {task.azureWorkItemId && (
                                     <>
                                         <Separator className="opacity-50" />

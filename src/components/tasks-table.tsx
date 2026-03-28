@@ -47,6 +47,7 @@ import { TaskTableRowSkeleton } from './task-card-skeleton';
 import { Skeleton } from './ui/skeleton';
 import { StatusIcon, getSortedStatusNames, getStatusDisplayName, isStatusValue, getStatusId } from '@/lib/status-config';
 import { scheduleStatusUpdate } from '@/lib/status-update';
+import { getTaskRepositories, isRepositoryFieldActive } from '@/lib/repository-config';
 
 interface TasksTableRowProps {
   task: Task;
@@ -190,6 +191,7 @@ const TasksTableRow = memo(function TasksTableRow({
   const statusConfig = getStatusConfig(task.status, uiConfig);
   
   const allRelevantEnvs = (uiConfig?.environments || []).filter(e => (task.relevantEnvironments || ['dev','stage','production']).includes(e.name));
+  const visibleRepositories = getTaskRepositories(task, uiConfig);
 
   return (
     <TableRow 
@@ -319,20 +321,22 @@ const TasksTableRow = memo(function TasksTableRow({
           ))}
         </div>
       </TableCell>
-      <TableCell className="align-top">
-        <div className="flex flex-wrap gap-1">
-          {(task.repositories || []).map((repo) => (
-            <Badge
-              variant="repo"
-              key={repo}
-              className="text-xs font-medium"
-              style={getRepoBadgeStyle(repo)}
-            >
-              {repo}
-            </Badge>
-          ))}
-        </div>
-      </TableCell>
+      {isRepositoryFieldActive(uiConfig) && (
+        <TableCell className="align-top">
+          <div className="flex flex-wrap gap-1">
+            {visibleRepositories.map((repo) => (
+              <Badge
+                variant="repo"
+                key={repo}
+                className="text-xs font-medium"
+                style={getRepoBadgeStyle(repo)}
+              >
+                {repo}
+              </Badge>
+            ))}
+          </div>
+        </TableCell>
+      )}
       <TableCell className="align-top">
         <EnvironmentStatus
           deploymentStatus={task.deploymentStatus}
@@ -429,7 +433,8 @@ export const TasksTable = memo(function TasksTable({
     setSelectedTaskIds(newSelected);
   };
   
-  const colSpan = isSelectMode ? 8 : 7;
+  const showRepositoryColumn = isRepositoryFieldActive(uiConfig);
+  const colSpan = isSelectMode ? (showRepositoryColumn ? 8 : 7) : (showRepositoryColumn ? 7 : 6);
   
   const getPriorityTitle = () => {
     const allStatuses = new Set(priorityTasks.map(t => t.status));
@@ -446,7 +451,7 @@ export const TasksTable = memo(function TasksTable({
   const renderTaskRows = (tasksToRender: Task[]) => {
     if (isLoading) {
         return Array.from({ length: 5 }).map((_, i) => (
-            <TaskTableRowSkeleton key={`skeleton-row-${i}`} isSelectMode={isSelectMode} />
+            <TaskTableRowSkeleton key={`skeleton-row-${i}`} isSelectMode={isSelectMode} showRepositoryColumn={showRepositoryColumn} />
         ));
     }
     if (!uiConfig) return null;
@@ -480,7 +485,7 @@ export const TasksTable = memo(function TasksTable({
                         <TableHead className="font-semibold">{fieldLabels.get('status') || 'Status'}</TableHead>
                         <TableHead className="font-semibold">{developersLabel}</TableHead>
                         <TableHead className="font-semibold">{testersLabel}</TableHead>
-                        <TableHead className="font-semibold">{fieldLabels.get('repositories') || 'Repositories'}</TableHead>
+                        {showRepositoryColumn && <TableHead className="font-semibold">{fieldLabels.get('repositories') || 'Repositories'}</TableHead>}
                         <TableHead className="font-semibold">{fieldLabels.get('deploymentStatus') || 'Deployments'}</TableHead>
                         <TableHead className="text-right font-semibold">Actions</TableHead>
                     </TableRow>
@@ -522,9 +527,11 @@ export const TasksTable = memo(function TasksTable({
             <TableHead className="font-semibold">{fieldLabels.get('status') || 'Status'}</TableHead>
             <TableHead className="font-semibold">{developersLabel}</TableHead>
             <TableHead className="font-semibold">{testersLabel}</TableHead>
-            <TableHead className="font-semibold">
-              {fieldLabels.get('repositories') || 'Repositories'}
-            </TableHead>
+            {showRepositoryColumn && (
+              <TableHead className="font-semibold">
+                {fieldLabels.get('repositories') || 'Repositories'}
+              </TableHead>
+            )}
             <TableHead className="font-semibold">
               {fieldLabels.get('deploymentStatus') || 'Deployments'}
             </TableHead>

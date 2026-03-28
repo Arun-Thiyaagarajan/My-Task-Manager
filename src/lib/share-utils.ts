@@ -4,6 +4,7 @@ import jsPDF from 'jspdf';
 import { format } from 'date-fns';
 import type { Task, UiConfig, Person, FieldConfig, Environment, Comment, Attachment } from './types';
 import { pickDefaultIconName, resolveStatusConfig } from './status-config';
+import { getTaskRepositories, isRepositoryFieldActive, shouldShowPrLinks } from './repository-config';
 
 // --- SVG ICONS FOR PDF WATERMARK ---
 const STATUS_SVG_ICONS: Record<string, string> = {
@@ -390,6 +391,7 @@ const _drawTaskOnPage = async (
     const testersById = new Map(testers.map(t => [t.id, t.name]));
     const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
     const customFields = uiConfig.fields.filter(f => f.isCustom && f.isActive && task.customFields && typeof task.customFields[f.key] !== 'undefined' && task.customFields[f.key] !== null && task.customFields[f.key] !== '');
+    const visibleRepositories = getTaskRepositories(task, uiConfig);
 
     // --- PDF DRAWING ---
     drawHeader();
@@ -419,8 +421,8 @@ const _drawTaskOnPage = async (
     drawKeyValue(fieldLabels.get('developers') || 'Developers', assignedDevs || 'None');
     const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter(Boolean).join(', ');
     drawKeyValue(fieldLabels.get('testers') || 'Testers', assignedTesters || 'None');
-    if (task.repositories && task.repositories.length > 0) {
-        drawKeyValue(fieldLabels.get('repositories') || 'Repositories', task.repositories.join(', '));
+    if (isRepositoryFieldActive(uiConfig) && visibleRepositories.length > 0) {
+        drawKeyValue(fieldLabels.get('repositories') || 'Repositories', visibleRepositories.join(', '));
     }
     if (task.azureWorkItemId) {
         const azureConfig = uiConfig.fields.find(f => f.key === 'azureWorkItemId');
@@ -457,9 +459,7 @@ const _drawTaskOnPage = async (
         }
     });
 
-    const isPrFieldExist = () => uiConfig?.fields?.find(f => f.key === 'prLinks' && f.isActive);
-
-    if (isPrFieldExist() && task.prLinks && Object.keys(task.prLinks).length > 0) {
+    if (shouldShowPrLinks(uiConfig) && visibleRepositories.length > 0 && task.prLinks && Object.keys(task.prLinks).length > 0) {
         let firstPrLabel = '';
         let firstPrValue: { text: string; link: string } | '' = '';
         outer: for (const [env, repos] of Object.entries(task.prLinks)) {
@@ -630,8 +630,10 @@ export const generateTasksText = (
         text += `Developers: ${devs || 'None'}\n`;
         const test = (task.testers || []).map(id => testersById.get(id)).filter(Boolean).join(', ');
         text += `Testers: ${test || 'None'}\n`;
-        const testRepos = Array.isArray(task.repositories) ? task.repositories : [];
-        text += `Repositories: ${testRepos.join(', ') || 'None'}\n`;
+        const testRepos = getTaskRepositories(task, uiConfig);
+        if (isRepositoryFieldActive(uiConfig)) {
+            text += `Repositories: ${testRepos.join(', ') || 'None'}\n`;
+        }
         if (task.azureWorkItemId) text += `Azure Work Item: #${task.azureWorkItemId}\n`;
         
         return text;

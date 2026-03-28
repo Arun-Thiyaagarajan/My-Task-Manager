@@ -38,6 +38,7 @@ import { ReminderDialog } from './reminder-dialog';
 import { ShareMenu } from './share-menu';
 import { StatusIcon, getSortedStatusNames, getStatusDisplayName, isStatusValue } from '@/lib/status-config';
 import { scheduleStatusUpdate } from '@/lib/status-update';
+import { getTaskRepositories } from '@/lib/repository-config';
 
 interface TaskCardProps {
   task: Task;
@@ -220,6 +221,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
   const { cardClassName } = statusConfig;
 
   const allRelevantEnvs = (uiConfig?.environments || []).filter(e => (task.relevantEnvironments || ['dev','stage','production']).includes(e.name));
+  const visibleRepositories = getTaskRepositories(task, uiConfig);
 
   return (
     <>
@@ -337,21 +339,23 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                 </p>
               </div>
               <div className="flex-grow space-y-3">
-                <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                  <GitMerge className="h-4 w-4 shrink-0 mt-0.5" />
-                  <div className="flex flex-wrap gap-1">
-                    {(Array.isArray(task.repositories) ? task.repositories : []).map((repo) => (
-                      <Badge 
-                        variant="repo" 
-                        key={repo} 
-                        className="text-[10px] font-medium uppercase tracking-wider"
-                        style={getRepoBadgeStyle(repo)}
-                      >
-                        {repo}
-                      </Badge>
-                    ))}
+                {visibleRepositories.length > 0 && (
+                  <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <GitMerge className="h-4 w-4 shrink-0 mt-0.5" />
+                    <div className="flex flex-wrap gap-1">
+                      {visibleRepositories.map((repo) => (
+                        <Badge 
+                          variant="repo" 
+                          key={repo} 
+                          className="text-[10px] font-medium uppercase tracking-wider"
+                          style={getRepoBadgeStyle(repo)}
+                        >
+                          {repo}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
                 
                 {azureFieldConfig?.isActive && task.azureWorkItemId && (
                   <a 

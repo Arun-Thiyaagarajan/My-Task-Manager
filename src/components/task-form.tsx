@@ -54,6 +54,7 @@ import { TextareaToolbar, applyFormat, type FormatType } from '@/components/ui/t
 import { getLinkAlias } from '@/ai/flows/alias-flow';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { getSortedStatusOptions, getStatusDisplayName } from '@/lib/status-config';
+import { isRepositoryFieldActive, shouldShowPrLinks } from '@/lib/repository-config';
 
 
 type TaskFormData = z.infer<ReturnType<typeof createTaskSchema>>;
@@ -373,6 +374,8 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   const watchedRelevantEnvs = form.watch('relevantEnvironments', []);
   const allConfiguredEnvs = uiConfig?.environments || [];
   const activeEnvs = allConfiguredEnvs.filter(env => env && env.name && watchedRelevantEnvs?.includes(env.name));
+  const isRepositoryFieldVisible = isRepositoryFieldActive(uiConfig);
+  const showPrLinksSection = shouldShowPrLinks(uiConfig);
 
   const handleCreateDeveloper = (name: string): string | undefined => {
     try {
@@ -497,6 +500,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     let options: {value: string, label: string}[] = [];
     
     if (field.key === 'repositories') {
+        if (!isRepositoryFieldVisible) return [];
         options = (uiConfig?.repositoryConfigs || []).map(rc => ({ value: rc.name, label: rc.name }));
     } else if (field.key === 'status') {
       options = getSortedStatusOptions(uiConfig).map(option => ({ value: option.value, label: option.label }));
@@ -538,6 +542,9 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   
   const renderField = (fieldConfig: FieldConfig) => {
     const { key, type, label, isCustom, isRequired, baseUrl } = fieldConfig;
+    if (key === 'repositories' && !isRepositoryFieldVisible) {
+        return null;
+    }
     const fieldName = isCustom ? `customFields.${key}` : key;
     
     const hasError = !!(isCustom ? errors.customFields?.[key] : errors[key as keyof typeof errors]);
@@ -708,7 +715,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
 
   const groupedFields = useMemo(() => {
     return (uiConfig?.fields || [])
-      .filter(f => f.isActive && f.key !== 'comments')
+      .filter(f => f.isActive && f.key !== 'comments' && (f.key !== 'repositories' || isRepositoryFieldVisible))
       .sort((a,b) => a.order - b.order)
       .reduce((acc, field) => {
           const group = field.group || 'Other';
@@ -764,7 +771,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
             fields: []
         });
     }
-    if ((uiConfig?.fields || []).find(f => f.key === 'prLinks' && f.isActive)) {
+    if (showPrLinksSection) {
         sections.push({ 
             id: 'pull-requests', 
             label: fieldLabels.get('prLinks') || 'Pull Requests', 
@@ -774,7 +781,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     }
 
     return sections;
-  }, [groupOrder, uiConfig, fieldLabels, deploymentFieldConfig, groupedFields]);
+  }, [groupOrder, uiConfig, fieldLabels, deploymentFieldConfig, groupedFields, showPrLinksSection]);
 
   const useIsMobile = () => {
     const [isMobile, setIsMobile] = useState(false);
@@ -1278,7 +1285,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                     </Card>
                 )}
 
-                {(uiConfig?.fields || []).find(f => f.key === 'prLinks' && f.isActive) && (
+                {showPrLinksSection && (
                     <Card id="pull-requests" className="scroll-mt-32 transition-all duration-300 border-none lg:border shadow-xl lg:shadow-md bg-card">
                         <CardHeader className="pb-2">
                             <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight uppercase tracking-wide">

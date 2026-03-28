@@ -404,6 +404,16 @@ export default function SettingsPage() {
 
   const performSaveFields = () => {
     const validStatusIds = new Set(localStatusConfigs.map(status => status.id));
+    const previousFieldsByKey = new Map((uiConfig?.fields || []).map((field) => [field.key, field]));
+    const activatedFields = localFields.filter((field) => {
+      const previousField = previousFieldsByKey.get(field.key);
+      return previousField ? !previousField.isActive && field.isActive : false;
+    });
+    const deactivatedFields = localFields.filter((field) => {
+      const previousField = previousFieldsByKey.get(field.key);
+      return Boolean(previousField?.isActive) && !field.isActive;
+    });
+    const deletedFields = (uiConfig?.fields || []).filter((field) => !localFields.some((localField) => localField.key === field.key));
 
     const invalidConversion = localPendingStatusConversions.find(
       conversion => !validStatusIds.has(conversion.targetStatusId)
@@ -443,6 +453,21 @@ export default function SettingsPage() {
       taskStatuses: localStatusConfigs.map(status => status.name),
     });
     handleUpdateConfig(nextConfig);
+    activatedFields.forEach((field) => {
+      addLog({
+        message: `Activated field: **${field.label}**.`,
+      });
+    });
+    deactivatedFields.forEach((field) => {
+      addLog({
+        message: `Deactivated field: **${field.label}**.`,
+      });
+    });
+    deletedFields.forEach((field) => {
+      addLog({
+        message: `Deleted field: **${field.label}**.`,
+      });
+    });
     setLocalPendingStatusConversions([]);
     toast({ variant: 'success', title: 'Field configuration saved successfully.' });
     setIsDeactivateConfirmOpen(false);
@@ -1024,7 +1049,7 @@ export default function SettingsPage() {
                                                 <h4 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2 px-1">{groupName}</h4>
                                                 <div className="grid gap-2">
                                                     {fields.map(field => {
-                                                        const isMandatory = !field.isCustom && ['title', 'description', 'status', 'repositories', 'developers'].includes(field.key);
+                                                        const isMandatory = !field.isCustom && ['title', 'description', 'status', 'developers'].includes(field.key);
                                                         return (
                                                             <div key={field.id} className="flex items-center justify-between p-3 bg-muted/20 border rounded-2xl hover:bg-muted/40 transition-all group">
                                                                 <div className="min-w-0 flex-1 pr-2">
@@ -1198,7 +1223,7 @@ export default function SettingsPage() {
                                     <h4 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2 px-1">{groupName}<div className="h-px bg-border flex-1" /></h4>
                                     <div className="grid gap-2">
                                         {fields.map(field => {
-                                            const isMandatory = !field.isCustom && ['title', 'description', 'status', 'repositories', 'developers'].includes(field.key);
+                                            const isMandatory = !field.isCustom && ['title', 'description', 'status', 'developers'].includes(field.key);
                                             return (
                                                 <div key={field.id} className="flex items-center justify-between p-3 bg-muted/20 border rounded-xl hover:bg-muted/40 transition-all group border-transparent hover:border-border">
                                                     <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">

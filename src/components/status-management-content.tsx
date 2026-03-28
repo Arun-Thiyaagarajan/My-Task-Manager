@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { getTasks } from '@/lib/data';
 import { AVAILABLE_STATUS_ICONS, STATUS_COLOR_SWATCHES, StatusIcon, buildStatusConfigItem, getStatusId, pickDefaultIconName } from '@/lib/status-config';
 import { useToast } from '@/hooks/use-toast';
+import { createId } from '@/lib/id';
 
 const statusEditorSchema = z.object({
   name: z.string().min(1, 'Status name is required.'),
@@ -215,7 +216,7 @@ export function StatusManagementContent({
       };
     } else {
       nextStatuses.push({
-        id: `custom_status_${crypto.randomUUID()}`,
+        id: createId('custom_status_'),
         name: trimmedName,
         group: trimmedGroup,
         color: data.color,
