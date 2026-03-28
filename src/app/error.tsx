@@ -22,8 +22,8 @@ export default function Error({
             <svg viewBox="0 0 512 350" xmlns="http://www.w3.org/2000/svg">
                 <path d="M399.789 253.929L399.789 199.16" stroke="#4F46E5" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round" fill="none"></path>
                 <path d="M448.868 226.545L350.71 226.545" stroke="#4F46E5" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round" fill="none"></path>
-                <path d_original="M194.28 107.039L194.28 52.2705" d="M194.28 107.039L194.28 52.2705" stroke="#4F46E5" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round" fill="none"></path>
-                <path d_original="M243.359 79.6548L145.199 79.6548" d="M243.359 79.6548L145.199 79.6548" stroke="#4F46EU" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round" fill="none" transform="rotate(90, 194.279, 79.6548)"></path>
+                <path d="M194.28 107.039L194.28 52.2705" stroke="#4F46E5" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round" fill="none"></path>
+                <path d="M243.359 79.6548L145.199 79.6548" stroke="#4F46E5" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round" fill="none" transform="rotate(90, 194.279, 79.6548)"></path>
                 <path d="M113.161 303.95L113.161 249.181" stroke="#4F46E5" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round" fill="none"></path>
                 <path d="M162.24 276.565L64.0811 276.565" stroke="#4F46E5" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round" fill="none"></path>
                 <rect x="231" y="243" width="68" height="68" rx="34" fill="#E0E7FF"></rect>

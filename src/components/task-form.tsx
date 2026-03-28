@@ -75,6 +75,25 @@ const safeParseDate = (d: any): Date | undefined => {
     return isNaN(date.getTime()) ? undefined : date;
 };
 
+const normalizePrLinks = (prLinks?: TaskFormData['prLinks']): Task['prLinks'] | undefined => {
+    if (!prLinks) return undefined;
+
+    const normalized: NonNullable<Task['prLinks']> = {};
+    Object.entries(prLinks).forEach(([environment, repositories]) => {
+        if (!repositories) return;
+
+        const cleanRepositories = Object.fromEntries(
+            Object.entries(repositories).filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].trim().length > 0)
+        );
+
+        if (Object.keys(cleanRepositories).length > 0) {
+            normalized[environment] = cleanRepositories;
+        }
+    });
+
+    return Object.keys(normalized).length > 0 ? normalized : undefined;
+};
+
 const getInitialTaskData = (task?: Partial<Task>, uiConfig?: UiConfig | null) => {
     if (!task) {
         const defaults: any = {
@@ -101,13 +120,13 @@ const getInitialTaskData = (task?: Partial<Task>, uiConfig?: UiConfig | null) =>
                     let val = f.defaultValue;
                     if (f.type === 'date') val = safeParseDate(val);
 
-                    if (f.key === 'developers' || f.key === 'testers' || f.key === 'tags' || f.type === 'multiselect') {
-                        defaults[f.key] = Array.isArray(val) ? val : (val ? [val] : []);
-                    } else if (f.isCustom) {
-                        const finalVal = (f.type === 'tags' || f.type === 'multiselect') 
+                    if (f.isCustom) {
+                        const finalVal = (f.type === 'tags' || f.type === 'multiselect')
                             ? (Array.isArray(val) ? val : (val ? [val] : []))
                             : val;
                         defaults.customFields = { ...defaults.customFields, [f.key]: finalVal };
+                    } else if (f.key === 'developers' || f.key === 'testers' || f.key === 'tags' || f.type === 'multiselect') {
+                        defaults[f.key] = Array.isArray(val) ? val : (val ? [val] : []);
                     } else {
                         defaults[f.key] = val;
                     }
@@ -399,7 +418,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
      try {
         const newTester = addTester({ name });
         setTestersList(prev => {
-            if (prev.some(t => d.id === newTester.id)) return prev;
+            if (prev.some(t => t.id === newTester.id)) return prev;
             return [...prev, newTester];
         });
         return newTester.id;
@@ -436,7 +455,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
             variant: 'destructive',
             duration: 5000,
             title: 'Missing Required Fields',
-            description: () => (
+            description: (
                 <div className="flex flex-col gap-1 font-normal">
                     <p className="font-medium text-sm">Please fill out the following fields:</p>
                     <ul className="list-disc list-inside mt-1 text-xs">
@@ -448,8 +467,24 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
       }
   };
 
+  const normalizeTaskFormData = (data: TaskFormData): Partial<Task> => ({
+    ...data,
+    reminderExpiresAt: data.reminderExpiresAt ? data.reminderExpiresAt.toISOString() : null,
+    prLinks: normalizePrLinks(data.prLinks),
+    devStartDate: data.devStartDate ? data.devStartDate.toISOString() : null,
+    devEndDate: data.devEndDate ? data.devEndDate.toISOString() : null,
+    qaStartDate: data.qaStartDate ? data.qaStartDate.toISOString() : null,
+    qaEndDate: data.qaEndDate ? data.qaEndDate.toISOString() : null,
+    deploymentDates: data.deploymentDates
+        ? Object.fromEntries(
+            Object.entries(data.deploymentDates).map(([key, value]) => [key, value ? value.toISOString() : null])
+          )
+        : {},
+  });
+
   const handleFormSubmit = (data: TaskFormData) => {
-    const uniqueness = checkUniqueness(data, task?.id);
+    const normalizedData = normalizeTaskFormData(data);
+    const uniqueness = checkUniqueness(normalizedData, task?.id);
     if (!uniqueness.isUnique) {
         const fieldKey = uiConfig?.fields.find(f => f.label === uniqueness.fieldLabel)?.key || 'title';
         setUniquenessViolation({ 
@@ -469,7 +504,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     startTransition(() => {
         setIsDirty(false);
         localStorage.removeItem(draftKey);
-        onSubmit(data);
+        onSubmit(normalizedData as TaskFormData);
     });
   };
   
@@ -571,13 +606,13 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                 );
             case 'number':
             case 'url':
-                return <Input type={fieldType === 'text' ? 'text' : fieldType} placeholder={label} {...field} value={field.value ?? ''} className="font-normal" />;
+                return <Input type={fieldType} placeholder={label} {...field} value={field.value ?? ''} className="font-normal" />;
             case 'textarea': {
-                 const ref = key === 'description' ? descriptionRef : undefined;
+                 const ref = key === 'description' ? descriptionRef : null;
                  return (
                     <div className="relative w-full">
-                        <Textarea {...field} value={field.value ?? ''} ref={ref} className="pb-12 font-normal" enableHotkeys/>
-                        <TextareaToolbar onFormatClick={(type) => handleFormat(ref, type)} />
+                        <Textarea {...field} value={field.value ?? ''} ref={ref ?? undefined} className="pb-12 font-normal" enableHotkeys/>
+                        {ref ? <TextareaToolbar onFormatClick={(type) => handleFormat(ref, type)} /> : null}
                     </div>
                  )
             }

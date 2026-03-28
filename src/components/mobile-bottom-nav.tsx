@@ -154,7 +154,7 @@ export function MobileBottomNav() {
             (authMode === 'authenticate' && user) ? "border-primary" : "border-muted-foreground/20"
           )}>
             <Avatar className="h-full w-full">
-              <AvatarImage src={isActualImage(profilePhoto) ? profilePhoto : undefined} className="object-cover" />
+              <AvatarImage src={isActualImage(profilePhoto) ? (profilePhoto ?? undefined) : undefined} className="object-cover" />
               <AvatarFallback 
                 className="text-white text-[8px] font-bold"
                 style={{ background: getAvatarGradient(profileName) }}

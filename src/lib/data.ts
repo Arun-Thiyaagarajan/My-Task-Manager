@@ -7,6 +7,7 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, setDoc, deleteDoc, updateDoc, collection, writeBatch, getDocs, query, orderBy, limit, getDoc, where, addDoc } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { toast } from '@/hooks/use-toast';
 import { syncTaskStatuses } from './status-config';
 import { createId } from './id';
 

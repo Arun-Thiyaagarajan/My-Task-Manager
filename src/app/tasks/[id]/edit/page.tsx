@@ -13,6 +13,25 @@ import { createTaskSchema } from '@/lib/validators';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { generateSummarySafely } from '@/ai/flows/summary-flow';
 
+const normalizePrLinks = (prLinks: any): Task['prLinks'] | undefined => {
+  if (!prLinks) return undefined;
+
+  const normalized: NonNullable<Task['prLinks']> = {};
+  Object.entries(prLinks).forEach(([environment, repositories]) => {
+    if (!repositories || typeof repositories !== 'object') return;
+
+    const cleanRepositories = Object.fromEntries(
+      Object.entries(repositories).filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].trim().length > 0)
+    );
+
+    if (Object.keys(cleanRepositories).length > 0) {
+      normalized[environment] = cleanRepositories;
+    }
+  });
+
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
+};
+
 export default function EditTaskPage() {
   const params = useParams();
   const router = useRouter();
@@ -66,10 +85,12 @@ export default function EditTaskPage() {
     
     const { deploymentDates, devStartDate, devEndDate, qaStartDate, qaEndDate, ...otherData } = validationResult.data;
 
-    const taskDataToUpdate: Partial<Task> = {
-        ...otherData,
-        devStartDate: devStartDate ? devStartDate.toISOString() : null,
-        devEndDate: devEndDate ? devEndDate.toISOString() : null,
+	    const taskDataToUpdate: Partial<Task> = {
+	        ...otherData,
+	        reminderExpiresAt: otherData.reminderExpiresAt ? otherData.reminderExpiresAt.toISOString() : null,
+	        prLinks: normalizePrLinks(otherData.prLinks),
+	        devStartDate: devStartDate ? devStartDate.toISOString() : null,
+	        devEndDate: devEndDate ? devEndDate.toISOString() : null,
         qaStartDate: qaStartDate ? qaStartDate.toISOString() : null,
         qaEndDate: qaEndDate ? qaEndDate.toISOString() : null,
         deploymentDates: {}
