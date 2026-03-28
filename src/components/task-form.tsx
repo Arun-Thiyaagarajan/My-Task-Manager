@@ -31,6 +31,7 @@ import {
     ArrowLeft, 
     AlertTriangle,
     History,
+    RotateCcw,
     X
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -313,6 +314,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   
   const devStartDate = form.watch('devStartDate');
   const qaStartDate = form.watch('qaStartDate');
+  const canClearForm = !task?.id;
   
   const { fields: attachments, append: appendAttachment, remove: removeAttachment, update: updateAttachment } = useFieldArray({
     control: form.control,
@@ -511,6 +513,22 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
    const handleCancel = useCallback(() => {
     prompt(() => router.back());
   }, [prompt, router]);
+
+  const handleClearForm = useCallback(() => {
+    if (!uiConfig) return;
+
+    form.reset(getInitialTaskData(undefined, uiConfig));
+    localStorage.removeItem(draftKey);
+    setShowDraftPrompt(false);
+    setDraftData(null);
+    setUniquenessViolation(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    toast({
+      title: 'Form cleared',
+      description: 'All fields have been reset to their default values.',
+    });
+  }, [uiConfig, form, draftKey, toast]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -927,7 +945,22 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                 <ArrowLeft className="h-4 w-4" />
                 <span>Back</span>
             </Button>
-            <h2 className="text-lg font-semibold tracking-tight truncate flex-1 text-right">{formTitle}</h2>
+            <div className="flex items-center gap-2 pl-3 min-w-0">
+                {canClearForm && (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleClearForm}
+                        disabled={isPending}
+                        className="h-8 rounded-full px-3 text-xs font-medium shadow-sm"
+                    >
+                        <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                        Clear
+                    </Button>
+                )}
+                <h2 className="text-lg font-semibold tracking-tight truncate">{formTitle}</h2>
+            </div>
         </div>
 
         {/* MOBILE DRAFT RESTORE DRAWER */}
@@ -1113,7 +1146,21 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
 
             <div className="flex-1 space-y-6 max-w-full">
                 {/* Desktop-only Page Title */}
-                <h1 className="hidden lg:block text-2xl font-semibold tracking-tight mb-2 px-6">{formTitle}</h1>
+                <div className="hidden lg:flex items-center justify-between gap-4 mb-2 px-6">
+                    <h1 className="text-2xl font-semibold tracking-tight">{formTitle}</h1>
+                    {canClearForm && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleClearForm}
+                            disabled={isPending}
+                            className="h-10 rounded-full px-5 font-medium shadow-sm bg-background/80"
+                        >
+                            <RotateCcw className="mr-2 h-4 w-4" />
+                            Clear Form
+                        </Button>
+                    )}
+                </div>
 
                 {/* Desktop Draft Prompt */}
                 {!isMobile && showDraftPrompt && (
