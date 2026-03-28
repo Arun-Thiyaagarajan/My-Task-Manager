@@ -495,7 +495,7 @@ export function GlobalSpotlightSearch() {
       <DialogContent
         hideClose={!isMobile}
         className={cn(
-          'gap-0 overflow-hidden border-white/10 bg-background/95 p-0 shadow-2xl backdrop-blur-2xl',
+          'gap-0 overflow-hidden border-white/10 bg-background/95 p-0 shadow-2xl backdrop-blur-2xl duration-300 data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-[0.98] data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[50%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[50%]',
           isMobile
             ? 'top-4 w-[calc(100vw-1rem)] max-w-none translate-y-0 rounded-[24px] border max-h-[72vh]'
             : 'top-[18vh] translate-y-0 rounded-[28px] border sm:max-w-2xl'
@@ -547,8 +547,8 @@ export function GlobalSpotlightSearch() {
                   <CommandGroup heading={section.heading}>
                     {section.items.map(item => (
                       <CommandItem
-                        key={item.id}
-                        value={`${item.title} ${item.subLabel} ${(item.keywords || []).join(' ')}`}
+                        key={`${section.heading}-${item.id}`}
+                        value={`${section.heading} ${item.id} ${item.title} ${item.subLabel} ${(item.keywords || []).join(' ')}`}
                         onSelect={() => navigateToResult(item)}
                         className="group rounded-2xl px-3 py-3"
                       >
