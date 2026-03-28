@@ -11,6 +11,8 @@ import { PullToRefresh } from '@/components/pull-to-refresh';
 import { NavigationLoader } from '@/components/navigation-loader';
 import { FaviconSync } from '@/components/favicon-sync';
 import { FileTransferIndicator } from '@/components/file-transfer-indicator';
+import { GlobalSpotlightSearch } from '@/components/global-spotlight-search';
+import { OfflineScreen } from '@/components/offline-screen';
 
 /**
  * Handles client-side layout logic such as pathname-based conditional 
@@ -33,6 +35,8 @@ export function RootLayoutClient({ children }: { children: React.ReactNode }) {
           </main>
         </PullToRefresh>
         {!isSharedPage && <FloatingNotes />}
+        {!isSharedPage && <GlobalSpotlightSearch />}
+        <OfflineScreen />
         <FileTransferIndicator />
         {!isSharedPage && <MobileBottomNav />}
         </div>

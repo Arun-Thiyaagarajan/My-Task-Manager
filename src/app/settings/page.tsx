@@ -16,10 +16,12 @@ import {
     deleteEnvironment,
     updateCompany,
     getTasksUsingField,
+    getTasks,
     getUserPreferences,
-    updateUserPreferences
+    updateUserPreferences,
+    updateTask
 } from '@/lib/data';
-import type { Task, UiConfig, FieldConfig, Person, RepositoryConfig, Environment, BackupFrequency, AuthMode, UserPreferences } from '@/lib/types';
+import type { Task, UiConfig, FieldConfig, Person, RepositoryConfig, Environment, BackupFrequency, AuthMode, UserPreferences, PendingStatusConversion } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -121,6 +123,8 @@ import { FieldFormContent } from '@/components/field-form-content';
 import { EnvironmentFormContent } from '@/components/environment-form-content';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import type { StatusConfigItem } from '@/lib/types';
+import { getStatusConfigs, syncTaskStatuses } from '@/lib/status-config';
 
 const isActualImage = (url: string | null | undefined) => {
     if (!url) return false;
@@ -138,6 +142,8 @@ export default function SettingsPage() {
   const [uiConfig, setUiConfigState] = useState<UiConfig | null>(null);
   const [localFields, setLocalFields] = useState<FieldConfig[]>([]);
   const [localRepositoryConfigs, setLocalRepositoryConfigs] = useState<RepositoryConfig[]>([]);
+  const [localStatusConfigs, setLocalStatusConfigs] = useState<StatusConfigItem[]>([]);
+  const [localPendingStatusConversions, setLocalPendingStatusConversions] = useState<PendingStatusConversion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isClearing, setIsClearing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -216,6 +222,8 @@ export default function SettingsPage() {
     setUiConfigState(config);
     setLocalFields(config?.fields || []);
     setLocalRepositoryConfigs(config?.repositoryConfigs || []);
+    setLocalStatusConfigs(getStatusConfigs(config));
+    setLocalPendingStatusConversions([]);
     setAppName(config?.appName || '');
     setAppIcon(config?.appIcon || '');
     setTimeFormat(config?.timeFormat || '12h');
@@ -242,9 +250,11 @@ export default function SettingsPage() {
     if (!uiConfig) return false;
     return (
       JSON.stringify(localFields) !== JSON.stringify(uiConfig.fields) ||
-      JSON.stringify(localRepositoryConfigs) !== JSON.stringify(uiConfig.repositoryConfigs || [])
+      JSON.stringify(localRepositoryConfigs) !== JSON.stringify(uiConfig.repositoryConfigs || []) ||
+      JSON.stringify(localStatusConfigs) !== JSON.stringify(getStatusConfigs(uiConfig)) ||
+      localPendingStatusConversions.length > 0
     );
-  }, [localFields, localRepositoryConfigs, uiConfig]);
+  }, [localFields, localRepositoryConfigs, localStatusConfigs, localPendingStatusConversions, uiConfig]);
 
   // Auto-scroll to top when unsaved changes alert appears
   useEffect(() => {
@@ -393,14 +403,84 @@ export default function SettingsPage() {
   };
 
   const performSaveFields = () => {
-    handleUpdateConfig({ fields: localFields, repositoryConfigs: localRepositoryConfigs });
+    const validStatusIds = new Set(localStatusConfigs.map(status => status.id));
+    const previousFieldsByKey = new Map((uiConfig?.fields || []).map((field) => [field.key, field]));
+    const activatedFields = localFields.filter((field) => {
+      const previousField = previousFieldsByKey.get(field.key);
+      return previousField ? !previousField.isActive && field.isActive : false;
+    });
+    const deactivatedFields = localFields.filter((field) => {
+      const previousField = previousFieldsByKey.get(field.key);
+      return Boolean(previousField?.isActive) && !field.isActive;
+    });
+    const deletedFields = (uiConfig?.fields || []).filter((field) => !localFields.some((localField) => localField.key === field.key));
+
+    const invalidConversion = localPendingStatusConversions.find(
+      conversion => !validStatusIds.has(conversion.targetStatusId)
+    );
+
+    if (invalidConversion) {
+      toast({
+        variant: 'destructive',
+        title: 'Status Conversion Incomplete',
+        description: 'One or more status deletions still point to a removed replacement status.',
+      });
+      return;
+    }
+
+    const taskMap = new Map(getTasks().map(task => [task.id, task]));
+    localPendingStatusConversions.forEach((conversion) => {
+      const targetStatus = localStatusConfigs.find(status => status.id === conversion.targetStatusId);
+      if (!targetStatus) return;
+
+      conversion.affectedTaskIds.forEach((taskId) => {
+        const task = taskMap.get(taskId);
+        if (!task || task.status === targetStatus.name) return;
+        updateTask(taskId, { status: targetStatus.name }, true);
+      });
+      if (conversion.affectedTaskIds.length > 0) {
+        addLog({
+          message: `Converted **${conversion.affectedTaskIds.length}** task(s) from status **${conversion.sourceStatusName}** to **${targetStatus.name}** before deleting the original status.`,
+        });
+      }
+    });
+
+    const nextConfig = syncTaskStatuses({
+      ...uiConfig!,
+      fields: localFields,
+      repositoryConfigs: localRepositoryConfigs,
+      statusConfigs: localStatusConfigs,
+      taskStatuses: localStatusConfigs.map(status => status.name),
+    });
+    handleUpdateConfig(nextConfig);
+    activatedFields.forEach((field) => {
+      addLog({
+        message: `Activated field: **${field.label}**.`,
+      });
+    });
+    deactivatedFields.forEach((field) => {
+      addLog({
+        message: `Deactivated field: **${field.label}**.`,
+      });
+    });
+    deletedFields.forEach((field) => {
+      addLog({
+        message: `Deleted field: **${field.label}**.`,
+      });
+    });
+    setLocalPendingStatusConversions([]);
     toast({ variant: 'success', title: 'Field configuration saved successfully.' });
     setIsDeactivateConfirmOpen(false);
     setPendingDeactivateFields([]);
     if (isMobile) setActiveMobileSection('fields');
   };
 
-  const handleSaveField = (updatedField: FieldConfig, repoConfigs?: RepositoryConfig[]) => {
+  const handleSaveField = (
+    updatedField: FieldConfig,
+    repoConfigs?: RepositoryConfig[],
+    statusConfigs?: StatusConfigItem[],
+    pendingStatusConversions?: PendingStatusConversion[]
+  ) => {
     let newFields = [...localFields];
     const index = newFields.findIndex(f => f.id === updatedField.id);
     if (index !== -1) {
@@ -413,6 +493,16 @@ export default function SettingsPage() {
     }
     setLocalFields(newFields);
     if (repoConfigs) setLocalRepositoryConfigs(repoConfigs);
+    if (updatedField.key === 'status' && statusConfigs) {
+      setLocalStatusConfigs(getStatusConfigs({
+        ...uiConfig!,
+        fields: newFields,
+        repositoryConfigs: repoConfigs || localRepositoryConfigs,
+        statusConfigs,
+        taskStatuses: statusConfigs.map(status => status.name),
+      }));
+      setLocalPendingStatusConversions(pendingStatusConversions || []);
+    }
     
     if (isMobile) setActiveMobileSection('fields');
   };
@@ -633,8 +723,8 @@ export default function SettingsPage() {
                 </div>
                 <div className="p-6 pt-2 shrink-0">
                     <AlertDialogFooter className="gap-3 flex-col sm:flex-row">
-                        <AlertDialogCancel className="rounded-xl h-11 font-medium border-none bg-muted/50 hover:bg-muted" onClick={() => setIsDeactivateConfirmOpen(false)}>Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={performSaveFields} className="bg-primary hover:bg-primary/90 rounded-xl h-11 font-bold shadow-lg">Confirm & Save</AlertDialogAction>
+                        <AlertDialogCancel className="rounded-xl h-11 font-medium border-none bg-muted/50 hover:bg-muted" onClick={() => setIsDeactivateConfirmOpen(false)}>Cancel</AlertDialogCancel>
                     </AlertDialogFooter>
                 </div>
             </AlertDialogContent>
@@ -779,9 +869,11 @@ export default function SettingsPage() {
                         <FieldFormContent 
                             field={fieldToEdit} 
                             existingFields={localFields}
-                            repositoryConfigs={localRepositoryConfigs} 
+                            repositoryConfigs={localRepositoryConfigs}
+                            statusConfigs={localStatusConfigs}
+                            pendingStatusConversions={localPendingStatusConversions}
                             onSave={handleSaveField} 
-                            onCancel={() => setActiveMobileSection('fields')} 
+                            onCancel={() => setActiveMobileSection('fields')}
                         />
                     </div>
                 )}
@@ -916,6 +1008,16 @@ export default function SettingsPage() {
                         <CardHeader className="pb-4"><CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider"><Bell className="h-5 w-5 text-primary" />Features</CardTitle></CardHeader>
                         <CardContent className="space-y-4">
                             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20"><div className="space-y-0.5"><Label className="text-sm font-semibold tracking-tight">Task Reminders</Label><p className="text-[10px] font-normal text-muted-foreground uppercase">Sticky notes on tasks.</p></div><Switch checked={uiConfig.remindersEnabled} onCheckedChange={(checked) => handleUpdateConfig({ remindersEnabled: checked })} /></div>
+                            <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20">
+                                <div className="space-y-0.5">
+                                    <Label className="text-sm font-semibold tracking-tight flex items-center gap-2">
+                                        <Search className="h-3.5 w-3.5 text-muted-foreground" />
+                                        Global Search
+                                    </Label>
+                                    <p className="text-[10px] font-normal text-muted-foreground uppercase">Cmd/Ctrl + K spotlight search.</p>
+                                </div>
+                                <Badge variant="outline" className="h-7 rounded-full px-2.5 text-[9px] font-black uppercase tracking-wider">Live</Badge>
+                            </div>
                             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20"><div className="space-y-0.5"><Label className="text-sm font-semibold tracking-tight">Guided Tour</Label><p className="text-[10px] font-normal text-muted-foreground uppercase">Onboarding tips.</p></div><Switch checked={uiConfig.tutorialEnabled} onCheckedChange={(checked) => handleUpdateConfig({ tutorialEnabled: checked })} /></div>
                             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20">
                                 <div className="space-y-0.5">
@@ -957,7 +1059,7 @@ export default function SettingsPage() {
                                                 <h4 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2 px-1">{groupName}</h4>
                                                 <div className="grid gap-2">
                                                     {fields.map(field => {
-                                                        const isMandatory = !field.isCustom && ['title', 'description', 'status', 'repositories', 'developers'].includes(field.key);
+                                                        const isMandatory = !field.isCustom && ['title', 'description', 'status', 'developers'].includes(field.key);
                                                         return (
                                                             <div key={field.id} className="flex items-center justify-between p-3 bg-muted/20 border rounded-2xl hover:bg-muted/40 transition-all group">
                                                                 <div className="min-w-0 flex-1 pr-2">
@@ -1131,7 +1233,7 @@ export default function SettingsPage() {
                                     <h4 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2 px-1">{groupName}<div className="h-px bg-border flex-1" /></h4>
                                     <div className="grid gap-2">
                                         {fields.map(field => {
-                                            const isMandatory = !field.isCustom && ['title', 'description', 'status', 'repositories', 'developers'].includes(field.key);
+                                            const isMandatory = !field.isCustom && ['title', 'description', 'status', 'developers'].includes(field.key);
                                             return (
                                                 <div key={field.id} className="flex items-center justify-between p-3 bg-muted/20 border rounded-xl hover:bg-muted/40 transition-all group border-transparent hover:border-border">
                                                     <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
@@ -1301,6 +1403,18 @@ export default function SettingsPage() {
                     </div>
                     <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-transparent hover:border-border transition-colors">
                         <div className="space-y-0.5">
+                            <Label className="text-sm font-semibold tracking-tight flex items-center gap-2">
+                                <Search className="h-3.5 w-3.5 text-muted-foreground" />
+                                Global Search
+                            </Label>
+                            <p className="text-[10px] font-normal text-muted-foreground uppercase">Cmd/Ctrl + K spotlight search.</p>
+                        </div>
+                        <Badge variant="outline" className="h-7 rounded-full px-2.5 text-[9px] font-black uppercase tracking-wider">
+                            Live
+                        </Badge>
+                    </div>
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-transparent hover:border-border transition-colors">
+                        <div className="space-y-0.5">
                             <Label className="text-sm font-semibold tracking-tight">Onboarding Tour</Label>
                             <p className="text-[10px] font-normal text-muted-foreground uppercase">Guided walkthrough.</p>
                         </div>
@@ -1360,7 +1474,9 @@ export default function SettingsPage() {
         onOpenChange={setIsFieldDialogOpen} 
         field={fieldToEdit} 
         existingFields={localFields}
-        repositoryConfigs={localRepositoryConfigs} 
+        repositoryConfigs={localRepositoryConfigs}
+        statusConfigs={localStatusConfigs}
+        pendingStatusConversions={localPendingStatusConversions}
         onSave={handleSaveField} 
       />
       <EditEnvironmentDialog isOpen={isEnvDialogOpen} onOpenChange={setIsEnvDialogOpen} environment={envToEdit} onSave={handleSaveEnv} />

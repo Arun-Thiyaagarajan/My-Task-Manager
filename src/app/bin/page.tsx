@@ -372,7 +372,7 @@ export default function BinPage() {
                                                 {isNote ? task.title.replace('Note: ', '') : task.title}
                                             </div>
                                         </TableCell>
-                                        <TableCell><TaskStatusBadge status={task.status} /></TableCell>
+                                        <TableCell><TaskStatusBadge status={task.status} uiConfig={uiConfig} /></TableCell>
                                         <TableCell className="text-muted-foreground text-xs truncate max-w-xs font-medium">{assignees.join(', ') || 'N/A'}</TableCell>
                                         <TableCell className="text-right text-muted-foreground text-xs whitespace-nowrap font-medium">
                                             {task.deletedAt ? formatTimestamp(task.deletedAt, uiConfig.timeFormat) : 'Recently'}

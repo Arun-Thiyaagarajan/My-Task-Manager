@@ -11,7 +11,26 @@ import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createTaskSchema } from '@/lib/validators';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { generateSummary } from '@/ai/flows/summary-flow';
+import { generateSummarySafely } from '@/ai/flows/summary-flow';
+
+const normalizePrLinks = (prLinks: any): Task['prLinks'] | undefined => {
+  if (!prLinks) return undefined;
+
+  const normalized: NonNullable<Task['prLinks']> = {};
+  Object.entries(prLinks).forEach(([environment, repositories]) => {
+    if (!repositories || typeof repositories !== 'object') return;
+
+    const cleanRepositories = Object.fromEntries(
+      Object.entries(repositories).filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].trim().length > 0)
+    );
+
+    if (Object.keys(cleanRepositories).length > 0) {
+      normalized[environment] = cleanRepositories;
+    }
+  });
+
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
+};
 
 export default function EditTaskPage() {
   const params = useParams();
@@ -66,22 +85,28 @@ export default function EditTaskPage() {
     
     const { deploymentDates, devStartDate, devEndDate, qaStartDate, qaEndDate, ...otherData } = validationResult.data;
 
-    const taskDataToUpdate: Partial<Task> = {
-        ...otherData,
-        devStartDate: devStartDate ? devStartDate.toISOString() : null,
-        devEndDate: devEndDate ? devEndDate.toISOString() : null,
+	    const taskDataToUpdate: Partial<Task> = {
+	        ...otherData,
+	        reminderExpiresAt: otherData.reminderExpiresAt ? otherData.reminderExpiresAt.toISOString() : null,
+	        prLinks: normalizePrLinks(otherData.prLinks),
+	        devStartDate: devStartDate ? devStartDate.toISOString() : null,
+	        devEndDate: devEndDate ? devEndDate.toISOString() : null,
         qaStartDate: qaStartDate ? qaStartDate.toISOString() : null,
         qaEndDate: qaEndDate ? qaEndDate.toISOString() : null,
         deploymentDates: {}
     };
 
+    let summaryGenerationFailed = false;
+
     if (taskDataToUpdate.description && taskDataToUpdate.description !== task.description && taskDataToUpdate.description.length > 200) {
-      try {
-        const summary = await generateSummary({ text: taskDataToUpdate.description });
-        taskDataToUpdate.summary = summary.summary;
-      } catch (error) {
-        console.error('Failed to generate summary:', error);
-        taskDataToUpdate.summary = null;
+      const summaryResult = await generateSummarySafely({ text: taskDataToUpdate.description });
+
+      if (summaryResult.ok) {
+        taskDataToUpdate.summary = summaryResult.summary;
+      } else {
+        summaryGenerationFailed = true;
+        taskDataToUpdate.summary = task.summary ?? null;
+        console.error('Failed to generate summary:', summaryResult.error ?? summaryResult.reason);
       }
     } else if (taskDataToUpdate.description && taskDataToUpdate.description.length <= 200) {
       taskDataToUpdate.summary = null;
@@ -105,6 +130,14 @@ export default function EditTaskPage() {
         title: `Task updated`,
         description: "Your changes have been saved.",
     });
+
+    if (summaryGenerationFailed) {
+      toast({
+        variant: 'warning',
+        title: 'Task updated without a new AI summary',
+        description: 'The description summary could not be refreshed right now. Your task changes were still saved.',
+      });
+    }
 
     router.push(`/tasks/${task.id}`);
   };

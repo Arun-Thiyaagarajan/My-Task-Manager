@@ -6,6 +6,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { getTaskById, getUiConfig } from '@/lib/data';
 import type { Task, UiConfig, Environment, Attachment } from '@/lib/types';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
+import { StatusIcon } from '@/lib/status-config';
 import { TaskStatusBadge, getStatusConfig } from '@/components/task-status-badge';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -33,6 +34,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { PrLinksGroup } from '@/components/pr-links-group';
 import { CommentsSection } from '@/components/comments-section';
 import LZString from 'lz-string';
+import { getTaskRepositories, isRepositoryFieldActive, shouldShowPrLinks } from '@/lib/repository-config';
 
 // Built-in defaults to keep shared URLs short
 const DEFAULT_METADATA: Record<string, { l: string, t: string, u?: string }> = {
@@ -66,12 +68,15 @@ function SharedTaskContent() {
     const [fieldLabels, setFieldLabels] = useState<Map<string, string>>(new Map());
     const [fieldMetadata, setFieldMetadata] = useState<Map<string, { l: string, t: string, u?: string }>>(new Map());
     const [isLoading, setIsLoading] = useState(true);
+    const [isLocalPreview, setIsLocalPreview] = useState(false);
 
     useEffect(() => {
         const taskId = params.id as string;
         const payload = searchParams.get('p');
         const config = getUiConfig();
         setUiConfig(config);
+        const usingSharedPayload = Boolean(payload);
+        setIsLocalPreview(!usingSharedPayload);
 
         let finalTask: Task | null = null;
         let rawMetadata: Record<string, { l: string, t: string, u?: string }> = { ...DEFAULT_METADATA };
@@ -157,7 +162,7 @@ function SharedTaskContent() {
             Object.entries(rawMetadata).forEach(([k, v]) => labels.set(k, v.l));
             setFieldLabels(labels);
             
-            document.title = `Snapshot: ${finalTask.title}`;
+            document.title = `${finalTask.title} | Task Share`;
         }
         setIsLoading(false);
     }, [params.id, searchParams]);
@@ -206,8 +211,8 @@ function SharedTaskContent() {
     }
 
     const relevantEnvs = (task.relevantEnvironments || []).map(name => uiConfig.environments.find(e => e.name === name)).filter((e): e is Environment => !!e);
-    const statusConfig = getStatusConfig(task.status);
-    const { Icon, cardClassName, iconColorClassName } = statusConfig;
+    const statusConfig = getStatusConfig(task.status, uiConfig);
+    const { cardClassName } = statusConfig;
 
     const deploymentLabel = fieldLabels.get('deploymentStatus') || 'Deployments';
     const prLinksLabel = fieldLabels.get('prLinks') || 'Pull Request Links';
@@ -216,6 +221,10 @@ function SharedTaskContent() {
     const repositoriesLabel = fieldLabels.get('repositories') || 'Repositories';
     const attachmentsLabel = fieldLabels.get('attachments') || 'Attachments';
     const otherDetailsLabel = fieldLabels.get('customFields') || 'Other Details';
+    const visibleRepositories = getTaskRepositories(task, uiConfig);
+    const showRepositories = isRepositoryFieldActive(uiConfig);
+    const showPrSection = shouldShowPrLinks(uiConfig) && visibleRepositories.length > 0;
+    const sharedUpdatedLabel = formatTimestamp(task.updatedAt, uiConfig.timeFormat);
 
     // Standard fields we don't treat as "custom" in the other details section
     const standardKeys = ['title', 'description', 'status', 'repositories', 'developers', 'testers', 'azureWorkItemId', 'tags', 'prLinks', 'attachments', 'deploymentStatus', 'relevantEnvironments', 'devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate', 'comments', 'summary'];
@@ -235,13 +244,23 @@ function SharedTaskContent() {
                     <div className="flex items-center gap-2">
                         <div className="h-9 w-9 bg-primary rounded-xl flex items-center justify-center text-primary-foreground font-black text-sm shadow-lg">TF</div>
                         <div className="flex flex-col">
-                            <span className="font-bold tracking-tight text-sm leading-none uppercase">Secure Publication</span>
-                            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest mt-1">Read-Only Snapshot</span>
+                            <span className="font-bold tracking-tight text-sm leading-none">
+                                {isLocalPreview ? 'Shared Task Preview' : 'Task Share'}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest mt-1">
+                                Read-only · Updated {sharedUpdatedLabel}
+                            </span>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="hidden sm:flex bg-primary/5 text-primary border-primary/20 text-[10px] font-black uppercase tracking-[0.2em] px-3 h-7">Snapshot Locked</Badge>
-                        <Button variant="ghost" size="icon" onClick={() => router.push('/')} className="rounded-full h-9 w-9"><ArrowLeft className="h-5 w-5" /></Button>
+                        <Badge variant="outline" className="hidden sm:flex bg-primary/5 text-primary border-primary/20 text-[10px] font-black uppercase tracking-[0.2em] px-3 h-7">
+                            {isLocalPreview ? 'Preview Mode' : 'Shared View'}
+                        </Badge>
+                        {isLocalPreview && (
+                            <Button variant="ghost" size="icon" onClick={() => router.push('/')} className="rounded-full h-9 w-9">
+                                <ArrowLeft className="h-5 w-5" />
+                            </Button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -251,15 +270,15 @@ function SharedTaskContent() {
                     
                     {/* MAIN COLUMN */}
                     <div className="lg:col-span-2 space-y-6">
-                        <Card className={cn("relative overflow-hidden", cardClassName)}>
-                            <Icon className={cn('absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none opacity-20', iconColorClassName)} />
+                        <Card className={cn("relative overflow-hidden", cardClassName)} style={statusConfig.cardStyle}>
+                            <StatusIcon status={task.status} uiConfig={uiConfig} className="absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none opacity-20" style={statusConfig.backgroundIconStyle} />
                             <div className="relative z-10 flex flex-col h-full">
                                 <CardHeader className="pb-2">
                                     <div className="flex justify-between items-start gap-4">
                                         <CardTitle className="text-3xl font-semibold tracking-tight">{task.title}</CardTitle>
-                                        <TaskStatusBadge status={task.status} variant="prominent" />
+                                        <TaskStatusBadge status={task.status} variant="prominent" uiConfig={uiConfig} />
                                     </div>
-                                    <CardDescription className="font-normal">Snapshot Timestamp: {formatTimestamp(task.updatedAt, uiConfig.timeFormat)}</CardDescription>
+                                    <CardDescription className="font-normal">Last updated {sharedUpdatedLabel}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="pt-2">
                                     {task.summary && (
@@ -272,7 +291,7 @@ function SharedTaskContent() {
                             </div>
                         </Card>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className={cn("grid grid-cols-1 gap-6", showPrSection ? "md:grid-cols-2" : "")}>
                             <Card>
                                 <CardHeader><CardTitle className="flex items-center gap-2 text-xl font-semibold"><CheckCircle2 className="h-5 w-5" />{deploymentLabel}</CardTitle></CardHeader>
                                 <CardContent>
@@ -291,10 +310,14 @@ function SharedTaskContent() {
                                     </div>
                                 </CardContent>
                             </Card>
-                            <Card>
-                                <CardHeader><CardTitle className="flex items-center gap-2 text-xl font-semibold"><GitMerge className="h-5 w-5" />{prLinksLabel}</CardTitle></CardHeader>
-                                <CardContent><PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} configuredEnvs={relevantEnvs.map(e => e.name)} repositoryConfigs={uiConfig.repositoryConfigs} isEditing={false} /></CardContent>
-                            </Card>
+                            {
+                                showPrSection && (
+                                    <Card>
+                                        <CardHeader><CardTitle className="flex items-center gap-2 text-xl font-semibold"><GitMerge className="h-5 w-5" />{prLinksLabel}</CardTitle></CardHeader>
+                                        <CardContent><PrLinksGroup prLinks={task.prLinks} repositories={visibleRepositories} configuredEnvs={relevantEnvs.map(e => e.name)} repositoryConfigs={uiConfig.repositoryConfigs} isEditing={false} /></CardContent>
+                                    </Card>
+                                )
+                            }
                         </div>
 
                         {customFieldEntries.length > 0 && (
@@ -356,15 +379,19 @@ function SharedTaskContent() {
                                         {!task.testers?.length && <p className="text-xs text-muted-foreground font-normal italic">None assigned.</p>}
                                     </div>
                                 </div>
-                                <Separator className="opacity-50" />
-                                <div>
-                                    <h4 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-                                        <GitMerge className="h-4 w-4" /> {repositoriesLabel}
-                                    </h4>
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {task.repositories?.map(repo => <Badge key={repo} variant="repo" style={getRepoBadgeStyle(repo)} className="text-[10px] font-bold uppercase">{repo}</Badge>)}
-                                    </div>
-                                </div>
+                                {showRepositories && (
+                                    <>
+                                        <Separator className="opacity-50" />
+                                        <div>
+                                            <h4 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+                                                <GitMerge className="h-4 w-4" /> {repositoriesLabel}
+                                            </h4>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {visibleRepositories.map(repo => <Badge key={repo} variant="repo" style={getRepoBadgeStyle(repo)} className="text-[10px] font-bold uppercase">{repo}</Badge>)}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
                                 {task.azureWorkItemId && (
                                     <>
                                         <Separator className="opacity-50" />

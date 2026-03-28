@@ -730,7 +730,7 @@ export default function ProfilePage() {
                             className="relative block cursor-pointer transition-transform duration-300 active:scale-95 rounded-full"
                         >
                             <Avatar className="h-20 w-20 border-2 border-background shadow-xl relative z-10 ring-4 ring-primary/10 ring-offset-2 ring-offset-background">
-                                <AvatarImage src={isActualImage(photoURL) ? photoURL : undefined} className="object-cover" />
+                                <AvatarImage src={isActualImage(photoURL) ? (photoURL ?? undefined) : undefined} className="object-cover" />
                                 <AvatarFallback 
                                     className="text-2xl font-semibold text-white" 
                                     style={{ background: getAvatarGradient(profileName) }}
@@ -1000,7 +1000,7 @@ export default function ProfilePage() {
                             className="relative block cursor-pointer transition-transform duration-300 active:scale-95 rounded-full"
                         >
                             <Avatar className="h-24 w-24 border-[6px] border-background shadow-2xl transition-all duration-300 group-hover:border-primary/20">
-                            <AvatarImage src={isActualImage(photoURL) ? photoURL : undefined} className="object-cover" />
+                            <AvatarImage src={isActualImage(photoURL) ? (photoURL ?? undefined) : undefined} className="object-cover" />
                             <AvatarFallback 
                                 className="text-2xl font-semibold text-white" 
                                 style={{ background: getAvatarGradient(profileName) }}
@@ -1146,7 +1146,7 @@ export default function ProfilePage() {
                                     className="relative block cursor-pointer transition-transform duration-300 active:scale-95 rounded-full"
                                 >
                                     <Avatar className="h-32 w-32 border-4 border-background shadow-2xl relative z-10 ring-4 ring-primary/10 ring-offset-4 ring-offset-background">
-                                        <AvatarImage src={isActualImage(photoURL) ? photoURL : undefined} className="object-cover" />
+                                        <AvatarImage src={isActualImage(photoURL) ? (photoURL ?? undefined) : undefined} className="object-cover" />
                                         <AvatarFallback 
                                             className="text-4xl font-semibold text-white" 
                                             style={{ background: getAvatarGradient(profileName) }}

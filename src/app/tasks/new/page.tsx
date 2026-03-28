@@ -9,7 +9,26 @@ import { useToast } from '@/hooks/use-toast';
 import type { Task, Person } from '@/lib/types';
 import { createTaskSchema } from '@/lib/validators';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { generateSummary } from '@/ai/flows/summary-flow';
+import { generateSummarySafely } from '@/ai/flows/summary-flow';
+
+const normalizePrLinks = (prLinks: any): Task['prLinks'] | undefined => {
+  if (!prLinks) return undefined;
+
+  const normalized: NonNullable<Task['prLinks']> = {};
+  Object.entries(prLinks).forEach(([environment, repositories]) => {
+    if (!repositories || typeof repositories !== 'object') return;
+
+    const cleanRepositories = Object.fromEntries(
+      Object.entries(repositories).filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].trim().length > 0)
+    );
+
+    if (Object.keys(cleanRepositories).length > 0) {
+      normalized[environment] = cleanRepositories;
+    }
+  });
+
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
+};
 
 export default function NewTaskPage() {
   const router = useRouter();
@@ -68,10 +87,12 @@ export default function NewTaskPage() {
   
     const { deploymentDates, devStartDate, devEndDate, qaStartDate, qaEndDate, ...otherData } = validationResult.data;
 
-    const taskDataToCreate: Partial<Task> = {
-        ...otherData,
-        devStartDate: devStartDate ? devStartDate.toISOString() : null,
-        devEndDate: devEndDate ? devEndDate.toISOString() : null,
+	    const taskDataToCreate: Partial<Task> = {
+	        ...otherData,
+	        reminderExpiresAt: otherData.reminderExpiresAt ? otherData.reminderExpiresAt.toISOString() : null,
+	        prLinks: normalizePrLinks(otherData.prLinks),
+	        devStartDate: devStartDate ? devStartDate.toISOString() : new Date().toISOString(),
+	        devEndDate: devEndDate ? devEndDate.toISOString() : null,
         qaStartDate: qaStartDate ? qaStartDate.toISOString() : null,
         qaEndDate: qaEndDate ? qaEndDate.toISOString() : null,
         deploymentDates: {}
@@ -88,12 +109,17 @@ export default function NewTaskPage() {
         }, {} as { [key: string]: string | null });
     }
     
+    let summaryGenerationFailed = false;
+
     if (taskDataToCreate.description && taskDataToCreate.description.length > 200) {
-      try {
-        const summary = await generateSummary({ text: taskDataToCreate.description });
-        taskDataToCreate.summary = summary.summary;
-      } catch (error) {
-        console.error('Failed to generate summary:', error);
+      const summaryResult = await generateSummarySafely({ text: taskDataToCreate.description });
+
+      if (summaryResult.ok) {
+        taskDataToCreate.summary = summaryResult.summary;
+      } else {
+        summaryGenerationFailed = true;
+        taskDataToCreate.summary = null;
+        console.error('Failed to generate summary:', summaryResult.error ?? summaryResult.reason);
       }
     }
 
@@ -104,6 +130,14 @@ export default function NewTaskPage() {
         title: `Task created`,
         description: "Your new task has been saved.",
     });
+
+    if (summaryGenerationFailed) {
+      toast({
+        variant: 'warning',
+        title: 'Task saved without AI summary',
+        description: 'The description summary could not be generated right now. Your task was still saved successfully.',
+      });
+    }
 
     router.push(`/tasks/${newTask.id}`);
   };

@@ -50,7 +50,7 @@ export function TaskCardSkeleton() {
   );
 }
 
-export function TaskTableRowSkeleton({ isSelectMode }: { isSelectMode: boolean }) {
+export function TaskTableRowSkeleton({ isSelectMode, showRepositoryColumn = true }: { isSelectMode: boolean; showRepositoryColumn?: boolean }) {
     return (
         <tr className="border-b animate-pulse bg-card/30">
             {isSelectMode && (
@@ -65,7 +65,7 @@ export function TaskTableRowSkeleton({ isSelectMode }: { isSelectMode: boolean }
             <td className="p-4"><Skeleton className="h-6 w-24 rounded-full" /></td>
             <td className="p-4"><div className="flex -space-x-2"><Skeleton className="h-8 w-8 rounded-full border-2 border-background" /></div></td>
             <td className="p-4"><div className="flex -space-x-2"><Skeleton className="h-8 w-8 rounded-full border-2 border-background" /></div></td>
-            <td className="p-4"><div className="flex gap-1"><Skeleton className="h-5 w-16 rounded" /></div></td>
+            {showRepositoryColumn && <td className="p-4"><div className="flex gap-1"><Skeleton className="h-5 w-16 rounded" /></div></td>}
             <td className="p-4"><div className="flex gap-1"><Skeleton className="h-4 w-10 rounded" /></div></td>
             <td className="p-4 text-right"><div className="flex justify-end gap-2"><Skeleton className="h-8 w-12 rounded" /></div></td>
         </tr>

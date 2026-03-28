@@ -42,6 +42,7 @@ export function RelatedTasksSection({ title, tasks, onTaskUpdate, uiConfig, deve
             testers={testers}
             pinnedTaskIds={pinnedTaskIds}
             onPinToggle={onPinToggle}
+            currentQueryString=""
           />
         ))}
       </div>

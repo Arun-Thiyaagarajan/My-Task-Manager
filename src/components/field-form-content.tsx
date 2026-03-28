@@ -8,8 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X, Info, Users, ClipboardCheck, ListChecks, CalendarIcon } from 'lucide-react';
-import type { FieldConfig, FieldOption, FieldType, RepositoryConfig } from '@/lib/types';
+import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X, Info, Users, ClipboardCheck, ListChecks, CalendarIcon, Save } from 'lucide-react';
+import type { FieldConfig, FieldOption, FieldType, PendingStatusConversion, RepositoryConfig, StatusConfigItem } from '@/lib/types';
 import { FIELD_TYPES } from '@/lib/constants';
 import * as React from 'react';
 import { getUiConfig, getTasks, updateTask, addLog, getDevelopers, getTesters } from '@/lib/data';
@@ -24,6 +24,9 @@ import { Textarea } from './ui/textarea';
 import { Calendar } from './ui/calendar';
 import { format } from 'date-fns';
 import { MultiSelect } from '@/components/ui/multi-select';
+import { buildStatusConfigItem } from '@/lib/status-config';
+import { StatusManagementContent } from '@/components/status-management-content';
+import { randomId } from '@/lib/id';
 
 const fieldOptionSchema = z.object({
     id: z.string(),
@@ -63,11 +66,26 @@ interface FieldFormContentProps {
   field: FieldConfig | null;
   existingFields: FieldConfig[];
   repositoryConfigs?: RepositoryConfig[];
-  onSave: (field: FieldConfig, repoConfigs?: RepositoryConfig[]) => void;
+  statusConfigs?: StatusConfigItem[];
+  pendingStatusConversions?: PendingStatusConversion[];
+  onSave: (
+    field: FieldConfig,
+    repoConfigs?: RepositoryConfig[],
+    statusConfigs?: StatusConfigItem[],
+    pendingStatusConversions?: PendingStatusConversion[]
+  ) => void;
   onCancel: () => void;
 }
 
-export function FieldFormContent({ field, existingFields, repositoryConfigs, onSave, onCancel }: FieldFormContentProps) {
+export function FieldFormContent({
+  field,
+  existingFields,
+  repositoryConfigs,
+  statusConfigs,
+  pendingStatusConversions,
+  onSave,
+  onCancel,
+}: FieldFormContentProps) {
   const isCreating = field === null;
   const { toast } = useToast();
   const getDefaultValueFallback = React.useCallback(
@@ -117,24 +135,27 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
 
   const selectedType = form.watch('type');
   const showOptions = selectedType === 'select' || selectedType === 'multiselect' || selectedType === 'tags';
-  const isSortableField = showOptions && (!field || field.key !== 'status');
+  const isSortableField = showOptions;
   
   const [allGroups, setAllGroups] = React.useState<string[]>([]);
   const [isGroupPopoverOpen, setIsGroupPopoverOpen] = React.useState(false);
   const [groupSearch, setGroupSearch] = React.useState('');
   
   const [localRepoConfigs, setLocalRepoConfigs] = React.useState<RepositoryConfig[]>([]);
+  const [localStatusConfigs, setLocalStatusConfigs] = React.useState<StatusConfigItem[]>([]);
+  const [localPendingStatusConversions, setLocalPendingStatusConversions] = React.useState<PendingStatusConversion[]>(pendingStatusConversions || []);
+  const [isStatusEditorOpen, setIsStatusEditorOpen] = React.useState(false);
   const [newTag, setNewTag] = React.useState('');
   const [allTags, setAllTags] = React.useState<FieldOption[]>([]);
-
   const isRepoField = field?.key === 'repositories';
+  const isStatusField = field?.key === 'status';
   const isTagsField = field?.key === 'tags';
   const isDevelopersField = field?.key === 'developers';
   const isTestersField = field?.key === 'testers';
   const fieldHasManagedOptions = field?.key === 'status' || field?.key === 'developers' || field?.key === 'testers';
   const showCustomOptionsUI = showOptions && !isRepoField && !fieldHasManagedOptions;
 
-  const unchangeableRequiredKeys = ['title', 'description', 'status', 'repositories', 'developers'];
+  const unchangeableRequiredKeys = ['title', 'description', 'status', 'developers'];
   const isRequiredToggleDisabled = field !== null && !field.isCustom && unchangeableRequiredKeys.includes(field.key);
   
   const protectedDevDateFields = ['devStartDate', 'devEndDate'];
@@ -153,6 +174,10 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
     if(isRepoField) {
       setLocalRepoConfigs(repositoryConfigs || []);
     }
+    if (isStatusField) {
+      setLocalStatusConfigs((statusConfigs || []).map((status, index) => buildStatusConfigItem(status, index)));
+      setLocalPendingStatusConversions(pendingStatusConversions || []);
+    }
 
     if (isTagsField) {
         const allTasks = getTasks();
@@ -169,12 +194,12 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
         combinedTags.sort((a,b) => a.label.localeCompare(b.label));
         setAllTags(combinedTags);
     }
-  }, [field, isRepoField, isTagsField, repositoryConfigs]);
+  }, [field, isRepoField, isStatusField, isTagsField, repositoryConfigs, statusConfigs, pendingStatusConversions]);
 
   const handleAddTag = () => {
     const trimmedTag = newTag.trim();
     if (trimmedTag && !options.some(opt => opt.value.toLowerCase() === trimmedTag.toLowerCase())) {
-        const newOption = { id: `option_${crypto.randomUUID()}`, label: trimmedTag, value: trimmedTag };
+        const newOption = { id: `option_${randomId}`, label: trimmedTag, value: trimmedTag };
         append(newOption);
         setAllTags(prev => {
             const filtered = prev.filter(t => t.value.toLowerCase() !== trimmedTag.toLowerCase());
@@ -206,9 +231,20 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
         }
     }
 
+    if (isStatusField) {
+      if (localStatusConfigs.length === 0 || localStatusConfigs.some(status => !status.name.trim())) {
+        toast({
+          variant: 'destructive',
+          title: 'Status Configuration Error',
+          description: 'Every status needs a name, and at least one status must remain available.',
+        });
+        return;
+      }
+    }
+
     const finalField: FieldConfig = {
       ...(field || {
-        id: `field_custom_${crypto.randomUUID()}`,
+        id: `field_custom_${randomId}`,
         key: '',
         order: 0,
         isCustom: true,
@@ -216,7 +252,16 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
       ...data,
       sortDirection: data.sortDirection || 'manual',
     };
-    onSave(finalField, isRepoField ? localRepoConfigs : undefined);
+    const finalStatusConfigs = isStatusField
+      ? localStatusConfigs.map((status, index) => buildStatusConfigItem(status, index))
+      : undefined;
+    const finalOptions = finalStatusConfigs?.map(status => ({ id: status.id, value: status.name, label: status.name }));
+    onSave(
+      isStatusField ? { ...finalField, options: finalOptions } : finalField,
+      isRepoField ? localRepoConfigs : undefined,
+      finalStatusConfigs,
+      isStatusField ? localPendingStatusConversions : undefined
+    );
   };
 
   const defaultPersonOptions = React.useMemo(() => {
@@ -234,7 +279,9 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
   }, [localRepoConfigs]);
 
   const renderDefaultValueInput = (type: FieldType) => {
-    const currentOptions = form.watch('options') || [];
+    const currentOptions = isStatusField
+      ? localStatusConfigs.map(status => ({ id: status.id, value: status.name, label: status.name }))
+      : (form.watch('options') || []);
     
     switch (type) {
         case 'text':
@@ -525,7 +572,7 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
                             <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)} className="shrink-0 h-9 w-9 rounded-full"><Trash2 className="h-4 w-4" /></Button>
                         </div>
                     ))}
-                    <Button type="button" variant="outline" size="sm" onClick={() => append({id: `option_${crypto.randomUUID()}`, label: '', value: ''})} className="w-full h-11 border-dashed rounded-xl font-bold">
+                    <Button type="button" variant="outline" size="sm" onClick={() => append({id: `option_${randomId}`, label: '', value: ''})} className="w-full h-11 border-dashed rounded-xl font-bold">
                         <PlusCircle className="h-4 w-4 mr-2" /> Add Option
                     </Button>
                 </div>
@@ -582,10 +629,33 @@ export function FieldFormContent({ field, existingFields, repositoryConfigs, onS
                 </div>
             )}
 
-            <div className="flex flex-col sm:flex-row gap-2 pt-6 border-t mt-auto">
+            {isStatusField && (
+                <StatusManagementContent
+                    statuses={localStatusConfigs}
+                    pendingConversions={localPendingStatusConversions}
+                    onStatusesChange={setLocalStatusConfigs}
+                    onPendingConversionsChange={setLocalPendingStatusConversions}
+                    existingFields={existingFields}
+                    onEditorOpenChange={setIsStatusEditorOpen}
+                />
+            )}
+            
+            <div className={cn("lg:hidden fixed bottom-24 right-6 z-[60] animate-in zoom-in-50 duration-500", isStatusField && isStatusEditorOpen && "hidden")}>
+                <Button
+                    type="submit"
+                    size="icon"
+                    className="h-14 w-14 rounded-full shadow-2xl transition-all active:scale-90 shadow-black/20"
+                >
+                    <Save className="h-6 w-6" />
+                    <span className="sr-only">Save Task</span>
+                </Button>
+            </div>
+
+            {/* Will remove later */}
+            {/* <div className="flex flex-col sm:flex-row gap-2 pt-6 border-t mt-auto">
                 <Button type="submit" className="flex-1 rounded-2xl h-12 font-bold shadow-lg">Save Changes</Button>
                 <Button type="button" variant="ghost" className="flex-1 rounded-2xl h-12 font-medium" onClick={onCancel}>Cancel</Button>
-            </div>
+            </div> */}
         </form>
     </Form>
   );

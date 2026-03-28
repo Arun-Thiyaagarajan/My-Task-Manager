@@ -4,7 +4,6 @@
 import { useState, useEffect } from 'react';
 import { getTasks, getUiConfig, getDevelopers, getTesters, getAuthMode, isInitialSyncComplete, getActiveCompanyId } from '@/lib/data';
 import type { Task, Person, UiConfig, Environment } from '@/lib/types';
-import { REPOSITORIES } from '@/lib/constants';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { BarChart, PieChartIcon, ListChecks, CheckCircle2, Loader2, Bug, GitMerge, Server, Code2, ClipboardCheck, LineChart, Tag, GitBranch } from 'lucide-react';
 import { Bar, Pie, PieChart, Line, BarChart as RechartsBarChart, LineChart as RechartsLineChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, Cell } from 'recharts';
@@ -14,6 +13,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { useFirebase } from '@/firebase';
 import { DashboardSkeleton } from '@/components/dashboard-skeleton';
+import { getStatusDisplayName, getStatusId } from '@/lib/status-config';
 
 export default function DashboardPage() {
   const { isUserLoading } = useFirebase();
@@ -77,9 +77,9 @@ export default function DashboardPage() {
 
   // Key Stats
   const totalTasks = tasks.length;
-  const completedTasks = tasks.filter(task => task.status === 'Done').length;
-  const inProgressTasks = tasks.filter(task => task.status === 'In Progress').length;
-  const qaTasks = tasks.filter(task => task.status === 'QA').length;
+  const completedTasks = tasks.filter(task => getStatusId(task.status, uiConfig) === 'done').length;
+  const inProgressTasks = tasks.filter(task => getStatusId(task.status, uiConfig) === 'in_progress').length;
+  const qaTasks = tasks.filter(task => getStatusId(task.status, uiConfig) === 'qa').length;
 
   const summaryStats = [
     { title: 'Total Tasks', value: totalTasks, icon: ListChecks, color: 'text-muted-foreground', borderColor: 'border-border' },
@@ -91,7 +91,7 @@ export default function DashboardPage() {
   // Chart data calculations
   const tasksByStatusData = TASK_STATUSES.map(status => ({
     name: status,
-    count: tasks.filter(task => task.status === status).length,
+    count: tasks.filter(task => getStatusDisplayName(task.status, uiConfig) === status).length,
     fill: `var(--color-${status?.toLowerCase().replace(/\s+/g, '-') || 'unknown'})`,
   }));
 
@@ -160,7 +160,7 @@ export default function DashboardPage() {
       }
     }
     // Using updatedAt for completed tasks is a proxy. A dedicated `completedAt` field would be better.
-    if (task.status === 'Done') {
+    if (getStatusId(task.status, uiConfig) === 'done') {
         const completedAt = new Date(task.updatedAt);
          if (completedAt >= sixMonthsAgo) {
             const monthIndex = 5 - (new Date().getMonth() - completedAt.getMonth() + 12 * (new Date().getFullYear() - completedAt.getFullYear()));

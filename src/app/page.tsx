@@ -39,11 +39,9 @@ import {
   History,
   Heart,
   BellRing,
-  GraduationCap,
   Tag,
   Loader2,
   AlertCircle,
-  CornerDownLeft,
   Filter,
   ChevronDown,
   Save,
@@ -56,8 +54,10 @@ import {
   CalendarIcon,
   AlertTriangle,
   Fingerprint,
+  Globe,
 } from 'lucide-react';
-import { cn, fuzzySearch } from '@/lib/utils';
+import { cn, fuzzySearch, formatTimestamp } from '@/lib/utils';
+import { getSortedStatusOptions, getStatusDisplayName } from '@/lib/status-config';
 import type { Task, Person, UiConfig, RepositoryConfig, Log, GeneralReminder, BackupFrequency, Environment, UserPreferences, AuthMode } from '@/lib/types';
 import {
   Popover,
@@ -106,13 +106,14 @@ import {
 import { ToastAction } from '@/components/ui/toast';
 import { ReminderStack } from '@/components/reminder-stack';
 import { Badge } from '@/components/ui/badge';
-import { useTutorial } from '@/hooks/use-tutorial';
 import { MultiSelect, type SelectOption } from '@/components/ui/multi-select';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useFirebase } from '@/firebase';
 import { triggerTransfer } from '@/components/file-transfer-indicator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { isRepositoryFieldActive } from '@/lib/repository-config';
+import { openGlobalSpotlightSearch } from '@/components/global-spotlight-search';
 
 type ViewMode = 'grid' | 'table';
 type DateView = 'all' | 'monthly' | 'yearly';
@@ -139,6 +140,7 @@ export default function Home() {
   const pathname = usePathname();
   
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [binnedTasks, setBinnedTasks] = useState<Task[]>([]);
   const [developers, setDevelopers] = useState<Person[]>([]);
   const [testers, setTesters] = useState<Person[]>([]);
   const [generalReminders, setGeneralReminders] = useState<GeneralReminder[]>([]);
@@ -173,11 +175,8 @@ export default function Home() {
   const [pinnedTaskIds, setPinnedTaskIds] = useState<string[]>([]);
   const [isReminderStackOpen, setIsReminderStackOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const [commandKey, setCommandKey] = useState('Ctrl');
+  const [spotlightShortcutKey, setSpotlightShortcutKey] = useState('Ctrl');
   
-  const { startTutorial } = useTutorial();
-  const [showTutorialPrompt, setShowTutorialPrompt] = useState(false);
-
   const [isTagsDialogOpen, setIsTagsDialogOpen] = useState(false);
   const [tagsToApply, setTagsToApply] = useState<string[]>([]);
 
@@ -188,6 +187,7 @@ export default function Home() {
   const [importSummary, setImportSummary] = useState<{ importedCount: number; skippedDuplicates: any[] } | null>(null);
 
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
+  const [filteredBinnedTasks, setFilteredBinnedTasks] = useState<Task[]>([]);
   const [existingDuplicates, setExistingDuplicates] = useState<{ fieldLabel: string; value: string; tasks: Task[] }[]>([]);
   const [isResolutionOpen, setIsResolutionOpen] = useState(false);
   const tutorialOpenedSelectModeRef = useRef(false);
@@ -195,6 +195,10 @@ export default function Home() {
   useEffect(() => {
     setMounted(true);
     setCurrentAuthMode(getAuthMode());
+    if (typeof window !== 'undefined') {
+      const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+      setSpotlightShortcutKey(isMac ? '⌘' : 'Ctrl');
+    }
     
     const prefs = getUserPreferences();
     
@@ -226,6 +230,7 @@ export default function Home() {
     const dateStr = searchParams.get('date');
     const date = dateStr ? new Date(dateStr) : new Date();
     setSelectedDate(isValid(date) ? date : new Date());
+
   }, []);
 
   useEffect(() => {
@@ -291,6 +296,7 @@ export default function Home() {
 
     if (companyId) {
         setTasks(getTasks());
+        setBinnedTasks(getBinnedTasks());
         setDevelopers(getDevelopers());
         setTesters(getTesters());
         setGeneralReminders(getGeneralReminders());
@@ -334,22 +340,6 @@ export default function Home() {
       window.removeEventListener('sync-complete', refreshData);
     };
   }, [refreshData]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-        setCommandKey(isMac ? '⌘' : 'Ctrl');
-    }
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-            e.preventDefault();
-            searchInputRef.current?.focus();
-        }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
 
   useEffect(() => {
     const tutorialBulkSelectors = new Set([
@@ -453,8 +443,10 @@ export default function Home() {
             const results = tasks.filter((task: Task) => {
                 if (favoritesOnly && !task.isFavorite) return false;
 
-                const statusMatch = statusFilter.length === 0 || statusFilter.includes(task.status);
-                const repoMatch = repoFilter.length === 0 || (Array.isArray(task.repositories) && task.repositories?.some(repo => repoFilter.includes(repo)) || false);
+                const resolvedStatus = getStatusDisplayName(task.status, uiConfig);
+                const statusMatch = statusFilter.length === 0 || statusFilter.includes(resolvedStatus);
+                const showRepositoryFilter = isRepositoryFieldActive(uiConfig);
+                const repoMatch = !showRepositoryFilter || repoFilter.length === 0 || (Array.isArray(task.repositories) && task.repositories?.some(repo => repoFilter.includes(repo)) || false);
                 const tagsMatch = tagsFilter.length === 0 || (task.tags?.some(tag => tagsFilter.includes(tag)) ?? false);
 
                 const developersById = new Map(developers.map(d => [d.id, d.name]));
@@ -509,8 +501,8 @@ export default function Home() {
                 }
 
                 if (sortBy === 'status') {
-                    const aIndex = taskStatuses.indexOf(a.status);
-                    const bIndex = taskStatuses.indexOf(b.status);
+                    const aIndex = taskStatuses.indexOf(getStatusDisplayName(a.status, uiConfig));
+                    const bIndex = taskStatuses.indexOf(getStatusDisplayName(b.status, uiConfig));
                     return sortDirection === 'asc' ? aIndex - bIndex : bIndex - aIndex;
                 }
 
@@ -524,6 +516,22 @@ export default function Home() {
             });
 
             setFilteredTasks(sorted);
+            if (executedSearchQuery.trim() === '') {
+                setFilteredBinnedTasks([]);
+            } else {
+                const developersById = new Map(developers.map(d => [d.id, d.name]));
+                const testersById = new Map(testers.map(t => [t.id, t.name]));
+                const deletedMatches = binnedTasks.filter((task: Task) =>
+                    fuzzySearch(executedSearchQuery, task.title) ||
+                    fuzzySearch(executedSearchQuery, task.description) ||
+                    fuzzySearch(executedSearchQuery, task.id) ||
+                    (task.azureWorkItemId && fuzzySearch(executedSearchQuery, task.azureWorkItemId)) ||
+                    task.developers?.some((devId) => fuzzySearch(executedSearchQuery, developersById.get(devId) || '')) ||
+                    task.testers?.some((testerId) => fuzzySearch(executedSearchQuery, testersById.get(testerId) || '')) ||
+                    (Array.isArray(task.repositories) && task.repositories?.some((repo) => fuzzySearch(executedSearchQuery, repo)))
+                );
+                setFilteredBinnedTasks(deletedMatches);
+            }
             setSearchError(null);
             
             const mode = getAuthMode();
@@ -549,7 +557,7 @@ export default function Home() {
 
     const rafId = requestAnimationFrame(filterAndProcess);
     return () => cancelAnimationFrame(rafId);
-  }, [tasks, statusFilter, repoFilter, tagsFilter, developers, testers, executedSearchQuery, dateView, selectedDate, deploymentFilter, favoritesOnly, sortDescriptor, uiConfig, viewMode, isUserLoading, mounted]);
+  }, [tasks, binnedTasks, statusFilter, repoFilter, tagsFilter, developers, testers, executedSearchQuery, dateView, selectedDate, deploymentFilter, favoritesOnly, sortDescriptor, uiConfig, viewMode, isUserLoading, mounted]);
 
   const handleExport = useCallback((exportType: 'current_view' | 'all_tasks') => {
     const allDevelopers = getDevelopers();
@@ -613,8 +621,11 @@ export default function Home() {
     const exportData: any = {
         appName: currentUiConfig.appName,
         appIcon: currentUiConfig.appIcon,
+        fields: currentUiConfig.fields,
         repositoryConfigs: currentUiConfig.repositoryConfigs,
         environments: currentUiConfig.environments,
+        statusConfigs: currentUiConfig.statusConfigs || [],
+        taskStatuses: currentUiConfig.taskStatuses || [],
         customFieldDefinitions: customFieldDefinitions,
         developers: allDevelopers.map(cleanPerson),
         testers: allTesters.map(cleanPerson),
@@ -745,6 +756,7 @@ export default function Home() {
     triggerTransfer({
         id: transferId,
         filename: file.name,
+        kind: 'import',
         status: 'preparing',
         progress: 0
     });
@@ -757,15 +769,15 @@ export default function Home() {
             const mode = getAuthMode();
 
             window.dispatchEvent(new Event('sync-start'));
-            triggerTransfer({ id: transferId, filename: file.name, status: 'uploading', progress: 5 });
+            triggerTransfer({ id: transferId, filename: file.name, kind: 'import', status: 'uploading', progress: 5 });
 
             try {
                 const result = await importWorkspaceData(parsedJson, (progress) => {
-                    triggerTransfer({ id: transferId, filename: file.name, status: 'uploading', progress: Math.max(5, progress) });
+                    triggerTransfer({ id: transferId, filename: file.name, kind: 'import', status: 'uploading', progress: Math.max(5, progress) });
                 });
                 
                 if (result.success) {
-                    triggerTransfer({ id: transferId, filename: file.name, status: 'complete', progress: 100 });
+                    triggerTransfer({ id: transferId, filename: file.name, kind: 'import', status: 'complete', progress: 100 });
                     if (result.skippedDuplicates.length > 0) {
                         setImportSummary({ 
                             importedCount: result.importedCount, 
@@ -780,7 +792,7 @@ export default function Home() {
                     }
                 }
             } catch (error: any) {
-                triggerTransfer({ id: transferId, filename: file.name, status: 'error', progress: 0, error: 'Import failed' });
+                triggerTransfer({ id: transferId, filename: file.name, kind: 'import', status: 'error', progress: 0, error: 'Import failed' });
                 toast({ 
                     variant: 'destructive', 
                     title: 'Import Failed', 
@@ -791,7 +803,7 @@ export default function Home() {
             
         } catch (error: any) {
             console.error("Error importing file:", error);
-            triggerTransfer({ id: transferId, filename: file.name, status: 'error', progress: 0, error: 'Invalid format' });
+            triggerTransfer({ id: transferId, filename: file.name, kind: 'import', status: 'error', progress: 0, error: 'Invalid format' });
             toast({ variant: 'destructive', title: 'Import Failed', description: "The imported file is invalid or corrupted." });
         } finally {
             if(fileInputRef.current) { fileInputRef.current.value = ''; }
@@ -1117,15 +1129,12 @@ export default function Home() {
                 <TooltipProvider>
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground cursor-help">
-                                <span className="text-xs">{commandKey}</span>K
-                            </kbd>
+                            <div className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center rounded border bg-muted px-1.5 text-[10px] font-medium text-muted-foreground cursor-help">
+                                Enter
+                            </div>
                         </TooltipTrigger>
                         <TooltipContent side="top">
-                            <div className="flex items-center gap-2 font-normal">
-                                <CornerDownLeft className="h-3 w-3" />
-                                <span>Press Enter to search</span>
-                            </div>
+                            <span>Press Enter to search tasks</span>
                         </TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
@@ -1183,6 +1192,70 @@ export default function Home() {
             </div>
         )}
     </div>
+  );
+
+  const deletedMatchesSection = executedSearchQuery.trim() !== '' && filteredBinnedTasks.length > 0 && (
+    <Card className="mt-6 border-amber-200/60 bg-amber-50/40 dark:bg-amber-950/10 dark:border-amber-900/40 shadow-sm">
+        <CardContent className="p-4 sm:p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0">
+                        <Trash2 className="h-5 w-5" />
+                    </div>
+                    <div>
+                        <h3 className="text-sm sm:text-base font-bold tracking-tight text-foreground">Matching Items In Bin</h3>
+                        <p className="text-xs sm:text-sm text-muted-foreground font-normal">
+                            {filteredBinnedTasks.length} deleted {filteredBinnedTasks.length === 1 ? 'item matches' : 'items match'} your search.
+                        </p>
+                    </div>
+                </div>
+                <Button asChild variant="outline" size="sm" className="font-medium border-amber-300/60 bg-background/80 hover:bg-background">
+                    <Link href="/bin">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Open Bin
+                    </Link>
+                </Button>
+            </div>
+
+            <div className="space-y-3">
+                {filteredBinnedTasks.slice(0, 6).map((task) => (
+                    <button
+                        key={task.id}
+                        type="button"
+                        onClick={() => {
+                            window.dispatchEvent(new Event('navigation-start'));
+                            router.push(`/tasks/${task.id}`);
+                        }}
+                        className="w-full text-left rounded-2xl border border-amber-200/70 bg-background/80 hover:bg-background transition-colors p-4 group"
+                    >
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                                        {task.title}
+                                    </span>
+                                    <Badge variant="outline" className="border-amber-300/70 text-amber-700 dark:text-amber-400 bg-amber-500/5 uppercase text-[10px] font-black tracking-wider">
+                                        Bin
+                                    </Badge>
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-1 line-clamp-2 font-normal">
+                                    {task.summary || task.description}
+                                </p>
+                            </div>
+                            <div className="shrink-0 text-right">
+                                <p className="text-[10px] uppercase tracking-wider font-bold text-amber-700/80 dark:text-amber-400/80">
+                                    Deleted
+                                </p>
+                                <p className="text-xs text-muted-foreground font-medium mt-1 whitespace-nowrap">
+                                    {task.deletedAt ? formatTimestamp(task.deletedAt, uiConfig?.timeFormat) : 'Recently'}
+                                </p>
+                            </div>
+                        </div>
+                    </button>
+                ))}
+            </div>
+        </CardContent>
+    </Card>
   );
 
   if (!mounted) {
@@ -1340,47 +1413,39 @@ export default function Home() {
       </Dialog>
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center md:mb-6 gap-6">
-        <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-3">
-                <h1 className="text-3xl font-semibold tracking-tight text-foreground">Tasks</h1>
-                <Badge variant="outline" className={cn(mounted && currentAuthMode === 'authenticate' ? "text-primary border-primary/20 bg-primary/5" : "text-muted-foreground", "h-6 px-3 text-[10px] font-medium uppercase tracking-wider")}>
-                    {mounted ? (currentAuthMode === 'authenticate' ? 'Cloud Sync' : 'Local Storage') : 'Verifying...'}
-                </Badge>
+        <div className="flex w-full flex-col gap-1 md:w-auto">
+            <div className="flex w-full items-center justify-between gap-3 md:justify-start">
+                <div className="flex min-w-0 items-center gap-3">
+                    <h1 className="text-3xl font-semibold tracking-tight text-foreground">Tasks</h1>
+                    <Badge variant="outline" className={cn(mounted && currentAuthMode === 'authenticate' ? "text-primary border-primary/20 bg-primary/5" : "text-muted-foreground", "h-6 px-3 text-[10px] font-medium uppercase tracking-wider")}>
+                        {mounted ? (currentAuthMode === 'authenticate' ? 'Cloud Sync' : 'Local Storage') : 'Verifying...'}
+                    </Badge>
+                </div>
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-8 min-h-0 shrink-0 rounded-full px-3 py-0 text-xs shadow-sm md:hidden"
+                                onClick={openGlobalSpotlightSearch}
+                                aria-label="Open global search"
+                            >
+                                <Globe className="mr-1.5 h-4 w-4" />
+                                Search
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">
+                            <span>Open global search</span>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
             </div>
             {uiConfig?.appName && <p className="text-muted-foreground text-sm font-medium">{uiConfig.appName}</p>}
         </div>
         
         <div className="flex flex-col items-stretch sm:items-center sm:flex-row gap-3 w-full md:w-auto">
-            <Dialog open={showTutorialPrompt} onOpenChange={(open) => {
-                if (!open) {
-                    updateUserPreferences({ tutorialSeen: true });
-                }
-                setShowTutorialPrompt(open);
-            }}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader className="items-center text-center">
-                        <div className="p-3 bg-primary/10 rounded-full w-fit mb-2">
-                           <GraduationCap className="h-6 w-6 text-primary" />
-                        </div>
-                        <DialogTitle className="text-xl font-semibold">Welcome!</DialogTitle>
-                        <DialogDescription className="font-normal">
-                            Start with a quick tour now, and use the compass tutorial button on each page anytime you want page-specific guidance.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter className="flex-row justify-center sm:justify-center gap-2 pt-4">
-                        <Button variant="ghost" onClick={() => {
-                            setShowTutorialPrompt(false);
-                            updateUserPreferences({ tutorialSeen: true });
-                        }} className="font-normal">Maybe later</Button>
-                        <Button onClick={() => {
-                            setShowTutorialPrompt(false);
-                            updateUserPreferences({ tutorialSeen: true });
-                            startTutorial();
-                        }} className="font-medium">Start Tutorial</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-            
             {uiConfig?.remindersEnabled && (pinnedTaskIds.length + generalReminders.length) > 0 && (
               <Button 
                 variant="outline" 
@@ -1394,11 +1459,35 @@ export default function Home() {
             )}
 
             <div className="hidden md:flex items-center gap-2">
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={openGlobalSpotlightSearch}
+                                className="w-full sm:w-auto h-11 font-medium"
+                                aria-label="Open global search"
+                            >
+                                <Globe className="mr-2 h-4 w-4" />
+                                Search
+                                <span className="ml-2 inline-flex items-center gap-1 rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                    <span>{spotlightShortcutKey}</span>
+                                    <span>K</span>
+                                </span>
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">
+                            <span>Global search for tasks, notes, settings, and more</span>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                     <Button id="home-export-trigger" variant="outline" size="sm" className="w-full sm:w-auto h-11 font-medium">
                         <Download className="mr-2 h-4 w-4" />
-                        Export
+                        Export JSON
                     </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -1410,7 +1499,7 @@ export default function Home() {
 
                 <Button id="home-import-trigger" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="w-full sm:w-auto h-11 font-medium">
                     <Upload className="mr-2 h-4 w-4" />
-                    Import
+                    Import JSON
                 </Button>
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />
                 
@@ -1430,7 +1519,7 @@ export default function Home() {
                       <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                               <Button variant="outline" className="h-11 rounded-xl shadow-sm font-semibold gap-2">
-                                  <Download className="h-4 w-4" /> Export
+                                  <Download className="h-4 w-4" /> Export JSON
                               </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="center" className="w-[calc(100vw-3rem)]">
@@ -1444,7 +1533,7 @@ export default function Home() {
                           onClick={() => fileInputRef.current?.click()} 
                           className="h-11 rounded-xl shadow-sm font-semibold gap-2"
                       >
-                          <Upload className="h-4 w-4" /> Import
+                          <Upload className="h-4 w-4" /> Import JSON
                       </Button>
                   </div>
 
@@ -1478,16 +1567,18 @@ export default function Home() {
                                     selected={statusFilter} 
                                     className={cn(statusFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
                                     onChange={(val) => { setIsSearching(true); setStatusFilter(val); }} 
-                                    options={(uiConfig?.taskStatuses || []).map(s => ({ value: s, label: s }))} 
+                                    options={getSortedStatusOptions(uiConfig).map(option => ({ value: option.value, label: option.label }))} 
                                     placeholder="Status..." 
                                 />
-                                <MultiSelect 
-                                    selected={repoFilter} 
-                                    className={cn(repoFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
-                                    onChange={(val) => { setIsSearching(true); setRepoFilter(val); }} 
-                                    options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} 
-                                    placeholder="Repository..." 
-                                />
+                                {isRepositoryFieldActive(uiConfig) && (
+                                    <MultiSelect 
+                                        selected={repoFilter} 
+                                        className={cn(repoFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+                                        onChange={(val) => { setIsSearching(true); setRepoFilter(val); }} 
+                                        options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} 
+                                        placeholder="Repository..." 
+                                    />
+                                )}
                                 {(uiConfig?.fields || []).find(f => f.key === 'tags')?.isActive && (
                                     <MultiSelect 
                                         selected={tagsFilter} 
@@ -1693,8 +1784,8 @@ export default function Home() {
                             <div className="hidden md:flex flex-col w-full col-span-1 sm:col-span-2 md:col-span-1">
                                 {searchInputContent}
                             </div>
-                            <MultiSelect selected={statusFilter} className={cn(statusFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")} onChange={(val) => { setIsSearching(true); setStatusFilter(val); }} options={(uiConfig?.taskStatuses || []).map(s => ({ value: s, label: s }))} placeholder="Status..." />
-                            <MultiSelect selected={repoFilter} className={cn(repoFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")} onChange={(val) => { setIsSearching(true); setRepoFilter(val); }} options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} placeholder="Repository..." />
+                            <MultiSelect selected={statusFilter} className={cn(statusFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")} onChange={(val) => { setIsSearching(true); setStatusFilter(val); }} options={getSortedStatusOptions(uiConfig).map(option => ({ value: option.value, label: option.label }))} placeholder="Status..." />
+                            {isRepositoryFieldActive(uiConfig) && <MultiSelect selected={repoFilter} className={cn(repoFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")} onChange={(val) => { setIsSearching(true); setRepoFilter(val); }} options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} placeholder="Repository..." />}
                             {(uiConfig?.fields || []).find(f => f.key === 'tags')?.isActive && (
                                 <MultiSelect selected={tagsFilter} className={cn(tagsFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")} onChange={(val) => { setIsSearching(true); setTagsFilter(val); }} options={[...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({value: t, label: t}))} placeholder="Tags..." />
                             )}
@@ -1926,13 +2017,16 @@ export default function Home() {
                     "transition-all duration-500",
                     isSearching ? "opacity-40 grayscale-[0.5] blur-[0.5px]" : "opacity-100"
                 )}>
-                    {(filteredTasks.length > 0 || activeSkeletons) ? (
+                    {(filteredTasks.length > 0 || filteredBinnedTasks.length > 0 || activeSkeletons) ? (
                         <div>
-                        {viewMode === 'grid' ? (
-                            <TasksGrid tasks={filteredTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handlePinToggle} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} isLoading={activeSkeletons} />
-                        ) : (
-                            <TasksTable tasks={filteredTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} isLoading={activeSkeletons} />
-                        )}
+                            {(filteredTasks.length > 0 || activeSkeletons) ? (
+                                viewMode === 'grid' ? (
+                                    <TasksGrid tasks={filteredTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handlePinToggle} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} isLoading={activeSkeletons} />
+                                ) : (
+                                    <TasksTable tasks={filteredTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} isLoading={activeSkeletons} />
+                                )
+                            ) : null}
+                            {deletedMatchesSection}
                         </div>
                     ) : (
                         <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg flex flex-col items-center justify-center">

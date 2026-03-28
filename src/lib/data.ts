@@ -1,12 +1,15 @@
 'use client';
 
-import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile, Feedback, FeedbackMessage, FeedbackStatus, UserProfile, AppNotification } from './types'; 
+import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES, DEFAULT_STATUS_CONFIGS } from './constants';
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile, Feedback, FeedbackMessage, FeedbackStatus, UserProfile, AppNotification, StatusConfigItem } from './types'; 
 import cloneDeep from 'lodash/cloneDeep';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, setDoc, deleteDoc, updateDoc, collection, writeBatch, getDocs, query, orderBy, limit, getDoc, where, addDoc } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { toast } from '@/hooks/use-toast';
+import { syncTaskStatuses } from './status-config';
+import { createId } from './id';
 
 export const DATA_KEY = 'my_task_manager_data';
 const AUTH_MODE_KEY = 'taskflow_auth_mode';
@@ -67,11 +70,12 @@ const getInitialData = (): MyTaskManagerData => {
                 developers: [],
                 testers: [],
                 notes: [],
-                uiConfig: { 
+                uiConfig: syncTaskStatuses({ 
                     fields: initialFields,
                     environments: [...ENVIRONMENTS],
                     repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
                     taskStatuses: [...TASK_STATUSES],
+                    statusConfigs: [...DEFAULT_STATUS_CONFIGS],
                     appName: 'My Task Manager',
                     appIcon: null,
                     remindersEnabled: true,
@@ -81,7 +85,7 @@ const getInitialData = (): MyTaskManagerData => {
                     autoBackupTime: 6,
                     currentVersion: '1.1.0',
                     authenticationMode: 'localStorage',
-                },
+                }),
                 logs: [],
                 generalReminders: [],
                 releaseUpdates: [...INITIAL_RELEASES],
@@ -260,7 +264,7 @@ export function createNotification(notification: Omit<AppNotification, 'id' | 't
     // Standardize: Don't notify the sender themselves
     if (notification.recipientId === auth.currentUser.uid) return;
 
-    const id = `notif-${crypto.randomUUID()}`;
+    const id = createId('notif-');
     const newNotif: AppNotification = {
         ...notification,
         id,
@@ -345,7 +349,7 @@ export function setActiveCompanyId(id: string) {
 
 export function addCompany(name: string) {
     const data = getAppData();
-    const id = `company-${crypto.randomUUID()}`;
+    const id = createId('company-');
     const newCompany = { id, name };
     data.companies.push(newCompany);
     data.companyData[id] = {
@@ -404,15 +408,108 @@ export function getUiConfig(): UiConfig {
     const companyId = getActiveCompanyId();
     const config = data.companyData[companyId]?.uiConfig;
     if (!config) return getInitialData().companyData['company-default'].uiConfig;
-    return config;
+    return syncTaskStatuses(config);
+}
+
+function mergeImportedFields(
+    currentFields: FieldConfig[],
+    importedFields: unknown,
+    legacyCustomFieldDefinitions: unknown
+): FieldConfig[] {
+    const nextFields = [...currentFields];
+    const byKey = new Map(nextFields.map(field => [field.key, field]));
+    const importedFieldList = Array.isArray(importedFields) ? importedFields : [];
+    const legacyCustomFields = Array.isArray(legacyCustomFieldDefinitions) ? legacyCustomFieldDefinitions : [];
+
+    importedFieldList.forEach((field: any) => {
+        if (!field || typeof field.key !== 'string') return;
+        const existing = byKey.get(field.key);
+        const mergedField = existing ? { ...existing, ...field } : field;
+
+        if (existing) {
+            const index = nextFields.findIndex(item => item.key === field.key);
+            nextFields[index] = mergedField;
+        } else {
+            nextFields.push(mergedField);
+        }
+
+        byKey.set(field.key, mergedField);
+    });
+
+    legacyCustomFields.forEach((field: any) => {
+        if (!field || typeof field.key !== 'string' || byKey.has(field.key)) return;
+        nextFields.push(field);
+        byKey.set(field.key, field);
+    });
+
+    return nextFields
+        .filter((field): field is FieldConfig => !!field?.key && !!field?.label && !!field?.type)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+}
+
+function mergeImportedUiConfig(currentUi: UiConfig, parsedJson: any): UiConfig {
+    const mergedRepositoryConfigs = [...currentUi.repositoryConfigs];
+    const importedRepositoryConfigs = Array.isArray(parsedJson.repositoryConfigs) ? parsedJson.repositoryConfigs : [];
+    importedRepositoryConfigs.forEach((repo: any) => {
+        if (!repo?.name || mergedRepositoryConfigs.some(existing => existing.name === repo.name)) return;
+        mergedRepositoryConfigs.push({ ...repo, id: repo.id || createId('repo_') });
+    });
+
+    const mergedEnvironments = [...currentUi.environments];
+    const importedEnvironments = Array.isArray(parsedJson.environments) ? parsedJson.environments : [];
+    importedEnvironments.forEach((environment: any) => {
+        if (!environment?.name || mergedEnvironments.some(existing => existing.name.toLowerCase() === environment.name.toLowerCase())) return;
+        mergedEnvironments.push({ ...environment, id: environment.id || createId('env_') });
+    });
+
+    const importedStatusConfigs = Array.isArray(parsedJson.statusConfigs)
+        ? parsedJson.statusConfigs.filter((status: any): status is StatusConfigItem => Boolean(status?.name))
+        : [];
+    const importedTaskStatuses = Array.isArray(parsedJson.taskStatuses)
+        ? parsedJson.taskStatuses.filter((status: any): status is string => typeof status === 'string' && status.trim().length > 0)
+        : [];
+
+    const mergedFields = mergeImportedFields(
+        currentUi.fields,
+        parsedJson.fields,
+        parsedJson.customFieldDefinitions
+    ).map(field => {
+        if (field.key === 'repositories') {
+            return {
+                ...field,
+                options: mergedRepositoryConfigs.map(repo => ({ id: repo.id, value: repo.name, label: repo.name })),
+            };
+        }
+
+        if (field.key === 'relevantEnvironments') {
+            return {
+                ...field,
+                options: mergedEnvironments.map(environment => ({ id: environment.id, value: environment.name, label: environment.name })),
+            };
+        }
+
+        return field;
+    });
+
+    return syncTaskStatuses({
+        ...currentUi,
+        appName: parsedJson.appName || currentUi.appName,
+        appIcon: typeof parsedJson.appIcon !== 'undefined' ? parsedJson.appIcon : currentUi.appIcon,
+        timeFormat: parsedJson.timeFormat || currentUi.timeFormat,
+        fields: mergedFields,
+        repositoryConfigs: mergedRepositoryConfigs,
+        environments: mergedEnvironments,
+        statusConfigs: importedStatusConfigs.length > 0 ? importedStatusConfigs : currentUi.statusConfigs,
+        taskStatuses: importedTaskStatuses.length > 0 ? importedTaskStatuses : currentUi.taskStatuses,
+    });
 }
 
 export function setUiConfig(config: UiConfig) {
     const data = getAppData();
-    data.companyData[getActiveCompanyId()].uiConfig = config;
+    data.companyData[getActiveCompanyId()].uiConfig = syncTaskStatuses(config);
     setAppData(data);
     if (getAuthMode() === 'authenticate') {
-        dispatchMutation('uiConfig', '', config, 'set');
+        dispatchMutation('uiConfig', '', data.companyData[getActiveCompanyId()].uiConfig, 'set');
     }
 }
 
@@ -420,7 +517,7 @@ export function setUiConfig(config: UiConfig) {
 export function addEnvironment(env: Omit<Environment, 'id'>) {
     const data = getAppData();
     const companyId = getActiveCompanyId();
-    const id = `env-${crypto.randomUUID()}`;
+    const id = createId('env-');
     const newEnv = { ...env, id };
     data.companyData[companyId].uiConfig.environments.push(newEnv);
     setAppData(data);
@@ -516,7 +613,7 @@ export function getDevelopers(): Person[] {
 
 export function addDeveloper(person: Omit<Person, 'id'>): Person {
     const data = getAppData();
-    const id = `dev-${crypto.randomUUID()}`;
+    const id = createId('dev-');
     const newPerson = { ...person, id };
     const companyId = getActiveCompanyId();
     data.companyData[companyId].developers.push(newPerson);
@@ -565,7 +662,7 @@ export function getTesters(): Person[] {
 
 export function addTester(person: Omit<Person, 'id'>): Person {
     const data = getAppData();
-    const id = `tester-${crypto.randomUUID()}`;
+    const id = createId('tester-');
     const newPerson = { ...person, id };
     const companyId = getActiveCompanyId();
     data.companyData[companyId].testers.push(newPerson);
@@ -623,7 +720,7 @@ export function getLogsForTask(taskId: string): Log[] {
 
 function _addLog(companyData: CompanyData, logData: Omit<Log, 'id' | 'timestamp'>) {
     const newLog: Log = {
-        id: `log-${crypto.randomUUID()}`,
+        id: createId('log-'),
         timestamp: new Date().toISOString(),
         ...logData,
     };
@@ -768,10 +865,11 @@ export function findExistingDuplicates(): { fieldLabel: string; value: string; t
 export function addTask(task: Partial<Task>): Task {
     const data = getAppData();
     const companyId = getActiveCompanyId();
-    const id = `task-${crypto.randomUUID()}`;
+    const id = createId('task-');
     const now = new Date().toISOString();
+    const defaultStatus = getUiConfig().taskStatuses[0] || 'To Do';
     const newTask: Task = {
-        title: '', description: '', status: 'To Do',
+        title: '', description: '', status: defaultStatus,
         ...task,
         id, createdAt: now, updatedAt: now
     } as Task;
@@ -1003,7 +1101,7 @@ export function getNotes(): Note[] {
 export function addNote(note: Partial<Note>): Note {
     const data = getAppData();
     const companyId = getActiveCompanyId();
-    const id = `note-${crypto.randomUUID()}`;
+    const id = createId('note-');
     const now = new Date().toISOString();
     const newNote: Note = {
         title: '', content: '',
@@ -1098,7 +1196,7 @@ export function getGeneralReminders(): GeneralReminder[] {
 export function addGeneralReminder(text: string) {
     const data = getAppData();
     const companyId = getActiveCompanyId();
-    const id = `rem-${crypto.randomUUID()}`;
+    const id = createId('rem-');
     const now = new Date().toISOString();
     const newRem = { id, text, createdAt: now };
     data.companyData[companyId].generalReminders.unshift(newRem);
@@ -1173,7 +1271,7 @@ export function getReleaseUpdates(publishedOnly = true): ReleaseUpdate[] {
 export function addReleaseUpdate(release: Partial<ReleaseUpdate>) {
     const data = getAppData();
     const companyId = getActiveCompanyId();
-    const id = `rel-${crypto.randomUUID()}`;
+    const id = createId('rel-');
     const now = new Date().toISOString();
     const newRel = { id, version: '', title: '', items: [], date: now, isPublished: false, ...release } as ReleaseUpdate;
     data.companyData[companyId].releaseUpdates.unshift(newRel);
@@ -1277,7 +1375,7 @@ export function getTasksUsingField(key: string): Task[] {
 
 // Support & Feedback
 export async function submitFeedback(feedback: Omit<Feedback, 'id' | 'status' | 'createdAt' | 'updatedAt'>) {
-    const id = `feedback-${crypto.randomUUID()}`;
+    const id = createId('feedback-');
     const now = new Date().toISOString();
     
     const auth = getAuth();
@@ -1294,7 +1392,7 @@ export async function submitFeedback(feedback: Omit<Feedback, 'id' | 'status' | 
     };
 
     const autoReply: FeedbackMessage = {
-        id: `msg-auto-${crypto.randomUUID()}`,
+        id: createId('msg-auto-'),
         senderId: 'system-support',
         senderName: 'TaskFlow Support',
         senderRole: 'admin',
@@ -1429,7 +1527,7 @@ export async function sendFeedbackMessage(feedbackId: string, message: string, a
     const userSnap = await getDoc(doc(db, 'users', user.uid));
     const userProfile = userSnap.data() as UserProfile;
 
-    const id = `msg-${crypto.randomUUID()}`;
+    const id = createId('msg-');
     const now = new Date().toISOString();
     const newMessage: FeedbackMessage = {
         id,
@@ -1510,7 +1608,11 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
 
     let rawTasks, jsonDevs, jsonTesters, jsonNotes, jsonLogs, repoConfigs, envs;
     try {
-        rawTasks = Array.isArray(parsedJson.tasks) ? parsedJson.tasks : [];
+        rawTasks = Array.isArray(parsedJson.tasks)
+            ? parsedJson.tasks
+            : parsedJson.task
+                ? [parsedJson.task]
+                : [];
         jsonDevs = Array.isArray(parsedJson.developers) ? parsedJson.developers : [];
         jsonTesters = Array.isArray(parsedJson.testers) ? parsedJson.testers : [];
         jsonNotes = Array.isArray(parsedJson.notes) ? parsedJson.notes : [];
@@ -1531,7 +1633,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
     uniqueFields.forEach(f => {
         const set = new Set<string>();
         activeTasks.forEach(t => {
-            const val = f.isCustom ? t.customFields?.[field.key] : (t as any)[field.key];
+            const val = f.isCustom ? t.customFields?.[f.key] : (t as any)[f.key];
             if (val && typeof val === 'string' && val.trim() !== '') {
                 set.add(val.trim().toLowerCase());
             }
@@ -1568,7 +1670,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
 
     const ensureDev = (name: string, details?: any) => {
         if (!name || devMap.has(name.toLowerCase())) return devMap.get(name.toLowerCase())!;
-        const id = `dev-${crypto.randomUUID()}`;
+        const id = createId('dev-');
         currentDevs.push({ 
             id, name, 
             email: details?.email || '', 
@@ -1581,7 +1683,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
 
     const ensureTester = (name: string, details?: any) => {
         if (!name || testerMap.has(name.toLowerCase())) return testerMap.get(name.toLowerCase())!;
-        const id = `tester-${crypto.randomUUID()}`;
+        const id = createId('tester-');
         currentTesters.push({ 
             id, name, 
             email: details?.email || '', 
@@ -1623,7 +1725,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             return testerMap.get(val.toLowerCase()) || val;
         }).filter(Boolean);
 
-        const newId = `task-${crypto.randomUUID()}`;
+        const newId = createId('task-');
         if (t.id) taskIdMap.set(t.id, newId);
 
         processedTasks.push({
@@ -1641,14 +1743,14 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
 
     const processedNotes = jsonNotes.map((n: any) => ({
         ...n,
-        id: `note-${crypto.randomUUID()}`,
+        id: createId('note-'),
         createdAt: n.createdAt || new Date().toISOString(),
         updatedAt: n.updatedAt || new Date().toISOString()
     }));
 
     const processedLogs = jsonLogs.map((l: any) => ({
         ...l,
-        id: `log-${crypto.randomUUID()}`,
+        id: createId('log-'),
         taskId: l.taskId ? (taskIdMap.get(l.taskId) || l.taskId) : null,
         userName: l.userName || 'Importer',
         timestamp: l.timestamp || new Date().toISOString()
@@ -1670,25 +1772,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             await setDoc(doc(db, companyBase, 'people', 'testers'), { list: currentTesters });
             bumpProgress();
 
-            const currentUi = getUiConfig();
-            if (parsedJson.appName) currentUi.appName = parsedJson.appName;
-            if (parsedJson.appIcon) currentUi.appIcon = parsedJson.appIcon;
-            if (parsedJson.timeFormat) currentUi.timeFormat = parsedJson.timeFormat;
-
-            if (repoConfigs.length > 0) {
-                repoConfigs.forEach((r: any) => {
-                    if (!currentUi.repositoryConfigs.some(mr => mr.name === r.name)) {
-                        currentUi.repositoryConfigs.push({ ...r, id: r.id || `repo_${crypto.randomUUID()}` });
-                    }
-                });
-            }
-            if (envs.length > 0) {
-                envs.forEach((e: any) => {
-                    if (!currentUi.environments.some(me => me.name.toLowerCase() === e.name.toLowerCase())) {
-                        currentUi.environments.push({ ...e, id: e.id || `env_${crypto.randomUUID()}` });
-                    }
-                });
-            }
+            const currentUi = mergeImportedUiConfig(getUiConfig(), parsedJson);
             await setDoc(doc(db, companyBase, 'settings', 'uiConfig'), currentUi);
             bumpProgress();
 
@@ -1704,7 +1788,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
                         batch.set(doc(db, companyBase, collectionName, id), sanitizedItem);
                         
                         if (collectionName === 'tasks') {
-                            const logId = `log-${crypto.randomUUID()}`;
+                            const logId = createId('log-');
                             const logEntry = JSON.parse(JSON.stringify({
                                 id: logId,
                                 timestamp: new Date().toISOString(),
@@ -1731,9 +1815,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             comp.developers = currentDevs;
             comp.testers = currentTesters;
             
-            if (parsedJson.appName) comp.uiConfig.appName = parsedJson.appName;
-            if (parsedJson.appIcon) comp.uiConfig.appIcon = parsedJson.appIcon;
-            if (parsedJson.timeFormat) comp.uiConfig.timeFormat = parsedJson.timeFormat;
+            comp.uiConfig = mergeImportedUiConfig(comp.uiConfig, parsedJson);
 
             processedTasks.forEach(newTask => {
                 comp.tasks.unshift(newTask);
@@ -1747,21 +1829,6 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             comp.notes = [...processedNotes, ...comp.notes];
             comp.logs = [...processedLogs, ...comp.logs];
 
-            if (repoConfigs.length > 0) {
-                repoConfigs.forEach((r: any) => {
-                    if (!comp.uiConfig.repositoryConfigs.some(mr => mr.name === r.name)) {
-                        comp.uiConfig.repositoryConfigs.push({ ...r, id: r.id || `repo_${crypto.randomUUID()}` });
-                    }
-                });
-            }
-            if (envs.length > 0) {
-                envs.forEach((e: any) => {
-                    if (!comp.uiConfig.environments.some(me => me.name.toLowerCase() === e.name.toLowerCase())) {
-                        comp.uiConfig.environments.push({ ...e, id: e.id || `env_${crypto.randomUUID()}` });
-                    }
-                });
-            }
-            
             setAppData(data);
             if (onProgress) onProgress(100);
         }

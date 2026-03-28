@@ -163,4 +163,6 @@ export const taskSchema = createTaskSchema({
   environments: [],
   repositoryConfigs: [],
   taskStatuses: [],
+  currentVersion: '1.1.0',
+  authenticationMode: 'localStorage',
 });

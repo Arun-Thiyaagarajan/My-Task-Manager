@@ -175,6 +175,11 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
     const exportData = {
         appName: uiConfig.appName,
         appIcon: uiConfig.appIcon,
+        fields: uiConfig.fields,
+        repositoryConfigs: uiConfig.repositoryConfigs,
+        environments: uiConfig.environments,
+        statusConfigs: uiConfig.statusConfigs || [],
+        taskStatuses: uiConfig.taskStatuses || [],
         task: taskWithNames,
         exportedAt: new Date().toISOString()
     };

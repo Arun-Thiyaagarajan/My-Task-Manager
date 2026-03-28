@@ -54,6 +54,9 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { ShareMenu } from '@/components/share-menu';
 import { triggerTransfer } from '@/components/file-transfer-indicator';
 import { Calendar } from '@/components/ui/calendar';
+import { StatusIcon, getSortedStatusNames, getStatusDisplayName, isStatusValue } from '@/lib/status-config';
+import { scheduleStatusUpdate } from '@/lib/status-update';
+import { getTaskRepositories, isRepositoryFieldActive, shouldShowPrLinks } from '@/lib/repository-config';
 
 
 const isImageUrl = (url: string): boolean => {
@@ -100,9 +103,13 @@ export default function TaskPage() {
   const [isCopying, setIsCopying] = useState(false);
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState<any>('');
+  const [justUpdatedStatus, setJustUpdatedStatus] = useState<string | null>(null);
+  const [isStatusSaving, setIsStatusSaving] = useState(false);
 
   const titleInputRef = useRef<HTMLInputElement>(null);
   const descriptionEditorRef = useRef<HTMLTextAreaElement>(null);
+  const statusDebounceRef = useRef<number | null>(null);
+  const statusRequestRef = useRef(0);
   
   const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
   const taskId = params.id as string;
@@ -154,6 +161,20 @@ export default function TaskPage() {
         window.removeEventListener('sync-complete', loadData);
     };
   }, [taskId, isUserLoading]);
+
+  useEffect(() => {
+    return () => {
+      if (statusDebounceRef.current) {
+        window.clearTimeout(statusDebounceRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!justUpdatedStatus) return;
+    const timer = window.setTimeout(() => setJustUpdatedStatus(null), 280);
+    return () => window.clearTimeout(timer);
+  }, [justUpdatedStatus]);
 
   useEffect(() => {
     if (!task || task.deletedAt) {
@@ -329,23 +350,37 @@ export default function TaskPage() {
 
   const handleStatusChange = (newStatus: TaskStatus) => {
     if (!task) return;
+    if (newStatus === task.status || isStatusSaving && newStatus === justUpdatedStatus) return;
 
-    const updatedTask = updateTask(task.id, { status: newStatus });
-    if(updatedTask) {
-        setTask(updatedTask);
-        setTaskLogs(getLogsForTask(task.id));
-        toast({
-            variant: 'success',
-            title: 'Status Updated',
-            description: `Task status changed to "${newStatus}".`,
-        });
-    } else {
-        toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'Failed to update task status.',
-        });
-    }
+    setIsStatusSaving(true);
+    setJustUpdatedStatus(newStatus);
+
+    scheduleStatusUpdate({
+        task,
+        newStatus,
+        debounceRef: statusDebounceRef,
+        requestRef: statusRequestRef,
+        applyOptimistic: setTask,
+        onPersisted: (updatedTask) => {
+            setIsStatusSaving(false);
+            setTaskLogs(getLogsForTask(updatedTask.id));
+            toast({
+                variant: 'success',
+                title: 'Status Updated',
+                description: `Task status changed to "${newStatus}".`,
+                duration: 2000,
+            });
+        },
+        onError: () => {
+            setIsStatusSaving(false);
+            setJustUpdatedStatus(null);
+            toast({
+                variant: 'destructive',
+                title: 'Status Reverted',
+                description: 'Could not save the status change.',
+            });
+        }
+    });
   };
 
   const handleToggleDeployment = (env: string) => {
@@ -454,6 +489,7 @@ export default function TaskPage() {
     triggerTransfer({
         id: transferId,
         filename: file.name,
+        kind: 'upload',
         status: 'uploading',
         progress: 0
     });
@@ -461,7 +497,7 @@ export default function TaskPage() {
     const reader = new FileReader();
     reader.onload = async (e) => {
         const rawDataUri = e.target?.result as string;
-        triggerTransfer({ id: transferId, filename: file.name, status: 'uploading', progress: 50 });
+        triggerTransfer({ id: transferId, filename: file.name, kind: 'upload', status: 'uploading', progress: 50 });
         
         const optimizedUri = await compressImage(rawDataUri);
         const newAttachment: Attachment = { 
@@ -474,7 +510,7 @@ export default function TaskPage() {
         };
         
         setLocalAttachments(prev => [...prev, newAttachment]);
-        triggerTransfer({ id: transferId, filename: file.name, status: 'complete', progress: 100 });
+        triggerTransfer({ id: transferId, filename: file.name, kind: 'upload', status: 'complete', progress: 100 });
         toast({ variant: 'success', title: 'Image optimized and added.'});
     };
     reader.readAsDataURL(file);
@@ -812,8 +848,8 @@ const handleCopyDescription = () => {
   const isBinned = !!task.deletedAt;
   const backLink = isBinned ? '/bin' : `/?${searchParams.toString()}`;
   
-  const statusConfig = getStatusConfig(task.status);
-  const { Icon, cardClassName, iconColorClassName } = statusConfig;
+  const statusConfig = getStatusConfig(task.status, uiConfig);
+  const { cardClassName } = statusConfig;
 
   const fieldLabels = new Map((uiConfig?.fields || []).map(f => [f.key, f.label]));
 
@@ -828,6 +864,8 @@ const handleCopyDescription = () => {
   
   const tagsField = (uiConfig?.fields || []).find(f => f.key === 'tags');
   const repoField = (uiConfig?.fields || []).find(f => f.key === 'repositories');
+  const visibleRepositories = getTaskRepositories(task, uiConfig);
+  const isRepositorySectionVisible = isRepositoryFieldActive(uiConfig);
   
   const tagsOptions = [...new Set([...(tagsField?.options?.map(opt => opt.value) || []), ...(allTasks.flatMap(t => t.tags || []))])].map(t => ({value: t, label: t}));
   const repoOptions = (repoField?.options || uiConfig?.repositoryConfigs || []).map(opt => ({ 
@@ -837,7 +875,7 @@ const handleCopyDescription = () => {
   const developerOptions = developers.map(d => ({value: d.id, label: d.name}));
   const testerOptions = testers.map(t => ({value: t.id, label: t.name}));
 
-  const prField = (uiConfig?.fields || []).find(f => f.key === 'prLinks' && f.isActive);
+  const prField = shouldShowPrLinks(uiConfig) ? (uiConfig?.fields || []).find(f => f.key === 'prLinks' && f.isActive) : undefined;
   const deploymentField = (uiConfig?.fields || []).find(f => f.key === 'deploymentStatus' && f.isActive);
   const attachmentsField = (uiConfig?.fields || []).find(f => f.key === 'attachments' && f.isActive);
   const commentsField = (uiConfig?.fields || []).find(f => f.key === 'comments' && f.isActive);
@@ -962,8 +1000,8 @@ const handleCopyDescription = () => {
 
         <div id="task-detail-main" className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
           <div className="lg:col-span-2 space-y-6">
-            <Card className={cn("relative overflow-hidden group/card", cardClassName)}>
-                <Icon className={cn('absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none transition-transform duration-300 ease-in-out', iconColorClassName, task.status !== 'In Progress' && 'group-hover/card:scale-110 group-hover/card:-rotate-6')} />
+            <Card className={cn("relative overflow-hidden group/card", cardClassName)} style={statusConfig.cardStyle}>
+                <StatusIcon status={task.status} uiConfig={uiConfig} className={cn('absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none transition-transform duration-300 ease-in-out', !isStatusValue(task.status, 'in_progress', uiConfig) && 'group-hover/card:scale-110 group-hover/card:-rotate-6')} style={statusConfig.backgroundIconStyle} />
                 <div className="relative z-10 flex flex-col h-full">
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start gap-4">
@@ -1011,22 +1049,21 @@ const handleCopyDescription = () => {
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" disabled={isBinned} className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-100">
-                              <TaskStatusBadge status={task.status} variant="prominent" />
+                              <TaskStatusBadge status={task.status} variant="prominent" uiConfig={uiConfig} className={cn((isStatusSaving || justUpdatedStatus === task.status) && 'animate-status-in', isStatusSaving && 'opacity-90')} />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel className="font-medium">Set Status</DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            {(uiConfig?.taskStatuses || []).map(s => {
-                              const currentStatusConfig = getStatusConfig(s);
-                              const { Icon } = currentStatusConfig;
+                            {getSortedStatusNames(uiConfig).map(s => {
+                              const currentStatusConfig = getStatusConfig(s, uiConfig);
                               return (
                                 <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)} className="font-normal">
                                   <div className="flex items-center gap-2">
-                                    <Icon className={cn("h-3 w-3", s === 'In Progress' && 'animate-spin')} />
+                                    <StatusIcon status={s} uiConfig={uiConfig} className={cn("h-3 w-3", currentStatusConfig.shouldSpin && 'animate-spin')} />
                                     <span>{s}</span>
                                   </div>
-                                  {task.status === s && <Check className="ml-auto h-4 w-4" />}
+                                  {getStatusDisplayName(task.status, uiConfig) === s && <Check className="ml-auto h-4 w-4" />}
                                 </DropdownMenuItem>
                               )
                             })}
@@ -1103,7 +1140,7 @@ const handleCopyDescription = () => {
                 </div>
             </Card>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className={cn("grid grid-cols-1 gap-6", prField && visibleRepositories.length > 0 ? "md:grid-cols-2" : "")}>
                 {deploymentField && (
                   <Card id="task-detail-deployment">
                     <CardHeader>
@@ -1129,18 +1166,18 @@ const handleCopyDescription = () => {
                     </CardContent>
                   </Card>
                 )}
-                {prField && (
+                {prField && visibleRepositories.length > 0 && (
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
                       <CardTitle className="flex items-center gap-2 text-xl font-semibold"><GitMerge className="h-5 w-5" />{fieldLabels.get('prLinks') || 'Pull Requests'}</CardTitle>
-                      {!isBinned && Array.isArray(task.repositories) && task.repositories.length > 0 && allConfiguredEnvs.length > 0 && (
+                      {!isBinned && visibleRepositories.length > 0 && allConfiguredEnvs.length > 0 && (
                         <Button variant="ghost" size="sm" onClick={() => setIsEditingPrLinks(!isEditingPrLinks)} className="font-medium">
                           {isEditingPrLinks ? 'Done' : (<><Pencil className="h-3 w-3 mr-1.5" /> Edit</>)}
                         </Button>
                       )}
                     </CardHeader>
                     <CardContent>
-                      <PrLinksGroup prLinks={task.prLinks} repositories={task.repositories} configuredEnvs={allConfiguredEnvs.map(e => e.name)} repositoryConfigs={uiConfig.repositoryConfigs} onUpdate={handlePrLinksUpdate} isEditing={isEditingPrLinks && !isBinned} />
+                      <PrLinksGroup prLinks={task.prLinks} repositories={visibleRepositories} configuredEnvs={allConfiguredEnvs.map(e => e.name)} repositoryConfigs={uiConfig.repositoryConfigs} onUpdate={handlePrLinksUpdate} isEditing={isEditingPrLinks && !isBinned} />
                     </CardContent>
                   </Card>
                 )}
@@ -1225,10 +1262,12 @@ const handleCopyDescription = () => {
                             <Label className="font-semibold">{fieldLabels.get('testers') || 'Testers'}</Label>
                             <MultiSelect selected={task.testers || []} onChange={val => handleSaveEditing('testers', false, val)} options={testerOptions} creatable onCreate={handleCreateTester}/>
                         </div>
-                        <div>
-                            <Label className="font-semibold">{fieldLabels.get('repositories') || 'Repositories'}</Label>
-                            <MultiSelect selected={Array.isArray(task.repositories) ? task.repositories : (task.repositories ? [task.repositories] : [])} onChange={val => handleSaveEditing('repositories', false, val)} options={repoOptions} />
-                        </div>
+                        {isRepositorySectionVisible && (
+                          <div>
+                              <Label className="font-semibold">{fieldLabels.get('repositories') || 'Repositories'}</Label>
+                              <MultiSelect selected={visibleRepositories} onChange={val => handleSaveEditing('repositories', false, val)} options={repoOptions} />
+                          </div>
+                        )}
                         {azureWorkItemIdFieldConfig?.isActive && (
                             <div>
                                 <Label className="font-semibold">{azureWorkItemIdFieldConfig.label || 'Azure DevOps'}</Label>
@@ -1242,15 +1281,19 @@ const handleCopyDescription = () => {
                       <TaskDetailSection title={fieldLabels.get('developers') || 'Developers'} people={assignedDevelopers} setPersonInView={setPersonInView} isDeveloper={true} />
                       <Separator />
                       <TaskDetailSection title={fieldLabels.get('testers') || 'Testers'} people={assignedTesters} setPersonInView={setPersonInView} isDeveloper={false} />
-                      <Separator />
-                      <div>
-                        <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('repositories') || 'Repositories'}</h4>
-                        <div className="flex flex-wrap gap-1">
-                          {(Array.isArray(task.repositories) && task.repositories.length > 0) ? (task.repositories || []).map(repo => (
-                            <Badge key={repo} variant="repo" style={getRepoBadgeStyle(repo)} className="font-medium">{repo}</Badge>
-                          )) : (<p className="text-sm text-muted-foreground font-normal">No repositories assigned.</p>)}
-                        </div>
-                      </div>
+                      {isRepositorySectionVisible && (
+                        <>
+                          <Separator />
+                          <div>
+                            <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('repositories') || 'Repositories'}</h4>
+                            <div className="flex flex-wrap gap-1">
+                              {visibleRepositories.length > 0 ? visibleRepositories.map(repo => (
+                                <Badge key={repo} variant="repo" style={getRepoBadgeStyle(repo)} className="font-medium">{repo}</Badge>
+                              )) : (<p className="text-sm text-muted-foreground font-normal">No repositories assigned.</p>)}
+                            </div>
+                          </div>
+                        </>
+                      )}
                       {azureWorkItemIdFieldConfig && azureWorkItemIdFieldConfig.isActive && task.azureWorkItemId && (<>
                         <Separator />
                         <div>

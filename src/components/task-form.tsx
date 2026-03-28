@@ -53,6 +53,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { TextareaToolbar, applyFormat, type FormatType } from '@/components/ui/textarea-toolbar';
 import { getLinkAlias } from '@/ai/flows/alias-flow';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { getSortedStatusOptions, getStatusDisplayName } from '@/lib/status-config';
+import { isRepositoryFieldActive, shouldShowPrLinks } from '@/lib/repository-config';
 
 
 type TaskFormData = z.infer<ReturnType<typeof createTaskSchema>>;
@@ -73,12 +75,31 @@ const safeParseDate = (d: any): Date | undefined => {
     return isNaN(date.getTime()) ? undefined : date;
 };
 
+const normalizePrLinks = (prLinks?: TaskFormData['prLinks']): Task['prLinks'] | undefined => {
+    if (!prLinks) return undefined;
+
+    const normalized: NonNullable<Task['prLinks']> = {};
+    Object.entries(prLinks).forEach(([environment, repositories]) => {
+        if (!repositories) return;
+
+        const cleanRepositories = Object.fromEntries(
+            Object.entries(repositories).filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].trim().length > 0)
+        );
+
+        if (Object.keys(cleanRepositories).length > 0) {
+            normalized[environment] = cleanRepositories;
+        }
+    });
+
+    return Object.keys(normalized).length > 0 ? normalized : undefined;
+};
+
 const getInitialTaskData = (task?: Partial<Task>, uiConfig?: UiConfig | null) => {
     if (!task) {
         const defaults: any = {
             title: '',
             description: '',
-            status: 'To Do',
+            status: uiConfig?.taskStatuses?.[0] || 'To Do',
             repositories: [],
             developers: [],
             testers: [],
@@ -99,13 +120,13 @@ const getInitialTaskData = (task?: Partial<Task>, uiConfig?: UiConfig | null) =>
                     let val = f.defaultValue;
                     if (f.type === 'date') val = safeParseDate(val);
 
-                    if (f.key === 'developers' || f.key === 'testers' || f.key === 'tags' || f.type === 'multiselect') {
-                        defaults[f.key] = Array.isArray(val) ? val : (val ? [val] : []);
-                    } else if (f.isCustom) {
-                        const finalVal = (f.type === 'tags' || f.type === 'multiselect') 
+                    if (f.isCustom) {
+                        const finalVal = (f.type === 'tags' || f.type === 'multiselect')
                             ? (Array.isArray(val) ? val : (val ? [val] : []))
                             : val;
                         defaults.customFields = { ...defaults.customFields, [f.key]: finalVal };
+                    } else if (f.key === 'developers' || f.key === 'testers' || f.key === 'tags' || f.type === 'multiselect') {
+                        defaults[f.key] = Array.isArray(val) ? val : (val ? [val] : []);
                     } else {
                         defaults[f.key] = val;
                     }
@@ -125,6 +146,7 @@ const getInitialTaskData = (task?: Partial<Task>, uiConfig?: UiConfig | null) =>
     
     return {
         ...task,
+        status: getStatusDisplayName(task.status || (uiConfig?.taskStatuses?.[0] || 'To Do'), uiConfig),
         devStartDate: safeParseDate(task.devStartDate),
         devEndDate: safeParseDate(task.devEndDate),
         qaStartDate: safeParseDate(task.qaStartDate),
@@ -222,9 +244,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   useEffect(() => {
     const currentUiConfig = getUiConfig();
     const initialData = getInitialTaskData(task, currentUiConfig);
-    if (!initialData.status && currentUiConfig?.taskStatuses?.length) {
-        initialData.status = currentUiConfig.taskStatuses[0];
-    }
+    initialData.status = getStatusDisplayName(initialData.status || currentUiConfig?.taskStatuses?.[0] || 'To Do', currentUiConfig);
     form.reset(initialData);
 
     // Check for existing draft on mount
@@ -373,6 +393,8 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   const watchedRelevantEnvs = form.watch('relevantEnvironments', []);
   const allConfiguredEnvs = uiConfig?.environments || [];
   const activeEnvs = allConfiguredEnvs.filter(env => env && env.name && watchedRelevantEnvs?.includes(env.name));
+  const isRepositoryFieldVisible = isRepositoryFieldActive(uiConfig);
+  const showPrLinksSection = shouldShowPrLinks(uiConfig);
 
   const handleCreateDeveloper = (name: string): string | undefined => {
     try {
@@ -396,7 +418,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
      try {
         const newTester = addTester({ name });
         setTestersList(prev => {
-            if (prev.some(t => prev.id === newTester.id)) return prev;
+            if (prev.some(t => t.id === newTester.id)) return prev;
             return [...prev, newTester];
         });
         return newTester.id;
@@ -433,7 +455,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
             variant: 'destructive',
             duration: 5000,
             title: 'Missing Required Fields',
-            description: () => (
+            description: (
                 <div className="flex flex-col gap-1 font-normal">
                     <p className="font-medium text-sm">Please fill out the following fields:</p>
                     <ul className="list-disc list-inside mt-1 text-xs">
@@ -445,8 +467,24 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
       }
   };
 
+  const normalizeTaskFormData = (data: TaskFormData): Partial<Task> => ({
+    ...data,
+    reminderExpiresAt: data.reminderExpiresAt ? data.reminderExpiresAt.toISOString() : null,
+    prLinks: normalizePrLinks(data.prLinks),
+    devStartDate: data.devStartDate ? data.devStartDate.toISOString() : null,
+    devEndDate: data.devEndDate ? data.devEndDate.toISOString() : null,
+    qaStartDate: data.qaStartDate ? data.qaStartDate.toISOString() : null,
+    qaEndDate: data.qaEndDate ? data.qaEndDate.toISOString() : null,
+    deploymentDates: data.deploymentDates
+        ? Object.fromEntries(
+            Object.entries(data.deploymentDates).map(([key, value]) => [key, value ? value.toISOString() : null])
+          )
+        : {},
+  });
+
   const handleFormSubmit = (data: TaskFormData) => {
-    const uniqueness = checkUniqueness(data, task?.id);
+    const normalizedData = normalizeTaskFormData(data);
+    const uniqueness = checkUniqueness(normalizedData, task?.id);
     if (!uniqueness.isUnique) {
         const fieldKey = uiConfig?.fields.find(f => f.label === uniqueness.fieldLabel)?.key || 'title';
         setUniquenessViolation({ 
@@ -466,7 +504,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     startTransition(() => {
         setIsDirty(false);
         localStorage.removeItem(draftKey);
-        onSubmit(data);
+        onSubmit(normalizedData as TaskFormData);
     });
   };
   
@@ -497,9 +535,10 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     let options: {value: string, label: string}[] = [];
     
     if (field.key === 'repositories') {
+        if (!isRepositoryFieldVisible) return [];
         options = (uiConfig?.repositoryConfigs || []).map(rc => ({ value: rc.name, label: rc.name }));
     } else if (field.key === 'status') {
-      options = (uiConfig?.taskStatuses || []).map(s => ({ value: s, label: s}));
+      options = getSortedStatusOptions(uiConfig).map(option => ({ value: option.value, label: option.label }));
       return options;
     } else if (field.key === 'relevantEnvironments') {
         options = (uiConfig?.environments || []).map(e => ({ value: e.name, label: e.name }));
@@ -538,6 +577,9 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   
   const renderField = (fieldConfig: FieldConfig) => {
     const { key, type, label, isCustom, isRequired, baseUrl } = fieldConfig;
+    if (key === 'repositories' && !isRepositoryFieldVisible) {
+        return null;
+    }
     const fieldName = isCustom ? `customFields.${key}` : key;
     
     const hasError = !!(isCustom ? errors.customFields?.[key] : errors[key as keyof typeof errors]);
@@ -564,13 +606,13 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                 );
             case 'number':
             case 'url':
-                return <Input type={fieldType === 'text' ? 'text' : fieldType} placeholder={label} {...field} value={field.value ?? ''} className="font-normal" />;
+                return <Input type={fieldType} placeholder={label} {...field} value={field.value ?? ''} className="font-normal" />;
             case 'textarea': {
-                 const ref = key === 'description' ? descriptionRef : undefined;
+                 const ref = key === 'description' ? descriptionRef : null;
                  return (
                     <div className="relative w-full">
-                        <Textarea {...field} value={field.value ?? ''} ref={ref} className="pb-12 font-normal" enableHotkeys/>
-                        <TextareaToolbar onFormatClick={(type) => handleFormat(ref, type)} />
+                        <Textarea {...field} value={field.value ?? ''} ref={ref ?? undefined} className="pb-12 font-normal" enableHotkeys/>
+                        {ref ? <TextareaToolbar onFormatClick={(type) => handleFormat(ref, type)} /> : null}
                     </div>
                  )
             }
@@ -708,7 +750,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
 
   const groupedFields = useMemo(() => {
     return (uiConfig?.fields || [])
-      .filter(f => f.isActive && f.key !== 'comments')
+      .filter(f => f.isActive && f.key !== 'comments' && (f.key !== 'repositories' || isRepositoryFieldVisible))
       .sort((a,b) => a.order - b.order)
       .reduce((acc, field) => {
           const group = field.group || 'Other';
@@ -764,7 +806,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
             fields: []
         });
     }
-    if ((uiConfig?.fields || []).find(f => f.key === 'prLinks' && f.isActive)) {
+    if (showPrLinksSection) {
         sections.push({ 
             id: 'pull-requests', 
             label: fieldLabels.get('prLinks') || 'Pull Requests', 
@@ -774,7 +816,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     }
 
     return sections;
-  }, [groupOrder, uiConfig, fieldLabels, deploymentFieldConfig, groupedFields]);
+  }, [groupOrder, uiConfig, fieldLabels, deploymentFieldConfig, groupedFields, showPrLinksSection]);
 
   const useIsMobile = () => {
     const [isMobile, setIsMobile] = useState(false);
@@ -1278,7 +1320,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                     </Card>
                 )}
 
-                {(uiConfig?.fields || []).find(f => f.key === 'prLinks' && f.isActive) && (
+                {showPrLinksSection && (
                     <Card id="pull-requests" className="scroll-mt-32 transition-all duration-300 border-none lg:border shadow-xl lg:shadow-md bg-card">
                         <CardHeader className="pb-2">
                             <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight uppercase tracking-wide">

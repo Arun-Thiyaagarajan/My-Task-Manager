@@ -18,13 +18,13 @@ export interface TextareaProps
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ className, enableHotkeys = false, ...props }, ref) => {
     
-    const localRef = React.useRef<HTMLTextAreaElement>(null);
-    const combinedRef = (el: HTMLTextAreaElement) => {
+    const localRef = React.useRef<HTMLTextAreaElement | null>(null);
+    const combinedRef = (el: HTMLTextAreaElement | null) => {
         localRef.current = el;
         if (typeof ref === 'function') {
             ref(el);
-        } else if (ref) {
-            ref.current = el;
+        } else if (ref && 'current' in ref) {
+            (ref as { current: HTMLTextAreaElement | null }).current = el;
         }
     };
 

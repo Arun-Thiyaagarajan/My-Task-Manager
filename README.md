@@ -27,6 +27,7 @@ TaskFlow is a powerful, intuitive, and highly customizable task management appli
 
 ### 📱 Superior UX & Mobile Design
 - **Mobile Optimized**: A fully responsive interface featuring a fixed bottom navigation bar and touch-friendly controls.
+- **Global Spotlight Search**: Jump to tasks, notes, settings, and key app destinations instantly with a Mac-like global search overlay.
 - **App Opener**: A clean, professional splash screen for a smooth initial loading experience.
 - **Guided Tutorial**: An interactive "App Tour" to help new users get acquainted with the workspace.
 - **Floating Notes**: Quickly jot down ideas or temporary info from any page using the floating action button.
@@ -60,11 +61,17 @@ To run TaskFlow locally, follow these steps:
    ```bash
    npm install
    ```
-2. **Run the development server**:
+2. **Create your local environment file**:
+   - Copy `.env.example` to `.env.local`
+   - Fill in the Firebase values
+   - Add `GEMINI_API_KEY` if you want AI summaries and smart link aliases to work locally
+3. **Run the development server**:
    ```bash
    npm run dev
    ```
-3. Open [http://localhost:9003](http://localhost:9003) in your browser to see the application.
+4. Open [http://localhost:9003](http://localhost:9003) in your browser to see the application.
+
+For deployed environments, make sure `GEMINI_API_KEY` is also configured in Vercel anywhere AI features should be available.
 
 ---
 *Built with ❤️ for productive teams.*

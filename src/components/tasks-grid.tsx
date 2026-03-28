@@ -5,6 +5,7 @@ import type { Task, UiConfig, Person } from '@/lib/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { Badge } from './ui/badge';
 import { Skeleton } from './ui/skeleton';
+import { getStatusId } from '@/lib/status-config';
 
 interface TasksGridProps {
   tasks: Task[];
@@ -43,15 +44,15 @@ export const TasksGrid = memo(function TasksGrid({
   favoritesOnly,
   isLoading
 }: TasksGridProps) {
-  const priorityStatuses = ['To Do', 'In Progress', 'Code Review', 'QA'];
+  const priorityStatusIds = ['todo', 'in_progress', 'code_review', 'qa'];
   
-  const priorityTasks = tasks.filter(task => priorityStatuses.includes(task.status));
-  const completedTasks = tasks.filter(task => task.status === 'Done');
-  const holdTasks = tasks.filter(task => task.status === 'Hold');
+  const priorityTasks = tasks.filter(task => priorityStatusIds.includes(getStatusId(task.status, uiConfig)));
+  const completedTasks = tasks.filter(task => getStatusId(task.status, uiConfig) === 'done');
+  const holdTasks = tasks.filter(task => getStatusId(task.status, uiConfig) === 'hold');
   const otherTasks = tasks.filter(task => 
-    !priorityStatuses.includes(task.status) && 
-    task.status !== 'Done' && 
-    task.status !== 'Hold'
+    !priorityStatusIds.includes(getStatusId(task.status, uiConfig)) && 
+    getStatusId(task.status, uiConfig) !== 'done' && 
+    getStatusId(task.status, uiConfig) !== 'hold'
   );
 
   const getPriorityTitle = () => {

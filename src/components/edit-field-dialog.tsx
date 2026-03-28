@@ -18,7 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X, Users, ClipboardCheck, Info, AlertTriangle, CalendarIcon, Layout, Type, ListChecks } from 'lucide-react';
-import type { FieldConfig, FieldOption, FieldType, RepositoryConfig, Task } from '@/lib/types';
+import type { FieldConfig, FieldOption, FieldType, PendingStatusConversion, RepositoryConfig, Task, StatusConfigItem } from '@/lib/types';
 import { FIELD_TYPES } from '@/lib/constants';
 import * as React from 'react';
 import { getUiConfig, getTasks, updateTask, addLog, getDevelopers, getTesters } from '@/lib/data';
@@ -34,6 +34,9 @@ import { useToast } from '@/hooks/use-toast';
 import { Textarea } from './ui/textarea';
 import { Calendar } from './ui/calendar';
 import { format } from 'date-fns';
+import { buildStatusConfigItem } from '@/lib/status-config';
+import { StatusManagementContent } from '@/components/status-management-content';
+import { createId } from '@/lib/id';
 
 
 const fieldOptionSchema = z.object({
@@ -73,13 +76,29 @@ type FieldFormData = z.infer<typeof fieldSchema>;
 interface EditFieldDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (field: FieldConfig, repoConfigs?: RepositoryConfig[]) => void;
+  onSave: (
+    field: FieldConfig,
+    repoConfigs?: RepositoryConfig[],
+    statusConfigs?: StatusConfigItem[],
+    pendingStatusConversions?: PendingStatusConversion[]
+  ) => void;
   field: FieldConfig | null;
   existingFields: FieldConfig[];
   repositoryConfigs?: RepositoryConfig[];
+  statusConfigs?: StatusConfigItem[];
+  pendingStatusConversions?: PendingStatusConversion[];
 }
 
-export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingFields, repositoryConfigs }: EditFieldDialogProps) {
+export function EditFieldDialog({
+  isOpen,
+  onOpenChange,
+  onSave,
+  field,
+  existingFields,
+  repositoryConfigs,
+  statusConfigs,
+  pendingStatusConversions,
+}: EditFieldDialogProps) {
   const isCreating = field === null;
   const { toast } = useToast();
   const getDefaultValueFallback = React.useCallback(
@@ -130,18 +149,20 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
 
   const selectedType = form.watch('type');
   const showOptions = selectedType === 'select' || selectedType === 'multiselect' || selectedType === 'tags';
-  const isSortableField = showOptions && (!field || field.key !== 'status');
+  const isSortableField = showOptions;
   
   const [allGroups, setAllGroups] = React.useState<string[]>([]);
   const [isGroupPopoverOpen, setIsGroupPopoverOpen] = React.useState(false);
   const [groupSearch, setGroupSearch] = React.useState('');
   
   const [localRepoConfigs, setLocalRepoConfigs] = React.useState<RepositoryConfig[]>([]);
+  const [localStatusConfigs, setLocalStatusConfigs] = React.useState<StatusConfigItem[]>([]);
+  const [localPendingStatusConversions, setLocalPendingStatusConversions] = React.useState<PendingStatusConversion[]>(pendingStatusConversions || []);
   const [newTag, setNewTag] = React.useState('');
   
   const [allTags, setAllTags] = React.useState<FieldOption[]>([]);
-
   const isRepoField = field?.key === 'repositories';
+  const isStatusField = field?.key === 'status';
   const isTagsField = field?.key === 'tags';
   const isDevelopersField = field?.key === 'developers';
   const isTestersField = field?.key === 'testers';
@@ -152,7 +173,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
     field?.key === 'testers';
   const showCustomOptionsUI = showOptions && !isRepoField && !fieldHasManagedOptions;
 
-  const unchangeableRequiredKeys = ['title', 'description', 'status', 'repositories', 'developers'];
+  const unchangeableRequiredKeys = ['title', 'description', 'status', 'developers'];
   const isRequiredToggleDisabled = field !== null && !field.isCustom && unchangeableRequiredKeys.includes(field.key);
   
   const protectedDevDateFields = ['devStartDate', 'devEndDate'];
@@ -172,7 +193,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
   };
 
   const handleAddRepo = () => {
-    setLocalRepoConfigs(prev => [...prev, { id: `repo_${crypto.randomUUID()}`, name: 'New-Repo', baseUrl: 'https://github.com/org/repo/pull/' }]);
+    setLocalRepoConfigs(prev => [...prev, { id: createId('repo_'), name: 'New-Repo', baseUrl: 'https://github.com/org/repo/pull/' }]);
   };
 
   const handleDeleteRepo = (id: string) => {
@@ -182,7 +203,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
   const handleAddTag = () => {
     const trimmedTag = newTag.trim();
     if (trimmedTag && !options.some(opt => opt.value.toLowerCase() === trimmedTag.toLowerCase())) {
-        const newOption = { id: `option_${crypto.randomUUID()}`, label: trimmedTag, value: trimmedTag };
+        const newOption = { id: createId('option_'), label: trimmedTag, value: trimmedTag };
         append(newOption);
         
         setAllTags(prev => {
@@ -215,7 +236,6 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
     }
   };
 
-
   const onSubmit = (data: FieldFormData) => {
     // FINAL STRICT SAVE-TIME VALIDATION
     if (data.isActive && data.isUnique) {
@@ -230,9 +250,20 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
         }
     }
 
+    if (isStatusField) {
+        if (localStatusConfigs.length === 0 || localStatusConfigs.some(status => !status.name.trim())) {
+            toast({
+                variant: 'destructive',
+                title: 'Status Configuration Error',
+                description: 'Every status needs a name, and at least one status must remain available.'
+            });
+            return;
+        }
+    }
+
     const finalField: FieldConfig = {
       ...(field || {
-        id: `field_custom_${crypto.randomUUID()}`,
+        id: createId('field_custom_'),
         key: '', 
         order: 0, 
         isCustom: true,
@@ -240,7 +271,16 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
       ...data,
       sortDirection: data.sortDirection || 'manual',
     };
-    onSave(finalField, isRepoField ? localRepoConfigs : undefined);
+    const finalStatusConfigs = isStatusField
+      ? localStatusConfigs.map((status, index) => buildStatusConfigItem(status, index))
+      : undefined;
+    const finalOptions = finalStatusConfigs?.map(status => ({ id: status.id, value: status.name, label: status.name }));
+    onSave(
+      isStatusField ? { ...finalField, options: finalOptions } : finalField,
+      isRepoField ? localRepoConfigs : undefined,
+      finalStatusConfigs,
+      isStatusField ? localPendingStatusConversions : undefined
+    );
     onOpenChange(false);
   };
   
@@ -277,6 +317,11 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
           setLocalRepoConfigs(repositoryConfigs || []);
         }
 
+        if (isStatusField) {
+          setLocalStatusConfigs((statusConfigs || []).map((status, index) => buildStatusConfigItem(status, index)));
+          setLocalPendingStatusConversions(pendingStatusConversions || []);
+        }
+
         if (isTagsField) {
             const allTasks = getTasks();
             const dynamicTags = [...new Set(allTasks.flatMap(t => t.tags || []))];
@@ -294,7 +339,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
             replace(predefinedOptions);
         }
     }
-  }, [field, form, isOpen, repositoryConfigs, isRepoField, isTagsField, replace, isDevelopersField, isTestersField, getDefaultValueFallback]);
+  }, [field, form, isOpen, repositoryConfigs, statusConfigs, pendingStatusConversions, isRepoField, isStatusField, isTagsField, replace, isDevelopersField, isTestersField, getDefaultValueFallback]);
 
   const defaultPersonOptions = React.useMemo(() => {
       if (isDevelopersField) {
@@ -311,7 +356,9 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
   }, [localRepoConfigs]);
 
   const renderDefaultValueInput = (type: FieldType) => {
-    const currentOptions = form.watch('options') || [];
+    const currentOptions = isStatusField
+      ? localStatusConfigs.map(status => ({ id: status.id, value: status.name, label: status.name }))
+      : (form.watch('options') || []);
     
     switch (type) {
         case 'text':
@@ -401,7 +448,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
                     name="defaultValue"
                     render={({ field }) => (
                         <FormItem>
-                            <Select onValueChange={field.onChange} value={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value || 'Default'}>
                                 <FormControl>
                                     <SelectTrigger className="h-10 bg-background">
                                         <SelectValue placeholder="Select default option" />
@@ -409,7 +456,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
                                 </FormControl>
                                 <SelectContent>
                                     {currentOptions.map(opt => (
-                                        <SelectItem key={opt.id} value={opt.value}>{opt.label}</SelectItem>
+                                        <SelectItem key={opt.id} value={opt.value || 'Default'}>{opt.label}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -802,7 +849,7 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
                                 ))}
                             </div>
                              {form.formState.errors.options && <p className="text-sm text-destructive mt-1 font-semibold">{form.formState.errors.options.message}</p>}
-                            <Button type="button" variant="outline" size="sm" onClick={() => append({id: `option_${crypto.randomUUID()}`, label: '', value: ''})} className="w-full h-10 border-dashed rounded-xl font-bold">
+                            <Button type="button" variant="outline" size="sm" onClick={() => append({id: createId('option_'), label: '', value: ''})} className="w-full h-10 border-dashed rounded-xl font-bold">
                                 <PlusCircle className="h-4 w-4 mr-2" /> Add Option
                             </Button>
                         </div>
@@ -861,6 +908,16 @@ export function EditFieldDialog({ isOpen, onOpenChange, onSave, field, existingF
                                 <PlusCircle className="h-4 w-4 mr-2" /> Add Repository
                             </Button>
                         </div>
+                    )}
+
+                    {isStatusField && (
+                        <StatusManagementContent
+                            statuses={localStatusConfigs}
+                            pendingConversions={localPendingStatusConversions}
+                            onStatusesChange={setLocalStatusConfigs}
+                            onPendingConversionsChange={setLocalPendingStatusConversions}
+                            existingFields={existingFields}
+                        />
                     )}
                 </form>
             </Form>
