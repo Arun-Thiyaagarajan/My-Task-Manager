@@ -19,7 +19,9 @@ import {
     getTasks,
     getUserPreferences,
     updateUserPreferences,
-    updateTask
+    updateTask,
+    prepareUiFieldsForExport,
+    prepareUiFieldsForImport
 } from '@/lib/data';
 import type { Task, UiConfig, FieldConfig, Person, RepositoryConfig, Environment, BackupFrequency, AuthMode, UserPreferences, PendingStatusConversion } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -534,8 +536,14 @@ export default function SettingsPage() {
 
   const handleExportSettings = () => {
     if (!uiConfig) return;
+    const developers = getDevelopers();
+    const testers = getTesters();
     const fileName = `${uiConfig.appName?.replace(/\s+/g, '_') || 'TaskFlow'}_Settings_${new Date().toISOString().split('T')[0]}.json`;
-    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(uiConfig, null, 2))}`;
+    const settingsToExport = {
+      ...uiConfig,
+      fields: prepareUiFieldsForExport(uiConfig.fields, developers, testers),
+    };
+    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(settingsToExport, null, 2))}`;
     const link = document.createElement("a");
     link.href = jsonString;
     link.download = fileName;
@@ -567,7 +575,15 @@ export default function SettingsPage() {
         }
         
         // Merge with existing config to preserve missing properties
-        const mergedConfig = { ...getUiConfig(), ...importedConfig };
+        const mergedConfig = {
+          ...getUiConfig(),
+          ...importedConfig,
+          fields: prepareUiFieldsForImport(
+            Array.isArray(importedConfig.fields) ? importedConfig.fields : [],
+            getDevelopers(),
+            getTesters()
+          ),
+        };
         
         setUiConfigState(mergedConfig);
         setUiConfig(mergedConfig);

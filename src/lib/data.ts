@@ -133,6 +133,7 @@ export function getAuthMode(): AuthMode {
 export function setAuthMode(mode: AuthMode) {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(AUTH_MODE_KEY, mode);
+    setCloudCache(null);
     resetInitialSyncStatus();
     window.dispatchEvent(new Event('company-changed'));
 }
@@ -447,7 +448,114 @@ function mergeImportedFields(
         .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
 
-function mergeImportedUiConfig(currentUi: UiConfig, parsedJson: any): UiConfig {
+function normalizePersonFieldDefaultValueForExport(
+    field: FieldConfig,
+    people: Person[]
+): FieldConfig {
+    if (!['developers', 'testers'].includes(field.key)) {
+        return field;
+    }
+
+    const idToName = new Map(people.map(person => [person.id, person.name]));
+    const normalizeValue = (value: unknown) => {
+        if (Array.isArray(value)) {
+            return value.map(item => {
+                if (typeof item !== 'string') return item;
+                return idToName.get(item) || item;
+            });
+        }
+
+        if (typeof value === 'string') {
+            return idToName.get(value) || value;
+        }
+
+        return value;
+    };
+
+    return {
+        ...field,
+        defaultValue: normalizeValue(field.defaultValue),
+    };
+}
+
+export function prepareUiFieldsForExport(
+    fields: FieldConfig[],
+    developers: Person[],
+    testers: Person[]
+): FieldConfig[] {
+    return fields.map(field => {
+        if (field.key === 'developers') {
+            return normalizePersonFieldDefaultValueForExport(field, developers);
+        }
+
+        if (field.key === 'testers') {
+            return normalizePersonFieldDefaultValueForExport(field, testers);
+        }
+
+        return field;
+    });
+}
+
+export function prepareUiFieldsForImport(
+    fields: FieldConfig[],
+    developers: Person[],
+    testers: Person[]
+): FieldConfig[] {
+    return fields.map(field => {
+        if (field.key === 'developers') {
+            return normalizeImportedPersonFieldDefaultValue(field, developers);
+        }
+
+        if (field.key === 'testers') {
+            return normalizeImportedPersonFieldDefaultValue(field, testers);
+        }
+
+        return field;
+    });
+}
+
+function normalizeImportedPersonFieldDefaultValue(
+    field: FieldConfig,
+    people: Person[]
+): FieldConfig {
+    if (!['developers', 'testers'].includes(field.key)) {
+        return field;
+    }
+
+    const nameToId = new Map(people.map(person => [person.name.trim().toLowerCase(), person.id]));
+    const validIds = new Set(people.map(person => person.id));
+
+    const normalizeValue = (value: unknown) => {
+        if (Array.isArray(value)) {
+            return value
+                .map(item => {
+                    if (typeof item !== 'string') return undefined;
+                    if (validIds.has(item)) return item;
+                    return nameToId.get(item.trim().toLowerCase());
+                })
+                .filter((item): item is string => !!item);
+        }
+
+        if (typeof value === 'string') {
+            if (validIds.has(value)) return value;
+            return nameToId.get(value.trim().toLowerCase()) || value;
+        }
+
+        return value;
+    };
+
+    return {
+        ...field,
+        defaultValue: normalizeValue(field.defaultValue),
+    };
+}
+
+function mergeImportedUiConfig(
+    currentUi: UiConfig,
+    parsedJson: any,
+    currentDevelopers: Person[] = [],
+    currentTesters: Person[] = []
+): UiConfig {
     const mergedRepositoryConfigs = [...currentUi.repositoryConfigs];
     const importedRepositoryConfigs = Array.isArray(parsedJson.repositoryConfigs) ? parsedJson.repositoryConfigs : [];
     importedRepositoryConfigs.forEach((repo: any) => {
@@ -486,6 +594,14 @@ function mergeImportedUiConfig(currentUi: UiConfig, parsedJson: any): UiConfig {
                 ...field,
                 options: mergedEnvironments.map(environment => ({ id: environment.id, value: environment.name, label: environment.name })),
             };
+        }
+
+        if (field.key === 'developers') {
+            return normalizeImportedPersonFieldDefaultValue(field, currentDevelopers);
+        }
+
+        if (field.key === 'testers') {
+            return normalizeImportedPersonFieldDefaultValue(field, currentTesters);
         }
 
         return field;
@@ -1772,7 +1888,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             await setDoc(doc(db, companyBase, 'people', 'testers'), { list: currentTesters });
             bumpProgress();
 
-            const currentUi = mergeImportedUiConfig(getUiConfig(), parsedJson);
+            const currentUi = mergeImportedUiConfig(getUiConfig(), parsedJson, currentDevs, currentTesters);
             await setDoc(doc(db, companyBase, 'settings', 'uiConfig'), currentUi);
             bumpProgress();
 
@@ -1815,7 +1931,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             comp.developers = currentDevs;
             comp.testers = currentTesters;
             
-            comp.uiConfig = mergeImportedUiConfig(comp.uiConfig, parsedJson);
+            comp.uiConfig = mergeImportedUiConfig(comp.uiConfig, parsedJson, currentDevs, currentTesters);
 
             processedTasks.forEach(newTask => {
                 comp.tasks.unshift(newTask);

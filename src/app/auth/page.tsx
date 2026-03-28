@@ -8,9 +8,12 @@ import {
   createUserWithEmailAndPassword, 
   GoogleAuthProvider, 
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   sendPasswordResetEmail,
   sendEmailVerification,
   updateProfile,
+  type User as FirebaseUser,
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -33,6 +36,17 @@ import {
 import { useIsMobile } from '@/hooks/use-mobile';
 import { setAuthMode } from '@/lib/data';
 
+function GoogleMark({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 48 48" aria-hidden="true" className={className}>
+      <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303C33.654 32.657 29.24 36 24 36c-6.627 0-12-5.373-12-12S17.373 12 24 12c3.059 0 5.842 1.152 7.958 3.042l5.657-5.657C34.053 6.053 29.277 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917Z"/>
+      <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.152 7.958 3.042l5.657-5.657C34.053 6.053 29.277 4 24 4C16.318 4 9.656 8.337 6.306 14.691Z"/>
+      <path fill="#4CAF50" d="M24 44c5.176 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.146 35.091 26.715 36 24 36c-5.219 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44Z"/>
+      <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.085 5.571c.001-.001.001-.001.002-.001l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917Z"/>
+    </svg>
+  );
+}
+
 export default function AuthPage() {
   const isMobile = useIsMobile();
   const { auth, firestore } = useFirebase();
@@ -49,6 +63,7 @@ export default function AuthPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
+  const [googleError, setGoogleError] = useState<string | null>(null);
 
   // We remove the auto-redirect on mount to allow users in Local Storage mode
   // to access this page even if they have a background Firebase session.
@@ -57,6 +72,70 @@ export default function AuthPage() {
   useEffect(() => {
     window.dispatchEvent(new Event('navigation-end'));
   }, []);
+
+  const completeGoogleSignIn = async (user: FirebaseUser) => {
+    if (!firestore) return;
+
+    const userRef = doc(firestore, 'users', user.uid);
+    const userSnap = await getDoc(userRef);
+
+    if (!userSnap.exists()) {
+      await setDoc(userRef, {
+        id: user.uid,
+        email: user.email,
+        username: user.displayName || user.email?.split('@')[0] || 'User',
+        role: 'user',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        photoURL: user.photoURL,
+      });
+    }
+
+    toast({ variant: 'success', title: 'Signed in with Google' });
+    setAuthMode('authenticate');
+    window.dispatchEvent(new Event('company-changed'));
+    router.push('/');
+  };
+
+  const getGoogleErrorMessage = (error: any) => {
+    switch (error?.code) {
+      case 'auth/popup-closed-by-user':
+        return 'The Google sign-in window was closed before completing login.';
+      case 'auth/popup-blocked':
+        return 'Your browser blocked the Google sign-in popup. Please allow popups and try again.';
+      case 'auth/unauthorized-domain':
+        return `This domain is not authorized in Firebase Auth. Add "${window.location.hostname}" to Authorized Domains.`;
+      case 'auth/operation-not-allowed':
+        return 'Google Sign-In is not enabled in Firebase Authentication yet. Enable the Google provider in Firebase Console.';
+      case 'auth/cancelled-popup-request':
+        return '';
+      default:
+        return error?.message || 'Google Sign-In could not be completed.';
+    }
+  };
+
+  useEffect(() => {
+    if (!auth || !firestore) return;
+
+    let isMounted = true;
+
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (!result?.user || !isMounted) return;
+        await completeGoogleSignIn(result.user);
+      })
+      .catch((error) => {
+        if (!isMounted) return;
+        const description = getGoogleErrorMessage(error);
+        if (!description) return;
+        setGoogleError(description);
+        toast({ variant: 'destructive', title: 'Google Sign-In Failed', description });
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [auth, firestore, router, toast]);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,41 +214,28 @@ export default function AuthPage() {
   const handleGoogleSignIn = async () => {
     if (!auth || !firestore) return;
     setIsLoading(true);
+    setGoogleError(null);
     try {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
-      
-      const userCredential = await signInWithPopup(auth, provider);
-      const user = userCredential.user;
 
-      const userRef = doc(firestore, 'users', user.uid);
-      const userSnap = await getDoc(userRef);
-      
-      if (!userSnap.exists()) {
-          await setDoc(userRef, {
-              id: user.uid,
-              email: user.email,
-              username: user.displayName || user.email?.split('@')[0] || 'User',
-              role: 'user',
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-              photoURL: user.photoURL,
-          });
+      if (isMobile) {
+        await signInWithRedirect(auth, provider);
+        return;
       }
-      
-      toast({ variant: 'success', title: 'Signed in with Google' });
-      
-      // Crucial: Switch to Cloud mode before navigating home
-      setAuthMode('authenticate');
-      window.dispatchEvent(new Event('company-changed'));
-      router.push('/');
-      
+
+      const userCredential = await signInWithPopup(auth, provider);
+      await completeGoogleSignIn(userCredential.user);
     } catch (error: any) {      
       if (error.code === 'auth/cancelled-popup-request') {
         setIsLoading(false);
         return;
       }
-      toast({ variant: 'destructive', title: 'Google Sign-In Failed', description: error.message });
+      const description = getGoogleErrorMessage(error);
+      if (description) {
+        setGoogleError(description);
+        toast({ variant: 'destructive', title: 'Google Sign-In Failed', description });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -314,14 +380,13 @@ export default function AuthPage() {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full h-12 font-bold text-base shadow-lg active:scale-95 transition-transform" disabled={isLoading}>
+            <Button type="submit" className="w-full h-12 font-bold text-base shadow-lg active:scale-95 transition-transform" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {activeTab === 'login' ? 'Sign In' : 'Create Account'}
               </Button>
             </form>
 
-          {/* Google Authentication is future enhancment */}
-            {/* <div className="relative my-8">
+            <div className="relative my-8">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
               </div>
@@ -330,10 +395,27 @@ export default function AuthPage() {
               </div>
             </div>
 
-            <Button variant="outline" className="w-full h-12 font-bold text-base shadow-sm active:scale-95 transition-transform" onClick={handleGoogleSignIn} disabled={isLoading}>
-              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Chrome className="mr-2 h-4 w-4" />}
-              Google
-            </Button> */}
+            <Button
+              type="button"
+              variant="outline"
+              className="group w-full h-12 rounded-2xl border-border/70 bg-white px-4 text-[15px] font-semibold text-slate-900 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.55)] transition-all hover:border-slate-300 hover:bg-white hover:text-slate-950 hover:shadow-[0_14px_30px_-18px_rgba(15,23,42,0.6)] dark:bg-white dark:text-slate-900 dark:hover:bg-white active:scale-[0.985]"
+              onClick={handleGoogleSignIn}
+              disabled={isLoading}
+            >
+              <span className="flex w-full items-center justify-center gap-3">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm">
+                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleMark className="h-[18px] w-[18px] shrink-0" />}
+                </span>
+                <span className="tracking-[-0.01em]">Continue with Google</span>
+              </span>
+            </Button>
+
+            {googleError && (
+              <div className="mt-4 rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-sm">
+                <p className="font-semibold text-destructive">Google Sign-In needs attention</p>
+                <p className="mt-1 text-muted-foreground">{googleError}</p>
+              </div>
+            )}
           </Tabs>
         )}
       </div>
