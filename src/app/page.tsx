@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { getTasks, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addTagsToMultipleTasks, addEnvironment, DATA_KEY, getAuthMode, importWorkspaceData, getUserPreferences, updateUserPreferences, isInitialSyncComplete, getActiveCompanyId, findExistingDuplicates } from '@/lib/data';
+import { getTasks, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addTagsToMultipleTasks, addEnvironment, DATA_KEY, getAuthMode, importWorkspaceData, getUserPreferences, updateUserPreferences, isInitialSyncComplete, getActiveCompanyId, findExistingDuplicates, prepareUiFieldsForExport } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -623,7 +623,7 @@ export default function Home() {
     const exportData: any = {
         appName: currentUiConfig.appName,
         appIcon: currentUiConfig.appIcon,
-        fields: currentUiConfig.fields,
+        fields: prepareUiFieldsForExport(currentUiConfig.fields, allDevelopers, allTesters),
         repositoryConfigs: currentUiConfig.repositoryConfigs,
         environments: currentUiConfig.environments,
         statusConfigs: currentUiConfig.statusConfigs || [],
@@ -786,11 +786,11 @@ export default function Home() {
                             skippedDuplicates: result.skippedDuplicates 
                         });
                     } else {
-                        toast({ 
-                            variant: 'success', 
-                            title: 'Import Complete', 
-                            description: `Successfully imported ${result.importedCount} tasks.` 
-                        });
+                        // toast({ 
+                        //     variant: 'success', 
+                        //     title: 'Import Complete', 
+                        //     description: `Successfully imported ${result.importedCount} tasks.` 
+                        // });
                     }
                 }
             } catch (error: any) {
@@ -1482,7 +1482,7 @@ export default function Home() {
                                 variant="outline"
                                 size="sm"
                                 onClick={openGlobalSpotlightSearch}
-                                className="w-full sm:w-auto h-11 font-medium"
+                                className="w-full sm:w-auto h-11 rounded-2xl px-5 font-medium shadow-sm shadow-black/5 transition-all hover:shadow-md hover:shadow-black/10"
                                 aria-label="Open global search"
                             >
                                 <Globe className="mr-2 h-4 w-4" />
@@ -1500,7 +1500,7 @@ export default function Home() {
                 </TooltipProvider>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                    <Button id="home-export-trigger" variant="outline" size="sm" className="w-full sm:w-auto h-11 font-medium">
+                    <Button id="home-export-trigger" variant="outline" size="sm" className="w-full sm:w-auto h-11 rounded-2xl px-5 font-medium shadow-sm shadow-black/5 transition-all hover:shadow-md hover:shadow-black/10">
                         <Download className="mr-2 h-4 w-4" />
                         Export JSON
                     </Button>
@@ -1512,13 +1512,13 @@ export default function Home() {
                     </DropdownMenuContent>
                 </DropdownMenu>
 
-                <Button id="home-import-trigger" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="w-full sm:w-auto h-11 font-medium">
+                <Button id="home-import-trigger" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="w-full sm:w-auto h-11 rounded-2xl px-5 font-medium shadow-sm shadow-black/5 transition-all hover:shadow-md hover:shadow-black/10">
                     <Upload className="mr-2 h-4 w-4" />
                     Import JSON
                 </Button>
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />
                 
-                <Button onClick={handleNavigateNewTask} id="new-task-btn" className="w-full sm:w-auto h-11 shadow-lg font-medium active:scale-95 transition-transform">
+                <Button onClick={handleNavigateNewTask} id="new-task-btn" className="w-full sm:w-auto h-11 rounded-2xl px-6 shadow-[0_12px_30px_-14px_rgba(79,70,229,0.85)] font-medium active:scale-95 transition-all hover:shadow-[0_16px_34px_-14px_rgba(79,70,229,0.95)]">
                     <Plus className="mr-2 h-5 w-5" /> New Task
                 </Button>
             </div>

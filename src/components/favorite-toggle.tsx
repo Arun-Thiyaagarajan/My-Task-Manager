@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { updateTask } from '@/lib/data';
@@ -19,7 +19,12 @@ interface FavoriteToggleButtonProps {
 export function FavoriteToggleButton({ taskId, isFavorite, onUpdate, className }: FavoriteToggleButtonProps) {
   const [isFavorited, setIsFavorited] = useState(isFavorite);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [, startTransition] = useTransition();
   const { toast } = useToast();
+
+  useEffect(() => {
+    setIsFavorited(isFavorite);
+  }, [isFavorite]);
 
   const handleToggleFavorite = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -37,9 +42,12 @@ export function FavoriteToggleButton({ taskId, isFavorite, onUpdate, className }
       duration: 2000,
     });
     
-    // Parent component handles the main state refresh
     if(onUpdate) {
-        onUpdate();
+        startTransition(() => {
+          window.requestAnimationFrame(() => {
+            onUpdate();
+          });
+        });
     }
   };
   
