@@ -1,5 +1,6 @@
 "use client"
 
+import type { ReactNode } from "react"
 import { useToast } from "@/hooks/use-toast"
 import {
   Toast,
@@ -9,7 +10,7 @@ import {
   ToastTitle,
   ToastViewport,
 } from "@/components/ui/toast"
-import { AlertCircle, CheckCircle2, BellRing, TriangleAlert, Info } from "lucide-react"
+import { AlertCircle, CheckCircle2, BellRing, TriangleAlert, Info, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const toastThemeMap = {
@@ -45,6 +46,34 @@ const toastThemeMap = {
   },
 } as const
 
+function getToastTone({
+  variant,
+  title,
+  description,
+}: {
+  variant?: keyof typeof toastThemeMap
+  title?: ReactNode
+  description?: ReactNode
+}) {
+  const text = `${typeof title === "string" ? title : ""} ${typeof description === "string" ? description : ""}`.toLowerCase()
+  const isBinToast =
+    text.includes("bin") ||
+    text.includes("trash") ||
+    text.includes("deleted") ||
+    text.includes("delete forever") ||
+    text.includes("permanently deleted")
+
+  if (isBinToast) {
+    return {
+      ...toastThemeMap.warning,
+      icon: Trash2,
+      eyebrow: "Bin",
+    }
+  }
+
+  return toastThemeMap[variant || "default"]
+}
+
 export function Toaster() {
   const { toasts } = useToast()
 
@@ -52,7 +81,7 @@ export function Toaster() {
     <ToastProvider>
       {toasts.map(function ({ id, title, description, action, ...props }) {
         const variant = props.variant || 'default';
-        const tone = toastThemeMap[variant];
+        const tone = getToastTone({ variant, title, description });
         const Icon = tone.icon;
 
         return (
@@ -61,34 +90,35 @@ export function Toaster() {
             {...props}
             variant="premium"
             className={cn(
-              "border-l-[4px] before:absolute before:inset-x-0 before:top-0 before:h-20 before:pointer-events-none before:rounded-t-[26px] before:bg-gradient-to-b before:content-['']",
-              "after:pointer-events-none after:absolute after:inset-y-5 after:left-0 after:w-px after:bg-gradient-to-b after:via-current/10 after:to-transparent after:content-['']",
-              "bg-[linear-gradient(180deg,hsl(var(--background)/0.97)_0%,hsl(var(--card)/0.94)_100%)] shadow-[0_30px_90px_-38px_hsl(var(--foreground)/0.58)]",
+              "mx-auto w-auto min-w-[min(270px,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] rounded-2xl border-l-[3px] before:absolute before:inset-x-0 before:top-0 before:h-14 before:pointer-events-none before:rounded-t-2xl before:bg-gradient-to-b before:content-['']",
+              "after:pointer-events-none after:absolute after:inset-y-4 after:left-0 after:w-px after:bg-gradient-to-b after:via-current/10 after:to-transparent after:content-['']",
+              "bg-[linear-gradient(180deg,hsl(var(--background)/0.98)_0%,hsl(var(--card)/0.96)_100%)] shadow-[0_18px_44px_-26px_hsl(var(--foreground)/0.38)]",
+              "sm:mx-0 sm:w-full sm:min-w-0 sm:max-w-none sm:rounded-[26px] sm:border-l-[4px] sm:before:h-20 sm:before:rounded-t-[26px] sm:after:inset-y-5 sm:shadow-[0_30px_90px_-38px_hsl(var(--foreground)/0.58)]",
               tone.shellClassName
             )}
           >
-            <div className="w-full p-4 sm:p-[18px]">
-              <div className="flex items-start gap-3.5">
-                <div className={cn("relative flex h-12 w-12 shrink-0 items-center justify-center rounded-[20px] border border-black/5 dark:border-white/8", tone.iconWrapClassName)}>
-                  <div className="absolute inset-[1px] rounded-[19px] bg-[linear-gradient(180deg,rgba(255,255,255,0.82),rgba(255,255,255,0.5))] dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))]" />
-                  <div className="absolute inset-0 rounded-[20px] bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.22),transparent_62%)] dark:bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.07),transparent_60%)]" />
-                  <Icon className="relative h-[18px] w-[18px]" />
+            <div className="w-full px-3.5 py-3 sm:p-[18px]">
+              <div className="flex items-center gap-2.5 sm:items-start sm:gap-3.5">
+                <div className={cn("relative flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-black/5 dark:border-white/8 sm:h-12 sm:w-12 sm:rounded-[20px]", tone.iconWrapClassName)}>
+                  <div className="absolute inset-[1px] rounded-[15px] bg-[linear-gradient(180deg,rgba(255,255,255,0.82),rgba(255,255,255,0.5))] dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))] sm:rounded-[19px]" />
+                  <div className="absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.22),transparent_62%)] dark:bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.07),transparent_60%)] sm:rounded-[20px]" />
+                  <Icon className="relative h-4 w-4 sm:h-[18px] sm:w-[18px]" />
                 </div>
-                <div className="min-w-0 flex-1 space-y-1.5 pr-8 pt-0.5">
-                  <p className="text-[10px] font-black uppercase tracking-[0.26em] text-muted-foreground/60">
+                <div className="min-w-0 flex-1 space-y-0.5 pr-1 sm:space-y-1.5 sm:pr-8 sm:pt-0.5">
+                  <p className="hidden text-[10px] font-black uppercase tracking-[0.26em] text-muted-foreground/60 sm:block">
                     {tone.eyebrow}
                   </p>
-                  {title && <ToastTitle className="text-[15px] font-semibold tracking-[-0.025em] text-foreground sm:text-[15.5px]">{title}</ToastTitle>}
+                  {title && <ToastTitle className="text-[13.5px] font-semibold tracking-[-0.02em] text-foreground sm:text-[15.5px] sm:tracking-[-0.025em]">{title}</ToastTitle>}
                   {description && (
-                    <ToastDescription className="text-[13px] leading-[1.55] text-muted-foreground/95">
+                    <ToastDescription className="text-[12px] leading-[1.45] text-muted-foreground/90 sm:text-[13px] sm:leading-[1.55] sm:text-muted-foreground/95">
                       {description}
                     </ToastDescription>
                   )}
-                  {action && <div className="pt-1">{action}</div>}
+                  {action && <div className="hidden pt-1 sm:block">{action}</div>}
                 </div>
               </div>
             </div>
-            <ToastClose />
+            <ToastClose className="hidden sm:flex" />
           </Toast>
         )
       })}

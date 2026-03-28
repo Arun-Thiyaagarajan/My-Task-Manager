@@ -15,8 +15,8 @@ export function FaviconSync() {
       if (!config) return;
 
       const icon = config.appIcon;
-      // Default placeholder (Clipboard emoji) if no icon is set
-      const defaultIconUrl = 'https://placehold.co/180x180/4f46e5/white/png?text=%F0%9F%93%8B';
+      // Use the built-in TaskFlow brand icon when no custom icon is configured.
+      const defaultIconUrl = '/apple-icon';
       let iconUrl = defaultIconUrl;
 
       if (icon) {
