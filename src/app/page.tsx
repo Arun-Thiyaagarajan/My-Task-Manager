@@ -632,8 +632,11 @@ export default function Home() {
     const exportData: any = {
         appName: currentUiConfig.appName,
         appIcon: currentUiConfig.appIcon,
+        fields: currentUiConfig.fields,
         repositoryConfigs: currentUiConfig.repositoryConfigs,
         environments: currentUiConfig.environments,
+        statusConfigs: currentUiConfig.statusConfigs || [],
+        taskStatuses: currentUiConfig.taskStatuses || [],
         customFieldDefinitions: customFieldDefinitions,
         developers: allDevelopers.map(cleanPerson),
         testers: allTesters.map(cleanPerson),

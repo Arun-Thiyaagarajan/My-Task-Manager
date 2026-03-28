@@ -1,7 +1,7 @@
 'use client';
 
 import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES, DEFAULT_STATUS_CONFIGS } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile, Feedback, FeedbackMessage, FeedbackStatus, UserProfile, AppNotification } from './types'; 
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile, Feedback, FeedbackMessage, FeedbackStatus, UserProfile, AppNotification, StatusConfigItem } from './types'; 
 import cloneDeep from 'lodash/cloneDeep';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, setDoc, deleteDoc, updateDoc, collection, writeBatch, getDocs, query, orderBy, limit, getDoc, where, addDoc } from 'firebase/firestore';
@@ -408,6 +408,99 @@ export function getUiConfig(): UiConfig {
     const config = data.companyData[companyId]?.uiConfig;
     if (!config) return getInitialData().companyData['company-default'].uiConfig;
     return syncTaskStatuses(config);
+}
+
+function mergeImportedFields(
+    currentFields: FieldConfig[],
+    importedFields: unknown,
+    legacyCustomFieldDefinitions: unknown
+): FieldConfig[] {
+    const nextFields = [...currentFields];
+    const byKey = new Map(nextFields.map(field => [field.key, field]));
+    const importedFieldList = Array.isArray(importedFields) ? importedFields : [];
+    const legacyCustomFields = Array.isArray(legacyCustomFieldDefinitions) ? legacyCustomFieldDefinitions : [];
+
+    importedFieldList.forEach((field: any) => {
+        if (!field || typeof field.key !== 'string') return;
+        const existing = byKey.get(field.key);
+        const mergedField = existing ? { ...existing, ...field } : field;
+
+        if (existing) {
+            const index = nextFields.findIndex(item => item.key === field.key);
+            nextFields[index] = mergedField;
+        } else {
+            nextFields.push(mergedField);
+        }
+
+        byKey.set(field.key, mergedField);
+    });
+
+    legacyCustomFields.forEach((field: any) => {
+        if (!field || typeof field.key !== 'string' || byKey.has(field.key)) return;
+        nextFields.push(field);
+        byKey.set(field.key, field);
+    });
+
+    return nextFields
+        .filter((field): field is FieldConfig => !!field?.key && !!field?.label && !!field?.type)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+}
+
+function mergeImportedUiConfig(currentUi: UiConfig, parsedJson: any): UiConfig {
+    const mergedRepositoryConfigs = [...currentUi.repositoryConfigs];
+    const importedRepositoryConfigs = Array.isArray(parsedJson.repositoryConfigs) ? parsedJson.repositoryConfigs : [];
+    importedRepositoryConfigs.forEach((repo: any) => {
+        if (!repo?.name || mergedRepositoryConfigs.some(existing => existing.name === repo.name)) return;
+        mergedRepositoryConfigs.push({ ...repo, id: repo.id || createId('repo_') });
+    });
+
+    const mergedEnvironments = [...currentUi.environments];
+    const importedEnvironments = Array.isArray(parsedJson.environments) ? parsedJson.environments : [];
+    importedEnvironments.forEach((environment: any) => {
+        if (!environment?.name || mergedEnvironments.some(existing => existing.name.toLowerCase() === environment.name.toLowerCase())) return;
+        mergedEnvironments.push({ ...environment, id: environment.id || createId('env_') });
+    });
+
+    const importedStatusConfigs = Array.isArray(parsedJson.statusConfigs)
+        ? parsedJson.statusConfigs.filter((status: any): status is StatusConfigItem => Boolean(status?.name))
+        : [];
+    const importedTaskStatuses = Array.isArray(parsedJson.taskStatuses)
+        ? parsedJson.taskStatuses.filter((status: any): status is string => typeof status === 'string' && status.trim().length > 0)
+        : [];
+
+    const mergedFields = mergeImportedFields(
+        currentUi.fields,
+        parsedJson.fields,
+        parsedJson.customFieldDefinitions
+    ).map(field => {
+        if (field.key === 'repositories') {
+            return {
+                ...field,
+                options: mergedRepositoryConfigs.map(repo => ({ id: repo.id, value: repo.name, label: repo.name })),
+            };
+        }
+
+        if (field.key === 'relevantEnvironments') {
+            return {
+                ...field,
+                options: mergedEnvironments.map(environment => ({ id: environment.id, value: environment.name, label: environment.name })),
+            };
+        }
+
+        return field;
+    });
+
+    return syncTaskStatuses({
+        ...currentUi,
+        appName: parsedJson.appName || currentUi.appName,
+        appIcon: typeof parsedJson.appIcon !== 'undefined' ? parsedJson.appIcon : currentUi.appIcon,
+        timeFormat: parsedJson.timeFormat || currentUi.timeFormat,
+        fields: mergedFields,
+        repositoryConfigs: mergedRepositoryConfigs,
+        environments: mergedEnvironments,
+        statusConfigs: importedStatusConfigs.length > 0 ? importedStatusConfigs : currentUi.statusConfigs,
+        taskStatuses: importedTaskStatuses.length > 0 ? importedTaskStatuses : currentUi.taskStatuses,
+    });
 }
 
 export function setUiConfig(config: UiConfig) {
@@ -1514,7 +1607,11 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
 
     let rawTasks, jsonDevs, jsonTesters, jsonNotes, jsonLogs, repoConfigs, envs;
     try {
-        rawTasks = Array.isArray(parsedJson.tasks) ? parsedJson.tasks : [];
+        rawTasks = Array.isArray(parsedJson.tasks)
+            ? parsedJson.tasks
+            : parsedJson.task
+                ? [parsedJson.task]
+                : [];
         jsonDevs = Array.isArray(parsedJson.developers) ? parsedJson.developers : [];
         jsonTesters = Array.isArray(parsedJson.testers) ? parsedJson.testers : [];
         jsonNotes = Array.isArray(parsedJson.notes) ? parsedJson.notes : [];
@@ -1535,7 +1632,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
     uniqueFields.forEach(f => {
         const set = new Set<string>();
         activeTasks.forEach(t => {
-            const val = f.isCustom ? t.customFields?.[field.key] : (t as any)[field.key];
+            const val = f.isCustom ? t.customFields?.[f.key] : (t as any)[f.key];
             if (val && typeof val === 'string' && val.trim() !== '') {
                 set.add(val.trim().toLowerCase());
             }
@@ -1674,25 +1771,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             await setDoc(doc(db, companyBase, 'people', 'testers'), { list: currentTesters });
             bumpProgress();
 
-            const currentUi = getUiConfig();
-            if (parsedJson.appName) currentUi.appName = parsedJson.appName;
-            if (parsedJson.appIcon) currentUi.appIcon = parsedJson.appIcon;
-            if (parsedJson.timeFormat) currentUi.timeFormat = parsedJson.timeFormat;
-
-            if (repoConfigs.length > 0) {
-                repoConfigs.forEach((r: any) => {
-                    if (!currentUi.repositoryConfigs.some(mr => mr.name === r.name)) {
-                        currentUi.repositoryConfigs.push({ ...r, id: r.id || createId('repo_') });
-                    }
-                });
-            }
-            if (envs.length > 0) {
-                envs.forEach((e: any) => {
-                    if (!currentUi.environments.some(me => me.name.toLowerCase() === e.name.toLowerCase())) {
-                        currentUi.environments.push({ ...e, id: e.id || createId('env_') });
-                    }
-                });
-            }
+            const currentUi = mergeImportedUiConfig(getUiConfig(), parsedJson);
             await setDoc(doc(db, companyBase, 'settings', 'uiConfig'), currentUi);
             bumpProgress();
 
@@ -1735,9 +1814,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             comp.developers = currentDevs;
             comp.testers = currentTesters;
             
-            if (parsedJson.appName) comp.uiConfig.appName = parsedJson.appName;
-            if (parsedJson.appIcon) comp.uiConfig.appIcon = parsedJson.appIcon;
-            if (parsedJson.timeFormat) comp.uiConfig.timeFormat = parsedJson.timeFormat;
+            comp.uiConfig = mergeImportedUiConfig(comp.uiConfig, parsedJson);
 
             processedTasks.forEach(newTask => {
                 comp.tasks.unshift(newTask);
@@ -1751,21 +1828,6 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             comp.notes = [...processedNotes, ...comp.notes];
             comp.logs = [...processedLogs, ...comp.logs];
 
-            if (repoConfigs.length > 0) {
-                repoConfigs.forEach((r: any) => {
-                    if (!comp.uiConfig.repositoryConfigs.some(mr => mr.name === r.name)) {
-                        comp.uiConfig.repositoryConfigs.push({ ...r, id: r.id || createId('repo_') });
-                    }
-                });
-            }
-            if (envs.length > 0) {
-                envs.forEach((e: any) => {
-                    if (!comp.uiConfig.environments.some(me => me.name.toLowerCase() === e.name.toLowerCase())) {
-                        comp.uiConfig.environments.push({ ...e, id: e.id || createId('env_') });
-                    }
-                });
-            }
-            
             setAppData(data);
             if (onProgress) onProgress(100);
         }
