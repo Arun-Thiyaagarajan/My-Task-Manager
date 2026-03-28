@@ -1413,7 +1413,7 @@ export default function Home() {
       </Dialog>
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center md:mb-6 gap-6">
-        <div className="flex flex-col gap-1">
+        <div className="flex w-full flex-col gap-1 md:w-auto">
             <div className="flex w-full items-center justify-between gap-3 md:justify-start">
                 <div className="flex min-w-0 items-center gap-3">
                     <h1 className="text-3xl font-semibold tracking-tight text-foreground">Tasks</h1>
@@ -1428,11 +1428,11 @@ export default function Home() {
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                className="h-7 min-h-0 shrink-0 rounded-full px-2 py-0 text-[11px] shadow-sm md:hidden"
+                                className="h-8 min-h-0 shrink-0 rounded-full px-3 py-0 text-xs shadow-sm md:hidden"
                                 onClick={openGlobalSpotlightSearch}
                                 aria-label="Open global search"
                             >
-                                <Globe className="mr-1 h-3.5 w-3.5" />
+                                <Globe className="mr-1.5 h-4 w-4" />
                                 Search
                             </Button>
                         </TooltipTrigger>
