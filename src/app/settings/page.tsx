@@ -723,8 +723,8 @@ export default function SettingsPage() {
                 </div>
                 <div className="p-6 pt-2 shrink-0">
                     <AlertDialogFooter className="gap-3 flex-col sm:flex-row">
-                        <AlertDialogCancel className="rounded-xl h-11 font-medium border-none bg-muted/50 hover:bg-muted" onClick={() => setIsDeactivateConfirmOpen(false)}>Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={performSaveFields} className="bg-primary hover:bg-primary/90 rounded-xl h-11 font-bold shadow-lg">Confirm & Save</AlertDialogAction>
+                        <AlertDialogCancel className="rounded-xl h-11 font-medium border-none bg-muted/50 hover:bg-muted" onClick={() => setIsDeactivateConfirmOpen(false)}>Cancel</AlertDialogCancel>
                     </AlertDialogFooter>
                 </div>
             </AlertDialogContent>

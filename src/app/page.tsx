@@ -42,7 +42,6 @@ import {
   Tag,
   Loader2,
   AlertCircle,
-  CornerDownLeft,
   Filter,
   ChevronDown,
   Save,
@@ -55,6 +54,7 @@ import {
   CalendarIcon,
   AlertTriangle,
   Fingerprint,
+  Globe,
 } from 'lucide-react';
 import { cn, fuzzySearch, formatTimestamp } from '@/lib/utils';
 import { getSortedStatusOptions, getStatusDisplayName } from '@/lib/status-config';
@@ -113,6 +113,7 @@ import { useFirebase } from '@/firebase';
 import { triggerTransfer } from '@/components/file-transfer-indicator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { isRepositoryFieldActive } from '@/lib/repository-config';
+import { openGlobalSpotlightSearch } from '@/components/global-spotlight-search';
 
 type ViewMode = 'grid' | 'table';
 type DateView = 'all' | 'monthly' | 'yearly';
@@ -174,7 +175,7 @@ export default function Home() {
   const [pinnedTaskIds, setPinnedTaskIds] = useState<string[]>([]);
   const [isReminderStackOpen, setIsReminderStackOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const [commandKey, setCommandKey] = useState('Ctrl');
+  const [spotlightShortcutKey, setSpotlightShortcutKey] = useState('Ctrl');
   
   const [isTagsDialogOpen, setIsTagsDialogOpen] = useState(false);
   const [tagsToApply, setTagsToApply] = useState<string[]>([]);
@@ -194,6 +195,10 @@ export default function Home() {
   useEffect(() => {
     setMounted(true);
     setCurrentAuthMode(getAuthMode());
+    if (typeof window !== 'undefined') {
+      const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+      setSpotlightShortcutKey(isMac ? '⌘' : 'Ctrl');
+    }
     
     const prefs = getUserPreferences();
     
@@ -335,22 +340,6 @@ export default function Home() {
       window.removeEventListener('sync-complete', refreshData);
     };
   }, [refreshData]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-        setCommandKey(isMac ? '⌘' : 'Ctrl');
-    }
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-            e.preventDefault();
-            searchInputRef.current?.focus();
-        }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
 
   useEffect(() => {
     const tutorialBulkSelectors = new Set([
@@ -1140,15 +1129,12 @@ export default function Home() {
                 <TooltipProvider>
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground cursor-help">
-                                <span className="text-xs">{commandKey}</span>K
-                            </kbd>
+                            <div className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center rounded border bg-muted px-1.5 text-[10px] font-medium text-muted-foreground cursor-help">
+                                Enter
+                            </div>
                         </TooltipTrigger>
                         <TooltipContent side="top">
-                            <div className="flex items-center gap-2 font-normal">
-                                <CornerDownLeft className="h-3 w-3" />
-                                <span>Press Enter to search</span>
-                            </div>
+                            <span>Press Enter to search tasks</span>
                         </TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
@@ -1428,11 +1414,33 @@ export default function Home() {
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center md:mb-6 gap-6">
         <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-3">
-                <h1 className="text-3xl font-semibold tracking-tight text-foreground">Tasks</h1>
-                <Badge variant="outline" className={cn(mounted && currentAuthMode === 'authenticate' ? "text-primary border-primary/20 bg-primary/5" : "text-muted-foreground", "h-6 px-3 text-[10px] font-medium uppercase tracking-wider")}>
-                    {mounted ? (currentAuthMode === 'authenticate' ? 'Cloud Sync' : 'Local Storage') : 'Verifying...'}
-                </Badge>
+            <div className="flex w-full items-center justify-between gap-3 md:justify-start">
+                <div className="flex min-w-0 items-center gap-3">
+                    <h1 className="text-3xl font-semibold tracking-tight text-foreground">Tasks</h1>
+                    <Badge variant="outline" className={cn(mounted && currentAuthMode === 'authenticate' ? "text-primary border-primary/20 bg-primary/5" : "text-muted-foreground", "h-6 px-3 text-[10px] font-medium uppercase tracking-wider")}>
+                        {mounted ? (currentAuthMode === 'authenticate' ? 'Cloud Sync' : 'Local Storage') : 'Verifying...'}
+                    </Badge>
+                </div>
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 min-h-0 shrink-0 rounded-full px-2 py-0 text-[11px] shadow-sm md:hidden"
+                                onClick={openGlobalSpotlightSearch}
+                                aria-label="Open global search"
+                            >
+                                <Globe className="mr-1 h-3.5 w-3.5" />
+                                Search
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">
+                            <span>Open global search</span>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
             </div>
             {uiConfig?.appName && <p className="text-muted-foreground text-sm font-medium">{uiConfig.appName}</p>}
         </div>
@@ -1451,6 +1459,30 @@ export default function Home() {
             )}
 
             <div className="hidden md:flex items-center gap-2">
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={openGlobalSpotlightSearch}
+                                className="w-full sm:w-auto h-11 font-medium"
+                                aria-label="Open global search"
+                            >
+                                <Globe className="mr-2 h-4 w-4" />
+                                Search
+                                <span className="ml-2 inline-flex items-center gap-1 rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                    <span>{spotlightShortcutKey}</span>
+                                    <span>K</span>
+                                </span>
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">
+                            <span>Global search for tasks, notes, settings, and more</span>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                     <Button id="home-export-trigger" variant="outline" size="sm" className="w-full sm:w-auto h-11 font-medium">
