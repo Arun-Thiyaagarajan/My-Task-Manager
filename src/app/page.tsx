@@ -114,6 +114,7 @@ import { triggerTransfer } from '@/components/file-transfer-indicator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { isRepositoryFieldActive } from '@/lib/repository-config';
 import { openGlobalSpotlightSearch } from '@/components/global-spotlight-search';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 type ViewMode = 'grid' | 'table';
 type DateView = 'all' | 'monthly' | 'yearly';
@@ -138,6 +139,7 @@ export default function Home() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
+  const isMobile = useIsMobile();
   
   const [tasks, setTasks] = useState<Task[]>([]);
   const [binnedTasks, setBinnedTasks] = useState<Task[]>([]);
@@ -1005,6 +1007,15 @@ export default function Home() {
   const isSearchActive = searchQuery.trim().length >= 2;
 
   const totalActiveFilters = statusFilter.length + repoFilter.length + deploymentFilter.length + tagsFilter.length + (executedSearchQuery ? 1 : 0);
+  const showRepositoryFilter = isRepositoryFieldActive(uiConfig);
+  const showTagsFilter = (uiConfig?.fields || []).find(f => f.key === 'tags')?.isActive;
+  const desktopFilterColumnCount = 3 + (showRepositoryFilter ? 1 : 0) + (showTagsFilter ? 1 : 0);
+  const desktopFilterGridClassName =
+    desktopFilterColumnCount <= 3
+      ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3'
+      : desktopFilterColumnCount === 4
+        ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-4'
+        : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-5';
 
   const selectionBarContent = (
     <Card className="border-primary/50 bg-background/90 backdrop-blur-sm shadow-lg overflow-hidden">
@@ -1108,7 +1119,10 @@ export default function Home() {
                 value={searchQuery}
                 onChange={handleSearchInputChange}
                 onFocus={() => setIsSearchFocused(true)}
-                onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                onBlur={() => {
+                    if (isMobile) return;
+                    setTimeout(() => setIsSearchFocused(false), 200);
+                }}
                 onKeyDown={handleSearchKeyDown}
                 className={cn(
                     "w-full pl-10 pr-24 h-11 font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40",
@@ -1570,7 +1584,7 @@ export default function Home() {
                                     options={getSortedStatusOptions(uiConfig).map(option => ({ value: option.value, label: option.label }))} 
                                     placeholder="Status..." 
                                 />
-                                {isRepositoryFieldActive(uiConfig) && (
+                                {showRepositoryFilter && (
                                     <MultiSelect 
                                         selected={repoFilter} 
                                         className={cn(repoFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
@@ -1579,7 +1593,7 @@ export default function Home() {
                                         placeholder="Repository..." 
                                     />
                                 )}
-                                {(uiConfig?.fields || []).find(f => f.key === 'tags')?.isActive && (
+                                {showTagsFilter && (
                                     <MultiSelect 
                                         selected={tagsFilter} 
                                         className={cn(tagsFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
@@ -1780,13 +1794,13 @@ export default function Home() {
               <div className="hidden md:block overflow-visible mb-4">
                 <Card id="task-filters" className="border-none bg-transparent overflow-visible">
                     <CardContent className="p-0 overflow-visible">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+                        <div className={cn("grid gap-4", desktopFilterGridClassName)}>
                             <div className="hidden md:flex flex-col w-full col-span-1 sm:col-span-2 md:col-span-1">
                                 {searchInputContent}
                             </div>
                             <MultiSelect selected={statusFilter} className={cn(statusFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")} onChange={(val) => { setIsSearching(true); setStatusFilter(val); }} options={getSortedStatusOptions(uiConfig).map(option => ({ value: option.value, label: option.label }))} placeholder="Status..." />
-                            {isRepositoryFieldActive(uiConfig) && <MultiSelect selected={repoFilter} className={cn(repoFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")} onChange={(val) => { setIsSearching(true); setRepoFilter(val); }} options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} placeholder="Repository..." />}
-                            {(uiConfig?.fields || []).find(f => f.key === 'tags')?.isActive && (
+                            {showRepositoryFilter && <MultiSelect selected={repoFilter} className={cn(repoFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")} onChange={(val) => { setIsSearching(true); setRepoFilter(val); }} options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} placeholder="Repository..." />}
+                            {showTagsFilter && (
                                 <MultiSelect selected={tagsFilter} className={cn(tagsFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")} onChange={(val) => { setIsSearching(true); setTagsFilter(val); }} options={[...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({value: t, label: t}))} placeholder="Tags..." />
                             )}
                             <MultiSelect selected={deploymentFilter} className={cn(deploymentFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")} onChange={(val) => { setIsSearching(true); setDeploymentFilter(val); }} options={(uiConfig?.environments || []).flatMap(env => [{ value: env.name, label: `On ${env.name}` }, { value: `not_${env.name}`, label: `Not on ${env.name}` }])} placeholder="Deployment..." />

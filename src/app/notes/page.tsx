@@ -596,7 +596,10 @@ export default function NotesPage() {
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         onFocus={() => setIsSearchFocused(true)}
-                                        onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                                        onBlur={() => {
+                                            if (isMobile) return;
+                                            setTimeout(() => setIsSearchFocused(false), 200);
+                                        }}
                                         onKeyDown={handleSearchKeyDown}
                                         className={cn(
                                             "w-full pl-10 h-11 font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40 rounded-xl",
