@@ -69,6 +69,17 @@ const featureItems: FeatureItem[] = [
     tags: ['bulk', 'select all', 'pdf', 'copy', 'delete', 'tags'],
   },
   {
+    id: 'global-search',
+    title: 'Global Search',
+    subtitle: 'Spotlight search for tasks, notes, and settings',
+    description: 'Open the global search overlay to jump across tasks, notes, settings, and key app destinations from anywhere.',
+    href: '/',
+    category: 'Core Workflow',
+    icon: Search,
+    accent: 'text-blue-500',
+    tags: ['global search', 'spotlight', 'cmd k', 'ctrl k', 'search anything', 'command palette'],
+  },
+  {
     id: 'notes',
     title: 'Notes Workspace',
     subtitle: 'Quick notes, full notes, and search',

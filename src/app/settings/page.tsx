@@ -1008,6 +1008,16 @@ export default function SettingsPage() {
                         <CardHeader className="pb-4"><CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider"><Bell className="h-5 w-5 text-primary" />Features</CardTitle></CardHeader>
                         <CardContent className="space-y-4">
                             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20"><div className="space-y-0.5"><Label className="text-sm font-semibold tracking-tight">Task Reminders</Label><p className="text-[10px] font-normal text-muted-foreground uppercase">Sticky notes on tasks.</p></div><Switch checked={uiConfig.remindersEnabled} onCheckedChange={(checked) => handleUpdateConfig({ remindersEnabled: checked })} /></div>
+                            <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20">
+                                <div className="space-y-0.5">
+                                    <Label className="text-sm font-semibold tracking-tight flex items-center gap-2">
+                                        <Search className="h-3.5 w-3.5 text-muted-foreground" />
+                                        Global Search
+                                    </Label>
+                                    <p className="text-[10px] font-normal text-muted-foreground uppercase">Cmd/Ctrl + K spotlight search.</p>
+                                </div>
+                                <Badge variant="outline" className="h-7 rounded-full px-2.5 text-[9px] font-black uppercase tracking-wider">Live</Badge>
+                            </div>
                             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20"><div className="space-y-0.5"><Label className="text-sm font-semibold tracking-tight">Guided Tour</Label><p className="text-[10px] font-normal text-muted-foreground uppercase">Onboarding tips.</p></div><Switch checked={uiConfig.tutorialEnabled} onCheckedChange={(checked) => handleUpdateConfig({ tutorialEnabled: checked })} /></div>
                             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20">
                                 <div className="space-y-0.5">
@@ -1390,6 +1400,18 @@ export default function SettingsPage() {
                             <p className="text-[10px] font-normal text-muted-foreground uppercase">Sticky notes on tasks.</p>
                         </div>
                         <Switch checked={uiConfig.remindersEnabled} onCheckedChange={(checked) => handleUpdateConfig({ remindersEnabled: checked })} />
+                    </div>
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-transparent hover:border-border transition-colors">
+                        <div className="space-y-0.5">
+                            <Label className="text-sm font-semibold tracking-tight flex items-center gap-2">
+                                <Search className="h-3.5 w-3.5 text-muted-foreground" />
+                                Global Search
+                            </Label>
+                            <p className="text-[10px] font-normal text-muted-foreground uppercase">Cmd/Ctrl + K spotlight search.</p>
+                        </div>
+                        <Badge variant="outline" className="h-7 rounded-full px-2.5 text-[9px] font-black uppercase tracking-wider">
+                            Live
+                        </Badge>
                     </div>
                     <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-transparent hover:border-border transition-colors">
                         <div className="space-y-0.5">

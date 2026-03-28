@@ -27,6 +27,7 @@ TaskFlow is a powerful, intuitive, and highly customizable task management appli
 
 ### 📱 Superior UX & Mobile Design
 - **Mobile Optimized**: A fully responsive interface featuring a fixed bottom navigation bar and touch-friendly controls.
+- **Global Spotlight Search**: Jump to tasks, notes, settings, and key app destinations instantly with a Mac-like global search overlay.
 - **App Opener**: A clean, professional splash screen for a smooth initial loading experience.
 - **Guided Tutorial**: An interactive "App Tour" to help new users get acquainted with the workspace.
 - **Floating Notes**: Quickly jot down ideas or temporary info from any page using the floating action button.
