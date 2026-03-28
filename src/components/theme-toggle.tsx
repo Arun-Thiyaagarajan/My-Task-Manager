@@ -31,6 +31,7 @@ export function ThemeToggle() {
 
   return (
     <Button
+      id="header-theme-toggle"
       variant="ghost"
       size="icon"
       onClick={toggleTheme}
