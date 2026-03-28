@@ -42,6 +42,7 @@ import {
   ShieldCheck,
   Compass,
   Sparkles,
+  Wand2,
   ArrowLeft,
   HelpCircle,
   Inbox,
@@ -76,6 +77,7 @@ import { AuthModal } from './auth-modal';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { NotificationsHub } from './notifications-hub';
 import { Popover, PopoverAnchor, PopoverContent } from './ui/popover';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 
 const HeaderLink = ({ href, children, className, onClick, id }: { href: string; children: React.ReactNode, className?: string; onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void; id?: string; }) => {
     const router = useRouter();
@@ -157,6 +159,7 @@ export function Header() {
   const { startTutorial } = useTutorial();
   const [isImagePreviewOpen, setIsImagePreviewOpen] = useState(false);
   const [isTutorialHintOpen, setIsTutorialHintOpen] = useState(false);
+  const [isFeatureDiscoveryOpen, setIsFeatureDiscoveryOpen] = useState(false);
   
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthModeState] = useState<'localStorage' | 'authenticate'>('localStorage');
@@ -229,6 +232,36 @@ export function Header() {
       window.removeEventListener('app-install-prompt-dismissed', handleInstallPromptDismissed);
     };
   }, [mounted, uiConfig?.tutorialEnabled]);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    const openFeatureDiscovery = () => {
+      const prefs = getUserPreferences();
+      if (prefs.featureDiscoverySeen) return;
+      setIsFeatureDiscoveryOpen(true);
+    };
+
+    const handleShowFeatureDiscoveryPrompt = () => {
+      window.setTimeout(openFeatureDiscovery, 150);
+    };
+
+    const handleTutorialClosedForFeatureDiscovery = () => {
+      const pending = window.sessionStorage.getItem('taskflow_pending_feature_discovery');
+      if (!pending) return;
+
+      window.sessionStorage.removeItem('taskflow_pending_feature_discovery');
+      window.setTimeout(openFeatureDiscovery, 250);
+    };
+
+    window.addEventListener('show-feature-discovery-prompt', handleShowFeatureDiscoveryPrompt);
+    window.addEventListener('tutorial-closed', handleTutorialClosedForFeatureDiscovery);
+
+    return () => {
+      window.removeEventListener('show-feature-discovery-prompt', handleShowFeatureDiscoveryPrompt);
+      window.removeEventListener('tutorial-closed', handleTutorialClosedForFeatureDiscovery);
+    };
+  }, [mounted]);
 
   useEffect(() => {
     const handleTutorialStepHighlighted = (event: Event) => {
@@ -339,17 +372,47 @@ export function Header() {
     if (open) return;
     setIsTutorialHintOpen(false);
     updateUserPreferences({ tutorialButtonHintSeen: true });
+    const prefs = getUserPreferences();
+    if (!prefs.featureDiscoverySeen) {
+      window.dispatchEvent(new Event('show-feature-discovery-prompt'));
+    }
   };
 
   const handleTutorialHintDismiss = () => {
     setIsTutorialHintOpen(false);
     updateUserPreferences({ tutorialButtonHintSeen: true });
+    const prefs = getUserPreferences();
+    if (!prefs.featureDiscoverySeen) {
+      window.dispatchEvent(new Event('show-feature-discovery-prompt'));
+    }
   };
 
   const handleTutorialHintStart = () => {
     setIsTutorialHintOpen(false);
     updateUserPreferences({ tutorialButtonHintSeen: true, tutorialSeen: true });
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem('taskflow_pending_feature_discovery', 'true');
+    }
     startTutorial();
+  };
+
+  const handleFeatureDiscoveryOpenChange = (open: boolean) => {
+    if (!open) {
+      updateUserPreferences({ featureDiscoverySeen: true });
+    }
+    setIsFeatureDiscoveryOpen(open);
+  };
+
+  const handleFeatureDiscoveryDismiss = () => {
+    setIsFeatureDiscoveryOpen(false);
+    updateUserPreferences({ featureDiscoverySeen: true });
+  };
+
+  const handleFeatureDiscoveryExplore = () => {
+    setIsFeatureDiscoveryOpen(false);
+    updateUserPreferences({ featureDiscoverySeen: true });
+    window.dispatchEvent(new Event('navigation-start'));
+    router.push('/help-center');
   };
 
   return (
@@ -655,6 +718,46 @@ export function Header() {
           )}
         </div>
       </header>
+
+      <Dialog open={isFeatureDiscoveryOpen} onOpenChange={handleFeatureDiscoveryOpenChange}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader className="items-center text-center">
+            <div className="p-3 bg-primary/10 rounded-full w-fit mb-2">
+              <Compass className="h-6 w-6 text-primary" />
+            </div>
+            <DialogTitle className="text-xl font-semibold">Explore Available Features</DialogTitle>
+            <DialogDescription className="font-normal max-w-md">
+              Explore what is available across TaskFlow and quickly discover where each feature lives in the workspace.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-2xl border bg-muted/30 p-4 space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="rounded-full bg-primary/10 p-2 shrink-0">
+                <Wand2 className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">See what is available</p>
+                <p className="text-xs text-muted-foreground">Browse reminders, notes, dashboards, export tools, settings modules, and more in one place.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="rounded-full bg-primary/10 p-2 shrink-0">
+                <HelpCircle className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">Find the right page faster</p>
+                <p className="text-xs text-muted-foreground">Open the feature explorer when you want a quick guide to available features without restarting the full tutorial.</p>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="flex-row justify-center sm:justify-center gap-2 pt-4">
+            <Button variant="ghost" onClick={handleFeatureDiscoveryDismiss} className="font-normal">Later</Button>
+            <Button onClick={handleFeatureDiscoveryExplore} className="font-medium">
+              Explore Features
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       <AuthModal 
         isOpen={isAuthModalOpen} 

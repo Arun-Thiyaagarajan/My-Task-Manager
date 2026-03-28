@@ -91,13 +91,18 @@ export function useTaskFlowData() {
 
         const unlockAudio = () => {
             if (audioRef.current && !audioUnlocked.current) {
+                const previousMuted = audioRef.current.muted;
+                audioRef.current.muted = true;
                 audioRef.current.play()
                     .then(() => {
                         audioRef.current?.pause();
                         if (audioRef.current) audioRef.current.currentTime = 0;
+                        if (audioRef.current) audioRef.current.muted = previousMuted;
                         audioUnlocked.current = true;
                     })
-                    .catch(() => {});
+                    .catch(() => {
+                        if (audioRef.current) audioRef.current.muted = previousMuted;
+                    });
                 
                 window.removeEventListener('click', unlockAudio);
                 window.removeEventListener('touchstart', unlockAudio);

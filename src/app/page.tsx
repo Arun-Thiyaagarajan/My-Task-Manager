@@ -39,7 +39,6 @@ import {
   History,
   Heart,
   BellRing,
-  GraduationCap,
   Tag,
   Loader2,
   AlertCircle,
@@ -107,7 +106,6 @@ import {
 import { ToastAction } from '@/components/ui/toast';
 import { ReminderStack } from '@/components/reminder-stack';
 import { Badge } from '@/components/ui/badge';
-import { useTutorial } from '@/hooks/use-tutorial';
 import { MultiSelect, type SelectOption } from '@/components/ui/multi-select';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -176,9 +174,6 @@ export default function Home() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [commandKey, setCommandKey] = useState('Ctrl');
   
-  const { startTutorial } = useTutorial();
-  const [showTutorialPrompt, setShowTutorialPrompt] = useState(false);
-
   const [isTagsDialogOpen, setIsTagsDialogOpen] = useState(false);
   const [tagsToApply, setTagsToApply] = useState<string[]>([]);
 
@@ -227,6 +222,7 @@ export default function Home() {
     const dateStr = searchParams.get('date');
     const date = dateStr ? new Date(dateStr) : new Date();
     setSelectedDate(isValid(date) ? date : new Date());
+
   }, []);
 
   useEffect(() => {
@@ -1353,36 +1349,6 @@ export default function Home() {
         </div>
         
         <div className="flex flex-col items-stretch sm:items-center sm:flex-row gap-3 w-full md:w-auto">
-            <Dialog open={showTutorialPrompt} onOpenChange={(open) => {
-                if (!open) {
-                    updateUserPreferences({ tutorialSeen: true });
-                }
-                setShowTutorialPrompt(open);
-            }}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader className="items-center text-center">
-                        <div className="p-3 bg-primary/10 rounded-full w-fit mb-2">
-                           <GraduationCap className="h-6 w-6 text-primary" />
-                        </div>
-                        <DialogTitle className="text-xl font-semibold">Welcome!</DialogTitle>
-                        <DialogDescription className="font-normal">
-                            Start with a quick tour now, and use the compass tutorial button on each page anytime you want page-specific guidance.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter className="flex-row justify-center sm:justify-center gap-2 pt-4">
-                        <Button variant="ghost" onClick={() => {
-                            setShowTutorialPrompt(false);
-                            updateUserPreferences({ tutorialSeen: true });
-                        }} className="font-normal">Maybe later</Button>
-                        <Button onClick={() => {
-                            setShowTutorialPrompt(false);
-                            updateUserPreferences({ tutorialSeen: true });
-                            startTutorial();
-                        }} className="font-medium">Start Tutorial</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-            
             {uiConfig?.remindersEnabled && (pinnedTaskIds.length + generalReminders.length) > 0 && (
               <Button 
                 variant="outline" 

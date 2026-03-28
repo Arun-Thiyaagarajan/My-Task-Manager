@@ -123,6 +123,7 @@ export interface UserPreferences {
   favoritesOnly?: boolean;
   tutorialSeen?: boolean;
   tutorialButtonHintSeen?: boolean;
+  featureDiscoverySeen?: boolean;
   notificationSounds?: boolean;
 }
 
