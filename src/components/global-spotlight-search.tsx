@@ -493,11 +493,11 @@ export function GlobalSpotlightSearch() {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        hideClose
+        hideClose={!isMobile}
         className={cn(
           'gap-0 overflow-hidden border-white/10 bg-background/95 p-0 shadow-2xl backdrop-blur-2xl',
           isMobile
-            ? 'h-screen w-screen max-w-none rounded-none border-none'
+            ? 'top-4 w-[calc(100vw-1rem)] max-w-none translate-y-0 rounded-[24px] border max-h-[72vh]'
             : 'top-[18vh] translate-y-0 rounded-[28px] border sm:max-w-2xl'
         )}
       >
@@ -529,7 +529,7 @@ export function GlobalSpotlightSearch() {
             />
           </div>
 
-          <CommandList className={cn(isMobile ? 'max-h-[calc(100vh-9rem)]' : 'max-h-[min(60vh,34rem)]')}>
+          <CommandList className={cn(isMobile ? 'max-h-[min(52vh,24rem)]' : 'max-h-[min(60vh,34rem)]')}>
             {visibleGroups.length === 0 ? (
               <CommandEmpty>
                 <div className="flex flex-col items-center gap-2 py-10">
