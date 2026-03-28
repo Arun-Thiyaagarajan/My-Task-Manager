@@ -21,7 +21,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { cn, fuzzySearch } from '@/lib/utils';
-import { getNotes, getTasks, getUiConfig } from '@/lib/data';
+import { getBinnedTasks, getNotes, getTasks, getUiConfig } from '@/lib/data';
 import { getStatusDisplayName } from '@/lib/status-config';
 import { useIsMobile } from '@/hooks/use-mobile';
 import type { Note, Task } from '@/lib/types';
@@ -50,6 +50,7 @@ type SpotlightItem = {
   icon: LucideIcon;
   accentClassName?: string;
   updatedAt?: string;
+  isBinned?: boolean;
 };
 
 const SETTINGS_SECTIONS: Array<{
@@ -247,6 +248,7 @@ export function GlobalSpotlightSearch() {
   const [query, setQuery] = React.useState('');
   const [debouncedQuery, setDebouncedQuery] = React.useState('');
   const [tasks, setTasks] = React.useState<Task[]>([]);
+  const [binnedTasks, setBinnedTasks] = React.useState<Task[]>([]);
   const [notes, setNotes] = React.useState<Note[]>([]);
   const [commandKey, setCommandKey] = React.useState('Ctrl');
   const [historyEntries, setHistoryEntries] = React.useState<SpotlightHistoryEntry[]>([]);
@@ -255,6 +257,7 @@ export function GlobalSpotlightSearch() {
 
   const refreshData = React.useCallback(() => {
     setTasks(getTasks());
+    setBinnedTasks(getBinnedTasks());
     setNotes(getNotes());
     getUiConfig();
     setHistoryEntries(getHistory());
@@ -336,6 +339,20 @@ export function GlobalSpotlightSearch() {
       updatedAt: task.updatedAt,
     }));
 
+    const binnedTaskItems: SpotlightItem[] = binnedTasks.map(task => ({
+      id: `task-binned-${task.id}`,
+      kind: 'task',
+      group: 'Tasks',
+      title: task.title || 'Untitled Task',
+      subLabel: truncate(['In Bin', getStatusDisplayName(task.status, uiConfig), task.description].filter(Boolean).join(' · ') || 'Deleted task'),
+      href: `/tasks/${task.id}`,
+      icon: FileText,
+      accentClassName: 'text-zinc-500',
+      keywords: ['bin', 'deleted', 'trash', task.status, task.description, ...(task.tags || []), ...(task.repositories || [])].filter(Boolean) as string[],
+      updatedAt: task.deletedAt || task.updatedAt,
+      isBinned: true,
+    }));
+
     const noteItems: SpotlightItem[] = notes.map(note => ({
       id: `note-${note.id}`,
       kind: 'note',
@@ -374,8 +391,8 @@ export function GlobalSpotlightSearch() {
       })),
     ];
 
-    return [...taskItems, ...noteItems, ...settingsItems, ...QUICK_LINKS];
-  }, [isMobile, notes, tasks, uiConfig]);
+    return [...taskItems, ...binnedTaskItems, ...noteItems, ...settingsItems, ...QUICK_LINKS];
+  }, [binnedTasks, isMobile, notes, tasks, uiConfig]);
 
   const historyMap = React.useMemo(() => new Map(historyEntries.map(entry => [entry.id, entry])), [historyEntries]);
 
@@ -562,6 +579,11 @@ export function GlobalSpotlightSearch() {
                               query={debouncedQuery}
                               className="truncate text-sm font-semibold"
                             />
+                            {item.isBinned && (
+                              <Badge className="h-5 rounded-full border border-red-500/20 bg-red-500/10 px-2 text-[9px] font-black uppercase tracking-wide text-red-600 hover:bg-red-500/10 dark:text-red-300">
+                                In Bin
+                              </Badge>
+                            )}
                             {item.group === 'Recent' && (
                               <Badge variant="outline" className="h-5 rounded-full px-2 text-[9px] uppercase tracking-wide">
                                 Recent

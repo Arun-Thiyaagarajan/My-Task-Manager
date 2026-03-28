@@ -68,12 +68,15 @@ function SharedTaskContent() {
     const [fieldLabels, setFieldLabels] = useState<Map<string, string>>(new Map());
     const [fieldMetadata, setFieldMetadata] = useState<Map<string, { l: string, t: string, u?: string }>>(new Map());
     const [isLoading, setIsLoading] = useState(true);
+    const [isLocalPreview, setIsLocalPreview] = useState(false);
 
     useEffect(() => {
         const taskId = params.id as string;
         const payload = searchParams.get('p');
         const config = getUiConfig();
         setUiConfig(config);
+        const usingSharedPayload = Boolean(payload);
+        setIsLocalPreview(!usingSharedPayload);
 
         let finalTask: Task | null = null;
         let rawMetadata: Record<string, { l: string, t: string, u?: string }> = { ...DEFAULT_METADATA };
@@ -159,7 +162,7 @@ function SharedTaskContent() {
             Object.entries(rawMetadata).forEach(([k, v]) => labels.set(k, v.l));
             setFieldLabels(labels);
             
-            document.title = `Snapshot: ${finalTask.title}`;
+            document.title = `${finalTask.title} | Task Share`;
         }
         setIsLoading(false);
     }, [params.id, searchParams]);
@@ -221,6 +224,7 @@ function SharedTaskContent() {
     const visibleRepositories = getTaskRepositories(task, uiConfig);
     const showRepositories = isRepositoryFieldActive(uiConfig);
     const showPrSection = shouldShowPrLinks(uiConfig) && visibleRepositories.length > 0;
+    const sharedUpdatedLabel = formatTimestamp(task.updatedAt, uiConfig.timeFormat);
 
     // Standard fields we don't treat as "custom" in the other details section
     const standardKeys = ['title', 'description', 'status', 'repositories', 'developers', 'testers', 'azureWorkItemId', 'tags', 'prLinks', 'attachments', 'deploymentStatus', 'relevantEnvironments', 'devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate', 'comments', 'summary'];
@@ -240,13 +244,23 @@ function SharedTaskContent() {
                     <div className="flex items-center gap-2">
                         <div className="h-9 w-9 bg-primary rounded-xl flex items-center justify-center text-primary-foreground font-black text-sm shadow-lg">TF</div>
                         <div className="flex flex-col">
-                            <span className="font-bold tracking-tight text-sm leading-none uppercase">Secure Publication</span>
-                            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest mt-1">Read-Only Snapshot</span>
+                            <span className="font-bold tracking-tight text-sm leading-none">
+                                {isLocalPreview ? 'Shared Task Preview' : 'Task Share'}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest mt-1">
+                                Read-only · Updated {sharedUpdatedLabel}
+                            </span>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="hidden sm:flex bg-primary/5 text-primary border-primary/20 text-[10px] font-black uppercase tracking-[0.2em] px-3 h-7">Snapshot Locked</Badge>
-                        <Button variant="ghost" size="icon" onClick={() => router.push('/')} className="rounded-full h-9 w-9"><ArrowLeft className="h-5 w-5" /></Button>
+                        <Badge variant="outline" className="hidden sm:flex bg-primary/5 text-primary border-primary/20 text-[10px] font-black uppercase tracking-[0.2em] px-3 h-7">
+                            {isLocalPreview ? 'Preview Mode' : 'Shared View'}
+                        </Badge>
+                        {isLocalPreview && (
+                            <Button variant="ghost" size="icon" onClick={() => router.push('/')} className="rounded-full h-9 w-9">
+                                <ArrowLeft className="h-5 w-5" />
+                            </Button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -264,7 +278,7 @@ function SharedTaskContent() {
                                         <CardTitle className="text-3xl font-semibold tracking-tight">{task.title}</CardTitle>
                                         <TaskStatusBadge status={task.status} variant="prominent" uiConfig={uiConfig} />
                                     </div>
-                                    <CardDescription className="font-normal">Snapshot Timestamp: {formatTimestamp(task.updatedAt, uiConfig.timeFormat)}</CardDescription>
+                                    <CardDescription className="font-normal">Last updated {sharedUpdatedLabel}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="pt-2">
                                     {task.summary && (
