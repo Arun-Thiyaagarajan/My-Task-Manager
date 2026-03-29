@@ -287,16 +287,21 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
                         <Button
                           variant="outline"
                           className={cn(
-                            "h-11 w-full justify-start rounded-2xl border-white/10 bg-background/70 text-left font-medium shadow-sm",
+                            "h-12 w-full justify-start rounded-2xl border-white/10 bg-background/70 px-4 text-left font-medium shadow-sm",
                             !field.value && "text-muted-foreground"
                           )}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {field.value ? format(field.value, timeFormatString) : <span>Pick a date and time</span>}
+                          <span className="flex min-w-0 flex-col items-start leading-tight">
+                            <span>{field.value ? format(field.value, timeFormatString) : 'Pick a date and time'}</span>
+                            <span className="text-[11px] font-normal text-muted-foreground">
+                              {timeFormat === '24h' ? 'Calendar + 24h time' : 'Calendar + 12h time'}
+                            </span>
+                          </span>
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
-                    <PopoverContent className="flex w-[calc(100vw-2rem)] flex-col rounded-[1.5rem] border-white/10 p-0 sm:w-auto sm:flex-row">
+                    <PopoverContent className="flex w-[calc(100vw-2rem)] flex-col rounded-[1.5rem] border-white/10 p-0 shadow-[0_28px_80px_-36px_rgba(0,0,0,0.8)] sm:w-auto sm:flex-row">
                       <Calendar
                         mode="single"
                         selected={field.value ?? undefined}
@@ -309,7 +314,13 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
                         }}
                         initialFocus
                       />
-                      <div className="flex flex-row justify-around gap-2 border-t p-3 sm:flex-col sm:justify-center sm:border-l sm:border-t-0">
+                      <div className="space-y-3 border-t bg-muted/10 p-3 sm:w-[13.5rem] sm:border-l sm:border-t-0">
+                        <div className="grid grid-cols-3 gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">
+                          <span>Hour</span>
+                          <span>Min</span>
+                          {timeFormat === '12h' ? <span>Mode</span> : <span className="opacity-0">Mode</span>}
+                        </div>
+                        <div className="flex flex-row justify-around gap-2 sm:justify-center">
                         <Select
                           value={
                             timeFormat === '12h'
@@ -331,7 +342,7 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
                             field.onChange(new Date(newDate));
                           }}
                         >
-                          <SelectTrigger className="h-10 rounded-xl"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="h-10 rounded-xl border-white/10 bg-background/80"><SelectValue /></SelectTrigger>
                           <SelectContent position="popper" className="max-h-48">
                             {timeFormat === '12h'
                               ? Array.from({ length: 12 }, (_, i) => String(i + 1)).map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)
@@ -347,7 +358,7 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
                             field.onChange(new Date(newDate));
                           }}
                         >
-                          <SelectTrigger className="h-10 rounded-xl"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="h-10 rounded-xl border-white/10 bg-background/80"><SelectValue /></SelectTrigger>
                           <SelectContent position="popper" className="max-h-48">
                             {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
                           </SelectContent>
@@ -366,13 +377,58 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
                               field.onChange(new Date(newDate));
                             }}
                           >
-                            <SelectTrigger className="h-10 rounded-xl"><SelectValue /></SelectTrigger>
+                            <SelectTrigger className="h-10 rounded-xl border-white/10 bg-background/80"><SelectValue /></SelectTrigger>
                             <SelectContent position="popper">
                               <SelectItem value="am">AM</SelectItem>
                               <SelectItem value="pm">PM</SelectItem>
                             </SelectContent>
                           </Select>
                         )}
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-9 rounded-xl border-white/10 bg-background/70 text-xs font-semibold"
+                            onClick={() => {
+                              const current = field.value || new Date();
+                              const next = new Date(current);
+                              next.setHours(9, 0, 0, 0);
+                              field.onChange(next);
+                            }}
+                          >
+                            9 AM
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-9 rounded-xl border-white/10 bg-background/70 text-xs font-semibold"
+                            onClick={() => {
+                              const current = field.value || new Date();
+                              const next = new Date(current);
+                              next.setHours(13, 0, 0, 0);
+                              field.onChange(next);
+                            }}
+                          >
+                            1 PM
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-9 rounded-xl border-white/10 bg-background/70 text-xs font-semibold"
+                            onClick={() => {
+                              const current = field.value || new Date();
+                              const next = new Date(current);
+                              next.setHours(18, 0, 0, 0);
+                              field.onChange(next);
+                            }}
+                          >
+                            6 PM
+                          </Button>
+                        </div>
                       </div>
                     </PopoverContent>
                   </Popover>

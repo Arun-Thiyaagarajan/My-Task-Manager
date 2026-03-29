@@ -107,7 +107,7 @@ export interface ReleaseUpdate {
 export interface UserPreferences {
   viewMode?: 'grid' | 'table';
   sortDescriptor?: string;
-  dateView?: 'all' | 'monthly' | 'yearly';
+  dateView?: 'all' | 'monthly' | 'calendar' | 'yearly';
   taskFilters?: {
     status?: string[];
     repo?: string[];

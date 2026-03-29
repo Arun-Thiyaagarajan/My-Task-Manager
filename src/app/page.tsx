@@ -117,9 +117,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { isRepositoryFieldActive } from '@/lib/repository-config';
 import { openGlobalSpotlightSearch } from '@/components/global-spotlight-search';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { TasksCalendarView } from '@/components/tasks-calendar-view';
 
 type ViewMode = 'grid' | 'table';
-type DateView = 'all' | 'monthly' | 'yearly';
+type DateView = 'all' | 'monthly' | 'calendar' | 'yearly';
 
 const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
 const LAST_BACKUP_KEY = 'taskflow_last_auto_backup';
@@ -289,7 +290,7 @@ export default function Home() {
 
   const handlePreviousDate = useCallback(() => {
       setIsSearching(true);
-      if (dateView === 'monthly') {
+      if (dateView === 'monthly' || dateView === 'calendar') {
           setSelectedDate(subMonths(selectedDate, 1));
       } else if (dateView === 'yearly') {
           setSelectedDate(subYears(selectedDate, 1));
@@ -298,7 +299,7 @@ export default function Home() {
 
   const handleNextDate = useCallback(() => {
       setIsSearching(true);
-      if (dateView === 'monthly') {
+      if (dateView === 'monthly' || dateView === 'calendar') {
           setSelectedDate(addMonths(selectedDate, 1));
       } else if (dateView === 'yearly') {
           setSelectedDate(addYears(selectedDate, 1));
@@ -488,16 +489,18 @@ export default function Home() {
 
                 const dateMatch = (() => {
                 if (dateView === 'all') return true;
-                if (dateView === 'monthly') {
-                    if (!task.devStartDate) return false;
-                    const taskDate = new Date(task.devStartDate);
+                if (dateView === 'monthly' || dateView === 'calendar') {
+                    const calendarAnchor = task.devStartDate || task.qaStartDate || task.createdAt;
+                    if (!calendarAnchor) return false;
+                    const taskDate = new Date(calendarAnchor);
                     const start = startOfMonth(selectedDate);
                     const end = endOfMonth(selectedDate);
                     return taskDate >= start && taskDate <= end;
                 }
                 if (dateView === 'yearly') {
-                    if (!task.devStartDate) return false;
-                    const taskDate = new Date(task.devStartDate);
+                    const calendarAnchor = task.devStartDate || task.qaStartDate || task.createdAt;
+                    if (!calendarAnchor) return false;
+                    const taskDate = new Date(calendarAnchor);
                     const start = startOfYear(selectedDate);
                     const end = endOfYear(selectedDate);
                     return taskDate >= start && taskDate <= end;
@@ -712,6 +715,10 @@ export default function Home() {
   
   const handleDateViewChange = useCallback((mode: DateView) => {
       setIsSearching(true);
+      if (mode === 'calendar') {
+        setIsSelectMode(false);
+        setSelectedTaskIds([]);
+      }
       setDateView(mode);
   }, []);
 
@@ -1723,13 +1730,13 @@ export default function Home() {
                   </div>
 
                   {/* 3. Date navigation (if monthly/yearly) */}
-                  {(dateView === 'monthly' || dateView === 'yearly') && !favoritesOnly && (
+                  {(dateView === 'monthly' || dateView === 'calendar' || dateView === 'yearly') && !favoritesOnly && (
                       <div className="flex items-center justify-between gap-2 w-full px-1">
                           <Button variant="outline" size="icon" onClick={handlePreviousDate} className="h-11 w-11 shrink-0 shadow-sm rounded-xl"><ChevronLeft className="h-5 w-5" /></Button>
                           <Popover>
                               <PopoverTrigger asChild>
                                   <Button variant="outline" className="text-sm font-bold flex-1 h-11 shadow-sm rounded-xl">
-                                      {dateView === 'monthly' ? format(selectedDate, 'MMMM yyyy') : format(selectedDate, 'yyyy')}
+                                      {dateView === 'yearly' ? format(selectedDate, 'yyyy') : format(selectedDate, 'MMMM yyyy')}
                                   </Button>
                               </PopoverTrigger>
                               <PopoverContent className="w-auto p-0" align="center">
@@ -1777,7 +1784,7 @@ export default function Home() {
                                           </Button>
                                       </div>
 
-                                      {dateView === 'monthly' && (
+                                      {(dateView === 'monthly' || dateView === 'calendar') && (
                                           <div className="grid grid-cols-3 gap-2">
                                               {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((month, idx) => (
                                                   <Button
@@ -1814,27 +1821,17 @@ export default function Home() {
                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 mt-0.5 whitespace-nowrap">
                           {favoritesOnly 
                               ? `Showing ${filteredTasks.length} favorited items.` 
-                              : (dateView === 'all' ? 'Based on active filters.' : dateView === 'monthly' ? `Start date in ${format(selectedDate, 'MMM yyyy')}` : `Start date in ${format(selectedDate, 'yyyy')}`)}
+                              : (dateView === 'all' ? 'Based on active filters.' : dateView === 'calendar' ? `Calendar month ${format(selectedDate, 'MMM yyyy')}` : dateView === 'monthly' ? `Start date in ${format(selectedDate, 'MMM yyyy')}` : `Start date in ${format(selectedDate, 'yyyy')}`)}
                       </p>
                   </div>
 
-                  {/* 5. Sort & View toggles row */}
-                  <div className="flex items-center gap-2 w-full px-1 overflow-x-auto no-scrollbar pb-1">
-                      <Select value={sortDescriptor} onValueChange={handleSortChange}>
-                          <SelectTrigger className="flex-1 min-w-[140px] h-11 font-bold rounded-xl shadow-sm"><SelectValue placeholder="Sort by" /></SelectTrigger>
-                          <SelectContent>
-                              <SelectItem value="status-asc" className="font-bold">Status (Asc)</SelectItem>
-                              <SelectItem value="status-desc" className="font-bold">Status (Desc)</SelectItem>
-                              <SelectItem value="title-asc" className="font-bold">Title (A-Z)</SelectItem>
-                              <SelectItem value="title-desc" className="font-bold">Title (Z-A)</SelectItem>
-                          </SelectContent>
-                      </Select>
-
-                      <div className="flex h-11 items-center justify-center rounded-xl bg-muted/50 p-1 border shadow-sm shrink-0">
+                  {/* 5. View toggles row */}
+                  <div className="w-full px-1 pb-1">
+                      <div className="flex h-11 w-full items-center justify-center rounded-xl bg-muted/50 p-1 border shadow-sm">
                           <button
                               onClick={() => handleDateViewChange('all')}
                               className={cn(
-                                  "inline-flex items-center justify-center h-9 px-4 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                                  "inline-flex flex-1 items-center justify-center h-9 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
                                   dateView === 'all' ? "bg-background text-primary shadow-sm" : "text-muted-foreground"
                               )}
                           >
@@ -1843,50 +1840,74 @@ export default function Home() {
                           <button
                               onClick={() => handleDateViewChange('monthly')}
                               className={cn(
-                                  "inline-flex items-center justify-center h-9 px-4 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                                  "inline-flex flex-1 items-center justify-center h-9 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
                                   dateView === 'monthly' ? "bg-background text-primary shadow-sm" : "text-muted-foreground"
                               )}
                           >
                               Monthly
                           </button>
+                          <button
+                              onClick={() => handleDateViewChange('calendar')}
+                              className={cn(
+                                  "inline-flex flex-1 items-center justify-center h-9 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                                  dateView === 'calendar' ? "bg-background text-primary shadow-sm" : "text-muted-foreground"
+                              )}
+                          >
+                              Calendar
+                          </button>
                       </div>
                   </div>
 
-                  {/* 6. Favourites / Select Toggle row */}
+                  {/* 6. Sort / Favourites / Select row */}
                   <div className="flex items-center gap-2 px-1 w-full">
-                      <Button 
-                          variant={favoritesOnly ? 'secondary' : 'outline'} 
-                          size="icon" 
-                          onClick={handleFavoritesToggle} 
-                          className="h-11 w-11 rounded-xl shadow-sm shrink-0"
-                      >
-                          <Heart className={cn("h-5 w-5", favoritesOnly && "fill-red-500 text-red-500")} />
-                      </Button>
 
-                      <Button 
-                          variant={isSelectMode ? 'secondary' : 'outline'} 
-                          onClick={handleToggleSelectMode} 
-                          className={cn(
-                              "flex-1 h-11 rounded-xl shadow-sm transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest",
-                              isSelectMode ? "bg-primary/10 text-primary border-primary/20" : "text-muted-foreground"
-                          )}
-                      >
-                          {isSelectMode ? (
-                              <>
-                                  <X className="h-4 w-4 mr-2" />
-                                  CANCEL
-                              </>
-                          ) : (
-                              <>
-                                  <CheckSquare className="h-4 w-4 mr-2" />
-                                  SELECT MULTIPLE
-                              </>
-                          )}
-                      </Button>
+                      {dateView !== 'calendar' && (
+                        <Button 
+                            variant={favoritesOnly ? 'secondary' : 'outline'} 
+                            size="icon" 
+                            onClick={handleFavoritesToggle} 
+                            className="h-11 w-11 rounded-xl shadow-sm shrink-0"
+                        >
+                            <Heart className={cn("h-5 w-5", favoritesOnly && "fill-red-500 text-red-500")} />
+                        </Button>
+                      )}
+                      
+                      <Select value={sortDescriptor} onValueChange={handleSortChange}>
+                          <SelectTrigger className="flex-1 min-w-0 h-11 font-bold rounded-xl shadow-sm"><SelectValue placeholder="Sort by" /></SelectTrigger>
+                          <SelectContent>
+                              <SelectItem value="status-asc" className="font-bold">Status (Asc)</SelectItem>
+                              <SelectItem value="status-desc" className="font-bold">Status (Desc)</SelectItem>
+                              <SelectItem value="title-asc" className="font-bold">Title (A-Z)</SelectItem>
+                              <SelectItem value="title-desc" className="font-bold">Title (Z-A)</SelectItem>
+                          </SelectContent>
+                      </Select>
+
+                      {dateView !== 'calendar' && (
+                        <Button 
+                            variant={isSelectMode ? 'secondary' : 'outline'} 
+                            onClick={handleToggleSelectMode} 
+                            className={cn(
+                                "h-11 rounded-xl px-3 shadow-sm transition-all active:scale-95 font-black text-[9px] uppercase tracking-[0.18em]",
+                                isSelectMode ? "bg-primary/10 text-primary border-primary/20" : "text-muted-foreground"
+                            )}
+                        >
+                            {isSelectMode ? (
+                                <>
+                                    <X className="h-3.5 w-3.5 mr-1.5" />
+                                    CANCEL
+                                </>
+                            ) : (
+                                <>
+                                    <CheckSquare className="h-3.5 w-3.5 mr-1.5" />
+                                    SELECT MULTIPLE
+                                </>
+                            )}
+                        </Button>
+                      )}
                   </div>
 
                   {/* 6.5 STRICT FIX: Select Multiple actions container (Mobile Only) */}
-                  {isSelectMode && (
+                  {isSelectMode && dateView !== 'calendar' && (
                       <div className="px-1 animate-in slide-in-from-top-2 duration-300">
                           {selectionBarContent}
                       </div>
@@ -1929,13 +1950,13 @@ export default function Home() {
            <div className="flex flex-col gap-4">
                 <div className="hidden md:flex flex-col md:flex-row md:flex-wrap lg:flex-nowrap md:items-center md:justify-between gap-4 md:gap-6">
                     <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-4 md:gap-6">
-                        {(dateView === 'monthly' || dateView === 'yearly') && !favoritesOnly && (
+                        {(dateView === 'monthly' || dateView === 'calendar' || dateView === 'yearly') && !favoritesOnly && (
                             <div className="hidden md:flex items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
                                 <Button variant="outline" size="icon" onClick={handlePreviousDate} className="h-11 w-11 shrink-0 shadow-sm rounded-xl active:scale-95 transition-transform"><ChevronLeft className="h-5 w-5" /></Button>
                                 <Popover>
                                     <PopoverTrigger asChild>
                                         <Button variant="outline" className="text-base font-bold flex-1 sm:w-48 whitespace-nowrap h-11 shadow-sm rounded-xl tracking-tight">
-                                            {dateView === 'monthly' ? format(selectedDate, 'MMMM yyyy') : format(selectedDate, 'yyyy')}
+                                            {dateView === 'yearly' ? format(selectedDate, 'yyyy') : format(selectedDate, 'MMMM yyyy')}
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0" align="start">
@@ -1983,7 +2004,7 @@ export default function Home() {
                                                 </Button>
                                             </div>
 
-                                            {dateView === 'monthly' && (
+                                            {(dateView === 'monthly' || dateView === 'calendar') && (
                                                 <div className="grid grid-cols-3 gap-2">
                                                     {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((month, idx) => (
                                                         <Button
@@ -2045,7 +2066,7 @@ export default function Home() {
                             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mt-0.5 whitespace-nowrap">
                                 {favoritesOnly 
                                     ? `Showing ${filteredTasks.length} favorited items.` 
-                                    : (dateView === 'all' ? 'Based on active filters.' : dateView === 'monthly' ? `Start date in ${format(selectedDate, 'MMM yyyy')}` : `Start date in ${format(selectedDate, 'yyyy')}`)}
+                                    : (dateView === 'all' ? 'Based on active filters.' : dateView === 'calendar' ? `Calendar month ${format(selectedDate, 'MMM yyyy')}` : dateView === 'monthly' ? `Start date in ${format(selectedDate, 'MMM yyyy')}` : `Start date in ${format(selectedDate, 'yyyy')}`)}
                             </p>
                         </div>
                     </div>
@@ -2085,49 +2106,66 @@ export default function Home() {
                                 >
                                     Monthly
                                 </button>
-                            </div>
-
-                            <div className="hidden md:flex h-11 items-center justify-center rounded-xl bg-muted p-1 border shadow-sm">
-                                <Button variant="ghost" size="icon" className={cn("h-9 w-9 rounded-lg", viewMode === 'grid' && 'bg-card text-foreground shadow-sm')} onClick={() => handleViewModeChange('grid')}><LayoutGrid className="h-4 w-4" /></Button>
-                                <Button variant="ghost" size="icon" className={cn("h-9 w-9 rounded-lg", viewMode === 'table' && 'bg-card text-foreground shadow-sm')} onClick={() => handleViewModeChange('table')}><List className="h-4 w-4" /></Button>
-                            </div>
-                            
-                            <div className="hidden md:flex items-center gap-2">
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button 
-                                                variant={favoritesOnly ? 'secondary' : 'outline'} 
-                                                size="icon" 
-                                                onClick={handleFavoritesToggle} 
-                                                className="h-11 w-11 rounded-xl shadow-sm"
-                                            >
-                                                <Heart className={cn("h-5 w-5", favoritesOnly && "fill-red-500 text-red-500")} />
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent className="font-bold"><p>{favoritesOnly ? 'All tasks' : 'Favorites only'}</p></TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-
-                                <Button 
-                                    id="home-select-multiple-trigger"
-                                    variant={isSelectMode ? 'secondary' : 'outline'} 
-                                    size="icon"
-                                    onClick={handleToggleSelectMode} 
+                                <button
+                                    onClick={() => handleDateViewChange('calendar')}
                                     className={cn(
-                                        "h-11 w-11 rounded-xl shadow-sm transition-all active:scale-95",
-                                        isSelectMode ? "bg-primary/10 text-primary border-primary/20" : "text-muted-foreground"
+                                        "flex-1 md:flex-none inline-flex items-center justify-center h-9 px-4 rounded-lg text-xs font-black uppercase tracking-widest transition-all",
+                                        dateView === 'calendar' 
+                                            ? "bg-background text-primary shadow-sm ring-1 ring-black/5" 
+                                            : "text-muted-foreground hover:bg-background/50"
                                     )}
                                 >
-                                    {isSelectMode ? <X className="h-5 w-5" /> : <CheckSquare className="h-5 w-5" />}
-                                </Button>
+                                    Calendar
+                                </button>
+                            </div>
+
+                            {dateView !== 'calendar' && (
+                              <div className="hidden md:flex h-11 items-center justify-center rounded-xl bg-muted p-1 border shadow-sm">
+                                <Button variant="ghost" size="icon" className={cn("h-9 w-9 rounded-lg", viewMode === 'grid' && 'bg-card text-foreground shadow-sm')} onClick={() => handleViewModeChange('grid')}><LayoutGrid className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className={cn("h-9 w-9 rounded-lg", viewMode === 'table' && 'bg-card text-foreground shadow-sm')} onClick={() => handleViewModeChange('table')}><List className="h-4 w-4" /></Button>
+                              </div>
+                            )}
+                            
+                            <div className="hidden md:flex items-center gap-2">
+                                {dateView !== 'calendar' && (
+                                  <TooltipProvider>
+                                      <Tooltip>
+                                          <TooltipTrigger asChild>
+                                              <Button 
+                                                  variant={favoritesOnly ? 'secondary' : 'outline'} 
+                                                  size="icon" 
+                                                  onClick={handleFavoritesToggle} 
+                                                  className="h-11 w-11 rounded-xl shadow-sm"
+                                              >
+                                                  <Heart className={cn("h-5 w-5", favoritesOnly && "fill-red-500 text-red-500")} />
+                                              </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent className="font-bold"><p>{favoritesOnly ? 'All tasks' : 'Favorites only'}</p></TooltipContent>
+                                      </Tooltip>
+                                  </TooltipProvider>
+                                )}
+
+                                {dateView !== 'calendar' && (
+                                  <Button 
+                                      id="home-select-multiple-trigger"
+                                      variant={isSelectMode ? 'secondary' : 'outline'} 
+                                      size="icon"
+                                      onClick={handleToggleSelectMode} 
+                                      className={cn(
+                                          "h-11 w-11 rounded-xl shadow-sm transition-all active:scale-95",
+                                          isSelectMode ? "bg-primary/10 text-primary border-primary/20" : "text-muted-foreground"
+                                      )}
+                                  >
+                                      {isSelectMode ? <X className="h-5 w-5" /> : <CheckSquare className="h-5 w-5" />}
+                                  </Button>
+                                )}
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* DESKTOP/TABLET SELECTION BAR - Positioned below the control row */}
-                {isSelectMode && (
+                {isSelectMode && dateView !== 'calendar' && (
                     <div className="hidden md:block animate-in slide-in-from-top-2 duration-300">
                         {selectionBarContent}
                     </div>
@@ -2139,10 +2177,18 @@ export default function Home() {
                     "transition-all duration-500",
                     isSearching ? "opacity-40 grayscale-[0.5] blur-[0.5px]" : "opacity-100"
                 )}>
-                    {(filteredTasks.length > 0 || filteredBinnedTasks.length > 0 || activeSkeletons) ? (
+                    {(dateView === 'calendar' || filteredTasks.length > 0 || filteredBinnedTasks.length > 0 || activeSkeletons) ? (
                         <div>
-                            {(filteredTasks.length > 0 || activeSkeletons) ? (
-                                viewMode === 'grid' ? (
+                            {(filteredTasks.length > 0 || activeSkeletons || dateView === 'calendar') ? (
+                                dateView === 'calendar' ? (
+                                    <TasksCalendarView
+                                        tasks={filteredTasks}
+                                        selectedDate={selectedDate}
+                                        onSelectedDateChange={setSelectedDate}
+                                        uiConfig={uiConfig}
+                                        currentQueryString={searchParams.toString()}
+                                    />
+                                ) : viewMode === 'grid' ? (
                                     <TasksGrid tasks={filteredTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handlePinToggle} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} isLoading={activeSkeletons} />
                                 ) : (
                                     <TasksTable tasks={filteredTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} isLoading={activeSkeletons} />
