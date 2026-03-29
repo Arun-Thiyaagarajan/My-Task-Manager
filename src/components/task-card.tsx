@@ -228,20 +228,21 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
       <div
         id={`task-card-${task.id}`}
         onClick={handleOpenTask}
-        className="h-full rounded-lg transition-all relative cursor-pointer"
+        className="relative h-full cursor-pointer rounded-xl transition-all"
       >
         <Card
           className={cn(
-            "flex flex-col h-full transition-all duration-300 relative overflow-hidden group/card rounded-lg",
+            "group/card relative flex h-full flex-col overflow-hidden rounded-xl border-border/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] transition-all duration-300",
             cardClassName,
-            !isSelectMode && !isOpening && "hover:shadow-xl hover:-translate-y-1",
+            !isSelectMode && !isOpening && "hover:-translate-y-1 hover:shadow-[0_24px_52px_-34px_rgba(15,23,42,0.7)]",
             isSelected && "selected-card",
             isOpening && "opacity-80"
           )}
           style={statusConfig.cardStyle}
         >
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0))] opacity-60" />
           {isOpening && (
-            <div className="absolute inset-0 z-50 bg-background/60 backdrop-blur-[2px] flex items-center justify-center rounded-lg animate-in fade-in duration-200">
+            <div className="absolute inset-0 z-50 flex items-center justify-center rounded-xl bg-background/60 backdrop-blur-[2px] animate-in fade-in duration-200">
                 <div className="flex flex-col items-center gap-2">
                     <Loader2 className="h-6 w-6 animate-spin text-primary" />
                     <span className="text-[10px] font-bold uppercase tracking-widest text-primary/80">Opening</span>
@@ -253,7 +254,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
             <Checkbox
               checked={isSelected}
               onCheckedChange={handleSelectionChange}
-              className="absolute top-3 left-3 z-20 h-5 w-5 bg-background/80"
+              className="absolute left-3 top-3 z-20 h-5 w-5 bg-background/80"
               aria-label={`Select task ${task.title}`}
               onClick={(e) => e.stopPropagation()}
             />
@@ -275,7 +276,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                             }
                           }}
                         >
-                            <CardTitle className="text-base font-medium leading-snug line-clamp-2 text-foreground group-hover/card:text-primary transition-colors">
+                            <CardTitle className="line-clamp-2 text-base font-medium leading-snug text-foreground transition-colors group-hover/card:text-primary">
                               {task.title}
                             </CardTitle>
                         </Link>
@@ -288,7 +289,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                                           variant="ghost"
                                           size="icon"
                                           disabled={isOpening}
-                                          className="h-7 w-7"
+                                          className="h-7 w-7 rounded-full bg-background/20 transition-colors hover:bg-background/50"
                                           onClick={(e) => {
                                               e.stopPropagation();
                                               setIsReminderOpen(true);
@@ -311,7 +312,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                             <Button
                               variant="ghost"
                               disabled={isOpening}
-                              className="h-auto rounded-2xl p-0.5 transition-all duration-200 hover:bg-background/60 hover:shadow-[0_10px_24px_-22px_rgba(15,23,42,0.85)] focus-visible:ring-0 focus-visible:ring-offset-0 dark:hover:bg-background/35"
+                              className="h-auto rounded-2xl bg-background/10 p-0.5 transition-all duration-200 hover:bg-background/45 hover:shadow-[0_10px_24px_-22px_rgba(15,23,42,0.85)] focus-visible:ring-0 focus-visible:ring-offset-0 dark:hover:bg-background/35"
                               onClick={e => e.stopPropagation()}
                             >
                               <TaskStatusBadge status={task.status} uiConfig={uiConfig} className={cn((isStatusSaving || justUpdatedStatus === task.status) && 'animate-status-in', isStatusSaving && 'opacity-90')} />
@@ -362,8 +363,8 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                     </div>
                 </div>
             </CardHeader>
-            <CardContent className="flex-grow flex flex-col p-4 pt-2">
-              <div className="relative mb-3 text-sm text-muted-foreground min-h-[40px]">
+            <CardContent className="flex flex-grow flex-col p-4 pt-2">
+              <div className="relative mb-3 min-h-[40px] text-sm text-muted-foreground">
                 <p className="line-clamp-2 leading-relaxed font-normal">
                   {task.summary || task.description}
                 </p>
@@ -371,13 +372,13 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
               <div className="flex-grow space-y-3">
                 {visibleRepositories.length > 0 && (
                   <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <GitMerge className="h-4 w-4 shrink-0 mt-0.5" />
+                    <GitMerge className="mt-0.5 h-4 w-4 shrink-0" />
                     <div className="flex flex-wrap gap-1">
                       {visibleRepositories.map((repo) => (
                         <Badge 
                           variant="repo" 
                           key={repo} 
-                          className="text-[10px] font-medium uppercase tracking-wider"
+                          className="max-w-full truncate text-[10px] font-medium uppercase tracking-wider"
                           style={getRepoBadgeStyle(repo)}
                         >
                           {repo}
@@ -393,7 +394,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                       target="_blank" 
                       rel="noopener noreferrer" 
                       className={cn(
-                          "flex items-center gap-2 text-sm text-muted-foreground transition-colors font-normal",
+                          "flex items-center gap-2 text-sm font-normal text-muted-foreground transition-colors",
                           azureWorkItemUrl ? "hover:text-primary" : "pointer-events-none"
                       )}
                       onClick={(e) => {
@@ -414,7 +415,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
               </div>
               
               <div className="mt-4">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Deployments
                 </p>
                 <EnvironmentStatus
@@ -430,15 +431,16 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
               </div>
             </CardContent>
           </div>
-          <CardFooter className="flex items-center justify-between p-4 border-t border-black/5 dark:border-white/5 z-10">
-            <div className="flex flex-1 min-w-0 items-center gap-4">
-              <div className="flex items-center gap-2">
+          <CardFooter className="z-10 flex items-center justify-between border-t border-black/5 p-4 dark:border-white/5">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
                   {hasDevelopers && (
                     <div className="flex items-center gap-1.5">
-                      <Tooltip>
-                          <TooltipTrigger asChild><Code2 className="h-4 w-4 text-muted-foreground" /></TooltipTrigger>
-                          <TooltipContent><p className="font-normal">{developersLabel}</p></TooltipContent>
-                      </Tooltip>
+                      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        <Tooltip>
+                            <TooltipTrigger asChild><Code2 className="h-3.5 w-3.5 text-muted-foreground" /></TooltipTrigger>
+                            <TooltipContent><p className="font-normal">{developersLabel}</p></TooltipContent>
+                        </Tooltip>
+                      </div>
                       <div className="flex items-center -space-x-2">
                           {visibleDevelopers.map((dev) => (
                             <Tooltip key={dev.id}>
@@ -452,7 +454,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                                     disabled={isOpening}
                                     className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full disabled:cursor-not-allowed"
                                 >
-                                  <Avatar className="h-7 w-7 border-2 border-background cursor-pointer">
+                                  <Avatar className="h-7 w-7 cursor-pointer border-2 border-background">
                                     <AvatarFallback 
                                       className="text-[10px] font-medium text-white"
                                       style={{ backgroundColor: `#${getAvatarColor(dev.name)}` }}
@@ -468,7 +470,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                           {hiddenDevelopersCount > 0 && (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Avatar className="h-7 w-7 border-2 border-background relative z-[2]">
+                                <Avatar className="relative z-[2] h-7 w-7 border-2 border-background">
                                   <AvatarFallback className="bg-muted text-[10px] font-medium text-muted-foreground">+{hiddenDevelopersCount}</AvatarFallback>
                                 </Avatar>
                               </TooltipTrigger>
@@ -488,10 +490,12 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
 
                   {hasTesters && (
                     <div className="flex items-center gap-1.5">
-                      <Tooltip>
-                          <TooltipTrigger asChild><ClipboardCheck className="h-4 w-4 text-muted-foreground" /></TooltipTrigger>
-                          <TooltipContent><p className="font-normal">{testersLabel}</p></TooltipContent>
-                      </Tooltip>
+                      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        <Tooltip>
+                            <TooltipTrigger asChild><ClipboardCheck className="h-3.5 w-3.5 text-muted-foreground" /></TooltipTrigger>
+                            <TooltipContent><p className="font-normal">{testersLabel}</p></TooltipContent>
+                        </Tooltip>
+                      </div>
                       <div className="flex -space-x-2">
                           {visibleTesters.map((tester) => (
                             <Tooltip key={tester.id}>
@@ -501,7 +505,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                                     disabled={isOpening}
                                     className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full disabled:cursor-not-allowed"
                                 >
-                                  <Avatar className="h-7 w-7 border-2 border-background cursor-pointer">
+                                  <Avatar className="h-7 w-7 cursor-pointer border-2 border-background">
                                     <AvatarFallback
                                       className="text-[10px] font-medium text-white"
                                       style={{ backgroundColor: `#${getAvatarColor(tester.name)}` }}
@@ -517,7 +521,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                           {hiddenTestersCount > 0 && (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Avatar className="h-7 w-7 border-2 border-background relative z-[2]">
+                                <Avatar className="relative z-[2] h-7 w-7 border-2 border-background">
                                   <AvatarFallback className="bg-muted text-[10px] font-medium text-muted-foreground">+{hiddenTestersCount}</AvatarFallback>
                                 </Avatar>
                               </TooltipTrigger>
@@ -534,9 +538,8 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                       </div>
                     </div>
                   )}
-              </div>
             </div>
-            <div className="flex items-center gap-1 shrink-0">
+            <div className="flex shrink-0 items-center gap-1">
               <FavoriteToggleButton
                 taskId={task.id}
                 isFavorite={!!task.isFavorite}
@@ -545,7 +548,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
               {showMoreOptions ? (
                  <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" disabled={isOpening} className="h-8 w-8">
+                    <Button variant="ghost" size="icon" disabled={isOpening} className="h-8 w-8 rounded-full bg-background/20 hover:bg-background/50">
                       <MoreVertical className="h-4 w-4" />
                       <span className="sr-only">More options</span>
                     </Button>
@@ -579,7 +582,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
               ) : (
                 <>
                   <ShareMenu task={task} uiConfig={uiConfig!} developers={developers} testers={testers}>
-                    <Button variant="ghost" size="icon" disabled={isOpening} className="h-8 w-8" onClick={e => e.stopPropagation()}>
+                    <Button variant="ghost" size="icon" disabled={isOpening} className="h-8 w-8 rounded-full bg-background/20 hover:bg-background/50" onClick={e => e.stopPropagation()}>
                       <Share2 className="h-4 w-4" />
                       <span className="sr-only">Share Task</span>
                     </Button>
