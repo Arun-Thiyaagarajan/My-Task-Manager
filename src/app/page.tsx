@@ -19,6 +19,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -1537,10 +1539,43 @@ export default function Home() {
                         Export JSON
                     </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => handleExport('current_view')} className="font-normal">Export Current View</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => handleExport('all_tasks')} className="font-normal">Export All Tasks</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={handleDownloadTemplate} className="font-normal">Download Import Template</DropdownMenuItem>
+                    <DropdownMenuContent
+                        align="end"
+                        sideOffset={10}
+                        className="w-[min(24rem,calc(100vw-2rem))] rounded-3xl border-border/60 bg-background/95 p-2 shadow-[0_24px_70px_-32px_rgba(15,23,42,0.55)] backdrop-blur-xl"
+                    >
+                        <DropdownMenuLabel className="px-3 pt-2 pb-1 text-[11px] font-black uppercase tracking-[0.24em] text-muted-foreground">
+                            Export Options
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator className="mx-2 my-2 bg-border/60" />
+                        <DropdownMenuItem
+                            onSelect={() => handleExport('current_view')}
+                            className="group rounded-2xl px-3 py-3.5 focus:bg-primary/8 dark:focus:bg-primary/12"
+                        >
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/15 transition-transform group-focus:scale-[1.03]">
+                                <FolderSearch className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0 space-y-0.5">
+                                <p className="text-sm font-semibold text-foreground">Export current view</p>
+                                <p className="text-xs leading-relaxed text-muted-foreground">
+                                    Download only the tasks matching your current filters and screen context.
+                                </p>
+                            </div>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                            onSelect={() => handleExport('all_tasks')}
+                            className="group rounded-2xl px-3 py-3.5 focus:bg-primary/8 dark:focus:bg-primary/12"
+                        >
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/15 dark:text-emerald-400 transition-transform group-focus:scale-[1.03]">
+                                <FileText className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0 space-y-0.5">
+                                <p className="text-sm font-semibold text-foreground">Export full workspace</p>
+                                <p className="text-xs leading-relaxed text-muted-foreground">
+                                    Save all tasks into one JSON backup for sharing or restoring later.
+                                </p>
+                            </div>
+                        </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
 
@@ -1569,10 +1604,43 @@ export default function Home() {
                                   <Download className="h-4 w-4" /> Export JSON
                               </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="center" className="w-[calc(100vw-3rem)]">
-                              <DropdownMenuItem onSelect={() => handleExport('current_view')}>Export Current View</DropdownMenuItem>
-                              <DropdownMenuItem onSelect={() => handleExport('all_tasks')}>Export All Tasks</DropdownMenuItem>
-                              <DropdownMenuItem onSelect={handleDownloadTemplate}>Download Template</DropdownMenuItem>
+                          <DropdownMenuContent
+                              align="center"
+                              sideOffset={10}
+                              className="w-[min(22rem,calc(100vw-1.5rem))] rounded-[1.75rem] border-border/60 bg-background/95 p-2 shadow-[0_22px_60px_-34px_rgba(15,23,42,0.6)] backdrop-blur-xl"
+                          >
+                              <DropdownMenuLabel className="px-3 pt-2 pb-1 text-[10px] font-black uppercase tracking-[0.22em] text-muted-foreground">
+                                  Export Options
+                              </DropdownMenuLabel>
+                              <DropdownMenuSeparator className="mx-2 my-2 bg-border/60" />
+                              <DropdownMenuItem
+                                  onSelect={() => handleExport('current_view')}
+                                  className="group rounded-2xl px-3 py-3 focus:bg-primary/8 dark:focus:bg-primary/12"
+                              >
+                                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/15 transition-transform group-focus:scale-[1.03]">
+                                      <FolderSearch className="h-4 w-4" />
+                                  </div>
+                                  <div className="min-w-0 space-y-0.5">
+                                      <p className="text-sm font-semibold text-foreground">Export current view</p>
+                                      <p className="text-[11px] leading-relaxed text-muted-foreground">
+                                          Save only what you are currently viewing.
+                                      </p>
+                                  </div>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                  onSelect={() => handleExport('all_tasks')}
+                                  className="group rounded-2xl px-3 py-3 focus:bg-primary/8 dark:focus:bg-primary/12"
+                              >
+                                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/15 dark:text-emerald-400 transition-transform group-focus:scale-[1.03]">
+                                      <FileText className="h-4 w-4" />
+                                  </div>
+                                  <div className="min-w-0 space-y-0.5">
+                                      <p className="text-sm font-semibold text-foreground">Export full workspace</p>
+                                      <p className="text-[11px] leading-relaxed text-muted-foreground">
+                                          Download a full JSON backup of your tasks.
+                                      </p>
+                                  </div>
+                              </DropdownMenuItem>
                           </DropdownMenuContent>
                       </DropdownMenu>
                       <Button 
