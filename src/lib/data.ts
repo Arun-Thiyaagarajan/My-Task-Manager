@@ -14,6 +14,7 @@ import { createId } from './id';
 export const DATA_KEY = 'my_task_manager_data';
 const AUTH_MODE_KEY = 'taskflow_auth_mode';
 const PREFERENCES_KEY = 'taskflow_user_preferences';
+const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
 
 function isQuotaExceededError(error: unknown): boolean {
     if (!error || typeof error !== 'object') return false;
@@ -1451,6 +1452,16 @@ export function clearExpiredReminders(): { updatedTaskIds: string[], unpinnedTas
     });
     if (updatedTaskIds.length > 0) {
         setAppData(data);
+        if (typeof window !== 'undefined' && unpinnedTaskIds.length > 0) {
+            try {
+                const storedPinnedIds = JSON.parse(window.localStorage.getItem(PINNED_TASKS_STORAGE_KEY) || '[]') as string[];
+                const nextPinnedIds = storedPinnedIds.filter(id => !unpinnedTaskIds.includes(id));
+                window.localStorage.setItem(PINNED_TASKS_STORAGE_KEY, JSON.stringify(nextPinnedIds));
+            } catch {
+                window.localStorage.removeItem(PINNED_TASKS_STORAGE_KEY);
+            }
+        }
+        window.dispatchEvent(new Event('reminders-expired'));
     }
     return { updatedTaskIds, unpinnedTaskIds };
 }

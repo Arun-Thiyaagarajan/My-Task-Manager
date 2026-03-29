@@ -312,6 +312,7 @@ export default function Home() {
     if (isUserLoading) return;
 
     if (companyId) {
+        clearExpiredReminders();
         setTasks(getTasks());
         setBinnedTasks(getBinnedTasks());
         setDevelopers(getDevelopers());
@@ -349,12 +350,18 @@ export default function Home() {
     window.addEventListener('config-changed', refreshData);
     window.addEventListener('company-changed', refreshData);
     window.addEventListener('sync-complete', refreshData);
+    window.addEventListener('reminders-expired', refreshData);
+    const reminderExpiryInterval = window.setInterval(() => {
+      refreshData();
+    }, 30000);
     
     return () => {
       window.removeEventListener('storage', storageHandler);
       window.removeEventListener('config-changed', refreshData);
       window.removeEventListener('company-changed', refreshData);
       window.removeEventListener('sync-complete', refreshData);
+      window.removeEventListener('reminders-expired', refreshData);
+      window.clearInterval(reminderExpiryInterval);
     };
   }, [refreshData]);
 

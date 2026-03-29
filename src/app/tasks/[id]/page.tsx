@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask, addDeveloper, addTester, getActiveCompanyId, getAuthMode, isInitialSyncComplete } from '@/lib/data';
+import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask, addDeveloper, addTester, getActiveCompanyId, getAuthMode, isInitialSyncComplete, clearExpiredReminders } from '@/lib/data';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -113,9 +113,23 @@ export default function TaskPage() {
   
   const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
   const taskId = params.id as string;
+  const reminderPreview = useMemo(() => {
+    if (!task?.reminder) return '';
+    return task.reminder
+      .replace(/```[\s\S]*?```/g, ' ')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
+      .replace(/^>\s?/gm, '')
+      .replace(/^[-*+]\s+/gm, '')
+      .replace(/^\d+\.\s+/gm, '')
+      .replace(/[*_~#]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }, [task?.reminder]);
   
   const loadData = () => {
     if (taskId) {
+      clearExpiredReminders();
       const activeCompanyId = getActiveCompanyId();
       const authMode = getAuthMode();
       
@@ -155,10 +169,16 @@ export default function TaskPage() {
     window.addEventListener('storage', loadData);
     window.addEventListener('company-changed', loadData);
     window.addEventListener('sync-complete', loadData);
+    window.addEventListener('reminders-expired', loadData);
+    const reminderExpiryInterval = window.setInterval(() => {
+      loadData();
+    }, 30000);
     return () => {
         window.removeEventListener('storage', loadData);
         window.removeEventListener('company-changed', loadData);
         window.removeEventListener('sync-complete', loadData);
+        window.removeEventListener('reminders-expired', loadData);
+        window.clearInterval(reminderExpiryInterval);
     };
   }, [taskId, isUserLoading]);
 
@@ -955,46 +975,61 @@ const handleCopyDescription = () => {
         )}
         
         {task.reminder && (
-          <Alert className="mb-6 bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/50">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4 flex-1 min-w-0">
-                <BellRing className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-                <div className="flex-1">
-                  <AlertTitle className="text-amber-800 dark:text-amber-200 font-semibold">Reminder Note</AlertTitle>
-                  <AlertDescription className="text-amber-700 dark:text-amber-300 font-normal">
-                    <RichTextViewer text={task.reminder} />
-                    {task.reminderExpiresAt && (
-                      <span className="block text-xs italic mt-1 text-amber-600 dark:text-amber-400 font-medium">
-                        (Expires {formatTimestamp(task.reminderExpiresAt, uiConfig.timeFormat)})
-                      </span>
-                    )}
-                  </AlertDescription>
-                </div>
+          <div className="mb-5 md:mb-6">
+            <div className="group flex items-center gap-3 rounded-2xl border border-amber-500/20 bg-[linear-gradient(135deg,rgba(245,158,11,0.13),rgba(245,158,11,0.07))] px-3.5 py-3 shadow-[0_18px_36px_-30px_rgba(245,158,11,0.6)] backdrop-blur-sm md:px-4 md:py-3.5">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/12 text-amber-600 dark:text-amber-300 ring-1 ring-amber-500/15">
+                <BellRing className="h-4.5 w-4.5" />
               </div>
-              {!isBinned && (
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-600 hover:bg-amber-100 hover:text-amber-800 dark:text-amber-400 dark:hover:bg-amber-900/40 dark:hover:text-amber-300">
-                          <Trash2 className="h-4 w-4" />
-                          <span className="sr-only">Remove reminder</span>
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle className="font-semibold">Remove Reminder?</AlertDialogTitle>
-                            <AlertDialogDescription className="font-normal">
-                                This will permanently remove the reminder note from this task.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel className="font-medium">Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleRemoveReminder} className="font-semibold bg-destructive hover:bg-destructive/90">Remove</AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="text-[11px] font-black uppercase tracking-[0.2em] text-amber-700/80 dark:text-amber-200/85">
+                    Reminder Note
+                  </span>
+                  {task.reminderExpiresAt && (
+                    <span className="rounded-full bg-amber-500/12 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
+                      Expires {formatTimestamp(task.reminderExpiresAt, uiConfig.timeFormat)}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 line-clamp-2 text-sm font-medium leading-6 text-amber-950/85 dark:text-amber-100/95 md:line-clamp-1">
+                  {reminderPreview || 'Reminder added for this task.'}
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 rounded-xl px-3 text-amber-700 hover:bg-amber-500/10 hover:text-amber-800 dark:text-amber-300 dark:hover:bg-amber-500/10 dark:hover:text-amber-200"
+                  onClick={() => setIsReminderOpen(true)}
+                >
+                  <BellRing className="mr-1.5 h-4 w-4" />
+                  Edit
+                </Button>
+                {!isBinned && (
+                  <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-amber-700 hover:bg-amber-500/10 hover:text-amber-800 dark:text-amber-300 dark:hover:bg-amber-500/10 dark:hover:text-amber-200">
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Remove reminder</span>
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                          <AlertDialogHeader>
+                              <AlertDialogTitle className="font-semibold">Remove Reminder?</AlertDialogTitle>
+                              <AlertDialogDescription className="font-normal">
+                                  This will permanently remove the reminder note from this task.
+                              </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                              <AlertDialogCancel className="font-medium">Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={handleRemoveReminder} className="font-semibold bg-destructive hover:bg-destructive/90">Remove</AlertDialogAction>
+                          </AlertDialogFooter>
+                      </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </div>
             </div>
-          </Alert>
+          </div>
         )}
 
 
