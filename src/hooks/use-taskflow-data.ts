@@ -14,6 +14,7 @@ import {
     limit
 } from 'firebase/firestore';
 import { 
+    DATA_KEY,
     getAppData, 
     setCloudCache, 
     getActiveCompanyId,
@@ -128,9 +129,21 @@ export function useTaskFlowData() {
                 purgeExpiredNotifications();
             };
             loadLocal();
+            const handleRefreshRequest = () => {
+                purgeExpiredNotifications();
+                window.dispatchEvent(new StorageEvent('storage', { key: DATA_KEY }));
+                window.dispatchEvent(new Event('company-changed'));
+                window.dispatchEvent(new Event('sync-complete'));
+                window.dispatchEvent(new Event('taskflow-refresh-finished'));
+            };
+
+            window.addEventListener('taskflow-refresh-request', handleRefreshRequest);
             // Optional: run every hour while open
             const timer = setInterval(loadLocal, 1000 * 60 * 60);
-            return () => clearInterval(timer);
+            return () => {
+                clearInterval(timer);
+                window.removeEventListener('taskflow-refresh-request', handleRefreshRequest);
+            };
         }
 
         if (!user || !firestore) {
@@ -417,10 +430,37 @@ export function useTaskFlowData() {
 
         setupListeners();
 
+        const handleRefreshRequest = async () => {
+            const currentMode = getAuthMode();
+            if (currentMode === 'authenticate') {
+                resetSyncIndicator();
+                setupListeners();
+                window.dispatchEvent(new Event('company-changed'));
+                window.setTimeout(() => {
+                    window.dispatchEvent(new Event('taskflow-refresh-finished'));
+                }, 150);
+                return;
+            }
+
+            purgeExpiredNotifications();
+            window.dispatchEvent(new StorageEvent('storage', { key: DATA_KEY }));
+            window.dispatchEvent(new Event('company-changed'));
+            window.dispatchEvent(new Event('sync-complete'));
+            window.dispatchEvent(new Event('taskflow-refresh-finished'));
+        };
+
+        window.addEventListener('taskflow-refresh-request', handleRefreshRequest);
+
         return () => {
             unsubscribers.current.forEach(unsub => unsub());
+            window.removeEventListener('taskflow-refresh-request', handleRefreshRequest);
         };
     }, [user, firestore, activeCompanyId, userProfile?.role]);
+}
+
+function resetSyncIndicator() {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new Event('sync-complete'));
 }
 
 function compareNotificationsByMarker(a: AppNotification, b: AppNotification) {

@@ -67,10 +67,20 @@ export function NoteForm({
   };
 
   return (
-    <div id={isPage ? "note-form-page" : undefined} className={cn("flex flex-col", isPage ? "min-h-[85vh] pt-2" : "gap-4")} onKeyDown={handleKeyDown}>
+    <div
+      id={isPage ? "note-form-page" : undefined}
+      className={cn("flex flex-col", isPage ? "min-h-0 flex-1 overflow-hidden pt-2" : "gap-5")}
+      onKeyDown={handleKeyDown}
+    >
       {isPage && (
-          <div className="flex items-center justify-between mb-6">
-              <Button variant="ghost" size="icon" onClick={onCancel} className="rounded-full h-10 w-10 -ml-2">
+          <div className="sticky top-0 z-20 -mx-1 mb-5 flex shrink-0 items-center justify-between border-b border-white/10 bg-background/95 px-1 pb-4 pt-1 backdrop-blur-xl">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onCancel}
+                disabled={isPending}
+                className="h-10 w-10 rounded-full border border-white/10 bg-white/[0.04] text-foreground shadow-[0_14px_30px_-22px_rgba(0,0,0,0.78)] hover:bg-white/[0.08] hover:text-foreground active:bg-white/[0.1]"
+              >
                   <ArrowLeft className="h-6 w-6" />
               </Button>
               <h1 className="text-xl font-bold tracking-tight">
@@ -80,31 +90,34 @@ export function NoteForm({
           </div>
       )}
       
-      <div className="space-y-4 flex-1 flex flex-col">
+      <div className="flex flex-1 flex-col space-y-4 min-h-0">
         <div className="space-y-2">
             {isPage && <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Note Title</p>}
             <Input
               placeholder={titlePlaceholder}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              disabled={isPending}
               className={cn(
                   "font-bold transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10",
-                  isPage ? "text-xl h-14 rounded-2xl border-muted/40" : "text-lg h-12"
+                  isPage ? "text-xl h-14 rounded-2xl border-muted/40" : "h-14 rounded-[1.35rem] border-white/10 bg-muted/20 px-4 text-xl shadow-[0_18px_40px_-34px_rgba(0,0,0,0.75)]"
               )}
             />
         </div>
 
-        <div className="space-y-2 flex flex-col flex-1">
+        <div className="flex min-h-0 flex-1 flex-col space-y-2">
           {isPage && <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Content</p>}
-          <div className="relative flex-1">
+          <div className="relative flex-1 min-h-0">
             <Textarea
               ref={descriptionEditorRef}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder={contentPlaceholder}
+              autoGrow={!isPage}
+              disabled={isPending}
               className={cn(
-                  "w-full text-base pb-14 transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10",
-                  isPage ? "min-h-[50vh] flex-1 rounded-2xl bg-muted/5 border-muted/40 p-4" : "min-h-[250px]"
+                  "no-scrollbar w-full overflow-y-auto pb-14 text-base transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10",
+                  isPage ? "h-full min-h-[18rem] rounded-2xl bg-muted/5 border-muted/40 p-4" : "min-h-[250px] max-h-[min(48vh,26rem)] resize-none rounded-[1.5rem] border-white/10 bg-muted/20 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_24px_50px_-40px_rgba(0,0,0,0.75)]"
               )}
               enableHotkeys
             />
@@ -115,16 +128,25 @@ export function NoteForm({
 
       <div className={cn(
           "flex gap-2 pt-6",
-          isPage ? "mt-auto pb-8" : "justify-end border-t mt-4"
+          isPage ? "mt-auto shrink-0 border-t border-white/10 bg-background/95 pb-[calc(env(safe-area-inset-bottom)+6.75rem)] pt-5 backdrop-blur-xl" : "mt-1 justify-end border-t border-white/10 pt-5"
       )}>
-        {!isPage && <Button variant="ghost" onClick={onCancel} disabled={isPending} className="font-medium">Cancel</Button>}
+        {!isPage && (
+          <Button
+            variant="ghost"
+            onClick={onCancel}
+            disabled={isPending}
+            className="h-11 rounded-2xl border border-white/10 bg-white/[0.03] px-5 font-medium text-foreground/80 hover:bg-white/[0.06] hover:text-foreground"
+          >
+            Cancel
+          </Button>
+        )}
         <Button 
             id={isPage ? "note-form-submit" : undefined}
             onClick={handleSave} 
             disabled={isPending} 
             className={cn(
                 "font-bold shadow-lg transition-transform active:scale-95",
-                isPage ? "w-full h-14 rounded-2xl text-base" : "rounded-lg"
+                isPage ? "w-full h-14 rounded-2xl text-base shadow-[0_20px_44px_-24px_hsl(var(--primary)/0.76)]" : "h-11 rounded-2xl px-6 shadow-[0_18px_40px_-20px_hsl(var(--primary)/0.72)]"
             )}
         >
           {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (isPage ? <Save className="mr-2 h-5 w-5" /> : null)}

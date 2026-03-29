@@ -15,6 +15,62 @@ export const DATA_KEY = 'my_task_manager_data';
 const AUTH_MODE_KEY = 'taskflow_auth_mode';
 const PREFERENCES_KEY = 'taskflow_user_preferences';
 
+function isQuotaExceededError(error: unknown): boolean {
+    if (!error || typeof error !== 'object') return false;
+    const err = error as DOMException & { code?: number };
+    return (
+        err.name === 'QuotaExceededError' ||
+        err.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+        err.code === 22 ||
+        err.code === 1014
+    );
+}
+
+function getSerializedSizeBytes(value: unknown): number {
+    if (typeof window === 'undefined') return 0;
+    const serialized = JSON.stringify(value);
+    return new TextEncoder().encode(serialized).length;
+}
+
+function isLikelyMobileStorageContext(): boolean {
+    if (typeof window === 'undefined') return false;
+    return 'ontouchstart' in window || window.innerWidth < 768;
+}
+
+function getQuotaExceededMessage() {
+    return isLikelyMobileStorageContext()
+        ? 'This import is too large for mobile local storage. Please use cloud mode or import a smaller file.'
+        : 'Local storage is full. Please clear unused tasks, notes, logs, or switch to cloud mode before importing this file.';
+}
+
+async function assertLocalImportCapacity(nextData: MyTaskManagerData) {
+    if (typeof window === 'undefined' || getAuthMode() === 'authenticate') return;
+
+    const estimatedBytes = getSerializedSizeBytes(nextData);
+    const mobileSoftLimit = 3.5 * 1024 * 1024;
+
+    if (isLikelyMobileStorageContext() && estimatedBytes > mobileSoftLimit) {
+        throw new Error(getQuotaExceededMessage());
+    }
+
+    if (navigator.storage?.estimate) {
+        try {
+            const estimate = await navigator.storage.estimate();
+            if (estimate.quota && estimate.usage) {
+                const remaining = estimate.quota - estimate.usage;
+                const safetyBuffer = 512 * 1024;
+                if (estimatedBytes > Math.max(remaining - safetyBuffer, 0)) {
+                    throw new Error(getQuotaExceededMessage());
+                }
+            }
+        } catch (error) {
+            if (error instanceof Error) {
+                throw error;
+            }
+        }
+    }
+}
+
 // Central In-Memory Cache for Real-time Cloud Data
 let _cloudCache: MyTaskManagerData | null = null;
 let _initialSyncStatus: Record<string, boolean> = {}; // companyId -> status
@@ -138,7 +194,14 @@ export const setAppData = (data: MyTaskManagerData) => {
     if (getAuthMode() === 'authenticate') {
         _cloudCache = data;
     } else {
-        window.localStorage.setItem(DATA_KEY, JSON.stringify(data));
+        try {
+            window.localStorage.setItem(DATA_KEY, JSON.stringify(data));
+        } catch (error) {
+            if (isQuotaExceededError(error)) {
+                throw new Error(getQuotaExceededMessage());
+            }
+            throw error;
+        }
     }
     window.dispatchEvent(new StorageEvent('storage', { key: DATA_KEY }));
 };
@@ -1890,7 +1953,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
         timestamp: l.timestamp || new Date().toISOString()
     }));
 
-    const totalOperations = processedTasks.length + processedNotes.length + processedLogs.length + 3;
+    const totalOperations = Math.max(processedTasks.length + processedNotes.length + processedLogs.length + 4, 6);
     let completedOps = 0;
     const bumpProgress = () => {
         completedOps++;
@@ -1947,9 +2010,12 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             const comp = data.companyData[companyId];
             
             comp.developers = currentDevs;
+            bumpProgress();
             comp.testers = currentTesters;
+            bumpProgress();
             
             comp.uiConfig = mergeImportedUiConfig(comp.uiConfig, parsedJson, currentDevs, currentTesters);
+            bumpProgress();
 
             processedTasks.forEach(newTask => {
                 comp.tasks.unshift(newTask);
@@ -1958,16 +2024,23 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
                     taskId: newTask.id,
                     userName: 'Local User'
                 });
+                bumpProgress();
             });
             
             comp.notes = [...processedNotes, ...comp.notes];
+            processedNotes.forEach(() => bumpProgress());
             comp.logs = [...processedLogs, ...comp.logs];
+            processedLogs.forEach(() => bumpProgress());
 
+            await assertLocalImportCapacity(data);
             setAppData(data);
-            if (onProgress) onProgress(100);
+            bumpProgress();
         }
     } catch (error: any) {
         console.error("Import Sync Failure:", error);
+        if (typeof error?.message === 'string' && error.message.trim()) {
+            throw new Error(error.message);
+        }
         throw new Error("An error occurred while importing. Please try again later.");
     }
     

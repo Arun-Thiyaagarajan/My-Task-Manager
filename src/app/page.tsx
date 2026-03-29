@@ -201,6 +201,18 @@ export default function Home() {
     if (typeof window !== 'undefined') {
       const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
       setSpotlightShortcutKey(isMac ? '⌘' : 'Ctrl');
+
+      try {
+        const storedPinnedIds = window.localStorage.getItem(PINNED_TASKS_STORAGE_KEY);
+        if (storedPinnedIds) {
+          const parsedPinnedIds = JSON.parse(storedPinnedIds);
+          if (Array.isArray(parsedPinnedIds)) {
+            setPinnedTaskIds(parsedPinnedIds.filter((id): id is string => typeof id === 'string'));
+          }
+        }
+      } catch {
+        window.localStorage.removeItem(PINNED_TASKS_STORAGE_KEY);
+      }
     }
     
     const prefs = getUserPreferences();
@@ -1475,16 +1487,20 @@ export default function Home() {
             {uiConfig?.appName && <p className="text-muted-foreground text-sm font-medium">{uiConfig.appName}</p>}
         </div>
         
-        <div className="flex flex-col items-stretch sm:items-center sm:flex-row gap-3 w-full md:w-auto">
+        <div className="flex flex-col items-stretch mb-2 sm:flex-row sm:items-center sm:gap-3 w-full md:w-auto">
             {uiConfig?.remindersEnabled && (pinnedTaskIds.length + generalReminders.length) > 0 && (
               <Button 
                 variant="outline" 
-                className="h-11 border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 hover:text-amber-700 dark:hover:text-amber-300 transition-all w-full sm:w-auto font-medium" 
+                className="h-12 rounded-2xl border-amber-500/25 bg-[linear-gradient(135deg,rgba(245,158,11,0.16),rgba(245,158,11,0.08))] px-4 text-amber-700 shadow-[0_16px_36px_-28px_rgba(245,158,11,0.8)] hover:bg-[linear-gradient(135deg,rgba(245,158,11,0.2),rgba(245,158,11,0.12))] hover:text-amber-800 dark:text-amber-300 dark:hover:text-amber-200 transition-all w-full sm:w-auto justify-between sm:justify-center font-semibold mb-2 sm:mb-0" 
                 onClick={() => setIsReminderStackOpen(true)}
               >
-                <BellRing className="mr-2 h-4 w-4 shrink-0" />
-                 <span className="truncate">Important Reminders</span>
-                <Badge variant="secondary" className="ml-2 bg-amber-500/20 text-amber-700 dark:text-amber-300 border-none shadow-none font-medium">{pinnedTaskIds.length + generalReminders.length}</Badge>
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-500/16 ring-1 ring-amber-500/20">
+                    <BellRing className="h-4 w-4 shrink-0" />
+                  </span>
+                  <span className="truncate">Important Reminders</span>
+                </span>
+                <Badge variant="secondary" className="ml-3 rounded-xl bg-amber-500/18 px-2.5 py-1 text-amber-800 dark:text-amber-200 border-none shadow-none font-semibold">{pinnedTaskIds.length + generalReminders.length}</Badge>
               </Button>
             )}
 

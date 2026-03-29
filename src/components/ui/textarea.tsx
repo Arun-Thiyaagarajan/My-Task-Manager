@@ -13,10 +13,11 @@ import { Code2, User } from "lucide-react";
 export interface TextareaProps
   extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
     enableHotkeys?: boolean;
+    autoGrow?: boolean;
 }
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className, enableHotkeys = false, ...props }, ref) => {
+  ({ className, enableHotkeys = false, autoGrow = true, ...props }, ref) => {
     
     const localRef = React.useRef<HTMLTextAreaElement | null>(null);
     const combinedRef = (el: HTMLTextAreaElement | null) => {
@@ -52,6 +53,8 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     }, []);
     
     React.useEffect(() => {
+      if (!autoGrow) return;
+
       const adjustHeight = () => {
         const textarea = localRef.current;
         if (textarea) {
@@ -61,7 +64,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       };
 
       adjustHeight();
-    }, [props.value]);
+    }, [autoGrow, props.value]);
     
     React.useEffect(() => {
         const textarea = localRef.current;
@@ -74,8 +77,13 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                     case 'b': applyFormat('bold', textarea); handled = true; break;
                     case 'i': applyFormat('italic', textarea); handled = true; break;
                     case 'e': applyFormat('code', textarea); handled = true; break;
+                    case 'k': applyFormat('link', textarea); handled = true; break;
+                    case 'z': applyFormat(e.shiftKey ? 'redo' : 'undo', textarea); handled = true; break;
+                    case 'y': applyFormat('redo', textarea); handled = true; break;
                     case 'x': if (e.shiftKey) { applyFormat('strike', textarea); handled = true; } break;
                     case 'c': if (e.shiftKey) { applyFormat('code-block', textarea); handled = true; } break;
+                    case '7': if (e.shiftKey) { applyFormat('bullet-list', textarea); handled = true; } break;
+                    case '8': if (e.shiftKey) { applyFormat('numbered-list', textarea); handled = true; } break;
                 }
                 if(handled) {
                     e.preventDefault();
@@ -95,13 +103,9 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
             const end = localRef.current.selectionStart;
 
             const mentionText = `@<${name}> `;
-            const newValue = currentVal.substring(0, start) + mentionText + currentVal.substring(end);
-            
-            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
-            nativeInputValueSetter?.call(localRef.current, newValue);
-            
-            const event = new Event('input', { bubbles: true });
-            localRef.current.dispatchEvent(event);
+            localRef.current.focus();
+            localRef.current.setRangeText(mentionText, start, end, 'end');
+            localRef.current.dispatchEvent(new Event('input', { bubbles: true }));
 
             const newCursorPos = start + mentionText.length;
             localRef.current.focus();

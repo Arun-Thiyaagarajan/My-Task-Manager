@@ -122,7 +122,7 @@ export default function ViewNotePage() {
         {/* Header */}
         <div className="px-4 h-14 flex items-center justify-between border-b bg-background/95 backdrop-blur sticky top-0 z-30">
             <div className="flex items-center gap-2 min-w-0 flex-1">
-                <Button variant="ghost" size="icon" onClick={handleBack} className="h-10 w-10 rounded-full shrink-0">
+                <Button variant="ghost" size="icon" onClick={handleBack} className="h-10 w-10 rounded-full shrink-0 border border-white/10 bg-white/[0.03]">
                     <ArrowLeft className="h-6 w-6" />
                 </Button>
                 <div className="min-w-0">
@@ -135,12 +135,23 @@ export default function ViewNotePage() {
             </div>
             
             <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" onClick={handleEdit} className="h-10 w-10 text-primary hover:bg-primary/10 rounded-full">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleCopy}
+                    className={cn(
+                        "h-10 w-10 rounded-full border border-white/10 bg-white/[0.03]",
+                        isCopied ? "text-green-400 hover:bg-green-500/10" : "text-foreground/80 hover:bg-white/[0.07] hover:text-foreground"
+                    )}
+                >
+                    {isCopied ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
+                </Button>
+                <Button variant="ghost" size="icon" onClick={handleEdit} className="h-10 w-10 rounded-full border border-primary/12 bg-primary/8 text-primary hover:bg-primary/12">
                     <Pencil className="h-5 w-5" />
                 </Button>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full">
+                        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full border border-white/10 bg-white/[0.03]">
                             <MoreVertical className="h-5 w-5" />
                         </Button>
                     </DropdownMenuTrigger>
@@ -181,27 +192,29 @@ export default function ViewNotePage() {
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 px-6 py-8 pb-40 overflow-y-auto">
-            {note.title && (
-                <div className="mb-8 space-y-2 animate-in fade-in slide-in-from-left-4 duration-500">
-                    <Badge variant="secondary" className="bg-primary/5 text-primary border-none text-[10px] font-bold tracking-widest uppercase px-2 h-5">NOTE</Badge>
-                    <h2 className="text-3xl font-extrabold tracking-tight text-foreground leading-tight">{note.title}</h2>
+        <div className="no-scrollbar flex-1 overflow-y-auto px-6 py-8 pb-40">
+            <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] px-5 py-5 shadow-[0_24px_60px_-42px_rgba(0,0,0,0.78)]">
+                {note.title && (
+                    <div className="mb-8 space-y-2 animate-in fade-in slide-in-from-left-4 duration-500">
+                        <Badge variant="secondary" className="bg-primary/8 text-primary border-none text-[10px] font-bold tracking-widest uppercase px-2.5 h-6 rounded-full">NOTE</Badge>
+                        <h2 className="text-3xl font-extrabold tracking-tight text-foreground leading-tight">{note.title}</h2>
+                    </div>
+                )}
+                <div className="text-lg leading-relaxed text-foreground/90 selection:bg-primary/20 animate-in fade-in duration-700">
+                    <RichTextViewer text={note.content} />
                 </div>
-            )}
-            <div className="text-lg leading-relaxed text-foreground/90 selection:bg-primary/20 animate-in fade-in duration-700">
-                <RichTextViewer text={note.content} />
             </div>
         </div>
 
         {/* Floating Tool - Bottom */}
-        <div className="fixed bottom-24 left-0 right-0 px-6 z-20 pointer-events-none">
+        <div className="pointer-events-none fixed bottom-24 left-0 right-0 z-20 hidden px-6 sm:block">
             <div className="flex justify-center pointer-events-auto">
                 <Button 
                     id="note-detail-copy"
                     variant="secondary" 
                     size="lg"
                     className={cn(
-                        "h-14 rounded-full px-8 font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl transition-all active:scale-95 border border-primary/10",
+                        "h-14 rounded-full px-8 font-black text-[10px] uppercase tracking-[0.2em] shadow-[0_24px_55px_-24px_rgba(0,0,0,0.8)] transition-all active:scale-95 border border-primary/10",
                         isCopied ? "bg-green-600 text-white" : "bg-primary text-primary-foreground"
                     )}
                     onClick={handleCopy}

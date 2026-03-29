@@ -17,6 +17,7 @@ export default function EditNotePage() {
   const { toast } = useToast();
   const [note, setNote] = useState<Note | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPending, setIsPending] = useState(false);
 
   useEffect(() => {
     const id = params.id as string;
@@ -37,11 +38,17 @@ export default function EditNotePage() {
       return;
     }
     
-    updateNote(note.id, { title, content });
-    toast({ variant: 'success', title: 'Note Updated' });
-    
-    window.dispatchEvent(new Event('navigation-start'));
-    router.back();
+    setIsPending(true);
+    requestAnimationFrame(() => {
+      try {
+        updateNote(note.id, { title, content });
+        toast({ variant: 'success', title: 'Note Updated' });
+        window.dispatchEvent(new Event('navigation-start'));
+        router.back();
+      } finally {
+        setIsPending(false);
+      }
+    });
   };
 
   const handleCancel = () => {
@@ -62,13 +69,14 @@ export default function EditNotePage() {
   }
 
   return (
-    <div className="bg-background min-h-screen">
-        <div className="container max-w-2xl mx-auto py-8 px-6">
+    <div className="bg-background h-[100dvh] overflow-hidden">
+        <div className="container mx-auto flex h-full max-w-2xl flex-col overflow-hidden px-6 py-6 sm:py-8">
             <NoteForm 
                 initialTitle={note.title}
                 initialContent={note.content}
                 onSave={handleSave} 
                 onCancel={handleCancel} 
+                isPending={isPending}
                 isPage 
                 submitLabel="Update Note"
             />
