@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import { Heart } from 'lucide-react';
+import { Heart, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { updateTask } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
@@ -19,6 +19,7 @@ interface FavoriteToggleButtonProps {
 export function FavoriteToggleButton({ taskId, isFavorite, onUpdate, className }: FavoriteToggleButtonProps) {
   const [isFavorited, setIsFavorited] = useState(isFavorite);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [, startTransition] = useTransition();
   const { toast } = useToast();
 
@@ -29,10 +30,12 @@ export function FavoriteToggleButton({ taskId, isFavorite, onUpdate, className }
   const handleToggleFavorite = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
+    if (isSaving) return;
 
     const newFavoriteStatus = !isFavorited;
     setIsFavorited(newFavoriteStatus);
     setIsAnimating(true);
+    setIsSaving(true);
     
     updateTask(taskId, { isFavorite: newFavoriteStatus });
     
@@ -49,6 +52,10 @@ export function FavoriteToggleButton({ taskId, isFavorite, onUpdate, className }
           });
         });
     }
+
+    window.setTimeout(() => {
+      setIsSaving(false);
+    }, 420);
   };
   
   const handleAnimationEnd = () => {
@@ -62,16 +69,21 @@ export function FavoriteToggleButton({ taskId, isFavorite, onUpdate, className }
           onClick={handleToggleFavorite}
           variant="ghost"
           size="icon"
-          className={cn('h-8 w-8', className)}
+          disabled={isSaving}
+          className={cn('h-8 w-8 rounded-full transition-all duration-200', className)}
         >
-          <Heart
-            className={cn(
-              'h-5 w-5 transition-all',
-              isFavorited ? 'text-red-500 fill-red-500' : 'text-muted-foreground',
-              isAnimating && 'animate-heart-pulse'
-            )}
-            onAnimationEnd={handleAnimationEnd}
-          />
+          {isSaving ? (
+            <Loader2 className="h-4.5 w-4.5 animate-spin text-red-500" />
+          ) : (
+            <Heart
+              className={cn(
+                'h-5 w-5 transition-all duration-200',
+                isFavorited ? 'text-red-500 fill-red-500' : 'text-muted-foreground',
+                isAnimating && 'animate-heart-pulse'
+              )}
+              onAnimationEnd={handleAnimationEnd}
+            />
+          )}
           <span className="sr-only">{isFavorited ? 'Remove from favorites' : 'Add to favorites'}</span>
         </Button>
       </TooltipTrigger>
