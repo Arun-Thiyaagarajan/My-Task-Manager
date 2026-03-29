@@ -612,10 +612,11 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
           isOpen={isReminderOpen}
           onOpenChange={setIsReminderOpen}
           task={task}
-          onSuccess={() => {
+          onSuccess={(updatedTask) => {
+            if (updatedTask) {
+              setTask(updatedTask);
+            }
             onTaskUpdate();
-            const updated = updateTask(task.id, {});
-            if (updated) setTask(updated);
           }}
           pinnedTaskIds={pinnedTaskIds || []}
           onPinToggle={onPinToggle}

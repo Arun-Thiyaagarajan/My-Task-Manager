@@ -52,7 +52,7 @@ interface ReminderDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   task: Task;
-  onSuccess: () => void;
+  onSuccess: (updatedTask: Task | null) => void;
   pinnedTaskIds: string[];
   onPinToggle: (taskId: string) => void;
 }
@@ -63,6 +63,8 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
   const [isPending, setIsPending] = useState(false);
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
   const [isPinned, setIsPinned] = useState(false);
+  const [isMobileExpirePickerOpen, setIsMobileExpirePickerOpen] = useState(false);
+  const [isMobileDatePickerOpen, setIsMobileDatePickerOpen] = useState(false);
 
   const form = useForm<ReminderFormData>({
     resolver: zodResolver(reminderSchema),
@@ -86,6 +88,8 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
         autoDisappear: !!task.reminderExpiresAt,
         expiresAt: task.reminderExpiresAt ? new Date(task.reminderExpiresAt) : null,
       });
+      setIsMobileExpirePickerOpen(!!task.reminderExpiresAt);
+      setIsMobileDatePickerOpen(false);
     }
   }, [form, isOpen, pinnedTaskIds, task]);
 
@@ -111,7 +115,7 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
         const newReminder = data.reminder?.trim() ? data.reminder.trim() : null;
         const newExpiresAt = data.autoDisappear ? (data.expiresAt ? data.expiresAt.toISOString() : null) : null;
 
-        updateTask(task.id, {
+        const updatedTask = updateTask(task.id, {
           reminder: newReminder,
           reminderExpiresAt: newExpiresAt,
         });
@@ -126,7 +130,7 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
           description: `The reminder for "${task.title}" has been updated.`,
         });
 
-        onSuccess();
+        onSuccess(updatedTask);
         onOpenChange(false);
       } catch {
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to save reminder.' });
@@ -140,7 +144,7 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
     setIsPending(true);
     requestAnimationFrame(() => {
       try {
-        updateTask(task.id, { reminder: null, reminderExpiresAt: null });
+        const updatedTask = updateTask(task.id, { reminder: null, reminderExpiresAt: null });
 
         if (isPinned) {
           onPinToggle(task.id);
@@ -151,7 +155,7 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
           title: 'Reminder Removed',
           description: `The reminder for "${task.title}" has been removed.`,
         });
-        onSuccess();
+        onSuccess(updatedTask);
         onOpenChange(false);
       } catch {
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to remove reminder.' });
@@ -166,15 +170,335 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
   const timeFormatString = timeFormat === '24h' ? 'PPP HH:mm' : 'PPP p';
   const hasReminderText = !!form.watch('reminder')?.trim();
 
+  const expirationControls = (field: {
+    value: Date | null | undefined;
+    onChange: (value: Date | null) => void;
+  }) => (
+    <>
+      <div className="grid grid-cols-3 gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">
+        <span>Hour</span>
+        <span>Min</span>
+        {timeFormat === '12h' ? <span>Mode</span> : <span className="opacity-0">Mode</span>}
+      </div>
+      <div className="flex flex-row justify-around gap-2 sm:justify-center">
+        <Select
+          value={
+            timeFormat === '12h'
+              ? String(((field.value?.getHours() ?? 0) + 11) % 12 + 1)
+              : String(field.value?.getHours() ?? 0).padStart(2, '0')
+          }
+          onValueChange={(hStr) => {
+            const h = Number(hStr);
+            const newDate = field.value || new Date();
+            const isPM = newDate.getHours() >= 12;
+
+            let newHour = h;
+            if (timeFormat === '12h') {
+              if (isPM && h !== 12) newHour = h + 12;
+              else if (!isPM && h === 12) newHour = 0;
+              else if (isPM && h === 12) newHour = 12;
+            }
+            newDate.setHours(newHour);
+            field.onChange(new Date(newDate));
+          }}
+        >
+          <SelectTrigger className="h-10 rounded-xl border-white/10 bg-background/80"><SelectValue /></SelectTrigger>
+          <SelectContent position="popper" className="max-h-48">
+            {timeFormat === '12h'
+              ? Array.from({ length: 12 }, (_, i) => String(i + 1)).map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)
+              : Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)
+            }
+          </SelectContent>
+        </Select>
+        <Select
+          value={String(field.value?.getMinutes() ?? 0).padStart(2, '0')}
+          onValueChange={(m) => {
+            const newDate = field.value || new Date();
+            newDate.setMinutes(Number(m));
+            field.onChange(new Date(newDate));
+          }}
+        >
+          <SelectTrigger className="h-10 rounded-xl border-white/10 bg-background/80"><SelectValue /></SelectTrigger>
+          <SelectContent position="popper" className="max-h-48">
+            {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        {timeFormat === '12h' && (
+          <Select
+            value={field.value && field.value.getHours() >= 12 ? 'pm' : 'am'}
+            onValueChange={(val) => {
+              const newDate = field.value || new Date();
+              const currentHour = newDate.getHours();
+              if (val === 'pm' && currentHour < 12) {
+                newDate.setHours(currentHour + 12);
+              } else if (val === 'am' && currentHour >= 12) {
+                newDate.setHours(currentHour - 12);
+              }
+              field.onChange(new Date(newDate));
+            }}
+          >
+            <SelectTrigger className="h-10 rounded-xl border-white/10 bg-background/80"><SelectValue /></SelectTrigger>
+            <SelectContent position="popper">
+              <SelectItem value="am">AM</SelectItem>
+              <SelectItem value="pm">PM</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-9 rounded-xl border-white/10 bg-background/70 text-xs font-semibold"
+          onClick={() => {
+            const current = field.value || new Date();
+            const next = new Date(current);
+            next.setHours(9, 0, 0, 0);
+            field.onChange(next);
+          }}
+        >
+          9 AM
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-9 rounded-xl border-white/10 bg-background/70 text-xs font-semibold"
+          onClick={() => {
+            const current = field.value || new Date();
+            const next = new Date(current);
+            next.setHours(13, 0, 0, 0);
+            field.onChange(next);
+          }}
+        >
+          1 PM
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-9 rounded-xl border-white/10 bg-background/70 text-xs font-semibold"
+          onClick={() => {
+            const current = field.value || new Date();
+            const next = new Date(current);
+            next.setHours(18, 0, 0, 0);
+            field.onChange(next);
+          }}
+        >
+          6 PM
+        </Button>
+      </div>
+    </>
+  );
+
+  const mobileExpirationControls = (field: {
+    value: Date | null | undefined;
+    onChange: (value: Date | null) => void;
+  }) => {
+    const selectedValue = field.value ?? new Date();
+    const selectedHour12 = String(((selectedValue.getHours() + 11) % 12) + 1);
+    const selectedHour24 = String(selectedValue.getHours()).padStart(2, '0');
+    const selectedMinute = String(selectedValue.getMinutes()).padStart(2, '0');
+    const meridiem = selectedValue.getHours() >= 12 ? 'pm' : 'am';
+
+    const applyPresetTime = (hours: number, minutes = 0) => {
+      const next = new Date(selectedValue);
+      next.setHours(hours, minutes, 0, 0);
+      field.onChange(next);
+    };
+
+    return (
+      <div className="space-y-4">
+        <div className="rounded-[1.4rem] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.06),rgba(255,255,255,0.025))] p-4 shadow-[0_24px_60px_-42px_rgba(0,0,0,0.65)]">
+          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-muted-foreground">Expires On</p>
+          <p className="mt-2 text-sm font-semibold leading-relaxed text-foreground">
+            {field.value ? format(field.value, timeFormatString) : 'Pick a date and time'}
+          </p>
+        </div>
+
+        <div className="rounded-[1.5rem] border border-white/10 bg-muted/[0.18] p-4 shadow-[0_22px_50px_-40px_rgba(0,0,0,0.72)]">
+          <div className="mb-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-muted-foreground">Date</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">Pick the reminder date</p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setIsMobileDatePickerOpen((open) => !open)}
+            className="h-12 w-full justify-start rounded-2xl border-white/10 bg-background/85 px-4 text-left font-medium shadow-sm"
+          >
+            <CalendarIcon className="mr-2 h-4 w-4 text-amber-600 dark:text-amber-300" />
+            <span className="flex min-w-0 flex-col items-start leading-tight">
+              <span>{format(selectedValue, 'PPP')}</span>
+              <span className="text-[11px] font-normal text-muted-foreground">
+                {isMobileDatePickerOpen ? 'Tap to close calendar' : 'Tap to choose another date'}
+              </span>
+            </span>
+          </Button>
+          {isMobileDatePickerOpen && (
+            <div className="mt-3 overflow-hidden rounded-[1.5rem] border border-white/10 bg-background/90 shadow-[0_28px_80px_-40px_rgba(0,0,0,0.8)]">
+              <Calendar
+                mode="single"
+                className="p-2"
+                classNames={{
+                  table: "w-full border-collapse space-y-1 flex flex-col items-center",
+                  head_row: "mb-1 flex w-full justify-between",
+                  row: "mt-1 flex w-full justify-between",
+                }}
+                selected={field.value ?? undefined}
+                onSelect={(day) => {
+                  const newDate = day || new Date();
+                  const currentVal = field.value || new Date();
+                  newDate.setHours(currentVal.getHours());
+                  newDate.setMinutes(currentVal.getMinutes());
+                  field.onChange(newDate);
+                  setIsMobileDatePickerOpen(false);
+                }}
+                initialFocus
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-[1.5rem] border border-white/10 bg-muted/[0.18] p-4 shadow-[0_22px_50px_-40px_rgba(0,0,0,0.72)]">
+          <div className="mb-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-muted-foreground">Time</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">Set the exact time</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => applyPresetTime(9)}
+              className="h-10 rounded-2xl border-white/10 bg-background/80 text-xs font-semibold"
+            >
+              9 AM
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => applyPresetTime(13)}
+              className="h-10 rounded-2xl border-white/10 bg-background/80 text-xs font-semibold"
+            >
+              1 PM
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => applyPresetTime(18)}
+              className="col-span-2 h-10 rounded-2xl border-white/10 bg-background/80 text-xs font-semibold"
+            >
+              6 PM
+            </Button>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-3 min-[380px]:grid-cols-2">
+            <div className="rounded-[1.35rem] border border-white/10 bg-background/80 p-3">
+              <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Hour</p>
+              <Select
+                value={timeFormat === '12h' ? selectedHour12 : selectedHour24}
+                onValueChange={(hStr) => {
+                  const h = Number(hStr);
+                  const newDate = new Date(selectedValue);
+                  const isPM = newDate.getHours() >= 12;
+
+                  let newHour = h;
+                  if (timeFormat === '12h') {
+                    if (isPM && h !== 12) newHour = h + 12;
+                    else if (!isPM && h === 12) newHour = 0;
+                    else if (isPM && h === 12) newHour = 12;
+                  }
+
+                  newDate.setHours(newHour);
+                  field.onChange(newDate);
+                }}
+              >
+                <SelectTrigger className="h-11 rounded-2xl border-white/10 bg-background/90">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="popper" className="max-h-48">
+                  {timeFormat === '12h'
+                    ? Array.from({ length: 12 }, (_, i) => String(i + 1)).map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)
+                    : Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="rounded-[1.35rem] border border-white/10 bg-background/80 p-3">
+              <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Minute</p>
+              <Select
+                value={selectedMinute}
+                onValueChange={(m) => {
+                  const newDate = new Date(selectedValue);
+                  newDate.setMinutes(Number(m));
+                  field.onChange(newDate);
+                }}
+              >
+                <SelectTrigger className="h-11 rounded-2xl border-white/10 bg-background/90">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="popper" className="max-h-48">
+                  {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {timeFormat === '12h' && (
+            <div className="mt-3 rounded-[1.35rem] border border-white/10 bg-background/80 p-3">
+              <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Period</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const newDate = new Date(selectedValue);
+                    const currentHour = newDate.getHours();
+                    if (currentHour < 12) return;
+                    newDate.setHours(currentHour - 12);
+                    field.onChange(newDate);
+                  }}
+                  className={cn(
+                    "h-11 rounded-2xl border-white/10 bg-background/90 font-semibold",
+                    meridiem === 'am' && "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-300"
+                  )}
+                >
+                  AM
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const newDate = new Date(selectedValue);
+                    const currentHour = newDate.getHours();
+                    if (currentHour >= 12) return;
+                    newDate.setHours(currentHour + 12);
+                    field.onChange(newDate);
+                  }}
+                  className={cn(
+                    "h-11 rounded-2xl border-white/10 bg-background/90 font-semibold",
+                    meridiem === 'pm' && "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-300"
+                  )}
+                >
+                  PM
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const content = (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col space-y-0">
-        <div className="border-b border-white/10 bg-[linear-gradient(135deg,rgba(245,158,11,0.12),rgba(245,158,11,0.04))] px-5 pb-4 pt-5 sm:px-6 sm:pb-5 sm:pt-6">
-          {isMobile && (
-            <div className="mb-3 flex justify-center">
-              <div className="h-1.5 w-14 rounded-full bg-foreground/10" />
-            </div>
-          )}
+        <div className="border-b border-white/10 bg-[linear-gradient(135deg,rgba(245,158,11,0.12),rgba(245,158,11,0.04))] px-4 pb-4 pt-5 sm:px-6 sm:pb-5 sm:pt-6">
           <div className="flex items-start gap-3">
             <span className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/12 text-amber-600 ring-1 ring-amber-500/18 dark:text-amber-300">
               <CalendarIcon className="h-5 w-5" />
@@ -213,6 +537,17 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
                   <p>{isPinned ? "Unpin from main page" : "Pin to main page"}</p>
                 </TooltipContent>
               </Tooltip>
+              {isMobile && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onOpenChange(false)}
+                  className="h-10 w-10 rounded-2xl border border-white/10 bg-white/[0.04] text-foreground/70 hover:bg-white/[0.08] hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
               {!isMobile && (
                 <Button
                   type="button"
@@ -228,7 +563,7 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
           </div>
         </div>
 
-        <div className="no-scrollbar flex-1 space-y-4 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
+        <div className="no-scrollbar flex-1 space-y-4 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6">
           <FormField
             control={form.control}
             name="reminder"
@@ -265,7 +600,15 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
                     onCheckedChange={(checked) => {
                       field.onChange(checked);
                       if (checked && !form.getValues('expiresAt')) {
-                        form.setValue('expiresAt', new Date());
+                        const nextHour = new Date();
+                        nextHour.setSeconds(0, 0);
+                        nextHour.setMinutes(0);
+                        nextHour.setHours(nextHour.getHours() + 1);
+                        form.setValue('expiresAt', nextHour);
+                      }
+                      if (isMobile) {
+                        setIsMobileExpirePickerOpen(checked);
+                        setIsMobileDatePickerOpen(false);
                       }
                     }}
                   />
@@ -281,13 +624,15 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
               render={({ field }) => (
                 <FormItem className="flex flex-col gap-2 rounded-[1.35rem] border border-white/10 bg-muted/20 p-4">
                   <FormLabel className="text-sm font-semibold">Expiration Time</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
+                  {isMobile ? (
+                    <div className="space-y-3">
                       <FormControl>
                         <Button
+                          type="button"
                           variant="outline"
+                          onClick={() => setIsMobileExpirePickerOpen((open) => !open)}
                           className={cn(
-                            "h-12 w-full justify-start rounded-2xl border-white/10 bg-background/70 px-4 text-left font-medium shadow-sm",
+                            "h-12 w-full justify-start rounded-2xl border-white/10 bg-background/80 px-4 text-left font-medium shadow-sm",
                             !field.value && "text-muted-foreground"
                           )}
                         >
@@ -295,143 +640,55 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
                           <span className="flex min-w-0 flex-col items-start leading-tight">
                             <span>{field.value ? format(field.value, timeFormatString) : 'Pick a date and time'}</span>
                             <span className="text-[11px] font-normal text-muted-foreground">
-                              {timeFormat === '24h' ? 'Calendar + 24h time' : 'Calendar + 12h time'}
+                              {isMobileExpirePickerOpen ? 'Tap to collapse picker' : 'Tap to expand picker'}
                             </span>
                           </span>
                         </Button>
                       </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="flex w-[calc(100vw-2rem)] flex-col rounded-[1.5rem] border-white/10 p-0 shadow-[0_28px_80px_-36px_rgba(0,0,0,0.8)] sm:w-auto sm:flex-row">
-                      <Calendar
-                        mode="single"
-                        selected={field.value ?? undefined}
-                        onSelect={(day) => {
-                          const newDate = day || new Date();
-                          const currentVal = field.value || new Date();
-                          newDate.setHours(currentVal.getHours());
-                          newDate.setMinutes(currentVal.getMinutes());
-                          field.onChange(newDate);
-                        }}
-                        initialFocus
-                      />
-                      <div className="space-y-3 border-t bg-muted/10 p-3 sm:w-[13.5rem] sm:border-l sm:border-t-0">
-                        <div className="grid grid-cols-3 gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">
-                          <span>Hour</span>
-                          <span>Min</span>
-                          {timeFormat === '12h' ? <span>Mode</span> : <span className="opacity-0">Mode</span>}
-                        </div>
-                        <div className="flex flex-row justify-around gap-2 sm:justify-center">
-                        <Select
-                          value={
-                            timeFormat === '12h'
-                              ? String(((field.value?.getHours() ?? 0) + 11) % 12 + 1)
-                              : String(field.value?.getHours() ?? 0).padStart(2, '0')
-                          }
-                          onValueChange={(hStr) => {
-                            const h = Number(hStr);
-                            const newDate = field.value || new Date();
-                            const isPM = newDate.getHours() >= 12;
-
-                            let newHour = h;
-                            if (timeFormat === '12h') {
-                              if (isPM && h !== 12) newHour = h + 12;
-                              else if (!isPM && h === 12) newHour = 0;
-                              else if (isPM && h === 12) newHour = 12;
-                            }
-                            newDate.setHours(newHour);
-                            field.onChange(new Date(newDate));
+                      {isMobileExpirePickerOpen && (
+                        mobileExpirationControls(field)
+                      )}
+                    </div>
+                  ) : (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "h-12 w-full justify-start rounded-2xl border-white/10 bg-background/70 px-4 text-left font-medium shadow-sm",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            <span className="flex min-w-0 flex-col items-start leading-tight">
+                              <span>{field.value ? format(field.value, timeFormatString) : 'Pick a date and time'}</span>
+                              <span className="text-[11px] font-normal text-muted-foreground">
+                                {timeFormat === '24h' ? 'Calendar + 24h time' : 'Calendar + 12h time'}
+                              </span>
+                            </span>
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="flex w-[calc(100vw-2rem)] flex-col rounded-[1.5rem] border-white/10 p-0 shadow-[0_28px_80px_-36px_rgba(0,0,0,0.8)] sm:w-auto sm:flex-row">
+                        <Calendar
+                          mode="single"
+                          selected={field.value ?? undefined}
+                          onSelect={(day) => {
+                            const newDate = day || new Date();
+                            const currentVal = field.value || new Date();
+                            newDate.setHours(currentVal.getHours());
+                            newDate.setMinutes(currentVal.getMinutes());
+                            field.onChange(newDate);
                           }}
-                        >
-                          <SelectTrigger className="h-10 rounded-xl border-white/10 bg-background/80"><SelectValue /></SelectTrigger>
-                          <SelectContent position="popper" className="max-h-48">
-                            {timeFormat === '12h'
-                              ? Array.from({ length: 12 }, (_, i) => String(i + 1)).map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)
-                              : Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)
-                            }
-                          </SelectContent>
-                        </Select>
-                        <Select
-                          value={String(field.value?.getMinutes() ?? 0).padStart(2, '0')}
-                          onValueChange={(m) => {
-                            const newDate = field.value || new Date();
-                            newDate.setMinutes(Number(m));
-                            field.onChange(new Date(newDate));
-                          }}
-                        >
-                          <SelectTrigger className="h-10 rounded-xl border-white/10 bg-background/80"><SelectValue /></SelectTrigger>
-                          <SelectContent position="popper" className="max-h-48">
-                            {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                        {timeFormat === '12h' && (
-                          <Select
-                            value={field.value && field.value.getHours() >= 12 ? 'pm' : 'am'}
-                            onValueChange={(val) => {
-                              const newDate = field.value || new Date();
-                              const currentHour = newDate.getHours();
-                              if (val === 'pm' && currentHour < 12) {
-                                newDate.setHours(currentHour + 12);
-                              } else if (val === 'am' && currentHour >= 12) {
-                                newDate.setHours(currentHour - 12);
-                              }
-                              field.onChange(new Date(newDate));
-                            }}
-                          >
-                            <SelectTrigger className="h-10 rounded-xl border-white/10 bg-background/80"><SelectValue /></SelectTrigger>
-                            <SelectContent position="popper">
-                              <SelectItem value="am">AM</SelectItem>
-                              <SelectItem value="pm">PM</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        )}
+                          initialFocus
+                        />
+                        <div className="space-y-3 border-t bg-muted/10 p-3 sm:w-[13.5rem] sm:border-l sm:border-t-0">
+                          {expirationControls(field)}
                         </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-9 rounded-xl border-white/10 bg-background/70 text-xs font-semibold"
-                            onClick={() => {
-                              const current = field.value || new Date();
-                              const next = new Date(current);
-                              next.setHours(9, 0, 0, 0);
-                              field.onChange(next);
-                            }}
-                          >
-                            9 AM
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-9 rounded-xl border-white/10 bg-background/70 text-xs font-semibold"
-                            onClick={() => {
-                              const current = field.value || new Date();
-                              const next = new Date(current);
-                              next.setHours(13, 0, 0, 0);
-                              field.onChange(next);
-                            }}
-                          >
-                            1 PM
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-9 rounded-xl border-white/10 bg-background/70 text-xs font-semibold"
-                            onClick={() => {
-                              const current = field.value || new Date();
-                              const next = new Date(current);
-                              next.setHours(18, 0, 0, 0);
-                              field.onChange(next);
-                            }}
-                          >
-                            6 PM
-                          </Button>
-                        </div>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+                      </PopoverContent>
+                    </Popover>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
@@ -439,7 +696,7 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
           )}
         </div>
 
-        <div className="border-t border-white/10 bg-muted/10 px-5 py-4 sm:px-6">
+        <div className="border-t border-white/10 bg-muted/10 px-4 py-4 sm:px-6">
           <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
             <Button type="button" variant="destructive" onClick={handleDelete} disabled={isPending || !task.reminder} className="h-11 w-full rounded-2xl sm:w-auto">
               {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
@@ -464,8 +721,9 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
     return (
       <Sheet open={isOpen} onOpenChange={onOpenChange}>
         <SheetContent
-          side="bottom"
-          className="flex max-h-[min(92dvh,52rem)] flex-col rounded-t-[2rem] border-white/10 bg-background/98 p-0 shadow-[0_-24px_80px_-34px_rgba(0,0,0,0.9)] backdrop-blur-xl"
+          side="right"
+          hideClose
+          className="flex h-[100dvh] w-[min(100vw-0.5rem,32rem)] max-w-none flex-col rounded-l-[1.75rem] border-white/10 bg-background/98 p-0 shadow-[-24px_0_80px_-34px_rgba(0,0,0,0.85)] backdrop-blur-xl"
         >
           {content}
         </SheetContent>

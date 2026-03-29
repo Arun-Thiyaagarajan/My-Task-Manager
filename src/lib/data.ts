@@ -1434,6 +1434,9 @@ export function deleteGeneralReminder(id: string): boolean {
 export function clearExpiredReminders(): { updatedTaskIds: string[], unpinnedTaskIds: string[] } {
     const data = getAppData();
     const companyId = getActiveCompanyId();
+    if (!companyId || !data.companyData?.[companyId]) {
+        return { updatedTaskIds: [], unpinnedTaskIds: [] };
+    }
     const tasks = data.companyData[companyId].tasks;
     const now = new Date();
     const updatedTaskIds: string[] = [];

@@ -35,7 +35,7 @@ function CustomCaption(props: CaptionProps) {
 
   return (
     <div className="space-y-3 px-2 py-1.5">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-0.5">
           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-muted-foreground">Pick Date</p>
           <p className="text-sm font-semibold text-foreground">{format(props.displayMonth, 'MMMM yyyy')}</p>
@@ -43,12 +43,12 @@ function CustomCaption(props: CaptionProps) {
         <button
           type="button"
           onClick={() => goToMonth(today)}
-          className="rounded-full border border-border/60 bg-muted/35 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+          className="w-full rounded-full border border-border/60 bg-muted/35 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground sm:w-auto"
         >
           Today
         </button>
       </div>
-      <div className="flex items-center justify-center gap-3">
+      <div className="flex items-center justify-center gap-2 sm:gap-3">
         <button 
             type="button"
             onClick={() => previousMonth && goToMonth(previousMonth)}
@@ -57,12 +57,12 @@ function CustomCaption(props: CaptionProps) {
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-      <div className="flex justify-center gap-2">
+      <div className="flex min-w-0 flex-1 justify-center gap-2">
         <Select
           value={String(props.displayMonth.getMonth())}
           onValueChange={handleMonthChange}
         >
-          <SelectTrigger className="h-9 w-[126px] rounded-xl border-border/60 bg-background/70 px-3 text-sm font-medium shadow-sm focus:ring-0">
+          <SelectTrigger className="h-9 w-[112px] min-w-0 rounded-xl border-border/60 bg-background/70 px-3 text-sm font-medium shadow-sm focus:ring-0 sm:w-[126px]">
             <SelectValue>{format(props.displayMonth, 'MMMM')}</SelectValue>
           </SelectTrigger>
           <SelectContent className="rounded-2xl border-border/60">
@@ -77,7 +77,7 @@ function CustomCaption(props: CaptionProps) {
           value={String(props.displayMonth.getFullYear())}
           onValueChange={handleYearChange}
         >
-          <SelectTrigger className="h-9 w-[92px] rounded-xl border-border/60 bg-background/70 px-3 text-sm font-medium shadow-sm focus:ring-0">
+          <SelectTrigger className="h-9 w-[84px] min-w-0 rounded-xl border-border/60 bg-background/70 px-3 text-sm font-medium shadow-sm focus:ring-0 sm:w-[92px]">
             <SelectValue>{props.displayMonth.getFullYear()}</SelectValue>
           </SelectTrigger>
           <SelectContent className="max-h-64 rounded-2xl border-border/60">
@@ -120,12 +120,12 @@ function Calendar({
         table: "w-full border-collapse space-y-1.5 flex flex-col items-center",
         head_row: "mb-1 flex",
         head_cell:
-          "text-muted-foreground rounded-md w-10 font-semibold text-[0.72rem] uppercase tracking-[0.18em]",
-        row: "flex w-full mt-1.5",
-        cell: "h-10 w-10 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-xl [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent/80 first:[&:has([aria-selected])]:rounded-l-xl last:[&:has([aria-selected])]:rounded-r-xl focus-within:relative focus-within:z-20",
+          "text-muted-foreground rounded-md w-9 sm:w-10 font-semibold text-[0.68rem] sm:text-[0.72rem] uppercase tracking-[0.16em] sm:tracking-[0.18em]",
+        row: "flex w-full mt-1.5 justify-between",
+        cell: "h-9 w-9 sm:h-10 sm:w-10 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-xl [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent/80 first:[&:has([aria-selected])]:rounded-l-xl last:[&:has([aria-selected])]:rounded-r-xl focus-within:relative focus-within:z-20",
         day: cn(
           buttonVariants({ variant: "ghost" }),
-          "h-10 w-10 rounded-xl p-0 text-sm font-medium aria-selected:opacity-100 hover:bg-accent/70"
+          "h-9 w-9 sm:h-10 sm:w-10 rounded-xl p-0 text-sm font-medium aria-selected:opacity-100 hover:bg-accent/70"
         ),
         day_range_end: "day-range-end",
         day_selected:

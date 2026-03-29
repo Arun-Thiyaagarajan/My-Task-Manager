@@ -644,10 +644,10 @@ export default function TaskPage() {
     }
   };
 
-  const handleReminderSuccess = () => {
-    const updatedTask = getTaskById(taskId);
-    if(updatedTask) {
-        setTask(updatedTask);
+  const handleReminderSuccess = (updatedTask?: Task | null) => {
+    const nextTask = updatedTask ?? getTaskById(taskId);
+    if(nextTask) {
+        setTask(nextTask);
         setTaskLogs(getLogsForTask(taskId));
     }
   };
