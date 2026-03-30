@@ -753,7 +753,7 @@ const handleCopyDescription = () => {
           case 'multiselect':
           case 'tags':
               return Array.isArray(value) ? (
-                  <div className="flex wrap gap-1">
+                  <div className="flex flex-wrap gap-1">
                       {value.map((v: any) => <Badge key={v} variant="secondary">{v}</Badge>)}
                   </div>
               ) : <RichTextViewer text={String(value)} />;
@@ -1643,7 +1643,7 @@ function TaskDetailSection({ title, people, setPersonInView, isDeveloper }: {
   return (
     <div>
         <h4 className="text-sm font-semibold text-muted-foreground mb-2">{title}</h4>
-        <div className="flex wrap gap-4">
+        <div className="flex flex-wrap gap-4">
             {people.length > 0 ? (
                 people.map((person, index) => (
                   <TooltipProvider key={`${isDeveloper ? 'dev' : 'test'}-${person.id}-${index}`}>
