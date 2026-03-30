@@ -81,11 +81,19 @@ export function PullToRefresh({ children }: PullToRefreshProps) {
     window.dispatchEvent(new Event('sync-start'));
 
     try {
-      // Simulate/Wait for data reconciliation
-      await new Promise(resolve => setTimeout(resolve, 1200));
-      
-      window.dispatchEvent(new Event('company-changed'));
-      window.dispatchEvent(new Event('storage'));
+      const completionPromise = new Promise<void>((resolve) => {
+        const handleComplete = () => {
+          window.removeEventListener('taskflow-refresh-finished', handleComplete);
+          resolve();
+        };
+        window.addEventListener('taskflow-refresh-finished', handleComplete, { once: true });
+      });
+
+      window.dispatchEvent(new Event('taskflow-refresh-request'));
+      await Promise.race([
+        completionPromise,
+        new Promise(resolve => setTimeout(resolve, 1200)),
+      ]);
       
     } catch (error) {
       console.error('Refresh failed', error);

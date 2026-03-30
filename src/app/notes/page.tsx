@@ -63,6 +63,7 @@ export default function NotesPage() {
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
   const [noteToEdit, setNoteToEdit] = useState<Partial<Note> | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [isNoteMutationPending, setIsNoteMutationPending] = useState(false);
   const { toast } = useToast();
   const [commandKey, setCommandKey] = useState('Ctrl');
   
@@ -267,13 +268,20 @@ export default function NotesPage() {
   const handleDeleteFromViewer = () => {
     setIsViewerOpen(false);
     if(noteToView) {
-      deleteNote(noteToView.id);
-      toast({
-        variant: 'success',
-        title: 'Note Deleted',
-        description: 'The note has been moved to the bin.',
+      setIsNoteMutationPending(true);
+      requestAnimationFrame(() => {
+        try {
+          deleteNote(noteToView.id);
+          toast({
+            variant: 'success',
+            title: 'Note Deleted',
+            description: 'The note has been moved to the bin.',
+          });
+          refreshData();
+        } finally {
+          setIsNoteMutationPending(false);
+        }
       });
-      refreshData();
     }
   };
 
@@ -282,15 +290,22 @@ export default function NotesPage() {
         toast({ variant: 'destructive', title: 'Cannot save empty note.' });
         return;
     }
-    if (id) {
-        updateNote(id, { title, content });
-        toast({ variant: 'success', title: 'Note Updated' });
-    } else {
-        addNote({ title, content });
-        toast({ variant: 'success', title: 'Note Saved' });
-    }
-    refreshData();
-    setIsEditorOpen(false);
+    setIsNoteMutationPending(true);
+    requestAnimationFrame(() => {
+      try {
+        if (id) {
+            updateNote(id, { title, content });
+            toast({ variant: 'success', title: 'Note Updated' });
+        } else {
+            addNote({ title, content });
+            toast({ variant: 'success', title: 'Note Saved' });
+        }
+        refreshData();
+        setIsEditorOpen(false);
+      } finally {
+        setIsNoteMutationPending(false);
+      }
+    });
   };
   
   const handleResetLayout = () => {
@@ -854,6 +869,7 @@ export default function NotesPage() {
       <NoteEditorDialog 
         note={noteToEdit} 
         isOpen={isEditorOpen}
+        isPending={isNoteMutationPending}
         onOpenChange={(isOpen) => {
             if (!isOpen) {
                 setNoteToEdit(null);

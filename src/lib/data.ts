@@ -14,10 +14,85 @@ import { createId } from './id';
 export const DATA_KEY = 'my_task_manager_data';
 const AUTH_MODE_KEY = 'taskflow_auth_mode';
 const PREFERENCES_KEY = 'taskflow_user_preferences';
+const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
+
+function isQuotaExceededError(error: unknown): boolean {
+    if (!error || typeof error !== 'object') return false;
+    const err = error as DOMException & { code?: number };
+    return (
+        err.name === 'QuotaExceededError' ||
+        err.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+        err.code === 22 ||
+        err.code === 1014
+    );
+}
+
+function getSerializedSizeBytes(value: unknown): number {
+    if (typeof window === 'undefined') return 0;
+    const serialized = JSON.stringify(value);
+    return new TextEncoder().encode(serialized).length;
+}
+
+function isLikelyMobileStorageContext(): boolean {
+    if (typeof window === 'undefined') return false;
+    return 'ontouchstart' in window || window.innerWidth < 768;
+}
+
+function getQuotaExceededMessage() {
+    return isLikelyMobileStorageContext()
+        ? 'This import is too large for mobile local storage. Please use cloud mode or import a smaller file.'
+        : 'Local storage is full. Please clear unused tasks, notes, logs, or switch to cloud mode before importing this file.';
+}
+
+async function assertLocalImportCapacity(nextData: MyTaskManagerData) {
+    if (typeof window === 'undefined' || getAuthMode() === 'authenticate') return;
+
+    const estimatedBytes = getSerializedSizeBytes(nextData);
+    const mobileSoftLimit = 3.5 * 1024 * 1024;
+
+    if (isLikelyMobileStorageContext() && estimatedBytes > mobileSoftLimit) {
+        throw new Error(getQuotaExceededMessage());
+    }
+
+    if (navigator.storage?.estimate) {
+        try {
+            const estimate = await navigator.storage.estimate();
+            if (estimate.quota && estimate.usage) {
+                const remaining = estimate.quota - estimate.usage;
+                const safetyBuffer = 512 * 1024;
+                if (estimatedBytes > Math.max(remaining - safetyBuffer, 0)) {
+                    throw new Error(getQuotaExceededMessage());
+                }
+            }
+        } catch (error) {
+            if (error instanceof Error) {
+                throw error;
+            }
+        }
+    }
+}
 
 // Central In-Memory Cache for Real-time Cloud Data
 let _cloudCache: MyTaskManagerData | null = null;
 let _initialSyncStatus: Record<string, boolean> = {}; // companyId -> status
+
+function sanitizeForFirestore<T>(value: T): T {
+    if (Array.isArray(value)) {
+        return value
+            .map(item => sanitizeForFirestore(item))
+            .filter(item => typeof item !== 'undefined') as T;
+    }
+
+    if (value && typeof value === 'object') {
+        const entries = Object.entries(value as Record<string, unknown>)
+            .filter(([, entryValue]) => typeof entryValue !== 'undefined')
+            .map(([key, entryValue]) => [key, sanitizeForFirestore(entryValue)]);
+
+        return Object.fromEntries(entries) as T;
+    }
+
+    return value;
+}
 
 export function setCloudCache(data: MyTaskManagerData | null) {
     _cloudCache = data;
@@ -120,7 +195,14 @@ export const setAppData = (data: MyTaskManagerData) => {
     if (getAuthMode() === 'authenticate') {
         _cloudCache = data;
     } else {
-        window.localStorage.setItem(DATA_KEY, JSON.stringify(data));
+        try {
+            window.localStorage.setItem(DATA_KEY, JSON.stringify(data));
+        } catch (error) {
+            if (isQuotaExceededError(error)) {
+                throw new Error(getQuotaExceededMessage());
+            }
+            throw error;
+        }
     }
     window.dispatchEvent(new StorageEvent('storage', { key: DATA_KEY }));
 };
@@ -133,6 +215,7 @@ export function getAuthMode(): AuthMode {
 export function setAuthMode(mode: AuthMode) {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(AUTH_MODE_KEY, mode);
+    setCloudCache(null);
     resetInitialSyncStatus();
     window.dispatchEvent(new Event('company-changed'));
 }
@@ -236,7 +319,7 @@ function dispatchMutation(
 
     try {
         const sanitizedPayload = (operation !== 'delete' && payload !== null) 
-            ? JSON.parse(JSON.stringify(payload)) 
+            ? sanitizeForFirestore(payload)
             : payload;
 
         const promise = operation === 'delete' ? deleteDoc(docRef) : 
@@ -447,7 +530,114 @@ function mergeImportedFields(
         .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
 
-function mergeImportedUiConfig(currentUi: UiConfig, parsedJson: any): UiConfig {
+function normalizePersonFieldDefaultValueForExport(
+    field: FieldConfig,
+    people: Person[]
+): FieldConfig {
+    if (!['developers', 'testers'].includes(field.key)) {
+        return field;
+    }
+
+    const idToName = new Map(people.map(person => [person.id, person.name]));
+    const normalizeValue = (value: unknown) => {
+        if (Array.isArray(value)) {
+            return value.map(item => {
+                if (typeof item !== 'string') return item;
+                return idToName.get(item) || item;
+            });
+        }
+
+        if (typeof value === 'string') {
+            return idToName.get(value) || value;
+        }
+
+        return value;
+    };
+
+    return {
+        ...field,
+        defaultValue: normalizeValue(field.defaultValue),
+    };
+}
+
+export function prepareUiFieldsForExport(
+    fields: FieldConfig[],
+    developers: Person[],
+    testers: Person[]
+): FieldConfig[] {
+    return fields.map(field => {
+        if (field.key === 'developers') {
+            return normalizePersonFieldDefaultValueForExport(field, developers);
+        }
+
+        if (field.key === 'testers') {
+            return normalizePersonFieldDefaultValueForExport(field, testers);
+        }
+
+        return field;
+    });
+}
+
+export function prepareUiFieldsForImport(
+    fields: FieldConfig[],
+    developers: Person[],
+    testers: Person[]
+): FieldConfig[] {
+    return fields.map(field => {
+        if (field.key === 'developers') {
+            return normalizeImportedPersonFieldDefaultValue(field, developers);
+        }
+
+        if (field.key === 'testers') {
+            return normalizeImportedPersonFieldDefaultValue(field, testers);
+        }
+
+        return field;
+    });
+}
+
+function normalizeImportedPersonFieldDefaultValue(
+    field: FieldConfig,
+    people: Person[]
+): FieldConfig {
+    if (!['developers', 'testers'].includes(field.key)) {
+        return field;
+    }
+
+    const nameToId = new Map(people.map(person => [person.name.trim().toLowerCase(), person.id]));
+    const validIds = new Set(people.map(person => person.id));
+
+    const normalizeValue = (value: unknown) => {
+        if (Array.isArray(value)) {
+            return value
+                .map(item => {
+                    if (typeof item !== 'string') return undefined;
+                    if (validIds.has(item)) return item;
+                    return nameToId.get(item.trim().toLowerCase());
+                })
+                .filter((item): item is string => !!item);
+        }
+
+        if (typeof value === 'string') {
+            if (validIds.has(value)) return value;
+            return nameToId.get(value.trim().toLowerCase()) || value;
+        }
+
+        return value;
+    };
+
+    return {
+        ...field,
+        defaultValue: normalizeValue(field.defaultValue),
+    };
+}
+
+function mergeImportedUiConfig(
+    currentUi: UiConfig,
+    parsedJson: any,
+    currentDevelopers: Person[] = [],
+    currentTesters: Person[] = []
+): UiConfig {
     const mergedRepositoryConfigs = [...currentUi.repositoryConfigs];
     const importedRepositoryConfigs = Array.isArray(parsedJson.repositoryConfigs) ? parsedJson.repositoryConfigs : [];
     importedRepositoryConfigs.forEach((repo: any) => {
@@ -486,6 +676,14 @@ function mergeImportedUiConfig(currentUi: UiConfig, parsedJson: any): UiConfig {
                 ...field,
                 options: mergedEnvironments.map(environment => ({ id: environment.id, value: environment.name, label: environment.name })),
             };
+        }
+
+        if (field.key === 'developers') {
+            return normalizeImportedPersonFieldDefaultValue(field, currentDevelopers);
+        }
+
+        if (field.key === 'testers') {
+            return normalizeImportedPersonFieldDefaultValue(field, currentTesters);
         }
 
         return field;
@@ -1236,6 +1434,9 @@ export function deleteGeneralReminder(id: string): boolean {
 export function clearExpiredReminders(): { updatedTaskIds: string[], unpinnedTaskIds: string[] } {
     const data = getAppData();
     const companyId = getActiveCompanyId();
+    if (!companyId || !data.companyData?.[companyId]) {
+        return { updatedTaskIds: [], unpinnedTaskIds: [] };
+    }
     const tasks = data.companyData[companyId].tasks;
     const now = new Date();
     const updatedTaskIds: string[] = [];
@@ -1254,6 +1455,16 @@ export function clearExpiredReminders(): { updatedTaskIds: string[], unpinnedTas
     });
     if (updatedTaskIds.length > 0) {
         setAppData(data);
+        if (typeof window !== 'undefined' && unpinnedTaskIds.length > 0) {
+            try {
+                const storedPinnedIds = JSON.parse(window.localStorage.getItem(PINNED_TASKS_STORAGE_KEY) || '[]') as string[];
+                const nextPinnedIds = storedPinnedIds.filter(id => !unpinnedTaskIds.includes(id));
+                window.localStorage.setItem(PINNED_TASKS_STORAGE_KEY, JSON.stringify(nextPinnedIds));
+            } catch {
+                window.localStorage.removeItem(PINNED_TASKS_STORAGE_KEY);
+            }
+        }
+        window.dispatchEvent(new Event('reminders-expired'));
     }
     return { updatedTaskIds, unpinnedTaskIds };
 }
@@ -1756,7 +1967,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
         timestamp: l.timestamp || new Date().toISOString()
     }));
 
-    const totalOperations = processedTasks.length + processedNotes.length + processedLogs.length + 3;
+    const totalOperations = Math.max(processedTasks.length + processedNotes.length + processedLogs.length + 4, 6);
     let completedOps = 0;
     const bumpProgress = () => {
         completedOps++;
@@ -1772,8 +1983,8 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             await setDoc(doc(db, companyBase, 'people', 'testers'), { list: currentTesters });
             bumpProgress();
 
-            const currentUi = mergeImportedUiConfig(getUiConfig(), parsedJson);
-            await setDoc(doc(db, companyBase, 'settings', 'uiConfig'), currentUi);
+            const currentUi = mergeImportedUiConfig(getUiConfig(), parsedJson, currentDevs, currentTesters);
+            await setDoc(doc(db, companyBase, 'settings', 'uiConfig'), sanitizeForFirestore(currentUi));
             bumpProgress();
 
             const importInBatches = async (items: any[], collectionName: 'tasks' | 'notes' | 'logs') => {
@@ -1784,19 +1995,19 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
                         const id = item.id;
                         if (!id) return; 
                         
-                        const sanitizedItem = JSON.parse(JSON.stringify(item));
+                        const sanitizedItem = sanitizeForFirestore(item);
                         batch.set(doc(db, companyBase, collectionName, id), sanitizedItem);
                         
                         if (collectionName === 'tasks') {
                             const logId = createId('log-');
-                            const logEntry = JSON.parse(JSON.stringify({
+                            const logEntry = sanitizeForFirestore({
                                 id: logId,
                                 timestamp: new Date().toISOString(),
                                 message: `Imported task "**${item.title}**" from external source.`,
                                 taskId: id,
                                 userId: userId,
                                 userName: userName
-                            }));
+                            });
                             batch.set(doc(db, companyBase, 'logs', logId), logEntry);
                         }
                         bumpProgress();
@@ -1813,9 +2024,12 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             const comp = data.companyData[companyId];
             
             comp.developers = currentDevs;
+            bumpProgress();
             comp.testers = currentTesters;
+            bumpProgress();
             
-            comp.uiConfig = mergeImportedUiConfig(comp.uiConfig, parsedJson);
+            comp.uiConfig = mergeImportedUiConfig(comp.uiConfig, parsedJson, currentDevs, currentTesters);
+            bumpProgress();
 
             processedTasks.forEach(newTask => {
                 comp.tasks.unshift(newTask);
@@ -1824,16 +2038,23 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
                     taskId: newTask.id,
                     userName: 'Local User'
                 });
+                bumpProgress();
             });
             
             comp.notes = [...processedNotes, ...comp.notes];
+            processedNotes.forEach(() => bumpProgress());
             comp.logs = [...processedLogs, ...comp.logs];
+            processedLogs.forEach(() => bumpProgress());
 
+            await assertLocalImportCapacity(data);
             setAppData(data);
-            if (onProgress) onProgress(100);
+            bumpProgress();
         }
     } catch (error: any) {
         console.error("Import Sync Failure:", error);
+        if (typeof error?.message === 'string' && error.message.trim()) {
+            throw new Error(error.message);
+        }
         throw new Error("An error occurred while importing. Please try again later.");
     }
     

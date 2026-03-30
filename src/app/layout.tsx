@@ -7,6 +7,12 @@ import { RootLayoutClient } from '@/components/root-layout-client';
 export const metadata: Metadata = {
   title: 'TaskFlow',
   description: 'A sleek and simple task manager',
+  manifest: '/manifest.webmanifest',
+  icons: {
+    icon: '/icon',
+    apple: '/apple-icon',
+    shortcut: '/favicon.ico',
+  },
 };
 
 /**

@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { addNote } from '@/lib/data';
 import { NoteForm } from '@/components/note-form';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 /**
  * Mobile-specific page for creating a new note.
@@ -12,6 +12,7 @@ import { useEffect } from 'react';
 export default function NewNotePage() {
   const router = useRouter();
   const { toast } = useToast();
+  const [isPending, setIsPending] = useState(false);
 
   useEffect(() => {
     window.dispatchEvent(new Event('navigation-end'));
@@ -22,12 +23,17 @@ export default function NewNotePage() {
       toast({ variant: 'destructive', title: 'Cannot save empty note.' });
       return;
     }
-    
-    addNote({ title, content });
-    toast({ variant: 'success', title: 'Note Saved' });
-    
-    window.dispatchEvent(new Event('navigation-start'));
-    router.back();
+    setIsPending(true);
+    requestAnimationFrame(() => {
+      try {
+        addNote({ title, content });
+        toast({ variant: 'success', title: 'Note Saved' });
+        window.dispatchEvent(new Event('navigation-start'));
+        router.back();
+      } finally {
+        setIsPending(false);
+      }
+    });
   };
 
   const handleCancel = () => {
@@ -36,11 +42,12 @@ export default function NewNotePage() {
   };
 
   return (
-    <div className="bg-background min-h-screen">
-        <div className="container max-w-2xl mx-auto py-8 px-6">
+    <div className="bg-background h-[100dvh] overflow-hidden">
+        <div className="container mx-auto flex h-full max-w-2xl flex-col overflow-hidden px-6 py-6 sm:py-8">
             <NoteForm 
                 onSave={handleSave} 
                 onCancel={handleCancel} 
+                isPending={isPending}
                 isPage 
                 submitLabel="Create Note"
             />

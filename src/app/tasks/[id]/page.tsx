@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask, addDeveloper, addTester, getActiveCompanyId, getAuthMode, isInitialSyncComplete } from '@/lib/data';
+import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask, addDeveloper, addTester, getActiveCompanyId, getAuthMode, isInitialSyncComplete, clearExpiredReminders } from '@/lib/data';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -54,7 +54,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { ShareMenu } from '@/components/share-menu';
 import { triggerTransfer } from '@/components/file-transfer-indicator';
 import { Calendar } from '@/components/ui/calendar';
-import { StatusIcon, getSortedStatusNames, getStatusDisplayName, isStatusValue } from '@/lib/status-config';
+import { StatusIcon, getSortedStatusNames, getStatusDisplayName, getStatusStyles, isStatusValue } from '@/lib/status-config';
 import { scheduleStatusUpdate } from '@/lib/status-update';
 import { getTaskRepositories, isRepositoryFieldActive, shouldShowPrLinks } from '@/lib/repository-config';
 
@@ -113,9 +113,23 @@ export default function TaskPage() {
   
   const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
   const taskId = params.id as string;
+  const reminderPreview = useMemo(() => {
+    if (!task?.reminder) return '';
+    return task.reminder
+      .replace(/```[\s\S]*?```/g, ' ')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
+      .replace(/^>\s?/gm, '')
+      .replace(/^[-*+]\s+/gm, '')
+      .replace(/^\d+\.\s+/gm, '')
+      .replace(/[*_~#]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }, [task?.reminder]);
   
   const loadData = () => {
     if (taskId) {
+      clearExpiredReminders();
       const activeCompanyId = getActiveCompanyId();
       const authMode = getAuthMode();
       
@@ -155,10 +169,16 @@ export default function TaskPage() {
     window.addEventListener('storage', loadData);
     window.addEventListener('company-changed', loadData);
     window.addEventListener('sync-complete', loadData);
+    window.addEventListener('reminders-expired', loadData);
+    const reminderExpiryInterval = window.setInterval(() => {
+      loadData();
+    }, 30000);
     return () => {
         window.removeEventListener('storage', loadData);
         window.removeEventListener('company-changed', loadData);
         window.removeEventListener('sync-complete', loadData);
+        window.removeEventListener('reminders-expired', loadData);
+        window.clearInterval(reminderExpiryInterval);
     };
   }, [taskId, isUserLoading]);
 
@@ -624,10 +644,10 @@ export default function TaskPage() {
     }
   };
 
-  const handleReminderSuccess = () => {
-    const updatedTask = getTaskById(taskId);
-    if(updatedTask) {
-        setTask(updatedTask);
+  const handleReminderSuccess = (updatedTask?: Task | null) => {
+    const nextTask = updatedTask ?? getTaskById(taskId);
+    if(nextTask) {
+        setTask(nextTask);
         setTaskLogs(getLogsForTask(taskId));
     }
   };
@@ -955,46 +975,61 @@ const handleCopyDescription = () => {
         )}
         
         {task.reminder && (
-          <Alert className="mb-6 bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/50">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4 flex-1 min-w-0">
-                <BellRing className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-                <div className="flex-1">
-                  <AlertTitle className="text-amber-800 dark:text-amber-200 font-semibold">Reminder Note</AlertTitle>
-                  <AlertDescription className="text-amber-700 dark:text-amber-300 font-normal">
-                    <RichTextViewer text={task.reminder} />
-                    {task.reminderExpiresAt && (
-                      <span className="block text-xs italic mt-1 text-amber-600 dark:text-amber-400 font-medium">
-                        (Expires {formatTimestamp(task.reminderExpiresAt, uiConfig.timeFormat)})
-                      </span>
-                    )}
-                  </AlertDescription>
-                </div>
+          <div className="mb-5 md:mb-6">
+            <div className="group flex items-center gap-3 rounded-2xl border border-amber-500/20 bg-[linear-gradient(135deg,rgba(245,158,11,0.13),rgba(245,158,11,0.07))] px-3.5 py-3 shadow-[0_18px_36px_-30px_rgba(245,158,11,0.6)] backdrop-blur-sm md:px-4 md:py-3.5">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/12 text-amber-600 dark:text-amber-300 ring-1 ring-amber-500/15">
+                <BellRing className="h-4.5 w-4.5" />
               </div>
-              {!isBinned && (
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-600 hover:bg-amber-100 hover:text-amber-800 dark:text-amber-400 dark:hover:bg-amber-900/40 dark:hover:text-amber-300">
-                          <Trash2 className="h-4 w-4" />
-                          <span className="sr-only">Remove reminder</span>
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle className="font-semibold">Remove Reminder?</AlertDialogTitle>
-                            <AlertDialogDescription className="font-normal">
-                                This will permanently remove the reminder note from this task.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel className="font-medium">Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleRemoveReminder} className="font-semibold bg-destructive hover:bg-destructive/90">Remove</AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="text-[11px] font-black uppercase tracking-[0.2em] text-amber-700/80 dark:text-amber-200/85">
+                    Reminder Note
+                  </span>
+                  {task.reminderExpiresAt && (
+                    <span className="rounded-full bg-amber-500/12 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
+                      Expires {formatTimestamp(task.reminderExpiresAt, uiConfig.timeFormat)}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 line-clamp-2 text-sm font-medium leading-6 text-amber-950/85 dark:text-amber-100/95 md:line-clamp-1">
+                  {reminderPreview || 'Reminder added for this task.'}
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 rounded-xl px-3 text-amber-700 hover:bg-amber-500/10 hover:text-amber-800 dark:text-amber-300 dark:hover:bg-amber-500/10 dark:hover:text-amber-200"
+                  onClick={() => setIsReminderOpen(true)}
+                >
+                  <BellRing className="mr-1.5 h-4 w-4" />
+                  Edit
+                </Button>
+                {!isBinned && (
+                  <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-amber-700 hover:bg-amber-500/10 hover:text-amber-800 dark:text-amber-300 dark:hover:bg-amber-500/10 dark:hover:text-amber-200">
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Remove reminder</span>
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                          <AlertDialogHeader>
+                              <AlertDialogTitle className="font-semibold">Remove Reminder?</AlertDialogTitle>
+                              <AlertDialogDescription className="font-normal">
+                                  This will permanently remove the reminder note from this task.
+                              </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                              <AlertDialogCancel className="font-medium">Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={handleRemoveReminder} className="font-semibold bg-destructive hover:bg-destructive/90">Remove</AlertDialogAction>
+                          </AlertDialogFooter>
+                      </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </div>
             </div>
-          </Alert>
+          </div>
         )}
 
 
@@ -1048,22 +1083,50 @@ const handleCopyDescription = () => {
                         {!isBinned && <FavoriteToggleButton taskId={task.id} isFavorite={!!task.isFavorite} onUpdate={loadData} />}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" disabled={isBinned} className="h-auto p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-100">
+                            <Button
+                              variant="ghost"
+                              disabled={isBinned}
+                              className="h-auto rounded-2xl p-0.5 transition-all duration-200 hover:bg-background/60 hover:shadow-[0_10px_24px_-22px_rgba(15,23,42,0.85)] focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-100 dark:hover:bg-background/35"
+                            >
                               <TaskStatusBadge status={task.status} variant="prominent" uiConfig={uiConfig} className={cn((isStatusSaving || justUpdatedStatus === task.status) && 'animate-status-in', isStatusSaving && 'opacity-90')} />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel className="font-medium">Set Status</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
+                          <DropdownMenuContent
+                            side="bottom"
+                            align="end"
+                            sideOffset={10}
+                            collisionPadding={12}
+                            className="max-h-[min(24rem,calc(100vh-1.5rem))] w-[min(12.75rem,calc(100vw-0.75rem))] overflow-y-auto no-scrollbar rounded-[1.2rem] border-border/50 bg-background/95 p-1 shadow-[0_24px_70px_-34px_rgba(15,23,42,0.5)] backdrop-blur-xl"
+                          >
+                            <DropdownMenuLabel className="px-2 pt-1 pb-0.5 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">Set Status</DropdownMenuLabel>
+                            <DropdownMenuSeparator className="mx-1 my-1 bg-border/50" />
                             {getSortedStatusNames(uiConfig).map(s => {
                               const currentStatusConfig = getStatusConfig(s, uiConfig);
+                              const currentStatusStyles = getStatusStyles(s, uiConfig);
+                              const isSelectedStatus = getStatusDisplayName(task.status, uiConfig) === s;
                               return (
-                                <DropdownMenuItem key={s} onSelect={() => handleStatusChange(s)} className="font-normal">
+                                <DropdownMenuItem
+                                  key={s}
+                                  onSelect={() => handleStatusChange(s)}
+                                  className="rounded-lg px-2 py-1.5 font-normal focus:bg-transparent dark:focus:bg-transparent"
+                                  style={isSelectedStatus ? {
+                                    backgroundColor: currentStatusStyles.defaultStyle.backgroundColor,
+                                    color: currentStatusStyles.defaultStyle.color,
+                                  } : undefined}
+                                >
                                   <div className="flex items-center gap-2">
-                                    <StatusIcon status={s} uiConfig={uiConfig} className={cn("h-3 w-3", currentStatusConfig.shouldSpin && 'animate-spin')} />
-                                    <span>{s}</span>
+                                    <div
+                                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[0.75rem]"
+                                      style={{
+                                        backgroundColor: `color-mix(in srgb, ${String(currentStatusStyles.defaultStyle.color)} 18%, rgba(15,23,42,0.38))`,
+                                        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 18px -16px ${String(currentStatusStyles.defaultStyle.color)}`,
+                                      }}
+                                    >
+                                      <StatusIcon status={s} uiConfig={uiConfig} className={cn("h-3.5 w-3.5", currentStatusConfig.shouldSpin && 'animate-spin')} />
+                                    </div>
+                                    <span className="text-[0.95rem] font-medium">{s}</span>
                                   </div>
-                                  {getStatusDisplayName(task.status, uiConfig) === s && <Check className="ml-auto h-4 w-4" />}
+                                  {isSelectedStatus && <Check className="ml-auto h-4 w-4" style={{ color: currentStatusStyles.defaultStyle.color as string }} />}
                                 </DropdownMenuItem>
                               )
                             })}

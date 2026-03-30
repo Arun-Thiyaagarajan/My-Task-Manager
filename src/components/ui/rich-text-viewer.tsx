@@ -92,6 +92,47 @@ const CodeBlock = ({ content }: { content: string }) => {
 
 const regex = /(\*\*(.*?)\*\*|_(.*?)_|~(.*?)~|`(.*?)`|@<(.*?)>|https?:\/\/[^\s<]+|\[(.*?)\]\((.*?)\))/gm;
 
+function renderInlineMarkdown(line: string) {
+  const inlineResult: (string | JSX.Element)[] = [];
+  let lastIndex = 0;
+
+  regex.lastIndex = 0;
+
+  let match;
+  while ((match = regex.exec(line)) !== null) {
+    const [fullMatch, , bold, italic, strike, code, mention, bareLinkOrLinkText, linkUrl] = match;
+    const startIndex = match.index;
+
+    if (startIndex > lastIndex) {
+      inlineResult.push(line.substring(lastIndex, startIndex));
+    }
+
+    if (bold) {
+      inlineResult.push(<strong key={lastIndex} className="font-bold">{bold}</strong>);
+    } else if (italic) {
+      inlineResult.push(<em key={lastIndex} className="italic">{italic}</em>);
+    } else if (strike) {
+      inlineResult.push(<s key={lastIndex}>{strike}</s>);
+    } else if (code) {
+      inlineResult.push(<code key={lastIndex} className="bg-muted text-foreground font-semibold rounded-sm px-1 py-0.5">{code}</code>);
+    } else if (mention) {
+      inlineResult.push(<span key={lastIndex} className="bg-primary/10 text-primary font-semibold rounded-sm px-1 py-0.5">@{mention}</span>);
+    } else if (linkUrl !== undefined) {
+      inlineResult.push(<a href={linkUrl} key={lastIndex} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{bareLinkOrLinkText}</a>);
+    } else if (fullMatch.startsWith('http')) {
+      inlineResult.push(<a href={fullMatch} key={lastIndex} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{fullMatch}</a>);
+    }
+
+    lastIndex = startIndex + fullMatch.length;
+  }
+
+  if (lastIndex < line.length) {
+    inlineResult.push(line.substring(lastIndex));
+  }
+
+  return inlineResult;
+}
+
 
 export const RichTextViewer = memo(({ text }: RichTextViewerProps) => {
   const parts = useMemo(() => {
@@ -107,54 +148,76 @@ export const RichTextViewer = memo(({ text }: RichTextViewerProps) => {
         finalResult.push(<CodeBlock key={`code-${sectionIndex}`} content={codeContent} />);
       } else {
         const lines = section.split('\n');
-        lines.forEach((line, lineIndex) => {
-            let lastIndex = 0;
-            const inlineResult: (string | JSX.Element)[] = [];
+        let lineIndex = 0;
 
-            regex.lastIndex = 0;
-            
-            let match;
-            while ((match = regex.exec(line)) !== null) {
-                const [fullMatch, , bold, italic, strike, code, mention, bareLinkOrLinkText, linkUrl] = match;
-                const startIndex = match.index;
+        while (lineIndex < lines.length) {
+            const line = lines[lineIndex];
+            const trimmedStart = line.trimStart();
+            const isBlockQuote = trimmedStart.startsWith('> ');
+            const bulletMatch = trimmedStart.match(/^-\s+(.+)$/);
+            const numberedMatch = trimmedStart.match(/^\d+\.\s+(.+)$/);
 
-                if (startIndex > lastIndex) {
-                    inlineResult.push(line.substring(lastIndex, startIndex));
+            if (!isBlockQuote && (bulletMatch || numberedMatch)) {
+              const listItems: string[] = [];
+              const isOrdered = !!numberedMatch;
+
+              while (lineIndex < lines.length) {
+                const currentLine = lines[lineIndex].trimStart();
+                const currentBulletMatch = currentLine.match(/^-\s+(.+)$/);
+                const currentNumberedMatch = currentLine.match(/^\d+\.\s+(.+)$/);
+
+                if (isOrdered) {
+                  if (!currentNumberedMatch) break;
+                  listItems.push(currentNumberedMatch[1]);
+                } else {
+                  if (!currentBulletMatch) break;
+                  listItems.push(currentBulletMatch[1]);
                 }
 
-                if (bold) {
-                    inlineResult.push(<strong key={lastIndex} className="font-bold">{bold}</strong>);
-                } else if (italic) {
-                    inlineResult.push(<em key={lastIndex} className="italic">{italic}</em>);
-                } else if (strike) {
-                    inlineResult.push(<s key={lastIndex}>{strike}</s>);
-                } else if (code) {
-                    inlineResult.push(<code key={lastIndex} className="bg-muted text-foreground font-semibold rounded-sm px-1 py-0.5">{code}</code>);
-                } else if (mention) {
-                    inlineResult.push(<span key={lastIndex} className="bg-primary/10 text-primary font-semibold rounded-sm px-1 py-0.5">@{mention}</span>);
-                } else if (linkUrl !== undefined) {
-                    inlineResult.push(<a href={linkUrl} key={lastIndex} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{bareLinkOrLinkText}</a>);
-                } else if (fullMatch.startsWith('http')) {
-                    inlineResult.push(<a href={fullMatch} key={lastIndex} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{fullMatch}</a>);
-                }
-                
-                lastIndex = startIndex + fullMatch.length;
+                lineIndex++;
+              }
+
+              const ListTag = isOrdered ? 'ol' : 'ul';
+              finalResult.push(
+                <ListTag
+                  key={`list-${sectionIndex}-${lineIndex}`}
+                  className={cn(
+                    "my-3 space-y-1.5 pl-6 text-foreground/95",
+                    isOrdered ? "list-decimal" : "list-disc"
+                  )}
+                >
+                  {listItems.map((item, itemIndex) => (
+                    <li key={`list-item-${sectionIndex}-${lineIndex}-${itemIndex}`} className="pl-1 marker:text-primary/80">
+                      {renderInlineMarkdown(item)}
+                    </li>
+                  ))}
+                </ListTag>
+              );
+              continue;
             }
 
-            if (lastIndex < line.length) {
-                inlineResult.push(line.substring(lastIndex));
-            }
+            const inlineResult = renderInlineMarkdown(isBlockQuote ? trimmedStart.slice(2) : line);
             
-            if (inlineResult.length > 0) {
+            if (inlineResult.length > 0 || isBlockQuote) {
                 finalResult.push(
-                  <div key={`line-${sectionIndex}-${lineIndex}`} className={lines.length > 1 && line.trim() === '' ? 'h-4' : ''}>
+                  isBlockQuote ? (
+                    <blockquote
+                      key={`line-${sectionIndex}-${lineIndex}`}
+                      className="my-2 rounded-r-2xl border-l-4 border-primary/50 bg-primary/5 px-4 py-2 text-foreground/90 italic shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
+                    >
                       {inlineResult}
-                  </div>
+                    </blockquote>
+                  ) : (
+                    <div key={`line-${sectionIndex}-${lineIndex}`} className={lines.length > 1 && line.trim() === '' ? 'h-4' : ''}>
+                        {inlineResult}
+                    </div>
+                  )
                 );
             } else if (lines.length > 1) { // Render empty lines
                 finalResult.push(<div key={`line-${sectionIndex}-${lineIndex}`} className="h-4" />);
             }
-        });
+            lineIndex++;
+        }
       }
     });
 

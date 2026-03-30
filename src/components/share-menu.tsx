@@ -28,7 +28,7 @@ import {
 import { generateTaskPdf } from '@/lib/share-utils';
 import type { Task, UiConfig, Person, Attachment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { addLog } from '@/lib/data';
+import { addLog, prepareUiFieldsForExport } from '@/lib/data';
 import LZString from 'lz-string';
 import { triggerTransfer } from './file-transfer-indicator';
 
@@ -175,7 +175,7 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
     const exportData = {
         appName: uiConfig.appName,
         appIcon: uiConfig.appIcon,
-        fields: uiConfig.fields,
+        fields: prepareUiFieldsForExport(uiConfig.fields, developers, testers),
         repositoryConfigs: uiConfig.repositoryConfigs,
         environments: uiConfig.environments,
         statusConfigs: uiConfig.statusConfigs || [],

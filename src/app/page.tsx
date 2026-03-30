@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { getTasks, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addTagsToMultipleTasks, addEnvironment, DATA_KEY, getAuthMode, importWorkspaceData, getUserPreferences, updateUserPreferences, isInitialSyncComplete, getActiveCompanyId, findExistingDuplicates } from '@/lib/data';
+import { getTasks, addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, moveMultipleTasksToBin, getBinnedTasks, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addTagsToMultipleTasks, addEnvironment, DATA_KEY, getAuthMode, importWorkspaceData, getUserPreferences, updateUserPreferences, isInitialSyncComplete, getActiveCompanyId, findExistingDuplicates, prepareUiFieldsForExport } from '@/lib/data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -115,9 +117,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { isRepositoryFieldActive } from '@/lib/repository-config';
 import { openGlobalSpotlightSearch } from '@/components/global-spotlight-search';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { TasksCalendarView } from '@/components/tasks-calendar-view';
 
 type ViewMode = 'grid' | 'table';
-type DateView = 'all' | 'monthly' | 'yearly';
+type DateView = 'all' | 'monthly' | 'calendar' | 'yearly';
 
 const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
 const LAST_BACKUP_KEY = 'taskflow_last_auto_backup';
@@ -187,6 +190,7 @@ export default function Home() {
   const [searchError, setSearchError] = useState<string | null>(null);
 
   const [importSummary, setImportSummary] = useState<{ importedCount: number; skippedDuplicates: any[] } | null>(null);
+  const importInFlightRef = useRef(false);
 
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   const [filteredBinnedTasks, setFilteredBinnedTasks] = useState<Task[]>([]);
@@ -200,6 +204,18 @@ export default function Home() {
     if (typeof window !== 'undefined') {
       const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
       setSpotlightShortcutKey(isMac ? '⌘' : 'Ctrl');
+
+      try {
+        const storedPinnedIds = window.localStorage.getItem(PINNED_TASKS_STORAGE_KEY);
+        if (storedPinnedIds) {
+          const parsedPinnedIds = JSON.parse(storedPinnedIds);
+          if (Array.isArray(parsedPinnedIds)) {
+            setPinnedTaskIds(parsedPinnedIds.filter((id): id is string => typeof id === 'string'));
+          }
+        }
+      } catch {
+        window.localStorage.removeItem(PINNED_TASKS_STORAGE_KEY);
+      }
     }
     
     const prefs = getUserPreferences();
@@ -274,7 +290,7 @@ export default function Home() {
 
   const handlePreviousDate = useCallback(() => {
       setIsSearching(true);
-      if (dateView === 'monthly') {
+      if (dateView === 'monthly' || dateView === 'calendar') {
           setSelectedDate(subMonths(selectedDate, 1));
       } else if (dateView === 'yearly') {
           setSelectedDate(subYears(selectedDate, 1));
@@ -283,7 +299,7 @@ export default function Home() {
 
   const handleNextDate = useCallback(() => {
       setIsSearching(true);
-      if (dateView === 'monthly') {
+      if (dateView === 'monthly' || dateView === 'calendar') {
           setSelectedDate(addMonths(selectedDate, 1));
       } else if (dateView === 'yearly') {
           setSelectedDate(addYears(selectedDate, 1));
@@ -297,6 +313,7 @@ export default function Home() {
     if (isUserLoading) return;
 
     if (companyId) {
+        clearExpiredReminders();
         setTasks(getTasks());
         setBinnedTasks(getBinnedTasks());
         setDevelopers(getDevelopers());
@@ -334,12 +351,18 @@ export default function Home() {
     window.addEventListener('config-changed', refreshData);
     window.addEventListener('company-changed', refreshData);
     window.addEventListener('sync-complete', refreshData);
+    window.addEventListener('reminders-expired', refreshData);
+    const reminderExpiryInterval = window.setInterval(() => {
+      refreshData();
+    }, 30000);
     
     return () => {
       window.removeEventListener('storage', storageHandler);
       window.removeEventListener('config-changed', refreshData);
       window.removeEventListener('company-changed', refreshData);
       window.removeEventListener('sync-complete', refreshData);
+      window.removeEventListener('reminders-expired', refreshData);
+      window.clearInterval(reminderExpiryInterval);
     };
   }, [refreshData]);
 
@@ -466,16 +489,18 @@ export default function Home() {
 
                 const dateMatch = (() => {
                 if (dateView === 'all') return true;
-                if (dateView === 'monthly') {
-                    if (!task.devStartDate) return false;
-                    const taskDate = new Date(task.devStartDate);
+                if (dateView === 'monthly' || dateView === 'calendar') {
+                    const calendarAnchor = task.devStartDate || task.qaStartDate || task.createdAt;
+                    if (!calendarAnchor) return false;
+                    const taskDate = new Date(calendarAnchor);
                     const start = startOfMonth(selectedDate);
                     const end = endOfMonth(selectedDate);
                     return taskDate >= start && taskDate <= end;
                 }
                 if (dateView === 'yearly') {
-                    if (!task.devStartDate) return false;
-                    const taskDate = new Date(task.devStartDate);
+                    const calendarAnchor = task.devStartDate || task.qaStartDate || task.createdAt;
+                    if (!calendarAnchor) return false;
+                    const taskDate = new Date(calendarAnchor);
                     const start = startOfYear(selectedDate);
                     const end = endOfYear(selectedDate);
                     return taskDate >= start && taskDate <= end;
@@ -623,7 +648,7 @@ export default function Home() {
     const exportData: any = {
         appName: currentUiConfig.appName,
         appIcon: currentUiConfig.appIcon,
-        fields: currentUiConfig.fields,
+        fields: prepareUiFieldsForExport(currentUiConfig.fields, allDevelopers, allTesters),
         repositoryConfigs: currentUiConfig.repositoryConfigs,
         environments: currentUiConfig.environments,
         statusConfigs: currentUiConfig.statusConfigs || [],
@@ -690,6 +715,10 @@ export default function Home() {
   
   const handleDateViewChange = useCallback((mode: DateView) => {
       setIsSearching(true);
+      if (mode === 'calendar') {
+        setIsSelectMode(false);
+        setSelectedTaskIds([]);
+      }
       setDateView(mode);
   }, []);
 
@@ -741,6 +770,11 @@ export default function Home() {
   }, []);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (importInFlightRef.current) {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -765,6 +799,7 @@ export default function Home() {
 
     const reader = new FileReader();
     reader.onload = async (e) => {
+        importInFlightRef.current = true;
         try {
             const text = e.target?.result as string;
             const parsedJson = JSON.parse(text);
@@ -786,11 +821,11 @@ export default function Home() {
                             skippedDuplicates: result.skippedDuplicates 
                         });
                     } else {
-                        toast({ 
-                            variant: 'success', 
-                            title: 'Import Complete', 
-                            description: `Successfully imported ${result.importedCount} tasks.` 
-                        });
+                        // toast({ 
+                        //     variant: 'success', 
+                        //     title: 'Import Complete', 
+                        //     description: `Successfully imported ${result.importedCount} tasks.` 
+                        // });
                     }
                 }
             } catch (error: any) {
@@ -808,10 +843,19 @@ export default function Home() {
             triggerTransfer({ id: transferId, filename: file.name, kind: 'import', status: 'error', progress: 0, error: 'Invalid format' });
             toast({ variant: 'destructive', title: 'Import Failed', description: "The imported file is invalid or corrupted." });
         } finally {
+            importInFlightRef.current = false;
             if(fileInputRef.current) { fileInputRef.current.value = ''; }
             window.dispatchEvent(new Event('sync-end'));
         }
     };
+
+    reader.onerror = () => {
+        importInFlightRef.current = false;
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        window.dispatchEvent(new Event('sync-end'));
+        toast({ variant: 'destructive', title: 'Import Failed', description: 'Unable to read the selected file.' });
+    };
+
     reader.readAsText(file);
   };
   
@@ -1459,16 +1503,20 @@ export default function Home() {
             {uiConfig?.appName && <p className="text-muted-foreground text-sm font-medium">{uiConfig.appName}</p>}
         </div>
         
-        <div className="flex flex-col items-stretch sm:items-center sm:flex-row gap-3 w-full md:w-auto">
+        <div className="flex flex-col items-stretch mb-2 sm:flex-row sm:items-center sm:gap-3 w-full md:w-auto">
             {uiConfig?.remindersEnabled && (pinnedTaskIds.length + generalReminders.length) > 0 && (
               <Button 
                 variant="outline" 
-                className="h-11 border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 hover:text-amber-700 dark:hover:text-amber-300 transition-all w-full sm:w-auto font-medium" 
+                className="h-12 rounded-2xl border-amber-500/25 bg-[linear-gradient(135deg,rgba(245,158,11,0.16),rgba(245,158,11,0.08))] px-4 text-amber-700 shadow-[0_16px_36px_-28px_rgba(245,158,11,0.8)] hover:bg-[linear-gradient(135deg,rgba(245,158,11,0.2),rgba(245,158,11,0.12))] hover:text-amber-800 dark:text-amber-300 dark:hover:text-amber-200 transition-all w-full sm:w-auto justify-between sm:justify-center font-semibold mb-2 sm:mb-0" 
                 onClick={() => setIsReminderStackOpen(true)}
               >
-                <BellRing className="mr-2 h-4 w-4 shrink-0" />
-                 <span className="truncate">Important Reminders</span>
-                <Badge variant="secondary" className="ml-2 bg-amber-500/20 text-amber-700 dark:text-amber-300 border-none shadow-none font-medium">{pinnedTaskIds.length + generalReminders.length}</Badge>
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-500/16 ring-1 ring-amber-500/20">
+                    <BellRing className="h-4 w-4 shrink-0" />
+                  </span>
+                  <span className="truncate">Important Reminders</span>
+                </span>
+                <Badge variant="secondary" className="ml-3 rounded-xl bg-amber-500/18 px-2.5 py-1 text-amber-800 dark:text-amber-200 border-none shadow-none font-semibold">{pinnedTaskIds.length + generalReminders.length}</Badge>
               </Button>
             )}
 
@@ -1482,7 +1530,7 @@ export default function Home() {
                                 variant="outline"
                                 size="sm"
                                 onClick={openGlobalSpotlightSearch}
-                                className="w-full sm:w-auto h-11 font-medium"
+                                className="w-full sm:w-auto h-11 rounded-2xl px-5 font-medium shadow-sm shadow-black/5 transition-all hover:shadow-md hover:shadow-black/10"
                                 aria-label="Open global search"
                             >
                                 <Globe className="mr-2 h-4 w-4" />
@@ -1500,25 +1548,58 @@ export default function Home() {
                 </TooltipProvider>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                    <Button id="home-export-trigger" variant="outline" size="sm" className="w-full sm:w-auto h-11 font-medium">
+                    <Button id="home-export-trigger" variant="outline" size="sm" className="w-full sm:w-auto h-11 rounded-2xl px-5 font-medium shadow-sm shadow-black/5 transition-all hover:shadow-md hover:shadow-black/10">
                         <Download className="mr-2 h-4 w-4" />
                         Export JSON
                     </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => handleExport('current_view')} className="font-normal">Export Current View</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => handleExport('all_tasks')} className="font-normal">Export All Tasks</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={handleDownloadTemplate} className="font-normal">Download Import Template</DropdownMenuItem>
+                    <DropdownMenuContent
+                        align="end"
+                        sideOffset={10}
+                        className="w-[min(24rem,calc(100vw-2rem))] rounded-3xl border-border/60 bg-background/95 p-2 shadow-[0_24px_70px_-32px_rgba(15,23,42,0.55)] backdrop-blur-xl"
+                    >
+                        <DropdownMenuLabel className="px-3 pt-2 pb-1 text-[11px] font-black uppercase tracking-[0.24em] text-muted-foreground">
+                            Export Options
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator className="mx-2 my-2 bg-border/60" />
+                        <DropdownMenuItem
+                            onSelect={() => handleExport('current_view')}
+                            className="group rounded-2xl px-3 py-3.5 focus:bg-primary/8 dark:focus:bg-primary/12"
+                        >
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/15 transition-transform group-focus:scale-[1.03]">
+                                <FolderSearch className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0 space-y-0.5">
+                                <p className="text-sm font-semibold text-foreground">Export current view</p>
+                                <p className="text-xs leading-relaxed text-muted-foreground">
+                                    Download only the tasks matching your current filters and screen context.
+                                </p>
+                            </div>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                            onSelect={() => handleExport('all_tasks')}
+                            className="group rounded-2xl px-3 py-3.5 focus:bg-primary/8 dark:focus:bg-primary/12"
+                        >
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/15 dark:text-emerald-400 transition-transform group-focus:scale-[1.03]">
+                                <FileText className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0 space-y-0.5">
+                                <p className="text-sm font-semibold text-foreground">Export full workspace</p>
+                                <p className="text-xs leading-relaxed text-muted-foreground">
+                                    Save all tasks into one JSON backup for sharing or restoring later.
+                                </p>
+                            </div>
+                        </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
 
-                <Button id="home-import-trigger" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="w-full sm:w-auto h-11 font-medium">
+                <Button id="home-import-trigger" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="w-full sm:w-auto h-11 rounded-2xl px-5 font-medium shadow-sm shadow-black/5 transition-all hover:shadow-md hover:shadow-black/10">
                     <Upload className="mr-2 h-4 w-4" />
                     Import JSON
                 </Button>
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />
                 
-                <Button onClick={handleNavigateNewTask} id="new-task-btn" className="w-full sm:w-auto h-11 shadow-lg font-medium active:scale-95 transition-transform">
+                <Button onClick={handleNavigateNewTask} id="new-task-btn" className="w-full sm:w-auto h-11 rounded-2xl px-6 shadow-[0_12px_30px_-14px_rgba(79,70,229,0.85)] font-medium active:scale-95 transition-all hover:shadow-[0_16px_34px_-14px_rgba(79,70,229,0.95)]">
                     <Plus className="mr-2 h-5 w-5" /> New Task
                 </Button>
             </div>
@@ -1537,10 +1618,43 @@ export default function Home() {
                                   <Download className="h-4 w-4" /> Export JSON
                               </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="center" className="w-[calc(100vw-3rem)]">
-                              <DropdownMenuItem onSelect={() => handleExport('current_view')}>Export Current View</DropdownMenuItem>
-                              <DropdownMenuItem onSelect={() => handleExport('all_tasks')}>Export All Tasks</DropdownMenuItem>
-                              <DropdownMenuItem onSelect={handleDownloadTemplate}>Download Template</DropdownMenuItem>
+                          <DropdownMenuContent
+                              align="center"
+                              sideOffset={10}
+                              className="w-[min(22rem,calc(100vw-1.5rem))] rounded-[1.75rem] border-border/60 bg-background/95 p-2 shadow-[0_22px_60px_-34px_rgba(15,23,42,0.6)] backdrop-blur-xl"
+                          >
+                              <DropdownMenuLabel className="px-3 pt-2 pb-1 text-[10px] font-black uppercase tracking-[0.22em] text-muted-foreground">
+                                  Export Options
+                              </DropdownMenuLabel>
+                              <DropdownMenuSeparator className="mx-2 my-2 bg-border/60" />
+                              <DropdownMenuItem
+                                  onSelect={() => handleExport('current_view')}
+                                  className="group rounded-2xl px-3 py-3 focus:bg-primary/8 dark:focus:bg-primary/12"
+                              >
+                                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/15 transition-transform group-focus:scale-[1.03]">
+                                      <FolderSearch className="h-4 w-4" />
+                                  </div>
+                                  <div className="min-w-0 space-y-0.5">
+                                      <p className="text-sm font-semibold text-foreground">Export current view</p>
+                                      <p className="text-[11px] leading-relaxed text-muted-foreground">
+                                          Save only what you are currently viewing.
+                                      </p>
+                                  </div>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                  onSelect={() => handleExport('all_tasks')}
+                                  className="group rounded-2xl px-3 py-3 focus:bg-primary/8 dark:focus:bg-primary/12"
+                              >
+                                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/15 dark:text-emerald-400 transition-transform group-focus:scale-[1.03]">
+                                      <FileText className="h-4 w-4" />
+                                  </div>
+                                  <div className="min-w-0 space-y-0.5">
+                                      <p className="text-sm font-semibold text-foreground">Export full workspace</p>
+                                      <p className="text-[11px] leading-relaxed text-muted-foreground">
+                                          Download a full JSON backup of your tasks.
+                                      </p>
+                                  </div>
+                              </DropdownMenuItem>
                           </DropdownMenuContent>
                       </DropdownMenu>
                       <Button 
@@ -1616,13 +1730,13 @@ export default function Home() {
                   </div>
 
                   {/* 3. Date navigation (if monthly/yearly) */}
-                  {(dateView === 'monthly' || dateView === 'yearly') && !favoritesOnly && (
+                  {(dateView === 'monthly' || dateView === 'calendar' || dateView === 'yearly') && !favoritesOnly && (
                       <div className="flex items-center justify-between gap-2 w-full px-1">
                           <Button variant="outline" size="icon" onClick={handlePreviousDate} className="h-11 w-11 shrink-0 shadow-sm rounded-xl"><ChevronLeft className="h-5 w-5" /></Button>
                           <Popover>
                               <PopoverTrigger asChild>
                                   <Button variant="outline" className="text-sm font-bold flex-1 h-11 shadow-sm rounded-xl">
-                                      {dateView === 'monthly' ? format(selectedDate, 'MMMM yyyy') : format(selectedDate, 'yyyy')}
+                                      {dateView === 'yearly' ? format(selectedDate, 'yyyy') : format(selectedDate, 'MMMM yyyy')}
                                   </Button>
                               </PopoverTrigger>
                               <PopoverContent className="w-auto p-0" align="center">
@@ -1670,7 +1784,7 @@ export default function Home() {
                                           </Button>
                                       </div>
 
-                                      {dateView === 'monthly' && (
+                                      {(dateView === 'monthly' || dateView === 'calendar') && (
                                           <div className="grid grid-cols-3 gap-2">
                                               {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((month, idx) => (
                                                   <Button
@@ -1707,27 +1821,17 @@ export default function Home() {
                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 mt-0.5 whitespace-nowrap">
                           {favoritesOnly 
                               ? `Showing ${filteredTasks.length} favorited items.` 
-                              : (dateView === 'all' ? 'Based on active filters.' : dateView === 'monthly' ? `Start date in ${format(selectedDate, 'MMM yyyy')}` : `Start date in ${format(selectedDate, 'yyyy')}`)}
+                              : (dateView === 'all' ? 'Based on active filters.' : dateView === 'calendar' ? `Calendar month ${format(selectedDate, 'MMM yyyy')}` : dateView === 'monthly' ? `Start date in ${format(selectedDate, 'MMM yyyy')}` : `Start date in ${format(selectedDate, 'yyyy')}`)}
                       </p>
                   </div>
 
-                  {/* 5. Sort & View toggles row */}
-                  <div className="flex items-center gap-2 w-full px-1 overflow-x-auto no-scrollbar pb-1">
-                      <Select value={sortDescriptor} onValueChange={handleSortChange}>
-                          <SelectTrigger className="flex-1 min-w-[140px] h-11 font-bold rounded-xl shadow-sm"><SelectValue placeholder="Sort by" /></SelectTrigger>
-                          <SelectContent>
-                              <SelectItem value="status-asc" className="font-bold">Status (Asc)</SelectItem>
-                              <SelectItem value="status-desc" className="font-bold">Status (Desc)</SelectItem>
-                              <SelectItem value="title-asc" className="font-bold">Title (A-Z)</SelectItem>
-                              <SelectItem value="title-desc" className="font-bold">Title (Z-A)</SelectItem>
-                          </SelectContent>
-                      </Select>
-
-                      <div className="flex h-11 items-center justify-center rounded-xl bg-muted/50 p-1 border shadow-sm shrink-0">
+                  {/* 5. View toggles row */}
+                  <div className="w-full px-1 pb-1">
+                      <div className="flex h-11 w-full items-center justify-center rounded-xl bg-muted/50 p-1 border shadow-sm">
                           <button
                               onClick={() => handleDateViewChange('all')}
                               className={cn(
-                                  "inline-flex items-center justify-center h-9 px-4 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                                  "inline-flex flex-1 items-center justify-center h-9 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
                                   dateView === 'all' ? "bg-background text-primary shadow-sm" : "text-muted-foreground"
                               )}
                           >
@@ -1736,50 +1840,74 @@ export default function Home() {
                           <button
                               onClick={() => handleDateViewChange('monthly')}
                               className={cn(
-                                  "inline-flex items-center justify-center h-9 px-4 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                                  "inline-flex flex-1 items-center justify-center h-9 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
                                   dateView === 'monthly' ? "bg-background text-primary shadow-sm" : "text-muted-foreground"
                               )}
                           >
                               Monthly
                           </button>
+                          <button
+                              onClick={() => handleDateViewChange('calendar')}
+                              className={cn(
+                                  "inline-flex flex-1 items-center justify-center h-9 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                                  dateView === 'calendar' ? "bg-background text-primary shadow-sm" : "text-muted-foreground"
+                              )}
+                          >
+                              Calendar
+                          </button>
                       </div>
                   </div>
 
-                  {/* 6. Favourites / Select Toggle row */}
+                  {/* 6. Sort / Favourites / Select row */}
                   <div className="flex items-center gap-2 px-1 w-full">
-                      <Button 
-                          variant={favoritesOnly ? 'secondary' : 'outline'} 
-                          size="icon" 
-                          onClick={handleFavoritesToggle} 
-                          className="h-11 w-11 rounded-xl shadow-sm shrink-0"
-                      >
-                          <Heart className={cn("h-5 w-5", favoritesOnly && "fill-red-500 text-red-500")} />
-                      </Button>
 
-                      <Button 
-                          variant={isSelectMode ? 'secondary' : 'outline'} 
-                          onClick={handleToggleSelectMode} 
-                          className={cn(
-                              "flex-1 h-11 rounded-xl shadow-sm transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest",
-                              isSelectMode ? "bg-primary/10 text-primary border-primary/20" : "text-muted-foreground"
-                          )}
-                      >
-                          {isSelectMode ? (
-                              <>
-                                  <X className="h-4 w-4 mr-2" />
-                                  CANCEL
-                              </>
-                          ) : (
-                              <>
-                                  <CheckSquare className="h-4 w-4 mr-2" />
-                                  SELECT MULTIPLE
-                              </>
-                          )}
-                      </Button>
+                      {dateView !== 'calendar' && (
+                        <Button 
+                            variant={favoritesOnly ? 'secondary' : 'outline'} 
+                            size="icon" 
+                            onClick={handleFavoritesToggle} 
+                            className="h-11 w-11 rounded-xl shadow-sm shrink-0"
+                        >
+                            <Heart className={cn("h-5 w-5", favoritesOnly && "fill-red-500 text-red-500")} />
+                        </Button>
+                      )}
+                      
+                      <Select value={sortDescriptor} onValueChange={handleSortChange}>
+                          <SelectTrigger className="flex-1 min-w-0 h-11 font-bold rounded-xl shadow-sm"><SelectValue placeholder="Sort by" /></SelectTrigger>
+                          <SelectContent>
+                              <SelectItem value="status-asc" className="font-bold">Status (Asc)</SelectItem>
+                              <SelectItem value="status-desc" className="font-bold">Status (Desc)</SelectItem>
+                              <SelectItem value="title-asc" className="font-bold">Title (A-Z)</SelectItem>
+                              <SelectItem value="title-desc" className="font-bold">Title (Z-A)</SelectItem>
+                          </SelectContent>
+                      </Select>
+
+                      {dateView !== 'calendar' && (
+                        <Button 
+                            variant={isSelectMode ? 'secondary' : 'outline'} 
+                            onClick={handleToggleSelectMode} 
+                            className={cn(
+                                "h-11 rounded-xl px-3 shadow-sm transition-all active:scale-95 font-black text-[9px] uppercase tracking-[0.18em]",
+                                isSelectMode ? "bg-primary/10 text-primary border-primary/20" : "text-muted-foreground"
+                            )}
+                        >
+                            {isSelectMode ? (
+                                <>
+                                    <X className="h-3.5 w-3.5 mr-1.5" />
+                                    CANCEL
+                                </>
+                            ) : (
+                                <>
+                                    <CheckSquare className="h-3.5 w-3.5 mr-1.5" />
+                                    SELECT MULTIPLE
+                                </>
+                            )}
+                        </Button>
+                      )}
                   </div>
 
                   {/* 6.5 STRICT FIX: Select Multiple actions container (Mobile Only) */}
-                  {isSelectMode && (
+                  {isSelectMode && dateView !== 'calendar' && (
                       <div className="px-1 animate-in slide-in-from-top-2 duration-300">
                           {selectionBarContent}
                       </div>
@@ -1822,13 +1950,13 @@ export default function Home() {
            <div className="flex flex-col gap-4">
                 <div className="hidden md:flex flex-col md:flex-row md:flex-wrap lg:flex-nowrap md:items-center md:justify-between gap-4 md:gap-6">
                     <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-4 md:gap-6">
-                        {(dateView === 'monthly' || dateView === 'yearly') && !favoritesOnly && (
+                        {(dateView === 'monthly' || dateView === 'calendar' || dateView === 'yearly') && !favoritesOnly && (
                             <div className="hidden md:flex items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
                                 <Button variant="outline" size="icon" onClick={handlePreviousDate} className="h-11 w-11 shrink-0 shadow-sm rounded-xl active:scale-95 transition-transform"><ChevronLeft className="h-5 w-5" /></Button>
                                 <Popover>
                                     <PopoverTrigger asChild>
                                         <Button variant="outline" className="text-base font-bold flex-1 sm:w-48 whitespace-nowrap h-11 shadow-sm rounded-xl tracking-tight">
-                                            {dateView === 'monthly' ? format(selectedDate, 'MMMM yyyy') : format(selectedDate, 'yyyy')}
+                                            {dateView === 'yearly' ? format(selectedDate, 'yyyy') : format(selectedDate, 'MMMM yyyy')}
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0" align="start">
@@ -1876,7 +2004,7 @@ export default function Home() {
                                                 </Button>
                                             </div>
 
-                                            {dateView === 'monthly' && (
+                                            {(dateView === 'monthly' || dateView === 'calendar') && (
                                                 <div className="grid grid-cols-3 gap-2">
                                                     {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((month, idx) => (
                                                         <Button
@@ -1938,7 +2066,7 @@ export default function Home() {
                             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mt-0.5 whitespace-nowrap">
                                 {favoritesOnly 
                                     ? `Showing ${filteredTasks.length} favorited items.` 
-                                    : (dateView === 'all' ? 'Based on active filters.' : dateView === 'monthly' ? `Start date in ${format(selectedDate, 'MMM yyyy')}` : `Start date in ${format(selectedDate, 'yyyy')}`)}
+                                    : (dateView === 'all' ? 'Based on active filters.' : dateView === 'calendar' ? `Calendar month ${format(selectedDate, 'MMM yyyy')}` : dateView === 'monthly' ? `Start date in ${format(selectedDate, 'MMM yyyy')}` : `Start date in ${format(selectedDate, 'yyyy')}`)}
                             </p>
                         </div>
                     </div>
@@ -1978,49 +2106,66 @@ export default function Home() {
                                 >
                                     Monthly
                                 </button>
-                            </div>
-
-                            <div className="hidden md:flex h-11 items-center justify-center rounded-xl bg-muted p-1 border shadow-sm">
-                                <Button variant="ghost" size="icon" className={cn("h-9 w-9 rounded-lg", viewMode === 'grid' && 'bg-card text-foreground shadow-sm')} onClick={() => handleViewModeChange('grid')}><LayoutGrid className="h-4 w-4" /></Button>
-                                <Button variant="ghost" size="icon" className={cn("h-9 w-9 rounded-lg", viewMode === 'table' && 'bg-card text-foreground shadow-sm')} onClick={() => handleViewModeChange('table')}><List className="h-4 w-4" /></Button>
-                            </div>
-                            
-                            <div className="hidden md:flex items-center gap-2">
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button 
-                                                variant={favoritesOnly ? 'secondary' : 'outline'} 
-                                                size="icon" 
-                                                onClick={handleFavoritesToggle} 
-                                                className="h-11 w-11 rounded-xl shadow-sm"
-                                            >
-                                                <Heart className={cn("h-5 w-5", favoritesOnly && "fill-red-500 text-red-500")} />
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent className="font-bold"><p>{favoritesOnly ? 'All tasks' : 'Favorites only'}</p></TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-
-                                <Button 
-                                    id="home-select-multiple-trigger"
-                                    variant={isSelectMode ? 'secondary' : 'outline'} 
-                                    size="icon"
-                                    onClick={handleToggleSelectMode} 
+                                <button
+                                    onClick={() => handleDateViewChange('calendar')}
                                     className={cn(
-                                        "h-11 w-11 rounded-xl shadow-sm transition-all active:scale-95",
-                                        isSelectMode ? "bg-primary/10 text-primary border-primary/20" : "text-muted-foreground"
+                                        "flex-1 md:flex-none inline-flex items-center justify-center h-9 px-4 rounded-lg text-xs font-black uppercase tracking-widest transition-all",
+                                        dateView === 'calendar' 
+                                            ? "bg-background text-primary shadow-sm ring-1 ring-black/5" 
+                                            : "text-muted-foreground hover:bg-background/50"
                                     )}
                                 >
-                                    {isSelectMode ? <X className="h-5 w-5" /> : <CheckSquare className="h-5 w-5" />}
-                                </Button>
+                                    Calendar
+                                </button>
+                            </div>
+
+                            {dateView !== 'calendar' && (
+                              <div className="hidden md:flex h-11 items-center justify-center rounded-xl bg-muted p-1 border shadow-sm">
+                                <Button variant="ghost" size="icon" className={cn("h-9 w-9 rounded-lg", viewMode === 'grid' && 'bg-card text-foreground shadow-sm')} onClick={() => handleViewModeChange('grid')}><LayoutGrid className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className={cn("h-9 w-9 rounded-lg", viewMode === 'table' && 'bg-card text-foreground shadow-sm')} onClick={() => handleViewModeChange('table')}><List className="h-4 w-4" /></Button>
+                              </div>
+                            )}
+                            
+                            <div className="hidden md:flex items-center gap-2">
+                                {dateView !== 'calendar' && (
+                                  <TooltipProvider>
+                                      <Tooltip>
+                                          <TooltipTrigger asChild>
+                                              <Button 
+                                                  variant={favoritesOnly ? 'secondary' : 'outline'} 
+                                                  size="icon" 
+                                                  onClick={handleFavoritesToggle} 
+                                                  className="h-11 w-11 rounded-xl shadow-sm"
+                                              >
+                                                  <Heart className={cn("h-5 w-5", favoritesOnly && "fill-red-500 text-red-500")} />
+                                              </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent className="font-bold"><p>{favoritesOnly ? 'All tasks' : 'Favorites only'}</p></TooltipContent>
+                                      </Tooltip>
+                                  </TooltipProvider>
+                                )}
+
+                                {dateView !== 'calendar' && (
+                                  <Button 
+                                      id="home-select-multiple-trigger"
+                                      variant={isSelectMode ? 'secondary' : 'outline'} 
+                                      size="icon"
+                                      onClick={handleToggleSelectMode} 
+                                      className={cn(
+                                          "h-11 w-11 rounded-xl shadow-sm transition-all active:scale-95",
+                                          isSelectMode ? "bg-primary/10 text-primary border-primary/20" : "text-muted-foreground"
+                                      )}
+                                  >
+                                      {isSelectMode ? <X className="h-5 w-5" /> : <CheckSquare className="h-5 w-5" />}
+                                  </Button>
+                                )}
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* DESKTOP/TABLET SELECTION BAR - Positioned below the control row */}
-                {isSelectMode && (
+                {isSelectMode && dateView !== 'calendar' && (
                     <div className="hidden md:block animate-in slide-in-from-top-2 duration-300">
                         {selectionBarContent}
                     </div>
@@ -2032,10 +2177,18 @@ export default function Home() {
                     "transition-all duration-500",
                     isSearching ? "opacity-40 grayscale-[0.5] blur-[0.5px]" : "opacity-100"
                 )}>
-                    {(filteredTasks.length > 0 || filteredBinnedTasks.length > 0 || activeSkeletons) ? (
+                    {(dateView === 'calendar' || filteredTasks.length > 0 || filteredBinnedTasks.length > 0 || activeSkeletons) ? (
                         <div>
-                            {(filteredTasks.length > 0 || activeSkeletons) ? (
-                                viewMode === 'grid' ? (
+                            {(filteredTasks.length > 0 || activeSkeletons || dateView === 'calendar') ? (
+                                dateView === 'calendar' ? (
+                                    <TasksCalendarView
+                                        tasks={filteredTasks}
+                                        selectedDate={selectedDate}
+                                        onSelectedDateChange={setSelectedDate}
+                                        uiConfig={uiConfig}
+                                        currentQueryString={searchParams.toString()}
+                                    />
+                                ) : viewMode === 'grid' ? (
                                     <TasksGrid tasks={filteredTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handlePinToggle} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} isLoading={activeSkeletons} />
                                 ) : (
                                     <TasksTable tasks={filteredTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} isLoading={activeSkeletons} />
