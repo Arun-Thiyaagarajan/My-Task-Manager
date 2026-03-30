@@ -612,7 +612,7 @@ export default function SettingsPage() {
 
   const handleInitiateModeChange = (mode: AuthMode) => {
     if (getAuthMode() === mode) return;
-    if (mode === 'authenticate') setIsAuthModalOpen(true);
+    // if (mode === 'authenticate') setIsAuthModalOpen(true);
     else { setPendingModeChange(mode); setIsModeConfirmOpen(true); }
   };
 
@@ -764,6 +764,29 @@ export default function SettingsPage() {
             previousImageUrl={uiConfig.previousAppIcon} 
             onRestore={handleRestorePreviousIcon} 
         />
+        
+        <AlertDialog open={isModeConfirmOpen} onOpenChange={setIsModeConfirmOpen}>
+            <AlertDialogContent className="rounded-3xl">
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Confirm Mode Switch</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        {pendingModeChange === 'authenticate'
+                            ? "Switching to Cloud Sync will sign you in and load your cloud data. Your local data will be preserved on this device."
+                            : "Switching to Local Storage will sign you out and load local data on this device. Your cloud data will remain safely stored in your account."
+                        }
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="mt-4 gap-3">
+                    <AlertDialogCancel onClick={() => setPendingModeChange(null)}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleConfirmModeChange}>
+                        {pendingModeChange === 'authenticate'
+                            ? "Switch"
+                            : "Logout"
+                        }
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </>
   );
 
