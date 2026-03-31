@@ -320,12 +320,12 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
             <Button
               type="button"
               variant="outline"
-              className="group h-11 w-full rounded-2xl border-border/70 bg-white px-4 text-sm font-semibold text-slate-900 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.55)] transition-all hover:border-slate-300 hover:bg-white hover:text-slate-950 hover:shadow-[0_14px_30px_-18px_rgba(15,23,42,0.6)] dark:bg-white dark:text-slate-900 dark:hover:bg-white active:scale-[0.985]"
+              className="group h-11 w-full rounded-2xl border-border/70 bg-white px-4 text-sm font-semibold text-slate-900 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.55)] transition-all duration-200 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950 hover:shadow-[0_14px_30px_-18px_rgba(15,23,42,0.6)] dark:bg-white dark:text-slate-900 dark:hover:bg-slate-50 active:scale-[0.985]"
               onClick={handleGoogleSignIn}
               disabled={isLoading}
             >
               <span className="flex w-full items-center justify-center gap-3">
-                <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm transition-transform duration-200 group-hover:scale-[1.03]">
                   {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleMark className="h-[18px] w-[18px] shrink-0" />}
                 </span>
                 <span className="tracking-[-0.01em]">Continue with Google</span>
