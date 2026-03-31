@@ -186,6 +186,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   const [draftData, setDraftData] = useState<{ data: any; updatedAt: string } | null>(null);
   const DRAFT_PREFIX = 'taskflow_draft_';
   const draftKey = task?.id ? `${DRAFT_PREFIX}${task.id}` : `${DRAFT_PREFIX}new`;
+  const skipDraftAutosaveRef = useRef(false);
 
   const isJumpingRef = useRef(false);
   const jumpTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -268,9 +269,11 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   // Auto-save draft logic
   const watchedValues = form.watch();
   useEffect(() => {
+    if (skipDraftAutosaveRef.current) return;
     if (!isDirty) return;
     
     const timer = setTimeout(() => {
+        if (skipDraftAutosaveRef.current) return;
         localStorage.setItem(draftKey, JSON.stringify({
             data: watchedValues,
             updatedAt: new Date().toISOString()
@@ -283,6 +286,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   const restoreDraft = () => {
     if (!draftData) return;
     
+    skipDraftAutosaveRef.current = true;
     const restored = { ...(draftData.data || draftData) };
     restored.devStartDate = safeParseDate(restored.devStartDate);
     restored.devEndDate = safeParseDate(restored.devEndDate);
@@ -299,6 +303,10 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     
     form.reset(restored);
     setShowDraftPrompt(false);
+    setDraftData(null);
+    window.setTimeout(() => {
+      skipDraftAutosaveRef.current = false;
+    }, 0);
     toast({ 
         variant: 'default', 
         title: 'Draft Restored', 
@@ -307,8 +315,13 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   };
 
   const discardDraft = () => {
+    skipDraftAutosaveRef.current = true;
     localStorage.removeItem(draftKey);
     setShowDraftPrompt(false);
+    setDraftData(null);
+    window.setTimeout(() => {
+      skipDraftAutosaveRef.current = false;
+    }, 0);
     toast({ title: 'Draft discarded' });
   };
   
@@ -504,8 +517,11 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     }
 
     startTransition(() => {
+        skipDraftAutosaveRef.current = true;
         setIsDirty(false);
         localStorage.removeItem(draftKey);
+        setDraftData(null);
+        setShowDraftPrompt(false);
         onSubmit(normalizedData as TaskFormData);
     });
   };
@@ -518,6 +534,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     if (!uiConfig) return;
 
     form.reset(getInitialTaskData(undefined, uiConfig));
+    skipDraftAutosaveRef.current = true;
     localStorage.removeItem(draftKey);
     setShowDraftPrompt(false);
     setDraftData(null);
@@ -528,6 +545,9 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
       title: 'Form cleared',
       description: 'All fields have been reset to their default values.',
     });
+    window.setTimeout(() => {
+      skipDraftAutosaveRef.current = false;
+    }, 0);
   }, [uiConfig, form, draftKey, toast]);
 
   useEffect(() => {
@@ -703,7 +723,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                         onChange={field.onChange}
                         options={getFieldOptions(fieldConfig)}
                         placeholder={`Select ${label}...`}
-                        maxVisible={Infinity}
                         className="font-normal"
                     />
                 );
@@ -718,7 +737,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                         options={getFieldOptions(fieldConfig)}
                         placeholder={`Add ${label}...`}
                         creatable
-                        maxVisible={Infinity}
                         className="font-normal"
                         {...(isDeveloperField && { onCreate: handleCreateDeveloper })}
                         {...(isTesterField && { onCreate: handleCreateTester })}

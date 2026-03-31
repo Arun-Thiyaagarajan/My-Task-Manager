@@ -55,6 +55,15 @@ export const MultiSelect = React.memo(function MultiSelect({
   const [isOpen, setIsOpen] = React.useState(false);
   const [isListOpen, setIsListOpen] = React.useState(false);
   const [query, setQuery] = React.useState('');
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const frame = window.requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [isOpen]);
   
   const safeSelected = Array.isArray(selected) ? selected : [];
 
@@ -166,8 +175,10 @@ export const MultiSelect = React.memo(function MultiSelect({
                     <Button 
                         variant="secondary" 
                         size="sm" 
+                        type="button"
                         className="h-6 px-2 text-[10px] font-bold text-primary hover:bg-primary/10 border-primary/20 bg-primary/5"
                         onClick={(e) => {
+                            e.preventDefault();
                             e.stopPropagation();
                             setIsListOpen(true);
                         }}
@@ -179,13 +190,13 @@ export const MultiSelect = React.memo(function MultiSelect({
             </div>
         </PopoverTrigger>
         <PopoverContent 
-            className="w-[300px] p-0" 
+            className="w-[300px] overflow-hidden rounded-2xl border-border/70 p-0 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.35)]" 
             align="start"
             onOpenAutoFocus={(e) => e.preventDefault()}
             onPointerDownCapture={(e) => e.stopPropagation()}
         >
             <Command onKeyDown={handleKeyDown} className={cn('overflow-visible bg-transparent', className)}>
-                <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
+                <div className="flex items-center border-b border-border/60 bg-muted/20 px-3" cmdk-input-wrapper="">
                     <CommandPrimitive.Input
                         ref={inputRef}
                         value={query}
@@ -209,6 +220,7 @@ export const MultiSelect = React.memo(function MultiSelect({
                                     <Button
                                         variant="ghost"
                                         size="sm"
+                                        type="button"
                                         className="p-0 h-auto text-[10px] font-bold text-muted-foreground hover:text-destructive"
                                         onClick={(e) => {
                                             e.preventDefault();
@@ -226,6 +238,7 @@ export const MultiSelect = React.memo(function MultiSelect({
                                         <Button 
                                         variant="ghost" 
                                         size="icon" 
+                                        type="button"
                                         className="h-6 w-6 opacity-0 group-hover/item:opacity-100 transition-opacity" 
                                         onClick={(e) => handleUnselect(e, value)}
                                         >
@@ -313,6 +326,7 @@ export const MultiSelect = React.memo(function MultiSelect({
                     <Button
                         variant="outline"
                         size="sm"
+                        type="button"
                         className="text-xs text-destructive hover:bg-destructive/10 h-10 px-4 rounded-xl"
                         onClick={() => {
                             onChange([]);
@@ -322,7 +336,7 @@ export const MultiSelect = React.memo(function MultiSelect({
                         Clear All
                     </Button>
                     <DialogClose asChild>
-                        <Button className="h-10 px-6 rounded-xl font-bold">Done</Button>
+                        <Button type="button" className="h-10 px-6 rounded-xl font-bold">Done</Button>
                     </DialogClose>
                 </div>
             </DialogContent>
