@@ -1207,7 +1207,7 @@ export default function Home() {
                 }}
                 onKeyDown={handleSearchKeyDown}
                 className={cn(
-                    "w-full pl-10 pr-24 h-11 font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40",
+                    "w-full pl-10 pr-16 h-11 font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40",
                     executedSearchQuery && "border-primary/40 bg-primary/5 shadow-sm"
                 )}
             />

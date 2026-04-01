@@ -529,7 +529,7 @@ export default function DashboardPage() {
         <div className="absolute right-[-5rem] top-20 h-56 w-56 rounded-full bg-emerald-500/10 blur-3xl" />
         <div className="absolute bottom-10 left-1/3 h-44 w-44 rounded-full bg-violet-500/10 blur-3xl" />
       </div>
-      <div className="container relative mx-auto max-w-7xl space-y-5 px-3 py-4 sm:space-y-6 sm:px-6 sm:py-6 lg:px-8">
+      <div className="container relative mx-auto max-w-7xl space-y-5 px-3 pb-4 pt-6 sm:space-y-6 sm:px-6 sm:pb-6 sm:pt-8 lg:px-8">
         <div className="grid gap-4 xl:grid-cols-[1.55fr_1fr]">
           <Card className="overflow-hidden border-primary/15 bg-gradient-to-br from-primary/[0.10] via-background to-chart-2/10 shadow-xl backdrop-blur-sm">
             <CardContent className="p-5 sm:p-7">

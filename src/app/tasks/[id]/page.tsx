@@ -942,7 +942,7 @@ const handleCopyDescription = () => {
 
   return (
     <>
-      <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <div className="container mx-auto px-4 pb-8 pt-10 sm:px-6 sm:pt-12 lg:px-8">
         <div className="flex flex-row justify-between items-center mb-6">
           <Button 
             onClick={handleNavigateBack} 
@@ -953,7 +953,7 @@ const handleCopyDescription = () => {
               isMobile ? "rounded-full" : "pl-1"
             )}
           >
-              <ArrowLeft className={cn("h-4 w-4", !isMobile && "mr-2")} />
+              <ArrowLeft className={cn("h-4 w-4", !isMobile && "mx-2")} />
               {!isMobile && "Back"}
           </Button>
           {isBinned ? (
