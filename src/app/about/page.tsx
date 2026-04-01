@@ -24,7 +24,7 @@ import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useFirebase } from '@/firebase';
 
-const SECTION_CARD_CLASSNAME = 'border-none shadow-xl bg-card rounded-2xl sm:rounded-[2.5rem] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500';
+const SECTION_CARD_CLASSNAME = 'overflow-hidden rounded-2xl border border-border/60 bg-card shadow-[0_18px_60px_-30px_rgba(15,23,42,0.28)] sm:rounded-[2.5rem] animate-in fade-in slide-in-from-bottom-4 duration-500';
 const SUPPORT_TILE_CLASSNAME = 'rounded-2xl sm:rounded-[2.5rem] overflow-hidden border-2 border-dashed';
 const FAQ_CONTENT_CLASSNAME = 'text-xs sm:text-sm text-muted-foreground leading-relaxed pb-4';
 
@@ -160,7 +160,7 @@ function SupportTile({
                     variant={variant}
                     onClick={onClick}
                     className={cn(
-                        "w-full rounded-xl sm:rounded-2xl h-11 sm:h-12 px-8 text-[10px] font-semibold",
+                        "w-full rounded-xl sm:rounded-2xl h-11 sm:h-12 px-8 text-sm sm:text-base font-semibold",
                         variant === 'default' && "shadow-lg shadow-primary/20",
                         toneStyles.button
                     )}
@@ -179,16 +179,20 @@ function HelpSectionCard({
     icon: Icon,
     children,
     animationDelay,
+    className,
+    contentClassName,
 }: {
     id: string;
     title: string;
     icon: React.ComponentType<{ className?: string }>;
     children: React.ReactNode;
     animationDelay: string;
+    className?: string;
+    contentClassName?: string;
 }) {
     return (
-        <Card id={id} className={SECTION_CARD_CLASSNAME} style={{ animationDelay }}>
-            <CardHeader className="py-3 sm:pb-2 flex flex-row items-center gap-3 sm:gap-4 bg-muted/10 border-b border-muted/20">
+        <Card id={id} className={cn(SECTION_CARD_CLASSNAME, className)} style={{ animationDelay }}>
+            <CardHeader className="flex flex-row items-center gap-3 border-b border-border/50 bg-[linear-gradient(180deg,rgba(59,130,246,0.05),rgba(255,255,255,0))] px-5 py-4 sm:gap-4 sm:px-8 sm:py-5">
                 <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0 shadow-inner">
                     <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
                 </div>
@@ -197,7 +201,7 @@ function HelpSectionCard({
                     <CardDescription className="text-[10px] sm:text-[11px] font-medium text-primary/60">Help center resource</CardDescription>
                 </div>
             </CardHeader>
-            <CardContent className="pt-6 sm:pt-8 px-4 sm:px-8 pb-6 sm:pb-8">
+            <CardContent className={cn("px-5 pb-6 pt-6 sm:px-8 sm:pb-8 sm:pt-8", contentClassName)}>
                 {children}
             </CardContent>
         </Card>
@@ -214,6 +218,13 @@ function AboutContent() {
     const from = searchParams.get('from');
 
     const isAdmin = userProfile?.role === 'admin';
+    const faqColumns = faqItems.reduce<[typeof faqItems, typeof faqItems]>(
+        (columns, item, index) => {
+            columns[index % 2].push(item);
+            return columns;
+        },
+        [[], []]
+    );
 
     useEffect(() => {
         window.dispatchEvent(new Event('navigation-end'));
@@ -254,20 +265,20 @@ function AboutContent() {
                     <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
                         TaskFlow is a high-performance, developer-first task management workspace designed to streamline complex development workflows. Unlike generic to-do lists, TaskFlow focuses on the intersection of task tracking, code repositories, and deployment pipelines.
                     </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pt-2">
-                        <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10">
-                            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-3">
+                    <div className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-2 sm:gap-4 xl:gap-5">
+                        <div className="rounded-2xl border border-primary/10 bg-primary/5 p-4 sm:p-5">
+                            <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
                                 <Zap className="h-4 w-4" />
                             </div>
-                            <h4 className="font-bold text-xs sm:text-sm mb-1">Instant Performance</h4>
-                            <p className="text-[10px] sm:text-xs text-muted-foreground">Local-first architecture ensures the app stays responsive even with thousands of tasks.</p>
+                            <h4 className="mb-1 text-sm font-semibold sm:text-base">Instant performance</h4>
+                            <p className="text-xs leading-6 text-muted-foreground">Local-first architecture ensures the app stays responsive even with thousands of tasks.</p>
                         </div>
-                        <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10">
-                            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-3">
+                        <div className="rounded-2xl border border-primary/10 bg-primary/5 p-4 sm:p-5">
+                            <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
                                 <ShieldCheck className="h-4 w-4" />
                             </div>
-                            <h4 className="font-bold text-xs sm:text-sm mb-1">Secure Sync</h4>
-                            <p className="text-[10px] sm:text-xs text-muted-foreground">Optional cloud synchronization with Firebase Authentication and Firestore real-time updates.</p>
+                            <h4 className="mb-1 text-sm font-semibold sm:text-base">Secure sync</h4>
+                            <p className="text-xs leading-6 text-muted-foreground">Optional cloud synchronization with Firebase Authentication and Firestore real-time updates.</p>
                         </div>
                     </div>
                 </div>
@@ -283,9 +294,9 @@ function AboutContent() {
                         TaskFlow is built and maintained by Arun Thiyaagarajan, a developer passionate about creating tools that actually understand the modern development cycle.
                     </p>
                     
-                    <Card className="bg-muted/30 border-none rounded-2xl sm:rounded-3xl overflow-hidden shadow-inner">
-                        <CardContent className="p-4 sm:p-6">
-                            <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+                    <Card className="overflow-hidden rounded-2xl border border-border/50 bg-muted/30 shadow-inner sm:rounded-3xl">
+                        <CardContent className="p-4 sm:p-6 lg:p-7">
+                            <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-6">
                                 <Avatar className="h-16 w-16 sm:h-20 sm:w-20 border-4 border-background shadow-lg shrink-0">
                                     <AvatarImage src="https://picsum.photos/seed/creator/200" />
                                     <AvatarFallback className="bg-primary text-primary-foreground font-bold">AT</AvatarFallback>
@@ -293,18 +304,18 @@ function AboutContent() {
                                 <div className="text-center sm:text-left space-y-1 min-w-0 flex-1">
                                     <h4 className="text-lg sm:text-xl font-bold truncate">Arun Thiyaagarajan</h4>
                                     <p className="text-[11px] sm:text-sm font-medium text-muted-foreground">Software developer</p>
-                                    <div className="flex wrap justify-center sm:justify-start gap-2 mt-4">
-                                        <Button asChild variant="outline" size="sm" className="rounded-xl h-8 sm:h-9 text-[10px] sm:text-xs font-bold border-muted-foreground/20">
+                                    <div className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start">
+                                        <Button asChild variant="outline" size="sm" className="h-8 rounded-xl border-muted-foreground/20 px-3 text-xs font-semibold sm:h-9 sm:text-sm">
                                             <a href="https://github.com/Arun-Thiyaagarajan" target="_blank" rel="noopener noreferrer">
                                                 <Github className="mr-1.5 h-3.5 w-3.5" /> GitHub
                                             </a>
                                         </Button>
-                                        <Button asChild variant="outline" size="sm" className="rounded-xl h-8 sm:h-9 text-[10px] sm:text-xs font-bold border-muted-foreground/20">
+                                        <Button asChild variant="outline" size="sm" className="h-8 rounded-xl border-muted-foreground/20 px-3 text-xs font-semibold sm:h-9 sm:text-sm">
                                             <a href="https://arunthiyaagarajan.vercel.app/" target="_blank" rel="noopener noreferrer">
                                                 <Globe className="mr-1.5 h-3.5 w-3.5" /> Portfolio
                                             </a>
                                         </Button>
-                                        <Button asChild variant="outline" size="sm" className="rounded-xl h-8 sm:h-9 text-[10px] sm:text-xs font-bold border-muted-foreground/20">
+                                        <Button asChild variant="outline" size="sm" className="h-8 rounded-xl border-muted-foreground/20 px-3 text-xs font-semibold sm:h-9 sm:text-sm">
                                             <a href="https://www.linkedin.com/in/thiyaagarajan-n/" target="_blank" rel="noopener noreferrer">
                                                 <Linkedin className="mr-1.5 h-3.5 w-3.5 text-blue-600" /> LinkedIn
                                             </a>
@@ -328,7 +339,7 @@ function AboutContent() {
                             ? "Administrators can manage user feedback and provide support through the Support Inbox."
                             : "Have a feature request, found a bug, or just want to say hi? Use our structured feedback system for the fastest response."}
                     </p>
-                    <div className={cn("grid gap-4", !isAdmin && "sm:grid-cols-2")}>
+                    <div className={cn("grid gap-4 xl:gap-5", !isAdmin && "sm:grid-cols-2")}>
                         {!isAdmin && (
                             <SupportTile
                                 icon={MessageSquareQuote}
@@ -357,18 +368,22 @@ function AboutContent() {
             title: 'FAQ',
             icon: HelpCircle,
             content: (
-                <Accordion type="single" collapsible className="w-full">
-                    {faqItems.map((item) => (
-                        <AccordionItem key={item.id} value={item.id} className="border-muted/60">
-                            <AccordionTrigger className="text-sm font-bold hover:no-underline py-4 text-left">
-                                {item.question}
-                            </AccordionTrigger>
-                            <AccordionContent className={FAQ_CONTENT_CLASSNAME}>
-                                {item.answer}
-                            </AccordionContent>
-                        </AccordionItem>
+                <div className="grid gap-6 xl:grid-cols-2 xl:gap-8">
+                    {faqColumns.map((column, columnIndex) => (
+                        <Accordion key={columnIndex} type="single" collapsible className="w-full space-y-3">
+                            {column.map((item) => (
+                                <AccordionItem key={item.id} value={item.id} className="rounded-2xl border border-border/60 bg-muted/10 px-4 sm:px-5">
+                                    <AccordionTrigger className="py-4 text-left text-sm font-semibold hover:no-underline">
+                                        {item.question}
+                                    </AccordionTrigger>
+                                    <AccordionContent className={FAQ_CONTENT_CLASSNAME}>
+                                        {item.answer}
+                                    </AccordionContent>
+                                </AccordionItem>
+                            ))}
+                        </Accordion>
                     ))}
-                </Accordion>
+                </div>
             )
         }
     ];
@@ -378,21 +393,31 @@ function AboutContent() {
         : sections;
 
     return (
-        <div className="container max-w-4xl mx-auto pt-6 sm:pt-10 pb-20 px-4 sm:px-6">
-            <div className="flex items-center gap-3 sm:gap-4 mb-8 sm:mb-10">
+        <div className="container mx-auto max-w-[1440px] px-4 pb-20 pt-6 sm:px-6 sm:pt-10 lg:px-8">
+            <div className="mb-8 rounded-[2rem] border border-border/50 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.12),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.88),rgba(248,250,252,0.9))] px-5 py-6 shadow-[0_22px_80px_-40px_rgba(59,130,246,0.4)] dark:bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_30%),linear-gradient(180deg,rgba(17,24,39,0.92),rgba(15,23,42,0.96))] sm:mb-10 sm:px-8 sm:py-8">
+                <div className="flex items-start gap-3 sm:gap-4">
                 <Button variant="ghost" size="icon" onClick={handleBack} className="rounded-full h-9 w-9 sm:h-10 sm:w-10">
                     <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
                 </Button>
-                <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2 sm:gap-3">
+                <div className="min-w-0 flex-1">
+                    <div className="mb-3 inline-flex rounded-full border border-primary/15 bg-primary/5 px-3 py-1 text-[10px] font-medium text-primary/80">
+                        Product guide and support
+                    </div>
+                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold flex items-center gap-2 sm:gap-3">
                         <HelpCircle className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
                         Help & About
                     </h1>
-                    <p className="text-muted-foreground text-xs sm:text-sm font-medium">Find answers or get in touch with Arun Thiyaagarajan.</p>
+                    <p className="mt-3 max-w-3xl text-sm font-medium leading-7 text-muted-foreground sm:text-base">
+                        Explore how TaskFlow works, understand the product philosophy behind it, and get quick answers without digging through cramped cards or one-column sections.
+                    </p>
+                </div>
                 </div>
             </div>
 
-            <div className="space-y-6 sm:space-y-8">
+            <div className={cn(
+                "space-y-6 sm:space-y-8",
+                !activeSection && "xl:grid xl:grid-cols-12 xl:gap-8 xl:space-y-0"
+            )}>
                 {displaySections.map((section, idx) => (
                     <HelpSectionCard
                         key={section.id}
@@ -400,13 +425,19 @@ function AboutContent() {
                         title={section.title}
                         icon={section.icon}
                         animationDelay={`${idx * 100}ms`}
+                        className={cn(
+                            !activeSection && section.id !== 'faq' && "xl:col-span-6",
+                            !activeSection && section.id === 'support' && "xl:col-span-12",
+                            !activeSection && section.id === 'faq' && "xl:col-span-12"
+                        )}
+                        contentClassName={section.id === 'faq' ? 'sm:pt-7' : undefined}
                     >
                         {section.content}
                     </HelpSectionCard>
                 ))}
 
                 {/* Bottom Branding */}
-                <div className="pt-6 sm:pt-10 text-center space-y-3 sm:space-y-4">
+                <div className={cn("pt-6 text-center space-y-3 sm:pt-10 sm:space-y-4", !activeSection && "xl:col-span-12")}>
                     <div className="h-1 w-10 sm:w-12 bg-primary/30 mx-auto rounded-full" />
                     <div className="space-y-1">
                         <p className="text-[10px] sm:text-[11px] font-medium text-primary">TaskFlow productivity engine</p>
