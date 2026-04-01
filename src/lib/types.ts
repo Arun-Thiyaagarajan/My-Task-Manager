@@ -108,8 +108,10 @@ export interface UserPreferences {
   viewMode?: 'grid' | 'table';
   sortDescriptor?: string;
   dateView?: 'all' | 'monthly' | 'calendar' | 'yearly';
+  taskOpenGroups?: string[];
   taskFilters?: {
     status?: string[];
+    statusGroup?: string[];
     repo?: string[];
     deployment?: string[];
     tags?: string[];
@@ -198,6 +200,13 @@ export interface StatusConfigItem {
   order: number;
 }
 
+export interface StatusGroupConfig {
+  id: string;
+  name: string;
+  order: number;
+  isDefault?: boolean;
+}
+
 export interface PendingStatusConversion {
   sourceStatusId: string;
   sourceStatusName: string;
@@ -220,6 +229,7 @@ export interface UiConfig {
   repositoryConfigs: RepositoryConfig[];
   taskStatuses: string[];
   statusConfigs?: StatusConfigItem[];
+  statusGroups?: StatusGroupConfig[];
   appName?: string;
   appIcon?: string | null;
   previousAppIcon?: string | null;

@@ -18,7 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X, Users, ClipboardCheck, Info, AlertTriangle, CalendarIcon, Layout, Type, ListChecks } from 'lucide-react';
-import type { FieldConfig, FieldOption, FieldType, PendingStatusConversion, RepositoryConfig, Task, StatusConfigItem } from '@/lib/types';
+import type { FieldConfig, FieldOption, FieldType, PendingStatusConversion, RepositoryConfig, Task, StatusConfigItem, StatusGroupConfig } from '@/lib/types';
 import { FIELD_TYPES } from '@/lib/constants';
 import * as React from 'react';
 import { getUiConfig, getTasks, updateTask, addLog, getDevelopers, getTesters } from '@/lib/data';
@@ -34,7 +34,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Textarea } from './ui/textarea';
 import { Calendar } from './ui/calendar';
 import { format } from 'date-fns';
-import { buildStatusConfigItem } from '@/lib/status-config';
+import { buildStatusConfigItem, getStatusGroupConfigs } from '@/lib/status-config';
 import { StatusManagementContent } from '@/components/status-management-content';
 import { createId } from '@/lib/id';
 
@@ -80,12 +80,14 @@ interface EditFieldDialogProps {
     field: FieldConfig,
     repoConfigs?: RepositoryConfig[],
     statusConfigs?: StatusConfigItem[],
+    statusGroups?: StatusGroupConfig[],
     pendingStatusConversions?: PendingStatusConversion[]
   ) => void;
   field: FieldConfig | null;
   existingFields: FieldConfig[];
   repositoryConfigs?: RepositoryConfig[];
   statusConfigs?: StatusConfigItem[];
+  statusGroups?: StatusGroupConfig[];
   pendingStatusConversions?: PendingStatusConversion[];
 }
 
@@ -97,6 +99,7 @@ export function EditFieldDialog({
   existingFields,
   repositoryConfigs,
   statusConfigs,
+  statusGroups,
   pendingStatusConversions,
 }: EditFieldDialogProps) {
   const isCreating = field === null;
@@ -157,6 +160,7 @@ export function EditFieldDialog({
   
   const [localRepoConfigs, setLocalRepoConfigs] = React.useState<RepositoryConfig[]>([]);
   const [localStatusConfigs, setLocalStatusConfigs] = React.useState<StatusConfigItem[]>([]);
+  const [localStatusGroups, setLocalStatusGroups] = React.useState<StatusGroupConfig[]>([]);
   const [localPendingStatusConversions, setLocalPendingStatusConversions] = React.useState<PendingStatusConversion[]>(pendingStatusConversions || []);
   const [newTag, setNewTag] = React.useState('');
   
@@ -279,6 +283,7 @@ export function EditFieldDialog({
       isStatusField ? { ...finalField, options: finalOptions } : finalField,
       isRepoField ? localRepoConfigs : undefined,
       finalStatusConfigs,
+      isStatusField ? localStatusGroups : undefined,
       isStatusField ? localPendingStatusConversions : undefined
     );
     onOpenChange(false);
@@ -319,6 +324,7 @@ export function EditFieldDialog({
 
         if (isStatusField) {
           setLocalStatusConfigs((statusConfigs || []).map((status, index) => buildStatusConfigItem(status, index)));
+          setLocalStatusGroups(getStatusGroupConfigs({ ...config, statusGroups, statusConfigs }));
           setLocalPendingStatusConversions(pendingStatusConversions || []);
         }
 
@@ -339,7 +345,7 @@ export function EditFieldDialog({
             replace(predefinedOptions);
         }
     }
-  }, [field, form, isOpen, repositoryConfigs, statusConfigs, pendingStatusConversions, isRepoField, isStatusField, isTagsField, replace, isDevelopersField, isTestersField, getDefaultValueFallback]);
+  }, [field, form, isOpen, repositoryConfigs, statusConfigs, statusGroups, pendingStatusConversions, isRepoField, isStatusField, isTagsField, replace, isDevelopersField, isTestersField, getDefaultValueFallback]);
 
   const defaultPersonOptions = React.useMemo(() => {
       if (isDevelopersField) {
@@ -913,8 +919,10 @@ export function EditFieldDialog({
                     {isStatusField && (
                         <StatusManagementContent
                             statuses={localStatusConfigs}
+                            statusGroups={localStatusGroups}
                             pendingConversions={localPendingStatusConversions}
                             onStatusesChange={setLocalStatusConfigs}
+                            onStatusGroupsChange={setLocalStatusGroups}
                             onPendingConversionsChange={setLocalPendingStatusConversions}
                             existingFields={existingFields}
                         />

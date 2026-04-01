@@ -20,8 +20,8 @@ import {
     getUserPreferences,
     updateUserPreferences,
     updateTask,
-    prepareUiFieldsForExport,
-    prepareUiFieldsForImport
+    prepareUiFieldsForImport,
+    prepareUiConfigForExport
 } from '@/lib/data';
 import type { Task, UiConfig, FieldConfig, Person, RepositoryConfig, Environment, BackupFrequency, AuthMode, UserPreferences, PendingStatusConversion } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -125,8 +125,8 @@ import { FieldFormContent } from '@/components/field-form-content';
 import { EnvironmentFormContent } from '@/components/environment-form-content';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import type { StatusConfigItem } from '@/lib/types';
-import { getStatusConfigs, syncTaskStatuses } from '@/lib/status-config';
+import type { StatusConfigItem, StatusGroupConfig } from '@/lib/types';
+import { getStatusConfigs, getStatusGroupConfigs, syncTaskStatuses } from '@/lib/status-config';
 
 const isActualImage = (url: string | null | undefined) => {
     if (!url) return false;
@@ -145,6 +145,7 @@ export default function SettingsPage() {
   const [localFields, setLocalFields] = useState<FieldConfig[]>([]);
   const [localRepositoryConfigs, setLocalRepositoryConfigs] = useState<RepositoryConfig[]>([]);
   const [localStatusConfigs, setLocalStatusConfigs] = useState<StatusConfigItem[]>([]);
+  const [localStatusGroups, setLocalStatusGroups] = useState<StatusGroupConfig[]>([]);
   const [localPendingStatusConversions, setLocalPendingStatusConversions] = useState<PendingStatusConversion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isClearing, setIsClearing] = useState(false);
@@ -225,6 +226,7 @@ export default function SettingsPage() {
     setLocalFields(config?.fields || []);
     setLocalRepositoryConfigs(config?.repositoryConfigs || []);
     setLocalStatusConfigs(getStatusConfigs(config));
+    setLocalStatusGroups(getStatusGroupConfigs(config));
     setLocalPendingStatusConversions([]);
     setAppName(config?.appName || '');
     setAppIcon(config?.appIcon || '');
@@ -254,9 +256,10 @@ export default function SettingsPage() {
       JSON.stringify(localFields) !== JSON.stringify(uiConfig.fields) ||
       JSON.stringify(localRepositoryConfigs) !== JSON.stringify(uiConfig.repositoryConfigs || []) ||
       JSON.stringify(localStatusConfigs) !== JSON.stringify(getStatusConfigs(uiConfig)) ||
+      JSON.stringify(localStatusGroups) !== JSON.stringify(getStatusGroupConfigs(uiConfig)) ||
       localPendingStatusConversions.length > 0
     );
-  }, [localFields, localRepositoryConfigs, localStatusConfigs, localPendingStatusConversions, uiConfig]);
+  }, [localFields, localRepositoryConfigs, localStatusConfigs, localStatusGroups, localPendingStatusConversions, uiConfig]);
 
   // Auto-scroll to top when unsaved changes alert appears
   useEffect(() => {
@@ -451,6 +454,7 @@ export default function SettingsPage() {
       ...uiConfig!,
       fields: localFields,
       repositoryConfigs: localRepositoryConfigs,
+      statusGroups: localStatusGroups,
       statusConfigs: localStatusConfigs,
       taskStatuses: localStatusConfigs.map(status => status.name),
     });
@@ -481,6 +485,7 @@ export default function SettingsPage() {
     updatedField: FieldConfig,
     repoConfigs?: RepositoryConfig[],
     statusConfigs?: StatusConfigItem[],
+    statusGroups?: StatusGroupConfig[],
     pendingStatusConversions?: PendingStatusConversion[]
   ) => {
     let newFields = [...localFields];
@@ -496,13 +501,23 @@ export default function SettingsPage() {
     setLocalFields(newFields);
     if (repoConfigs) setLocalRepositoryConfigs(repoConfigs);
     if (updatedField.key === 'status' && statusConfigs) {
+      const nextGroups = getStatusGroupConfigs({
+        ...uiConfig!,
+        fields: newFields,
+        repositoryConfigs: repoConfigs || localRepositoryConfigs,
+        statusGroups: statusGroups || localStatusGroups,
+        statusConfigs,
+        taskStatuses: statusConfigs.map(status => status.name),
+      });
       setLocalStatusConfigs(getStatusConfigs({
         ...uiConfig!,
         fields: newFields,
         repositoryConfigs: repoConfigs || localRepositoryConfigs,
+        statusGroups: nextGroups,
         statusConfigs,
         taskStatuses: statusConfigs.map(status => status.name),
       }));
+      setLocalStatusGroups(nextGroups);
       setLocalPendingStatusConversions(pendingStatusConversions || []);
     }
     
@@ -539,10 +554,7 @@ export default function SettingsPage() {
     const developers = getDevelopers();
     const testers = getTesters();
     const fileName = `${uiConfig.appName?.replace(/\s+/g, '_') || 'TaskFlow'}_Settings_${new Date().toISOString().split('T')[0]}.json`;
-    const settingsToExport = {
-      ...uiConfig,
-      fields: prepareUiFieldsForExport(uiConfig.fields, developers, testers),
-    };
+    const settingsToExport = prepareUiConfigForExport(uiConfig, developers, testers);
     const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(settingsToExport, null, 2))}`;
     const link = document.createElement("a");
     link.href = jsonString;
@@ -663,7 +675,7 @@ export default function SettingsPage() {
   );
 
   const MobileSectionHeader = ({ title }: { title: string }) => (
-    <div className="px-4 pt-6 pb-2"><h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">{title}</h3></div>
+    <div className="px-4 pt-6 pb-2"><h3 className="text-[11px] font-medium text-muted-foreground/70">{title}</h3></div>
   );
 
   // SHARED DIALOGS
@@ -688,7 +700,7 @@ export default function SettingsPage() {
                             {tasksUsingField.map(task => (
                                 <li key={task.id} className="text-sm py-3 px-4 flex items-center justify-between gap-4 bg-background/50">
                                     <span className="truncate font-semibold">{task.title}</span>
-                                    {task.deletedAt && <Badge variant="secondary" className="text-[8px] uppercase h-4 bg-amber-50 text-amber-700 border-amber-200">In Bin</Badge>}
+                                    {task.deletedAt && <Badge variant="secondary" className="h-4 bg-amber-50 text-[8px] font-medium text-amber-700 border-amber-200">In bin</Badge>}
                                 </li>
                             ))}
                         </ul>
@@ -719,7 +731,7 @@ export default function SettingsPage() {
             <AlertDialogContent className="rounded-3xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
                 <div className="p-6 shrink-0">
                     <AlertDialogHeader>
-                        <AlertDialogTitle className="font-bold tracking-tight">Confirm Deactivation</AlertDialogTitle>
+                        <AlertDialogTitle className="font-bold">Confirm deactivation</AlertDialogTitle>
                         <AlertDialogDescription className="text-sm font-normal">
                             The following fields will be hidden across the application:
                         </AlertDialogDescription>
@@ -799,12 +811,12 @@ export default function SettingsPage() {
                 <div className="fixed top-0 left-0 right-0 z-[100] bg-primary text-primary-foreground px-4 py-3 flex items-center justify-between shadow-lg animate-in slide-in-from-top duration-300">
                     <div className="flex items-center gap-2">
                         <Info className="h-4 w-4" />
-                        <span className="text-xs font-bold uppercase tracking-wider">Unsaved Field Changes</span>
+                        <span className="text-xs font-semibold">Unsaved field changes</span>
                     </div>
                     <Button 
                         size="sm" 
                         variant="secondary" 
-                        className="h-7 text-[10px] font-black uppercase"
+                        className="h-7 text-[10px] font-medium"
                         onClick={handleSaveFields}
                     >
                         Save Now
@@ -815,7 +827,7 @@ export default function SettingsPage() {
             <div className="px-6 pt-10 pb-6 flex items-center gap-4">
                 <Button variant="ghost" size="icon" onClick={handleBackToProfile} className="h-10 w-10 -ml-2 rounded-full shrink-0"><ArrowLeft className="h-6 w-6" /></Button>
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Workspace Settings</h1>
+                    <h1 className="text-2xl font-bold">Workspace settings</h1>
                     <p className="text-xs text-muted-foreground font-medium">Configure your TaskFlow environment.</p>
                 </div>
             </div>
@@ -910,6 +922,7 @@ export default function SettingsPage() {
                             existingFields={localFields}
                             repositoryConfigs={localRepositoryConfigs}
                             statusConfigs={localStatusConfigs}
+                            statusGroups={localStatusGroups}
                             pendingStatusConversions={localPendingStatusConversions}
                             onSave={handleSaveField} 
                             onCancel={() => setActiveMobileSection('fields')}
@@ -923,16 +936,16 @@ export default function SettingsPage() {
                 )}
                 {activeMobileSection === 'storage' && (
                     <Card className="border shadow-lg rounded-3xl">
-                        <CardHeader className="pb-4"><CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider"><ShieldCheck className="h-5 w-5 text-primary" />STORAGE MODE</CardTitle></CardHeader>
+                        <CardHeader className="pb-4"><CardTitle className="text-sm font-semibold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary" />Storage mode</CardTitle></CardHeader>
                         <CardContent className="space-y-4">
                             <div className="grid gap-3">
                                 <button onClick={() => handleInitiateModeChange('localStorage')} className={cn("flex items-center gap-4 p-4 rounded-2xl border-2 text-left transition-all", authMode === 'localStorage' ? "bg-primary/[0.03] border-primary shadow-sm" : "bg-background border-border")}>
                                     <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center shrink-0", authMode === 'localStorage' ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}><Smartphone className="h-5 w-5" /></div>
-                                    <div className="min-w-0"><p className="font-bold text-sm tracking-tight">Local Storage</p><p className="text-[10px] text-muted-foreground font-medium mt-0.5">Browser-based. Fast & Offline.</p></div>
+                                    <div className="min-w-0"><p className="text-sm font-semibold">Local storage</p><p className="mt-0.5 text-[11px] font-medium text-muted-foreground">Browser-based. Fast and offline.</p></div>
                                 </button>
                                 <button onClick={() => handleInitiateModeChange('authenticate')} className={cn("flex items-center gap-4 p-4 rounded-2xl border-2 text-left transition-all", authMode === 'authenticate' ? "bg-primary/[0.03] border-primary shadow-sm" : "bg-background border-border")}>
                                     <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center shrink-0", authMode === 'authenticate' ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}><Database className="h-5 w-5" /></div>
-                                    <div className="min-w-0"><p className="font-bold text-sm tracking-tight">Cloud Sync</p><p className="text-[10px] text-muted-foreground font-medium mt-0.5">Real-time sync across devices.</p></div>
+                                    <div className="min-w-0"><p className="text-sm font-semibold">Cloud sync</p><p className="mt-0.5 text-[11px] font-medium text-muted-foreground">Real-time sync across devices.</p></div>
                                 </button>
                             </div>
                         </CardContent>
@@ -940,19 +953,19 @@ export default function SettingsPage() {
                 )}
                 {activeMobileSection === 'appearance' && (
                     <Card className="border shadow-lg rounded-3xl">
-                        <CardHeader className="pb-4"><CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider"><Globe className="h-5 w-5 text-primary" />Appearance</CardTitle></CardHeader>
+                        <CardHeader className="pb-4"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Globe className="h-5 w-5 text-primary" />Appearance</CardTitle></CardHeader>
                         <CardContent className="space-y-6">
                             <div className="space-y-3">
-                                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Application Theme</Label>
+                                <Label className="text-xs font-medium text-muted-foreground">Application theme</Label>
                                 <RadioGroup value={theme} onValueChange={setTheme} className="grid grid-cols-3 gap-2">
-                                    <button onClick={() => setTheme('light')} className={cn("flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all gap-2", theme === 'light' ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent")}><div className={cn("h-5 w-5", theme === 'light' ? "text-primary" : "text-muted-foreground")}><Sun /></div><span className={cn("text-[10px] font-bold uppercase", theme === 'light' ? "text-primary" : "text-muted-foreground")}>Light</span></button>
-                                    <button onClick={() => setTheme('dark')} className={cn("flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all gap-2", theme === 'dark' ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent")}><div className={cn("h-5 w-5", theme === 'dark' ? "text-primary" : "text-muted-foreground")}><Moon /></div><span className={cn("text-[10px] font-bold uppercase", theme === 'dark' ? "text-primary" : "text-muted-foreground")}>Dark</span></button>
-                                    <button onClick={() => setTheme('system')} className={cn("flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all gap-2", theme === 'system' ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent")}><div className={cn("h-5 w-5", theme === 'system' ? "text-primary" : "text-muted-foreground")}><Monitor /></div><span className={cn("text-[10px] font-bold uppercase", theme === 'system' ? "text-primary" : "text-muted-foreground")}>System</span></button>
+                                    <button onClick={() => setTheme('light')} className={cn("flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all gap-2", theme === 'light' ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent")}><div className={cn("h-5 w-5", theme === 'light' ? "text-primary" : "text-muted-foreground")}><Sun /></div><span className={cn("text-xs font-medium", theme === 'light' ? "text-primary" : "text-muted-foreground")}>Light</span></button>
+                                    <button onClick={() => setTheme('dark')} className={cn("flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all gap-2", theme === 'dark' ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent")}><div className={cn("h-5 w-5", theme === 'dark' ? "text-primary" : "text-muted-foreground")}><Moon /></div><span className={cn("text-xs font-medium", theme === 'dark' ? "text-primary" : "text-muted-foreground")}>Dark</span></button>
+                                    <button onClick={() => setTheme('system')} className={cn("flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all gap-2", theme === 'system' ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent")}><div className={cn("h-5 w-5", theme === 'system' ? "text-primary" : "text-muted-foreground")}><Monitor /></div><span className={cn("text-xs font-medium", theme === 'system' ? "text-primary" : "text-muted-foreground")}>System</span></button>
                                 </RadioGroup>
                             </div>
-                            <div className="space-y-2"><Label className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Workspace Name</Label><Input value={appName} onChange={e => setAppName(e.target.value)} className="h-10 font-medium transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40" /></div>
+                            <div className="space-y-2"><Label className="text-xs font-medium text-muted-foreground">Workspace name</Label><Input value={appName} onChange={e => setAppName(e.target.value)} className="h-10 font-medium transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40" /></div>
                             <div className="space-y-2">
-                                <Label className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Workspace Icon</Label>
+                                <Label className="text-xs font-medium text-muted-foreground">Workspace icon</Label>
                                 <div className="flex items-center gap-3">
                                     <button 
                                         type="button"
@@ -977,7 +990,7 @@ export default function SettingsPage() {
                                 </div>
                                 <input type="file" ref={iconFileInputRef} onChange={handleIconUpload} className="hidden" accept="image/*" />
                             </div>
-                            <div className="space-y-2"><Label className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Time Display</Label><div className="grid grid-cols-2 gap-2"><button onClick={() => setTimeFormat('12h')} className={cn("flex items-center justify-center p-2.5 border rounded-xl gap-2 transition-all", timeFormat === '12h' ? "bg-primary/10 border-primary text-primary font-medium" : "bg-muted text-muted-foreground")}>12-hour</button><button onClick={() => setTimeFormat('24h')} className={cn("flex items-center justify-center p-2.5 border rounded-xl gap-2 transition-all", timeFormat === '24h' ? "bg-primary/10 border-primary text-primary font-medium" : "bg-muted text-muted-foreground")}>24-hour</button></div></div>
+                            <div className="space-y-2"><Label className="text-xs font-medium text-muted-foreground">Time display</Label><div className="grid grid-cols-2 gap-2"><button onClick={() => setTimeFormat('12h')} className={cn("flex items-center justify-center p-2.5 border rounded-xl gap-2 transition-all text-sm font-medium", timeFormat === '12h' ? "bg-primary/10 border-primary text-primary" : "bg-muted text-muted-foreground")}>12-hour</button><button onClick={() => setTimeFormat('24h')} className={cn("flex items-center justify-center p-2.5 border rounded-xl gap-2 transition-all text-sm font-medium", timeFormat === '24h' ? "bg-primary/10 border-primary text-primary" : "bg-muted text-muted-foreground")}>24-hour</button></div></div>
                             <Button onClick={handleSaveDisplaySettings} className="w-full h-11 font-medium">Save Display Settings</Button>
                         </CardContent>
                     </Card>
@@ -985,9 +998,9 @@ export default function SettingsPage() {
                 {activeMobileSection === 'install' && (
                     <Card className="border shadow-lg rounded-3xl">
                         <CardHeader className="pb-4">
-                            <CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider">
+                            <CardTitle className="text-sm font-semibold flex items-center gap-2">
                                 <DownloadCloud className="h-5 w-5 text-primary" />
-                                APP INSTALLATION
+                                App installation
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6">
@@ -1013,7 +1026,7 @@ export default function SettingsPage() {
 
                             {installStatus !== 'installed' && (
                                 <div className="space-y-4">
-                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">How to install</p>
+                                    <p className="text-[11px] font-medium text-muted-foreground">How to install</p>
                                     {platform === 'ios' ? (
                                         <div className="space-y-3">
                                             <div className="flex items-center gap-3 p-3 bg-card border rounded-xl shadow-sm">
@@ -1044,24 +1057,24 @@ export default function SettingsPage() {
                 )}
                 {activeMobileSection === 'features' && (
                     <Card className="border shadow-lg rounded-3xl">
-                        <CardHeader className="pb-4"><CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider"><Bell className="h-5 w-5 text-primary" />Features</CardTitle></CardHeader>
+                        <CardHeader className="pb-4"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Bell className="h-5 w-5 text-primary" />Features</CardTitle></CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20"><div className="space-y-0.5"><Label className="text-sm font-semibold tracking-tight">Task Reminders</Label><p className="text-[10px] font-normal text-muted-foreground uppercase">Sticky notes on tasks.</p></div><Switch checked={uiConfig.remindersEnabled} onCheckedChange={(checked) => handleUpdateConfig({ remindersEnabled: checked })} /></div>
+                            <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20"><div className="space-y-0.5"><Label className="text-sm font-semibold">Task reminders</Label><p className="text-[11px] font-normal text-muted-foreground">Sticky notes on tasks.</p></div><Switch checked={uiConfig.remindersEnabled} onCheckedChange={(checked) => handleUpdateConfig({ remindersEnabled: checked })} /></div>
                             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20">
                                 <div className="space-y-0.5">
-                                    <Label className="text-sm font-semibold tracking-tight flex items-center gap-2">
+                                    <Label className="text-sm font-semibold flex items-center gap-2">
                                         <Search className="h-3.5 w-3.5 text-muted-foreground" />
                                         Global Search
                                     </Label>
-                                    <p className="text-[10px] font-normal text-muted-foreground uppercase">Cmd/Ctrl + K spotlight search.</p>
+                                    <p className="text-[11px] font-normal text-muted-foreground">Cmd/Ctrl + K spotlight search.</p>
                                 </div>
-                                <Badge variant="outline" className="h-7 rounded-full px-2.5 text-[9px] font-black uppercase tracking-wider">Live</Badge>
+                                <Badge variant="outline" className="h-7 rounded-full px-2.5 text-[9px] font-medium">Live</Badge>
                             </div>
-                            <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20"><div className="space-y-0.5"><Label className="text-sm font-semibold tracking-tight">Guided Tour</Label><p className="text-[10px] font-normal text-muted-foreground uppercase">Onboarding tips.</p></div><Switch checked={uiConfig.tutorialEnabled} onCheckedChange={(checked) => handleUpdateConfig({ tutorialEnabled: checked })} /></div>
+                            <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20"><div className="space-y-0.5"><Label className="text-sm font-semibold">Guided tour</Label><p className="text-[11px] font-normal text-muted-foreground">Onboarding tips.</p></div><Switch checked={uiConfig.tutorialEnabled} onCheckedChange={(checked) => handleUpdateConfig({ tutorialEnabled: checked })} /></div>
                             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20">
                                 <div className="space-y-0.5">
-                                    <Label className="text-sm font-semibold tracking-tight">Notification Sounds</Label>
-                                    <p className="text-[10px] font-normal text-muted-foreground uppercase">Play sound on new alerts.</p>
+                                    <Label className="text-sm font-semibold">Notification sounds</Label>
+                                    <p className="text-[11px] font-normal text-muted-foreground">Play sound on new alerts.</p>
                                 </div>
                                 <Switch 
                                     checked={preferences.notificationSounds !== false} 
@@ -1088,14 +1101,14 @@ export default function SettingsPage() {
                             </CardHeader>
                             <CardContent className="space-y-8">
                                 <div>
-                                    <h3 className="text-xs font-bold uppercase tracking-wider mb-4 flex items-center gap-2 px-1">
+                                    <h3 className="mb-4 flex items-center gap-2 px-1 text-sm font-semibold">
                                         <div className="h-2 w-2 rounded-full bg-green-500" />
-                                        Active Fields
+                                        Active fields
                                     </h3>
                                     <div className="space-y-6">
                                         {Object.entries(filteredAndGroupedFields.activeGroups).map(([groupName, fields]) => (
                                             <div key={groupName} className="space-y-3">
-                                                <h4 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2 px-1">{groupName}</h4>
+                                                <h4 className="flex items-center gap-2 px-1 text-[11px] font-medium text-muted-foreground">{groupName}</h4>
                                                 <div className="grid gap-2">
                                                     {fields.map(field => {
                                                         const isMandatory = !field.isCustom && ['title', 'description', 'status', 'developers'].includes(field.key);
@@ -1106,8 +1119,8 @@ export default function SettingsPage() {
                                                                         <span className="font-medium text-sm sm:text-base truncate max-w-full">
                                                                             {field.label} {field.isRequired && <span className="text-destructive">*</span>}
                                                                         </span>
-                                                                        <Badge variant="outline" className="text-[9px] h-4 shrink-0 uppercase tracking-tighter"> {field.type} </Badge>
-                                                                        {field.isUnique && <Badge variant="secondary" className="text-[8px] h-4 uppercase bg-amber-100/60 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200/50">Unique</Badge>}
+                                                                        <Badge variant="outline" className="h-4 shrink-0 text-[9px] font-medium"> {field.type} </Badge>
+                                                                        {field.isUnique && <Badge variant="secondary" className="h-4 bg-amber-100/60 text-[8px] font-medium text-amber-700 border-amber-200/50 dark:bg-amber-950/40 dark:text-amber-400">Unique</Badge>}
                                                                     </div>
                                                                 </div>
                                                                 <div className="flex gap-1 shrink-0">
@@ -1129,9 +1142,9 @@ export default function SettingsPage() {
 
                                 {filteredAndGroupedFields.inactiveFields.length > 0 && (
                                     <div className="pt-6 border-t border-dashed">
-                                        <h3 className="text-xs font-bold uppercase tracking-wider mb-4 flex items-center gap-2 px-1">
+                                        <h3 className="mb-4 flex items-center gap-2 px-1 text-sm font-semibold">
                                             <div className="h-2 w-2 rounded-full bg-muted-foreground/30" />
-                                            Deactivated Fields
+                                            Deactivated fields
                                         </h3>
                                         <div className="grid gap-2">
                                             {filteredAndGroupedFields.inactiveFields.map(field => (
@@ -1163,7 +1176,7 @@ export default function SettingsPage() {
                 )}
                 {activeMobileSection === 'environments' && (
                     <Card className="border shadow-lg rounded-3xl">
-                        <CardHeader className="pb-4"><CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider"><Rocket className="h-5 w-5 text-primary" /> Environments</CardTitle></CardHeader>
+                        <CardHeader className="pb-4"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Rocket className="h-5 w-5 text-primary" />Environments</CardTitle></CardHeader>
                         <CardContent className="space-y-4">
                             <div className="grid gap-2">
                                 {(uiConfig.environments || []).map(env => {
@@ -1185,7 +1198,7 @@ export default function SettingsPage() {
                 )}
                 {activeMobileSection === 'team' && (
                     <Card className="border shadow-lg rounded-3xl">
-                        <CardHeader className="pb-4"><CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider"><Users className="h-5 w-5 text-primary" /> Team Management</CardTitle></CardHeader>
+                        <CardHeader className="pb-4"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Users className="h-5 w-5 text-primary" />Team management</CardTitle></CardHeader>
                         <CardContent className="space-y-3"><Button variant="outline" className="w-full h-14 text-sm justify-between rounded-2xl font-bold px-4" onClick={() => setActiveMobileSection('manage-developers')}><span className="flex items-center gap-3"><Users className="h-5 w-5 text-indigo-500" /> Manage Developers</span><ChevronRight className="h-4 w-4" /></Button><Button variant="outline" className="w-full h-14 text-sm justify-between rounded-2xl font-bold px-4" onClick={() => setActiveMobileSection('manage-testers')}><span className="flex items-center gap-3"><ClipboardCheck className="h-5 w-5 text-green-500" /> Manage Testers</span><ChevronRight className="h-4 w-4" /></Button></CardContent>
                     </Card>
                 )}
@@ -1193,12 +1206,12 @@ export default function SettingsPage() {
                 {activeMobileSection === 'data' && (
                     <div className="space-y-4">
                         <Card className="border shadow-lg rounded-3xl">
-                            <CardHeader className="pb-4"><CardTitle className="text-xs font-semibold uppercase tracking-wider">Data Operations</CardTitle></CardHeader>
-                            <CardContent className="space-y-3"><Button variant="outline" className="w-full h-12 justify-start rounded-2xl font-bold px-4" onClick={handleExportSettings}><Download className="h-5 w-5 mr-3 text-muted-foreground" /> Export Settings</Button><Button variant="outline" className="w-full h-12 justify-start rounded-2xl font-bold px-4" onClick={() => fileInputRef.current?.click()}><Upload className="h-5 w-5 mr-3 text-muted-foreground" /> Import Configuration</Button><input type="file" ref={fileInputRef} onChange={handleImportSettings} className="hidden" accept=".json" /></CardContent>
+                            <CardHeader className="pb-4"><CardTitle className="text-sm font-semibold">Data operations</CardTitle></CardHeader>
+                            <CardContent className="space-y-3"><Button variant="outline" className="w-full h-12 justify-start rounded-2xl px-4 font-semibold" onClick={handleExportSettings}><Download className="h-5 w-5 mr-3 text-muted-foreground" /> Export settings</Button><Button variant="outline" className="w-full h-12 justify-start rounded-2xl px-4 font-semibold" onClick={() => fileInputRef.current?.click()}><Upload className="h-5 w-5 mr-3 text-muted-foreground" /> Import configuration</Button><input type="file" ref={fileInputRef} onChange={handleImportSettings} className="hidden" accept=".json" /></CardContent>
                         </Card>
                         <Card className="border-2 border-destructive/20 shadow-lg bg-destructive/[0.02] rounded-3xl">
-                            <CardHeader className="pb-4"><CardTitle className="text-xs font-semibold text-destructive uppercase tracking-wider">Danger Zone</CardTitle></CardHeader>
-                            <CardContent><AlertDialog><AlertDialogTrigger asChild><Button variant="destructive" className="w-full h-12 justify-start rounded-2xl font-bold px-4 shadow-md"><Trash2 className="h-5 w-5 mr-3" /> Clear All Workspace Data</Button></AlertDialogTrigger><AlertDialogContent className="rounded-3xl"><AlertDialogHeader><AlertDialogTitle>Clear everything?</AlertDialogTitle><AlertDialogDescription>This will permanently delete all tasks, notes, and settings. This cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="gap-3 mt-4"><AlertDialogCancel className="rounded-xl" disabled={isClearing}>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleClearAllData} className="bg-destructive hover:bg-destructive/90 rounded-xl font-bold" disabled={isClearing}>{isClearing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Clear Data</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></CardContent>
+                            <CardHeader className="pb-4"><CardTitle className="text-sm font-semibold text-destructive">Danger zone</CardTitle></CardHeader>
+                            <CardContent><AlertDialog><AlertDialogTrigger asChild><Button variant="destructive" className="w-full h-12 justify-start rounded-2xl px-4 font-semibold shadow-md"><Trash2 className="h-5 w-5 mr-3" /> Clear all workspace data</Button></AlertDialogTrigger><AlertDialogContent className="rounded-3xl"><AlertDialogHeader><AlertDialogTitle>Clear everything?</AlertDialogTitle><AlertDialogDescription>This will permanently delete all tasks, notes, and settings. This cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="gap-3 mt-4"><AlertDialogCancel className="rounded-xl" disabled={isClearing}>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleClearAllData} className="rounded-xl bg-destructive font-semibold hover:bg-destructive/90" disabled={isClearing}>{isClearing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Clear data</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></CardContent>
                         </Card>
                     </div>
                 )}
@@ -1215,7 +1228,7 @@ export default function SettingsPage() {
     <div className="container mx-auto pt-10 pb-6 px-4 sm:px-6 lg:px-8 max-w-7xl">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10">
         <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-foreground">Application Settings</h1>
+            <h1 className="text-3xl font-semibold text-foreground">Application settings</h1>
             <p className="text-base text-muted-foreground mt-2 font-normal">Manage and customize fields and environments across your application.</p>
         </div>
       </div>
@@ -1237,7 +1250,7 @@ export default function SettingsPage() {
                 <CardHeader className="pb-6">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="space-y-1">
-                            <CardTitle className="text-xl font-semibold tracking-tight">Field Configuration</CardTitle>
+                            <CardTitle className="text-xl font-semibold">Field configuration</CardTitle>
                             <CardDescription className="text-sm font-normal">Edit, activate, or remove fields. Standard fields cannot be deleted.</CardDescription>
                         </div>
                         <div className="flex gap-2">
@@ -1269,7 +1282,7 @@ export default function SettingsPage() {
                         <div className="space-y-8">
                             {Object.entries(filteredAndGroupedFields.activeGroups).map(([groupName, fields]) => (
                                 <div key={groupName} className="space-y-3">
-                                    <h4 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2 px-1">{groupName}<div className="h-px bg-border flex-1" /></h4>
+                                    <h4 className="flex items-center gap-2 px-1 text-[11px] font-medium text-muted-foreground">{groupName}<div className="h-px bg-border flex-1" /></h4>
                                     <div className="grid gap-2">
                                         {fields.map(field => {
                                             const isMandatory = !field.isCustom && ['title', 'description', 'status', 'developers'].includes(field.key);
@@ -1279,15 +1292,15 @@ export default function SettingsPage() {
                                                         <GripVertical className="h-5 w-5 text-muted-foreground/30 cursor-grab active:cursor-grabbing shrink-0" />
                                                         <div className="min-w-0 flex-1">
                                                             <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                                                                <span className="font-medium text-sm sm:text-base tracking-tight truncate max-w-full">{field.label} {field.isRequired && <span className="text-destructive font-bold">*</span>}</span>
-                                                                <Badge variant="outline" className="text-[9px] uppercase font-medium px-1.5 h-4 bg-background shrink-0">{field.type}</Badge>
+                                                                <span className="truncate max-w-full text-sm sm:text-base font-medium">{field.label} {field.isRequired && <span className="text-destructive font-bold">*</span>}</span>
+                                                                <Badge variant="outline" className="h-4 shrink-0 bg-background px-1.5 text-[9px] font-medium">{field.type}</Badge>
                                                                 {field.isUnique && (
-                                                                    <Badge variant="secondary" className="text-[8px] h-4 uppercase bg-amber-100/60 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200/50">
+                                                                    <Badge variant="secondary" className="h-4 bg-amber-100/60 text-[8px] font-medium text-amber-700 border-amber-200/50 dark:bg-amber-950/40 dark:text-amber-400">
                                                                         <Fingerprint className="h-2.5 w-2.5 mr-1" /> Unique
                                                                     </Badge>
                                                                 )}
                                                             </div>
-                                                            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate">{field.group}</p>
+                                                            <p className="truncate text-[11px] font-medium text-muted-foreground">{field.group}</p>
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-1 shrink-0">
@@ -1322,8 +1335,8 @@ export default function SettingsPage() {
                                 {filteredAndGroupedFields.inactiveFields.map(field => (
                                     <div key={field.id} className="flex items-center justify-between p-3 bg-muted/5 border border-dashed rounded-xl opacity-60 hover:opacity-100 transition-opacity">
                                         <div className="flex items-center gap-2">
-                                            <span className="text-sm sm:text-base font-normal tracking-tight truncate pr-4">{field.label}</span>
-                                            {field.isUnique && <Badge variant="outline" className="text-[8px] h-4 uppercase border-amber-200/50 text-amber-600/50">Unique</Badge>}
+                                            <span className="truncate pr-4 text-sm sm:text-base font-normal">{field.label}</span>
+                                            {field.isUnique && <Badge variant="outline" className="h-4 border-amber-200/50 text-[8px] font-medium text-amber-600/50">Unique</Badge>}
                                         </div>
                                         <div className="flex gap-2">
                                             <Button variant="outline" size="sm" className="h-9 px-4 font-medium shrink-0 shadow-sm" onClick={() => handleFieldToggleLocal(field.key, 'isActive')}><Check className="h-4 w-4 mr-2" /> Activate</Button>
@@ -1342,21 +1355,21 @@ export default function SettingsPage() {
 
         <div className="space-y-6">
             <Card id="settings-storage-card" className="border-none shadow-lg">
-                <CardHeader className="pb-4"><CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider"><ShieldCheck className="h-5 w-5 text-primary" />STORAGE MODE</CardTitle></CardHeader>
+                <CardHeader className="pb-4"><CardTitle className="text-sm font-semibold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary" />Storage mode</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid gap-3">
-                        <button onClick={() => handleInitiateModeChange('localStorage')} className={cn("flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all", authMode === 'localStorage' ? "bg-primary/[0.03] border-primary shadow-[0_0_15px_-3px_rgba(61,90,254,0.2)]" : "bg-background border-border hover:border-border/80")}><div className={cn("h-10 w-10 rounded-lg flex items-center justify-center shrink-0", authMode === 'localStorage' ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}><Smartphone className="h-5 w-5" /></div><div className="min-w-0"><p className="font-bold text-sm tracking-tight">Local Storage</p><p className="text-[10px] text-muted-foreground font-medium mt-0.5">Browser-based data. Fast & Offline.</p></div></button>
-                        <button onClick={() => handleInitiateModeChange('authenticate')} className={cn("flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all", authMode === 'authenticate' ? "bg-primary/[0.03] border-primary shadow-[0_0_15px_-3px_rgba(61,90,254,0.2)]" : "bg-background border-border hover:border-border/80")}><div className={cn("h-10 w-10 rounded-lg flex items-center justify-center shrink-0", authMode === 'authenticate' ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}><Database className="h-5 w-5" /></div><div className="min-w-0"><p className="font-bold text-sm tracking-tight">Cloud Sync</p><p className="text-[10px] text-muted-foreground font-medium mt-0.5">Real-time sync across all devices.</p></div></button>
+                        <button onClick={() => handleInitiateModeChange('localStorage')} className={cn("flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all", authMode === 'localStorage' ? "bg-primary/[0.03] border-primary shadow-[0_0_15px_-3px_rgba(61,90,254,0.2)]" : "bg-background border-border hover:border-border/80")}><div className={cn("h-10 w-10 rounded-lg flex items-center justify-center shrink-0", authMode === 'localStorage' ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}><Smartphone className="h-5 w-5" /></div><div className="min-w-0"><p className="text-sm font-semibold">Local storage</p><p className="mt-0.5 text-[11px] font-medium text-muted-foreground">Browser-based data. Fast and offline.</p></div></button>
+                        <button onClick={() => handleInitiateModeChange('authenticate')} className={cn("flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all", authMode === 'authenticate' ? "bg-primary/[0.03] border-primary shadow-[0_0_15px_-3px_rgba(61,90,254,0.2)]" : "bg-background border-border hover:border-border/80")}><div className={cn("h-10 w-10 rounded-lg flex items-center justify-center shrink-0", authMode === 'authenticate' ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}><Database className="h-5 w-5" /></div><div className="min-w-0"><p className="text-sm font-semibold">Cloud sync</p><p className="mt-0.5 text-[11px] font-medium text-muted-foreground">Real-time sync across all devices.</p></div></button>
                     </div>
                 </CardContent>
             </Card>
             <Card id="settings-appearance-card" className="border-none shadow-lg">
-                <CardHeader className="pb-4"><CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider"><Globe className="h-5 w-5 text-primary" />Appearance</CardTitle></CardHeader>
+                <CardHeader className="pb-4"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Globe className="h-5 w-5 text-primary" />Appearance</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
-                    <div className="space-y-3 pb-2 border-b border-dashed"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Theme Preference</Label><RadioGroup value={theme} onValueChange={setTheme} className="grid grid-cols-3 gap-2"><button onClick={() => setTheme('light')} className={cn("flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all gap-2", theme === 'light' ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent hover:bg-muted/50")}><div className={cn("h-5 w-5", theme === 'light' ? "text-primary" : "text-muted-foreground")}><Sun /></div><span className={cn("text-[10px] font-bold uppercase", theme === 'light' ? "text-primary" : "text-muted-foreground")}>Light</span></button><button onClick={() => setTheme('dark')} className={cn("flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all gap-2", theme === 'dark' ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent hover:bg-muted/50")}><div className={cn("h-5 w-5", theme === 'dark' ? "text-primary" : "text-muted-foreground")}><Moon /></div><span className={cn("text-[10px] font-bold uppercase", theme === 'dark' ? "text-primary" : "text-muted-foreground")}>Dark</span></button><button onClick={() => setTheme('system')} className={cn("flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all gap-2", theme === 'system' ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent hover:bg-muted/50")}><div className={cn("h-5 w-5", theme === 'system' ? "text-primary" : "text-muted-foreground")}><Monitor /></div><span className={cn("text-[10px] font-bold uppercase", theme === 'system' ? "text-primary" : "text-muted-foreground")}>System</span></button></RadioGroup></div>
-                    <div className="space-y-2"><Label className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Workspace Name</Label><Input value={appName} onChange={e => setAppName(e.target.value)} className="h-10 font-medium transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40" /></div>
+                    <div className="space-y-3 pb-2 border-b border-dashed"><Label className="text-xs font-medium text-muted-foreground">Theme preference</Label><RadioGroup value={theme} onValueChange={setTheme} className="grid grid-cols-3 gap-2"><button onClick={() => setTheme('light')} className={cn("flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all gap-2", theme === 'light' ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent hover:bg-muted/50")}><div className={cn("h-5 w-5", theme === 'light' ? "text-primary" : "text-muted-foreground")}><Sun /></div><span className={cn("text-xs font-medium", theme === 'light' ? "text-primary" : "text-muted-foreground")}>Light</span></button><button onClick={() => setTheme('dark')} className={cn("flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all gap-2", theme === 'dark' ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent hover:bg-muted/50")}><div className={cn("h-5 w-5", theme === 'dark' ? "text-primary" : "text-muted-foreground")}><Moon /></div><span className={cn("text-xs font-medium", theme === 'dark' ? "text-primary" : "text-muted-foreground")}>Dark</span></button><button onClick={() => setTheme('system')} className={cn("flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all gap-2", theme === 'system' ? "bg-primary/5 border-primary shadow-sm" : "bg-muted/30 border-transparent hover:bg-muted/50")}><div className={cn("h-5 w-5", theme === 'system' ? "text-primary" : "text-muted-foreground")}><Monitor /></div><span className={cn("text-xs font-medium", theme === 'system' ? "text-primary" : "text-muted-foreground")}>System</span></button></RadioGroup></div>
+                    <div className="space-y-2"><Label className="text-xs font-medium text-muted-foreground">Workspace name</Label><Input value={appName} onChange={e => setAppName(e.target.value)} className="h-10 font-medium transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40" /></div>
                     <div className="space-y-2">
-                        <Label className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Workspace Icon</Label>
+                        <Label className="text-xs font-medium text-muted-foreground">Workspace icon</Label>
                         <div className="flex items-center gap-3">
                             <button 
                                 type="button"
@@ -1387,9 +1400,9 @@ export default function SettingsPage() {
             
             <Card id="settings-install-card" className="border-none shadow-lg">
                 <CardHeader className="pb-4">
-                    <CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
                         <DownloadCloud className="h-5 w-5 text-primary" />
-                        APP INSTALLATION
+                        App installation
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -1403,15 +1416,15 @@ export default function SettingsPage() {
                             </div>
                             <div className="min-w-0">
                                 <p className="text-xs font-bold leading-none">{installStatus === 'installed' ? 'App Installed' : 'Not Installed'}</p>
-                                <p className="text-[9px] text-muted-foreground uppercase font-medium mt-1">{installStatus === 'installed' ? 'Running as PWA' : 'Available for install'}</p>
+                                <p className="mt-1 text-[10px] font-medium text-muted-foreground">{installStatus === 'installed' ? 'Running as PWA' : 'Available for install'}</p>
                             </div>
                         </div>
-                        {installStatus === 'installed' && <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 border-none h-5 px-2 text-[8px] font-black uppercase">Live</Badge>}
+                        {installStatus === 'installed' && <Badge variant="secondary" className="h-5 border-none bg-green-100 px-2 text-[8px] font-medium text-green-700 hover:bg-green-100">Live</Badge>}
                     </div>
 
                     {installStatus !== 'installed' && (
                         <div className="space-y-3">
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Guide for {platform === 'ios' ? 'iOS' : platform === 'android' ? 'Android' : 'Desktop'}</p>
+                            <p className="text-[11px] font-medium text-muted-foreground">Guide for {platform === 'ios' ? 'iOS' : platform === 'android' ? 'Android' : 'Desktop'}</p>
                             
                             {platform === 'ios' ? (
                                 <div className="space-y-2">
@@ -1430,42 +1443,42 @@ export default function SettingsPage() {
 
             <Card id="settings-features-card" className="border-none shadow-lg">
                 <CardHeader className="pb-4">
-                    <CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider"><Bell className="h-5 w-5 text-primary" />FEATURES</CardTitle>
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2"><Bell className="h-5 w-5 text-primary" />Features</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-transparent hover:border-border transition-colors">
                         <div className="space-y-0.5">
-                            <Label className="text-sm font-semibold tracking-tight">Task Reminders</Label>
-                            <p className="text-[10px] font-normal text-muted-foreground uppercase">Sticky notes on tasks.</p>
+                            <Label className="text-sm font-semibold">Task reminders</Label>
+                            <p className="text-[11px] font-normal text-muted-foreground">Sticky notes on tasks.</p>
                         </div>
                         <Switch checked={uiConfig.remindersEnabled} onCheckedChange={(checked) => handleUpdateConfig({ remindersEnabled: checked })} />
                     </div>
                     <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-transparent hover:border-border transition-colors">
                         <div className="space-y-0.5">
-                            <Label className="text-sm font-semibold tracking-tight flex items-center gap-2">
+                            <Label className="text-sm font-semibold flex items-center gap-2">
                                 <Search className="h-3.5 w-3.5 text-muted-foreground" />
                                 Global Search
                             </Label>
-                            <p className="text-[10px] font-normal text-muted-foreground uppercase">Cmd/Ctrl + K spotlight search.</p>
+                            <p className="text-[11px] font-normal text-muted-foreground">Cmd/Ctrl + K spotlight search.</p>
                         </div>
-                        <Badge variant="outline" className="h-7 rounded-full px-2.5 text-[9px] font-black uppercase tracking-wider">
+                        <Badge variant="outline" className="h-7 rounded-full px-2.5 text-[9px] font-medium">
                             Live
                         </Badge>
                     </div>
                     <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-transparent hover:border-border transition-colors">
                         <div className="space-y-0.5">
-                            <Label className="text-sm font-semibold tracking-tight">Onboarding Tour</Label>
-                            <p className="text-[10px] font-normal text-muted-foreground uppercase">Guided walkthrough.</p>
+                            <Label className="text-sm font-semibold">Onboarding tour</Label>
+                            <p className="text-[11px] font-normal text-muted-foreground">Guided walkthrough.</p>
                         </div>
                         <Switch checked={uiConfig.tutorialEnabled} onCheckedChange={(checked) => handleUpdateConfig({ tutorialEnabled: checked })} />
                     </div>
                     <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-transparent hover:border-border transition-colors">
                         <div className="space-y-0.5">
-                            <Label className="text-sm font-semibold tracking-tight flex items-center gap-2">
+                            <Label className="text-sm font-semibold flex items-center gap-2">
                                 <Volume2 className="h-3.5 w-3.5 text-muted-foreground" />
                                 Notification Sounds
                             </Label>
-                            <p className="text-[10px] font-normal text-muted-foreground uppercase">Play sound on new alerts.</p>
+                            <p className="text-[11px] font-normal text-muted-foreground">Play sound on new alerts.</p>
                         </div>
                         <Switch 
                             checked={preferences.notificationSounds !== false} 
@@ -1477,9 +1490,9 @@ export default function SettingsPage() {
 
             <Card id="settings-team-card" className="border-none shadow-lg">
                 <CardHeader className="pb-4">
-                    <CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
                         <Users className="h-5 w-5 text-primary" />
-                        Team Management
+                        Team management
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -1501,11 +1514,11 @@ export default function SettingsPage() {
             </Card>
 
             <Card id="settings-environment-card" className="border-none shadow-lg">
-                <CardHeader className="pb-4"><CardTitle className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider"><Rocket className="h-5 w-5 text-primary" />Environments</CardTitle></CardHeader>
+                <CardHeader className="pb-4"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Rocket className="h-5 w-5 text-primary" />Environments</CardTitle></CardHeader>
                 <CardContent className="space-y-4"><div className="grid gap-2">{(uiConfig.environments || []).map(env => { const isMandatory = env.isMandatory || ['dev', 'production'].includes(env.name.toLowerCase()); return (<div key={env.id} className="flex items-center justify-between p-2.5 border rounded-xl bg-muted/20 group hover:bg-muted/40 transition-colors"><div className="flex items-center gap-3 min-w-0"><div className="h-3 w-3 rounded-full shadow-sm shrink-0" style={{ backgroundColor: env.color }} /><span className="capitalize font-medium text-sm truncate">{env.name}</span>{isMandatory && <Lock className="h-3 w-3 text-muted-foreground/50 shrink-0" />}</div><div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => { setEnvToEdit(env); setIsEnvDialogOpen(true); }}><Pencil className="h-3.5 w-3.5" /></Button>{!isMandatory && <AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10 rounded-full"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger><AlertDialogContent className="rounded-3xl"><AlertDialogHeader> <AlertDialogTitle>Delete Environment?</AlertDialogTitle><AlertDialogDescription className="font-normal">Permanently remove the "**${env.name}**" environment?</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="gap-3 mt-4"><AlertDialogCancel className="font-medium">Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteEnv(env.id)} className="bg-destructive hover:bg-destructive/90 font-semibold">Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>}</div></div>) })}</div><div className="flex gap-2"><Input placeholder="New environment..." className="h-10 text-xs font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40" value={newEnvName} onChange={e => setNewEnvName(e.target.value)} /><Button size="sm" className="h-10 px-4 font-medium shrink-0 shadow-sm" onClick={handleAddEnv}>Add</Button></div></CardContent>
             </Card>
-            <Card id="settings-data-card" className="border-2 border-destructive/20 shadow-lg bg-destructive/[0.02]"><CardHeader className="pb-4"><CardTitle className="text-xs font-semibold flex items-center gap-2 text-destructive uppercase tracking-wider"><Database className="h-5 w-5" />Danger Zone</CardTitle></CardHeader>
-            <CardContent className="space-y-2"><Button variant="outline" className="w-full h-10 text-xs font-medium justify-start px-4 rounded-xl shadow-sm" onClick={handleExportSettings}><Download className="h-4 w-4 mr-3 text-muted-foreground" /> Export Settings</Button><Button variant="outline" className="w-full h-10 text-xs font-medium justify-start px-4 rounded-xl shadow-sm" onClick={() => fileInputRef.current?.click()}><Upload className="h-4 w-4 mr-3 text-muted-foreground" /> Import Configuration</Button><input type="file" ref={fileInputRef} onChange={handleImportSettings} className="hidden" accept=".json" /><AlertDialog><AlertDialogTrigger asChild><Button variant="destructive" className="w-full h-10 text-xs font-semibold justify-start px-4 rounded-xl bg-destructive hover:bg-destructive/90 shadow-lg"><Trash2 className="h-4 w-4 mr-3" /> Clear All Data</Button></AlertDialogTrigger><AlertDialogContent className="rounded-3xl"><AlertDialogHeader><AlertDialogTitle>Clear all data?</AlertDialogTitle><AlertDialogDescription>Permanently delete all tasks, notes, and settings?</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="gap-3 mt-4"><AlertDialogCancel className="rounded-xl font-medium" disabled={isClearing}>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleClearAllData} className="bg-destructive hover:bg-destructive/90 rounded-xl font-semibold px-6" disabled={isClearing}>Clear Data</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></CardContent></Card>
+            <Card id="settings-data-card" className="border-2 border-destructive/20 shadow-lg bg-destructive/[0.02]"><CardHeader className="pb-4"><CardTitle className="text-sm font-semibold flex items-center gap-2 text-destructive"><Database className="h-5 w-5" />Danger zone</CardTitle></CardHeader>
+            <CardContent className="space-y-2"><Button variant="outline" className="w-full h-10 justify-start rounded-xl px-4 text-xs font-medium shadow-sm" onClick={handleExportSettings}><Download className="h-4 w-4 mr-3 text-muted-foreground" /> Export settings</Button><Button variant="outline" className="w-full h-10 justify-start rounded-xl px-4 text-xs font-medium shadow-sm" onClick={() => fileInputRef.current?.click()}><Upload className="h-4 w-4 mr-3 text-muted-foreground" /> Import configuration</Button><input type="file" ref={fileInputRef} onChange={handleImportSettings} className="hidden" accept=".json" /><AlertDialog><AlertDialogTrigger asChild><Button variant="destructive" className="w-full h-10 justify-start rounded-xl bg-destructive px-4 text-xs font-semibold shadow-lg hover:bg-destructive/90"><Trash2 className="h-4 w-4 mr-3" /> Clear all data</Button></AlertDialogTrigger><AlertDialogContent className="rounded-3xl"><AlertDialogHeader><AlertDialogTitle>Clear all data?</AlertDialogTitle><AlertDialogDescription>Permanently delete all tasks, notes, and settings?</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="gap-3 mt-4"><AlertDialogCancel className="rounded-xl font-medium" disabled={isClearing}>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleClearAllData} className="rounded-xl bg-destructive px-6 font-semibold hover:bg-destructive/90" disabled={isClearing}>Clear data</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></CardContent></Card>
         </div>
       </div>
       <EditFieldDialog 
@@ -1515,6 +1528,7 @@ export default function SettingsPage() {
         existingFields={localFields}
         repositoryConfigs={localRepositoryConfigs}
         statusConfigs={localStatusConfigs}
+        statusGroups={localStatusGroups}
         pendingStatusConversions={localPendingStatusConversions}
         onSave={handleSaveField} 
       />

@@ -340,8 +340,8 @@ export function TasksCalendarView({
       </Card>
 
       <Dialog open={!!expandedDayDate} onOpenChange={(open) => !open && setExpandedDayDate(null)}>
-        <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl overflow-hidden rounded-[1.75rem] border-border/70 bg-background/96 p-0 shadow-[0_28px_90px_-40px_rgba(15,23,42,0.8)] backdrop-blur-xl">
-          <DialogHeader className="border-b border-border/60 px-5 pb-4 pt-5">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl overflow-hidden rounded-[1.75rem] border border-border/70 bg-[linear-gradient(180deg,hsl(var(--card)),hsl(var(--background)))] p-0 text-card-foreground shadow-[0_28px_90px_-40px_rgba(15,23,42,0.22)] dark:bg-[linear-gradient(180deg,hsl(var(--background)/0.96),hsl(var(--card)/0.9))] dark:shadow-[0_28px_90px_-40px_rgba(15,23,42,0.8)]">
+          <DialogHeader className="border-b border-border/60 bg-gradient-to-r from-primary/[0.06] via-transparent to-transparent px-5 pb-4 pt-5 dark:from-primary/[0.1]">
             <DialogTitle className="text-lg font-semibold tracking-tight">
               {expandedDayDate ? format(expandedDayDate, 'EEEE, do MMMM') : ''}
             </DialogTitle>
@@ -363,8 +363,8 @@ export function TasksCalendarView({
                     onClick={() => handleTaskNavigate(task.id)}
                     disabled={isNavigating}
                     className={cn(
-                      "group w-full rounded-[1.25rem] border border-border/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015))] p-3.5 text-left transition-all duration-200 hover:border-primary/20 hover:bg-card hover:shadow-[0_18px_38px_-26px_rgba(15,23,42,0.7)]",
-                      isPending && "border-primary/30 bg-primary/[0.07] shadow-[0_18px_38px_-26px_hsl(var(--primary)/0.55)]"
+                      "group w-full rounded-[1.25rem] border border-border/60 bg-card/95 p-3.5 text-left transition-all duration-200 hover:border-primary/25 hover:bg-accent/45 hover:shadow-[0_18px_38px_-26px_rgba(15,23,42,0.18)] dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015))] dark:hover:bg-card dark:hover:shadow-[0_18px_38px_-26px_rgba(15,23,42,0.7)]",
+                      isPending && "border-primary/30 bg-primary/[0.07] shadow-[0_18px_38px_-26px_hsl(var(--primary)/0.28)] dark:shadow-[0_18px_38px_-26px_hsl(var(--primary)/0.55)]"
                     )}
                   >
                     <div className="flex items-start justify-between gap-3">

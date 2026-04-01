@@ -86,12 +86,71 @@
     transition-duration: 500ms;
   }
   html {
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: "Inter", sans-serif;
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background font-sans text-foreground antialiased;
     font-weight: 400;
+    line-height: 1.6;
+    letter-spacing: 0;
     text-rendering: optimizeLegibility;
+    font-synthesis: none;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    color: hsl(var(--foreground));
+    letter-spacing: -0.02em;
+    text-transform: none;
+    text-wrap: balance;
+  }
+  h1,
+  h2 {
+    font-weight: 700;
+  }
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-weight: 600;
+  }
+  h1 {
+    line-height: 1.2;
+  }
+  h2,
+  h3 {
+    line-height: 1.25;
+  }
+  h4,
+  h5,
+  h6 {
+    line-height: 1.3;
+  }
+  p,
+  li,
+  dd,
+  dt,
+  small {
+    line-height: 1.6;
+  }
+  label {
+    font-weight: 500;
+    line-height: 1.4;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  input,
+  textarea,
+  select {
+    letter-spacing: 0;
+  }
+  button,
+  [role="button"] {
+    line-height: 1.2;
+    letter-spacing: 0;
   }
   @keyframes status-change-in {
     from {
@@ -207,7 +266,7 @@
     #driver-popover-content .driver-popover-title {
         font-size: 1.05rem !important;
         font-weight: 700 !important;
-        line-height: 1.4 !important;
+        line-height: 1.3 !important;
         letter-spacing: -0.02em !important;
         color: hsl(var(--foreground)) !important;
         padding-right: 2rem !important;
@@ -220,9 +279,9 @@
     }
     #driver-popover-content .driver-popover-progress-text {
         font-size: 0.7rem !important;
-        font-weight: 800 !important;
-        letter-spacing: 0.16em !important;
-        text-transform: uppercase !important;
+        font-weight: 500 !important;
+        letter-spacing: 0.01em !important;
+        text-transform: none !important;
         color: hsl(var(--primary)) !important;
     }
     #driver-popover-content .driver-popover-footer {
@@ -292,4 +351,5 @@
     #driver-popover-content .driver-popover-arrow-side-right {
         border-right-color: hsl(var(--popover)) !important;
     }
+
 }

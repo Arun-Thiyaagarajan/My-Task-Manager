@@ -1,6 +1,6 @@
 'use client';
 
-import { Bold, Italic, Strikethrough, Code, Code2, AtSign, Quote, List, ListOrdered, Link2, Undo2, Redo2 } from 'lucide-react';
+import { Bold, Italic, Strikethrough, Code, Code2, AtSign, Quote, List, ListOrdered, Link2, Undo2, Redo2, Wand2, X } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from './tooltip';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -22,6 +22,7 @@ export type FormatType =
 
 interface TextareaToolbarProps {
   onFormatClick: (formatType: FormatType) => void;
+  className?: string;
 }
 
 function replaceTextareaRange(
@@ -195,9 +196,10 @@ export function applyFormat(formatType: FormatType, target: HTMLTextAreaElement)
 }
 
 
-export function TextareaToolbar({ onFormatClick }: TextareaToolbarProps) {
+export function TextareaToolbar({ onFormatClick, className }: TextareaToolbarProps) {
     const isMobile = useIsMobile();
     const [commandKey, setCommandKey] = useState('Ctrl');
+    const [isExpanded, setIsExpanded] = useState(true);
     
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -223,46 +225,70 @@ export function TextareaToolbar({ onFormatClick }: TextareaToolbarProps) {
 
     return (
         <div className={cn(
-            "no-scrollbar absolute bottom-2 left-2 right-2 z-10 flex max-w-[calc(100%-1rem)] items-center gap-1 overflow-x-auto",
-            "rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.78),rgba(15,23,42,0.64))] p-1.5 shadow-[0_18px_45px_-28px_rgba(0,0,0,0.8)] backdrop-blur-xl"
+            "no-scrollbar absolute bottom-2 z-10 flex items-center overflow-hidden rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.78),rgba(15,23,42,0.64))] shadow-[0_18px_45px_-28px_rgba(0,0,0,0.8)] backdrop-blur-xl transition-all duration-300 ease-out",
+            isExpanded ? "left-2 right-2 max-w-[calc(100%-1rem)] gap-1 p-1.5" : "right-2 gap-0 p-1",
+            className
         )}>
-        {tools.map(({ type, icon, tooltip, shortcut, emphasis }) => (
-            <TooltipProvider key={type}>
-                <Tooltip>
-                <TooltipTrigger asChild>
-                    <button
-                    type="button"
-                    className={cn(
-                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-transparent transition-all duration-200",
-                        "text-muted-foreground hover:-translate-y-0.5 hover:border-white/10 hover:bg-white/[0.08] hover:text-foreground active:translate-y-0 active:scale-95",
-                        emphasis && "bg-primary/10 text-primary hover:border-primary/20 hover:bg-primary/14 hover:text-primary"
-                    )}
-                    onClick={(e) => {
-                        e.preventDefault();
-                        onFormatClick(type);
-                    }}
-                    onMouseDown={(e) => e.preventDefault()}
-                    >
-                    {icon}
-                    </button>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="text-[10px] font-bold">
-                    <div className="flex items-center gap-2">
-                        <span>{tooltip}</span>
-                        {!isMobile && shortcut && (
-                            shortcut === '@<' ? (
-                                <kbd className="bg-muted px-1 rounded border text-[9px]">@&lt;</kbd>
-                            ) : (
-                                <kbd className="bg-muted px-1 rounded border text-[9px]">
-                                    {commandKey}+{shortcut}
-                                </kbd>
-                            )
+        <div
+            className={cn(
+                "no-scrollbar flex min-w-0 flex-1 items-center gap-1 overflow-x-auto transition-all duration-200",
+                isExpanded ? "opacity-100" : "pointer-events-none w-0 opacity-0"
+            )}
+        >
+            {tools.map(({ type, icon, tooltip, shortcut, emphasis }) => (
+                <TooltipProvider key={type}>
+                    <Tooltip>
+                    <TooltipTrigger asChild>
+                        <button
+                        type="button"
+                        className={cn(
+                            "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-transparent transition-all duration-200",
+                            "text-muted-foreground hover:-translate-y-0.5 hover:border-border/70 hover:bg-accent hover:text-foreground active:translate-y-0 active:scale-95",
+                            emphasis && "bg-primary/10 text-primary hover:border-primary/20 hover:bg-primary/14 hover:text-primary"
                         )}
-                    </div>
-                </TooltipContent>
-                </Tooltip>
-            </TooltipProvider>
-        ))}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            onFormatClick(type);
+                        }}
+                        onMouseDown={(e) => e.preventDefault()}
+                        >
+                        {icon}
+                        </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-[10px] font-bold">
+                        <div className="flex items-center gap-2">
+                            <span>{tooltip}</span>
+                            {!isMobile && shortcut && (
+                                shortcut === '@<' ? (
+                                    <kbd className="bg-muted px-1 rounded border text-[9px]">@&lt;</kbd>
+                                ) : (
+                                    <kbd className="bg-muted px-1 rounded border text-[9px]">
+                                        {commandKey}+{shortcut}
+                                    </kbd>
+                                )
+                            )}
+                        </div>
+                    </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            ))}
+        </div>
+        <button
+            type="button"
+            aria-label={isExpanded ? 'Collapse editor tools' : 'Expand editor tools'}
+            className={cn(
+                "flex shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-foreground/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-all duration-200 hover:bg-white/[0.1] hover:text-foreground active:scale-95",
+                isExpanded ? "h-9 w-9" : "h-10 w-10"
+            )}
+            onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsExpanded((prev) => !prev);
+            }}
+            onMouseDown={(e) => e.preventDefault()}
+        >
+            {isExpanded ? <X className="h-4 w-4" /> : <Wand2 className="h-[18px] w-[18px]" />}
+        </button>
         </div>
     );
 }

@@ -21,7 +21,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { cn, fuzzySearch } from '@/lib/utils';
-import { getBinnedTasks, getNotes, getTasks, getUiConfig } from '@/lib/data';
+import { getUiConfig } from '@/lib/data';
+import { getCachedBinnedTasks as getBinnedTasks, getCachedNotes as getNotes, getCachedTasks as getTasks } from '@/lib/cached-data';
 import { getStatusDisplayName } from '@/lib/status-config';
 import { useIsMobile } from '@/hooks/use-mobile';
 import type { Note, Task } from '@/lib/types';
@@ -30,7 +31,7 @@ const SPOTLIGHT_EVENT = 'open-global-search';
 const SPOTLIGHT_HISTORY_KEY = 'taskflow_spotlight_history';
 const MAX_HISTORY_ITEMS = 12;
 
-type SpotlightGroup = 'Tasks' | 'Notes' | 'Settings' | 'Others' | 'Recent';
+type SpotlightGroup = 'Tasks' | 'Notes' | 'Settings' | 'Others' | 'Recent' | 'Quick Access';
 type SpotlightKind = 'task' | 'note' | 'settings' | 'other';
 
 type SpotlightHistoryEntry = {
@@ -52,6 +53,14 @@ type SpotlightItem = {
   updatedAt?: string;
   isBinned?: boolean;
 };
+
+type IndexedSpotlightItem = SpotlightItem & {
+  normalizedTitle: string;
+  normalizedSubLabel: string;
+  normalizedKeywords: string;
+};
+
+const toSpotlightItem = ({ normalizedTitle, normalizedSubLabel, normalizedKeywords, ...item }: IndexedSpotlightItem): SpotlightItem => item;
 
 const SETTINGS_SECTIONS: Array<{
   id: string;
@@ -244,6 +253,7 @@ export function GlobalSpotlightSearch() {
   const router = useRouter();
   const pathname = usePathname();
   const isMobile = useIsMobile();
+  const [, startTransition] = React.useTransition();
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState('');
   const [debouncedQuery, setDebouncedQuery] = React.useState('');
@@ -265,6 +275,12 @@ export function GlobalSpotlightSearch() {
   }, []);
 
   React.useEffect(() => {
+    startTransition(() => {
+      refreshData();
+    });
+  }, [refreshData, startTransition]);
+
+  React.useEffect(() => {
     const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
     setCommandKey(isMac ? '⌘' : 'Ctrl');
   }, []);
@@ -272,30 +288,34 @@ export function GlobalSpotlightSearch() {
   React.useEffect(() => {
     const timer = window.setTimeout(() => {
       setDebouncedQuery(query.trim());
-    }, 120);
+    }, 45);
 
     return () => window.clearTimeout(timer);
   }, [query]);
 
   React.useEffect(() => {
     if (!open) return;
-    refreshData();
-    const focusTimer = window.setTimeout(() => {
+    const frame = window.requestAnimationFrame(() => {
       inputRef.current?.focus();
-    }, 60);
+    });
 
-    return () => window.clearTimeout(focusTimer);
-  }, [open, refreshData]);
+    return () => window.cancelAnimationFrame(frame);
+  }, [open]);
 
   React.useEffect(() => {
-    const openSearch = () => setOpen(true);
+    const openSearch = () => {
+      setOpen(true);
+    };
     const syncSearchData = () => refreshData();
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         if (isInteractiveTarget(event.target)) return;
         event.preventDefault();
-        setOpen(current => !current);
+        setOpen(current => {
+          const nextOpen = !current;
+          return nextOpen;
+        });
         return;
       }
 
@@ -321,7 +341,7 @@ export function GlobalSpotlightSearch() {
       window.removeEventListener('notes-updated', syncSearchData);
       window.removeEventListener('sync-complete', syncSearchData);
     };
-  }, [refreshData]);
+  }, [refreshData, startTransition]);
 
   const uiConfig = React.useMemo(() => getUiConfig(), [uiConfigVersion]);
 
@@ -394,45 +414,54 @@ export function GlobalSpotlightSearch() {
     return [...taskItems, ...binnedTaskItems, ...noteItems, ...settingsItems, ...QUICK_LINKS];
   }, [binnedTasks, isMobile, notes, tasks, uiConfig]);
 
+  const searchableIndex = React.useMemo<IndexedSpotlightItem[]>(
+    () =>
+      searchableItems.map(item => ({
+        ...item,
+        normalizedTitle: item.title.toLowerCase(),
+        normalizedSubLabel: item.subLabel.toLowerCase(),
+        normalizedKeywords: (item.keywords || []).join(' ').toLowerCase(),
+      })),
+    [searchableItems]
+  );
+
   const historyMap = React.useMemo(() => new Map(historyEntries.map(entry => [entry.id, entry])), [historyEntries]);
 
-  const visibleGroups = React.useMemo(() => {
+  const visibleGroups = React.useMemo<{ heading: SpotlightGroup; items: SpotlightItem[] }[]>(() => {
     if (!debouncedQuery) {
-      const recent = historyEntries
-        .map(entry => searchableItems.find(item => item.id === entry.id))
-        .filter((item): item is SpotlightItem => Boolean(item))
+      const recent: SpotlightItem[] = historyEntries
+        .map(entry => searchableIndex.find(item => item.id === entry.id))
+        .filter((item): item is IndexedSpotlightItem => Boolean(item))
         .slice(0, 6)
-        .map(item => ({ ...item, group: 'Recent' as const }));
+        .map(item => ({ ...toSpotlightItem(item), group: 'Recent' as const }));
 
-      const quickAccess = searchableItems
+      const quickAccess: SpotlightItem[] = searchableIndex
         .filter(item => item.kind === 'settings' || item.kind === 'other')
         .sort((a, b) => {
           const aHistory = historyMap.get(a.id)?.count || 0;
           const bHistory = historyMap.get(b.id)?.count || 0;
           return bHistory - aHistory || a.title.localeCompare(b.title);
         })
-        .slice(0, 8);
+        .slice(0, 8)
+        .map(toSpotlightItem);
 
       return [
-        { heading: 'Recent', items: recent },
-        { heading: 'Quick Access', items: quickAccess },
+        { heading: 'Recent' as const, items: recent },
+        { heading: 'Quick Access' as const, items: quickAccess },
       ].filter(section => section.items.length > 0);
     }
 
     const normalizedQuery = debouncedQuery.toLowerCase();
 
-    const scoredItems = searchableItems
+    const scoredItems = searchableIndex
       .map(item => {
-        const title = item.title.toLowerCase();
-        const subLabel = item.subLabel.toLowerCase();
-        const keywords = (item.keywords || []).join(' ').toLowerCase();
         let score = 0;
 
-        if (title === normalizedQuery) score += 400;
-        if (title.startsWith(normalizedQuery)) score += 250;
-        if (title.includes(normalizedQuery)) score += 150;
-        if (subLabel.includes(normalizedQuery)) score += 90;
-        if (keywords.includes(normalizedQuery)) score += 80;
+        if (item.normalizedTitle === normalizedQuery) score += 400;
+        if (item.normalizedTitle.startsWith(normalizedQuery)) score += 250;
+        if (item.normalizedTitle.includes(normalizedQuery)) score += 150;
+        if (item.normalizedSubLabel.includes(normalizedQuery)) score += 90;
+        if (item.normalizedKeywords.includes(normalizedQuery)) score += 80;
         if (fuzzySearch(normalizedQuery, item.title)) score += 50;
         if (fuzzySearch(normalizedQuery, item.subLabel)) score += 30;
 
@@ -456,7 +485,7 @@ export function GlobalSpotlightSearch() {
     scoredItems.forEach(({ item }) => {
       const existing = grouped.get(item.group) || [];
       if (existing.length < 8) {
-        existing.push(item);
+        existing.push(toSpotlightItem(item));
         grouped.set(item.group, existing);
       }
     });
@@ -464,12 +493,12 @@ export function GlobalSpotlightSearch() {
     return (['Tasks', 'Notes', 'Settings', 'Others'] as SpotlightGroup[])
       .map(group => ({ heading: group, items: grouped.get(group) || [] }))
       .filter(section => section.items.length > 0);
-  }, [debouncedQuery, historyEntries, historyMap, searchableItems]);
+  }, [debouncedQuery, historyEntries, historyMap, searchableIndex]);
 
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
     if (!nextOpen) {
-      window.setTimeout(() => setQuery(''), 120);
+      window.setTimeout(() => setQuery(''), 60);
     }
   };
 
@@ -491,11 +520,33 @@ export function GlobalSpotlightSearch() {
       setHistoryEntries(getHistory());
       setOpen(false);
       setQuery('');
+
+      const targetUrl = new URL(item.href, window.location.origin);
+      const isSamePath = targetUrl.pathname === window.location.pathname;
+
+      if (isSamePath) {
+        const nextHref = `${targetUrl.pathname}${targetUrl.search}${targetUrl.hash}`;
+        const currentHref = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+
+        if (nextHref !== currentHref) {
+          window.history.pushState(null, '', nextHref);
+        }
+
+        if (targetUrl.hash) {
+          const anchorId = targetUrl.hash.slice(1);
+          window.setTimeout(() => {
+            document.getElementById(anchorId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 120);
+        }
+
+        return;
+      }
+
       window.dispatchEvent(new Event('navigation-start'));
       router.push(item.href, { scroll: false });
 
-      if (item.href.includes('#')) {
-        const anchorId = item.href.split('#')[1];
+      if (targetUrl.hash) {
+        const anchorId = targetUrl.hash.slice(1);
         window.setTimeout(() => {
           document.getElementById(anchorId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 220);
@@ -512,7 +563,7 @@ export function GlobalSpotlightSearch() {
       <DialogContent
         hideClose={!isMobile}
         className={cn(
-          'gap-0 overflow-hidden border-white/10 bg-background/95 p-0 shadow-2xl backdrop-blur-2xl duration-300 data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-[0.98] data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[50%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[50%]',
+          'gap-0 overflow-hidden border-white/10 bg-background/95 p-0 shadow-2xl backdrop-blur-2xl duration-200 data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-[0.985] data-[state=open]:zoom-in-[0.995] data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[49%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[49%]',
           isMobile
             ? 'top-4 w-[calc(100vw-1rem)] max-w-none translate-y-0 rounded-[24px] border max-h-[72vh]'
             : 'top-[18vh] translate-y-0 rounded-[28px] border sm:max-w-2xl'

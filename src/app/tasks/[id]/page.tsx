@@ -2,7 +2,8 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { getTaskById, getUiConfig, updateTask, getDevelopers, getTesters, getTasks, restoreTask, getLogsForTask, addDeveloper, addTester, getActiveCompanyId, getAuthMode, isInitialSyncComplete, clearExpiredReminders } from '@/lib/data';
+import { getUiConfig, updateTask, getDevelopers, getTesters, restoreTask, getLogsForTask, addDeveloper, addTester, getActiveCompanyId, getAuthMode, isInitialSyncComplete, clearExpiredReminders } from '@/lib/data';
+import { getCachedTaskById as getTaskById, getCachedTasks as getTasks } from '@/lib/cached-data';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -67,6 +68,8 @@ const isImageUrl = (url: string): boolean => {
     return false;
   }
 };
+
+const HOME_RETURN_SKELETON_KEY = 'taskflow_show_home_skeleton_once';
 
 
 export default function TaskPage() {
@@ -277,6 +280,15 @@ export default function TaskPage() {
   const handleStartEditing = (section: string, initialValue: any) => {
     if (!task || task.deletedAt) return;
     setEditingSection(section);
+    if (section === 'details') {
+      setEditingValue({
+        developers: task.developers || [],
+        testers: task.testers || [],
+        repositories: task.repositories || [],
+        azureWorkItemId: task.azureWorkItemId || '',
+      });
+      return;
+    }
     setEditingValue(initialValue);
   };
   
@@ -332,6 +344,36 @@ export default function TaskPage() {
             title: 'Field Updated',
             description: 'Your changes have been saved.',
         });
+    }
+    handleCancelEditing();
+  };
+
+  const handleSaveDetailsEditing = async () => {
+    if (!task || !editingValue || typeof editingValue !== 'object') return;
+
+    const nextDetails = editingValue as {
+      developers?: string[];
+      testers?: string[];
+      repositories?: string[];
+      azureWorkItemId?: string;
+    };
+
+    const updatePayload: Partial<Task> = {
+      developers: nextDetails.developers || [],
+      testers: nextDetails.testers || [],
+      repositories: nextDetails.repositories || [],
+      azureWorkItemId: nextDetails.azureWorkItemId || '',
+    };
+
+    const updatedTask = updateTask(task.id, updatePayload);
+    if (updatedTask) {
+      setTask(updatedTask);
+      setTaskLogs(getLogsForTask(task.id));
+      toast({
+        variant: 'success',
+        title: 'Task Details Updated',
+        description: 'Your changes have been saved.',
+      });
     }
     handleCancelEditing();
   };
@@ -832,6 +874,9 @@ const handleCopyDescription = () => {
 
   const handleNavigateBack = () => {
     window.dispatchEvent(new Event('navigation-start'));
+    if (typeof window !== 'undefined' && !isBinned) {
+      window.sessionStorage.setItem(HOME_RETURN_SKELETON_KEY, '1');
+    }
     router.push(backLink);
   };
 
@@ -903,7 +948,7 @@ const handleCopyDescription = () => {
 
   return (
     <>
-      <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <div className="container mx-auto px-4 pb-8 pt-10 sm:px-6 sm:pt-12 lg:px-8">
         <div className="flex flex-row justify-between items-center mb-6">
           <Button 
             onClick={handleNavigateBack} 
@@ -914,7 +959,7 @@ const handleCopyDescription = () => {
               isMobile ? "rounded-full" : "pl-1"
             )}
           >
-              <ArrowLeft className={cn("h-4 w-4", !isMobile && "mr-2")} />
+              <ArrowLeft className={cn("h-4 w-4", !isMobile && "mx-2")} />
               {!isMobile && "Back"}
           </Button>
           {isBinned ? (
@@ -1169,7 +1214,7 @@ const handleCopyDescription = () => {
                                   ref={descriptionEditorRef}
                                   value={editingValue}
                                   onChange={e => setEditingValue(e.target.value)}
-                                  className="min-h-[150px] pb-12 font-normal"
+                                  className="min-h-[160px] pb-12 font-normal"
                                   placeholder="Enter a description..."
                                   enableHotkeys
                                />
@@ -1319,25 +1364,49 @@ const handleCopyDescription = () => {
                      <div className="space-y-4">
                          <div>
                             <Label className="font-semibold">{fieldLabels.get('developers') || 'Developers'}</Label>
-                            <MultiSelect selected={task.developers || []} onChange={val => handleSaveEditing('developers', false, val)} options={developerOptions} creatable onCreate={handleCreateDeveloper}/>
+                            <MultiSelect
+                              selected={editingValue?.developers || []}
+                              onChange={val => setEditingValue((prev: any) => ({ ...(prev || {}), developers: val }))}
+                              options={developerOptions}
+                              creatable
+                              onCreate={handleCreateDeveloper}
+                            />
                         </div>
                         <div>
                             <Label className="font-semibold">{fieldLabels.get('testers') || 'Testers'}</Label>
-                            <MultiSelect selected={task.testers || []} onChange={val => handleSaveEditing('testers', false, val)} options={testerOptions} creatable onCreate={handleCreateTester}/>
+                            <MultiSelect
+                              selected={editingValue?.testers || []}
+                              onChange={val => setEditingValue((prev: any) => ({ ...(prev || {}), testers: val }))}
+                              options={testerOptions}
+                              creatable
+                              onCreate={handleCreateTester}
+                            />
                         </div>
                         {isRepositorySectionVisible && (
                           <div>
                               <Label className="font-semibold">{fieldLabels.get('repositories') || 'Repositories'}</Label>
-                              <MultiSelect selected={visibleRepositories} onChange={val => handleSaveEditing('repositories', false, val)} options={repoOptions} />
+                              <MultiSelect
+                                selected={editingValue?.repositories || []}
+                                onChange={val => setEditingValue((prev: any) => ({ ...(prev || {}), repositories: val }))}
+                                options={repoOptions}
+                              />
                           </div>
                         )}
                         {azureWorkItemIdFieldConfig?.isActive && (
                             <div>
                                 <Label className="font-semibold">{azureWorkItemIdFieldConfig.label || 'Azure DevOps'}</Label>
-                                <Input defaultValue={task.azureWorkItemId} onBlur={(e) => handleSaveEditing('azureWorkItemId', false, e.target.value)} placeholder="Enter ID..." className="font-normal"/>
+                                <Input
+                                  value={editingValue?.azureWorkItemId || ''}
+                                  onChange={(e) => setEditingValue((prev: any) => ({ ...(prev || {}), azureWorkItemId: e.target.value }))}
+                                  placeholder="Enter ID..."
+                                  className="font-normal"
+                                />
                             </div>
                         )}
-                        <Button onClick={() => setEditingSection(null)} className="w-full font-semibold">Done</Button>
+                        <div className="flex gap-2">
+                          <Button variant="ghost" onClick={handleCancelEditing} className="flex-1 font-medium">Cancel</Button>
+                          <Button onClick={handleSaveDetailsEditing} className="flex-1 font-semibold">Done</Button>
+                        </div>
                      </div>
                   ) : (
                     <>

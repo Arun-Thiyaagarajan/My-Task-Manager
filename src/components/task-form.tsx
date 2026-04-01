@@ -175,6 +175,8 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   const { toast } = useToast();
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const jumpNavViewportRef = useRef<HTMLDivElement>(null);
+  const jumpNavItemRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [commandKey, setCommandKey] = useState('Ctrl');
   const [activeId, setActiveId] = useState<string>('');
   
@@ -186,11 +188,16 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   const [draftData, setDraftData] = useState<{ data: any; updatedAt: string } | null>(null);
   const DRAFT_PREFIX = 'taskflow_draft_';
   const draftKey = task?.id ? `${DRAFT_PREFIX}${task.id}` : `${DRAFT_PREFIX}new`;
+  const skipDraftAutosaveRef = useRef(false);
 
   const isJumpingRef = useRef(false);
   const jumpTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const SCROLL_THRESHOLD = 140; 
+  const premiumFieldClassName = "border-border/65 bg-background/95 shadow-[0_1px_2px_rgba(15,23,42,0.02)] transition-[border-color,box-shadow,background-color] duration-200 focus-visible:border-primary/40 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-primary/35 focus-visible:ring-offset-0";
+  const premiumFieldErrorClassName = "border-destructive/55 focus-visible:border-destructive/45 focus-visible:ring-1 focus-visible:ring-destructive/30";
+  const premiumSurfaceFocusClassName = "border-border/65 bg-background/95 shadow-[0_1px_2px_rgba(15,23,42,0.02)] transition-[border-color,box-shadow,background-color] duration-200 hover:border-border/90 focus-within:border-primary/40 focus-within:bg-background focus-within:ring-1 focus-within:ring-primary/35 focus-within:ring-offset-0";
+  const premiumOutlineButtonClassName = "border-border/65 bg-background/95 shadow-[0_1px_2px_rgba(15,23,42,0.02)] transition-[border-color,box-shadow,background-color] duration-200 hover:border-border/90 focus-visible:border-primary/40 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-primary/35 focus-visible:ring-offset-0";
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -268,9 +275,11 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   // Auto-save draft logic
   const watchedValues = form.watch();
   useEffect(() => {
+    if (skipDraftAutosaveRef.current) return;
     if (!isDirty) return;
     
     const timer = setTimeout(() => {
+        if (skipDraftAutosaveRef.current) return;
         localStorage.setItem(draftKey, JSON.stringify({
             data: watchedValues,
             updatedAt: new Date().toISOString()
@@ -283,6 +292,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   const restoreDraft = () => {
     if (!draftData) return;
     
+    skipDraftAutosaveRef.current = true;
     const restored = { ...(draftData.data || draftData) };
     restored.devStartDate = safeParseDate(restored.devStartDate);
     restored.devEndDate = safeParseDate(restored.devEndDate);
@@ -299,6 +309,10 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     
     form.reset(restored);
     setShowDraftPrompt(false);
+    setDraftData(null);
+    window.setTimeout(() => {
+      skipDraftAutosaveRef.current = false;
+    }, 0);
     toast({ 
         variant: 'default', 
         title: 'Draft Restored', 
@@ -307,8 +321,13 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   };
 
   const discardDraft = () => {
+    skipDraftAutosaveRef.current = true;
     localStorage.removeItem(draftKey);
     setShowDraftPrompt(false);
+    setDraftData(null);
+    window.setTimeout(() => {
+      skipDraftAutosaveRef.current = false;
+    }, 0);
     toast({ title: 'Draft discarded' });
   };
   
@@ -504,8 +523,11 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     }
 
     startTransition(() => {
+        skipDraftAutosaveRef.current = true;
         setIsDirty(false);
         localStorage.removeItem(draftKey);
+        setDraftData(null);
+        setShowDraftPrompt(false);
         onSubmit(normalizedData as TaskFormData);
     });
   };
@@ -518,6 +540,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     if (!uiConfig) return;
 
     form.reset(getInitialTaskData(undefined, uiConfig));
+    skipDraftAutosaveRef.current = true;
     localStorage.removeItem(draftKey);
     setShowDraftPrompt(false);
     setDraftData(null);
@@ -528,6 +551,9 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
       title: 'Form cleared',
       description: 'All fields have been reset to their default values.',
     });
+    window.setTimeout(() => {
+      skipDraftAutosaveRef.current = false;
+    }, 0);
   }, [uiConfig, form, draftKey, toast]);
 
   useEffect(() => {
@@ -613,7 +639,11 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                             placeholder={label} 
                             {...field} 
                             value={field.value ?? ''} 
-                            className={cn("font-normal", hasUniquenessViolation && "border-destructive ring-destructive")}
+                            className={cn(
+                                "font-normal",
+                                premiumFieldClassName,
+                                hasUniquenessViolation && premiumFieldErrorClassName
+                            )}
                             onChange={(e) => {
                                 field.onChange(e);
                                 if (hasUniquenessViolation) setUniquenessViolation(null);
@@ -624,12 +654,12 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                 );
             case 'number':
             case 'url':
-                return <Input type={fieldType} placeholder={label} {...field} value={field.value ?? ''} className="font-normal" />;
+                return <Input type={fieldType} placeholder={label} {...field} value={field.value ?? ''} className={cn("font-normal", premiumFieldClassName)} />;
             case 'textarea': {
                  const ref = key === 'description' ? descriptionRef : null;
                  return (
                     <div className="relative w-full">
-                        <Textarea {...field} value={field.value ?? ''} ref={ref ?? undefined} className="pb-12 font-normal" enableHotkeys/>
+                        <Textarea {...field} value={field.value ?? ''} ref={ref ?? undefined} className={cn("pb-12 font-normal", premiumFieldClassName)} enableHotkeys/>
                         {ref ? <TextareaToolbar onFormatClick={(type) => handleFormat(ref, type)} /> : null}
                     </div>
                  )
@@ -649,7 +679,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                     <Popover>
                         <PopoverTrigger asChild>
                             <FormControl>
-                                <Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal shadow-sm", !field.value && "text-muted-foreground")}>
+                                <Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal shadow-sm", premiumOutlineButtonClassName, !field.value && "text-muted-foreground")}>
                                     {field.value && field.value instanceof Date && !isNaN(field.value.getTime()) ? format(field.value, "PPP") : <span>Pick a date</span>}
                                     <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                 </Button>
@@ -685,7 +715,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                 return (
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                            <SelectTrigger className="font-normal shadow-sm">
+                            <SelectTrigger className={cn("font-normal shadow-sm", premiumOutlineButtonClassName)}>
                                 <SelectValue placeholder={`Select ${label}`} />
                             </SelectTrigger>
                         </FormControl>
@@ -703,8 +733,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                         onChange={field.onChange}
                         options={getFieldOptions(fieldConfig)}
                         placeholder={`Select ${label}...`}
-                        maxVisible={Infinity}
-                        className="font-normal"
+                        className={cn("font-normal", premiumSurfaceFocusClassName)}
                     />
                 );
             case 'tags':
@@ -718,8 +747,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                         options={getFieldOptions(fieldConfig)}
                         placeholder={`Add ${label}...`}
                         creatable
-                        maxVisible={Infinity}
-                        className="font-normal"
+                        className={cn("font-normal", premiumSurfaceFocusClassName)}
                         {...(isDeveloperField && { onCreate: handleCreateDeveloper })}
                         {...(isTesterField && { onCreate: handleCreateTester })}
                         {...(isGeneralTagField && { onCreate: (value) => value })}
@@ -735,7 +763,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                     </div>
                 );
             default:
-                return <Input placeholder={label} {...field} value={field.value ?? ''} className="font-normal" />;
+                return <Input placeholder={label} {...field} value={field.value ?? ''} className={cn("font-normal", premiumFieldClassName)} />;
         }
     }
 
@@ -902,6 +930,22 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     return () => window.removeEventListener('scroll', handleScroll);
   }, [navigableSections, uiConfig, activeId]);
 
+  useEffect(() => {
+    if (!activeId || isMobile) return;
+
+    const activeNavItem = jumpNavItemRefs.current[activeId];
+    const viewport = jumpNavViewportRef.current;
+    if (!activeNavItem || !viewport) return;
+
+    requestAnimationFrame(() => {
+      activeNavItem.scrollIntoView({
+        block: 'nearest',
+        inline: 'nearest',
+        behavior: isJumpingRef.current ? 'smooth' : 'auto',
+      });
+    });
+  }, [activeId, isMobile]);
+
   const scrollToId = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
@@ -1063,13 +1107,20 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
 
         {/* FORM CONTENT */}
         <div id="task-form-main-card" className={cn(
-            "flex flex-col gap-8 pb-32 pt-2 lg:pt-0 lg:pb-32 relative px-4 lg:px-0",
+            "relative flex flex-col gap-8 overflow-visible px-4 pb-32 pt-2 lg:items-start lg:px-0 lg:pb-32 lg:pt-0",
             sidebarPosition === 'left' ? "lg:flex-row" : "lg:flex-row-reverse"
         )}>
             {/* Desktop Navigation Sidebar */}
-            <aside className="hidden lg:block w-72 shrink-0 animate-in fade-in slide-in-from-top-1 duration-300">
-                <div className="sticky top-24 space-y-1">
-                    <div className="flex items-center justify-between px-3 mb-4">
+            <aside className="hidden w-72 shrink-0 self-start lg:block">
+                <div
+                    className={cn(
+                        "fixed top-24 bottom-24 z-40 flex w-72 flex-col space-y-1 rounded-[1.75rem] border border-border/60 bg-background/92 px-3 py-4 shadow-[0_18px_48px_-28px_rgba(15,23,42,0.35)] backdrop-blur-xl animate-in fade-in slide-in-from-top-1 duration-300",
+                        sidebarPosition === 'left'
+                            ? "left-[max(1rem,calc((100vw-1280px)/2+2rem))]"
+                            : "right-[max(1rem,calc((100vw-1280px)/2+2rem))]"
+                    )}
+                >
+                    <div className="mb-4 flex items-center justify-between px-2">
                         <h3 className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground/60">
                             Jump to Section
                         </h3>
@@ -1090,7 +1141,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                             </Tooltip>
                         </TooltipProvider>
                     </div>
-                    <ScrollArea className="h-100vh pr-4">
+                    <ScrollArea className="min-h-0 flex-1 pr-2" viewportRef={jumpNavViewportRef}>
                         <nav className="flex flex-col gap-1 pb-10">
                             {navigableSections.map((section) => {
                                 const Icon = section.icon;
@@ -1099,6 +1150,9 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                     <div key={section.id} className="space-y-1">
                                         <button
                                             key={section.id}
+                                            ref={(node) => {
+                                                jumpNavItemRefs.current[section.id] = node;
+                                            }}
                                             type="button"
                                             onClick={() => scrollToId(section.id)}
                                             className={cn(
@@ -1120,6 +1174,9 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                                     return (
                                                         <button
                                                             key={field.id}
+                                                            ref={(node) => {
+                                                                jumpNavItemRefs.current[field.id] = node;
+                                                            }}
                                                             type="button"
                                                             onClick={() => scrollToId(field.id)}
                                                             className={cn(
@@ -1252,7 +1309,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                                 render={({ field }) => (
                                                     <FormItem>
                                                         <FormLabel className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Name</FormLabel>
-                                                        <FormControl><Input {...field} value={field.value ?? ""} placeholder="Attachment name" className="h-9 font-normal" /></FormControl>
+                                                        <FormControl><Input {...field} value={field.value ?? ""} placeholder="Attachment name" className={cn("h-9 font-normal", premiumFieldClassName)} /></FormControl>
                                                     </FormItem>
                                                 )}
                                             />
@@ -1263,7 +1320,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                                     render={({ field }) => (
                                                         <FormItem>
                                                             <FormLabel className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">URL</FormLabel>
-                                                            <FormControl><Input {...field} value={field.value ?? ""} placeholder="https://example.com/file" className="h-9 font-normal" /></FormControl>
+                                                            <FormControl><Input {...field} value={field.value ?? ""} placeholder="https://example.com/file" className={cn("h-9 font-normal", premiumFieldClassName)} /></FormControl>
                                                         </FormItem>
                                                     )}
                                                 />
@@ -1346,7 +1403,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                                         <Popover>
                                                             <PopoverTrigger asChild>
                                                                 <FormControl>
-                                                                    <Button variant={"outline"} className={cn("w-full h-10 pl-3 text-left font-normal shadow-sm", !field.value && "text-muted-foreground")}>
+                                                                    <Button variant={"outline"} className={cn("w-full h-10 pl-3 text-left font-normal shadow-sm", premiumOutlineButtonClassName, !field.value && "text-muted-foreground")}>
                                                                         {field.value && field.value instanceof Date && !isNaN(field.value.getTime()) ? format(field.value, "PPP") : <span>Deployment Date</span>}
                                                                         <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                                                     </Button>
@@ -1405,7 +1462,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                                         <FormItem>
                                                             <FormLabel className="capitalize font-medium text-xs tracking-wide">{env.name} PR IDs</FormLabel>
                                                             <FormControl>
-                                                                <Input {...field} value={field.value ?? ''} placeholder="e.g. 12345, 67890" className="font-normal shadow-sm" />
+                                                                <Input {...field} value={field.value ?? ''} placeholder="e.g. 12345, 67890" className={cn("font-normal shadow-sm", premiumFieldClassName)} />
                                                             </FormControl>
                                                         </FormItem>
                                                     )}
