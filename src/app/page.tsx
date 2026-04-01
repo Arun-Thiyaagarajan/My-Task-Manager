@@ -2098,6 +2098,7 @@ export default function Home() {
                                                 setRepoFilter([]);
                                                 setDeploymentFilter([]);
                                                 setTagsFilter([]);
+                                                setStatusGroupFilter([]);
                                                 setSearchQuery('');
                                                 setExecutedSearchQuery('');
                                             }}
