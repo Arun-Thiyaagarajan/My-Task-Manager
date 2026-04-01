@@ -1,6 +1,6 @@
 'use client';
 
-import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES, DEFAULT_STATUS_CONFIGS } from './constants';
+import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES, DEFAULT_STATUS_CONFIGS, DEFAULT_STATUS_GROUPS } from './constants';
 import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile, Feedback, FeedbackMessage, FeedbackStatus, UserProfile, AppNotification, StatusConfigItem } from './types'; 
 import cloneDeep from 'lodash/cloneDeep';
 import { getAuth } from 'firebase/auth';
@@ -150,6 +150,7 @@ const getInitialData = (): MyTaskManagerData => {
                     environments: [...ENVIRONMENTS],
                     repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
                     taskStatuses: [...TASK_STATUSES],
+                    statusGroups: [...DEFAULT_STATUS_GROUPS],
                     statusConfigs: [...DEFAULT_STATUS_CONFIGS],
                     appName: 'My Task Manager',
                     appIcon: null,
@@ -578,6 +579,22 @@ export function prepareUiFieldsForExport(
     });
 }
 
+export function prepareUiConfigForExport(
+    uiConfig: UiConfig,
+    developers: Person[],
+    testers: Person[]
+): UiConfig {
+    const normalized = syncTaskStatuses(uiConfig);
+
+    return {
+        ...normalized,
+        fields: prepareUiFieldsForExport(normalized.fields, developers, testers),
+        statusGroups: normalized.statusGroups || [],
+        statusConfigs: normalized.statusConfigs || [],
+        taskStatuses: normalized.taskStatuses || [],
+    };
+}
+
 export function prepareUiFieldsForImport(
     fields: FieldConfig[],
     developers: Person[],
@@ -697,6 +714,7 @@ function mergeImportedUiConfig(
         fields: mergedFields,
         repositoryConfigs: mergedRepositoryConfigs,
         environments: mergedEnvironments,
+        statusGroups: Array.isArray(parsedJson.statusGroups) ? parsedJson.statusGroups : currentUi.statusGroups,
         statusConfigs: importedStatusConfigs.length > 0 ? importedStatusConfigs : currentUi.statusConfigs,
         taskStatuses: importedTaskStatuses.length > 0 ? importedTaskStatuses : currentUi.taskStatuses,
     });

@@ -20,8 +20,8 @@ import {
     getUserPreferences,
     updateUserPreferences,
     updateTask,
-    prepareUiFieldsForExport,
-    prepareUiFieldsForImport
+    prepareUiFieldsForImport,
+    prepareUiConfigForExport
 } from '@/lib/data';
 import type { Task, UiConfig, FieldConfig, Person, RepositoryConfig, Environment, BackupFrequency, AuthMode, UserPreferences, PendingStatusConversion } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -125,8 +125,8 @@ import { FieldFormContent } from '@/components/field-form-content';
 import { EnvironmentFormContent } from '@/components/environment-form-content';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import type { StatusConfigItem } from '@/lib/types';
-import { getStatusConfigs, syncTaskStatuses } from '@/lib/status-config';
+import type { StatusConfigItem, StatusGroupConfig } from '@/lib/types';
+import { getStatusConfigs, getStatusGroupConfigs, syncTaskStatuses } from '@/lib/status-config';
 
 const isActualImage = (url: string | null | undefined) => {
     if (!url) return false;
@@ -145,6 +145,7 @@ export default function SettingsPage() {
   const [localFields, setLocalFields] = useState<FieldConfig[]>([]);
   const [localRepositoryConfigs, setLocalRepositoryConfigs] = useState<RepositoryConfig[]>([]);
   const [localStatusConfigs, setLocalStatusConfigs] = useState<StatusConfigItem[]>([]);
+  const [localStatusGroups, setLocalStatusGroups] = useState<StatusGroupConfig[]>([]);
   const [localPendingStatusConversions, setLocalPendingStatusConversions] = useState<PendingStatusConversion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isClearing, setIsClearing] = useState(false);
@@ -225,6 +226,7 @@ export default function SettingsPage() {
     setLocalFields(config?.fields || []);
     setLocalRepositoryConfigs(config?.repositoryConfigs || []);
     setLocalStatusConfigs(getStatusConfigs(config));
+    setLocalStatusGroups(getStatusGroupConfigs(config));
     setLocalPendingStatusConversions([]);
     setAppName(config?.appName || '');
     setAppIcon(config?.appIcon || '');
@@ -254,9 +256,10 @@ export default function SettingsPage() {
       JSON.stringify(localFields) !== JSON.stringify(uiConfig.fields) ||
       JSON.stringify(localRepositoryConfigs) !== JSON.stringify(uiConfig.repositoryConfigs || []) ||
       JSON.stringify(localStatusConfigs) !== JSON.stringify(getStatusConfigs(uiConfig)) ||
+      JSON.stringify(localStatusGroups) !== JSON.stringify(getStatusGroupConfigs(uiConfig)) ||
       localPendingStatusConversions.length > 0
     );
-  }, [localFields, localRepositoryConfigs, localStatusConfigs, localPendingStatusConversions, uiConfig]);
+  }, [localFields, localRepositoryConfigs, localStatusConfigs, localStatusGroups, localPendingStatusConversions, uiConfig]);
 
   // Auto-scroll to top when unsaved changes alert appears
   useEffect(() => {
@@ -451,6 +454,7 @@ export default function SettingsPage() {
       ...uiConfig!,
       fields: localFields,
       repositoryConfigs: localRepositoryConfigs,
+      statusGroups: localStatusGroups,
       statusConfigs: localStatusConfigs,
       taskStatuses: localStatusConfigs.map(status => status.name),
     });
@@ -481,6 +485,7 @@ export default function SettingsPage() {
     updatedField: FieldConfig,
     repoConfigs?: RepositoryConfig[],
     statusConfigs?: StatusConfigItem[],
+    statusGroups?: StatusGroupConfig[],
     pendingStatusConversions?: PendingStatusConversion[]
   ) => {
     let newFields = [...localFields];
@@ -496,13 +501,23 @@ export default function SettingsPage() {
     setLocalFields(newFields);
     if (repoConfigs) setLocalRepositoryConfigs(repoConfigs);
     if (updatedField.key === 'status' && statusConfigs) {
+      const nextGroups = getStatusGroupConfigs({
+        ...uiConfig!,
+        fields: newFields,
+        repositoryConfigs: repoConfigs || localRepositoryConfigs,
+        statusGroups: statusGroups || localStatusGroups,
+        statusConfigs,
+        taskStatuses: statusConfigs.map(status => status.name),
+      });
       setLocalStatusConfigs(getStatusConfigs({
         ...uiConfig!,
         fields: newFields,
         repositoryConfigs: repoConfigs || localRepositoryConfigs,
+        statusGroups: nextGroups,
         statusConfigs,
         taskStatuses: statusConfigs.map(status => status.name),
       }));
+      setLocalStatusGroups(nextGroups);
       setLocalPendingStatusConversions(pendingStatusConversions || []);
     }
     
@@ -539,10 +554,7 @@ export default function SettingsPage() {
     const developers = getDevelopers();
     const testers = getTesters();
     const fileName = `${uiConfig.appName?.replace(/\s+/g, '_') || 'TaskFlow'}_Settings_${new Date().toISOString().split('T')[0]}.json`;
-    const settingsToExport = {
-      ...uiConfig,
-      fields: prepareUiFieldsForExport(uiConfig.fields, developers, testers),
-    };
+    const settingsToExport = prepareUiConfigForExport(uiConfig, developers, testers);
     const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(settingsToExport, null, 2))}`;
     const link = document.createElement("a");
     link.href = jsonString;
@@ -910,6 +922,7 @@ export default function SettingsPage() {
                             existingFields={localFields}
                             repositoryConfigs={localRepositoryConfigs}
                             statusConfigs={localStatusConfigs}
+                            statusGroups={localStatusGroups}
                             pendingStatusConversions={localPendingStatusConversions}
                             onSave={handleSaveField} 
                             onCancel={() => setActiveMobileSection('fields')}
@@ -1515,6 +1528,7 @@ export default function SettingsPage() {
         existingFields={localFields}
         repositoryConfigs={localRepositoryConfigs}
         statusConfigs={localStatusConfigs}
+        statusGroups={localStatusGroups}
         pendingStatusConversions={localPendingStatusConversions}
         onSave={handleSaveField} 
       />

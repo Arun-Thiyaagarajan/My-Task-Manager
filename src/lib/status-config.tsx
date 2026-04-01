@@ -1,7 +1,7 @@
 import * as React from 'react';
 import type { CSSProperties } from 'react';
-import type { StatusConfigItem, TaskStatus, UiConfig } from './types';
-import { DEFAULT_STATUS_CONFIGS, TASK_STATUSES } from './constants';
+import type { StatusConfigItem, StatusGroupConfig, Task, TaskStatus, UiConfig } from './types';
+import { DEFAULT_STATUS_CONFIGS, DEFAULT_STATUS_GROUPS, TASK_STATUSES } from './constants';
 import {
   Circle,
   Loader2,
@@ -48,6 +48,166 @@ const STATUS_ICON_REGISTRY: Record<string, LucideIcon> = {
 };
 
 const DEFAULT_STATUS_ID_FALLBACK = 'todo';
+const DEFAULT_STATUS_GROUP_ID_FALLBACK = 'active';
+
+function slugifyGroupId(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+function inferGroupIdFromStatus(status: Pick<StatusConfigItem, 'id' | 'name'>) {
+  const value = `${status.id} ${status.name}`.trim().toLowerCase();
+
+  if (
+    value.includes('done') ||
+    value.includes('complete') ||
+    value.includes('closed') ||
+    value.includes('archive') ||
+    value.includes('released')
+  ) {
+    return 'completed';
+  }
+
+  if (
+    value.includes('hold') ||
+    value.includes('pause') ||
+    value.includes('blocked') ||
+    value.includes('waiting')
+  ) {
+    return 'hold';
+  }
+
+  if (
+    value.includes('qa') ||
+    value.includes('test') ||
+    value.includes('review') ||
+    value.includes('verify')
+  ) {
+    return 'testing';
+  }
+
+  if (
+    value.includes('todo') ||
+    value.includes('backlog') ||
+    value.includes('queued') ||
+    value.includes('new')
+  ) {
+    return 'backlog';
+  }
+
+  return DEFAULT_STATUS_GROUP_ID_FALLBACK;
+}
+
+export function buildStatusGroupConfigItem(
+  partial: Partial<StatusGroupConfig> & Pick<StatusGroupConfig, 'name'>,
+  order: number
+): StatusGroupConfig {
+  const normalizedName = partial.name.trim();
+  const id = partial.id || slugifyGroupId(normalizedName) || `status_group_${order + 1}`;
+
+  return {
+    id,
+    name: normalizedName,
+    order,
+    isDefault: partial.isDefault ?? false,
+  };
+}
+
+function normalizeStatusGroupLookup(groups: StatusGroupConfig[]) {
+  const byId = new Map(groups.map(group => [group.id, group]));
+  const byName = new Map(groups.map(group => [group.name.trim().toLowerCase(), group]));
+  return { byId, byName };
+}
+
+function ensureUniqueGroupId(baseId: string, existingIds: Set<string>) {
+  if (!existingIds.has(baseId)) return baseId;
+
+  let suffix = 2;
+  while (existingIds.has(`${baseId}_${suffix}`)) suffix += 1;
+  return `${baseId}_${suffix}`;
+}
+
+export function getStatusGroupConfigs(uiConfig?: UiConfig | null, statusConfigs?: StatusConfigItem[]): StatusGroupConfig[] {
+  const rawGroups = Array.isArray(uiConfig?.statusGroups) ? uiConfig?.statusGroups : [];
+  const rawStatuses = statusConfigs || (Array.isArray(uiConfig?.statusConfigs) ? uiConfig?.statusConfigs : DEFAULT_STATUS_CONFIGS);
+
+  const groups = new Map<string, StatusGroupConfig>();
+  DEFAULT_STATUS_GROUPS.forEach((group, index) => {
+    groups.set(group.id, buildStatusGroupConfigItem(group, typeof group.order === 'number' ? group.order : index));
+  });
+
+  rawGroups
+    .filter((group): group is StatusGroupConfig => Boolean(group?.id && group?.name?.trim()))
+    .forEach((group, index) => {
+      const existing = groups.get(group.id);
+      groups.set(
+        group.id,
+        buildStatusGroupConfigItem(
+          {
+            ...existing,
+            ...group,
+            isDefault: existing?.isDefault ?? group.isDefault ?? false,
+          },
+          typeof group.order === 'number' ? group.order : existing?.order ?? index
+        )
+      );
+    });
+
+  const sorted = Array.from(groups.values()).sort((a, b) => a.order - b.order);
+  const existingIds = new Set(sorted.map(group => group.id));
+  const lookup = normalizeStatusGroupLookup(sorted);
+
+  rawStatuses.forEach((status) => {
+    const rawGroup = status.group?.trim();
+    const normalizedById = rawGroup && lookup.byId.get(rawGroup);
+    const normalizedByName = rawGroup && lookup.byName.get(rawGroup.toLowerCase());
+    if (normalizedById || normalizedByName) return;
+
+    const sourceName = rawGroup || '';
+    if (!sourceName) return;
+
+    const nextId = ensureUniqueGroupId(slugifyGroupId(sourceName) || `status_group_${existingIds.size + 1}`, existingIds);
+    const nextGroup = buildStatusGroupConfigItem(
+      {
+        id: nextId,
+        name: sourceName,
+        isDefault: false,
+      },
+      sorted.length
+    );
+    sorted.push(nextGroup);
+    existingIds.add(nextId);
+    lookup.byId.set(nextGroup.id, nextGroup);
+    lookup.byName.set(nextGroup.name.trim().toLowerCase(), nextGroup);
+  });
+
+  return sorted.map((group, index) => buildStatusGroupConfigItem(group, index));
+}
+
+export function getStatusGroupId(groupValue: string | undefined, uiConfig?: UiConfig | null, status?: Pick<StatusConfigItem, 'id' | 'name'>) {
+  const rawGroup = groupValue?.trim();
+  const groups = getStatusGroupConfigs(uiConfig);
+  const { byId, byName } = normalizeStatusGroupLookup(groups);
+
+  if (rawGroup) {
+    if (byId.has(rawGroup)) return rawGroup;
+    const byGroupName = byName.get(rawGroup.toLowerCase());
+    if (byGroupName) return byGroupName.id;
+    if (!uiConfig) return rawGroup;
+  }
+
+  if (status) {
+    const inferredId = inferGroupIdFromStatus(status);
+    if (byId.has(inferredId)) return inferredId;
+  }
+
+  return groups[0]?.id || DEFAULT_STATUS_GROUP_ID_FALLBACK;
+}
+
+export function getStatusGroupName(groupId: string | undefined, uiConfig?: UiConfig | null) {
+  if (!groupId) return '';
+  const groups = getStatusGroupConfigs(uiConfig);
+  return groups.find(group => group.id === groupId)?.name || groupId;
+}
 
 function normalizeStatusIcon(status: Pick<StatusConfigItem, 'icon' | 'iconType' | 'name' | 'color'>) {
   if (status.iconType === 'image' && status.icon) return { icon: status.icon, iconType: 'image' as const };
@@ -87,7 +247,6 @@ export function buildStatusConfigItem(
   order: number
 ): StatusConfigItem {
   const normalizedName = partial.name.trim();
-  const normalizedGroup = partial.group?.trim() || undefined;
   const id = partial.id || normalizedName.toLowerCase().replace(/[^a-z0-9]+/g, '_') || `status_${order + 1}`;
   const color = partial.color || DEFAULT_STATUS_CONFIGS[Math.min(order, DEFAULT_STATUS_CONFIGS.length - 1)]?.color || '#64748b';
   const iconData = normalizeStatusIcon({
@@ -96,6 +255,7 @@ export function buildStatusConfigItem(
     name: normalizedName,
     color,
   });
+  const normalizedGroup = getStatusGroupId(partial.group, undefined, { id, name: normalizedName });
 
   return {
     id,
@@ -115,9 +275,28 @@ export function getStatusConfigs(uiConfig?: UiConfig | null): StatusConfigItem[]
     const raw = config?.statusConfigs;
 
     if (Array.isArray(raw) && raw.length > 0) {
+      const groups = getStatusGroupConfigs(config, raw);
+      const normalizedConfig = {
+        fields: config?.fields || [],
+        environments: config?.environments || [],
+        repositoryConfigs: config?.repositoryConfigs || [],
+        taskStatuses: config?.taskStatuses || [],
+        statusConfigs: raw,
+        statusGroups: groups,
+        currentVersion: config?.currentVersion || '',
+        authenticationMode: config?.authenticationMode || 'localStorage',
+      } satisfies UiConfig;
       return raw
         .filter((status): status is StatusConfigItem => !!status?.name?.trim())
-        .map((status, index) => buildStatusConfigItem(status, typeof status.order === 'number' ? status.order : index))
+        .map((status, index) =>
+          buildStatusConfigItem(
+            {
+              ...status,
+              group: getStatusGroupId(status.group, normalizedConfig, status),
+            },
+            typeof status.order === 'number' ? status.order : index
+          )
+        )
         .sort((a, b) => a.order - b.order);
     }
 
@@ -184,12 +363,14 @@ export function isStatusValue(statusValue: TaskStatus, statusId: string, uiConfi
 }
 
 export function syncTaskStatuses(config: UiConfig): UiConfig {
-  const statusConfigs = getStatusConfigs(config);
-  const normalizedConfig = { ...config, statusConfigs };
+  const statusGroups = getStatusGroupConfigs(config);
+  const statusConfigs = getStatusConfigs({ ...config, statusGroups });
+  const normalizedConfig = { ...config, statusGroups, statusConfigs };
   const statusOptions = getSortedStatusOptions(normalizedConfig);
 
   return {
     ...config,
+    statusGroups,
     statusConfigs,
     taskStatuses: statusConfigs.map(status => status.name),
     fields: config.fields.map(field =>
@@ -198,6 +379,30 @@ export function syncTaskStatuses(config: UiConfig): UiConfig {
         : field
     ),
   };
+}
+
+export function getOrderedTaskStatusGroups(tasks: Task[], uiConfig?: UiConfig | null, favoritesOnly?: boolean) {
+  const groups = getStatusGroupConfigs(uiConfig);
+  const bucketMap = new Map<string, Task[]>();
+
+  tasks.forEach(task => {
+    const status = resolveStatusConfig(task.status, uiConfig);
+    const groupId = getStatusGroupId(status.group, uiConfig, status);
+    const bucket = bucketMap.get(groupId) || [];
+    bucket.push(task);
+    bucketMap.set(groupId, bucket);
+  });
+
+  return groups
+    .map(group => {
+      const groupTasks = bucketMap.get(group.id) || [];
+      return {
+        key: group.id,
+        title: favoritesOnly ? `Favorite ${group.name} Tasks` : `${group.name} Tasks`,
+        tasks: groupTasks,
+      };
+    })
+    .filter(group => group.tasks.length > 0);
 }
 
 function hexToRgb(hex: string) {

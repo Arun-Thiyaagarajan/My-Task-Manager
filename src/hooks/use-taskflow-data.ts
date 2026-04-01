@@ -26,7 +26,7 @@ import {
     purgeExpiredNotifications
 } from '@/lib/data';
 import type { Task, Note, Log, Company, MyTaskManagerData, CompanyData, UserPreferences, AppNotification, UserProfile } from '@/lib/types';
-import { INITIAL_RELEASES, INITIAL_UI_CONFIG, TASK_STATUSES, INITIAL_REPOSITORY_CONFIGS, ENVIRONMENTS, DEFAULT_STATUS_CONFIGS } from '@/lib/constants';
+import { INITIAL_RELEASES, INITIAL_UI_CONFIG, TASK_STATUSES, INITIAL_REPOSITORY_CONFIGS, ENVIRONMENTS, DEFAULT_STATUS_CONFIGS, DEFAULT_STATUS_GROUPS } from '@/lib/constants';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { usePathname, useRouter } from 'next/navigation';
@@ -538,6 +538,7 @@ function _getEmptyCompanyData(): CompanyData {
             environments: [...ENVIRONMENTS],
             repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
             taskStatuses: [...TASK_STATUSES],
+            statusGroups: [...DEFAULT_STATUS_GROUPS],
             statusConfigs: [...DEFAULT_STATUS_CONFIGS],
             appName: 'New Cloud Company',
             appIcon: null,

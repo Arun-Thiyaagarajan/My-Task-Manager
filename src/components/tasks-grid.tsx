@@ -5,7 +5,7 @@ import type { Task, UiConfig, Person } from '@/lib/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { Badge } from './ui/badge';
 import { Skeleton } from './ui/skeleton';
-import { getStatusId } from '@/lib/status-config';
+import { getOrderedTaskStatusGroups } from '@/lib/status-config';
 
 interface TasksGridProps {
   tasks: Task[];
@@ -44,29 +44,11 @@ export const TasksGrid = memo(function TasksGrid({
   favoritesOnly,
   isLoading
 }: TasksGridProps) {
-  const priorityStatusIds = ['todo', 'in_progress', 'code_review', 'qa'];
-  
-  const priorityTasks = tasks.filter(task => priorityStatusIds.includes(getStatusId(task.status, uiConfig)));
-  const completedTasks = tasks.filter(task => getStatusId(task.status, uiConfig) === 'done');
-  const holdTasks = tasks.filter(task => getStatusId(task.status, uiConfig) === 'hold');
-  const otherTasks = tasks.filter(task => 
-    !priorityStatusIds.includes(getStatusId(task.status, uiConfig)) && 
-    getStatusId(task.status, uiConfig) !== 'done' && 
-    getStatusId(task.status, uiConfig) !== 'hold'
+  const groups = React.useMemo(
+    () => getOrderedTaskStatusGroups(tasks, uiConfig, favoritesOnly),
+    [tasks, uiConfig, favoritesOnly]
   );
-
-  const getPriorityTitle = () => {
-    const allStatuses = new Set(priorityTasks.map(t => t.status));
-    let baseTitle = "Active Tasks";
-    
-    if (allStatuses.size === 1 && !isLoading) {
-      baseTitle = `${[...allStatuses][0]} Tasks`;
-    }
-    
-    return favoritesOnly ? `Favorite ${baseTitle}` : baseTitle;
-  }
-
-  const priorityTitle = getPriorityTitle() || 'Tasks';
+  const firstGroupTitle = groups[0]?.title || (favoritesOnly ? 'Favorite Tasks' : 'Tasks');
 
   const renderGrid = (tasksToRender: Task[]) => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -96,32 +78,17 @@ export const TasksGrid = memo(function TasksGrid({
     </div>
   );
 
-  const groups: { key: string, title: string, tasks: Task[] }[] = [];
-
   // In loading state, we just show one group with skeletons
   if (isLoading) {
       return (
         <div className="space-y-4 px-4 py-3">
             <div className="flex items-center gap-3 mb-6">
-                <h2 className="text-xl font-semibold tracking-tight">{priorityTitle}</h2>
+                <h2 className="text-xl font-semibold tracking-tight">{firstGroupTitle}</h2>
                 <Skeleton className="h-5 w-8 rounded-full" />
             </div>
             {renderGrid([])}
         </div>
       );
-  }
-
-  if (priorityTasks.length > 0) {
-    groups.push({ key: 'priority', title: priorityTitle!, tasks: priorityTasks });
-  }
-  if (completedTasks.length > 0) {
-    groups.push({ key: 'completed', title: favoritesOnly ? 'Favorite Completed Tasks' : 'Completed Tasks', tasks: completedTasks });
-  }
-  if (otherTasks.length > 0) {
-    groups.push({ key: 'other', title: favoritesOnly ? 'Favorite Other Tasks' : 'Other Tasks', tasks: otherTasks });
-  }
-  if (holdTasks.length > 0) {
-    groups.push({ key: 'hold', title: favoritesOnly ? 'Favorite On Hold Tasks' : 'On Hold Tasks', tasks: holdTasks });
   }
 
   return (

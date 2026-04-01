@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { getTasks, getUiConfig, getDevelopers, getTesters, getAuthMode, isInitialSyncComplete, getActiveCompanyId } from '@/lib/data';
 import type { Task, Person, UiConfig, Environment } from '@/lib/types';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -23,6 +25,10 @@ import {
   Tag,
   TrendingUp,
   Users2,
+  ArrowRight,
+  ChevronRight,
+  PanelsTopLeft,
+  Radar,
 } from 'lucide-react';
 import {
   Area,
@@ -42,7 +48,8 @@ import { DashboardSkeleton } from '@/components/dashboard-skeleton';
 import { format, eachMonthOfInterval, endOfMonth, startOfMonth, subDays, subMonths } from 'date-fns';
 import { useFirebase } from '@/firebase';
 import { cn } from '@/lib/utils';
-import { getStatusDisplayName, getStatusId } from '@/lib/status-config';
+import { getStatusDisplayName, getStatusGroupConfigs, getStatusGroupId, getStatusId, getStatusGroupName, resolveStatusConfig } from '@/lib/status-config';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 type MetricCardProps = {
   title: string;
@@ -62,33 +69,59 @@ const toneStyles: Record<NonNullable<MetricCardProps['tone']>, string> = {
 
 function MetricCard({ title, value, description, icon: Icon, tone = 'slate' }: MetricCardProps) {
   return (
-    <Card className="group relative overflow-hidden border border-border/70 bg-background/85 shadow-sm backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+    <Card className="group relative h-full overflow-hidden border border-border/70 bg-background/85 shadow-sm backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
       <div className={cn('absolute inset-x-0 top-0 h-1 opacity-70', tone === 'blue' && 'bg-blue-500/70', tone === 'green' && 'bg-emerald-500/70', tone === 'amber' && 'bg-amber-500/70', tone === 'violet' && 'bg-violet-500/70', tone === 'slate' && 'bg-border')} />
       <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gradient-to-br from-white/10 to-transparent blur-2xl transition-transform duration-500 group-hover:scale-125" />
-      <CardContent className="relative p-4 sm:p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">{title}</p>
+      <CardContent className="relative flex h-full flex-col p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1 space-y-2">
+            <p className="text-[11px] font-semibold uppercase leading-5 tracking-[0.14em] text-muted-foreground [word-break:normal] [overflow-wrap:anywhere]">
+              {title}
+            </p>
             <div className="text-2xl font-semibold tracking-tight sm:text-3xl">{value}</div>
-            <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
           </div>
-          <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border shadow-sm transition-transform duration-300 group-hover:scale-105', toneStyles[tone])}>
+          <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border shadow-sm transition-transform duration-300 group-hover:scale-105 sm:h-12 sm:w-12', toneStyles[tone])}>
             <Icon className="h-5 w-5" />
           </div>
+        </div>
+        <div className="mt-4 min-w-0">
+          <p className="text-sm leading-7 text-muted-foreground [word-break:normal] [overflow-wrap:anywhere]">
+              {description}
+          </p>
         </div>
       </CardContent>
     </Card>
   );
 }
 
+function resolvePersonDisplayName(
+  rawValue: string,
+  peopleById: Map<string, string>,
+  peopleByName: Map<string, string>,
+  fallbackLabel: string
+) {
+  if (!rawValue) return fallbackLabel;
+  const trimmedValue = rawValue.trim();
+  const resolvedName = peopleById.get(trimmedValue) || peopleByName.get(trimmedValue.toLowerCase());
+  if (resolvedName) return resolvedName;
+
+  // Older/imported data can already store a human-readable name directly.
+  // If it does not clearly look like a name, keep the UI safe and avoid leaking IDs.
+  const looksLikeHumanName = /^[A-Za-z][A-Za-z .'-]{1,}$/.test(trimmedValue);
+  return looksLikeHumanName ? trimmedValue : fallbackLabel;
+}
+
 export default function DashboardPage() {
+  const router = useRouter();
   const { isUserLoading } = useFirebase();
+  const isMobile = useIsMobile();
   const [mounted, setMounted] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [developers, setDevelopers] = useState<Person[]>([]);
   const [testers, setTesters] = useState<Person[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
+  const [selectedStatusGroupId, setSelectedStatusGroupId] = useState<string>('');
 
   useEffect(() => {
     setMounted(true);
@@ -191,22 +224,116 @@ export default function DashboardPage() {
       .sort((a, b) => b.count - a.count);
 
     const developersById = new Map(developers.map(dev => [dev.id, dev.name]));
+    const developersByName = new Map(developers.map(dev => [dev.name.trim().toLowerCase(), dev.name]));
     const testersById = new Map(testers.map(tester => [tester.id, tester.name]));
+    const testersByName = new Map(testers.map(tester => [tester.name.trim().toLowerCase(), tester.name]));
+
+    const statusGroups = getStatusGroupConfigs(uiConfig);
+    const tasksByGroup = new Map<string, Task[]>();
+    tasks.forEach((task) => {
+      const statusConfig = resolveStatusConfig(task.status, uiConfig);
+      const groupId = getStatusGroupId(statusConfig.group, uiConfig, statusConfig);
+      const current = tasksByGroup.get(groupId) || [];
+      current.push(task);
+      tasksByGroup.set(groupId, current);
+    });
+
+    const statusGroupSummaries = statusGroups
+      .map((group, index) => {
+        const groupTasks = tasksByGroup.get(group.id) || [];
+        const groupCompleted = groupTasks.filter(task => getStatusId(task.status, uiConfig) === 'done').length;
+        const groupActive = groupTasks.length - groupCompleted;
+        const groupCreatedLast30Days = groupTasks.filter(task => new Date(task.createdAt) >= last30Days).length;
+        const groupCompletedLast30Days = groupTasks.filter(task => getStatusId(task.status, uiConfig) === 'done' && new Date(task.updatedAt) >= last30Days).length;
+        const groupUnassigned = groupTasks.filter(task => (task.developers?.length || 0) === 0 && (task.testers?.length || 0) === 0).length;
+        const groupTagCoverage = groupTasks.length > 0
+          ? Math.round(((groupTasks.length - groupTasks.filter(task => !task.tags || task.tags.length === 0).length) / groupTasks.length) * 100)
+          : 0;
+        const statuses = uiConfig.taskStatuses
+          .map((status) => ({
+            name: status,
+            count: groupTasks.filter(task => getStatusDisplayName(task.status, uiConfig) === status).length,
+          }))
+          .filter(status => status.count > 0)
+          .sort((a, b) => b.count - a.count);
+        const dominantStatus = statuses[0];
+
+        const monthlyTrend = monthlyRange.map((month) => ({
+          name: format(month, 'MMM'),
+          created: groupTasks.filter(task => format(new Date(task.createdAt), 'yyyy-MM') === format(month, 'yyyy-MM')).length,
+          completed: groupTasks.filter(task => getStatusId(task.status, uiConfig) === 'done' && format(new Date(task.updatedAt), 'yyyy-MM') === format(month, 'yyyy-MM')).length,
+        }));
+
+        const workload = new Map<string, { name: string; count: number; role: string }>();
+        groupTasks.forEach(task => {
+          (task.developers || []).forEach((developerId) => {
+            const name = resolvePersonDisplayName(developerId, developersById, developersByName, 'Unknown Developer');
+            const bucketKey = `dev:${name.toLowerCase()}`;
+            const current = workload.get(bucketKey) || { name, count: 0, role: fieldLabels.get('developers') || 'Developers' };
+            current.count += 1;
+            workload.set(bucketKey, current);
+          });
+          (task.testers || []).forEach((testerId) => {
+            const name = resolvePersonDisplayName(testerId, testersById, testersByName, 'Unknown Tester');
+            const bucketKey = `tester:${name.toLowerCase()}`;
+            const current = workload.get(bucketKey) || { name, count: 0, role: fieldLabels.get('testers') || 'Testers' };
+            current.count += 1;
+            workload.set(bucketKey, current);
+          });
+        });
+
+        const topOwners = Array.from(workload.values()).sort((a, b) => b.count - a.count).slice(0, 4);
+        const recentGroupTasks = [...groupTasks]
+          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+          .slice(0, 5)
+          .map(task => ({
+            id: task.id,
+            title: task.title,
+            status: getStatusDisplayName(task.status, uiConfig),
+            updatedAt: format(new Date(task.updatedAt), 'dd MMM, hh:mm a'),
+          }));
+
+        return {
+          id: group.id,
+          name: group.name,
+          order: group.order,
+          total: groupTasks.length,
+          active: groupActive,
+          completed: groupCompleted,
+          completionRate: groupTasks.length > 0 ? Math.round((groupCompleted / groupTasks.length) * 100) : 0,
+          createdLast30Days: groupCreatedLast30Days,
+          completedLast30Days: groupCompletedLast30Days,
+          unassigned: groupUnassigned,
+          tagCoverage: groupTagCoverage,
+          dominantStatus: dominantStatus?.name || 'No active statuses',
+          dominantStatusCount: dominantStatus?.count || 0,
+          statuses,
+          monthlyTrend,
+          topOwners,
+          recentTasks: recentGroupTasks,
+          fill: statusColorScale[index % statusColorScale.length],
+        };
+      })
+      .filter(group => group.total > 0)
+      .sort((a, b) => a.order - b.order);
+
     const workloadMap = new Map<string, { name: string; assigned: number; role: string }>();
 
     tasks.forEach(task => {
       (task.developers || []).forEach((developerId) => {
-        const name = developersById.get(developerId) || 'Unknown Developer';
-        const current = workloadMap.get(`dev:${developerId}`) || { name, assigned: 0, role: fieldLabels.get('developers') || 'Developers' };
+        const name = resolvePersonDisplayName(developerId, developersById, developersByName, 'Unknown Developer');
+        const bucketKey = `dev:${name.toLowerCase()}`;
+        const current = workloadMap.get(bucketKey) || { name, assigned: 0, role: fieldLabels.get('developers') || 'Developers' };
         current.assigned += 1;
-        workloadMap.set(`dev:${developerId}`, current);
+        workloadMap.set(bucketKey, current);
       });
 
       (task.testers || []).forEach((testerId) => {
-        const name = testersById.get(testerId) || 'Unknown Tester';
-        const current = workloadMap.get(`tester:${testerId}`) || { name, assigned: 0, role: fieldLabels.get('testers') || 'Testers' };
+        const name = resolvePersonDisplayName(testerId, testersById, testersByName, 'Unknown Tester');
+        const bucketKey = `tester:${name.toLowerCase()}`;
+        const current = workloadMap.get(bucketKey) || { name, assigned: 0, role: fieldLabels.get('testers') || 'Testers' };
         current.assigned += 1;
-        workloadMap.set(`tester:${testerId}`, current);
+        workloadMap.set(bucketKey, current);
       });
     });
 
@@ -264,6 +391,13 @@ export default function DashboardPage() {
     const topStatus = statusDistribution[0];
     const mostLoadedPerson = workloadData[0];
     const bestEnvironment = [...environmentData].sort((a, b) => b.deployedCount - a.deployedCount)[0];
+    const hasStructuredAnalytics =
+      statusDistribution.length > 0 ||
+      statusGroupSummaries.length > 0 ||
+      workloadData.length > 0 ||
+      repositoryData.length > 0 ||
+      tagData.length > 0 ||
+      environmentData.some(environment => environment.deployedCount > 0);
 
     const insightItems = [
       {
@@ -316,14 +450,28 @@ export default function DashboardPage() {
       avgCollaborators,
       monthlyData,
       statusDistribution,
+      statusGroupSummaries,
       workloadData,
       repositoryData,
       tagData,
       environmentData,
       recentTasks,
       insightItems,
+      hasStructuredAnalytics,
     };
   }, [developers, tasks, testers, uiConfig]);
+
+  useEffect(() => {
+    if (!analytics?.statusGroupSummaries?.length) {
+      setSelectedStatusGroupId('');
+      return;
+    }
+
+    setSelectedStatusGroupId((current) => {
+      if (current && analytics.statusGroupSummaries.some(group => group.id === current)) return current;
+      return analytics.statusGroupSummaries[0]?.id || '';
+    });
+  }, [analytics]);
 
   if (activeSkeletons || !uiConfig || !analytics) {
     return <DashboardSkeleton />;
@@ -348,6 +496,31 @@ export default function DashboardPage() {
     { name: 'Completed', value: analytics.completedTasks, fill: 'hsl(var(--chart-2))' },
     { name: 'Active', value: Math.max(analytics.totalTasks - analytics.completedTasks, 0), fill: 'hsl(var(--chart-1))' },
   ];
+  const selectedStatusGroup = analytics.statusGroupSummaries.find(group => group.id === selectedStatusGroupId) || analytics.statusGroupSummaries[0] || null;
+  const selectedGroupStatusConfig = (selectedStatusGroup?.statuses || []).reduce((acc, status, index) => {
+    acc[status.name] = { label: status.name, color: `hsl(var(--chart-${(index % 5) + 1}))` };
+    return acc;
+  }, {} as ChartConfig);
+  const selectedGroupTrendConfig = {
+    created: { label: 'Created', color: 'hsl(var(--chart-1))' },
+    completed: { label: 'Completed', color: 'hsl(var(--chart-2))' },
+  } satisfies ChartConfig;
+  const openTasksView = (filters: { statusGroup?: string[]; repo?: string[]; tags?: string[]; deployment?: string }) => {
+    const params = new URLSearchParams();
+    filters.statusGroup?.forEach((value) => params.append('statusGroup', value));
+    filters.repo?.forEach((value) => params.append('repo', value));
+    filters.tags?.forEach((value) => params.append('tags', value));
+    if (filters.deployment) params.set('deployment', filters.deployment);
+    router.push(`/?${params.toString()}`);
+  };
+
+  const handleOpenGroupTasks = (groupId: string) => {
+    openTasksView({ statusGroup: [groupId] });
+  };
+
+  const handleOpenTask = (taskId: string) => {
+    router.push(`/tasks/${taskId}`);
+  };
 
   return (
     <div id="dashboard-page" className="relative min-h-full overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.10),transparent_26%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.10),transparent_24%),linear-gradient(to_bottom,transparent,rgba(148,163,184,0.06))]">
@@ -356,7 +529,7 @@ export default function DashboardPage() {
         <div className="absolute right-[-5rem] top-20 h-56 w-56 rounded-full bg-emerald-500/10 blur-3xl" />
         <div className="absolute bottom-10 left-1/3 h-44 w-44 rounded-full bg-violet-500/10 blur-3xl" />
       </div>
-      <div className="container relative mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+      <div className="container relative mx-auto max-w-7xl space-y-5 px-3 py-4 sm:space-y-6 sm:px-6 sm:py-6 lg:px-8">
         <div className="grid gap-4 xl:grid-cols-[1.55fr_1fr]">
           <Card className="overflow-hidden border-primary/15 bg-gradient-to-br from-primary/[0.10] via-background to-chart-2/10 shadow-xl backdrop-blur-sm">
             <CardContent className="p-5 sm:p-7">
@@ -368,7 +541,7 @@ export default function DashboardPage() {
                       Workspace Analytics
                     </Badge>
                     <div className="space-y-2">
-                      <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+                      <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-4xl">
                         Stronger visibility into execution, delivery, and team load.
                       </h1>
                       <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
@@ -386,7 +559,7 @@ export default function DashboardPage() {
                       </Badge>
                     </div>
                   </div>
-                  <div className="grid min-w-[220px] gap-3 rounded-3xl border border-white/10 bg-background/80 p-4 shadow-lg backdrop-blur-md sm:grid-cols-2 xl:grid-cols-1">
+                  <div className="grid w-full gap-3 rounded-3xl border border-white/10 bg-background/80 p-4 shadow-lg backdrop-blur-md sm:min-w-[220px] sm:grid-cols-2 xl:w-auto xl:grid-cols-1">
                     <div className="space-y-1">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Completion Rate</p>
                       <p className="text-3xl font-semibold tracking-tight">{analytics.completionRate}%</p>
@@ -458,7 +631,23 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {!analytics.hasStructuredAnalytics && (
+              <Card className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm">
+                <CardContent className="flex flex-col gap-2 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-medium tracking-tight">Core task metrics are ready, but deeper analytics need richer task data.</p>
+                    <p className="text-sm text-muted-foreground">
+                      Add assignees, tags, repositories, deployments, or more status variety to unlock fuller insights.
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
+                    Partial Analytics
+                  </Badge>
+                </CardContent>
+              </Card>
+            )}
+
+            <div className="grid auto-rows-fr gap-4 sm:grid-cols-2 2xl:grid-cols-4">
               <MetricCard
                 title="Active Tasks"
                 value={String(analytics.activeTasks)}
@@ -489,6 +678,260 @@ export default function DashboardPage() {
               />
             </div>
 
+            {analytics.statusGroupSummaries.length > 0 && selectedStatusGroup && (
+              <div className="space-y-6">
+                <Card className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm overflow-hidden">
+                  <CardHeader className="pb-4">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+                          <PanelsTopLeft className="h-5 w-5 text-chart-5" />
+                          Status Groups
+                        </CardTitle>
+                        <CardDescription>
+                          Drill into each delivery stage group, then jump straight into the matching tasks view.
+                        </CardDescription>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full rounded-xl border-primary/20 bg-primary/5 sm:w-auto"
+                        onClick={() => handleOpenGroupTasks(selectedStatusGroup.id)}
+                      >
+                        Open {selectedStatusGroup.name} Tasks
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-5">
+                    <div className="grid auto-rows-fr gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+                      {analytics.statusGroupSummaries.map((group) => (
+                        <button
+                          key={group.id}
+                          type="button"
+                          onMouseEnter={() => setSelectedStatusGroupId(group.id)}
+                          onFocus={() => setSelectedStatusGroupId(group.id)}
+                          onClick={() => handleOpenGroupTasks(group.id)}
+                          className={cn(
+                            'group h-full w-full rounded-3xl border p-4 text-left transition-all duration-300 cursor-pointer',
+                            selectedStatusGroup.id === group.id
+                              ? 'border-primary/40 bg-primary/[0.08] shadow-lg shadow-primary/10'
+                              : 'border-border/70 bg-muted/20 hover:-translate-y-0.5 hover:border-primary/20 hover:bg-background'
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">Group</p>
+                              <p className="mt-2 text-xl font-semibold tracking-tight">{group.name}</p>
+                            </div>
+                            <div
+                              className="h-3 w-3 shrink-0 rounded-full"
+                              style={{ backgroundColor: group.fill }}
+                            />
+                          </div>
+                          <div className="mt-5 grid grid-cols-2 gap-3">
+                            <div>
+                              <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Tasks</p>
+                              <p className="mt-1 text-2xl font-semibold tracking-tight">{group.total}</p>
+                            </div>
+                            <div>
+                              <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Done</p>
+                              <p className="mt-1 text-2xl font-semibold tracking-tight">{group.completionRate}%</p>
+                            </div>
+                          </div>
+                          <div className="mt-4">
+                            <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+                              <span>{group.dominantStatus}</span>
+                              <span>{group.dominantStatusCount}</span>
+                            </div>
+                            <Progress value={group.completionRate} className="h-2.5" />
+                          </div>
+                          <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
+                            <span>{group.createdLast30Days} recent additions</span>
+                            <span
+                              className={cn(
+                                'inline-flex items-center gap-1 rounded-full px-2 py-1 font-medium transition-colors',
+                                selectedStatusGroup.id === group.id
+                                  ? 'bg-primary/10 text-primary'
+                                  : 'text-foreground/90 group-hover:bg-primary/8 group-hover:text-primary'
+                              )}
+                            >
+                              Open tasks
+                              <ChevronRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="grid gap-6 xl:grid-cols-[1.35fr_1fr]">
+                      <div className="space-y-6">
+                    <div className="grid auto-rows-fr gap-4 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
+                      <MetricCard
+                        title={`${selectedStatusGroup.name} Tasks`}
+                        value={String(selectedStatusGroup.total)}
+                            description="Total tasks currently in this grouped stage."
+                            icon={Layers3}
+                            tone="blue"
+                          />
+                          <MetricCard
+                            title="Completion"
+                            value={`${selectedStatusGroup.completionRate}%`}
+                            description={`${selectedStatusGroup.completed} completed tasks in this group.`}
+                            icon={CheckCircle2}
+                            tone="green"
+                          />
+                          <MetricCard
+                            title="Unassigned"
+                            value={String(selectedStatusGroup.unassigned)}
+                            description="Tasks here without developers or testers."
+                            icon={Users2}
+                            tone="violet"
+                          />
+                          <MetricCard
+                            title="Tag Coverage"
+                            value={`${selectedStatusGroup.tagCoverage}%`}
+                            description="Share of tasks here with at least one tag."
+                            icon={Tag}
+                            tone="amber"
+                          />
+                        </div>
+
+                        {!isMobile && (
+                          <div className="grid gap-6 lg:grid-cols-2">
+                            <Card className="border-border/70 bg-background/80 shadow-sm">
+                              <CardHeader className="pb-3">
+                                <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
+                                  <Radar className="h-4.5 w-4.5 text-chart-3" />
+                                  Statuses in {selectedStatusGroup.name}
+                                </CardTitle>
+                                <CardDescription>Breakdown of statuses contained inside this group.</CardDescription>
+                              </CardHeader>
+                              <CardContent className="h-[250px] sm:h-[280px]">
+                                <ChartContainer config={selectedGroupStatusConfig} className="h-full w-full">
+                                  <RechartsBarChart data={selectedStatusGroup.statuses} layout="vertical" accessibilityLayer margin={{ left: 8, right: 8 }}>
+                                    <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+                                    <XAxis type="number" hide />
+                                    <YAxis dataKey="name" type="category" width={88} tickLine={false} axisLine={false} tickMargin={8} />
+                                    <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" nameKey="count" />} />
+                                    <Bar dataKey="count" radius={8} layout="vertical">
+                                      {selectedStatusGroup.statuses.map((status, index) => (
+                                        <Cell key={status.name} fill={`hsl(var(--chart-${(index % 5) + 1}))`} />
+                                      ))}
+                                    </Bar>
+                                  </RechartsBarChart>
+                                </ChartContainer>
+                              </CardContent>
+                            </Card>
+
+                            <Card className="border-border/70 bg-background/80 shadow-sm">
+                              <CardHeader className="pb-3">
+                                <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
+                                  <TrendingUp className="h-4.5 w-4.5 text-chart-1" />
+                                  {selectedStatusGroup.name} Trend
+                                </CardTitle>
+                                <CardDescription>Created versus completed tasks for this group over time.</CardDescription>
+                              </CardHeader>
+                              <CardContent className="h-[250px] sm:h-[280px]">
+                                <ChartContainer config={selectedGroupTrendConfig} className="h-full w-full">
+                                  <RechartsAreaChart data={selectedStatusGroup.monthlyTrend} accessibilityLayer margin={{ left: 4, right: 4, top: 12 }}>
+                                    <defs>
+                                      <linearGradient id="selectedGroupCreated" x1="0" x2="0" y1="0" y2="1">
+                                        <stop offset="5%" stopColor="var(--color-created)" stopOpacity={0.28} />
+                                        <stop offset="95%" stopColor="var(--color-created)" stopOpacity={0.02} />
+                                      </linearGradient>
+                                      <linearGradient id="selectedGroupCompleted" x1="0" x2="0" y1="0" y2="1">
+                                        <stop offset="5%" stopColor="var(--color-completed)" stopOpacity={0.26} />
+                                        <stop offset="95%" stopColor="var(--color-completed)" stopOpacity={0.02} />
+                                      </linearGradient>
+                                    </defs>
+                                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                                    <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
+                                    <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} />
+                                    <ChartTooltip content={<ChartTooltipContent />} />
+                                    <Area type="monotone" dataKey="created" stroke="var(--color-created)" fill="url(#selectedGroupCreated)" strokeWidth={2.5} />
+                                    <Area type="monotone" dataKey="completed" stroke="var(--color-completed)" fill="url(#selectedGroupCompleted)" strokeWidth={2.5} />
+                                  </RechartsAreaChart>
+                                </ChartContainer>
+                              </CardContent>
+                            </Card>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-6">
+                        {!isMobile && (
+                        <Card className="border-border/70 bg-background/80 shadow-sm">
+                          <CardHeader className="pb-3">
+                            <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
+                              <Users2 className="h-4.5 w-4.5 text-chart-5" />
+                              Top Owners
+                            </CardTitle>
+                            <CardDescription>People carrying the most work inside this group.</CardDescription>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            {selectedStatusGroup.topOwners.length > 0 ? selectedStatusGroup.topOwners.map((owner) => (
+                              <div key={`${owner.role}-${owner.name}`} className="rounded-2xl border border-white/10 bg-muted/20 p-4">
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="truncate font-medium tracking-tight">{owner.name}</p>
+                                    <p className="text-xs text-muted-foreground">{owner.role}</p>
+                                  </div>
+                                  <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 font-semibold">
+                                    {owner.count}
+                                  </Badge>
+                                </div>
+                              </div>
+                            )) : (
+                              <div className="rounded-2xl border border-dashed p-5 text-sm text-muted-foreground">
+                                No owners are attached to tasks in this group yet.
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                        )}
+
+                        <Card className="border-border/70 bg-background/80 shadow-sm">
+                          <CardHeader className="pb-3">
+                            <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
+                              <ClipboardCheck className="h-4.5 w-4.5 text-chart-2" />
+                              Recent in {selectedStatusGroup.name}
+                            </CardTitle>
+                            <CardDescription>The most recently updated tasks in this group.</CardDescription>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            {selectedStatusGroup.recentTasks.length > 0 ? selectedStatusGroup.recentTasks.map((task) => (
+                              <button
+                                key={task.id}
+                                type="button"
+                                onClick={() => handleOpenGroupTasks(selectedStatusGroup.id)}
+                                className="w-full rounded-2xl border border-white/10 bg-muted/20 px-4 py-3 text-left shadow-sm transition-transform duration-300 hover:-translate-y-0.5"
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="truncate font-medium tracking-tight">{task.title}</p>
+                                    <p className="mt-1 text-xs text-muted-foreground">{task.updatedAt}</p>
+                                  </div>
+                                  <Badge variant="outline" className="max-w-[45%] truncate rounded-full px-2.5 py-0.5 text-[11px]">
+                                    {task.status}
+                                  </Badge>
+                                </div>
+                              </button>
+                            )) : (
+                              <div className="rounded-2xl border border-dashed p-5 text-sm text-muted-foreground">
+                                No recent tasks are available for this group yet.
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {!isMobile && (
             <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
               <Card className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm">
                 <CardHeader className="pb-3">
@@ -498,7 +941,7 @@ export default function DashboardPage() {
                   </CardTitle>
                   <CardDescription>Created versus completed tasks across the last six months.</CardDescription>
                 </CardHeader>
-                <CardContent className="h-[320px] sm:h-[360px]">
+                <CardContent className="h-[260px] sm:h-[360px]">
                   <ChartContainer config={monthlyChartConfig} className="h-full w-full">
                     <RechartsAreaChart data={analytics.monthlyData} accessibilityLayer margin={{ left: 4, right: 4, top: 12 }}>
                       <defs>
@@ -570,17 +1013,21 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
             </div>
+            )}
 
             <div className="grid gap-6 xl:grid-cols-[1.2fr_1fr]">
+              {!isMobile && (
               <Card className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+                <CardHeader className="pb-3 px-4 pt-4 sm:px-6 sm:pt-6">
+                  <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight sm:text-lg">
                     <BarChart3 className="h-5 w-5 text-chart-3" />
                     Status Distribution
                   </CardTitle>
-                  <CardDescription>Where work is clustering across your current statuses.</CardDescription>
+                  <CardDescription className="text-xs leading-5 sm:text-sm">
+                    Where work is clustering across your current statuses.
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="h-[320px]">
+                <CardContent className="h-[220px] px-3 pb-4 sm:h-[320px] sm:px-6 sm:pb-6">
                   <ChartContainer config={statusChartConfig} className="h-full w-full">
                     <RechartsBarChart data={analytics.statusDistribution} layout="vertical" accessibilityLayer margin={{ left: 8, right: 8 }}>
                       <CartesianGrid horizontal={false} strokeDasharray="3 3" />
@@ -588,10 +1035,11 @@ export default function DashboardPage() {
                       <YAxis
                         dataKey="name"
                         type="category"
-                        width={96}
+                        width={mounted && isMobile ? 62 : 78}
                         tickLine={false}
                         axisLine={false}
-                        tickMargin={10}
+                        tickMargin={mounted && isMobile ? 4 : 8}
+                        fontSize={mounted && isMobile ? 11 : 12}
                       />
                       <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" nameKey="count" />} />
                       <Bar dataKey="count" radius={8} layout="vertical">
@@ -603,24 +1051,30 @@ export default function DashboardPage() {
                   </ChartContainer>
                 </CardContent>
               </Card>
+              )}
 
               <Card className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+                <CardHeader className="pb-3 px-4 pt-4 sm:px-6 sm:pt-6">
+                  <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight sm:text-lg">
                     <Sparkles className="h-5 w-5 text-chart-4" />
                     Actionable Insights
                   </CardTitle>
-                  <CardDescription>Fast reads on throughput, ownership, and metadata quality.</CardDescription>
+                  <CardDescription className="text-xs leading-5 sm:text-sm">
+                    Fast reads on throughput, ownership, and metadata quality.
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="space-y-2 px-2.5 pb-3 sm:space-y-3 sm:px-6 sm:pb-6">
                   {analytics.insightItems.map((insight) => (
-                    <div key={insight.title} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-muted/20 p-4 shadow-sm transition-transform duration-300 hover:-translate-y-0.5">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border bg-background shadow-sm">
+                    <div key={insight.title} className="flex items-start gap-2 rounded-[1.15rem] border border-white/10 bg-muted/20 p-2.5 sm:gap-3 sm:rounded-2xl sm:p-4 shadow-sm transition-transform duration-300 hover:-translate-y-0.5 hover:border-primary/20">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border bg-background shadow-sm sm:h-10 sm:w-10 sm:rounded-2xl">
                         <insight.icon className="h-4.5 w-4.5 text-primary" />
                       </div>
-                      <div className="space-y-1">
-                        <p className="font-medium tracking-tight">{insight.title}</p>
-                        <p className="text-sm leading-6 text-muted-foreground">{insight.detail}</p>
+                      <div className="min-w-0 space-y-1">
+                        <p className="text-[13px] font-medium leading-5 tracking-tight sm:text-base sm:leading-6">{insight.title}</p>
+                        <p className="text-[11px] leading-4.5 text-muted-foreground sm:text-sm sm:leading-6">{insight.detail}</p>
+                        <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-background/60 px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.12em] text-muted-foreground sm:px-2.5 sm:py-1 sm:text-[11px] sm:tracking-[0.16em]">
+                          Insight Snapshot
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -628,6 +1082,7 @@ export default function DashboardPage() {
               </Card>
             </div>
 
+            {!isMobile && (
             <div className="grid gap-6 xl:grid-cols-[1.2fr_1fr]">
               <Card className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm">
                 <CardHeader className="pb-3">
@@ -637,13 +1092,13 @@ export default function DashboardPage() {
                   </CardTitle>
                   <CardDescription>Top developers and testers by number of assigned tasks.</CardDescription>
                 </CardHeader>
-                <CardContent className="h-[340px]">
+                <CardContent className="h-[280px] sm:h-[340px]">
                   {analytics.workloadData.length > 0 ? (
                     <ChartContainer config={workloadChartConfig} className="h-full w-full">
                       <RechartsBarChart data={analytics.workloadData} layout="vertical" accessibilityLayer margin={{ left: 8, right: 8 }}>
                         <CartesianGrid horizontal={false} strokeDasharray="3 3" />
                         <XAxis type="number" hide />
-                        <YAxis dataKey="name" type="category" width={112} tickLine={false} axisLine={false} tickMargin={10} />
+                        <YAxis dataKey="name" type="category" width={88} tickLine={false} axisLine={false} tickMargin={8} />
                         <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" nameKey="assigned" />} />
                         <Bar dataKey="assigned" radius={8} layout="vertical">
                           {analytics.workloadData.map((entry) => (
@@ -670,18 +1125,26 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {analytics.environmentData.length > 0 ? analytics.environmentData.map((environment) => (
-                    <div key={environment.name} className="space-y-2 rounded-2xl border border-white/10 bg-muted/20 p-4 shadow-sm">
+                    <button
+                      key={environment.name}
+                      type="button"
+                      onClick={() => openTasksView({ deployment: environment.name })}
+                      className="group block w-full space-y-2 rounded-2xl border border-white/10 bg-muted/20 p-4 text-left shadow-sm transition-transform duration-300 hover:-translate-y-0.5 hover:border-primary/20 hover:bg-background/80"
+                    >
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <p className="font-medium capitalize tracking-tight">{environment.name}</p>
                           <p className="text-xs text-muted-foreground">{environment.deployedCount} tasks deployed here</p>
                         </div>
-                        <Badge variant="outline" className="rounded-full px-2.5 py-0.5 text-xs font-semibold">
-                          {environment.rate}%
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="rounded-full px-2.5 py-0.5 text-xs font-semibold">
+                            {environment.rate}%
+                          </Badge>
+                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground transition-transform duration-300 group-hover:translate-x-0.5 group-hover:text-primary" />
+                        </div>
                       </div>
                       <Progress value={environment.rate} className="h-2.5" />
-                    </div>
+                    </button>
                   )) : (
                     <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">
                       Configure environments and update deployment status to see readiness analytics.
@@ -690,6 +1153,7 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
             </div>
+            )}
 
             <div className="grid gap-6 xl:grid-cols-[1.1fr_1.1fr_1fr]">
               <Card className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm">
@@ -701,14 +1165,22 @@ export default function DashboardPage() {
                   <CardDescription>The tags most frequently used across your tasks.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {analytics.tagData.length > 0 ? analytics.tagData.map((tag, index) => (
-                    <div key={tag.name} className="space-y-2">
+                  {analytics.tagData.length > 0 ? analytics.tagData.map((tag) => (
+                    <button
+                      key={tag.name}
+                      type="button"
+                      onClick={() => openTasksView({ tags: [tag.name] })}
+                      className="group block w-full space-y-2 rounded-2xl px-1 py-1 text-left transition-colors duration-300 hover:bg-muted/20"
+                    >
                       <div className="flex items-center justify-between gap-3">
                         <span className="truncate text-sm font-medium">{tag.name}</span>
-                        <span className="text-xs font-semibold text-muted-foreground">{tag.count}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-muted-foreground">{tag.count}</span>
+                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground transition-transform duration-300 group-hover:translate-x-0.5 group-hover:text-primary" />
+                        </div>
                       </div>
                       <Progress value={(tag.count / analytics.tagData[0].count) * 100} className="h-2" />
-                    </div>
+                    </button>
                   )) : (
                     <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">
                       No tag usage yet. Add tags to improve discoverability and reporting.
@@ -717,6 +1189,7 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
+              {!isMobile && (
               <Card className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">
@@ -727,17 +1200,25 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {analytics.repositoryData.length > 0 ? analytics.repositoryData.map((repository) => (
-                    <div key={repository.name} className="rounded-2xl border border-white/10 bg-muted/20 px-4 py-3 shadow-sm transition-transform duration-300 hover:-translate-y-0.5">
+                    <button
+                      key={repository.name}
+                      type="button"
+                      onClick={() => openTasksView({ repo: [repository.name] })}
+                      className="group w-full rounded-2xl border border-white/10 bg-muted/20 px-4 py-3 text-left shadow-sm transition-transform duration-300 hover:-translate-y-0.5 hover:border-primary/20 hover:bg-background/80"
+                    >
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
                           <p className="truncate font-medium tracking-tight">{repository.name}</p>
                           <p className="text-xs text-muted-foreground">{repository.count} linked tasks</p>
                         </div>
-                        <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 font-semibold">
-                          {repository.count}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 font-semibold">
+                            {repository.count}
+                          </Badge>
+                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground transition-transform duration-300 group-hover:translate-x-0.5 group-hover:text-primary" />
+                        </div>
                       </div>
-                    </div>
+                    </button>
                   )) : (
                     <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">
                       Link repositories to tasks to reveal repo-level workload analytics.
@@ -745,6 +1226,7 @@ export default function DashboardPage() {
                   )}
                 </CardContent>
               </Card>
+              )}
 
               <Card className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm">
                 <CardHeader className="pb-3">
@@ -756,17 +1238,30 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {analytics.recentTasks.map((task) => (
-                    <div key={task.id} className="rounded-2xl border border-white/10 bg-muted/20 px-4 py-3 shadow-sm transition-transform duration-300 hover:-translate-y-0.5">
+                    <button
+                      key={task.id}
+                      type="button"
+                      onClick={() => handleOpenTask(task.id)}
+                      className="group w-full rounded-2xl border border-white/10 bg-muted/20 px-4 py-3 text-left shadow-sm transition-transform duration-300 hover:-translate-y-0.5 hover:border-primary/20 hover:bg-background/80"
+                    >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="truncate font-medium tracking-tight">{task.title}</p>
                           <p className="mt-1 text-xs text-muted-foreground">{task.updatedAt}</p>
                         </div>
-                        <Badge variant="outline" className="max-w-[45%] truncate rounded-full px-2.5 py-0.5 text-[11px]">
-                          {task.status}
-                        </Badge>
+                        <div className="flex shrink-0 items-center justify-end gap-2 pl-3">
+                          <Badge
+                            variant="outline"
+                            className="max-w-[8.5rem] shrink-0 truncate rounded-full px-2.5 py-0.5 text-[11px]"
+                          >
+                            {task.status}
+                          </Badge>
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-background/70">
+                            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground transition-transform duration-300 group-hover:translate-x-0.5 group-hover:text-primary" />
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </CardContent>
               </Card>

@@ -28,7 +28,7 @@ import {
 import { generateTaskPdf } from '@/lib/share-utils';
 import type { Task, UiConfig, Person, Attachment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { addLog, prepareUiFieldsForExport } from '@/lib/data';
+import { addLog, prepareUiConfigForExport } from '@/lib/data';
 import LZString from 'lz-string';
 import { triggerTransfer } from './file-transfer-indicator';
 
@@ -171,15 +171,17 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
       developers: (task.developers || []).map(id => devIdToName.get(id)).filter(Boolean),
       testers: (task.testers || []).map(id => testerIdToName.get(id)).filter(Boolean),
     };
+    const exportUiConfig = prepareUiConfigForExport(uiConfig, developers, testers);
     
     const exportData = {
-        appName: uiConfig.appName,
-        appIcon: uiConfig.appIcon,
-        fields: prepareUiFieldsForExport(uiConfig.fields, developers, testers),
-        repositoryConfigs: uiConfig.repositoryConfigs,
-        environments: uiConfig.environments,
-        statusConfigs: uiConfig.statusConfigs || [],
-        taskStatuses: uiConfig.taskStatuses || [],
+        appName: exportUiConfig.appName,
+        appIcon: exportUiConfig.appIcon,
+        fields: exportUiConfig.fields,
+        repositoryConfigs: exportUiConfig.repositoryConfigs,
+        environments: exportUiConfig.environments,
+        statusGroups: exportUiConfig.statusGroups || [],
+        statusConfigs: exportUiConfig.statusConfigs || [],
+        taskStatuses: exportUiConfig.taskStatuses || [],
         task: taskWithNames,
         exportedAt: new Date().toISOString()
     };

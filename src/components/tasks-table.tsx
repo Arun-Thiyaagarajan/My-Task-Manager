@@ -45,7 +45,7 @@ import { Checkbox } from './ui/checkbox';
 import { EnvironmentStatus } from './environment-status';
 import { TaskTableRowSkeleton } from './task-card-skeleton';
 import { Skeleton } from './ui/skeleton';
-import { StatusIcon, getSortedStatusNames, getStatusDisplayName, getStatusStyles, isStatusValue, getStatusId } from '@/lib/status-config';
+import { StatusIcon, getOrderedTaskStatusGroups, getSortedStatusNames, getStatusDisplayName, getStatusStyles, isStatusValue } from '@/lib/status-config';
 import { scheduleStatusUpdate } from '@/lib/status-update';
 import { getTaskRepositories, isRepositoryFieldActive } from '@/lib/repository-config';
 
@@ -428,15 +428,9 @@ export const TasksTable = memo(function TasksTable({
     isDeveloper: boolean;
   } | null>(null);
 
-  const priorityStatusIds = ['todo', 'in_progress', 'code_review', 'qa'];
-  
-  const priorityTasks = tasks.filter(task => priorityStatusIds.includes(getStatusId(task.status, uiConfig)));
-  const completedTasks = tasks.filter(task => getStatusId(task.status, uiConfig) === 'done');
-  const holdTasks = tasks.filter(task => getStatusId(task.status, uiConfig) === 'hold');
-  const otherTasks = tasks.filter(task => 
-    !priorityStatusIds.includes(getStatusId(task.status, uiConfig)) && 
-    getStatusId(task.status, uiConfig) !== 'done' && 
-    getStatusId(task.status, uiConfig) !== 'hold'
+  const groups = React.useMemo(
+    () => getOrderedTaskStatusGroups(tasks, uiConfig, favoritesOnly),
+    [tasks, uiConfig, favoritesOnly]
   );
 
   const fieldLabels = new Map((uiConfig?.fields || []).map((f) => [f.key, f.label]));
@@ -460,17 +454,7 @@ export const TasksTable = memo(function TasksTable({
   const showRepositoryColumn = isRepositoryFieldActive(uiConfig);
   const colSpan = isSelectMode ? (showRepositoryColumn ? 8 : 7) : (showRepositoryColumn ? 7 : 6);
   
-  const getPriorityTitle = () => {
-    const allStatuses = new Set(priorityTasks.map(t => t.status));
-    let baseTitle = "Active Tasks";
-    
-    if (allStatuses.size === 1 && !isLoading) {
-      baseTitle = `${[...allStatuses][0]} Tasks`;
-    }
-    
-    return favoritesOnly ? `Favorite ${baseTitle}` : baseTitle;
-  }
-  const priorityTitle = getPriorityTitle() || 'Tasks';
+  const firstGroupTitle = groups[0]?.title || (favoritesOnly ? 'Favorite Tasks' : 'Tasks');
 
   const renderTaskRows = (tasksToRender: Task[]) => {
     if (isLoading) {
@@ -496,8 +480,6 @@ export const TasksTable = memo(function TasksTable({
     ));
   };
   
-  const groups: { key: string, title: string, tasks: Task[] }[] = [];
-
   if (isLoading) {
       return (
         <div className="border rounded-lg bg-card overflow-hidden">
@@ -518,7 +500,7 @@ export const TasksTable = memo(function TasksTable({
                     <TableRow className="bg-muted/30 border-b">
                         <TableCell colSpan={colSpan} className="py-3 px-4">
                             <div className="flex items-center gap-3">
-                                <span className="font-semibold text-foreground tracking-tight">{priorityTitle}</span>
+                                <span className="font-semibold text-foreground tracking-tight">{firstGroupTitle}</span>
                                 <Skeleton className="h-5 w-8 rounded-full" />
                             </div>
                         </TableCell>
@@ -533,11 +515,6 @@ export const TasksTable = memo(function TasksTable({
   if (!uiConfig) {
     return null;
   }
-
-  if (priorityTasks.length > 0) groups.push({ key: 'priority', title: priorityTitle!, tasks: priorityTasks });
-  if (completedTasks.length > 0) groups.push({ key: 'completed', title: favoritesOnly ? 'Favorite Completed Tasks' : 'Completed Tasks', tasks: completedTasks });
-  if (otherTasks.length > 0) groups.push({ key: 'other', title: favoritesOnly ? 'Favorite Other Tasks' : 'Other Tasks', tasks: otherTasks });
-  if (holdTasks.length > 0) groups.push({ key: 'hold', title: favoritesOnly ? 'Favorite On Hold Tasks' : 'On Hold Tasks', tasks: holdTasks });
 
   return (
     <div className="border rounded-lg bg-card overflow-hidden">

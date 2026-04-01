@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, PlusCircle, Trash2, ChevronsUpDown, Check, X, Info, Users, ClipboardCheck, ListChecks, CalendarIcon, Save } from 'lucide-react';
-import type { FieldConfig, FieldOption, FieldType, PendingStatusConversion, RepositoryConfig, StatusConfigItem } from '@/lib/types';
+import type { FieldConfig, FieldOption, FieldType, PendingStatusConversion, RepositoryConfig, StatusConfigItem, StatusGroupConfig } from '@/lib/types';
 import { FIELD_TYPES } from '@/lib/constants';
 import * as React from 'react';
 import { getUiConfig, getTasks, updateTask, addLog, getDevelopers, getTesters } from '@/lib/data';
@@ -24,7 +24,7 @@ import { Textarea } from './ui/textarea';
 import { Calendar } from './ui/calendar';
 import { format } from 'date-fns';
 import { MultiSelect } from '@/components/ui/multi-select';
-import { buildStatusConfigItem } from '@/lib/status-config';
+import { buildStatusConfigItem, getStatusGroupConfigs } from '@/lib/status-config';
 import { StatusManagementContent } from '@/components/status-management-content';
 import { randomId } from '@/lib/id';
 
@@ -67,11 +67,13 @@ interface FieldFormContentProps {
   existingFields: FieldConfig[];
   repositoryConfigs?: RepositoryConfig[];
   statusConfigs?: StatusConfigItem[];
+  statusGroups?: StatusGroupConfig[];
   pendingStatusConversions?: PendingStatusConversion[];
   onSave: (
     field: FieldConfig,
     repoConfigs?: RepositoryConfig[],
     statusConfigs?: StatusConfigItem[],
+    statusGroups?: StatusGroupConfig[],
     pendingStatusConversions?: PendingStatusConversion[]
   ) => void;
   onCancel: () => void;
@@ -82,6 +84,7 @@ export function FieldFormContent({
   existingFields,
   repositoryConfigs,
   statusConfigs,
+  statusGroups,
   pendingStatusConversions,
   onSave,
   onCancel,
@@ -143,6 +146,7 @@ export function FieldFormContent({
   
   const [localRepoConfigs, setLocalRepoConfigs] = React.useState<RepositoryConfig[]>([]);
   const [localStatusConfigs, setLocalStatusConfigs] = React.useState<StatusConfigItem[]>([]);
+  const [localStatusGroups, setLocalStatusGroups] = React.useState<StatusGroupConfig[]>([]);
   const [localPendingStatusConversions, setLocalPendingStatusConversions] = React.useState<PendingStatusConversion[]>(pendingStatusConversions || []);
   const [isStatusEditorOpen, setIsStatusEditorOpen] = React.useState(false);
   const [newTag, setNewTag] = React.useState('');
@@ -176,6 +180,7 @@ export function FieldFormContent({
     }
     if (isStatusField) {
       setLocalStatusConfigs((statusConfigs || []).map((status, index) => buildStatusConfigItem(status, index)));
+      setLocalStatusGroups(getStatusGroupConfigs({ ...config, statusGroups, statusConfigs }));
       setLocalPendingStatusConversions(pendingStatusConversions || []);
     }
 
@@ -194,7 +199,7 @@ export function FieldFormContent({
         combinedTags.sort((a,b) => a.label.localeCompare(b.label));
         setAllTags(combinedTags);
     }
-  }, [field, isRepoField, isStatusField, isTagsField, repositoryConfigs, statusConfigs, pendingStatusConversions]);
+  }, [field, isRepoField, isStatusField, isTagsField, repositoryConfigs, statusConfigs, statusGroups, pendingStatusConversions]);
 
   const handleAddTag = () => {
     const trimmedTag = newTag.trim();
@@ -260,6 +265,7 @@ export function FieldFormContent({
       isStatusField ? { ...finalField, options: finalOptions } : finalField,
       isRepoField ? localRepoConfigs : undefined,
       finalStatusConfigs,
+      isStatusField ? localStatusGroups : undefined,
       isStatusField ? localPendingStatusConversions : undefined
     );
   };
@@ -632,8 +638,10 @@ export function FieldFormContent({
             {isStatusField && (
                 <StatusManagementContent
                     statuses={localStatusConfigs}
+                    statusGroups={localStatusGroups}
                     pendingConversions={localPendingStatusConversions}
                     onStatusesChange={setLocalStatusConfigs}
+                    onStatusGroupsChange={setLocalStatusGroups}
                     onPendingConversionsChange={setLocalPendingStatusConversions}
                     existingFields={existingFields}
                     onEditorOpenChange={setIsStatusEditorOpen}

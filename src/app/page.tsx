@@ -59,7 +59,7 @@ import {
   Globe,
 } from 'lucide-react';
 import { cn, fuzzySearch, formatTimestamp } from '@/lib/utils';
-import { getSortedStatusOptions, getStatusDisplayName } from '@/lib/status-config';
+import { getOrderedTaskStatusGroups, getSortedStatusOptions, getStatusDisplayName, getStatusGroupConfigs, getStatusGroupId, resolveStatusConfig } from '@/lib/status-config';
 import type { Task, Person, UiConfig, RepositoryConfig, Log, GeneralReminder, BackupFrequency, Environment, UserPreferences, AuthMode } from '@/lib/types';
 import {
   Popover,
@@ -164,6 +164,7 @@ export default function Home() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [sortDescriptor, setSortDescriptor] = useState('status-asc');
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [statusGroupFilter, setStatusGroupFilter] = useState<string[]>([]);
   const [repoFilter, setRepoFilter] = useState<string[]>([]);
   const [deploymentFilter, setDeploymentFilter] = useState<string[]>([]);
   const [tagsFilter, setTagsFilter] = useState<string[]>([]);
@@ -176,7 +177,7 @@ export default function Home() {
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [isSelectMode, setIsSelectMode] = useState(false);
-  const [openGroups, setOpenGroups] = useState<string[]>(['priority', 'completed', 'other', 'hold']);
+  const [openGroups, setOpenGroups] = useState<string[]>([]);
   const [pinnedTaskIds, setPinnedTaskIds] = useState<string[]>([]);
   const [isReminderStackOpen, setIsReminderStackOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -191,6 +192,7 @@ export default function Home() {
 
   const [importSummary, setImportSummary] = useState<{ importedCount: number; skippedDuplicates: any[] } | null>(null);
   const importInFlightRef = useRef(false);
+  const hasInitializedGroupStateRef = useRef(false);
 
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   const [filteredBinnedTasks, setFilteredBinnedTasks] = useState<Task[]>([]);
@@ -232,9 +234,13 @@ export default function Home() {
     setFavoritesOnly(urlFavs || prefs.favoritesOnly || false);
     setSearchQuery(urlSearch);
     setExecutedSearchQuery(urlSearch);
+    setOpenGroups(Array.isArray(prefs.taskOpenGroups) ? prefs.taskOpenGroups : []);
 
     const urlStatus = searchParams.getAll('status');
     setStatusFilter(urlStatus.length > 0 ? urlStatus : (prefs.taskFilters?.status || []));
+
+    const urlStatusGroup = searchParams.getAll('statusGroup');
+    setStatusGroupFilter(urlStatusGroup.length > 0 ? urlStatusGroup : (prefs.taskFilters?.statusGroup || []));
     
     const urlRepo = searchParams.getAll('repo');
     setRepoFilter(urlRepo.length > 0 ? urlRepo : (prefs.taskFilters?.repo || []));
@@ -263,6 +269,7 @@ export default function Home() {
     if (favoritesOnly) params.set('favorites', 'true');
     
     statusFilter.forEach(s => params.append('status', s));
+    statusGroupFilter.forEach(groupId => params.append('statusGroup', groupId));
     repoFilter.forEach(r => params.append('repo', r));
     deploymentFilter.forEach(d => params.append('deployment', d));
     tagsFilter.forEach(t => params.append('tags', t));
@@ -279,14 +286,16 @@ export default function Home() {
         sortDescriptor,
         dateView,
         favoritesOnly,
+        taskOpenGroups: openGroups,
         taskFilters: {
             status: statusFilter,
+            statusGroup: statusGroupFilter,
             repo: repoFilter,
             deployment: deploymentFilter,
             tags: tagsFilter
         }
     });
-  }, [executedSearchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, statusFilter, repoFilter, deploymentFilter, tagsFilter, router, pathname, searchParams, mounted]);
+  }, [executedSearchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, openGroups, statusFilter, statusGroupFilter, repoFilter, deploymentFilter, tagsFilter, router, pathname, searchParams, mounted]);
 
   const handlePreviousDate = useCallback(() => {
       setIsSearching(true);
@@ -337,6 +346,28 @@ export default function Home() {
         window.dispatchEvent(new Event('navigation-end'));
     }
   }, [isUserLoading]);
+
+  useEffect(() => {
+    if (!uiConfig) return;
+
+    const validGroupIds = getOrderedTaskStatusGroups(filteredTasks.length > 0 ? filteredTasks : tasks, uiConfig, favoritesOnly).map(group => group.key);
+    if (validGroupIds.length === 0) {
+      setOpenGroups([]);
+      return;
+    }
+
+    setOpenGroups((current) => {
+      if (!hasInitializedGroupStateRef.current) {
+        hasInitializedGroupStateRef.current = true;
+        const preferred = current.filter(groupId => validGroupIds.includes(groupId));
+        return preferred.length > 0 ? preferred : validGroupIds;
+      }
+
+      const stillValid = current.filter(groupId => validGroupIds.includes(groupId));
+      if (stillValid.length === current.length) return stillValid;
+      return validGroupIds;
+    });
+  }, [favoritesOnly, filteredTasks, tasks, uiConfig]);
 
   useEffect(() => {
     refreshData();
@@ -469,7 +500,11 @@ export default function Home() {
                 if (favoritesOnly && !task.isFavorite) return false;
 
                 const resolvedStatus = getStatusDisplayName(task.status, uiConfig);
+                const resolvedStatusConfig = resolveStatusConfig(task.status, uiConfig);
                 const statusMatch = statusFilter.length === 0 || statusFilter.includes(resolvedStatus);
+                const statusGroupMatch = statusGroupFilter.length === 0 || statusGroupFilter.includes(
+                  getStatusGroupId(resolvedStatusConfig.group, uiConfig, resolvedStatusConfig)
+                );
                 const showRepositoryFilter = isRepositoryFieldActive(uiConfig);
                 const repoMatch = !showRepositoryFilter || repoFilter.length === 0 || (Array.isArray(task.repositories) && task.repositories?.some(repo => repoFilter.includes(repo)) || false);
                 const tagsMatch = tagsFilter.length === 0 || (task.tags?.some(tag => tagsFilter.includes(tag)) ?? false);
@@ -515,7 +550,7 @@ export default function Home() {
                 return isNegative ? !isDeployed : isDeployed;
                 });
 
-                return statusMatch && repoMatch && searchMatch && dateMatch && deploymentMatch && tagsMatch;
+                return statusMatch && statusGroupMatch && repoMatch && searchMatch && dateMatch && deploymentMatch && tagsMatch;
             });
 
             const sorted = [...results].sort((a, b) => {
@@ -584,7 +619,7 @@ export default function Home() {
 
     const rafId = requestAnimationFrame(filterAndProcess);
     return () => cancelAnimationFrame(rafId);
-  }, [tasks, binnedTasks, statusFilter, repoFilter, tagsFilter, developers, testers, executedSearchQuery, dateView, selectedDate, deploymentFilter, favoritesOnly, sortDescriptor, uiConfig, viewMode, isUserLoading, mounted]);
+  }, [tasks, binnedTasks, statusFilter, statusGroupFilter, repoFilter, tagsFilter, developers, testers, executedSearchQuery, dateView, selectedDate, deploymentFilter, favoritesOnly, sortDescriptor, uiConfig, viewMode, isUserLoading, mounted]);
 
   const handleExport = useCallback((exportType: 'current_view' | 'all_tasks') => {
     const allDevelopers = getDevelopers();
@@ -1050,16 +1085,19 @@ export default function Home() {
 
   const isSearchActive = searchQuery.trim().length >= 2;
 
-  const totalActiveFilters = statusFilter.length + repoFilter.length + deploymentFilter.length + tagsFilter.length + (executedSearchQuery ? 1 : 0);
+  const totalActiveFilters = statusFilter.length + statusGroupFilter.length + repoFilter.length + deploymentFilter.length + tagsFilter.length + (executedSearchQuery ? 1 : 0);
   const showRepositoryFilter = isRepositoryFieldActive(uiConfig);
   const showTagsFilter = (uiConfig?.fields || []).find(f => f.key === 'tags')?.isActive;
-  const desktopFilterColumnCount = 3 + (showRepositoryFilter ? 1 : 0) + (showTagsFilter ? 1 : 0);
+  const statusGroupOptions = getStatusGroupConfigs(uiConfig).map(group => ({ value: group.id, label: group.name }));
+  const desktopFilterColumnCount = 4 + (showRepositoryFilter ? 1 : 0) + (showTagsFilter ? 1 : 0);
   const desktopFilterGridClassName =
     desktopFilterColumnCount <= 3
       ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3'
       : desktopFilterColumnCount === 4
         ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-4'
-        : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-5';
+        : desktopFilterColumnCount === 5
+          ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-5'
+          : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-6';
 
   const selectionBarContent = (
     <Card className="border-primary/50 bg-background/90 backdrop-blur-sm shadow-lg overflow-hidden">
@@ -1676,9 +1714,9 @@ export default function Home() {
                         <span className="flex items-center gap-2">
                             <Filter className="h-4 w-4" />
                             Filters
-                            {(statusFilter.length > 0 || repoFilter.length > 0 || deploymentFilter.length > 0 || tagsFilter.length > 0) && (
+                            {(statusFilter.length > 0 || statusGroupFilter.length > 0 || repoFilter.length > 0 || deploymentFilter.length > 0 || tagsFilter.length > 0) && (
                                 <Badge className="bg-primary text-primary-foreground h-5 px-1.5 min-w-5 font-bold">
-                                    {statusFilter.length + repoFilter.length + deploymentFilter.length + tagsFilter.length}
+                                    {statusFilter.length + statusGroupFilter.length + repoFilter.length + deploymentFilter.length + tagsFilter.length}
                                 </Badge>
                             )}
                         </span>
@@ -1698,6 +1736,13 @@ export default function Home() {
                                     onChange={(val) => { setIsSearching(true); setStatusFilter(val); }} 
                                     options={getSortedStatusOptions(uiConfig).map(option => ({ value: option.value, label: option.label }))} 
                                     placeholder="Status..." 
+                                />
+                                <MultiSelect
+                                    selected={statusGroupFilter}
+                                    className={cn(statusGroupFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+                                    onChange={(val) => { setIsSearching(true); setStatusGroupFilter(val); }}
+                                    options={statusGroupOptions}
+                                    placeholder="Status Group..."
                                 />
                                 {showRepositoryFilter && (
                                     <MultiSelect 
@@ -1928,6 +1973,7 @@ export default function Home() {
                                 {searchInputContent}
                             </div>
                             <MultiSelect selected={statusFilter} className={cn(statusFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")} onChange={(val) => { setIsSearching(true); setStatusFilter(val); }} options={getSortedStatusOptions(uiConfig).map(option => ({ value: option.value, label: option.label }))} placeholder="Status..." />
+                            <MultiSelect selected={statusGroupFilter} className={cn(statusGroupFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")} onChange={(val) => { setIsSearching(true); setStatusGroupFilter(val); }} options={statusGroupOptions} placeholder="Status Group..." />
                             {showRepositoryFilter && <MultiSelect selected={repoFilter} className={cn(repoFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")} onChange={(val) => { setIsSearching(true); setRepoFilter(val); }} options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} placeholder="Repository..." />}
                             {showTagsFilter && (
                                 <MultiSelect selected={tagsFilter} className={cn(tagsFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")} onChange={(val) => { setIsSearching(true); setTagsFilter(val); }} options={[...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({value: t, label: t}))} placeholder="Tags..." />
