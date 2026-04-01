@@ -15,7 +15,7 @@ export function applyTutorialPopoverTheme(popover: PopoverDOM) {
 
   title.style.fontSize = '1.05rem';
   title.style.fontWeight = '700';
-  title.style.lineHeight = '1.4';
+  title.style.lineHeight = '1.3';
   title.style.letterSpacing = '-0.02em';
   title.style.color = 'hsl(var(--foreground))';
   title.style.paddingRight = '2rem';
@@ -26,9 +26,9 @@ export function applyTutorialPopoverTheme(popover: PopoverDOM) {
   description.style.marginTop = '0.35rem';
 
   progress.style.fontSize = '0.7rem';
-  progress.style.fontWeight = '800';
-  progress.style.letterSpacing = '0.16em';
-  progress.style.textTransform = 'uppercase';
+  progress.style.fontWeight = '500';
+  progress.style.letterSpacing = '0.01em';
+  progress.style.textTransform = 'none';
   progress.style.color = 'hsl(var(--primary))';
 
   footer.style.display = 'flex';

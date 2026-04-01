@@ -147,8 +147,8 @@ function SupportTile({
                         <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
                     </div>
                     <div className="min-w-0 flex-1">
-                        <p className={cn("text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em]", toneStyles.eyebrow)}>{eyebrow}</p>
-                        <p className="text-sm sm:text-lg font-black tracking-tight text-foreground">{title}</p>
+                        <p className={cn("text-[10px] sm:text-[11px] font-medium", toneStyles.eyebrow)}>{eyebrow}</p>
+                        <p className="text-sm sm:text-lg font-semibold text-foreground">{title}</p>
                         {description && (
                             <p className="mt-1 text-[11px] font-medium leading-relaxed text-muted-foreground">
                                 {description}
@@ -160,7 +160,7 @@ function SupportTile({
                     variant={variant}
                     onClick={onClick}
                     className={cn(
-                        "w-full rounded-xl sm:rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] h-11 sm:h-12 px-8",
+                        "w-full rounded-xl sm:rounded-2xl h-11 sm:h-12 px-8 text-[10px] font-semibold",
                         variant === 'default' && "shadow-lg shadow-primary/20",
                         toneStyles.button
                     )}
@@ -193,8 +193,8 @@ function HelpSectionCard({
                     <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
                 </div>
                 <div>
-                    <CardTitle className="text-lg sm:text-xl font-bold tracking-tight">{title}</CardTitle>
-                    <CardDescription className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-primary/60">Help Center Resource</CardDescription>
+                    <CardTitle className="text-lg sm:text-xl font-bold">{title}</CardTitle>
+                    <CardDescription className="text-[10px] sm:text-[11px] font-medium text-primary/60">Help center resource</CardDescription>
                 </div>
             </CardHeader>
             <CardContent className="pt-6 sm:pt-8 px-4 sm:px-8 pb-6 sm:pb-8">
@@ -291,8 +291,8 @@ function AboutContent() {
                                     <AvatarFallback className="bg-primary text-primary-foreground font-bold">AT</AvatarFallback>
                                 </Avatar>
                                 <div className="text-center sm:text-left space-y-1 min-w-0 flex-1">
-                                    <h4 className="text-lg sm:text-xl font-black tracking-tight truncate">Arun Thiyaagarajan</h4>
-                                    <p className="text-[10px] sm:text-sm font-medium text-muted-foreground uppercase tracking-widest">Software Developer</p>
+                                    <h4 className="text-lg sm:text-xl font-bold truncate">Arun Thiyaagarajan</h4>
+                                    <p className="text-[11px] sm:text-sm font-medium text-muted-foreground">Software developer</p>
                                     <div className="flex wrap justify-center sm:justify-start gap-2 mt-4">
                                         <Button asChild variant="outline" size="sm" className="rounded-xl h-8 sm:h-9 text-[10px] sm:text-xs font-bold border-muted-foreground/20">
                                             <a href="https://github.com/Arun-Thiyaagarajan" target="_blank" rel="noopener noreferrer">
@@ -384,7 +384,7 @@ function AboutContent() {
                     <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
                 </Button>
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-black tracking-tight flex items-center gap-2 sm:gap-3">
+                    <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2 sm:gap-3">
                         <HelpCircle className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
                         Help & About
                     </h1>
@@ -409,8 +409,8 @@ function AboutContent() {
                 <div className="pt-6 sm:pt-10 text-center space-y-3 sm:space-y-4">
                     <div className="h-1 w-10 sm:w-12 bg-primary/30 mx-auto rounded-full" />
                     <div className="space-y-1">
-                        <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.4em] text-primary">TaskFlow Productivity Engine</p>
-                        <p className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Version 1.1.0 • Arun Thiyaagarajan</p>
+                        <p className="text-[10px] sm:text-[11px] font-medium text-primary">TaskFlow productivity engine</p>
+                        <p className="text-[10px] sm:text-[11px] font-medium text-muted-foreground">Version 1.1.0 • Arun Thiyaagarajan</p>
                     </div>
                 </div>
             </div>
