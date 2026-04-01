@@ -599,11 +599,11 @@ export function StatusManagementContent({
                             onBlur={() => handleGroupNameCommit(group.id)}
                             className="h-9 border-0 bg-transparent px-0 font-semibold shadow-none focus-visible:ring-0"
                           />
-                          {group.isDefault && <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
                         </div>
                         <p className="text-[11px] text-muted-foreground">{statusCount} status{statusCount === 1 ? '' : 'es'}</p>
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
+                        {group.isDefault && <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground mr-1" />}
                         <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full" disabled={index === 0} onClick={() => moveGroup(group.id, 'up')}>
                           <ArrowUp className="h-4 w-4" />
                         </Button>
