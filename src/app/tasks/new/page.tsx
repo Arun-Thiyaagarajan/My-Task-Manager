@@ -9,7 +9,6 @@ import { useToast } from '@/hooks/use-toast';
 import type { Task, Person } from '@/lib/types';
 import { createTaskSchema } from '@/lib/validators';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { generateSummarySafely } from '@/ai/flows/summary-flow';
 
 const normalizePrLinks = (prLinks: any): Task['prLinks'] | undefined => {
   if (!prLinks) return undefined;
@@ -109,19 +108,7 @@ export default function NewTaskPage() {
         }, {} as { [key: string]: string | null });
     }
     
-    let summaryGenerationFailed = false;
-
-    if (taskDataToCreate.description && taskDataToCreate.description.length > 200) {
-      const summaryResult = await generateSummarySafely({ text: taskDataToCreate.description });
-
-      if (summaryResult.ok) {
-        taskDataToCreate.summary = summaryResult.summary;
-      } else {
-        summaryGenerationFailed = true;
-        taskDataToCreate.summary = null;
-        console.error('Failed to generate summary:', summaryResult.error ?? summaryResult.reason);
-      }
-    }
+    taskDataToCreate.summary = null;
 
     const newTask = addTask(taskDataToCreate);
     
@@ -130,14 +117,6 @@ export default function NewTaskPage() {
         title: `Task created`,
         description: "Your new task has been saved.",
     });
-
-    if (summaryGenerationFailed) {
-      toast({
-        variant: 'warning',
-        title: 'Task saved without AI summary',
-        description: 'The description summary could not be generated right now. Your task was still saved successfully.',
-      });
-    }
 
     router.push(`/tasks/${newTask.id}`);
   };

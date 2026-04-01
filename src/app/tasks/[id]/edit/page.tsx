@@ -11,7 +11,6 @@ import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createTaskSchema } from '@/lib/validators';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { generateSummarySafely } from '@/ai/flows/summary-flow';
 
 const normalizePrLinks = (prLinks: any): Task['prLinks'] | undefined => {
   if (!prLinks) return undefined;
@@ -96,21 +95,7 @@ export default function EditTaskPage() {
         deploymentDates: {}
     };
 
-    let summaryGenerationFailed = false;
-
-    if (taskDataToUpdate.description && taskDataToUpdate.description !== task.description && taskDataToUpdate.description.length > 200) {
-      const summaryResult = await generateSummarySafely({ text: taskDataToUpdate.description });
-
-      if (summaryResult.ok) {
-        taskDataToUpdate.summary = summaryResult.summary;
-      } else {
-        summaryGenerationFailed = true;
-        taskDataToUpdate.summary = task.summary ?? null;
-        console.error('Failed to generate summary:', summaryResult.error ?? summaryResult.reason);
-      }
-    } else if (taskDataToUpdate.description && taskDataToUpdate.description.length <= 200) {
-      taskDataToUpdate.summary = null;
-    }
+    taskDataToUpdate.summary = task.summary ?? null;
 
     if (deploymentDates) {
         taskDataToUpdate.deploymentDates = Object.entries(deploymentDates).reduce((acc, [key, value]) => {
@@ -130,14 +115,6 @@ export default function EditTaskPage() {
         title: `Task updated`,
         description: "Your changes have been saved.",
     });
-
-    if (summaryGenerationFailed) {
-      toast({
-        variant: 'warning',
-        title: 'Task updated without a new AI summary',
-        description: 'The description summary could not be refreshed right now. Your task changes were still saved.',
-      });
-    }
 
     router.push(`/tasks/${task.id}`);
   };
