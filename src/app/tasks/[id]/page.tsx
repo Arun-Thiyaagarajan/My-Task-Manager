@@ -69,6 +69,8 @@ const isImageUrl = (url: string): boolean => {
   }
 };
 
+const HOME_RETURN_SKELETON_KEY = 'taskflow_show_home_skeleton_once';
+
 
 export default function TaskPage() {
   const { isUserLoading } = useFirebase();
@@ -872,6 +874,9 @@ const handleCopyDescription = () => {
 
   const handleNavigateBack = () => {
     window.dispatchEvent(new Event('navigation-start'));
+    if (typeof window !== 'undefined' && !isBinned) {
+      window.sessionStorage.setItem(HOME_RETURN_SKELETON_KEY, '1');
+    }
     router.push(backLink);
   };
 

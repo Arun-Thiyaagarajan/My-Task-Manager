@@ -126,6 +126,8 @@ type DateView = 'all' | 'monthly' | 'calendar' | 'yearly';
 const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
 const LAST_BACKUP_KEY = 'taskflow_last_auto_backup';
 const HOME_SKELETON_DELAY_MS = 250;
+const HOME_RETURN_SKELETON_KEY = 'taskflow_show_home_skeleton_once';
+const HOME_RETURN_SKELETON_MS = 220;
 
 interface SearchSuggestion {
     id: string;
@@ -203,6 +205,7 @@ export default function Home() {
   const [isResolutionOpen, setIsResolutionOpen] = useState(false);
   const tutorialOpenedSelectModeRef = useRef(false);
   const [showDelayedSkeleton, setShowDelayedSkeleton] = useState(false);
+  const [showReturnSkeleton, setShowReturnSkeleton] = useState(false);
   
   useEffect(() => {
     setMounted(true);
@@ -993,8 +996,9 @@ export default function Home() {
   const hasRenderableTaskData = filteredTasks.length > 0 || filteredBinnedTasks.length > 0 || hasAnyLoadedTasks;
   const isCloudDataPending = currentAuthMode === 'authenticate' && (!activeCompanyIdForSync || !isInitialSyncComplete(activeCompanyIdForSync));
   const isInitialBlockingLoad = mounted && !hasRenderableTaskData && (isLoading || isUserLoading || isCloudDataPending || !hasInitialized);
-  const shouldRenderEmptyState = mounted && !isInitialBlockingLoad && !showDelayedSkeleton && !isUserLoading && !isCloudDataPending && hasInitialized && dateView !== 'calendar' && filteredTasks.length === 0 && filteredBinnedTasks.length === 0;
   const shouldShowDelayedSkeleton = mounted && showDelayedSkeleton && isInitialBlockingLoad;
+  const shouldShowListSkeleton = shouldShowDelayedSkeleton || showReturnSkeleton;
+  const shouldRenderEmptyState = mounted && !isInitialBlockingLoad && !shouldShowListSkeleton && !isUserLoading && !isCloudDataPending && hasInitialized && dateView !== 'calendar' && filteredTasks.length === 0 && filteredBinnedTasks.length === 0;
 
   useEffect(() => {
     if (!isInitialBlockingLoad) {
@@ -1008,6 +1012,21 @@ export default function Home() {
 
     return () => window.clearTimeout(timer);
   }, [isInitialBlockingLoad]);
+
+  useEffect(() => {
+    if (!mounted || pathname !== '/' || typeof window === 'undefined') return;
+    if (window.sessionStorage.getItem(HOME_RETURN_SKELETON_KEY) !== '1') return;
+
+    window.sessionStorage.removeItem(HOME_RETURN_SKELETON_KEY);
+    setShowReturnSkeleton(true);
+
+    const timer = window.setTimeout(() => {
+      setShowReturnSkeleton(false);
+      window.dispatchEvent(new Event('navigation-end'));
+    }, HOME_RETURN_SKELETON_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [mounted, pathname, searchParams]);
 
   const searchSuggestions = useMemo((): SearchSuggestion[] => {
     const q = searchQuery.trim().toLowerCase();
@@ -2254,9 +2273,9 @@ export default function Home() {
                     "transition-all duration-500",
                     isSearching ? "opacity-40 grayscale-[0.5] blur-[0.5px]" : "opacity-100"
                 )}>
-                    {(dateView === 'calendar' || filteredTasks.length > 0 || filteredBinnedTasks.length > 0 || shouldShowDelayedSkeleton || !shouldRenderEmptyState) ? (
+                    {(dateView === 'calendar' || filteredTasks.length > 0 || filteredBinnedTasks.length > 0 || shouldShowListSkeleton || !shouldRenderEmptyState) ? (
                         <div>
-                            {(filteredTasks.length > 0 || shouldShowDelayedSkeleton || dateView === 'calendar') ? (
+                            {(filteredTasks.length > 0 || shouldShowListSkeleton || dateView === 'calendar') ? (
                                 dateView === 'calendar' ? (
                                     <TasksCalendarView
                                         tasks={filteredTasks}
@@ -2266,9 +2285,9 @@ export default function Home() {
                                         currentQueryString={searchParams.toString()}
                                     />
                                 ) : viewMode === 'grid' ? (
-                                    <TasksGrid tasks={filteredTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handlePinToggle} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} isLoading={shouldShowDelayedSkeleton} />
+                                    <TasksGrid tasks={filteredTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handlePinToggle} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} isLoading={shouldShowListSkeleton} />
                                 ) : (
-                                    <TasksTable tasks={filteredTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} isLoading={shouldShowDelayedSkeleton} />
+                                    <TasksTable tasks={filteredTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} isLoading={shouldShowListSkeleton} />
                                 )
                             ) : null}
                             {deletedMatchesSection}
