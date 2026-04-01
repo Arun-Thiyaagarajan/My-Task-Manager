@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getTaskById, getDevelopers, updateTask, getTesters, getUiConfig, getTasks } from '@/lib/data';
+import { getDevelopers, updateTask, getTesters, getUiConfig } from '@/lib/data';
+import { getCachedTaskById as getTaskById, getCachedTasks as getTasks } from '@/lib/cached-data';
 import { useParams, useRouter } from 'next/navigation';
 import { TaskForm } from '@/components/task-form';
 import { Card, CardContent } from '@/components/ui/card';

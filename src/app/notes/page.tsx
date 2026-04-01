@@ -2,7 +2,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { addNote, getNotes, updateNote, deleteNote, getUiConfig, updateNoteLayouts, resetNotesLayout, deleteMultipleNotes, importNotes, addLog, getAuthMode, getUserPreferences, updateUserPreferences, isInitialSyncComplete, getActiveCompanyId } from '@/lib/data';
+import { addNote, updateNote, deleteNote, getUiConfig, updateNoteLayouts, resetNotesLayout, deleteMultipleNotes, importNotes, addLog, getAuthMode, getUserPreferences, updateUserPreferences, isInitialSyncComplete, getActiveCompanyId } from '@/lib/data';
+import { getCachedNotes as getNotes } from '@/lib/cached-data';
 import type { Note, UiConfig, NoteLayout, UserPreferences } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';

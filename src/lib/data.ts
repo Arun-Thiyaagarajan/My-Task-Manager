@@ -10,6 +10,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import { toast } from '@/hooks/use-toast';
 import { syncTaskStatuses } from './status-config';
 import { createId } from './id';
+import { buildReadCacheScope, clearAllReadCache, invalidateNoteReadCache, invalidateTaskReadCache } from './read-cache';
 
 export const DATA_KEY = 'my_task_manager_data';
 const AUTH_MODE_KEY = 'taskflow_auth_mode';
@@ -218,7 +219,20 @@ export function setAuthMode(mode: AuthMode) {
     window.localStorage.setItem(AUTH_MODE_KEY, mode);
     setCloudCache(null);
     resetInitialSyncStatus();
+    clearAllReadCache();
     window.dispatchEvent(new Event('company-changed'));
+}
+
+function getCurrentReadCacheScopeKey() {
+    return buildReadCacheScope(getAuthMode(), getActiveCompanyId());
+}
+
+function invalidateCurrentTaskReadCache(taskId?: string) {
+    invalidateTaskReadCache(getCurrentReadCacheScopeKey(), taskId);
+}
+
+function invalidateCurrentNoteReadCache(noteId?: string) {
+    invalidateNoteReadCache(getCurrentReadCacheScopeKey(), noteId);
 }
 
 // Local Profile Management
@@ -1091,6 +1105,7 @@ export function addTask(task: Partial<Task>): Task {
     } as Task;
     data.companyData[companyId].tasks.unshift(newTask);
     setAppData(data);
+    invalidateCurrentTaskReadCache(newTask.id);
     
     let logMsg = `Created task "**${newTask.title}**"`;
     if (newTask.attachments && newTask.attachments.length > 0) {
@@ -1129,6 +1144,7 @@ export function updateTask(id: string, updates: Partial<Task>, silent = false): 
     const newTask = { ...oldTask, ...updates, updatedAt: new Date().toISOString() };
     data.companyData[companyId].tasks[taskIndex] = newTask;
     setAppData(data);
+    invalidateCurrentTaskReadCache(id);
 
     if (!silent) {
         const config = getUiConfig();
@@ -1225,6 +1241,7 @@ export function moveTaskToBin(id: string) {
     task.deletedAt = new Date().toISOString();
     data.companyData[companyId].trash.unshift(task);
     setAppData(data);
+    invalidateCurrentTaskReadCache(id);
     addLog({ message: `Moved task "**${task.title}**" to the bin`, taskId: id });
     if (getAuthMode() === 'authenticate') {
         dispatchMutation('tasks', id, task, 'update');
@@ -1249,6 +1266,7 @@ export function restoreTask(id: string) {
     task.updatedAt = new Date().toISOString();
     data.companyData[companyId].tasks.unshift(task);
     setAppData(data);
+    invalidateCurrentTaskReadCache(id);
     addLog({ message: `Restored task "**${task.title}**" from the bin`, taskId: id });
     if (getAuthMode() === 'authenticate') {
         dispatchMutation('tasks', id, task, 'update');
@@ -1275,6 +1293,7 @@ export function permanentlyDeleteMultipleTasks(ids: string[]) {
     const deletedCount = ids.length;
     data.companyData[companyId].trash = data.companyData[companyId].trash.filter(t => !ids.includes(t.id));
     setAppData(data);
+    ids.forEach(id => invalidateCurrentTaskReadCache(id));
     addLog({ message: `Permanently deleted **${deletedCount}** task(s) from the bin.` });
     if (getAuthMode() === 'authenticate') {
         ids.forEach(id => dispatchMutation('tasks', id, null, 'delete'));
@@ -1327,6 +1346,7 @@ export function addNote(note: Partial<Note>): Note {
     } as Note;
     data.companyData[companyId].notes.unshift(newNote);
     setAppData(data);
+    invalidateCurrentNoteReadCache(newNote.id);
     addLog({ message: `Created new note: "**${newNote.title || 'Untitled'}**"` });
     if (getAuthMode() === 'authenticate') {
         dispatchMutation('notes', id, newNote, 'create');
@@ -1342,6 +1362,7 @@ export function updateNote(id: string, updates: Partial<Note>) {
         const oldTitle = data.companyData[companyId].notes[index].title;
         data.companyData[companyId].notes[index] = { ...data.companyData[companyId].notes[index], ...updates, updatedAt: new Date().toISOString() };
         setAppData(data);
+        invalidateCurrentNoteReadCache(id);
         if (updates.title && updates.title !== oldTitle) {
             addLog({ message: `Renamed note from "**${oldTitle}**" to "**${updates.title}**"` });
         }
@@ -1357,6 +1378,7 @@ export function deleteNote(id: string) {
     const note = data.companyData[companyId].notes.find(n => n.id === id);
     data.companyData[companyId].notes = data.companyData[companyId].notes.filter(n => n.id !== id);
     setAppData(data);
+    invalidateCurrentNoteReadCache(id);
     addLog({ message: `Deleted note: "**${note?.title || 'Untitled'}**"` });
     if (getAuthMode() === 'authenticate') {
         dispatchMutation('notes', id, null, 'delete');
@@ -1384,6 +1406,7 @@ export function updateNoteLayouts(layouts: NoteLayout[]) {
         }
     });
     setAppData(data);
+    invalidateCurrentNoteReadCache();
 }
 
 export function resetNotesLayout(): boolean {
@@ -1398,6 +1421,7 @@ export function resetNotesLayout(): boolean {
         }
     });
     setAppData(data);
+    invalidateCurrentNoteReadCache();
     return true;
 }
 

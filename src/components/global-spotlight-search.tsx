@@ -21,7 +21,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { cn, fuzzySearch } from '@/lib/utils';
-import { getBinnedTasks, getNotes, getTasks, getUiConfig } from '@/lib/data';
+import { getUiConfig } from '@/lib/data';
+import { getCachedBinnedTasks as getBinnedTasks, getCachedNotes as getNotes, getCachedTasks as getTasks } from '@/lib/cached-data';
 import { getStatusDisplayName } from '@/lib/status-config';
 import { useIsMobile } from '@/hooks/use-mobile';
 import type { Note, Task } from '@/lib/types';

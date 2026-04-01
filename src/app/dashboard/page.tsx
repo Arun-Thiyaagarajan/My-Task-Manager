@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getTasks, getUiConfig, getDevelopers, getTesters, getAuthMode, isInitialSyncComplete, getActiveCompanyId } from '@/lib/data';
+import { getUiConfig, getDevelopers, getTesters, getAuthMode, isInitialSyncComplete, getActiveCompanyId } from '@/lib/data';
+import { getCachedTasks as getTasks } from '@/lib/cached-data';
 import type { Task, Person, UiConfig, Environment } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -523,11 +524,11 @@ export default function DashboardPage() {
   };
 
   return (
-    <div id="dashboard-page" className="relative min-h-full overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.10),transparent_26%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.10),transparent_24%),linear-gradient(to_bottom,transparent,rgba(148,163,184,0.06))]">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+    <div id="dashboard-page" className="relative overflow-visible">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[42rem] overflow-hidden [mask-image:linear-gradient(to_bottom,rgba(0,0,0,1)_0%,rgba(0,0,0,0.96)_58%,rgba(0,0,0,0.72)_78%,transparent_100%)] bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.10),transparent_26%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.10),transparent_24%),linear-gradient(to_bottom,transparent,rgba(148,163,184,0.06))]">
         <div className="absolute left-[-6rem] top-16 h-48 w-48 rounded-full bg-blue-500/10 blur-3xl" />
         <div className="absolute right-[-5rem] top-20 h-56 w-56 rounded-full bg-emerald-500/10 blur-3xl" />
-        <div className="absolute bottom-10 left-1/3 h-44 w-44 rounded-full bg-violet-500/10 blur-3xl" />
+        <div className="absolute left-1/3 top-64 h-44 w-44 rounded-full bg-violet-500/10 blur-3xl" />
       </div>
       <div className="container relative mx-auto max-w-7xl space-y-5 px-3 pb-4 pt-6 sm:space-y-6 sm:px-6 sm:pb-6 sm:pt-8 lg:px-8">
         <div className="grid gap-4 xl:grid-cols-[1.55fr_1fr]">
