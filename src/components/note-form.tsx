@@ -121,7 +121,7 @@ export function NoteForm({
               )}
               enableHotkeys
             />
-            <TextareaToolbar onFormatClick={handleFormat} />
+            <TextareaToolbar onFormatClick={handleFormat} storageKey="taskflow_editor_toolbar_notes" />
           </div>
         </div>
       </div>

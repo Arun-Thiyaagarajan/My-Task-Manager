@@ -988,13 +988,34 @@ const handleCopyDescription = () => {
           ) : (
             <div className="flex gap-1.5 sm:gap-2">
                 <ShareMenu task={task} uiConfig={uiConfig} developers={developers} testers={testers}>
-                    <Button variant="outline" size={isMobile ? "icon" : "sm"} className="font-medium">
+                    <Button variant="outline" size={isMobile ? "icon" : "sm"} className="h-9 rounded-xl border-border/60 bg-background/92 px-3 font-medium shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:bg-background">
                         <Share2 className={cn("h-4 w-4", !isMobile && "mr-2")} />
                         {!isMobile && "Share"}
                     </Button>
                 </ShareMenu>
+                {uiConfig?.remindersEnabled && !isBinned && (
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size={isMobile ? "icon" : "sm"}
+                                    onClick={() => setIsReminderOpen(true)}
+                                    className={cn(
+                                      "h-9 rounded-xl border-border/60 bg-background/92 px-3 font-medium shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:bg-background",
+                                      task.reminder && "border-amber-500/30 bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 dark:text-amber-300"
+                                    )}
+                                >
+                                    <BellRing className={cn("h-4 w-4", !isMobile && "mr-2")} />
+                                    {!isMobile && (task.reminder ? "Reminder" : "Remind")}
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent><p className="font-normal">{task.reminder ? 'Edit Reminder' : 'Set Reminder'}</p></TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                )}
 
-                <Button id="task-detail-edit" onClick={handleNavigateEdit} variant="outline" size={isMobile ? "icon" : "sm"} className="active:scale-95 transition-transform font-medium">
+                <Button id="task-detail-edit" onClick={handleNavigateEdit} variant="outline" size={isMobile ? "icon" : "sm"} className="h-9 rounded-xl border-border/60 bg-background/92 px-3 active:scale-95 font-medium shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-transform hover:bg-background">
                     <Pencil className={cn("h-4 w-4", !isMobile && "mr-2")} />
                     {!isMobile && "Edit"}
                 </Button>
@@ -1003,7 +1024,7 @@ const handleCopyDescription = () => {
                     taskTitle={task.title} 
                     onSuccess={() => router.push('/')} 
                     iconOnly={isMobile}
-                    className={cn(isMobile && "h-9 w-9")}
+                    className={cn(isMobile ? "h-9 w-9" : "rounded-xl")}
                 />
             </div>
           )}
@@ -1111,18 +1132,6 @@ const handleCopyDescription = () => {
                             </Tooltip>
                           </TooltipProvider>
                         )}
-                        {uiConfig?.remindersEnabled && !isBinned && (
-                          <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsReminderOpen(true)}>
-                                    <BellRing className={cn("h-5 w-5 text-muted-foreground", task.reminder && "text-amber-600 dark:text-amber-400")} />
-                                </Button>
-                                </TooltipTrigger>
-                                <TooltipContent><p className="font-normal">{task.reminder ? 'Edit Reminder' : 'Set Reminder'}</p></TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
                       </div>
                       <div className="flex-shrink-0 flex items-center gap-2">
                         {!isBinned && <FavoriteToggleButton taskId={task.id} isFavorite={!!task.isFavorite} onUpdate={loadData} />}
@@ -1218,7 +1227,7 @@ const handleCopyDescription = () => {
                                   placeholder="Enter a description..."
                                   enableHotkeys
                                />
-                               <TextareaToolbar onFormatClick={(type) => handleFormat(descriptionEditorRef, type)} />
+                               <TextareaToolbar onFormatClick={(type) => handleFormat(descriptionEditorRef, type)} storageKey="taskflow_editor_toolbar_task_detail" />
                              </div>
                             <div className="flex justify-end gap-2">
                                 <Button variant="ghost" size="sm" onClick={handleCancelEditing} className="font-medium">Cancel</Button>

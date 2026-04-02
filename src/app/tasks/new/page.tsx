@@ -192,7 +192,7 @@ export default function NewTaskPage() {
             onDeleteTaskTemplate={handleDeleteTemplate}
             draftStorageKey={requestedTemplateId ? `taskflow_draft_new_template_${requestedTemplateId}` : undefined}
             initialSelectedTemplateId={requestedTemplateId || undefined}
-            editorToolbarStorageKey="taskflow_editor_toolbar_task_new"
+            editorToolbarStorageKey="taskflow_editor_toolbar_task_form"
           />
         </CardContent>
       </Card>

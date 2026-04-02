@@ -333,15 +333,22 @@ export default function Home() {
 
     if (companyId) {
         clearExpiredReminders();
-        setTasks(getTasks());
-        setBinnedTasks(getBinnedTasks());
+        const nextTasks = getTasks();
+        const nextBinnedTasks = getBinnedTasks();
+        setTasks(nextTasks);
+        setBinnedTasks(nextBinnedTasks);
         setDevelopers(getDevelopers());
         setTesters(getTesters());
         setGeneralReminders(getGeneralReminders());
         const config = getUiConfig();
         setUiConfig(config);
         document.title = config.appName || 'My Task Manager';
-        setSelectedTaskIds([]);
+        setSelectedTaskIds((currentSelected) => {
+            if (currentSelected.length === 0) return currentSelected;
+            const validTaskIds = new Set(nextTasks.map(task => task.id));
+            const nextSelected = currentSelected.filter(id => validTaskIds.has(id));
+            return nextSelected.length === currentSelected.length ? currentSelected : nextSelected;
+        });
         
         // Detect duplicates for resolution
         const duplicates = findExistingDuplicates();

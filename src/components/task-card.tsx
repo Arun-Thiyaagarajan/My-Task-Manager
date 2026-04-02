@@ -39,6 +39,7 @@ import { ShareMenu } from './share-menu';
 import { StatusIcon, getSortedStatusNames, getStatusDisplayName, getStatusStyles, isStatusValue } from '@/lib/status-config';
 import { scheduleStatusUpdate } from '@/lib/status-update';
 import { getTaskRepositories } from '@/lib/repository-config';
+import { RichTextViewer } from './ui/rich-text-viewer';
 
 interface TaskCardProps {
   task: Task;
@@ -365,9 +366,9 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
             </CardHeader>
             <CardContent className="flex flex-grow flex-col p-4 pt-2">
               <div className="relative mb-3 min-h-[40px] text-sm text-muted-foreground">
-                <p className="line-clamp-2 leading-relaxed font-normal">
-                  {task.summary || task.description}
-                </p>
+                <div className="line-clamp-2 leading-relaxed font-normal text-foreground/78 [&_blockquote]:my-0 [&_p]:my-0 [&_ul]:my-0 [&_ol]:my-0">
+                  <RichTextViewer text={task.summary || task.description} />
+                </div>
               </div>
               <div className="flex-grow space-y-3">
                 {visibleRepositories.length > 0 && (

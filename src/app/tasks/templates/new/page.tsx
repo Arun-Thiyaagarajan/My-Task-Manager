@@ -142,7 +142,7 @@ export default function NewTaskTemplatePage() {
             showTemplateTools={false}
             validationMode="template"
             draftStorageKey="taskflow_draft_template_new"
-            editorToolbarStorageKey="taskflow_editor_toolbar_template_new"
+            editorToolbarStorageKey="taskflow_editor_toolbar_template_form"
             topContent={(
               <Card className="border-border/60 bg-background/90 shadow-sm">
                 <CardHeader className="space-y-2 pb-4">

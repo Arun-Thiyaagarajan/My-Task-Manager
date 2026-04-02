@@ -107,45 +107,45 @@ const normalizePrLinks = (prLinks?: TaskFormData['prLinks']): Task['prLinks'] | 
 };
 
 const getInitialTaskData = (task?: Partial<Task>, uiConfig?: UiConfig | null) => {
-    if (!task) {
-        const defaults: any = {
-            title: '',
-            description: '',
-            status: uiConfig?.taskStatuses?.[0] || 'To Do',
-            repositories: [],
-            developers: [],
-            testers: [],
-            tags: [],
-            prLinks: {},
-            deploymentStatus: {},
-            relevantEnvironments: ['dev', 'stage', 'production'],
-            attachments: [],
-            deploymentDates: {},
-            customFields: {},
-            azureWorkItemId: '',
-            summary: null,
-        };
+    const defaults: any = {
+        title: '',
+        description: '',
+        status: uiConfig?.taskStatuses?.[0] || 'To Do',
+        repositories: [],
+        developers: [],
+        testers: [],
+        tags: [],
+        prLinks: {},
+        deploymentStatus: {},
+        relevantEnvironments: ['dev', 'stage', 'production'],
+        attachments: [],
+        deploymentDates: {},
+        customFields: {},
+        azureWorkItemId: '',
+        summary: null,
+    };
 
-        if (uiConfig) {
-            uiConfig.fields.forEach(f => {
-                if (f.defaultValue !== undefined && f.defaultValue !== null && f.defaultValue !== '') {
-                    let val = f.defaultValue;
-                    if (f.type === 'date') val = safeParseDate(val);
+    if (uiConfig) {
+        uiConfig.fields.forEach(f => {
+            if (f.defaultValue !== undefined && f.defaultValue !== null && f.defaultValue !== '') {
+                let val = f.defaultValue;
+                if (f.type === 'date') val = safeParseDate(val);
 
-                    if (f.isCustom) {
-                        const finalVal = (f.type === 'tags' || f.type === 'multiselect')
-                            ? (Array.isArray(val) ? val : (val ? [val] : []))
-                            : val;
-                        defaults.customFields = { ...defaults.customFields, [f.key]: finalVal };
-                    } else if (f.key === 'developers' || f.key === 'testers' || f.key === 'tags' || f.type === 'multiselect') {
-                        defaults[f.key] = Array.isArray(val) ? val : (val ? [val] : []);
-                    } else {
-                        defaults[f.key] = val;
-                    }
+                if (f.isCustom) {
+                    const finalVal = (f.type === 'tags' || f.type === 'multiselect')
+                        ? (Array.isArray(val) ? val : (val ? [val] : []))
+                        : val;
+                    defaults.customFields = { ...defaults.customFields, [f.key]: finalVal };
+                } else if (f.key === 'developers' || f.key === 'testers' || f.key === 'tags' || f.type === 'multiselect') {
+                    defaults[f.key] = Array.isArray(val) ? val : (val ? [val] : []);
+                } else {
+                    defaults[f.key] = val;
                 }
-            });
-        }
-        
+            }
+        });
+    }
+
+    if (!task) {
         return defaults;
     }
     
@@ -157,23 +157,26 @@ const getInitialTaskData = (task?: Partial<Task>, uiConfig?: UiConfig | null) =>
     }
     
     return {
+        ...defaults,
         ...task,
-        status: getStatusDisplayName(task.status || (uiConfig?.taskStatuses?.[0] || 'To Do'), uiConfig),
+        title: task.title ?? defaults.title,
+        description: task.description ?? defaults.description,
+        status: getStatusDisplayName(task.status || defaults.status, uiConfig),
         devStartDate: safeParseDate(task.devStartDate),
         devEndDate: safeParseDate(task.devEndDate),
         qaStartDate: safeParseDate(task.qaStartDate),
         qaEndDate: safeParseDate(task.qaEndDate),
         deploymentDates: deploymentDatesAsDates,
         attachments: task.attachments || [],
-        customFields: task.customFields || {},
+        customFields: { ...defaults.customFields, ...(task.customFields || {}) },
         prLinks: task.prLinks || {},
         deploymentStatus: task.deploymentStatus || {},
-        relevantEnvironments: task.relevantEnvironments && task.relevantEnvironments.length > 0 ? task.relevantEnvironments : ['dev', 'stage', 'production'],
-        developers: task.developers || [],
-        testers: task.testers || [],
-        tags: task.tags || [],
-        azureWorkItemId: task.azureWorkItemId || '',
-        summary: task.summary || null,
+        relevantEnvironments: task.relevantEnvironments && task.relevantEnvironments.length > 0 ? task.relevantEnvironments : defaults.relevantEnvironments,
+        developers: task.developers || defaults.developers,
+        testers: task.testers || defaults.testers,
+        tags: task.tags || defaults.tags,
+        azureWorkItemId: task.azureWorkItemId || defaults.azureWorkItemId,
+        summary: task.summary ?? defaults.summary,
     }
 }
 
@@ -299,6 +302,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     const initialData = getInitialTaskData(task, currentUiConfig);
     initialData.status = getStatusDisplayName(initialData.status || currentUiConfig?.taskStatuses?.[0] || 'To Do', currentUiConfig);
     form.reset(initialData);
+    form.clearErrors();
 
     // Check for existing draft on mount
     const savedDraft = localStorage.getItem(draftKey);

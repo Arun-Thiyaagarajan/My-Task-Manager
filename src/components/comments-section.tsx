@@ -136,7 +136,7 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
                                                     className="min-h-[110px] pb-12"
                                                     enableHotkeys
                                                 />
-                                                <TextareaToolbar onFormatClick={(type) => handleFormat(editCommentRef, type)} />
+                                                <TextareaToolbar onFormatClick={(type) => handleFormat(editCommentRef, type)} storageKey="taskflow_editor_toolbar_comments" />
                                             </div>
                                             <div className="flex gap-2 justify-end">
                                                 <Button size="sm" variant="ghost" onClick={handleCancelEdit}><X className="h-4 w-4 mr-1" />Cancel</Button>
@@ -188,7 +188,7 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
                                             className="min-h-[110px] pb-12"
                                             enableHotkeys
                                         />
-                                        <TextareaToolbar onFormatClick={(type) => handleFormat(newCommentRef, type)} />
+                                        <TextareaToolbar onFormatClick={(type) => handleFormat(newCommentRef, type)} storageKey="taskflow_editor_toolbar_comments" />
                                     </div>
                                     <div className="flex justify-end gap-2">
                                       {newComment && <Button variant="ghost" size="sm" onClick={handleCancelNewComment}>Cancel</Button>}

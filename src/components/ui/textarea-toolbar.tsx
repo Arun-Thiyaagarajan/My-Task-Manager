@@ -200,7 +200,7 @@ export function applyFormat(formatType: FormatType, target: HTMLTextAreaElement)
 export function TextareaToolbar({ onFormatClick, className, storageKey }: TextareaToolbarProps) {
     const isMobile = useIsMobile();
     const [commandKey, setCommandKey] = useState('Ctrl');
-    const [isExpanded, setIsExpanded] = useState(true);
+    const [isExpanded, setIsExpanded] = useState(false);
     
     useEffect(() => {
         if (typeof window !== 'undefined') {
