@@ -109,6 +109,7 @@ export interface UserPreferences {
   sortDescriptor?: string;
   dateView?: 'all' | 'monthly' | 'calendar' | 'yearly';
   taskOpenGroups?: string[];
+  taskOpenGroupsCustomized?: boolean;
   taskFilters?: {
     status?: string[];
     statusGroup?: string[];

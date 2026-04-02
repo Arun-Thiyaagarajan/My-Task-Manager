@@ -207,6 +207,7 @@ export default function Home() {
   const [showDelayedSkeleton, setShowDelayedSkeleton] = useState(false);
   const [isNavigationRefreshPending, setIsNavigationRefreshPending] = useState(false);
   const [showNavigationSkeleton, setShowNavigationSkeleton] = useState(false);
+  const [hasCustomizedOpenGroups, setHasCustomizedOpenGroups] = useState(false);
   
   useEffect(() => {
     setMounted(true);
@@ -242,7 +243,9 @@ export default function Home() {
     setFavoritesOnly(urlFavs || prefs.favoritesOnly || false);
     setSearchQuery(urlSearch);
     setExecutedSearchQuery(urlSearch);
-    setOpenGroups(Array.isArray(prefs.taskOpenGroups) ? prefs.taskOpenGroups : []);
+    const hasStoredCustomizedOpenGroups = prefs.taskOpenGroupsCustomized === true;
+    setHasCustomizedOpenGroups(hasStoredCustomizedOpenGroups);
+    setOpenGroups(hasStoredCustomizedOpenGroups && Array.isArray(prefs.taskOpenGroups) ? prefs.taskOpenGroups : []);
 
     const urlStatus = searchParams.getAll('status');
     setStatusFilter(urlStatus.length > 0 ? urlStatus : (prefs.taskFilters?.status || []));
@@ -267,6 +270,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!mounted) return;
+    if (!hasInitializedGroupStateRef.current) return;
     const params = new URLSearchParams();
     
     if (executedSearchQuery) params.set('search', executedSearchQuery);
@@ -295,6 +299,7 @@ export default function Home() {
         dateView,
         favoritesOnly,
         taskOpenGroups: openGroups,
+        taskOpenGroupsCustomized: hasCustomizedOpenGroups,
         taskFilters: {
             status: statusFilter,
             statusGroup: statusGroupFilter,
@@ -303,7 +308,7 @@ export default function Home() {
             tags: tagsFilter
         }
     });
-  }, [executedSearchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, openGroups, statusFilter, statusGroupFilter, repoFilter, deploymentFilter, tagsFilter, router, pathname, searchParams, mounted]);
+  }, [executedSearchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, openGroups, hasCustomizedOpenGroups, statusFilter, statusGroupFilter, repoFilter, deploymentFilter, tagsFilter, router, pathname, searchParams, mounted]);
 
   const handlePreviousDate = useCallback(() => {
       setIsSearching(true);
@@ -391,14 +396,19 @@ export default function Home() {
       if (!hasInitializedGroupStateRef.current) {
         hasInitializedGroupStateRef.current = true;
         const preferred = current.filter(groupId => validGroupIds.includes(groupId));
-        return preferred.length > 0 ? preferred : validGroupIds;
+        return hasCustomizedOpenGroups ? preferred : validGroupIds;
       }
 
       const stillValid = current.filter(groupId => validGroupIds.includes(groupId));
       if (stillValid.length === current.length) return stillValid;
       return validGroupIds;
     });
-  }, [favoritesOnly, filteredTasks, tasks, uiConfig]);
+  }, [favoritesOnly, filteredTasks, tasks, uiConfig, hasCustomizedOpenGroups]);
+
+  const handleOpenGroupsChange = useCallback((groups: string[]) => {
+    setHasCustomizedOpenGroups(true);
+    setOpenGroups(groups);
+  }, []);
 
   useEffect(() => {
     refreshData();
@@ -2325,9 +2335,9 @@ export default function Home() {
                                         currentQueryString={searchParams.toString()}
                                     />
                                 ) : viewMode === 'grid' ? (
-                                    <TasksGrid tasks={filteredTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handlePinToggle} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} isLoading={shouldShowListSkeleton} />
+                                    <TasksGrid tasks={filteredTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={handleOpenGroupsChange} pinnedTaskIds={pinnedTaskIds} onPinToggle={handlePinToggle} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} isLoading={shouldShowListSkeleton} />
                                 ) : (
-                                    <TasksTable tasks={filteredTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} isLoading={shouldShowListSkeleton} />
+                                    <TasksTable tasks={filteredTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={handleOpenGroupsChange} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} isLoading={shouldShowListSkeleton} />
                                 )
                             ) : null}
                             {deletedMatchesSection}
