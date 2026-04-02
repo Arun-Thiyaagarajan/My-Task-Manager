@@ -23,6 +23,7 @@ export type FormatType =
 interface TextareaToolbarProps {
   onFormatClick: (formatType: FormatType) => void;
   className?: string;
+  storageKey?: string;
 }
 
 function replaceTextareaRange(
@@ -196,7 +197,7 @@ export function applyFormat(formatType: FormatType, target: HTMLTextAreaElement)
 }
 
 
-export function TextareaToolbar({ onFormatClick, className }: TextareaToolbarProps) {
+export function TextareaToolbar({ onFormatClick, className, storageKey }: TextareaToolbarProps) {
     const isMobile = useIsMobile();
     const [commandKey, setCommandKey] = useState('Ctrl');
     const [isExpanded, setIsExpanded] = useState(true);
@@ -207,6 +208,16 @@ export function TextareaToolbar({ onFormatClick, className }: TextareaToolbarPro
             setCommandKey(isMac ? '⌘' : 'Ctrl');
         }
     }, []);
+
+    useEffect(() => {
+        if (!storageKey || typeof window === 'undefined') return;
+        const savedValue = window.localStorage.getItem(storageKey);
+        if (savedValue === 'expanded') {
+            setIsExpanded(true);
+        } else if (savedValue === 'collapsed') {
+            setIsExpanded(false);
+        }
+    }, [storageKey]);
 
     const tools: { type: FormatType; icon: React.ReactNode; tooltip: string; shortcut?: string; emphasis?: boolean }[] = [
         { type: 'undo', icon: <Undo2 className="h-4 w-4" />, tooltip: 'Undo', shortcut: 'Z' },
@@ -283,7 +294,13 @@ export function TextareaToolbar({ onFormatClick, className }: TextareaToolbarPro
             onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                setIsExpanded((prev) => !prev);
+                setIsExpanded((prev) => {
+                    const next = !prev;
+                    if (storageKey && typeof window !== 'undefined') {
+                        window.localStorage.setItem(storageKey, next ? 'expanded' : 'collapsed');
+                    }
+                    return next;
+                });
             }}
             onMouseDown={(e) => e.preventDefault()}
         >

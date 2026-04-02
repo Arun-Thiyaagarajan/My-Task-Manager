@@ -78,6 +78,7 @@ interface TaskFormProps {
   validationMode?: 'task' | 'template';
   draftStorageKey?: string;
   initialSelectedTemplateId?: string;
+  editorToolbarStorageKey?: string;
 }
 
 const safeParseDate = (d: any): Date | undefined => {
@@ -176,7 +177,7 @@ const getInitialTaskData = (task?: Partial<Task>, uiConfig?: UiConfig | null) =>
     }
 }
 
-export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle, developersList: propDevelopersList, testersList: propTestersList, taskTemplates = [], onSaveTaskTemplate, onDeleteTaskTemplate, showTemplateTools = true, topContent, validationMode = 'task', draftStorageKey, initialSelectedTemplateId }: TaskFormProps) {
+export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle, developersList: propDevelopersList, testersList: propTestersList, taskTemplates = [], onSaveTaskTemplate, onDeleteTaskTemplate, showTemplateTools = true, topContent, validationMode = 'task', draftStorageKey, initialSelectedTemplateId, editorToolbarStorageKey }: TaskFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
@@ -813,7 +814,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                  return (
                     <div className="relative w-full">
                         <Textarea {...field} value={field.value ?? ''} ref={ref ?? undefined} className={cn("pb-12 font-normal", premiumFieldClassName)} enableHotkeys/>
-                        {ref ? <TextareaToolbar onFormatClick={(type) => handleFormat(ref, type)} /> : null}
+                        {ref ? <TextareaToolbar onFormatClick={(type) => handleFormat(ref, type)} storageKey={editorToolbarStorageKey} /> : null}
                     </div>
                  )
             }

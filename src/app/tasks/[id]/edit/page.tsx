@@ -151,6 +151,7 @@ export default function EditTaskPage() {
             formTitle="Edit Task"
             developersList={developersList}
             testersList={testersList}
+            editorToolbarStorageKey="taskflow_editor_toolbar_task_edit"
           />
         </CardContent>
       </Card>
