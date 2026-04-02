@@ -480,15 +480,24 @@ export function useTutorial() {
   const { prompt } = useUnsavedChanges();
   const driverRef = React.useRef<Driver | null>(null);
   const scrollRafRef = React.useRef<number | null>(null);
+  const shouldEmitTutorialClosedRef = React.useRef(true);
+  const emitTutorialClosed = React.useCallback(() => {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new Event('tutorial-closed'));
+  }, []);
 
-  const destroyTutorial = React.useCallback(() => {
+  const destroyTutorial = React.useCallback((options?: { emitClosed?: boolean }) => {
     if (scrollRafRef.current !== null) {
       window.cancelAnimationFrame(scrollRafRef.current);
       scrollRafRef.current = null;
     }
     driverRef.current?.destroy();
     driverRef.current = null;
-  }, []);
+    if (options?.emitClosed) {
+      shouldEmitTutorialClosedRef.current = false;
+      emitTutorialClosed();
+    }
+  }, [emitTutorialClosed]);
 
   const scrollElementToTop = React.useCallback((element: Element | undefined, driverInstance?: Driver, behavior: ScrollBehavior = 'smooth') => {
     if (!element || typeof window === 'undefined') {
@@ -564,11 +573,13 @@ export function useTutorial() {
     }
 
     if (action.type === 'close') {
-      destroyTutorial();
+      shouldEmitTutorialClosedRef.current = true;
+      destroyTutorial({ emitClosed: true });
       return;
     }
 
     if (action.type === 'navigate' && action.path) {
+      shouldEmitTutorialClosedRef.current = false;
       destroyTutorial();
       prompt(() => {
         setPendingTutorialState({ path: action.path!, stepIndex: action.stepIndex ?? 0 });
@@ -607,6 +618,7 @@ export function useTutorial() {
   }, [handleAction, scrollElementToTop]);
 
   const startDriver = React.useCallback((steps: DriveStep[], initialStep = 0) => {
+    shouldEmitTutorialClosedRef.current = false;
     destroyTutorial();
 
     const driverObj = driver({
@@ -620,14 +632,20 @@ export function useTutorial() {
       steps,
       onCloseClick: () => {
         prompt(() => {
-          destroyTutorial();
+          shouldEmitTutorialClosedRef.current = true;
+          destroyTutorial({ emitClosed: true });
         });
+      },
+      onDestroyed: () => {
+        if (!shouldEmitTutorialClosedRef.current) return;
+        shouldEmitTutorialClosedRef.current = false;
+        emitTutorialClosed();
       },
     });
 
     driverRef.current = driverObj;
     driverObj.drive(initialStep);
-  }, [destroyTutorial, prompt]);
+  }, [destroyTutorial, emitTutorialClosed, prompt]);
 
   const startTutorialForPath = React.useCallback(async (path: string, initialStep = 0) => {
     const routeKey = getRouteKey(path);
@@ -693,6 +711,7 @@ export function useTutorial() {
 
   React.useEffect(() => {
     return () => {
+      shouldEmitTutorialClosedRef.current = false;
       destroyTutorial();
     };
   }, [destroyTutorial]);

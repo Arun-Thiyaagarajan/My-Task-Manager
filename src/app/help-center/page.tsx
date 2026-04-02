@@ -14,6 +14,7 @@ import {
   HelpCircle,
   Inbox,
   LayoutDashboard,
+  Copy,
   type LucideIcon,
   NotebookPen,
   Rocket,
@@ -78,6 +79,17 @@ const featureItems: FeatureItem[] = [
     icon: Search,
     accent: 'text-blue-500',
     tags: ['global search', 'spotlight', 'cmd k', 'ctrl k', 'search anything', 'command palette'],
+  },
+  {
+    id: 'templates',
+    title: 'Templates Workspace',
+    subtitle: 'Reusable task presets, restore, and reuse',
+    description: 'Open Templates to create reusable task presets, manage existing ones, restore binned templates, and start new tasks from a saved setup.',
+    href: '/tasks/templates',
+    category: 'Core Workflow',
+    icon: Copy,
+    accent: 'text-indigo-500',
+    tags: ['templates', 'task templates', 'presets', 'template bin', 'reuse task', 'create template'],
   },
   {
     id: 'notes',
@@ -339,7 +351,7 @@ export default function HelpCenterPage() {
   );
 
   return (
-    <div className="container mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
+    <div className="container mx-auto max-w-screen-2xl px-4 pb-20 pt-6 sm:px-6 lg:px-8 sm:pt-10">
       <div className="relative overflow-hidden rounded-[2rem] border bg-gradient-to-br from-primary/10 via-background to-amber-500/5 shadow-xl">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/0.14),transparent_32%),radial-gradient(circle_at_bottom_left,hsl(var(--foreground)/0.06),transparent_28%)]" />
         <div className="relative p-5 sm:p-8">
@@ -429,7 +441,7 @@ export default function HelpCenterPage() {
           ))}
         </div>
       ) : (
-        <div className="mt-8 grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
+        <div className="mt-8 grid gap-6 xl:grid-cols-[1.45fr_0.75fr] 2xl:grid-cols-[1.6fr_0.7fr]">
           <div className="space-y-6">
             {Object.entries(groupedFeatures).map(([category, items]) => (
               <Card key={category} className="overflow-hidden rounded-[2rem] border shadow-lg">

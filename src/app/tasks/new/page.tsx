@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { TaskForm } from '@/components/task-form';
-import { addTask, getDevelopers, getTesters, getUiConfig, getTasks } from '@/lib/data';
+import { addTask, addTaskTemplate, deleteTaskTemplate, getDevelopers, getTaskTemplates, getTesters, getUiConfig, getTasks } from '@/lib/data';
 import { Card, CardContent } from '@/components/ui/card';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import type { Task, Person } from '@/lib/types';
+import type { Task, Person, TaskTemplate } from '@/lib/types';
 import { createTaskSchema } from '@/lib/validators';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
@@ -29,12 +29,18 @@ const normalizePrLinks = (prLinks: any): Task['prLinks'] | undefined => {
   return Object.keys(normalized).length > 0 ? normalized : undefined;
 };
 
+const cloneTemplateTaskData = (taskData: Partial<Task>): Partial<Task> =>
+  JSON.parse(JSON.stringify(taskData));
+
 export default function NewTaskPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestedTemplateId = searchParams.get('template');
   const { toast } = useToast();
   const [developersList, setDevelopersList] = useState<Person[]>([]);
   const [testersList, setTestersList] = useState<Person[]>([]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
+  const [taskTemplates, setTaskTemplates] = useState<TaskTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [initialData, setInitialData] = useState<Partial<Task> | undefined>(undefined);
   
@@ -44,7 +50,9 @@ export default function NewTaskPage() {
     setDevelopersList(getDevelopers());
     setTestersList(getTesters());
     setAllTasks(getTasks());
-    
+    const templates = getTaskTemplates();
+    setTaskTemplates(templates);
+
     const failedImportRowString = sessionStorage.getItem('failed_import_row');
     if (failedImportRowString) {
       try {
@@ -63,12 +71,23 @@ export default function NewTaskPage() {
       } finally {
         sessionStorage.removeItem('failed_import_row');
       }
+    } else {
+      if (requestedTemplateId) {
+        const matchedTemplate = templates.find((templateItem) => templateItem.id === requestedTemplateId);
+        if (matchedTemplate) {
+          setInitialData(cloneTemplateTaskData(matchedTemplate.taskData));
+        } else {
+          setInitialData(undefined);
+        }
+      } else {
+        setInitialData(undefined);
+      }
     }
 
     setIsLoading(false);
     // Notify global loader that navigation and initial data loading is complete
     window.dispatchEvent(new Event('navigation-end'));
-  }, [toast]);
+  }, [requestedTemplateId, toast]);
 
   const handleCreateTask = async (data: any) => {
     const validationSchema = createTaskSchema(getUiConfig());
@@ -121,6 +140,36 @@ export default function NewTaskPage() {
     router.push(`/tasks/${newTask.id}`);
   };
 
+  const handleSaveTemplate = (template: { name: string; description?: string; taskData: Partial<Task> }) => {
+    const createdTemplate = addTaskTemplate(template);
+    setTaskTemplates(getTaskTemplates());
+    toast({
+      variant: 'success',
+      title: 'Template saved',
+      description: `"${createdTemplate.name}" is ready to reuse.`,
+    });
+    return createdTemplate;
+  };
+
+  const handleDeleteTemplate = (id: string) => {
+    const deleted = deleteTaskTemplate(id);
+    if (!deleted) {
+      toast({
+        variant: 'destructive',
+        title: 'Template not found',
+        description: 'This template could not be removed.',
+      });
+      return false;
+    }
+
+    setTaskTemplates(getTaskTemplates());
+    toast({
+      title: 'Template deleted',
+      description: 'The template has been removed.',
+    });
+    return true;
+  };
+
   if (isLoading) {
     return <LoadingSpinner text="Loading form..." />;
   }
@@ -130,6 +179,7 @@ export default function NewTaskPage() {
       <Card className="border-none lg:border lg:shadow-sm">
         <CardContent className="p-0 lg:p-6">
           <TaskForm
+            key={requestedTemplateId || 'blank-task'}
             task={initialData}
             allTasks={allTasks}
             onSubmit={handleCreateTask}
@@ -137,6 +187,11 @@ export default function NewTaskPage() {
             formTitle="Create a New Task"
             developersList={developersList}
             testersList={testersList}
+            taskTemplates={taskTemplates}
+            onSaveTaskTemplate={handleSaveTemplate}
+            onDeleteTaskTemplate={handleDeleteTemplate}
+            draftStorageKey={requestedTemplateId ? `taskflow_draft_new_template_${requestedTemplateId}` : undefined}
+            initialSelectedTemplateId={requestedTemplateId || undefined}
           />
         </CardContent>
       </Card>

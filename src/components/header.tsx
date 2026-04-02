@@ -46,6 +46,7 @@ import {
   ArrowLeft,
   HelpCircle,
   Inbox,
+  Copy,
   type LucideIcon,
 } from 'lucide-react';
 import { CompaniesManager } from './companies-manager';
@@ -87,8 +88,8 @@ const HeaderLink = ({ href, children, className, onClick, id }: { href: string; 
     // Fix: Robust Active State Detection for highlighting
     const isActive = useMemo(() => {
         if (href === '/') {
-            // "Tasks" tab stays active when viewing / or nested /tasks/...
-            return pathname === '/' || pathname?.startsWith('/tasks/');
+            // "Tasks" stays active for task routes except the dedicated templates area.
+            return pathname === '/' || (pathname?.startsWith('/tasks/') && !pathname?.startsWith('/tasks/templates'));
         }
         // Sub-routes trigger active state for parent (e.g. /feedback/123 -> /feedback)
         return pathname === href || pathname?.startsWith(`${href}/`);
@@ -361,6 +362,7 @@ export function Header() {
 
   const headerNavItems: HeaderNavItem[] = [
     { href: '/', id: 'header-nav-home', label: 'Tasks', icon: Home },
+    { href: '/tasks/templates', id: 'header-nav-templates', label: 'Templates', icon: Copy },
     { href: '/dashboard', id: 'header-nav-dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/insights', id: 'header-nav-insights', label: 'Recent', icon: Sparkles },
     { href: '/logs', id: 'header-nav-logs', label: 'Logs', icon: FileClock },
@@ -393,6 +395,21 @@ export function Header() {
     if (typeof window !== 'undefined') {
       window.sessionStorage.setItem('taskflow_pending_feature_discovery', 'true');
     }
+    startTutorial();
+  };
+
+  const handleTutorialTriggerClick = () => {
+    const prefs = getUserPreferences();
+    if (isTutorialHintOpen) {
+      handleTutorialHintDismiss();
+      return;
+    }
+
+    if (!prefs.tutorialSeen && !prefs.featureDiscoverySeen && typeof window !== 'undefined') {
+      window.sessionStorage.setItem('taskflow_pending_feature_discovery', 'true');
+      updateUserPreferences({ tutorialSeen: true });
+    }
+
     startTutorial();
   };
 
@@ -554,12 +571,7 @@ export function Header() {
                                                 variant="ghost"
                                                 size="icon"
                                                 className={cn("h-9 w-9 rounded-full group", isTutorialHintOpen && "bg-primary/10 text-primary")}
-                                                onClick={() => {
-                                                    if (isTutorialHintOpen) {
-                                                        handleTutorialHintDismiss();
-                                                    }
-                                                    startTutorial();
-                                                }}
+                                                onClick={handleTutorialTriggerClick}
                                             >
                                                 <Compass className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
                                                 <span className="sr-only">Show Tour</span>
@@ -737,7 +749,7 @@ export function Header() {
               </div>
               <div>
                 <p className="text-sm font-semibold">See what is available</p>
-                <p className="text-xs text-muted-foreground">Browse reminders, notes, dashboards, export tools, settings modules, and more in one place.</p>
+                <p className="text-xs text-muted-foreground">Browse reminders, notes, templates, dashboards, export tools, settings modules, and more in one place.</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
@@ -747,6 +759,15 @@ export function Header() {
               <div>
                 <p className="text-sm font-semibold">Find the right page faster</p>
                 <p className="text-xs text-muted-foreground">Open the feature explorer when you want a quick guide to available features without restarting the full tutorial.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="rounded-full bg-primary/10 p-2 shrink-0">
+                <Copy className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">Discover reusable templates</p>
+                <p className="text-xs text-muted-foreground">Find the Templates workspace to create, manage, restore, and reuse saved task presets across your workflow.</p>
               </div>
             </div>
           </div>

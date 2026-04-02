@@ -53,7 +53,14 @@ export const noteSchema = z.object({
 });
 
 
-export const createTaskSchema = (uiConfig: UiConfig) => {
+export const createTaskSchema = (
+  uiConfig: UiConfig,
+  options?: {
+    enforceRequiredFields?: boolean;
+  }
+) => {
+  const enforceRequiredFields = options?.enforceRequiredFields ?? true;
+
   let schema = z.object({
     id: z.string().optional(),
     createdAt: z.string().datetime({ message: "Invalid datetime string." }).optional(),
@@ -66,9 +73,15 @@ export const createTaskSchema = (uiConfig: UiConfig) => {
     reminderExpiresAt: z.coerce.date().optional().nullable(),
     
     // Default fields that are always present
-    title: z.string().min(3, { message: "Title must be at least 3 characters." }),
-    description: z.string().min(3, { message: 'Description must be at least 3 characters.' }),
-    status: z.string().min(1, 'Status is required.'),
+    title: enforceRequiredFields
+      ? z.string().min(3, { message: "Title must be at least 3 characters." })
+      : z.string().optional().catch(''),
+    description: enforceRequiredFields
+      ? z.string().min(3, { message: 'Description must be at least 3 characters.' })
+      : z.string().optional().catch(''),
+    status: enforceRequiredFields
+      ? z.string().min(1, 'Status is required.')
+      : z.string().optional().catch(''),
     repositories: z.array(z.string()).optional(),
     developers: z.array(z.string()).optional(),
     testers: z.array(z.string()).optional(),
@@ -93,7 +106,7 @@ export const createTaskSchema = (uiConfig: UiConfig) => {
 
   // Dynamically add required validations based on uiConfig
   uiConfig.fields.forEach(field => {
-    if (field.isActive && field.isRequired) {
+    if (enforceRequiredFields && field.isActive && field.isRequired) {
       const fieldName = field.isCustom ? `customFields.${field.key}` : field.key;
       
       // We need to access the schema definition to add refinements

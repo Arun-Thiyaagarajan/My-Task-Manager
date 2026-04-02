@@ -15,17 +15,19 @@ import {
   ExternalLink,
   ArrowRight,
   Sparkles,
+  LayoutTemplate,
+  PlusCircle,
   type LucideIcon,
 } from 'lucide-react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator, CommandShortcut } from '@/components/ui/command';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { cn, fuzzySearch } from '@/lib/utils';
-import { getUiConfig } from '@/lib/data';
+import { getDeletedTaskTemplates, getTaskTemplates, getUiConfig } from '@/lib/data';
 import { getCachedBinnedTasks as getBinnedTasks, getCachedNotes as getNotes, getCachedTasks as getTasks } from '@/lib/cached-data';
 import { getStatusDisplayName } from '@/lib/status-config';
 import { useIsMobile } from '@/hooks/use-mobile';
-import type { Note, Task } from '@/lib/types';
+import type { Note, Task, TaskTemplate } from '@/lib/types';
 
 const SPOTLIGHT_EVENT = 'open-global-search';
 const SPOTLIGHT_HISTORY_KEY = 'taskflow_spotlight_history';
@@ -52,6 +54,7 @@ type SpotlightItem = {
   accentClassName?: string;
   updatedAt?: string;
   isBinned?: boolean;
+          action?: 'toggle-tasks';
 };
 
 type IndexedSpotlightItem = SpotlightItem & {
@@ -145,6 +148,28 @@ const SETTINGS_SECTIONS: Array<{
 ];
 
 const QUICK_LINKS: SpotlightItem[] = [
+  {
+    id: 'other-create-template',
+    kind: 'other',
+    group: 'Others',
+    title: 'Create Template',
+    subLabel: 'Start a new reusable task template',
+    href: '/tasks/templates/new',
+    icon: PlusCircle,
+    accentClassName: 'text-primary',
+    keywords: ['create template', 'new template', 'template builder', 'template create'],
+  },
+  {
+    id: 'other-templates',
+    kind: 'other',
+    group: 'Others',
+    title: 'Templates',
+    subLabel: 'Manage reusable task presets and the template bin',
+    href: '/tasks/templates',
+    icon: LayoutTemplate,
+    accentClassName: 'text-indigo-500',
+    keywords: ['templates', 'task template', 'presets', 'template bin'],
+  },
   {
     id: 'other-bin',
     kind: 'other',
@@ -260,15 +285,20 @@ export function GlobalSpotlightSearch() {
   const [tasks, setTasks] = React.useState<Task[]>([]);
   const [binnedTasks, setBinnedTasks] = React.useState<Task[]>([]);
   const [notes, setNotes] = React.useState<Note[]>([]);
+  const [templates, setTemplates] = React.useState<TaskTemplate[]>([]);
+  const [deletedTemplates, setDeletedTemplates] = React.useState<TaskTemplate[]>([]);
   const [commandKey, setCommandKey] = React.useState('Ctrl');
   const [historyEntries, setHistoryEntries] = React.useState<SpotlightHistoryEntry[]>([]);
   const [uiConfigVersion, setUiConfigVersion] = React.useState(0);
+  const [expandedTaskResults, setExpandedTaskResults] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement | null>(null);
 
   const refreshData = React.useCallback(() => {
     setTasks(getTasks());
     setBinnedTasks(getBinnedTasks());
     setNotes(getNotes());
+    setTemplates(getTaskTemplates());
+    setDeletedTemplates(getDeletedTaskTemplates());
     getUiConfig();
     setHistoryEntries(getHistory());
     setUiConfigVersion(version => version + 1);
@@ -292,6 +322,10 @@ export function GlobalSpotlightSearch() {
 
     return () => window.clearTimeout(timer);
   }, [query]);
+
+  React.useEffect(() => {
+    setExpandedTaskResults(false);
+  }, [debouncedQuery, open]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -386,6 +420,70 @@ export function GlobalSpotlightSearch() {
       updatedAt: note.updatedAt,
     }));
 
+    const templateItems: SpotlightItem[] = templates.map(template => {
+      const presetCount = Object.entries(template.taskData || {}).reduce((count, [, value]) => {
+        if (value === undefined || value === null || value === '') return count;
+        if (Array.isArray(value) && value.length === 0) return count;
+        if (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0) return count;
+        return count + 1;
+      }, 0);
+
+      return {
+        id: `template-${template.id}`,
+        kind: 'other',
+        group: 'Others',
+        title: template.name,
+        subLabel: truncate(
+          [
+            'Template',
+            template.description?.trim(),
+            presetCount > 0 ? `${presetCount} preset${presetCount === 1 ? '' : 's'}` : undefined,
+          ]
+            .filter(Boolean)
+            .join(' · ') || 'Reusable task template'
+        ),
+        href: `/tasks/templates/${template.id}/edit`,
+        icon: LayoutTemplate,
+        accentClassName: 'text-indigo-500',
+        keywords: [
+          'template',
+          'task template',
+          template.description,
+          template.taskData.status,
+          ...(template.taskData.tags || []),
+          ...(template.taskData.repositories || []),
+        ].filter(Boolean) as string[],
+        updatedAt: template.updatedAt,
+      };
+    });
+
+    const deletedTemplateItems: SpotlightItem[] = deletedTemplates.map(template => ({
+      id: `template-deleted-${template.id}`,
+      kind: 'other',
+      group: 'Others',
+      title: template.name,
+      subLabel: truncate(
+        ['Template in Bin', template.description?.trim(), 'Restore from template management']
+          .filter(Boolean)
+          .join(' · ') || 'Deleted template'
+      ),
+      href: '/tasks/templates?view=bin',
+      icon: LayoutTemplate,
+      accentClassName: 'text-zinc-500',
+      keywords: [
+        'template',
+        'deleted template',
+        'template bin',
+        'restore',
+        template.description,
+        template.taskData.status,
+        ...(template.taskData.tags || []),
+        ...(template.taskData.repositories || []),
+      ].filter(Boolean) as string[],
+      updatedAt: template.deletedAt || template.updatedAt,
+      isBinned: true,
+    }));
+
     const settingsItems: SpotlightItem[] = [
       ...SETTINGS_SECTIONS.map(section => ({
         id: section.id,
@@ -411,8 +509,8 @@ export function GlobalSpotlightSearch() {
       })),
     ];
 
-    return [...taskItems, ...binnedTaskItems, ...noteItems, ...settingsItems, ...QUICK_LINKS];
-  }, [binnedTasks, isMobile, notes, tasks, uiConfig]);
+    return [...taskItems, ...binnedTaskItems, ...noteItems, ...templateItems, ...deletedTemplateItems, ...settingsItems, ...QUICK_LINKS];
+  }, [binnedTasks, deletedTemplates, isMobile, notes, tasks, templates, uiConfig]);
 
   const searchableIndex = React.useMemo<IndexedSpotlightItem[]>(
     () =>
@@ -484,16 +582,65 @@ export function GlobalSpotlightSearch() {
     const grouped = new Map<SpotlightGroup, SpotlightItem[]>();
     scoredItems.forEach(({ item }) => {
       const existing = grouped.get(item.group) || [];
-      if (existing.length < 8) {
-        existing.push(toSpotlightItem(item));
-        grouped.set(item.group, existing);
+      existing.push(toSpotlightItem(item));
+      grouped.set(item.group, existing);
+    });
+
+    const hasNonTaskMatches = ['Notes', 'Settings', 'Others'].some(group => (grouped.get(group as SpotlightGroup) || []).length > 0);
+    const taskItems = grouped.get('Tasks') || [];
+    const compactTaskLimit = hasNonTaskMatches ? 4 : 8;
+    const expandedTaskLimit = hasNonTaskMatches ? 12 : 12;
+    const taskLimit = expandedTaskResults ? expandedTaskLimit : compactTaskLimit;
+
+    if (taskItems.length > taskLimit) {
+      grouped.set('Tasks', [
+        ...taskItems.slice(0, taskLimit),
+        {
+          id: 'tasks-expand-results',
+          kind: 'other',
+          group: 'Tasks',
+          title: expandedTaskResults
+            ? 'Show fewer tasks'
+            : `Show ${Math.min(taskItems.length - taskLimit, 8)} more task${taskItems.length - taskLimit === 1 ? '' : 's'}`,
+          subLabel: expandedTaskResults
+            ? 'Collapse the task section and keep other matching destinations in view'
+            : 'Expand task results without hiding matching settings and other destinations',
+          href: '#',
+          icon: ArrowRight,
+          accentClassName: 'text-primary',
+          action: 'toggle-tasks',
+        },
+      ]);
+    } else if (taskItems.length > compactTaskLimit && expandedTaskResults) {
+      grouped.set('Tasks', [
+        ...taskItems.slice(0, expandedTaskLimit),
+        {
+          id: 'tasks-expand-results',
+          kind: 'other',
+          group: 'Tasks',
+          title: 'Show fewer tasks',
+          subLabel: 'Collapse the task section and keep other matching destinations in view',
+          href: '#',
+          icon: ArrowRight,
+          accentClassName: 'text-primary',
+          action: 'toggle-tasks',
+        },
+      ]);
+    } else if (taskItems.length > 0) {
+      grouped.set('Tasks', taskItems.slice(0, compactTaskLimit));
+    }
+
+    (['Notes', 'Settings', 'Others'] as SpotlightGroup[]).forEach(group => {
+      const items = grouped.get(group) || [];
+      if (items.length > 6) {
+        grouped.set(group, items.slice(0, 6));
       }
     });
 
     return (['Tasks', 'Notes', 'Settings', 'Others'] as SpotlightGroup[])
       .map(group => ({ heading: group, items: grouped.get(group) || [] }))
       .filter(section => section.items.length > 0);
-  }, [debouncedQuery, historyEntries, historyMap, searchableIndex]);
+  }, [debouncedQuery, expandedTaskResults, historyEntries, historyMap, searchableIndex]);
 
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
@@ -504,6 +651,11 @@ export function GlobalSpotlightSearch() {
 
   const navigateToResult = React.useCallback((item: SpotlightItem) => {
     try {
+      if (item.action === 'toggle-tasks') {
+        setExpandedTaskResults(current => !current);
+        return;
+      }
+
       const nextHistory = getHistory();
       const existingIndex = nextHistory.findIndex(entry => entry.id === item.id);
       if (existingIndex >= 0) {

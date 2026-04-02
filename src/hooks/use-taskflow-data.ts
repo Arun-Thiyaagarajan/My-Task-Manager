@@ -412,6 +412,17 @@ export function useTaskFlowData() {
                     }));
                 });
                 unsubscribers.current.push(unsubReleases);
+
+                const templatesRef = doc(db, companyBase, 'settings', 'taskTemplates');
+                const unsubTemplates = onSnapshot(templatesRef, (snap) => {
+                    _updateCloudCachePart(activeCompanyId, 'taskTemplates', snap.exists() ? (snap.data().list || []) : []);
+                }, (error) => {
+                    errorEmitter.emit('permission-error', new FirestorePermissionError({
+                        path: templatesRef.path,
+                        operation: 'get',
+                    }));
+                });
+                unsubscribers.current.push(unsubTemplates);
             }
         };
 
@@ -530,6 +541,8 @@ function _getEmptyCompanyData(): CompanyData {
     return {
         tasks: [],
         trash: [],
+        taskTemplates: [],
+        taskTemplateBin: [],
         developers: [],
         testers: [],
         notes: [],

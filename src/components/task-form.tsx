@@ -4,7 +4,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
 import { createTaskSchema } from '@/lib/validators';
-import type { Task, FieldConfig, FieldType, UiConfig, Attachment, Person, Environment } from '@/lib/types';
+import type { Task, FieldConfig, FieldType, UiConfig, Attachment, Person, Environment, TaskTemplate } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -56,6 +56,8 @@ import { getLinkAlias } from '@/ai/flows/alias-flow';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { getSortedStatusOptions, getStatusDisplayName } from '@/lib/status-config';
 import { isRepositoryFieldActive, shouldShowPrLinks } from '@/lib/repository-config';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 
 type TaskFormData = z.infer<ReturnType<typeof createTaskSchema>>;
@@ -68,6 +70,14 @@ interface TaskFormProps {
   formTitle: string;
   developersList: Person[];
   testersList: Person[];
+  taskTemplates?: TaskTemplate[];
+  onSaveTaskTemplate?: (template: { name: string; description?: string; taskData: Partial<Task> }) => TaskTemplate;
+  onDeleteTaskTemplate?: (id: string) => boolean;
+  showTemplateTools?: boolean;
+  topContent?: React.ReactNode;
+  validationMode?: 'task' | 'template';
+  draftStorageKey?: string;
+  initialSelectedTemplateId?: string;
 }
 
 const safeParseDate = (d: any): Date | undefined => {
@@ -166,7 +176,7 @@ const getInitialTaskData = (task?: Partial<Task>, uiConfig?: UiConfig | null) =>
     }
 }
 
-export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle, developersList: propDevelopersList, testersList: propTestersList }: TaskFormProps) {
+export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle, developersList: propDevelopersList, testersList: propTestersList, taskTemplates = [], onSaveTaskTemplate, onDeleteTaskTemplate, showTemplateTools = true, topContent, validationMode = 'task', draftStorageKey, initialSelectedTemplateId }: TaskFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
@@ -182,12 +192,17 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   
   const [sidebarPosition, setSidebarPosition] = useState<'left' | 'right'>('left');
   const [uniquenessViolation, setUniquenessViolation] = useState<{ fieldLabel: string; value: string; fieldKey: string } | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('blank');
+  const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [templateDescription, setTemplateDescription] = useState('');
+  const [templateNameError, setTemplateNameError] = useState<string | null>(null);
   
   // Draft State
   const [showDraftPrompt, setShowDraftPrompt] = useState(false);
   const [draftData, setDraftData] = useState<{ data: any; updatedAt: string } | null>(null);
   const DRAFT_PREFIX = 'taskflow_draft_';
-  const draftKey = task?.id ? `${DRAFT_PREFIX}${task.id}` : `${DRAFT_PREFIX}new`;
+  const draftKey = draftStorageKey || (task?.id ? `${DRAFT_PREFIX}${task.id}` : `${DRAFT_PREFIX}new`);
   const skipDraftAutosaveRef = useRef(false);
 
   const isJumpingRef = useRef(false);
@@ -198,6 +213,17 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   const premiumFieldErrorClassName = "border-destructive/55 focus-visible:border-destructive/45 focus-visible:ring-1 focus-visible:ring-destructive/30";
   const premiumSurfaceFocusClassName = "border-border/65 bg-background/95 shadow-[0_1px_2px_rgba(15,23,42,0.02)] transition-[border-color,box-shadow,background-color] duration-200 hover:border-border/90 focus-within:border-primary/40 focus-within:bg-background focus-within:ring-1 focus-within:ring-primary/35 focus-within:ring-offset-0";
   const premiumOutlineButtonClassName = "border-border/65 bg-background/95 shadow-[0_1px_2px_rgba(15,23,42,0.02)] transition-[border-color,box-shadow,background-color] duration-200 hover:border-border/90 focus-visible:border-primary/40 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-primary/35 focus-visible:ring-offset-0";
+  const useIsMobile = () => {
+    const [isMobile, setIsMobile] = useState(false);
+    useEffect(() => {
+        const check = () => setIsMobile(window.innerWidth < 1024);
+        check();
+        window.addEventListener('resize', check);
+        return () => window.removeEventListener('resize', check);
+    }, []);
+    return isMobile;
+  };
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -224,8 +250,9 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   }, []);
 
   const dynamicTaskSchema = useMemo(() => {
-    return uiConfig ? createTaskSchema(uiConfig) : createTaskSchema(getUiConfig());
-  }, [uiConfig]);
+    const schemaOptions = { enforceRequiredFields: validationMode === 'task' };
+    return uiConfig ? createTaskSchema(uiConfig, schemaOptions) : createTaskSchema(getUiConfig(), schemaOptions);
+  }, [uiConfig, validationMode]);
 
   useEffect(() => {
     setDevelopersList(propDevelopersList);
@@ -234,6 +261,23 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   useEffect(() => {
     setTestersList(propTestersList);
   }, [propTestersList]);
+
+  useEffect(() => {
+    if (selectedTemplateId === 'blank') return;
+    if (taskTemplates.some(templateItem => templateItem.id === selectedTemplateId)) return;
+    setSelectedTemplateId('blank');
+  }, [selectedTemplateId, taskTemplates]);
+
+  useEffect(() => {
+    if (!initialSelectedTemplateId) {
+      setSelectedTemplateId('blank');
+      return;
+    }
+
+    if (taskTemplates.some(templateItem => templateItem.id === initialSelectedTemplateId)) {
+      setSelectedTemplateId(initialSelectedTemplateId);
+    }
+  }, [initialSelectedTemplateId, taskTemplates]);
 
   const form = useForm<TaskFormData>({
     resolver: zodResolver(dynamicTaskSchema),
@@ -505,7 +549,8 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
 
   const handleFormSubmit = (data: TaskFormData) => {
     const normalizedData = normalizeTaskFormData(data);
-    const uniqueness = checkUniqueness(normalizedData, task?.id);
+    const shouldCheckUniqueness = validationMode === 'task';
+    const uniqueness = shouldCheckUniqueness ? checkUniqueness(normalizedData, task?.id) : { isUnique: true };
     if (!uniqueness.isUnique) {
         const fieldKey = uiConfig?.fields.find(f => f.label === uniqueness.fieldLabel)?.key || 'title';
         setUniquenessViolation({ 
@@ -540,6 +585,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     if (!uiConfig) return;
 
     form.reset(getInitialTaskData(undefined, uiConfig));
+    form.clearErrors();
     skipDraftAutosaveRef.current = true;
     localStorage.removeItem(draftKey);
     setShowDraftPrompt(false);
@@ -551,10 +597,117 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
       title: 'Form cleared',
       description: 'All fields have been reset to their default values.',
     });
+    setSelectedTemplateId('blank');
     window.setTimeout(() => {
       skipDraftAutosaveRef.current = false;
     }, 0);
   }, [uiConfig, form, draftKey, toast]);
+
+  const canUseTemplates = showTemplateTools && !task?.id;
+  const canManageTemplates = canUseTemplates && !!onSaveTaskTemplate && !isMobile;
+  const selectedTemplate = useMemo(
+    () => taskTemplates.find(templateItem => templateItem.id === selectedTemplateId) || null,
+    [taskTemplates, selectedTemplateId]
+  );
+
+  const resetDraftForTemplateAction = useCallback(() => {
+    skipDraftAutosaveRef.current = true;
+    localStorage.removeItem(draftKey);
+    setShowDraftPrompt(false);
+    setDraftData(null);
+    setUniquenessViolation(null);
+    window.setTimeout(() => {
+      skipDraftAutosaveRef.current = false;
+    }, 0);
+  }, [draftKey]);
+
+  const applyTemplate = useCallback((templateId: string) => {
+    if (!uiConfig) return;
+
+    if (templateId === 'blank') {
+      handleClearForm();
+      return;
+    }
+
+    const templateToApply = taskTemplates.find(item => item.id === templateId);
+    if (!templateToApply) return;
+
+    resetDraftForTemplateAction();
+    form.reset(getInitialTaskData(templateToApply.taskData, uiConfig));
+    form.clearErrors();
+    setSelectedTemplateId(templateId);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    toast({
+      title: 'Template applied',
+      description: `"${templateToApply.name}" filled the form.`,
+    });
+  }, [form, handleClearForm, resetDraftForTemplateAction, taskTemplates, toast, uiConfig]);
+
+  const handleOpenTemplateDialog = useCallback(() => {
+    if (isMobile) return;
+    const currentTitle = form.getValues('title')?.trim();
+    setTemplateName(currentTitle ? `${currentTitle} Template` : '');
+    setTemplateDescription('');
+    setTemplateNameError(null);
+    setIsTemplateDialogOpen(true);
+  }, [form, isMobile]);
+
+  const handleSaveCurrentAsTemplate = useCallback(() => {
+    if (!onSaveTaskTemplate || isMobile) return;
+
+    const trimmedName = templateName.trim();
+    if (!trimmedName) {
+      setTemplateNameError('Template name is required.');
+      toast({
+        variant: 'destructive',
+        title: 'Template name required',
+        description: 'Give this template a name before saving it.',
+      });
+      return;
+    }
+
+    const normalizedTemplateName = trimmedName.replace(/\s+/g, ' ').toLowerCase();
+    const hasDuplicateName = taskTemplates.some(
+      (templateItem) => templateItem.name.trim().replace(/\s+/g, ' ').toLowerCase() === normalizedTemplateName
+    );
+    if (hasDuplicateName) {
+      setTemplateNameError('A template with this name already exists.');
+      toast({
+        variant: 'destructive',
+        title: 'Duplicate template name',
+        description: 'Choose a unique template name before saving.',
+      });
+      return;
+    }
+
+    try {
+      const createdTemplate = onSaveTaskTemplate({
+        name: trimmedName,
+        description: templateDescription.trim(),
+        taskData: normalizeTaskFormData(form.getValues()),
+      });
+
+      setSelectedTemplateId(createdTemplate.id);
+      setIsTemplateDialogOpen(false);
+      setTemplateName('');
+      setTemplateDescription('');
+      setTemplateNameError(null);
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Could not save template',
+        description: error instanceof Error ? error.message : 'Something went wrong while saving the template.',
+      });
+    }
+  }, [form, isMobile, onSaveTaskTemplate, templateDescription, templateName, toast]);
+
+  const handleDeleteSelectedTemplate = useCallback(() => {
+    if (!selectedTemplate || !onDeleteTaskTemplate) return;
+
+    const deleted = onDeleteTaskTemplate(selectedTemplate.id);
+    if (!deleted) return;
+    setSelectedTemplateId('blank');
+  }, [onDeleteTaskTemplate, selectedTemplate]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -713,7 +866,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                 );
             case 'select':
                 return (
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value ?? ''}>
                         <FormControl>
                             <SelectTrigger className={cn("font-normal shadow-sm", premiumOutlineButtonClassName)}>
                                 <SelectValue placeholder={`Select ${label}`} />
@@ -774,7 +927,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
             name={fieldName as any}
             render={({ field }) => (
                 <FormItem id={`field-container-${key}`} className="scroll-mt-32 max-w-full">
-                    <FormLabel error={hasError || hasUniquenessViolation} className="font-medium">{label} {isRequired && <span className="text-destructive font-semibold">*</span>}</FormLabel>
+                    <FormLabel error={hasError || hasUniquenessViolation} className="font-medium">{label} {validationMode === 'task' && isRequired && <span className="text-destructive font-semibold">*</span>}</FormLabel>
                     <FormControl className="w-full">
                         {renderInput(type, field)}
                     </FormControl>
@@ -863,18 +1016,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
 
     return sections;
   }, [groupOrder, uiConfig, fieldLabels, deploymentFieldConfig, groupedFields, showPrLinksSection]);
-
-  const useIsMobile = () => {
-    const [isMobile, setIsMobile] = useState(false);
-    useEffect(() => {
-        const check = () => setIsMobile(window.innerWidth < 1024);
-        check();
-        window.addEventListener('resize', check);
-        return () => window.removeEventListener('resize', check);
-    }, []);
-    return isMobile;
-  };
-  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (!uiConfig || navigableSections.length === 0) return;
@@ -1034,6 +1175,53 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                 </Card>
             </div>
         )}
+
+        <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Save task template</DialogTitle>
+                    <DialogDescription>
+                        Save the current form values as a reusable starting point for future tasks.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                    <div className="space-y-2">
+                        <FormLabel>Template name</FormLabel>
+                        <Input
+                            value={templateName}
+                            onChange={(event) => {
+                                setTemplateName(event.target.value);
+                                if (templateNameError) {
+                                    setTemplateNameError(null);
+                                }
+                            }}
+                            placeholder="Release regression template"
+                            className={cn("h-11", templateNameError && "border-destructive/60 focus-visible:ring-destructive/30")}
+                        />
+                        {templateNameError && (
+                            <p className="text-xs font-medium text-destructive">{templateNameError}</p>
+                        )}
+                    </div>
+                    <div className="space-y-2">
+                        <FormLabel>Description</FormLabel>
+                        <Textarea
+                            value={templateDescription}
+                            onChange={(event) => setTemplateDescription(event.target.value)}
+                            placeholder="Optional note about when to use this template"
+                            className="min-h-[110px]"
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setIsTemplateDialogOpen(false)}>
+                        Cancel
+                    </Button>
+                    <Button type="button" onClick={handleSaveCurrentAsTemplate}>
+                        Save template
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
 
         {/* DESKTOP ACTION BAR - Fixed at bottom */}
         <div className={cn(
@@ -1218,6 +1406,88 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                         </Button>
                     )}
                 </div>
+
+                {canUseTemplates && (
+                    <div className="px-4 lg:px-6">
+                        <Card className="border-border/60 bg-background/90 shadow-sm">
+                            <CardContent className="flex flex-col gap-4 p-4 sm:p-5">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                    <div className="space-y-1">
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="text-sm font-semibold tracking-tight">Task templates</h3>
+                                            <Badge variant="secondary" className="rounded-full px-2.5 py-0.5">
+                                                {taskTemplates.length}
+                                            </Badge>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground">
+                                            Save reusable task setups and apply them without changing normal task behavior.
+                                        </p>
+                                    </div>
+                                    <div className="hidden lg:flex min-w-[20rem] max-w-[24rem] flex-col items-stretch gap-2 rounded-[1.6rem] border border-border/50 bg-muted/[0.18] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={handleOpenTemplateDialog}
+                                            className="h-11 justify-start rounded-[1.15rem] border border-border/60 bg-background/80 px-4 text-[15px] font-semibold text-foreground shadow-sm transition-all hover:bg-background hover:shadow-md"
+                                        >
+                                            <span className="flex h-7 w-7 items-center justify-center rounded-full border border-border/70 bg-muted/40 text-muted-foreground">
+                                                <PlusCircle className="h-4 w-4" />
+                                            </span>
+                                            <span className="ml-3">Save current as template</span>
+                                        </Button>
+                                        {selectedTemplate && (
+                                            <button
+                                                type="button"
+                                                onClick={handleDeleteSelectedTemplate}
+                                                className="inline-flex h-9 items-center gap-2 rounded-xl px-3 text-sm font-medium text-destructive/90 transition-colors hover:bg-destructive/8 hover:text-destructive"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                                <span>Delete template</span>
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                                    <div className="min-w-0 flex-1">
+                                        <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+                                            <SelectTrigger className={cn("h-11 w-full rounded-2xl", premiumFieldClassName)}>
+                                                <SelectValue placeholder="Choose a template" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="blank">Blank task</SelectItem>
+                                                {taskTemplates.map(templateItem => (
+                                                    <SelectItem key={templateItem.id} value={templateItem.id}>
+                                                        {templateItem.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        onClick={() => applyTemplate(selectedTemplateId)}
+                                        className="h-11 rounded-2xl px-5"
+                                    >
+                                        Apply template
+                                    </Button>
+                                </div>
+
+                                {selectedTemplate?.description && (
+                                    <p className="text-sm text-muted-foreground">{selectedTemplate.description}</p>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+
+                {topContent ? (
+                    <div className="px-4 lg:px-6">
+                        {topContent}
+                    </div>
+                ) : null}
 
                 {/* Desktop Draft Prompt */}
                 {!isMobile && showDraftPrompt && (

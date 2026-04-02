@@ -104,6 +104,16 @@ export interface ReleaseUpdate {
     isPublished: boolean;
 }
 
+export interface TaskTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  taskData: Partial<Task>;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string | null;
+}
+
 export interface UserPreferences {
   viewMode?: 'grid' | 'table';
   sortDescriptor?: string;
@@ -247,6 +257,8 @@ export type BackupFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'off';
 export interface CompanyData {
     tasks: Task[];
     trash: Task[];
+    taskTemplates: TaskTemplate[];
+    taskTemplateBin: TaskTemplate[];
     developers: Person[];
     testers: Person[];
     notes: Note[];

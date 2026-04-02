@@ -1,7 +1,7 @@
 'use client';
 
 import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES, DEFAULT_STATUS_CONFIGS, DEFAULT_STATUS_GROUPS } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile, Feedback, FeedbackMessage, FeedbackStatus, UserProfile, AppNotification, StatusConfigItem } from './types'; 
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile, Feedback, FeedbackMessage, FeedbackStatus, UserProfile, AppNotification, StatusConfigItem, TaskTemplate } from './types'; 
 import cloneDeep from 'lodash/cloneDeep';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, setDoc, deleteDoc, updateDoc, collection, writeBatch, getDocs, query, orderBy, limit, getDoc, where, addDoc } from 'firebase/firestore';
@@ -143,6 +143,8 @@ const getInitialData = (): MyTaskManagerData => {
              [defaultCompanyId]: {
                 tasks: [],
                 trash: [],
+                taskTemplates: [],
+                taskTemplateBin: [],
                 developers: [],
                 testers: [],
                 notes: [],
@@ -285,7 +287,7 @@ export async function updateUserPreferences(updates: Partial<UserPreferences>) {
 }
 
 function dispatchMutation(
-    type: 'tasks' | 'notes' | 'logs' | 'uiConfig' | 'developers' | 'testers' | 'generalReminders' | 'releaseUpdates' | 'companies' | 'feedback' | 'feedbackMessages' | 'notifications',
+    type: 'tasks' | 'notes' | 'logs' | 'uiConfig' | 'developers' | 'testers' | 'generalReminders' | 'releaseUpdates' | 'taskTemplates' | 'companies' | 'feedback' | 'feedbackMessages' | 'notifications',
     id: string,
     data: any,
     operation: 'create' | 'update' | 'delete' | 'set',
@@ -306,18 +308,20 @@ function dispatchMutation(
         docRef = doc(db, 'users', userId!, 'companies', id);
     } else if (type === 'uiConfig') {
         docRef = doc(db, 'users', userId!, 'companies', activeCompanyId, 'settings', 'uiConfig');
-    } else if (type === 'developers' || type === 'testers' || type === 'generalReminders' || type === 'releaseUpdates') {
+    } else if (type === 'developers' || type === 'testers' || type === 'generalReminders' || type === 'releaseUpdates' || type === 'taskTemplates') {
         const parentMap: Record<string, string> = {
             developers: 'people',
             testers: 'people',
             generalReminders: 'reminders',
-            releaseUpdates: 'releases'
+            releaseUpdates: 'releases',
+            taskTemplates: 'settings',
         };
         const docNameMap: Record<string, string> = {
             developers: 'developers',
             testers: 'testers',
             generalReminders: 'general',
-            releaseUpdates: 'updates'
+            releaseUpdates: 'updates',
+            taskTemplates: 'taskTemplates',
         };
         docRef = doc(db, 'users', userId!, 'companies', activeCompanyId, parentMap[type], docNameMap[type]);
         payload = { list: data };
@@ -453,6 +457,8 @@ export function addCompany(name: string) {
     data.companyData[id] = {
         tasks: [],
         trash: [],
+        taskTemplates: [],
+        taskTemplateBin: [],
         developers: [],
         testers: [],
         notes: [],
@@ -830,6 +836,209 @@ export function deleteEnvironment(id: string): boolean {
     if (getAuthMode() === 'authenticate') {
         dispatchMutation('uiConfig', '', data.companyData[companyId].uiConfig, 'set');
     }
+    return true;
+}
+
+function sanitizeTaskTemplateData(taskData: Partial<Task>): Partial<Task> {
+    const {
+        id,
+        createdAt,
+        updatedAt,
+        deletedAt,
+        comments,
+        ...rest
+    } = taskData;
+
+    return cloneDeep({
+        ...rest,
+        customFields: rest.customFields || {},
+        attachments: rest.attachments || [],
+        repositories: rest.repositories || [],
+        developers: rest.developers || [],
+        testers: rest.testers || [],
+        tags: rest.tags || [],
+        prLinks: rest.prLinks || {},
+        deploymentStatus: rest.deploymentStatus || {},
+        deploymentDates: rest.deploymentDates || {},
+        relevantEnvironments: rest.relevantEnvironments || ['dev', 'stage', 'production'],
+        summary: rest.summary ?? null,
+        azureWorkItemId: rest.azureWorkItemId || '',
+    });
+}
+
+function normalizeTaskTemplateName(name: string): string {
+    return name.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+export function getTaskTemplates(): TaskTemplate[] {
+    const appData = getAppData();
+    const companyId = getActiveCompanyId();
+    if (!companyId || !appData.companyData[companyId]) return [];
+    return (appData.companyData[companyId].taskTemplates || []).filter(template => !template.deletedAt);
+}
+
+export function getDeletedTaskTemplates(): TaskTemplate[] {
+    const appData = getAppData();
+    const companyId = getActiveCompanyId();
+    if (!companyId || !appData.companyData[companyId]) return [];
+    const softDeleted = (appData.companyData[companyId].taskTemplates || []).filter(template => !!template.deletedAt);
+    const legacyBin = appData.companyData[companyId].taskTemplateBin || [];
+    return [...softDeleted, ...legacyBin].sort((a, b) => {
+        const aDate = a.deletedAt || a.updatedAt || a.createdAt;
+        const bDate = b.deletedAt || b.updatedAt || b.createdAt;
+        return bDate.localeCompare(aDate);
+    });
+}
+
+export function getTaskTemplateById(id: string, includeDeleted = false): TaskTemplate | null {
+    const templates = includeDeleted ? [...getTaskTemplates(), ...getDeletedTaskTemplates()] : getTaskTemplates();
+    return templates.find(template => template.id === id) || null;
+}
+
+export function addTaskTemplate(template: { name: string; description?: string; taskData: Partial<Task> }): TaskTemplate {
+    const trimmedName = template.name.trim().replace(/\s+/g, ' ');
+    if (!trimmedName) {
+        throw new Error('Template name is required.');
+    }
+
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    const existingTemplates = data.companyData[companyId].taskTemplates || [];
+    const normalizedName = normalizeTaskTemplateName(trimmedName);
+
+    if (existingTemplates.some(item => !item.deletedAt && normalizeTaskTemplateName(item.name) === normalizedName)) {
+        throw new Error('A template with this name already exists.');
+    }
+
+    const now = new Date().toISOString();
+    const newTemplate: TaskTemplate = {
+        id: createId('template-'),
+        name: trimmedName,
+        description: template.description?.trim() || '',
+        taskData: sanitizeTaskTemplateData(template.taskData),
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+    };
+
+    data.companyData[companyId].taskTemplates = [newTemplate, ...existingTemplates];
+    setAppData(data);
+    addLog({ message: `Saved task template: **${newTemplate.name}**` });
+
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('taskTemplates', '', data.companyData[companyId].taskTemplates, 'set');
+    }
+
+    return newTemplate;
+}
+
+export function updateTaskTemplate(
+    id: string,
+    updates: { name: string; description?: string; taskData: Partial<Task> }
+): TaskTemplate | null {
+    const trimmedName = updates.name.trim().replace(/\s+/g, ' ');
+    if (!trimmedName) {
+        throw new Error('Template name is required.');
+    }
+
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    const templates = data.companyData[companyId].taskTemplates || [];
+    const index = templates.findIndex(item => item.id === id);
+    if (index === -1) return null;
+
+    const normalizedName = normalizeTaskTemplateName(trimmedName);
+    if (templates.some(item => item.id !== id && !item.deletedAt && normalizeTaskTemplateName(item.name) === normalizedName)) {
+        throw new Error('A template with this name already exists.');
+    }
+
+    const updatedTemplate: TaskTemplate = {
+        ...templates[index],
+        name: trimmedName,
+        description: updates.description?.trim() || '',
+        taskData: sanitizeTaskTemplateData(updates.taskData),
+        updatedAt: new Date().toISOString(),
+    };
+
+    data.companyData[companyId].taskTemplates[index] = updatedTemplate;
+    setAppData(data);
+    addLog({ message: `Updated task template: **${updatedTemplate.name}**` });
+
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('taskTemplates', '', data.companyData[companyId].taskTemplates, 'set');
+    }
+
+    return updatedTemplate;
+}
+
+export function deleteTaskTemplate(id: string): boolean {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    const templates = data.companyData[companyId].taskTemplates || [];
+    const template = templates.find(item => item.id === id);
+    if (!template) return false;
+
+    data.companyData[companyId].taskTemplates = templates.map(item =>
+        item.id === id ? { ...item, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : item
+    );
+    setAppData(data);
+    addLog({ message: `Moved task template to bin: **${template.name}**` });
+
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('taskTemplates', '', data.companyData[companyId].taskTemplates, 'set');
+    }
+
+    return true;
+}
+
+export function restoreTaskTemplate(id: string): boolean {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    const templates = data.companyData[companyId].taskTemplates || [];
+    const template = templates.find(item => item.id === id && item.deletedAt);
+    if (!template) return false;
+
+    const normalizedName = normalizeTaskTemplateName(template.name);
+    const hasActiveDuplicate = templates.some(
+        item => item.id !== id && !item.deletedAt && normalizeTaskTemplateName(item.name) === normalizedName
+    );
+    if (hasActiveDuplicate) {
+        throw new Error('An active template with this name already exists.');
+    }
+
+    data.companyData[companyId].taskTemplates = templates.map(item =>
+        item.id === id ? { ...item, deletedAt: null, updatedAt: new Date().toISOString() } : item
+    );
+    setAppData(data);
+    addLog({ message: `Restored task template from bin: **${template.name}**` });
+
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('taskTemplates', '', data.companyData[companyId].taskTemplates, 'set');
+    }
+
+    return true;
+}
+
+export function permanentlyDeleteTaskTemplate(id: string): boolean {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    const templates = data.companyData[companyId].taskTemplates || [];
+    const legacyBin = data.companyData[companyId].taskTemplateBin || [];
+    const template =
+        templates.find(item => item.id === id && item.deletedAt) ||
+        legacyBin.find(item => item.id === id);
+
+    if (!template) return false;
+
+    data.companyData[companyId].taskTemplates = templates.filter(item => item.id !== id);
+    data.companyData[companyId].taskTemplateBin = legacyBin.filter(item => item.id !== id);
+    setAppData(data);
+    addLog({ message: `Permanently deleted task template: **${template.name}**` });
+
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('taskTemplates', '', data.companyData[companyId].taskTemplates, 'set');
+    }
+
     return true;
 }
 

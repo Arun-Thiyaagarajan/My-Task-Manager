@@ -990,7 +990,7 @@ export default function Home() {
     window.dispatchEvent(new Event('navigation-start'));
     router.push('/tasks/new');
   };
-  
+
   const activeCompanyIdForSync = getActiveCompanyId();
   const hasAnyLoadedTasks = tasks.length > 0 || binnedTasks.length > 0;
   const hasRenderableTaskData = filteredTasks.length > 0 || filteredBinnedTasks.length > 0 || hasAnyLoadedTasks;

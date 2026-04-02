@@ -24,7 +24,11 @@ import { clearExpiredReminders } from '@/lib/data';
 export function RootLayoutClient({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isSharedPage = pathname?.startsWith('/share/');
-  const isTaskForm = pathname === '/tasks/new' || (pathname?.startsWith('/tasks/') && pathname?.endsWith('/edit'));
+  const isTaskForm =
+    pathname === '/tasks/new' ||
+    pathname === '/tasks/templates/new' ||
+    pathname?.startsWith('/tasks/templates/') && pathname?.endsWith('/edit') ||
+    pathname?.startsWith('/tasks/') && pathname?.endsWith('/edit');
 
   useEffect(() => {
     const runExpirySweep = () => {

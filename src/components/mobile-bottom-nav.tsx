@@ -32,7 +32,11 @@ export function MobileBottomNav() {
     setMounted(true);
   }, []);
 
-  const isTaskForm = pathname === '/tasks/new' || (pathname?.startsWith('/tasks/') && pathname?.endsWith('/edit'));
+  const isTaskForm =
+    pathname === '/tasks/new' ||
+    pathname === '/tasks/templates/new' ||
+    pathname?.startsWith('/tasks/templates/') && pathname?.endsWith('/edit') ||
+    (pathname?.startsWith('/tasks/') && pathname?.endsWith('/edit'));
 
   // Prevent hydration mismatch by returning a stable shell on the server
   if (!mounted) {
