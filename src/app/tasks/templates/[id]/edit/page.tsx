@@ -208,7 +208,7 @@ export default function EditTaskTemplatePage() {
                           setTemplateNameErrorMessage('Template name is required.');
                         }
                       }}
-                      placeholder="Release regression template"
+                      placeholder="My template"
                       className={showTemplateNameError ? "h-11 border-destructive/60 focus-visible:ring-destructive/30" : "h-11"}
                     />
                     {showTemplateNameError && (

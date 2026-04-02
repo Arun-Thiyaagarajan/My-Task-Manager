@@ -2,6 +2,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import type { ButtonProps } from '@/components/ui/button';
 import { Trash2, History } from 'lucide-react';
 import { moveTaskToBin, restoreTask } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
@@ -27,9 +28,20 @@ interface DeleteTaskButtonProps {
   iconOnly?: boolean;
   className?: string;
   children?: React.ReactNode;
+  variant?: ButtonProps['variant'];
+  size?: ButtonProps['size'];
 }
 
-export function DeleteTaskButton({ taskId, taskTitle, onSuccess, iconOnly = false, className, children }: DeleteTaskButtonProps) {
+export function DeleteTaskButton({
+  taskId,
+  taskTitle,
+  onSuccess,
+  iconOnly = false,
+  className,
+  children,
+  variant,
+  size,
+}: DeleteTaskButtonProps) {
   const { toast } = useToast();
 
   const handleMoveToBin = () => {
@@ -83,8 +95,8 @@ export function DeleteTaskButton({ taskId, taskTitle, onSuccess, iconOnly = fals
       <AlertDialog>
         <AlertDialogTrigger asChild>
           <Button
-            variant={iconOnly ? "ghost" : "destructive"}
-            size={iconOnly ? "icon" : "sm"}
+            variant={variant ?? (iconOnly ? "ghost" : "destructive")}
+            size={size ?? (iconOnly ? "icon" : "sm")}
             className={cn(
               iconOnly && "text-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive",
               className

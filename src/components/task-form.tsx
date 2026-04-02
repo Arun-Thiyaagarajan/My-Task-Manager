@@ -1200,7 +1200,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                     setTemplateNameError(null);
                                 }
                             }}
-                            placeholder="Release regression template"
+                            placeholder="My template"
                             className={cn("h-11", templateNameError && "border-destructive/60 focus-visible:ring-destructive/30")}
                         />
                         {templateNameError && (
@@ -1428,28 +1428,46 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                             Save reusable task setups and apply them without changing normal task behavior.
                                         </p>
                                     </div>
-                                    <div className="hidden lg:flex min-w-[20rem] max-w-[24rem] flex-col items-stretch gap-2 rounded-[1.6rem] border border-border/50 bg-muted/[0.18] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={handleOpenTemplateDialog}
-                                            className="h-11 justify-start rounded-[1.15rem] border border-border/60 bg-background/80 px-4 text-[15px] font-semibold text-foreground shadow-sm transition-all hover:bg-background hover:shadow-md"
-                                        >
-                                            <span className="flex h-7 w-7 items-center justify-center rounded-full border border-border/70 bg-muted/40 text-muted-foreground">
-                                                <PlusCircle className="h-4 w-4" />
-                                            </span>
-                                            <span className="ml-3">Save current as template</span>
-                                        </Button>
+                                    <div className="flex items-center gap-2 self-start">
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="icon"
+                                                        onClick={handleOpenTemplateDialog}
+                                                        className="h-10 w-10 rounded-2xl border-border/60 bg-background/92 text-muted-foreground shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-[background-color,border-color,box-shadow,transform,color] duration-200 hover:-translate-y-[1px] hover:border-primary/30 hover:bg-background hover:text-foreground hover:shadow-[0_10px_24px_-18px_rgba(59,130,246,0.4)]"
+                                                    >
+                                                        <PlusCircle className="h-4.5 w-4.5" />
+                                                        <span className="sr-only">Save current as template</span>
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="top" className="font-normal">
+                                                    Save current as template
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
                                         {selectedTemplate && (
-                                            <button
-                                                type="button"
-                                                onClick={handleDeleteSelectedTemplate}
-                                                className="inline-flex h-9 items-center gap-2 rounded-xl px-3 text-sm font-medium text-destructive/90 transition-colors hover:bg-destructive/8 hover:text-destructive"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                                <span>Delete template</span>
-                                            </button>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="icon"
+                                                            onClick={handleDeleteSelectedTemplate}
+                                                            className="h-10 w-10 rounded-2xl border-destructive/25 bg-background/92 text-destructive/85 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-[background-color,border-color,box-shadow,transform,color] duration-200 hover:-translate-y-[1px] hover:border-destructive/40 hover:bg-destructive/[0.08] hover:text-destructive hover:shadow-[0_10px_24px_-18px_rgba(220,38,38,0.45)]"
+                                                        >
+                                                            <Trash2 className="h-4.5 w-4.5" />
+                                                            <span className="sr-only">Delete selected template</span>
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="top" className="font-normal">
+                                                        Delete selected template
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
                                         )}
                                     </div>
                                 </div>

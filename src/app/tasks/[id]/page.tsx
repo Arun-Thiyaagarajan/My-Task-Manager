@@ -988,7 +988,11 @@ const handleCopyDescription = () => {
           ) : (
             <div className="flex gap-1.5 sm:gap-2">
                 <ShareMenu task={task} uiConfig={uiConfig} developers={developers} testers={testers}>
-                    <Button variant="outline" size={isMobile ? "icon" : "sm"} className="h-9 rounded-xl border-border/60 bg-background/92 px-3 font-medium shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:bg-background">
+                    <Button
+                        variant="outline"
+                        size={isMobile ? "icon" : "sm"}
+                        className="h-9 rounded-xl border-border/60 bg-background/92 px-3 font-medium shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-[background-color,border-color,box-shadow,transform] duration-200 hover:border-border/90 hover:bg-background hover:shadow-[0_10px_24px_-18px_rgba(15,23,42,0.5)] hover:-translate-y-[1px] active:translate-y-0"
+                    >
                         <Share2 className={cn("h-4 w-4", !isMobile && "mr-2")} />
                         {!isMobile && "Share"}
                     </Button>
@@ -1002,8 +1006,8 @@ const handleCopyDescription = () => {
                                     size={isMobile ? "icon" : "sm"}
                                     onClick={() => setIsReminderOpen(true)}
                                     className={cn(
-                                      "h-9 rounded-xl border-border/60 bg-background/92 px-3 font-medium shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:bg-background",
-                                      task.reminder && "border-amber-500/30 bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 dark:text-amber-300"
+                                      "h-9 rounded-xl border-border/60 bg-background/92 px-3 font-medium shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-[background-color,border-color,box-shadow,transform] duration-200 hover:border-border/90 hover:bg-background hover:shadow-[0_10px_24px_-18px_rgba(15,23,42,0.5)] hover:-translate-y-[1px] active:translate-y-0",
+                                      task.reminder && "border-amber-500/30 bg-amber-500/10 text-amber-700 hover:border-amber-500/45 hover:bg-amber-500/15 dark:text-amber-300"
                                     )}
                                 >
                                     <BellRing className={cn("h-4 w-4", !isMobile && "mr-2")} />
@@ -1011,11 +1015,17 @@ const handleCopyDescription = () => {
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent><p className="font-normal">{task.reminder ? 'Edit Reminder' : 'Set Reminder'}</p></TooltipContent>
-                        </Tooltip>
+                    </Tooltip>
                     </TooltipProvider>
                 )}
 
-                <Button id="task-detail-edit" onClick={handleNavigateEdit} variant="outline" size={isMobile ? "icon" : "sm"} className="h-9 rounded-xl border-border/60 bg-background/92 px-3 active:scale-95 font-medium shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-transform hover:bg-background">
+                <Button
+                    id="task-detail-edit"
+                    onClick={handleNavigateEdit}
+                    variant="outline"
+                    size={isMobile ? "icon" : "sm"}
+                    className="h-9 rounded-xl border-border/60 bg-background/92 px-3 font-medium shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-[background-color,border-color,box-shadow,transform] duration-200 hover:border-border/90 hover:bg-background hover:shadow-[0_10px_24px_-18px_rgba(15,23,42,0.5)] hover:-translate-y-[1px] active:translate-y-0"
+                >
                     <Pencil className={cn("h-4 w-4", !isMobile && "mr-2")} />
                     {!isMobile && "Edit"}
                 </Button>
@@ -1024,7 +1034,11 @@ const handleCopyDescription = () => {
                     taskTitle={task.title} 
                     onSuccess={() => router.push('/')} 
                     iconOnly={isMobile}
-                    className={cn(isMobile ? "h-9 w-9" : "rounded-xl")}
+                    variant="outline"
+                    className={cn(
+                      "border-destructive/28 bg-background/92 text-destructive shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-[background-color,border-color,box-shadow,transform,color] duration-200 hover:-translate-y-[1px] hover:border-destructive/45 hover:bg-destructive/[0.08] hover:text-destructive hover:shadow-[0_10px_24px_-18px_rgba(220,38,38,0.45)] active:translate-y-0",
+                      isMobile ? "h-9 w-9 rounded-xl" : "rounded-xl px-3"
+                    )}
                 />
             </div>
           )}
