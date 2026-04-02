@@ -70,23 +70,23 @@ const toneStyles: Record<NonNullable<MetricCardProps['tone']>, string> = {
 
 function MetricCard({ title, value, description, icon: Icon, tone = 'slate' }: MetricCardProps) {
   return (
-    <Card className="group relative h-full overflow-hidden border border-border/70 bg-background/85 shadow-sm backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+    <Card className="group relative h-full min-w-0 overflow-hidden border border-border/70 bg-background/85 shadow-sm backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
       <div className={cn('absolute inset-x-0 top-0 h-1 opacity-70', tone === 'blue' && 'bg-blue-500/70', tone === 'green' && 'bg-emerald-500/70', tone === 'amber' && 'bg-amber-500/70', tone === 'violet' && 'bg-violet-500/70', tone === 'slate' && 'bg-border')} />
-      <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gradient-to-br from-white/10 to-transparent blur-2xl transition-transform duration-500 group-hover:scale-125" />
-      <CardContent className="relative flex h-full flex-col p-4 sm:p-5">
-        <div className="flex items-start justify-between gap-3">
+      <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-gradient-to-br from-white/10 to-transparent blur-2xl transition-transform duration-500 group-hover:scale-125 sm:-right-8 sm:-top-8 sm:h-24 sm:w-24" />
+      <CardContent className="relative flex h-full flex-col p-3.5 sm:p-5">
+        <div className="flex items-start justify-between gap-2.5 sm:gap-3">
           <div className="min-w-0 flex-1 space-y-2">
-            <p className="text-[11px] font-semibold uppercase leading-5 tracking-[0.14em] text-muted-foreground [word-break:normal] [overflow-wrap:anywhere]">
+            <p className="text-[10px] font-semibold uppercase leading-4.5 tracking-[0.14em] text-muted-foreground [word-break:normal] [overflow-wrap:anywhere] sm:text-[11px] sm:leading-5">
               {title}
             </p>
-            <div className="text-2xl font-semibold tracking-tight sm:text-3xl">{value}</div>
+            <div className="text-[2rem] font-semibold leading-none tracking-tight sm:text-3xl">{value}</div>
           </div>
-          <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border shadow-sm transition-transform duration-300 group-hover:scale-105 sm:h-12 sm:w-12', toneStyles[tone])}>
-            <Icon className="h-5 w-5" />
+          <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-[1.15rem] border shadow-sm transition-transform duration-300 group-hover:scale-105 sm:h-12 sm:w-12 sm:rounded-2xl', toneStyles[tone])}>
+            <Icon className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
           </div>
         </div>
-        <div className="mt-4 min-w-0">
-          <p className="text-sm leading-7 text-muted-foreground [word-break:normal] [overflow-wrap:anywhere]">
+        <div className="mt-3 min-w-0 sm:mt-4">
+          <p className="text-[13px] leading-6 text-muted-foreground [word-break:normal] [overflow-wrap:anywhere] sm:text-sm sm:leading-7">
               {description}
           </p>
         </div>
@@ -524,69 +524,69 @@ export default function DashboardPage() {
   };
 
   return (
-    <div id="dashboard-page" className="relative overflow-visible">
+    <div id="dashboard-page" className="relative overflow-x-hidden overflow-y-visible">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[42rem] overflow-hidden [mask-image:linear-gradient(to_bottom,rgba(0,0,0,1)_0%,rgba(0,0,0,0.96)_58%,rgba(0,0,0,0.72)_78%,transparent_100%)] bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.10),transparent_26%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.10),transparent_24%),linear-gradient(to_bottom,transparent,rgba(148,163,184,0.06))]">
         <div className="absolute left-[-6rem] top-16 h-48 w-48 rounded-full bg-blue-500/10 blur-3xl" />
         <div className="absolute right-[-5rem] top-20 h-56 w-56 rounded-full bg-emerald-500/10 blur-3xl" />
         <div className="absolute left-1/3 top-64 h-44 w-44 rounded-full bg-violet-500/10 blur-3xl" />
       </div>
-      <div className="container relative mx-auto max-w-7xl space-y-5 px-3 pb-4 pt-6 sm:space-y-6 sm:px-6 sm:pb-6 sm:pt-8 lg:px-8">
+      <div className="container relative mx-auto max-w-7xl space-y-4 px-3 pb-4 pt-5 sm:space-y-6 sm:px-6 sm:pb-6 sm:pt-8 lg:px-8">
         <div className="grid gap-4 xl:grid-cols-[1.55fr_1fr]">
           <Card className="overflow-hidden border-primary/15 bg-gradient-to-br from-primary/[0.10] via-background to-chart-2/10 shadow-xl backdrop-blur-sm">
-            <CardContent className="p-5 sm:p-7">
-              <div className="flex flex-col gap-6">
+            <CardContent className="p-4 sm:p-7">
+              <div className="flex flex-col gap-5 sm:gap-6">
                 <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="space-y-3">
-                    <Badge variant="outline" className="rounded-full border-primary/20 bg-background/85 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-primary shadow-sm backdrop-blur-sm">
+                  <div className="min-w-0 space-y-3">
+                    <Badge variant="outline" className="max-w-full rounded-full border-primary/20 bg-background/85 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary shadow-sm backdrop-blur-sm sm:text-[11px] sm:tracking-[0.24em]">
                       <LayoutDashboard className="mr-2 h-3.5 w-3.5" />
                       Workspace Analytics
                     </Badge>
                     <div className="space-y-2">
-                      <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-4xl">
+                      <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-4xl">
                         Stronger visibility into execution, delivery, and team load.
                       </h1>
-                      <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
+                      <p className="max-w-2xl text-[13px] leading-5.5 text-muted-foreground sm:text-base sm:leading-6">
                         Track status flow, throughput, ownership, deployments, and attention areas from one responsive dashboard.
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2 pt-1">
-                      <Badge className="rounded-full bg-primary/10 px-3 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10">
+                      <Badge className="max-w-full rounded-full bg-primary/10 px-3 py-1 text-[10px] font-semibold text-primary hover:bg-primary/10 sm:text-[11px]">
                         <TrendingUp className="mr-1.5 h-3.5 w-3.5" />
                         {analytics.createdLast30Days} created this month
                       </Badge>
-                      <Badge className="rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-400">
+                      <Badge className="max-w-full rounded-full bg-emerald-500/10 px-3 py-1 text-[10px] font-semibold text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-400 sm:text-[11px]">
                         <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
                         {analytics.completedLast30Days} recently completed
                       </Badge>
                     </div>
                   </div>
-                  <div className="grid w-full gap-3 rounded-3xl border border-white/10 bg-background/80 p-4 shadow-lg backdrop-blur-md sm:min-w-[220px] sm:grid-cols-2 xl:w-auto xl:grid-cols-1">
+                  <div className="grid w-full gap-3 rounded-[1.4rem] border border-white/10 bg-background/80 p-3.5 shadow-lg backdrop-blur-md sm:min-w-[220px] sm:grid-cols-2 sm:rounded-3xl sm:p-4 xl:w-auto xl:grid-cols-1">
                     <div className="space-y-1">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Completion Rate</p>
-                      <p className="text-3xl font-semibold tracking-tight">{analytics.completionRate}%</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground sm:text-[11px] sm:tracking-[0.2em]">Completion Rate</p>
+                      <p className="text-2xl font-semibold tracking-tight sm:text-3xl">{analytics.completionRate}%</p>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Active Work Share</p>
-                      <p className="text-3xl font-semibold tracking-tight">{analytics.wipRate}%</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground sm:text-[11px] sm:tracking-[0.2em]">Active Work Share</p>
+                      <p className="text-2xl font-semibold tracking-tight sm:text-3xl">{analytics.wipRate}%</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-2xl border border-white/10 bg-background/75 p-4 shadow-sm backdrop-blur-sm">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">This Month</p>
-                    <p className="mt-2 text-2xl font-semibold tracking-tight">{analytics.createdLast30Days}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">tasks created in the last 30 days</p>
+                  <div className="rounded-[1.25rem] border border-white/10 bg-background/75 p-3.5 shadow-sm backdrop-blur-sm sm:rounded-2xl sm:p-4">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground sm:text-[11px] sm:tracking-[0.2em]">This Month</p>
+                    <p className="mt-2 text-xl font-semibold tracking-tight sm:text-2xl">{analytics.createdLast30Days}</p>
+                    <p className="mt-1 text-[13px] leading-5 text-muted-foreground sm:text-sm">tasks created in the last 30 days</p>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-background/75 p-4 shadow-sm backdrop-blur-sm">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Delivery Pulse</p>
-                    <p className="mt-2 text-2xl font-semibold tracking-tight">{analytics.completedLast30Days}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">tasks completed in the last 30 days</p>
+                  <div className="rounded-[1.25rem] border border-white/10 bg-background/75 p-3.5 shadow-sm backdrop-blur-sm sm:rounded-2xl sm:p-4">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground sm:text-[11px] sm:tracking-[0.2em]">Delivery Pulse</p>
+                    <p className="mt-2 text-xl font-semibold tracking-tight sm:text-2xl">{analytics.completedLast30Days}</p>
+                    <p className="mt-1 text-[13px] leading-5 text-muted-foreground sm:text-sm">tasks completed in the last 30 days</p>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-background/75 p-4 shadow-sm backdrop-blur-sm">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Collaboration Depth</p>
-                    <p className="mt-2 text-2xl font-semibold tracking-tight">{analytics.avgCollaborators}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">average collaborators per task</p>
+                  <div className="rounded-[1.25rem] border border-white/10 bg-background/75 p-3.5 shadow-sm backdrop-blur-sm sm:rounded-2xl sm:p-4">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground sm:text-[11px] sm:tracking-[0.2em]">Collaboration Depth</p>
+                    <p className="mt-2 text-xl font-semibold tracking-tight sm:text-2xl">{analytics.avgCollaborators}</p>
+                    <p className="mt-1 text-[13px] leading-5 text-muted-foreground sm:text-sm">average collaborators per task</p>
                   </div>
                 </div>
               </div>
@@ -714,40 +714,37 @@ export default function DashboardPage() {
                           onFocus={() => setSelectedStatusGroupId(group.id)}
                           onClick={() => handleOpenGroupTasks(group.id)}
                           className={cn(
-                            'group h-full w-full rounded-3xl border p-4 text-left transition-all duration-300 cursor-pointer',
+                            'group h-full w-full min-w-0 rounded-[1.4rem] border p-3.5 text-left transition-all duration-300 cursor-pointer sm:rounded-3xl sm:p-4',
                             selectedStatusGroup.id === group.id
                               ? 'border-primary/40 bg-primary/[0.08] shadow-lg shadow-primary/10'
                               : 'border-border/70 bg-muted/20 hover:-translate-y-0.5 hover:border-primary/20 hover:bg-background'
                           )}
                         >
                           <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">Group</p>
-                              <p className="mt-2 text-xl font-semibold tracking-tight">{group.name}</p>
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:text-[11px] sm:tracking-[0.22em]">Group</p>
+                              <p className="mt-2 break-words text-lg font-semibold tracking-tight sm:text-xl">{group.name}</p>
                             </div>
-                            <div
-                              className="h-3 w-3 shrink-0 rounded-full"
-                              style={{ backgroundColor: group.fill }}
-                            />
+                            <div className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: group.fill }} />
                           </div>
                           <div className="mt-5 grid grid-cols-2 gap-3">
                             <div>
-                              <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Tasks</p>
-                              <p className="mt-1 text-2xl font-semibold tracking-tight">{group.total}</p>
+                              <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground sm:text-[11px] sm:tracking-[0.18em]">Tasks</p>
+                              <p className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">{group.total}</p>
                             </div>
                             <div>
-                              <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Done</p>
-                              <p className="mt-1 text-2xl font-semibold tracking-tight">{group.completionRate}%</p>
+                              <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground sm:text-[11px] sm:tracking-[0.18em]">Done</p>
+                              <p className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">{group.completionRate}%</p>
                             </div>
                           </div>
                           <div className="mt-4">
-                            <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
-                              <span>{group.dominantStatus}</span>
-                              <span>{group.dominantStatusCount}</span>
+                            <div className="mb-2 flex items-center justify-between gap-2 text-[11px] text-muted-foreground sm:text-xs">
+                              <span className="min-w-0 break-words">{group.dominantStatus}</span>
+                              <span className="shrink-0">{group.dominantStatusCount}</span>
                             </div>
                             <Progress value={group.completionRate} className="h-2.5" />
                           </div>
-                          <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
+                          <div className="mt-4 flex flex-col items-start justify-between gap-2 text-[11px] text-muted-foreground sm:flex-row sm:items-center sm:text-xs">
                             <span>{group.createdLast30Days} recent additions</span>
                             <span
                               className={cn(
@@ -906,14 +903,14 @@ export default function DashboardPage() {
                                 key={task.id}
                                 type="button"
                                 onClick={() => handleOpenGroupTasks(selectedStatusGroup.id)}
-                                className="w-full rounded-2xl border border-white/10 bg-muted/20 px-4 py-3 text-left shadow-sm transition-transform duration-300 hover:-translate-y-0.5"
+                                className="w-full rounded-[1.15rem] border border-white/10 bg-muted/20 px-3.5 py-3 text-left shadow-sm transition-transform duration-300 hover:-translate-y-0.5 sm:rounded-2xl sm:px-4"
                               >
-                                <div className="flex items-start justify-between gap-3">
+                                <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                                   <div className="min-w-0">
-                                    <p className="truncate font-medium tracking-tight">{task.title}</p>
+                                    <p className="truncate text-[15px] font-medium tracking-tight sm:text-base">{task.title}</p>
                                     <p className="mt-1 text-xs text-muted-foreground">{task.updatedAt}</p>
                                   </div>
-                                  <Badge variant="outline" className="max-w-[45%] truncate rounded-full px-2.5 py-0.5 text-[11px]">
+                                  <Badge variant="outline" className="w-fit max-w-full truncate rounded-full px-2.5 py-0.5 text-[11px] sm:max-w-[45%]">
                                     {task.status}
                                   </Badge>
                                 </div>
@@ -1243,17 +1240,17 @@ export default function DashboardPage() {
                       key={task.id}
                       type="button"
                       onClick={() => handleOpenTask(task.id)}
-                      className="group w-full rounded-2xl border border-white/10 bg-muted/20 px-4 py-3 text-left shadow-sm transition-transform duration-300 hover:-translate-y-0.5 hover:border-primary/20 hover:bg-background/80"
+                      className="group w-full rounded-[1.15rem] border border-white/10 bg-muted/20 px-3.5 py-3 text-left shadow-sm transition-transform duration-300 hover:-translate-y-0.5 hover:border-primary/20 hover:bg-background/80 sm:rounded-2xl sm:px-4"
                     >
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                         <div className="min-w-0">
-                          <p className="truncate font-medium tracking-tight">{task.title}</p>
+                          <p className="truncate text-[15px] font-medium tracking-tight sm:text-base">{task.title}</p>
                           <p className="mt-1 text-xs text-muted-foreground">{task.updatedAt}</p>
                         </div>
-                        <div className="flex shrink-0 items-center justify-end gap-2 pl-3">
+                        <div className="flex items-center justify-between gap-2 sm:shrink-0 sm:justify-end sm:pl-3">
                           <Badge
                             variant="outline"
-                            className="max-w-[8.5rem] shrink-0 truncate rounded-full px-2.5 py-0.5 text-[11px]"
+                            className="max-w-[11rem] truncate rounded-full px-2.5 py-0.5 text-[11px] sm:max-w-[8.5rem] sm:shrink-0"
                           >
                             {task.status}
                           </Badge>
