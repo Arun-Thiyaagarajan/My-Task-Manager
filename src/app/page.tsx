@@ -1025,6 +1025,14 @@ export default function Home() {
     if (window.sessionStorage.getItem(HOME_RETURN_SKELETON_KEY) !== '1') return;
 
     window.sessionStorage.removeItem(HOME_RETURN_SKELETON_KEY);
+
+    // Only use the short return skeleton when the home list already has renderable
+    // data cached. If data still needs to load, fall back to the normal initial
+    // skeleton path so we do not get stuck in an awkward empty-loading state.
+    if (!hasRenderableTaskData || isInitialBlockingLoad) {
+      return;
+    }
+
     setShowReturnSkeleton(true);
 
     const timer = window.setTimeout(() => {
@@ -1033,7 +1041,7 @@ export default function Home() {
     }, HOME_RETURN_SKELETON_MS);
 
     return () => window.clearTimeout(timer);
-  }, [mounted, pathname, searchParams]);
+  }, [mounted, pathname, searchParams, hasRenderableTaskData, isInitialBlockingLoad]);
 
   const searchSuggestions = useMemo((): SearchSuggestion[] => {
     const q = searchQuery.trim().toLowerCase();

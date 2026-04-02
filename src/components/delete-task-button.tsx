@@ -30,6 +30,7 @@ interface DeleteTaskButtonProps {
   children?: React.ReactNode;
   variant?: ButtonProps['variant'];
   size?: ButtonProps['size'];
+  iconClassName?: string;
 }
 
 export function DeleteTaskButton({
@@ -41,6 +42,7 @@ export function DeleteTaskButton({
   children,
   variant,
   size,
+  iconClassName,
 }: DeleteTaskButtonProps) {
   const { toast } = useToast();
 
@@ -104,12 +106,12 @@ export function DeleteTaskButton({
           >
             {iconOnly ? (
                 <>
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className={cn("h-4 w-4", iconClassName)} />
                     <span className="sr-only">Delete Task</span>
                 </>
             ) : (
                 <>
-                    <Trash2 className="mr-2 h-4 w-4" />
+                    <Trash2 className={cn("mr-2 h-4 w-4", iconClassName)} />
                     Delete
                 </>
             )}

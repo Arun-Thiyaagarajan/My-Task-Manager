@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { TaskTemplateEditorSkeleton } from '@/components/task-template-skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { addTaskTemplate, getDevelopers, getTaskTemplates, getTesters, getUiConfig } from '@/lib/data';
@@ -28,6 +29,7 @@ export default function NewTaskTemplatePage() {
   const [templateDescription, setTemplateDescription] = useState('');
   const [showTemplateNameError, setShowTemplateNameError] = useState(false);
   const [templateNameErrorMessage, setTemplateNameErrorMessage] = useState('Template name is required.');
+  const [showSkeleton, setShowSkeleton] = useState(false);
 
   useEffect(() => {
     const config = getUiConfig();
@@ -38,6 +40,19 @@ export default function NewTaskTemplatePage() {
     setIsLoading(false);
     window.dispatchEvent(new Event('navigation-end'));
   }, []);
+
+  useEffect(() => {
+    if (!isLoading) {
+      setShowSkeleton(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setShowSkeleton(true);
+    }, 180);
+
+    return () => window.clearTimeout(timer);
+  }, [isLoading]);
 
   const handleSaveTemplate = (data: any) => {
     const trimmedName = templateName.trim();
@@ -94,7 +109,7 @@ export default function NewTaskTemplatePage() {
   };
 
   if (isLoading) {
-    return <LoadingSpinner text="Loading template builder..." />;
+    return showSkeleton ? <TaskTemplateEditorSkeleton /> : <LoadingSpinner text="Loading template builder..." />;
   }
 
   if (isMobile) {

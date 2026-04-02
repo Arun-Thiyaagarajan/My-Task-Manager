@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -16,7 +16,7 @@ import {
   Sparkles,
   Trash2,
 } from 'lucide-react';
-import { deleteTaskTemplate, getDeletedTaskTemplates, getTaskTemplates, getUiConfig, permanentlyDeleteTaskTemplate, restoreTaskTemplate } from '@/lib/data';
+import { DATA_KEY, deleteTaskTemplate, getActiveCompanyId, getAuthMode, getDeletedTaskTemplates, getTaskTemplates, getUiConfig, isInitialSyncComplete, permanentlyDeleteTaskTemplate, restoreTaskTemplate } from '@/lib/data';
 import type { TaskTemplate } from '@/lib/types';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useToast } from '@/hooks/use-toast';
@@ -27,6 +27,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from '@/components/ui/input';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { TaskStatusBadge } from '@/components/task-status-badge';
+import { TaskTemplatesPageSkeleton } from '@/components/task-template-skeleton';
 import { cn } from '@/lib/utils';
 
 type TemplateView = 'active' | 'bin';
@@ -109,11 +110,24 @@ export default function TaskTemplatesPage() {
   const [creationFilter, setCreationFilter] = useState<CreationFilter>('all');
   const [view, setView] = useState<TemplateView>('active');
   const [uiConfigVersion, setUiConfigVersion] = useState(0);
+  const [showSkeleton, setShowSkeleton] = useState(false);
 
-  const refreshTemplates = () => {
+  const refreshTemplates = useCallback(() => {
+    const authMode = getAuthMode();
+    const activeCompanyId = getActiveCompanyId();
+    const shouldWaitForCloudData =
+      authMode === 'authenticate' && (!activeCompanyId || !isInitialSyncComplete(activeCompanyId));
+
+    if (shouldWaitForCloudData) {
+      setIsLoading(true);
+      return;
+    }
+
     setTemplates(getTaskTemplates());
     setDeletedTemplates(getDeletedTaskTemplates());
-  };
+    setIsLoading(false);
+    window.dispatchEvent(new Event('navigation-end'));
+  }, []);
 
   useEffect(() => {
     const config = getUiConfig();
@@ -123,23 +137,38 @@ export default function TaskTemplatesPage() {
       setView(nextView);
     }
     refreshTemplates();
-    setIsLoading(false);
-    window.dispatchEvent(new Event('navigation-end'));
 
     const syncTemplates = () => refreshTemplates();
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key && event.key !== DATA_KEY) return;
+      refreshTemplates();
+    };
     const syncUi = () => setUiConfigVersion(version => version + 1);
-    window.addEventListener('storage', syncTemplates);
+    window.addEventListener('storage', handleStorage);
     window.addEventListener('company-changed', syncTemplates);
     window.addEventListener('sync-complete', syncTemplates);
     window.addEventListener('config-changed', syncUi);
 
     return () => {
-      window.removeEventListener('storage', syncTemplates);
+      window.removeEventListener('storage', handleStorage);
       window.removeEventListener('company-changed', syncTemplates);
       window.removeEventListener('sync-complete', syncTemplates);
       window.removeEventListener('config-changed', syncUi);
     };
-  }, []);
+  }, [refreshTemplates]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      setShowSkeleton(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setShowSkeleton(true);
+    }, 180);
+
+    return () => window.clearTimeout(timer);
+  }, [isLoading]);
 
   const uiConfig = useMemo(() => getUiConfig(), [uiConfigVersion]);
 
@@ -234,7 +263,7 @@ export default function TaskTemplatesPage() {
   };
 
   if (isLoading) {
-    return <LoadingSpinner text="Loading templates..." />;
+    return showSkeleton ? <TaskTemplatesPageSkeleton /> : <LoadingSpinner text="Loading templates..." />;
   }
 
   if (isMobile) {

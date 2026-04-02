@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Copy, MonitorSmartphone, PencilLine } from 'lucide-react';
 import { TaskForm } from '@/components/task-form';
@@ -9,9 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { TaskTemplateEditorSkeleton } from '@/components/task-template-skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { getDevelopers, getTaskTemplateById, getTaskTemplates, getTesters, getUiConfig, updateTaskTemplate } from '@/lib/data';
+import { DATA_KEY, getActiveCompanyId, getAuthMode, getDevelopers, getTaskTemplateById, getTaskTemplates, getTesters, getUiConfig, isInitialSyncComplete, updateTaskTemplate } from '@/lib/data';
 import { getCachedTasks as getTasks } from '@/lib/cached-data';
 import type { Task, Person, TaskTemplate } from '@/lib/types';
 
@@ -31,13 +32,25 @@ export default function EditTaskTemplatePage() {
   const [templateDescription, setTemplateDescription] = useState('');
   const [showTemplateNameError, setShowTemplateNameError] = useState(false);
   const [templateNameErrorMessage, setTemplateNameErrorMessage] = useState('Template name is required.');
+  const [showSkeleton, setShowSkeleton] = useState(false);
 
-  useEffect(() => {
+  const loadTemplate = useCallback(() => {
     if (!templateId) return;
 
     const config = getUiConfig();
     const foundTemplate = getTaskTemplateById(templateId);
+    const authMode = getAuthMode();
+    const activeCompanyId = getActiveCompanyId();
+    const shouldWaitForCloudData =
+      authMode === 'authenticate' && (!activeCompanyId || !isInitialSyncComplete(activeCompanyId));
+
     document.title = `${foundTemplate ? `Edit ${foundTemplate.name}` : 'Template Not Found'} | ${config.appName || 'My Task Manager'}`;
+
+    if (!foundTemplate && shouldWaitForCloudData) {
+      setIsLoading(true);
+      return;
+    }
+
     setTemplate(foundTemplate);
     setTemplateName(foundTemplate?.name || '');
     setTemplateDescription(foundTemplate?.description || '');
@@ -47,6 +60,40 @@ export default function EditTaskTemplatePage() {
     setIsLoading(false);
     window.dispatchEvent(new Event('navigation-end'));
   }, [templateId]);
+
+  useEffect(() => {
+    if (!templateId) return;
+
+    loadTemplate();
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key && event.key !== DATA_KEY) return;
+      loadTemplate();
+    };
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('sync-complete', loadTemplate);
+    window.addEventListener('company-changed', loadTemplate);
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('sync-complete', loadTemplate);
+      window.removeEventListener('company-changed', loadTemplate);
+    };
+  }, [templateId]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      setShowSkeleton(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setShowSkeleton(true);
+    }, 180);
+
+    return () => window.clearTimeout(timer);
+  }, [isLoading]);
 
   const handleUpdateTemplate = (data: any) => {
     if (!template) return;
@@ -116,7 +163,7 @@ export default function EditTaskTemplatePage() {
   };
 
   if (isLoading) {
-    return <LoadingSpinner text="Loading template..." />;
+    return showSkeleton ? <TaskTemplateEditorSkeleton /> : <LoadingSpinner text="Loading template..." />;
   }
 
   if (isMobile) {
