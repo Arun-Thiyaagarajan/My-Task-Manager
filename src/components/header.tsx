@@ -80,6 +80,8 @@ import { NotificationsHub } from './notifications-hub';
 import { Popover, PopoverAnchor, PopoverContent } from './ui/popover';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 
+const HOME_RETURN_SKELETON_KEY = 'taskflow_show_home_skeleton_once';
+
 const HeaderLink = ({ href, children, className, onClick, id }: { href: string; children: React.ReactNode, className?: string; onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void; id?: string; }) => {
     const router = useRouter();
     const pathname = usePathname();
@@ -167,6 +169,7 @@ export function Header() {
   const [isSignOutDialogOpen, setIsSignOutDialogOpen] = useState(false);
   const [isGlobalLoading, setIsGlobalLoading] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [previousPathname, setPreviousPathname] = useState(pathname);
 
   const refreshAllData = useCallback(() => {
     const config = getUiConfig();
@@ -215,6 +218,18 @@ export function Header() {
     };
 
   }, [isMobile, router, refreshAllData, handleOpenAuth]);
+
+  useEffect(() => {
+    if (!mounted || typeof window === 'undefined') return;
+
+    if (pathname === '/' && previousPathname && previousPathname !== '/') {
+      window.sessionStorage.setItem(HOME_RETURN_SKELETON_KEY, '1');
+    }
+
+    if (pathname !== previousPathname) {
+      setPreviousPathname(pathname);
+    }
+  }, [mounted, pathname, previousPathname]);
 
   useEffect(() => {
     if (!mounted) return;
