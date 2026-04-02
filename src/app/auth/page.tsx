@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { getAuthMode, setAuthMode } from '@/lib/data';
+import { markTaskListNavigation } from '@/lib/navigation';
 
 function GoogleMark({ className = "h-5 w-5" }: { className?: string }) {
   return (
@@ -100,6 +101,7 @@ export default function AuthPage() {
     toast({ variant: 'success', title: 'Signed in with Google' });
     setAuthMode('authenticate');
     window.dispatchEvent(new Event('company-changed'));
+    markTaskListNavigation('/');
     router.push('/');
   };
 
@@ -173,6 +175,7 @@ export default function AuthPage() {
       // Crucial: Switch to Cloud mode before navigating home
       setAuthMode('authenticate');
       window.dispatchEvent(new Event('company-changed'));
+      markTaskListNavigation('/');
       router.push('/');
       
     } catch (error: any) {

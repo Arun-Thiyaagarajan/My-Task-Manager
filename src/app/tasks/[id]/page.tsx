@@ -58,6 +58,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { StatusIcon, getSortedStatusNames, getStatusDisplayName, getStatusStyles, isStatusValue } from '@/lib/status-config';
 import { scheduleStatusUpdate } from '@/lib/status-update';
 import { getTaskRepositories, isRepositoryFieldActive, shouldShowPrLinks } from '@/lib/repository-config';
+import { markTaskListNavigation } from '@/lib/navigation';
 
 
 const isImageUrl = (url: string): boolean => {
@@ -872,6 +873,7 @@ const handleCopyDescription = () => {
 
   const handleNavigateBack = () => {
     window.dispatchEvent(new Event('navigation-start'));
+    markTaskListNavigation(backLink);
     router.push(backLink);
   };
 

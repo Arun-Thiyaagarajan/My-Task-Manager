@@ -35,6 +35,7 @@ import { PrLinksGroup } from '@/components/pr-links-group';
 import { CommentsSection } from '@/components/comments-section';
 import LZString from 'lz-string';
 import { getTaskRepositories, isRepositoryFieldActive, shouldShowPrLinks } from '@/lib/repository-config';
+import { markTaskListNavigation } from '@/lib/navigation';
 
 // Built-in defaults to keep shared URLs short
 const DEFAULT_METADATA: Record<string, { l: string, t: string, u?: string }> = {
@@ -204,7 +205,10 @@ function SharedTaskContent() {
                     </div>
                     <h1 className="text-2xl font-bold tracking-tight text-foreground">Snapshot Unavailable</h1>
                     <p className="text-muted-foreground mt-2 text-sm leading-relaxed font-medium">This task publication may have expired or the link is invalid.</p>
-                    <Button variant="outline" className="mt-8 w-full h-12 rounded-2xl font-bold shadow-sm" onClick={() => router.push('/')}>Return Home</Button>
+                    <Button variant="outline" className="mt-8 w-full h-12 rounded-2xl font-bold shadow-sm" onClick={() => {
+                        markTaskListNavigation('/');
+                        router.push('/');
+                    }}>Return Home</Button>
                 </div>
             </div>
         );
@@ -257,7 +261,10 @@ function SharedTaskContent() {
                             {isLocalPreview ? 'Preview Mode' : 'Shared View'}
                         </Badge>
                         {isLocalPreview && (
-                            <Button variant="ghost" size="icon" onClick={() => router.push('/')} className="rounded-full h-9 w-9">
+                            <Button variant="ghost" size="icon" onClick={() => {
+                                markTaskListNavigation('/');
+                                router.push('/');
+                            }} className="rounded-full h-9 w-9">
                                 <ArrowLeft className="h-5 w-5" />
                             </Button>
                         )}

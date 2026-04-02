@@ -30,6 +30,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { markTaskListNavigation } from '@/lib/navigation';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useFirebase } from '@/firebase';
 
@@ -297,6 +298,7 @@ export default function HelpCenterPage() {
 
   const navigateToFeature = (href: string) => {
     window.dispatchEvent(new Event('navigation-start'));
+    markTaskListNavigation(href);
     router.push(href);
   };
 

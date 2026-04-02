@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
+import { markTaskListNavigation } from '@/lib/navigation';
 
 /**
  * A headless component that manages global navigation behavior
@@ -32,15 +33,22 @@ export function NavigationLoader() {
     useEffect(() => {
         const start = () => {}; // Visual logic handled by progress bar in Header
         const end = () => {};
+        const handlePopState = () => {
+            if (window.location.pathname === '/') {
+                const search = window.location.search || '';
+                markTaskListNavigation(`/${search}`);
+            }
+            end();
+        };
 
         window.addEventListener('navigation-start', start);
         window.addEventListener('navigation-end', end);
-        window.addEventListener('popstate', end);
+        window.addEventListener('popstate', handlePopState);
 
         return () => {
             window.removeEventListener('navigation-start', start);
             window.removeEventListener('navigation-end', end);
-            window.removeEventListener('popstate', end);
+            window.removeEventListener('popstate', handlePopState);
         };
     }, []);
 

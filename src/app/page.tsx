@@ -119,6 +119,7 @@ import { isRepositoryFieldActive } from '@/lib/repository-config';
 import { openGlobalSpotlightSearch } from '@/components/global-spotlight-search';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { TasksCalendarView } from '@/components/tasks-calendar-view';
+import { clearPendingTaskListNavigation, hasPendingTaskListNavigation } from '@/lib/navigation';
 
 type ViewMode = 'grid' | 'table';
 type DateView = 'all' | 'monthly' | 'calendar' | 'yearly';
@@ -196,6 +197,7 @@ export default function Home() {
   const importInFlightRef = useRef(false);
   const hasInitializedGroupStateRef = useRef(false);
   const hasVisibleTaskDataRef = useRef(false);
+  const navigationHoldActiveRef = useRef(false);
 
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   const [filteredBinnedTasks, setFilteredBinnedTasks] = useState<Task[]>([]);
@@ -203,6 +205,8 @@ export default function Home() {
   const [isResolutionOpen, setIsResolutionOpen] = useState(false);
   const tutorialOpenedSelectModeRef = useRef(false);
   const [showDelayedSkeleton, setShowDelayedSkeleton] = useState(false);
+  const [isNavigationRefreshPending, setIsNavigationRefreshPending] = useState(false);
+  const [showNavigationSkeleton, setShowNavigationSkeleton] = useState(false);
   
   useEffect(() => {
     setMounted(true);
@@ -326,7 +330,12 @@ export default function Home() {
     
     setCurrentAuthMode(authMode);
     if (isUserLoading) return;
-    if (shouldWaitForCloudData && hasVisibleTaskDataRef.current) return;
+    if (shouldWaitForCloudData && hasVisibleTaskDataRef.current) {
+        setIsNavigationRefreshPending(false);
+        clearPendingTaskListNavigation();
+        window.dispatchEvent(new Event('navigation-end'));
+        return;
+    }
 
     if (companyId) {
         clearExpiredReminders();
@@ -350,6 +359,15 @@ export default function Home() {
         }
         
         setIsLoading(false);
+        setIsNavigationRefreshPending(false);
+        clearPendingTaskListNavigation();
+        window.dispatchEvent(new Event('navigation-end'));
+    }
+
+    if (!companyId) {
+        setIsLoading(false);
+        setIsNavigationRefreshPending(false);
+        clearPendingTaskListNavigation();
         window.dispatchEvent(new Event('navigation-end'));
     }
   }, [isUserLoading]);
@@ -993,8 +1011,9 @@ export default function Home() {
   const hasRenderableTaskData = filteredTasks.length > 0 || filteredBinnedTasks.length > 0 || hasAnyLoadedTasks;
   const isCloudDataPending = currentAuthMode === 'authenticate' && (!activeCompanyIdForSync || !isInitialSyncComplete(activeCompanyIdForSync));
   const isInitialBlockingLoad = mounted && !hasRenderableTaskData && (isLoading || isUserLoading || isCloudDataPending || !hasInitialized);
-  const shouldRenderEmptyState = mounted && !isInitialBlockingLoad && !showDelayedSkeleton && !isUserLoading && !isCloudDataPending && hasInitialized && dateView !== 'calendar' && filteredTasks.length === 0 && filteredBinnedTasks.length === 0;
   const shouldShowDelayedSkeleton = mounted && showDelayedSkeleton && isInitialBlockingLoad;
+  const shouldShowListSkeleton = shouldShowDelayedSkeleton || showNavigationSkeleton;
+  const shouldRenderEmptyState = mounted && !isInitialBlockingLoad && !shouldShowListSkeleton && !isUserLoading && !isCloudDataPending && hasInitialized && dateView !== 'calendar' && filteredTasks.length === 0 && filteredBinnedTasks.length === 0;
 
   useEffect(() => {
     if (!isInitialBlockingLoad) {
@@ -1008,6 +1027,46 @@ export default function Home() {
 
     return () => window.clearTimeout(timer);
   }, [isInitialBlockingLoad]);
+
+  useEffect(() => {
+    if (!mounted || pathname !== '/' || !hasPendingTaskListNavigation()) return;
+    setIsNavigationRefreshPending(true);
+    setShowNavigationSkeleton(true);
+    if (!navigationHoldActiveRef.current) {
+      navigationHoldActiveRef.current = true;
+      window.dispatchEvent(new Event('navigation-hold'));
+    }
+  }, [mounted, pathname]);
+
+  useEffect(() => {
+    if (!mounted || pathname !== '/' || !isNavigationRefreshPending || isUserLoading) return;
+
+    window.setTimeout(() => {
+      refreshData();
+    }, 0);
+  }, [mounted, pathname, isNavigationRefreshPending, isUserLoading, refreshData]);
+
+  useEffect(() => {
+    if (!isNavigationRefreshPending) {
+      setShowNavigationSkeleton(false);
+      if (navigationHoldActiveRef.current) {
+        navigationHoldActiveRef.current = false;
+        window.dispatchEvent(new Event('navigation-release'));
+      }
+      return;
+    }
+
+    return;
+  }, [isNavigationRefreshPending]);
+
+  useEffect(() => {
+    return () => {
+      if (navigationHoldActiveRef.current) {
+        navigationHoldActiveRef.current = false;
+        window.dispatchEvent(new Event('navigation-release'));
+      }
+    };
+  }, []);
 
   const searchSuggestions = useMemo((): SearchSuggestion[] => {
     const q = searchQuery.trim().toLowerCase();
@@ -2254,9 +2313,9 @@ export default function Home() {
                     "transition-all duration-500",
                     isSearching ? "opacity-40 grayscale-[0.5] blur-[0.5px]" : "opacity-100"
                 )}>
-                    {(dateView === 'calendar' || filteredTasks.length > 0 || filteredBinnedTasks.length > 0 || shouldShowDelayedSkeleton || !shouldRenderEmptyState) ? (
+                    {(dateView === 'calendar' || filteredTasks.length > 0 || filteredBinnedTasks.length > 0 || shouldShowListSkeleton || !shouldRenderEmptyState) ? (
                         <div>
-                            {(filteredTasks.length > 0 || shouldShowDelayedSkeleton || dateView === 'calendar') ? (
+                            {(filteredTasks.length > 0 || shouldShowListSkeleton || dateView === 'calendar') ? (
                                 dateView === 'calendar' ? (
                                     <TasksCalendarView
                                         tasks={filteredTasks}
@@ -2266,9 +2325,9 @@ export default function Home() {
                                         currentQueryString={searchParams.toString()}
                                     />
                                 ) : viewMode === 'grid' ? (
-                                    <TasksGrid tasks={filteredTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handlePinToggle} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} isLoading={shouldShowDelayedSkeleton} />
+                                    <TasksGrid tasks={filteredTasks} onTaskDelete={refreshData} onTaskUpdate={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} pinnedTaskIds={pinnedTaskIds} onPinToggle={handlePinToggle} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} isLoading={shouldShowListSkeleton} />
                                 ) : (
-                                    <TasksTable tasks={filteredTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} isLoading={shouldShowDelayedSkeleton} />
+                                    <TasksTable tasks={filteredTasks} onTaskDelete={refreshData} uiConfig={uiConfig} developers={developers} testers={testers} selectedTaskIds={selectedTaskIds} setSelectedTaskIds={setSelectedTaskIds} isSelectMode={isSelectMode} openGroups={openGroups} setOpenGroups={setOpenGroups} currentQueryString={searchParams.toString()} favoritesOnly={favoritesOnly} isLoading={shouldShowListSkeleton} />
                                 )
                             ) : null}
                             {deletedMatchesSection}

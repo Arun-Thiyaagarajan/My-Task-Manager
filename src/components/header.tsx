@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Icons } from './icons';
 import { Button } from './ui/button';
 import {
@@ -64,7 +64,7 @@ import {
 import { useActiveCompany } from '@/hooks/use-active-company';
 import { ThemeToggle } from './theme-toggle';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { ImagePreviewDialog } from './image-preview-dialog';
 import { GeneralRemindersDialog } from './general-reminders-dialog';
 import { useTutorial } from '@/hooks/use-tutorial';
@@ -78,6 +78,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { NotificationsHub } from './notifications-hub';
 import { Popover, PopoverAnchor, PopoverContent } from './ui/popover';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
+import { markTaskListNavigation } from '@/lib/navigation';
 
 const HeaderLink = ({ href, children, className, onClick, id }: { href: string; children: React.ReactNode, className?: string; onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void; id?: string; }) => {
     const router = useRouter();
@@ -108,6 +109,7 @@ const HeaderLink = ({ href, children, className, onClick, id }: { href: string; 
         e.preventDefault();
         prompt(() => {
             window.dispatchEvent(new Event('navigation-start'));
+            markTaskListNavigation(href);
             router.push(href);
         });
     };
@@ -146,6 +148,7 @@ export function Header() {
   const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { prompt } = useUnsavedChanges();
   
   const [mounted, setMounted] = useState(false);
@@ -166,6 +169,11 @@ export function Header() {
   const [isSignOutDialogOpen, setIsSignOutDialogOpen] = useState(false);
   const [isGlobalLoading, setIsGlobalLoading] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const navTimeoutRef = useRef<number | null>(null);
+  const navigationHoldCountRef = useRef(0);
+  const navigationInFlightRef = useRef(false);
+  const navigationReachedDestinationRef = useRef(false);
+  const navigationStartRouteRef = useRef<string>('');
 
   const refreshAllData = useCallback(() => {
     const config = getUiConfig();
@@ -192,8 +200,52 @@ export function Header() {
     
     const handleSyncStart = () => setIsGlobalLoading(true);
     const handleSyncEnd = () => setIsGlobalLoading(false);
-    const handleNavStart = () => setIsGlobalLoading(true);
-    const handleNavEnd = () => setIsGlobalLoading(false);
+    const clearNavTimeout = () => {
+      if (navTimeoutRef.current) {
+        window.clearTimeout(navTimeoutRef.current);
+        navTimeoutRef.current = null;
+      }
+    };
+    const scheduleNavFailsafe = (delayMs: number) => {
+      clearNavTimeout();
+      navTimeoutRef.current = window.setTimeout(() => {
+        setIsGlobalLoading(false);
+        navigationInFlightRef.current = false;
+        navigationReachedDestinationRef.current = false;
+        navTimeoutRef.current = null;
+      }, delayMs);
+    };
+    const handleNavStart = () => {
+      navigationInFlightRef.current = true;
+      navigationReachedDestinationRef.current = false;
+      navigationStartRouteRef.current = `${window.location.pathname}${window.location.search}`;
+      setIsGlobalLoading(true);
+      scheduleNavFailsafe(10000);
+    };
+    const handleNavEnd = () => {
+      if (navigationInFlightRef.current && !navigationReachedDestinationRef.current) {
+        return;
+      }
+      clearNavTimeout();
+      navigationInFlightRef.current = false;
+      navigationReachedDestinationRef.current = false;
+      setIsGlobalLoading(false);
+    };
+    const handleNavHold = () => {
+      navigationHoldCountRef.current += 1;
+      setIsGlobalLoading(true);
+      scheduleNavFailsafe(10000);
+    };
+    const handleNavRelease = () => {
+      navigationHoldCountRef.current = Math.max(0, navigationHoldCountRef.current - 1);
+      if (
+        navigationHoldCountRef.current === 0 &&
+        isGlobalLoading &&
+        (!navigationInFlightRef.current || navigationReachedDestinationRef.current)
+      ) {
+        scheduleNavFailsafe(300);
+      }
+    };
 
     window.addEventListener('company-changed', refreshAllData);
     window.addEventListener('storage', refreshAllData);
@@ -201,19 +253,51 @@ export function Header() {
     window.addEventListener('sync-end', handleSyncEnd);
     window.addEventListener('navigation-start', handleNavStart);
     window.addEventListener('navigation-end', handleNavEnd);
+    window.addEventListener('navigation-hold', handleNavHold);
+    window.addEventListener('navigation-release', handleNavRelease);
     window.addEventListener('open-auth-modal', handleOpenAuth);
 
     return () => {
+        clearNavTimeout();
         window.removeEventListener('company-changed', refreshAllData);
         window.removeEventListener('storage', refreshAllData);
         window.removeEventListener('sync-start', handleSyncStart);
         window.removeEventListener('sync-end', handleSyncEnd);
         window.removeEventListener('navigation-start', handleNavStart);
         window.removeEventListener('navigation-end', handleNavEnd);
+        window.removeEventListener('navigation-hold', handleNavHold);
+        window.removeEventListener('navigation-release', handleNavRelease);
         window.removeEventListener('open-auth-modal', handleOpenAuth);
     };
 
-  }, [isMobile, router, refreshAllData, handleOpenAuth]);
+  }, [isMobile, router, refreshAllData, handleOpenAuth, isGlobalLoading]);
+
+  useEffect(() => {
+    if (!mounted || !navigationInFlightRef.current) return;
+
+    const currentRoute = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+    if (currentRoute === navigationStartRouteRef.current) return;
+
+    navigationReachedDestinationRef.current = true;
+
+    if (navigationHoldCountRef.current === 0) {
+      const settleTimer = window.setTimeout(() => {
+        if (!navigationInFlightRef.current) return;
+        if (!navigationReachedDestinationRef.current) return;
+        if (navigationHoldCountRef.current > 0) return;
+
+        if (navTimeoutRef.current) {
+          window.clearTimeout(navTimeoutRef.current);
+          navTimeoutRef.current = null;
+        }
+        navigationInFlightRef.current = false;
+        navigationReachedDestinationRef.current = false;
+        setIsGlobalLoading(false);
+      }, 150);
+
+      return () => window.clearTimeout(settleTimer);
+    }
+  }, [mounted, pathname, searchParams]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -317,6 +401,7 @@ export function Header() {
       setAuthModeState('localStorage');
       toast({ variant: 'success', title: 'Signed Out', description: 'You have been logged out and returned to local mode.' });
       refreshAllData();
+      markTaskListNavigation('/');
       router.push('/');
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Sign Out Failed', description: error.message });
@@ -329,6 +414,7 @@ export function Header() {
     if (pathname === '/') return;
     prompt(() => {
         window.dispatchEvent(new Event('navigation-start'));
+        markTaskListNavigation('/');
         router.push('/');
     });
   };

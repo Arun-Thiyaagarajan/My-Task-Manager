@@ -29,6 +29,7 @@ import { useFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { setAuthMode } from '@/lib/data';
+import { markTaskListNavigation } from '@/lib/navigation';
 
 function GoogleMark({ className = "h-5 w-5" }: { className?: string }) {
   return (
@@ -86,6 +87,7 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
     onSuccess();
     onOpenChange(false);
     window.dispatchEvent(new Event('company-changed'));
+    markTaskListNavigation('/');
     router.push('/');
   }, [firestore, onOpenChange, onSuccess, router, toast]);
 
@@ -160,6 +162,7 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
       onSuccess();
       onOpenChange(false);
       window.dispatchEvent(new Event('company-changed'));
+      markTaskListNavigation('/');
       router.push('/');
       
     } catch (error: any) {

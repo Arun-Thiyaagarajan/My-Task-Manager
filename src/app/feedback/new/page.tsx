@@ -27,6 +27,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { markTaskListNavigation } from '@/lib/navigation';
 import { useFirebase } from '@/firebase';
 import { submitFeedback, getUiConfig } from '@/lib/data';
 import { compressImage } from '@/lib/utils';
@@ -143,7 +144,10 @@ export default function NewFeedbackPage() {
                     <Button onClick={() => router.push('/feedback')} size="lg" className="w-full h-14 rounded-2xl font-bold shadow-xl shadow-primary/20">
                         View History
                     </Button>
-                    <Button onClick={() => router.push('/')} variant="ghost" size="lg" className="w-full h-14 rounded-2xl font-bold text-muted-foreground">
+                    <Button onClick={() => {
+                        markTaskListNavigation('/');
+                        router.push('/');
+                    }} variant="ghost" size="lg" className="w-full h-14 rounded-2xl font-bold text-muted-foreground">
                         Return Home
                     </Button>
                 </div>

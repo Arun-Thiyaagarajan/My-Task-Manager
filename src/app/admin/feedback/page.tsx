@@ -26,6 +26,7 @@ import type { Feedback } from '@/lib/types';
 import { formatTimestamp, cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useFirebase } from '@/firebase';
+import { markTaskListNavigation } from '@/lib/navigation';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type AdminFilterCategory = 'All' | 'New' | 'Active' | 'Resolved';
@@ -51,6 +52,7 @@ export default function AdminFeedbackPage() {
 
     useEffect(() => {
         if (!isUserLoading && !isAdmin) {
+            markTaskListNavigation('/');
             router.push('/');
             return;
         }

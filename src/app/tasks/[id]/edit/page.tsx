@@ -8,6 +8,7 @@ import { TaskForm } from '@/components/task-form';
 import { Card, CardContent } from '@/components/ui/card';
 import type { Task, Person } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { markTaskListNavigation } from '@/lib/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createTaskSchema } from '@/lib/validators';
@@ -130,7 +131,10 @@ export default function EditTaskPage() {
          <div className="text-center space-y-4">
             <h1 className="text-2xl font-bold">Task not found</h1>
             <p className="text-muted-foreground">The task you are looking for does not exist.</p>
-            <Button onClick={() => router.push('/')} className="mt-4">
+            <Button onClick={() => {
+              markTaskListNavigation('/');
+              router.push('/');
+            }} className="mt-4">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Go to Home
             </Button>

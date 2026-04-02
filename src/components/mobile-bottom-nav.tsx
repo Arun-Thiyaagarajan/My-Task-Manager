@@ -14,6 +14,7 @@ import { useFirebase } from '@/firebase';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { getAuthMode, getLocalProfile } from '@/lib/data';
 import { Button } from './ui/button';
+import { markTaskListNavigation } from '@/lib/navigation';
 
 const isActualImage = (url: string | null | undefined) => {
     if (!url) return false;
@@ -59,6 +60,7 @@ export function MobileBottomNav() {
     if (pathname === href) return;
     prompt(() => {
         window.dispatchEvent(new Event('navigation-start'));
+        markTaskListNavigation(href);
         router.push(href);
     });
   };

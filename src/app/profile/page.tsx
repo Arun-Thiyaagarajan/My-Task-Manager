@@ -30,6 +30,7 @@ import {
     getRecentImportedTasks
 } from '@/lib/data';
 import type { Company, UserProfile, Task } from '@/lib/types';
+import { markTaskListNavigation } from '@/lib/navigation';
 import { 
   User as UserIcon, 
   Mail, 
@@ -365,6 +366,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!isLocal && !isUserLoading && !user) {
+      markTaskListNavigation('/');
       router.push('/');
       return;
     }
@@ -553,6 +555,7 @@ export default function ProfilePage() {
       await signOut(auth);
       setAuthMode('localStorage');
       toast({ variant: 'success', title: 'Signed Out', description: 'Logged out successfully.' });
+      markTaskListNavigation('/');
       router.push('/');
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Sign Out Failed', description: error.message });
@@ -950,7 +953,10 @@ export default function ProfilePage() {
                         </button>
                     ) : (
                         <button 
-                            onClick={() => router.push('/')}
+                            onClick={() => {
+                              markTaskListNavigation('/');
+                              router.push('/');
+                            }}
                             className="w-full flex items-center gap-4 py-4 px-4 hover:bg-muted/50 active:bg-muted transition-colors text-left"
                         >
                             <div className="shrink-0 text-muted-foreground">
@@ -1326,7 +1332,10 @@ export default function ProfilePage() {
                         <p className="text-[11px] text-muted-foreground font-normal">{isLocal ? 'Go back to your workspace.' : 'End your current cloud session.'}</p>
                         </div>
                         {isLocal ? (
-                            <Button variant="outline" size="sm" onClick={() => router.push('/')} className="h-8 text-xs font-semibold px-4">Workspace</Button>
+                            <Button variant="outline" size="sm" onClick={() => {
+                              markTaskListNavigation('/');
+                              router.push('/');
+                            }} className="h-8 text-xs font-semibold px-4">Workspace</Button>
                         ) : (
                             <AlertDialog open={isSignOutDialogOpen} onOpenChange={setIsSignOutDialogOpen}>
                                 <AlertDialogTrigger asChild>
