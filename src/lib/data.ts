@@ -1226,21 +1226,42 @@ export function getRecentTasks(limitCount = 5): Task[] {
         .slice(0, limitCount);
 }
 
+function resolveImportSourceFromLogMessage(message: string): 'json' | 'excel' | null {
+    if (message.includes('via Excel import')) return 'excel';
+    if (message.includes('via JSON import') || message.includes('from external source')) return 'json';
+    return null;
+}
+
 export function getRecentImportedTasks(limitCount = 5): Task[] {
+    const jsonTasks = getRecentImportedTasksBySource('json', limitCount);
+    const excelTasks = getRecentImportedTasksBySource('excel', limitCount);
+
+    return [...jsonTasks, ...excelTasks]
+        .filter((task, index, list) => list.findIndex(candidate => candidate.id === task.id) === index)
+        .slice(0, limitCount);
+}
+
+export function getRecentImportedTasksBySource(source: 'json' | 'excel', limitCount = 5): Task[] {
     const logs = getLogs();
     const tasks = getTasks();
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const importedTaskIds = new Set(
-        logs
-            .filter(l => l.taskId && l.message.includes('Imported task') && new Date(l.timestamp) >= sevenDaysAgo)
-            .map(l => l.taskId!)
-    );
+    const importedTaskTimestamps = new Map<string, number>();
+    logs
+        .filter(l => l.taskId && l.message.includes('Imported task') && new Date(l.timestamp) >= sevenDaysAgo)
+        .filter(l => resolveImportSourceFromLogMessage(l.message) === source)
+        .forEach(log => {
+            const currentTimestamp = importedTaskTimestamps.get(log.taskId!);
+            const nextTimestamp = new Date(log.timestamp).getTime();
+            if (!currentTimestamp || nextTimestamp > currentTimestamp) {
+                importedTaskTimestamps.set(log.taskId!, nextTimestamp);
+            }
+        });
 
     return tasks
-        .filter(t => importedTaskIds.has(t.id))
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .filter(t => importedTaskTimestamps.has(t.id))
+        .sort((a, b) => (importedTaskTimestamps.get(b.id) || 0) - (importedTaskTimestamps.get(a.id) || 0))
         .slice(0, limitCount);
 }
 
@@ -2254,7 +2275,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
                             const logEntry = sanitizeForFirestore({
                                 id: logId,
                                 timestamp: new Date().toISOString(),
-                                message: `Imported task "**${item.title}**" from external source.`,
+                                message: `Imported task "**${item.title}**" via JSON import.`,
                                 taskId: id,
                                 userId: userId,
                                 userName: userName
@@ -2285,7 +2306,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             processedTasks.forEach(newTask => {
                 comp.tasks.unshift(newTask);
                 _addLog(comp, { 
-                    message: `Imported task "**${newTask.title}**" from external source.`, 
+                    message: `Imported task "**${newTask.title}**" via JSON import.`, 
                     taskId: newTask.id,
                     userName: 'Local User'
                 });

@@ -80,9 +80,19 @@ const faqItems = [
         answer: <>From the main tasks page, turn on <strong>Select Multiple</strong>. That opens the bulk actions bar where you can use <strong>Select All</strong> for the current filtered view, then apply tags, copy task content, export selected tasks as PDF, or move them to the bin in one operation.</>,
     },
     {
+        id: 'templates-workspace',
+        question: 'What are Templates used for?',
+        answer: <>Templates let you save reusable task setups so recurring work can be created faster. On desktop, open <strong>Templates</strong> to create, manage, edit, restore binned templates, and start a new task from a saved preset.</>,
+    },
+    {
         id: 'imports',
         question: 'Why were some imported tasks skipped?',
         answer: <>TaskFlow validates imported data against your current workspace rules, including unique-field constraints. If imported tasks conflict with existing unique values, those items can be skipped and shown in the import summary so you can review them safely instead of creating duplicates.</>,
+    },
+    {
+        id: 'excel-import',
+        question: 'How does Excel import work?',
+        answer: <>On desktop, use the <strong>Excel Import</strong> flow to download the current template, upload your workbook, review each row, fix validation issues inline, and import only valid rows. If the file structure is wrong, TaskFlow will guide you back to the template before anything is added.</>,
     },
     {
         id: 'custom-fields',

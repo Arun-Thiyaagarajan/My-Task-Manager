@@ -1,16 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getBinnedTasks, getUiConfig, getDevelopers, getTesters, restoreMultipleTasks, permanentlyDeleteMultipleTasks, emptyBin, restoreTask } from '@/lib/data';
 import type { Task, UiConfig, Person } from '@/lib/types';
+import type { DateRange } from 'react-day-picker';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { TaskStatusBadge } from '@/components/task-status-badge';
-import { Trash2, History, ArrowLeft, Recycle, StickyNote, MoreVertical, RotateCcw } from 'lucide-react';
+import { Trash2, History, ArrowLeft, Recycle, StickyNote, RotateCcw, Search, CalendarRange, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -29,6 +30,9 @@ import { useActiveCompany } from '@/hooks/use-active-company';
 import { formatTimestamp, cn } from '@/lib/utils';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { 
     DropdownMenu, 
     DropdownMenuContent, 
@@ -37,6 +41,88 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { format } from 'date-fns';
+
+type BinDateFilter = 'all' | 'today' | 'last7' | 'last30' | 'custom';
+
+const BIN_DATE_FILTERS: Array<{ value: BinDateFilter; label: string }> = [
+  { value: 'all', label: 'All Dates' },
+  { value: 'today', label: 'Today' },
+  { value: 'last7', label: 'Last 7 Days' },
+  { value: 'last30', label: 'Last 30 Days' },
+  { value: 'custom', label: 'Custom Range' },
+];
+
+function getBinSearchText(task: Task, developersById: Map<string, Person>, testersById: Map<string, Person>) {
+  const assignees = [
+    ...(task.developers || []).map(id => developersById.get(id)?.name || id),
+    ...(task.testers || []).map(id => testersById.get(id)?.name || id),
+  ];
+
+  return [
+    task.title,
+    task.description,
+    task.status,
+    task.summary,
+    task.azureWorkItemId,
+    ...(task.tags || []),
+    ...(task.repositories || []),
+    ...(task.relevantEnvironments || []),
+    ...assignees,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+}
+
+function matchesBinDateFilter(timestamp: number, filter: BinDateFilter, customRange: DateRange | undefined) {
+  if (!Number.isFinite(timestamp)) return false;
+  if (filter === 'all') return true;
+
+  const candidateDate = new Date(timestamp);
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  if (filter === 'today') {
+    return candidateDate >= startOfToday;
+  }
+
+  if (filter === 'last7') {
+    const start = new Date(startOfToday);
+    start.setDate(start.getDate() - 6);
+    return candidateDate >= start;
+  }
+
+  if (filter === 'last30') {
+    const start = new Date(startOfToday);
+    start.setDate(start.getDate() - 29);
+    return candidateDate >= start;
+  }
+
+  const from = customRange?.from ? new Date(customRange.from.getFullYear(), customRange.from.getMonth(), customRange.from.getDate()) : null;
+  const to = customRange?.to ? new Date(customRange.to.getFullYear(), customRange.to.getMonth(), customRange.to.getDate(), 23, 59, 59, 999) : null;
+
+  if (from && candidateDate < from) return false;
+  if (to && candidateDate > to) return false;
+
+  return Boolean(from || to);
+}
+
+function formatCustomDateRange(range: DateRange | undefined) {
+  if (range?.from && range?.to) {
+    return `${format(range.from, 'dd MMM yyyy')} - ${format(range.to, 'dd MMM yyyy')}`;
+  }
+
+  if (range?.from) {
+    return `From ${format(range.from, 'dd MMM yyyy')}`;
+  }
+
+  if (range?.to) {
+    return `Until ${format(range.to, 'dd MMM yyyy')}`;
+  }
+
+  return 'Custom Range';
+}
 
 
 function NoteViewerDialog({ isOpen, onOpenChange, note }: { isOpen: boolean, onOpenChange: (open: boolean) => void, note: Task | null }) {
@@ -119,6 +205,9 @@ export default function BinPage() {
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dateFilter, setDateFilter] = useState<BinDateFilter>('all');
+  const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>(undefined);
   
   const [noteToView, setNoteToView] = useState<Task | null>(null);
   const [isNoteViewerOpen, setIsNoteViewerOpen] = useState(false);
@@ -157,7 +246,7 @@ export default function BinPage() {
   };
 
   const handleSelectAll = (checked: boolean) => {
-    setSelectedTaskIds(checked ? binnedTasks.map(task => task.id) : []);
+    setSelectedTaskIds(checked ? filteredBinnedTasks.map(task => task.id) : []);
   };
 
   const handleSelectOne = (taskId: string, checked: boolean) => {
@@ -219,15 +308,47 @@ export default function BinPage() {
     setSelectedTaskIds([]);
   };
 
-  if (isLoading || !uiConfig) {
-    return null;
-  }
-
-  const developers = getDevelopers();
-  const testers = getTesters();
-  const developersById = new Map(developers.map(d => [d.id, d]));
-  const testersById = new Map(testers.map(t => [t.id, t]));
+  const developers = useMemo(() => getDevelopers(), [activeCompanyId, binnedTasks]);
+  const testers = useMemo(() => getTesters(), [activeCompanyId, binnedTasks]);
+  const developersById = useMemo(() => new Map(developers.map(d => [d.id, d])), [developers]);
+  const testersById = useMemo(() => new Map(testers.map(t => [t.id, t])), [testers]);
+  const normalizedQuery = searchQuery.trim().toLowerCase();
   const from = searchParams.get('from');
+
+  const filteredBinnedTasks = useMemo(() => {
+    return binnedTasks.filter(task => {
+      const dateValue = task.deletedAt || task.updatedAt || task.createdAt;
+      const timestamp = new Date(dateValue).getTime();
+      const matchesSearch = !normalizedQuery || getBinSearchText(task, developersById, testersById).includes(normalizedQuery);
+      return matchesSearch && matchesBinDateFilter(timestamp, dateFilter, customDateRange);
+    });
+  }, [binnedTasks, customDateRange, dateFilter, developersById, normalizedQuery, testersById]);
+
+  useEffect(() => {
+    const visibleIds = new Set(filteredBinnedTasks.map(task => task.id));
+    setSelectedTaskIds(current => {
+      const nextSelected = current.filter(id => visibleIds.has(id));
+      if (nextSelected.length === current.length && nextSelected.every((id, index) => id === current[index])) {
+        return current;
+      }
+      return nextSelected;
+    });
+  }, [filteredBinnedTasks]);
+
+  const hasActiveFilters = Boolean(normalizedQuery) || dateFilter !== 'all';
+
+  const handleDateFilterChange = (nextFilter: BinDateFilter) => {
+    setDateFilter(nextFilter);
+    if (nextFilter !== 'custom') {
+      setCustomDateRange(undefined);
+    }
+  };
+
+  const handleClearFilters = () => {
+    setSearchQuery('');
+    setDateFilter('all');
+    setCustomDateRange(undefined);
+  };
 
   const handleBack = () => {
     window.dispatchEvent(new Event('navigation-start'));
@@ -237,6 +358,10 @@ export default function BinPage() {
     }
     router.push(isMobile ? '/profile' : '/');
   };
+
+  if (isLoading || !uiConfig) {
+    return null;
+  }
 
   return (
     <div id="bin-page" className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -255,10 +380,109 @@ export default function BinPage() {
       </div>
 
       <div className="space-y-6">
+        <Card className="overflow-hidden border-border/60 bg-gradient-to-br from-background/95 via-background/88 to-muted/[0.08] shadow-sm">
+          <CardContent className="space-y-4 p-4 sm:p-5">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+              <div className="relative min-w-0 xl:w-auto xl:min-w-[18rem] xl:max-w-[28rem] xl:flex-[1.15_1_22rem]">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/70" />
+                <Input
+                  value={searchQuery}
+                  onChange={event => setSearchQuery(event.target.value)}
+                  placeholder="Search deleted tasks, notes, statuses, tags, repos..."
+                  className="h-11 w-full rounded-2xl border-border/70 bg-[#171d28] pl-11 pr-4 text-foreground placeholder:text-muted-foreground/75 shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.025)] transition-[border-color,box-shadow,background-color,width] hover:border-border/90 hover:bg-[#192131] focus-visible:bg-[#1b2436]"
+                />
+              </div>
+
+              <div className="flex min-w-0 flex-col gap-3 xl:flex-1 xl:flex-row xl:items-center xl:justify-end">
+                <div className="flex min-w-0 flex-wrap items-center gap-2 xl:justify-end">
+                  <div className="flex h-10 items-center gap-2 rounded-2xl border border-border/60 bg-background/72 px-3 text-xs font-medium text-muted-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+                    <CalendarRange className="h-4 w-4" />
+                    Deleted Date
+                  </div>
+                  {BIN_DATE_FILTERS.filter(filter => filter.value !== 'custom').map(filter => (
+                    <Button
+                      key={filter.value}
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDateFilterChange(filter.value)}
+                      className={cn(
+                        'h-10 rounded-2xl px-3 text-xs font-semibold text-muted-foreground',
+                        dateFilter === filter.value && 'bg-primary/10 text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:bg-primary/10 hover:text-primary'
+                      )}
+                    >
+                      {filter.label}
+                    </Button>
+                  ))}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className={cn(
+                          'h-10 rounded-2xl px-3 text-xs font-semibold text-muted-foreground',
+                          dateFilter === 'custom' && 'bg-primary/10 text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:bg-primary/10 hover:text-primary'
+                        )}
+                      >
+                        {formatCustomDateRange(customDateRange)}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-auto rounded-3xl border-border/70 p-0">
+                      <Calendar
+                        mode="range"
+                        numberOfMonths={isMobile ? 1 : 2}
+                        selected={customDateRange}
+                        onSelect={(range) => {
+                          setCustomDateRange(range);
+                          setDateFilter('custom');
+                        }}
+                        defaultMonth={customDateRange?.from || new Date()}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+            </div>
+
+            {hasActiveFilters && (
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <span>Showing {filteredBinnedTasks.length} result{filteredBinnedTasks.length === 1 ? '' : 's'}.</span>
+                {normalizedQuery ? (
+                  <Badge variant="secondary" className="rounded-full px-3 py-1">
+                    Search: {searchQuery.trim()}
+                  </Badge>
+                ) : null}
+                {dateFilter !== 'all' ? (
+                  <Badge variant="secondary" className="rounded-full px-3 py-1">
+                    Date: {dateFilter === 'custom' ? formatCustomDateRange(customDateRange) : BIN_DATE_FILTERS.find(filter => filter.value === dateFilter)?.label}
+                  </Badge>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearFilters}
+                  className="h-8 rounded-full px-3 text-xs font-semibold text-muted-foreground"
+                >
+                  <X className="mr-1.5 h-3.5 w-3.5" />
+                  Clear
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex items-center gap-2">
                 <h2 className="text-lg font-bold tracking-tight">Deleted Items</h2>
-                <Badge variant="secondary" className="bg-muted text-muted-foreground border-none font-bold">{binnedTasks.length}</Badge>
+                <Badge variant="secondary" className="bg-muted text-muted-foreground border-none font-bold">{filteredBinnedTasks.length}</Badge>
+                {hasActiveFilters ? (
+                  <Badge variant="outline" className="rounded-full px-2.5 py-1 text-[11px] font-semibold">
+                    {binnedTasks.length} total
+                  </Badge>
+                ) : null}
             </div>
             {binnedTasks.length > 0 && (
                 <AlertDialog>
@@ -311,10 +535,16 @@ export default function BinPage() {
                 <p className="text-xl font-bold tracking-tight">The bin is empty.</p>
                 <p className="mt-1 text-sm text-muted-foreground font-medium">Deleted items will appear here for 30 days.</p>
             </div>
+        ) : filteredBinnedTasks.length === 0 ? (
+            <div className="text-center py-24 bg-muted/10 rounded-[2.5rem] border-2 border-dashed border-muted-foreground/20">
+                <Search className="h-16 w-16 mx-auto mb-4 text-muted-foreground/20" />
+                <p className="text-xl font-bold tracking-tight">No bin items match these filters.</p>
+                <p className="mt-1 text-sm text-muted-foreground font-medium">Adjust the search or deleted date filter to broaden the result set.</p>
+            </div>
         ) : (
             isMobile ? (
                 <div className="grid grid-cols-1 gap-3 pb-20">
-                    {binnedTasks.map(task => (
+                    {filteredBinnedTasks.map(task => (
                         <MobileBinCard 
                             key={task.id}
                             task={task}
@@ -332,7 +562,7 @@ export default function BinPage() {
                             <TableRow>
                                 <TableHead className="w-[50px]">
                                     <Checkbox
-                                        checked={selectedTaskIds.length === binnedTasks.length && binnedTasks.length > 0}
+                                        checked={selectedTaskIds.length === filteredBinnedTasks.length && filteredBinnedTasks.length > 0}
                                         onCheckedChange={(checked) => handleSelectAll(!!checked)}
                                         aria-label="Select all"
                                     />
@@ -344,7 +574,7 @@ export default function BinPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {binnedTasks.map(task => {
+                            {filteredBinnedTasks.map(task => {
                                 const assignees = [
                                     ...(task.developers || []).map(id => developersById.get(id)?.name),
                                     ...(task.testers || []).map(id => testersById.get(id)?.name)

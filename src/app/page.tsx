@@ -58,6 +58,7 @@ import {
   AlertTriangle,
   Fingerprint,
   Globe,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { cn, fuzzySearch, formatTimestamp } from '@/lib/utils';
 import { getOrderedTaskStatusGroups, getSortedStatusOptions, getStatusDisplayName, getStatusGroupConfigs, getStatusGroupId, resolveStatusConfig } from '@/lib/status-config';
@@ -119,6 +120,7 @@ import { isRepositoryFieldActive } from '@/lib/repository-config';
 import { openGlobalSpotlightSearch } from '@/components/global-spotlight-search';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { TasksCalendarView } from '@/components/tasks-calendar-view';
+import { buildExcelExportRows } from '@/lib/task-excel';
 
 type ViewMode = 'grid' | 'table';
 type DateView = 'all' | 'monthly' | 'calendar' | 'yearly';
@@ -206,6 +208,7 @@ export default function Home() {
   const tutorialOpenedSelectModeRef = useRef(false);
   const [showDelayedSkeleton, setShowDelayedSkeleton] = useState(false);
   const [showReturnSkeleton, setShowReturnSkeleton] = useState(false);
+  const [isExcelExporting, setIsExcelExporting] = useState(false);
   
   useEffect(() => {
     setMounted(true);
@@ -744,6 +747,69 @@ export default function Home() {
     }
   }, [isSelectMode, selectedTaskIds, filteredTasks, toast]);
 
+  const handleExcelExport = useCallback(async (exportType: 'current_view' | 'all_tasks') => {
+    if (isExcelExporting) return;
+
+    setIsExcelExporting(true);
+
+    try {
+      const { utils, writeFile } = await import('xlsx');
+      const appNamePrefix = (getUiConfig().appName || 'My Task Manager').trim().replace(/\s+/g, '_');
+      const activeTasksToExport = exportType === 'current_view'
+        ? (isSelectMode ? filteredTasks.filter(task => selectedTaskIds.includes(task.id)) : filteredTasks)
+        : getTasks();
+
+      if (activeTasksToExport.length === 0) {
+        toast({
+          title: 'Nothing to Export',
+          description: 'There are no tasks in the current view to export.',
+        });
+        return;
+      }
+
+      const workbook = utils.book_new();
+      const taskRows = buildExcelExportRows(activeTasksToExport, getUiConfig(), getDevelopers(), getTesters());
+      utils.book_append_sheet(workbook, utils.json_to_sheet(taskRows), 'Tasks');
+
+      if (exportType === 'all_tasks') {
+        const trashRows = buildExcelExportRows(getBinnedTasks(), getUiConfig(), getDevelopers(), getTesters());
+        if (trashRows.length > 0) {
+          utils.book_append_sheet(workbook, utils.json_to_sheet(trashRows), 'Bin Tasks');
+        }
+      }
+
+      const metadataRows = [
+        { Key: 'App Name', Value: getUiConfig().appName || 'My Task Manager' },
+        { Key: 'Export Type', Value: exportType === 'current_view' ? 'Current View' : 'Full Workspace' },
+        { Key: 'Exported At', Value: new Date().toISOString() },
+        { Key: 'Task Count', Value: String(activeTasksToExport.length) },
+      ];
+      utils.book_append_sheet(workbook, utils.json_to_sheet(metadataRows), 'Summary');
+
+      const fileName = `${appNamePrefix}_${exportType === 'current_view' ? 'Current_View' : 'Full_Workspace'}.xlsx`;
+      writeFile(workbook, fileName);
+
+      toast({
+        variant: 'success',
+        title: 'Excel Export Successful',
+        description: `${activeTasksToExport.length} active tasks exported.`,
+      });
+
+      if (exportType === 'all_tasks') {
+        localStorage.setItem(LAST_BACKUP_KEY, new Date().toISOString());
+      }
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: 'destructive',
+        title: 'Excel export failed',
+        description: 'The workbook could not be generated.',
+      });
+    } finally {
+      setIsExcelExporting(false);
+    }
+  }, [filteredTasks, isExcelExporting, isSelectMode, selectedTaskIds, toast]);
+
   const handlePinToggle = useCallback((taskIdToToggle: string) => {
     setPinnedTaskIds(currentIds => {
       const newPinnedIds = currentIds.includes(taskIdToToggle)
@@ -1039,6 +1105,10 @@ export default function Home() {
     }
 
     setShowReturnSkeleton(true);
+  }, [mounted, pathname, searchParams, hasRenderableTaskData, isInitialBlockingLoad]);
+
+  useEffect(() => {
+    if (!showReturnSkeleton || typeof window === 'undefined') return;
 
     const timer = window.setTimeout(() => {
       setShowReturnSkeleton(false);
@@ -1046,7 +1116,7 @@ export default function Home() {
     }, HOME_RETURN_SKELETON_MS);
 
     return () => window.clearTimeout(timer);
-  }, [mounted, pathname, searchParams, hasRenderableTaskData, isInitialBlockingLoad]);
+  }, [showReturnSkeleton]);
 
   const searchSuggestions = useMemo((): SearchSuggestion[] => {
     const q = searchQuery.trim().toLowerCase();
@@ -1657,7 +1727,7 @@ export default function Home() {
                     <DropdownMenuTrigger asChild>
                     <Button id="home-export-trigger" variant="outline" size="sm" className="w-full sm:w-auto h-11 rounded-2xl px-5 font-medium shadow-sm shadow-black/5 transition-all hover:shadow-md hover:shadow-black/10">
                         <Download className="mr-2 h-4 w-4" />
-                        Export JSON
+                        Export
                     </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
@@ -1697,13 +1767,86 @@ export default function Home() {
                                 </p>
                             </div>
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator className="mx-2 my-2 bg-border/60" />
+                        <DropdownMenuItem
+                            onSelect={() => handleExcelExport('current_view')}
+                            disabled={isExcelExporting}
+                            className="group rounded-2xl px-3 py-3.5 focus:bg-primary/8 dark:focus:bg-primary/12"
+                        >
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-600 ring-1 ring-sky-500/15 dark:text-sky-400 transition-transform group-focus:scale-[1.03]">
+                                {isExcelExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
+                            </div>
+                            <div className="min-w-0 space-y-0.5">
+                                <p className="text-sm font-semibold text-foreground">Export Excel current view</p>
+                                <p className="text-xs leading-relaxed text-muted-foreground">
+                                    Download the visible task set as an Excel workbook.
+                                </p>
+                            </div>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                            onSelect={() => handleExcelExport('all_tasks')}
+                            disabled={isExcelExporting}
+                            className="group rounded-2xl px-3 py-3.5 focus:bg-primary/8 dark:focus:bg-primary/12"
+                        >
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-600 ring-1 ring-cyan-500/15 dark:text-cyan-400 transition-transform group-focus:scale-[1.03]">
+                                {isExcelExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
+                            </div>
+                            <div className="min-w-0 space-y-0.5">
+                                <p className="text-sm font-semibold text-foreground">Export Excel full workspace</p>
+                                <p className="text-xs leading-relaxed text-muted-foreground">
+                                    Save all active tasks, plus bin tasks, into Excel sheets.
+                                </p>
+                            </div>
+                        </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
 
-                <Button id="home-import-trigger" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="w-full sm:w-auto h-11 rounded-2xl px-5 font-medium shadow-sm shadow-black/5 transition-all hover:shadow-md hover:shadow-black/10">
-                    <Upload className="mr-2 h-4 w-4" />
-                    Import JSON
-                </Button>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button id="home-import-trigger" variant="outline" size="sm" className="w-full sm:w-auto h-11 rounded-2xl px-5 font-medium shadow-sm shadow-black/5 transition-all hover:shadow-md hover:shadow-black/10">
+                            <Upload className="mr-2 h-4 w-4" />
+                            Import
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                        align="end"
+                        sideOffset={10}
+                        className="w-[min(24rem,calc(100vw-2rem))] rounded-3xl border-border/60 bg-background/95 p-2 shadow-[0_24px_70px_-32px_rgba(15,23,42,0.55)] backdrop-blur-xl"
+                    >
+                        <DropdownMenuLabel className="px-3 pt-2 pb-1 text-xs font-medium text-muted-foreground">
+                            Import Options
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator className="mx-2 my-2 bg-border/60" />
+                        <DropdownMenuItem
+                            onSelect={() => fileInputRef.current?.click()}
+                            className="group rounded-2xl px-3 py-3.5 focus:bg-primary/8 dark:focus:bg-primary/12"
+                        >
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/15 transition-transform group-focus:scale-[1.03]">
+                                <Upload className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0 space-y-0.5">
+                                <p className="text-sm font-semibold text-foreground">Import JSON</p>
+                                <p className="text-xs leading-relaxed text-muted-foreground">
+                                    Bring in a JSON backup using the current import flow.
+                                </p>
+                            </div>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                            onSelect={() => router.push('/tasks/import/excel')}
+                            className="group rounded-2xl px-3 py-3.5 focus:bg-primary/8 dark:focus:bg-primary/12"
+                        >
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-600 ring-1 ring-sky-500/15 dark:text-sky-400 transition-transform group-focus:scale-[1.03]">
+                                <FileSpreadsheet className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0 space-y-0.5">
+                                <p className="text-sm font-semibold text-foreground">Import Excel</p>
+                                <p className="text-xs leading-relaxed text-muted-foreground">
+                                    Open the desktop review workspace for spreadsheet imports.
+                                </p>
+                            </div>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />
                 
                 <Button onClick={handleNavigateNewTask} id="new-task-btn" className="w-full sm:w-auto h-11 rounded-2xl px-6 shadow-[0_12px_30px_-14px_rgba(79,70,229,0.85)] font-medium active:scale-95 transition-all hover:shadow-[0_16px_34px_-14px_rgba(79,70,229,0.95)]">

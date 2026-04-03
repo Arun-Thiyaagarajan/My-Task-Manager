@@ -17,6 +17,7 @@ import {
   Sparkles,
   LayoutTemplate,
   PlusCircle,
+  FileSpreadsheet,
   type LucideIcon,
 } from 'lucide-react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator, CommandShortcut } from '@/components/ui/command';
@@ -54,7 +55,8 @@ type SpotlightItem = {
   accentClassName?: string;
   updatedAt?: string;
   isBinned?: boolean;
-          action?: 'toggle-tasks';
+  desktopOnly?: boolean;
+  action?: 'toggle-tasks';
 };
 
 type IndexedSpotlightItem = SpotlightItem & {
@@ -158,6 +160,7 @@ const QUICK_LINKS: SpotlightItem[] = [
     icon: PlusCircle,
     accentClassName: 'text-primary',
     keywords: ['create template', 'new template', 'template builder', 'template create'],
+    desktopOnly: true,
   },
   {
     id: 'other-templates',
@@ -169,6 +172,19 @@ const QUICK_LINKS: SpotlightItem[] = [
     icon: LayoutTemplate,
     accentClassName: 'text-indigo-500',
     keywords: ['templates', 'task template', 'presets', 'template bin'],
+    desktopOnly: true,
+  },
+  {
+    id: 'other-excel-import',
+    kind: 'other',
+    group: 'Others',
+    title: 'Excel Import',
+    subLabel: 'Desktop workbook review, template download, and import flow',
+    href: '/tasks/import/excel',
+    icon: FileSpreadsheet,
+    accentClassName: 'text-emerald-500',
+    keywords: ['excel', 'xlsx', 'import excel', 'export excel', 'template download'],
+    desktopOnly: true,
   },
   {
     id: 'other-bin',
@@ -454,6 +470,7 @@ export function GlobalSpotlightSearch() {
           ...(template.taskData.repositories || []),
         ].filter(Boolean) as string[],
         updatedAt: template.updatedAt,
+        desktopOnly: true,
       };
     });
 
@@ -482,6 +499,7 @@ export function GlobalSpotlightSearch() {
       ].filter(Boolean) as string[],
       updatedAt: template.deletedAt || template.updatedAt,
       isBinned: true,
+      desktopOnly: true,
     }));
 
     const settingsItems: SpotlightItem[] = [
@@ -509,7 +527,8 @@ export function GlobalSpotlightSearch() {
       })),
     ];
 
-    return [...taskItems, ...binnedTaskItems, ...noteItems, ...templateItems, ...deletedTemplateItems, ...settingsItems, ...QUICK_LINKS];
+    return [...taskItems, ...binnedTaskItems, ...noteItems, ...templateItems, ...deletedTemplateItems, ...settingsItems, ...QUICK_LINKS]
+      .filter(item => !(isMobile && item.desktopOnly));
   }, [binnedTasks, deletedTemplates, isMobile, notes, tasks, templates, uiConfig]);
 
   const searchableIndex = React.useMemo<IndexedSpotlightItem[]>(
