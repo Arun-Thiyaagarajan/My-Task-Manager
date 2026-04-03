@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -19,9 +19,9 @@ import {
   XCircle,
 } from 'lucide-react';
 import { utils, writeFile } from 'xlsx';
-import { addDeveloper, addLog, addTask, addTester, getDevelopers, getTasks, getTesters, getUiConfig } from '@/lib/data';
+import { addDeveloper, addLog, addRepositoryConfig, addTask, addTester, getDevelopers, getTasks, getTesters, getUiConfig, setUiConfig as persistUiConfig } from '@/lib/data';
 import type { Person, Task, UiConfig } from '@/lib/types';
-import { analyzeExcelHeaderStructure, buildExcelExportRows, buildExcelTemplateInstructions, getExcelHeaderValidationError, getExcelTaskColumns, getExcelTemplateHeaders, parseExcelSheetRows, validateImportedTaskRows, type ExcelTaskColumn, type ImportedTaskReviewRow } from '@/lib/task-excel';
+import { analyzeExcelHeaderStructure, appendExcelExportMetadataSheet, buildExcelExportRows, buildExcelTemplateInstructions, getExcelHeaderValidationError, getExcelTaskColumns, getExcelTemplateHeaders, normalizeAppExportSheetRows, parseExcelSheetRows, readExcelExportMetadata, validateImportedTaskRows, type ExcelTaskColumn, type ImportedTaskReviewRow } from '@/lib/task-excel';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
@@ -49,6 +49,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { createId } from '@/lib/id';
 import { format } from 'date-fns';
 
 type ImportStage = 'upload' | 'review' | 'results';
@@ -62,6 +63,18 @@ interface ImportResultSummary {
 interface PendingImportSummary {
   validCount: number;
   invalidCount: number;
+}
+
+interface PendingNewValueGroup {
+  fieldKey: string;
+  fieldLabel: string;
+  values: string[];
+}
+
+interface PendingNewValueSummary {
+  validCount: number;
+  invalidCount: number;
+  groups: PendingNewValueGroup[];
 }
 
 interface UploadValidationFeedback {
@@ -104,18 +117,14 @@ function buildValidationSummary(row: ImportedTaskReviewRow) {
   return entries.join(', ');
 }
 
-function isFocusInsideCurrentRow(event: React.FocusEvent<HTMLTableRowElement>) {
-  const nextFocusedElement = event.relatedTarget;
-  if (!(nextFocusedElement instanceof HTMLElement)) return false;
-  return event.currentTarget.contains(nextFocusedElement);
-}
-
 function ReviewCellEditor({
+  rowBoundaryId,
   column,
   value,
   onChange,
   options,
 }: {
+  rowBoundaryId: string;
   column: ExcelTaskColumn;
   value: string;
   onChange: (nextValue: string) => void;
@@ -146,7 +155,7 @@ function ReviewCellEditor({
             <CalendarIcon className="ml-3 h-4 w-4 opacity-60" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto rounded-3xl border-border/70 p-0" align="start">
+        <PopoverContent data-import-row-boundary={rowBoundaryId} className="w-auto rounded-3xl border-border/70 p-0" align="start">
           <Calendar
             mode="single"
             selected={selectedDate}
@@ -172,7 +181,7 @@ function ReviewCellEditor({
         <SelectTrigger className="h-11 min-w-[220px] rounded-2xl">
           <SelectValue placeholder={`Choose ${column.label.toLowerCase()}`} />
         </SelectTrigger>
-        <SelectContent className="rounded-2xl border-border/70">
+        <SelectContent data-import-row-boundary={rowBoundaryId} className="rounded-2xl border-border/70">
           {selectOptions.map(option => (
             <SelectItem key={option.value} value={option.value}>
               {option.label}
@@ -193,9 +202,16 @@ function ReviewCellEditor({
         options={options}
         selected={selectedValues}
         onChange={selected => onChange(selected.join(', '))}
-        creatable={column.type === 'tags'}
+        creatable={
+          column.type === 'tags' ||
+          column.key === 'repositories' ||
+          column.key === 'developers' ||
+          column.key === 'testers' ||
+          (column.type === 'multiselect' && column.key !== 'relevantEnvironments')
+        }
         placeholder={`Select ${column.label.toLowerCase()}`}
         className="min-w-[220px] rounded-2xl"
+        boundaryId={rowBoundaryId}
       />
     );
   }
@@ -304,6 +320,7 @@ export default function ExcelImportPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [rows, setRows] = useState<ImportedTaskReviewRow[]>([]);
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
+  const [editingDrafts, setEditingDrafts] = useState<Record<string, Record<string, string>>>({});
   const [isBooting, setIsBooting] = useState(true);
   const [isParsing, setIsParsing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -312,6 +329,7 @@ export default function ExcelImportPage() {
   const [progressValue, setProgressValue] = useState(0);
   const [resultSummary, setResultSummary] = useState<ImportResultSummary | null>(null);
   const [pendingImportSummary, setPendingImportSummary] = useState<PendingImportSummary | null>(null);
+  const [pendingNewValueSummary, setPendingNewValueSummary] = useState<PendingNewValueSummary | null>(null);
   const [isReimportConfirmOpen, setIsReimportConfirmOpen] = useState(false);
   const [uploadValidationFeedback, setUploadValidationFeedback] = useState<UploadValidationFeedback | null>(null);
 
@@ -357,6 +375,16 @@ export default function ExcelImportPage() {
     return options;
   }, [developers, tasks, testers, uiConfig]);
 
+  const developerNamesById = useMemo(
+    () => new Map(developers.map(person => [person.id, person.name])),
+    [developers]
+  );
+
+  const testerNamesById = useMemo(
+    () => new Map(testers.map(person => [person.id, person.name])),
+    [testers]
+  );
+
   const summary = useMemo(() => {
     const total = rows.length;
     const valid = rows.filter(row => row.isValid).length;
@@ -367,6 +395,7 @@ export default function ExcelImportPage() {
   const resetWorkingImportState = () => {
     setRows([]);
     setEditingRowId(null);
+    setEditingDrafts({});
     setFileName('');
     setProgressValue(0);
 
@@ -395,6 +424,7 @@ export default function ExcelImportPage() {
     setDevelopers(getDevelopers());
     setTesters(getTesters());
     setTasks(getTasks());
+    setUiConfig(getUiConfig());
   };
 
   const revalidateRows = (draftRows: Array<{ id: string; rowNumber: number; values: Record<string, string> }>) => {
@@ -411,6 +441,199 @@ export default function ExcelImportPage() {
     refreshDataSnapshot();
     return nextRows;
   };
+
+  const collectPendingNewValueGroups = useCallback((sourceRows: ImportedTaskReviewRow[]) => {
+    if (!uiConfig) return [];
+
+    const taskTagValues = new Set(
+      tasks
+        .flatMap(task => task.tags || [])
+        .map(tag => tag.trim().toLowerCase())
+        .filter(Boolean)
+    );
+
+    const fieldGroups = new Map<string, { fieldLabel: string; values: Map<string, string> }>();
+
+    const pushValue = (fieldKey: string, fieldLabel: string, value: string) => {
+      const trimmedValue = value.trim();
+      if (!trimmedValue) return;
+
+      const normalizedKey = trimmedValue.toLowerCase();
+      const currentGroup = fieldGroups.get(fieldKey) || {
+        fieldLabel,
+        values: new Map<string, string>(),
+      };
+
+      if (!currentGroup.values.has(normalizedKey)) {
+        currentGroup.values.set(normalizedKey, trimmedValue);
+      }
+
+      fieldGroups.set(fieldKey, currentGroup);
+    };
+
+    const repositoryNames = new Set(
+      uiConfig.repositoryConfigs.map(repo => repo.name.trim().toLowerCase()).filter(Boolean)
+    );
+    const developerNames = new Set(developers.map(person => person.name.trim().toLowerCase()).filter(Boolean));
+    const testerNames = new Set(testers.map(person => person.name.trim().toLowerCase()).filter(Boolean));
+
+    sourceRows.forEach(row => {
+      const repositoryValues = Array.isArray(row.normalizedTask.repositories) ? row.normalizedTask.repositories : [];
+      repositoryValues.forEach(value => {
+        const nextValue = String(value || '').trim();
+        if (!nextValue || repositoryNames.has(nextValue.toLowerCase())) return;
+        pushValue('repositories', 'Repositories', nextValue);
+      });
+
+      const developerValues = Array.isArray(row.normalizedTask.developers) ? row.normalizedTask.developers : [];
+      developerValues.forEach(value => {
+        const rawValue = String(value || '').trim();
+        const displayValue = developerNamesById.get(rawValue) || rawValue;
+        if (!displayValue || developerNames.has(displayValue.toLowerCase())) return;
+        pushValue('developers', 'Developers', displayValue);
+      });
+
+      const testerValues = Array.isArray(row.normalizedTask.testers) ? row.normalizedTask.testers : [];
+      testerValues.forEach(value => {
+        const rawValue = String(value || '').trim();
+        const displayValue = testerNamesById.get(rawValue) || rawValue;
+        if (!displayValue || testerNames.has(displayValue.toLowerCase())) return;
+        pushValue('testers', 'Testers', displayValue);
+      });
+    });
+
+    uiConfig.fields
+      .filter(field => field.isActive)
+      .forEach(field => {
+        const isSupportedField =
+          (field.type === 'multiselect' || field.type === 'tags') &&
+          !['repositories', 'relevantEnvironments', 'developers', 'testers'].includes(field.key);
+
+        if (!isSupportedField) return;
+
+        const existingValues = new Set(
+          field.key === 'tags'
+            ? Array.from(taskTagValues)
+            : (field.options || [])
+                .map(option => option.value.trim().toLowerCase())
+                .filter(Boolean)
+        );
+
+        sourceRows.forEach(row => {
+          const rawValue = field.isCustom
+            ? row.normalizedTask.customFields?.[field.key]
+            : (row.normalizedTask as Record<string, unknown>)[field.key];
+
+          const parsedValues = Array.isArray(rawValue)
+            ? rawValue
+            : typeof rawValue === 'string'
+              ? rawValue.split(/[,;\n]+/)
+              : [];
+
+          parsedValues
+            .map(value => String(value || '').trim())
+            .filter(Boolean)
+            .forEach(value => {
+              if (existingValues.has(value.toLowerCase())) return;
+              pushValue(field.key, field.label, value);
+            });
+        });
+      });
+
+    return Array.from(fieldGroups.entries())
+      .map(([fieldKey, group]) => ({
+        fieldKey,
+        fieldLabel: group.fieldLabel,
+        values: Array.from(group.values.values()).sort((left, right) => left.localeCompare(right)),
+      }))
+      .filter(group => group.values.length > 0);
+  }, [developerNamesById, developers, tasks, testerNamesById, testers, uiConfig]);
+
+  const syncImportFieldOptions = useCallback((sourceRows: ImportedTaskReviewRow[]) => {
+    const latestUiConfig = getUiConfig();
+    let didChange = false;
+
+    const repositoryNames = new Set(
+      latestUiConfig.repositoryConfigs.map(repo => repo.name.trim().toLowerCase()).filter(Boolean)
+    );
+
+    sourceRows.forEach(row => {
+      const repositoryValues = Array.isArray(row.normalizedTask.repositories) ? row.normalizedTask.repositories : [];
+      repositoryValues.forEach(value => {
+        const trimmedValue = String(value || '').trim();
+        if (!trimmedValue) return;
+        if (repositoryNames.has(trimmedValue.toLowerCase())) return;
+        addRepositoryConfig({ name: trimmedValue, baseUrl: '' });
+        repositoryNames.add(trimmedValue.toLowerCase());
+        didChange = true;
+      });
+    });
+
+    let nextUiConfig = didChange ? getUiConfig() : latestUiConfig;
+    let fieldsChanged = false;
+
+    const nextFields = nextUiConfig.fields.map(field => {
+      const isExpandableField =
+        (field.type === 'multiselect' || field.type === 'tags') &&
+        !['repositories', 'relevantEnvironments', 'developers', 'testers'].includes(field.key);
+
+      if (!isExpandableField) return field;
+
+      let fieldChanged = false;
+      const nextValues = new Map(
+        (field.options || []).map(option => [option.value.trim().toLowerCase(), option])
+      );
+
+      sourceRows.forEach(row => {
+        const sourceValue = field.isCustom
+          ? row.normalizedTask.customFields?.[field.key]
+          : (row.normalizedTask as Record<string, unknown>)[field.key];
+
+        const parsedValues = Array.isArray(sourceValue)
+          ? sourceValue
+          : typeof sourceValue === 'string'
+            ? sourceValue.split(/[,;\n]+/)
+            : [];
+
+        parsedValues
+          .map(value => String(value || '').trim())
+          .filter(Boolean)
+          .forEach(value => {
+            const normalizedKey = value.toLowerCase();
+            if (nextValues.has(normalizedKey)) return;
+            nextValues.set(normalizedKey, {
+              id: createId('field-option-'),
+              value,
+              label: value,
+            });
+            fieldChanged = true;
+            fieldsChanged = true;
+          });
+      });
+
+      if (!fieldChanged) return field;
+
+      return {
+        ...field,
+        options: Array.from(nextValues.values()),
+      };
+    });
+
+    if (fieldsChanged) {
+      nextUiConfig = {
+        ...nextUiConfig,
+        fields: nextFields,
+      };
+      persistUiConfig(nextUiConfig);
+      didChange = true;
+    }
+
+    if (didChange) {
+      setUiConfig(getUiConfig());
+    }
+
+    return didChange ? getUiConfig() : nextUiConfig;
+  }, []);
 
   const handleDownloadTemplate = () => {
     if (!uiConfig) return;
@@ -523,6 +746,12 @@ export default function ExcelImportPage() {
     const workbook = utils.book_new();
     const sheet = utils.json_to_sheet(exportRows);
     utils.book_append_sheet(workbook, sheet, 'Tasks');
+    appendExcelExportMetadataSheet(workbook, utils, {
+      appName: uiConfig.appName || 'My Task Manager',
+      exportType: 'Current Tasks',
+      primarySheet: 'Tasks',
+      taskCount: exportRows.length,
+    });
     writeFile(workbook, 'Tasks_Export.xlsx');
   };
 
@@ -555,14 +784,18 @@ export default function ExcelImportPage() {
       setProgressValue(38);
       const parsedWorkbook = await import('xlsx');
       const readWorkbook = parsedWorkbook.read(buffer, { type: 'array', cellDates: false });
-      const firstSheetName = readWorkbook.SheetNames[0];
+      const exportMetadata = readExcelExportMetadata(readWorkbook, parsedWorkbook.utils);
+      const firstSheetName = exportMetadata?.['Primary Sheet'] && readWorkbook.Sheets[exportMetadata['Primary Sheet']]
+        ? exportMetadata['Primary Sheet']
+        : readWorkbook.SheetNames.find(sheetName => sheetName !== '_TaskFlow_Metadata') || readWorkbook.SheetNames[0];
 
       if (!firstSheetName) {
         throw new Error('The workbook does not contain any sheets.');
       }
 
       const firstSheet = readWorkbook.Sheets[firstSheetName];
-      const sheetRows = parsedWorkbook.utils.sheet_to_json(firstSheet, { header: 1, defval: '' }) as unknown[][];
+      const rawSheetRows = parsedWorkbook.utils.sheet_to_json(firstSheet, { header: 1, defval: '' }) as unknown[][];
+      const sheetRows = exportMetadata ? normalizeAppExportSheetRows(rawSheetRows, uiConfig) : rawSheetRows;
       setProgressValue(56);
 
       if (sheetRows.length === 0) {
@@ -641,6 +874,7 @@ export default function ExcelImportPage() {
       setRows([]);
       setActiveTab('upload');
       setEditingRowId(null);
+      setEditingDrafts({});
       setProgressValue(0);
     } finally {
       setIsParsing(false);
@@ -651,19 +885,13 @@ export default function ExcelImportPage() {
   };
 
   const handleCellChange = (rowId: string, key: string, value: string) => {
-    const draftRows = rows.map(row => {
-      if (row.id !== rowId) return { id: row.id, rowNumber: row.rowNumber, values: row.values };
-      return {
-        id: row.id,
-        rowNumber: row.rowNumber,
-        values: {
-          ...row.values,
-          [key]: value,
-        },
-      };
-    });
-
-    revalidateRows(draftRows);
+    setEditingDrafts(current => ({
+      ...current,
+      [rowId]: {
+        ...(current[rowId] || rows.find(row => row.id === rowId)?.values || {}),
+        [key]: value,
+      },
+    }));
   };
 
   const handleDeleteRow = (rowId: string) => {
@@ -674,16 +902,73 @@ export default function ExcelImportPage() {
     revalidateRows(draftRows);
     if (editingRowId === rowId) {
       setEditingRowId(null);
+      setEditingDrafts(current => {
+        if (!current[rowId]) return current;
+        const nextDrafts = { ...current };
+        delete nextDrafts[rowId];
+        return nextDrafts;
+      });
     }
   };
 
   const toggleRowEditing = (rowId: string) => {
-    setEditingRowId(current => (current === rowId ? null : rowId));
+    const targetRow = rows.find(row => row.id === rowId);
+    if (!targetRow) return;
+
+    setEditingDrafts(current => {
+      const nextDrafts = editingRowId ? { ...current } : current;
+      if (editingRowId && editingRowId !== rowId) {
+        delete nextDrafts[editingRowId];
+      }
+
+      return {
+        ...nextDrafts,
+        [rowId]: { ...targetRow.values },
+      };
+    });
+    setEditingRowId(rowId);
   };
 
-  const closeEditingRow = () => {
+  const saveEditingRow = (rowId: string) => {
+    const draftValues = editingDrafts[rowId];
+    if (!draftValues) {
+      setEditingRowId(null);
+      return;
+    }
+
+    const draftRows = rows.map(row => {
+      if (row.id !== rowId) {
+        return { id: row.id, rowNumber: row.rowNumber, values: row.values };
+      }
+
+      return {
+        id: row.id,
+        rowNumber: row.rowNumber,
+        values: draftValues,
+      };
+    });
+
+    revalidateRows(draftRows);
+    setEditingDrafts(current => {
+      const nextDrafts = { ...current };
+      delete nextDrafts[rowId];
+      return nextDrafts;
+    });
     setEditingRowId(null);
   };
+
+  const cancelEditingRow = useCallback((rowId?: string) => {
+    const targetRowId = rowId || editingRowId;
+    if (!targetRowId) return;
+
+    setEditingDrafts(current => {
+      if (!current[targetRowId]) return current;
+      const nextDrafts = { ...current };
+      delete nextDrafts[targetRowId];
+      return nextDrafts;
+    });
+    setEditingRowId(current => (current === targetRowId ? null : current));
+  }, [editingRowId]);
 
   const executeImportValidRows = async () => {
     if (!uiConfig) return;
@@ -703,6 +988,8 @@ export default function ExcelImportPage() {
     let importedCount = 0;
 
     try {
+      const effectiveUiConfig = syncImportFieldOptions(validRows);
+
       for (const row of validRows) {
         try {
           const currentDevelopers = getDevelopers();
@@ -743,7 +1030,7 @@ export default function ExcelImportPage() {
           });
 
           const createdTask = addTask(
-            buildImportTaskPayload(row.normalizedTask, uiConfig, resolvedDevelopers, resolvedTesters)
+            buildImportTaskPayload(row.normalizedTask, effectiveUiConfig, resolvedDevelopers, resolvedTesters)
           );
           addLog({
             message: `Imported task "**${createdTask.title}**" via Excel import.`,
@@ -778,6 +1065,27 @@ export default function ExcelImportPage() {
     }
   };
 
+  const continueImportFlow = async (validCount: number, invalidCount: number) => {
+    const validRows = rows.filter(row => row.isValid);
+
+    if (validRows.length === 0) {
+      await executeImportValidRows();
+      return;
+    }
+
+    const pendingGroups = collectPendingNewValueGroups(validRows);
+    if (pendingGroups.length > 0) {
+      setPendingNewValueSummary({
+        validCount,
+        invalidCount,
+        groups: pendingGroups,
+      });
+      return;
+    }
+
+    await executeImportValidRows();
+  };
+
   const handleImportValidRows = async () => {
     const validCount = rows.filter(row => row.isValid).length;
     const invalidCount = rows.length - validCount;
@@ -792,7 +1100,7 @@ export default function ExcelImportPage() {
       return;
     }
 
-    await executeImportValidRows();
+    await continueImportFlow(validCount, invalidCount);
   };
 
   if (isBooting || !uiConfig) {
@@ -902,12 +1210,95 @@ export default function ExcelImportPage() {
                   disabled={isImporting}
                   onClick={async event => {
                     event.preventDefault();
+                    const nextSummary = pendingImportSummary;
                     setPendingImportSummary(null);
-                    await executeImportValidRows();
+                    await continueImportFlow(nextSummary?.validCount || 0, nextSummary?.invalidCount || 0);
                   }}
                 >
                   {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
                   Proceed with import
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </div>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog
+          open={Boolean(pendingNewValueSummary)}
+          onOpenChange={open => {
+            if (!open) {
+              setPendingNewValueSummary(null);
+            }
+          }}
+        >
+          <AlertDialogContent className="rounded-[2rem] border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.09),rgba(255,255,255,0.035))] p-0 sm:max-w-2xl">
+            <div className="border-b border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.14),transparent_38%),linear-gradient(135deg,rgba(15,23,42,0.96),rgba(15,23,42,0.9))] px-6 pb-5 pt-6">
+              <AlertDialogHeader className="space-y-3 text-left">
+                <Badge variant="secondary" className="w-fit rounded-full px-3 py-1">
+                  New Values Detected
+                </Badge>
+                <AlertDialogTitle>Create new values during import?</AlertDialogTitle>
+                <AlertDialogDescription className="max-w-xl text-sm leading-7">
+                  New values were detected in your valid rows. These will be created during import so the workbook stays consistent with your workspace.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+            </div>
+            <div className="space-y-5 px-6 pb-6 pt-5">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-[1.5rem] border border-emerald-500/20 bg-emerald-500/8 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Valid Rows</p>
+                  <p className="mt-2 text-3xl font-semibold text-foreground">{pendingNewValueSummary?.validCount || 0}</p>
+                </div>
+                <div className="rounded-[1.5rem] border border-primary/15 bg-primary/6 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">New Value Groups</p>
+                  <p className="mt-2 text-3xl font-semibold text-foreground">{pendingNewValueSummary?.groups.length || 0}</p>
+                </div>
+              </div>
+
+              <div className="max-h-[50vh] space-y-4 overflow-y-auto pr-1 [scrollbar-color:hsl(var(--primary)/0.35)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:border-[3px] [&::-webkit-scrollbar-thumb]:border-solid [&::-webkit-scrollbar-thumb]:border-background [&::-webkit-scrollbar-thumb]:bg-primary/30 hover:[&::-webkit-scrollbar-thumb]:bg-primary/45">
+                {pendingNewValueSummary?.groups.map(group => (
+                  <div
+                    key={group.fieldKey}
+                    className="rounded-[1.5rem] border border-border/70 bg-background/70 px-4 py-4 shadow-[0_12px_30px_-24px_rgba(15,23,42,0.35)]"
+                  >
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">{group.fieldLabel}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {group.values.length} new value{group.values.length === 1 ? '' : 's'} will be created
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {group.values.map(value => (
+                        <Badge
+                          key={`${group.fieldKey}-${value}`}
+                          variant="secondary"
+                          className="max-w-full rounded-full border border-primary/10 bg-primary/8 px-3 py-1 text-xs font-medium text-foreground"
+                        >
+                          <span className="truncate">{value}</span>
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <AlertDialogFooter className="gap-3">
+                <AlertDialogCancel className="rounded-2xl" disabled={isImporting}>
+                  Cancel and review
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  className="rounded-2xl"
+                  disabled={isImporting}
+                  onClick={async event => {
+                    event.preventDefault();
+                    setPendingNewValueSummary(null);
+                    await executeImportValidRows();
+                  }}
+                >
+                  {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+                  Proceed and create values
                 </AlertDialogAction>
               </AlertDialogFooter>
             </div>
@@ -1190,14 +1581,13 @@ export default function ExcelImportPage() {
                         <tbody>
                           {rows.map(row => {
                             const isEditing = editingRowId === row.id;
+                            const rowBoundaryId = `import-edit-row-${row.id}`;
+                            const editingValues = editingDrafts[row.id] || row.values;
                             return (
                               <tr
                                 key={row.id}
-                                onBlur={event => {
-                                  if (!isEditing) return;
-                                  if (isFocusInsideCurrentRow(event)) return;
-                                  closeEditingRow();
-                                }}
+                                data-import-row={row.id}
+                                data-import-row-boundary={rowBoundaryId}
                                 className={cn(
                                   'border-b border-border/60 align-top transition-[background-color,box-shadow] duration-200',
                                   row.isValid ? 'bg-emerald-500/[0.03]' : 'bg-rose-500/[0.03]',
@@ -1221,7 +1611,9 @@ export default function ExcelImportPage() {
                                   </Badge>
                                 </td>
                                 {reviewColumns.map(column => {
-                                  const value = row.values[column.key] || '';
+                                  const value = isEditing
+                                    ? editingValues[column.key] || ''
+                                    : row.values[column.key] || '';
                                   const isStickyTitle = column.key === 'title';
 
                                   return (
@@ -1234,6 +1626,7 @@ export default function ExcelImportPage() {
                                     >
                                       {isEditing ? (
                                         <ReviewCellEditor
+                                          rowBoundaryId={rowBoundaryId}
                                           column={column}
                                           value={value}
                                           onChange={nextValue => handleCellChange(row.id, column.key, nextValue)}
@@ -1290,14 +1683,14 @@ export default function ExcelImportPage() {
                                           variant="outline"
                                           size="icon"
                                           className="h-10 w-10 rounded-full"
-                                          onClick={() => (isEditing ? closeEditingRow() : toggleRowEditing(row.id))}
-                                          aria-label={isEditing ? 'Save and close row' : 'Edit row'}
+                                          onClick={() => (isEditing ? saveEditingRow(row.id) : toggleRowEditing(row.id))}
+                                          aria-label={isEditing ? 'Save row' : 'Edit row'}
                                         >
                                           {isEditing ? <Check className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
                                         </Button>
                                       </TooltipTrigger>
                                       <TooltipContent className="rounded-xl border-border/70 bg-popover/95 px-3 py-2 backdrop-blur-xl">
-                                        {isEditing ? 'Save and close' : 'Edit row'}
+                                        {isEditing ? 'Save row' : 'Edit row'}
                                       </TooltipContent>
                                     </Tooltip>
                                     <Tooltip>
@@ -1306,15 +1699,18 @@ export default function ExcelImportPage() {
                                           type="button"
                                           variant="outline"
                                           size="icon"
-                                          className="h-10 w-10 rounded-full text-rose-600 hover:text-rose-700"
-                                          onClick={() => handleDeleteRow(row.id)}
-                                          aria-label="Delete row"
+                                          className={cn(
+                                            'h-10 w-10 rounded-full',
+                                            isEditing ? 'text-muted-foreground hover:text-foreground' : 'text-rose-600 hover:text-rose-700'
+                                          )}
+                                          onClick={() => (isEditing ? cancelEditingRow(row.id) : handleDeleteRow(row.id))}
+                                          aria-label={isEditing ? 'Cancel row editing' : 'Delete row'}
                                         >
-                                          <Trash2 className="h-4 w-4" />
+                                          {isEditing ? <XCircle className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}
                                         </Button>
                                       </TooltipTrigger>
                                       <TooltipContent className="rounded-xl border-border/70 bg-popover/95 px-3 py-2 backdrop-blur-xl">
-                                        Delete row
+                                        {isEditing ? 'Cancel changes' : 'Delete row'}
                                       </TooltipContent>
                                     </Tooltip>
                                   </div>

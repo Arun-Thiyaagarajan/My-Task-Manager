@@ -120,7 +120,7 @@ import { isRepositoryFieldActive } from '@/lib/repository-config';
 import { openGlobalSpotlightSearch } from '@/components/global-spotlight-search';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { TasksCalendarView } from '@/components/tasks-calendar-view';
-import { buildExcelExportRows } from '@/lib/task-excel';
+import { appendExcelExportMetadataSheet, buildExcelExportRows } from '@/lib/task-excel';
 
 type ViewMode = 'grid' | 'table';
 type DateView = 'all' | 'monthly' | 'calendar' | 'yearly';
@@ -785,6 +785,12 @@ export default function Home() {
         { Key: 'Task Count', Value: String(activeTasksToExport.length) },
       ];
       utils.book_append_sheet(workbook, utils.json_to_sheet(metadataRows), 'Summary');
+      appendExcelExportMetadataSheet(workbook, utils, {
+        appName: getUiConfig().appName || 'My Task Manager',
+        exportType: exportType === 'current_view' ? 'Current View' : 'Full Workspace',
+        primarySheet: 'Tasks',
+        taskCount: activeTasksToExport.length,
+      });
 
       const fileName = `${appNamePrefix}_${exportType === 'current_view' ? 'Current_View' : 'Full_Workspace'}.xlsx`;
       writeFile(workbook, fileName);
@@ -1747,9 +1753,9 @@ export default function Home() {
                                 <FolderSearch className="h-4 w-4" />
                             </div>
                             <div className="min-w-0 space-y-0.5">
-                                <p className="text-sm font-semibold text-foreground">Export current view</p>
+                                <p className="text-sm font-semibold text-foreground">Export JSON current view</p>
                                 <p className="text-xs leading-relaxed text-muted-foreground">
-                                    Download only the tasks matching your current filters and screen context.
+                                    Download only the tasks matching your current filters and screen context as JSON.
                                 </p>
                             </div>
                         </DropdownMenuItem>
@@ -1761,7 +1767,7 @@ export default function Home() {
                                 <FileText className="h-4 w-4" />
                             </div>
                             <div className="min-w-0 space-y-0.5">
-                                <p className="text-sm font-semibold text-foreground">Export full workspace</p>
+                                <p className="text-sm font-semibold text-foreground">Export JSON full workspace</p>
                                 <p className="text-xs leading-relaxed text-muted-foreground">
                                     Save all tasks into one JSON backup for sharing or restoring later.
                                 </p>

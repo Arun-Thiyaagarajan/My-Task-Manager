@@ -1,5 +1,8 @@
 import type { FieldConfig, FieldType, Person, Task, UiConfig } from '@/lib/types';
 
+export const TASK_EXCEL_EXPORT_METADATA_SHEET = '_TaskFlow_Metadata';
+const TASK_EXCEL_EXPORT_SOURCE = 'taskflow_export_v1';
+
 export interface ExcelTaskColumn {
   key: string;
   header: string;
@@ -39,6 +42,14 @@ export interface ImportValidationContext {
   developers: Person[];
   testers: Person[];
 }
+
+type WorkbookLike = {
+  SheetNames?: string[];
+  Sheets?: Record<string, unknown>;
+  Workbook?: {
+    Sheets?: Array<{ name?: string; Hidden?: number }>;
+  };
+};
 
 const EXTRA_EXPORT_COLUMNS: ExcelTaskColumn[] = [
   { key: 'id', label: 'Task ID', header: 'Task ID', type: 'text', isRequired: false, isUnique: false, isCustom: false, importable: false, exportable: true },
@@ -101,6 +112,31 @@ const stringifyCellValue = (value: unknown): string => {
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
   if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
+};
+
+const formatExportDateValue = (value: unknown): string => {
+  if (!value) return '';
+
+  const parsed = value instanceof Date ? value : new Date(String(value));
+  if (Number.isNaN(parsed.getTime())) return stringifyCellValue(value);
+
+  const day = `${parsed.getDate()}`.padStart(2, '0');
+  const month = `${parsed.getMonth() + 1}`.padStart(2, '0');
+  const year = parsed.getFullYear();
+  return `${day}-${month}-${year}`;
+};
+
+const stringifyArrayExportValue = (values: unknown[]): string =>
+  values
+    .map(value => normalizeString(value))
+    .filter(Boolean)
+    .join(', ');
+
+const formatSelectableExportValue = (value: unknown, options?: string[]): string => {
+  const normalizedValue = normalizeString(value);
+  if (!normalizedValue) return '';
+  if (!options?.length) return normalizedValue;
+  return normalizeOptionValue(normalizedValue, options);
 };
 
 const getTaskFieldValue = (task: Task, key: string): unknown => {
@@ -248,35 +284,176 @@ export function buildExcelExportRows(
   developers: Person[],
   testers: Person[]
 ): Record<string, string>[] {
-  const { exportColumns } = getExcelTaskColumns(uiConfig);
+  const { importColumns } = getExcelTaskColumns(uiConfig);
   const developerMap = new Map(developers.map(person => [person.id, person.name]));
   const testerMap = new Map(testers.map(person => [person.id, person.name]));
 
   return tasks.map(task => {
     const row: Record<string, string> = {};
 
-    exportColumns.forEach(column => {
+    importColumns.forEach(column => {
       const rawValue = getRawTaskValue(task, column);
 
       if (column.key === 'developers' && Array.isArray(rawValue)) {
-        row[column.label] = rawValue
-          .map(value => developerMap.get(String(value)) || String(value))
+        row[column.header] = rawValue
+          .map(value => developerMap.get(String(value)) || normalizeString(value))
+          .filter(Boolean)
           .join(', ');
         return;
       }
 
       if (column.key === 'testers' && Array.isArray(rawValue)) {
-        row[column.label] = rawValue
-          .map(value => testerMap.get(String(value)) || String(value))
+        row[column.header] = rawValue
+          .map(value => testerMap.get(String(value)) || normalizeString(value))
+          .filter(Boolean)
           .join(', ');
         return;
       }
 
-      row[column.label] = stringifyCellValue(rawValue);
+      if (column.type === 'date') {
+        row[column.header] = formatExportDateValue(rawValue);
+        return;
+      }
+
+       if (
+        column.key === 'repositories' ||
+        column.key === 'tags' ||
+        column.key === 'relevantEnvironments' ||
+        column.type === 'multiselect'
+      ) {
+        row[column.header] = Array.isArray(rawValue)
+          ? stringifyArrayExportValue(
+              rawValue.map(value =>
+                column.options?.length ? normalizeOptionValue(normalizeString(value), column.options) : normalizeString(value)
+              )
+            )
+          : normalizeString(rawValue);
+        return;
+      }
+
+      if (column.type === 'select') {
+        row[column.header] = formatSelectableExportValue(rawValue, column.options);
+        return;
+      }
+
+      if (column.type === 'checkbox') {
+        const parsed = typeof rawValue === 'boolean' ? rawValue : parseBoolean(normalizeString(rawValue));
+        row[column.header] = parsed === null ? normalizeString(rawValue) : parsed ? 'Yes' : 'No';
+        return;
+      }
+
+      row[column.header] = stringifyCellValue(rawValue);
     });
 
     return row;
   });
+}
+
+export function appendExcelExportMetadataSheet(
+  workbook: WorkbookLike,
+  utils: any,
+  metadata: {
+    appName: string;
+    exportType: string;
+    primarySheet: string;
+    taskCount: number;
+  }
+) {
+  const sheet = utils.json_to_sheet([
+    { Key: 'Source', Value: TASK_EXCEL_EXPORT_SOURCE },
+    { Key: 'Format', Value: 'template_compatible_v1' },
+    { Key: 'Primary Sheet', Value: metadata.primarySheet },
+    { Key: 'Export Type', Value: metadata.exportType },
+    { Key: 'App Name', Value: metadata.appName || 'My Task Manager' },
+    { Key: 'Exported At', Value: new Date().toISOString() },
+    { Key: 'Task Count', Value: String(metadata.taskCount) },
+  ]);
+
+  utils.book_append_sheet(workbook, sheet, TASK_EXCEL_EXPORT_METADATA_SHEET);
+
+  if (!workbook.Workbook) {
+    workbook.Workbook = { Sheets: [] };
+  }
+
+  if (!workbook.Workbook.Sheets) {
+    workbook.Workbook.Sheets = [];
+  }
+
+  const existingSheet = workbook.Workbook.Sheets.find(entry => entry.name === TASK_EXCEL_EXPORT_METADATA_SHEET);
+  if (existingSheet) {
+    existingSheet.Hidden = 1;
+    return;
+  }
+
+  workbook.Workbook.Sheets.push({
+    name: TASK_EXCEL_EXPORT_METADATA_SHEET,
+    Hidden: 1,
+  });
+}
+
+export function readExcelExportMetadata(
+  workbook: WorkbookLike,
+  utils: any
+): Record<string, string> | null {
+  const metadataSheet = workbook.Sheets?.[TASK_EXCEL_EXPORT_METADATA_SHEET];
+  if (!metadataSheet) return null;
+
+  const rows = utils.sheet_to_json(metadataSheet, { defval: '' }) as Array<Record<string, unknown>>;
+  const metadata = rows.reduce((accumulator: Record<string, string>, row: Record<string, unknown>) => {
+    const key = typeof row.Key === 'string' ? row.Key : '';
+    const value = typeof row.Value === 'string' ? row.Value : String(row.Value || '');
+    if (key) {
+      accumulator[key] = value;
+    }
+    return accumulator;
+  }, {});
+
+  return metadata.Source === TASK_EXCEL_EXPORT_SOURCE ? metadata : null;
+}
+
+export function normalizeAppExportSheetRows(sheetRows: unknown[][], uiConfig: UiConfig): unknown[][] {
+  const { importColumns } = getExcelTaskColumns(uiConfig);
+  const [headerRow = [], ...dataRows] = sheetRows;
+  const headerToColumn = new Map<string, ExcelTaskColumn>();
+
+  importColumns.forEach(column => {
+    headerToColumn.set(normalizeHeaderToken(column.header), column);
+    headerToColumn.set(normalizeHeaderToken(column.label), column);
+    headerToColumn.set(normalizeHeaderToken(column.key), column);
+  });
+
+  const mappedColumns = headerRow.map(cell => headerToColumn.get(normalizeHeaderToken(normalizeString(cell))) || null);
+
+  const normalizedDataRows = dataRows.map(row =>
+    row.map((cell, columnIndex) => {
+      const column = mappedColumns[columnIndex];
+      if (!column) return cell;
+
+      const rawValue = normalizeString(cell);
+      if (!rawValue) return '';
+
+      if (column.type === 'date') {
+        return formatExportDateValue(rawValue);
+      }
+
+      if (column.type === 'checkbox') {
+        const parsed = parseBoolean(rawValue);
+        return parsed === null ? rawValue : parsed ? 'Yes' : 'No';
+      }
+
+      if (column.type === 'multiselect' || column.type === 'tags' || ['repositories', 'developers', 'testers', 'relevantEnvironments'].includes(column.key)) {
+        return splitMultiValue(rawValue).join(', ');
+      }
+
+      if (column.key === 'status') {
+        return normalizeStatusValue(rawValue, uiConfig);
+      }
+
+      return rawValue;
+    })
+  );
+
+  return [headerRow, ...normalizedDataRows];
 }
 
 export function parseExcelSheetRows(
@@ -357,6 +534,17 @@ function hasUsableValue(values: Record<string, string>): boolean {
 
 function buildPeopleIdMap(people: Person[]) {
   return new Map(people.map(person => [person.name.trim().toLowerCase(), person.id]));
+}
+
+function buildPeopleNameMap(people: Person[]) {
+  return new Map(people.map(person => [person.id, person.name]));
+}
+
+function getPersonNameById(value: string, people: Person[]): string | null {
+  const trimmedValue = value.trim();
+  if (!trimmedValue) return null;
+  const match = people.find(person => person.id === trimmedValue);
+  return match?.name || null;
 }
 
 function validateOptionValue(value: string, options: string[]): boolean {
@@ -466,7 +654,9 @@ function buildNormalizedTask(
   importColumns: ExcelTaskColumn[],
   uiConfig: UiConfig,
   developerNameToId: Map<string, string>,
-  testerNameToId: Map<string, string>
+  testerNameToId: Map<string, string>,
+  developerIdToName: Map<string, string>,
+  testerIdToName: Map<string, string>
 ): Partial<Task> {
   const normalizedTask: Partial<Task> = {
     customFields: {},
@@ -481,6 +671,10 @@ function buildNormalizedTask(
     if (column.key === 'developers') {
       normalizedTask.developers = splitMultiValue(rawValue)
         .map(item => {
+          const matchedPersonName = developerIdToName.get(item.trim());
+          if (matchedPersonName) {
+            return developerNameToId.get(matchedPersonName.trim().toLowerCase()) || item;
+          }
           const smartMatch = findBestSmartMatch(item, Array.from(developerNameToId.keys()));
           return developerNameToId.get((smartMatch || item).toLowerCase()) || item;
         })
@@ -491,6 +685,10 @@ function buildNormalizedTask(
     if (column.key === 'testers') {
       normalizedTask.testers = splitMultiValue(rawValue)
         .map(item => {
+          const matchedPersonName = testerIdToName.get(item.trim());
+          if (matchedPersonName) {
+            return testerNameToId.get(matchedPersonName.trim().toLowerCase()) || item;
+          }
           const smartMatch = findBestSmartMatch(item, Array.from(testerNameToId.keys()));
           return testerNameToId.get((smartMatch || item).toLowerCase()) || item;
         })
@@ -577,6 +775,8 @@ export function validateImportedTaskRows(
   const { importColumns } = getExcelTaskColumns(context.uiConfig);
   const developerNameToId = buildPeopleIdMap(context.developers);
   const testerNameToId = buildPeopleIdMap(context.testers);
+  const developerIdToName = buildPeopleNameMap(context.developers);
+  const testerIdToName = buildPeopleNameMap(context.testers);
   const repositoryNames = new Set(context.uiConfig.repositoryConfigs.map(repo => repo.name.trim().toLowerCase()));
   const environmentNames = new Set(context.uiConfig.environments.map(environment => environment.name.trim().toLowerCase()));
   const allowedStatuses = new Set(
@@ -607,7 +807,15 @@ export function validateImportedTaskRows(
   return rawRows.map(rawRow => {
     const errors: string[] = [];
     const warnings: string[] = [];
-    const normalizedTask = buildNormalizedTask(rawRow.values, importColumns, context.uiConfig, developerNameToId, testerNameToId);
+    const normalizedTask = buildNormalizedTask(
+      rawRow.values,
+      importColumns,
+      context.uiConfig,
+      developerNameToId,
+      testerNameToId,
+      developerIdToName,
+      testerIdToName
+    );
 
     if (!hasUsableValue(rawRow.values)) {
       errors.push('This row is empty.');
@@ -652,15 +860,15 @@ export function validateImportedTaskRows(
       }
 
       if (column.key === 'repositories') {
-        const invalidValues = splitMultiValue(rawValue).filter(value => {
+        const newValues = splitMultiValue(rawValue).filter(value => {
           const smartMatch = findBestSmartMatch(value, context.uiConfig.repositoryConfigs.map(repo => repo.name));
           if (smartMatch && smartMatch.toLowerCase() !== value.toLowerCase()) {
             warnings.push(`Repository "${value}" was matched to "${smartMatch}".`);
           }
           return !smartMatch;
         });
-        if (invalidValues.length > 0) {
-          errors.push(`Unknown repositories: ${invalidValues.join(', ')}.`);
+        if (newValues.length > 0) {
+          warnings.push(`New repositor${newValues.length === 1 ? 'y will' : 'ies will'} be created: ${newValues.join(', ')}.`);
         }
       }
 
@@ -678,12 +886,17 @@ export function validateImportedTaskRows(
       }
 
       if (column.key === 'developers') {
-        const newValues = splitMultiValue(rawValue).filter(value => {
-          const smartMatch = findBestSmartMatch(value, context.developers.map(person => person.name));
-          if (smartMatch && smartMatch.toLowerCase() !== value.toLowerCase()) {
-            warnings.push(`Developer "${value}" was matched to "${smartMatch}".`);
+        const newValues = splitMultiValue(rawValue).flatMap(value => {
+          const displayValue = getPersonNameById(value, context.developers) || value.trim();
+          if (getPersonNameById(value, context.developers)) {
+            return [];
           }
-          return !smartMatch;
+
+          const smartMatch = findBestSmartMatch(displayValue, context.developers.map(person => person.name));
+          if (smartMatch && smartMatch.toLowerCase() !== displayValue.toLowerCase()) {
+            warnings.push(`Developer "${displayValue}" was matched to "${smartMatch}".`);
+          }
+          return smartMatch ? [] : [displayValue];
         });
         if (newValues.length > 0) {
           warnings.push(`New developer${newValues.length === 1 ? '' : 's'} will be created: ${newValues.join(', ')}.`);
@@ -691,15 +904,41 @@ export function validateImportedTaskRows(
       }
 
       if (column.key === 'testers') {
-        const newValues = splitMultiValue(rawValue).filter(value => {
-          const smartMatch = findBestSmartMatch(value, context.testers.map(person => person.name));
-          if (smartMatch && smartMatch.toLowerCase() !== value.toLowerCase()) {
-            warnings.push(`Tester "${value}" was matched to "${smartMatch}".`);
+        const newValues = splitMultiValue(rawValue).flatMap(value => {
+          const displayValue = getPersonNameById(value, context.testers) || value.trim();
+          if (getPersonNameById(value, context.testers)) {
+            return [];
           }
-          return !smartMatch;
+
+          const smartMatch = findBestSmartMatch(displayValue, context.testers.map(person => person.name));
+          if (smartMatch && smartMatch.toLowerCase() !== displayValue.toLowerCase()) {
+            warnings.push(`Tester "${displayValue}" was matched to "${smartMatch}".`);
+          }
+          return smartMatch ? [] : [displayValue];
         });
         if (newValues.length > 0) {
           warnings.push(`New tester${newValues.length === 1 ? '' : 's'} will be created: ${newValues.join(', ')}.`);
+        }
+      }
+
+      if (
+        (column.type === 'multiselect' || column.type === 'tags') &&
+        column.key !== 'repositories' &&
+        column.key !== 'relevantEnvironments'
+      ) {
+        const availableOptions = (column.options || []).filter(Boolean);
+        if (availableOptions.length > 0) {
+          const newValues = splitMultiValue(rawValue).filter(value => {
+            const smartMatch = findBestSmartMatch(value, availableOptions);
+            if (smartMatch && smartMatch.toLowerCase() !== value.toLowerCase()) {
+              warnings.push(`${displayName} value "${value}" was matched to "${smartMatch}".`);
+            }
+            return !smartMatch;
+          });
+
+          if (newValues.length > 0) {
+            warnings.push(`New ${displayName.toLowerCase()} value${newValues.length === 1 ? '' : 's'} will be added: ${newValues.join(', ')}.`);
+          }
         }
       }
 

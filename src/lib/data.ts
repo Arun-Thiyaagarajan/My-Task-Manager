@@ -1,7 +1,7 @@
 'use client';
 
 import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES, DEFAULT_STATUS_CONFIGS, DEFAULT_STATUS_GROUPS } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile, Feedback, FeedbackMessage, FeedbackStatus, UserProfile, AppNotification, StatusConfigItem, TaskTemplate } from './types'; 
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile, Feedback, FeedbackMessage, FeedbackStatus, UserProfile, AppNotification, StatusConfigItem, TaskTemplate, RepositoryConfig } from './types'; 
 import cloneDeep from 'lodash/cloneDeep';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, setDoc, deleteDoc, updateDoc, collection, writeBatch, getDocs, query, orderBy, limit, getDoc, where, addDoc } from 'firebase/firestore';
@@ -747,6 +747,61 @@ export function setUiConfig(config: UiConfig) {
     if (getAuthMode() === 'authenticate') {
         dispatchMutation('uiConfig', '', data.companyData[getActiveCompanyId()].uiConfig, 'set');
     }
+}
+
+export function addRepositoryConfig(repository: Omit<RepositoryConfig, 'id'>): RepositoryConfig {
+    const trimmedName = repository.name.trim().replace(/\s+/g, ' ');
+    if (!trimmedName) {
+        throw new Error('Repository name is required.');
+    }
+
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    const currentUi = data.companyData[companyId].uiConfig;
+    const existing = currentUi.repositoryConfigs.find(
+        repo => repo.name.trim().toLowerCase() === trimmedName.toLowerCase()
+    );
+
+    if (existing) {
+        return existing;
+    }
+
+    const newRepository: RepositoryConfig = {
+        id: createId('repo-'),
+        name: trimmedName,
+        baseUrl: repository.baseUrl?.trim() || '',
+    };
+
+    const nextConfig = syncTaskStatuses({
+        ...currentUi,
+        repositoryConfigs: [...currentUi.repositoryConfigs, newRepository],
+        fields: currentUi.fields.map(field => {
+            if (field.key !== 'repositories') return field;
+
+            const nextOptions = [...(field.options || [])];
+            if (!nextOptions.some(option => option.value.trim().toLowerCase() === trimmedName.toLowerCase())) {
+                nextOptions.push({
+                    id: createId('field-option-'),
+                    value: trimmedName,
+                    label: trimmedName,
+                });
+            }
+
+            return {
+                ...field,
+                options: nextOptions,
+            };
+        }),
+    });
+
+    data.companyData[companyId].uiConfig = nextConfig;
+    setAppData(data);
+    addLog({ message: `Added new repository: **${trimmedName}**` });
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('uiConfig', '', nextConfig, 'set');
+    }
+
+    return newRepository;
 }
 
 // Environment Management

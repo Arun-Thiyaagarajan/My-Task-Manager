@@ -38,6 +38,7 @@ interface MultiSelectProps {
   className?: string;
   creatable?: boolean;
   maxVisible?: number;
+  boundaryId?: string;
 }
 
 export const MultiSelect = React.memo(function MultiSelect({
@@ -49,6 +50,7 @@ export const MultiSelect = React.memo(function MultiSelect({
   className,
   creatable = false,
   maxVisible = 1,
+  boundaryId,
 }: MultiSelectProps) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   
@@ -190,6 +192,7 @@ export const MultiSelect = React.memo(function MultiSelect({
             </div>
         </PopoverTrigger>
         <PopoverContent 
+            data-import-row-boundary={boundaryId}
             className="w-[300px] overflow-hidden rounded-2xl border-border/70 p-0 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.35)]" 
             align="start"
             onOpenAutoFocus={(e) => e.preventDefault()}
@@ -289,6 +292,7 @@ export const MultiSelect = React.memo(function MultiSelect({
 
         <Dialog open={isListOpen} onOpenChange={setIsListOpen}>
             <DialogContent 
+                data-import-row-boundary={boundaryId}
                 className="sm:max-w-md max-h-[90vh] flex flex-col p-0 overflow-hidden"
                 onOpenAutoFocus={(e) => e.preventDefault()}
             >
