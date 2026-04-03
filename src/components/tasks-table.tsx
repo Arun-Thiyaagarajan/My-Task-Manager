@@ -255,9 +255,9 @@ const TasksTableRow = memo(function TasksTableRow({
             align="end"
             sideOffset={10}
             collisionPadding={12}
-            className="max-h-[min(24rem,calc(100vh-1.5rem))] w-[min(12.75rem,calc(100vw-0.75rem))] overflow-y-auto no-scrollbar rounded-[1.2rem] border-border/50 bg-background/95 p-1 shadow-[0_24px_70px_-34px_rgba(15,23,42,0.5)] backdrop-blur-xl"
+            className="max-h-[min(24rem,calc(100vh-1.5rem))] w-[min(12.75rem,calc(100vw-0.75rem))] overflow-y-auto no-scrollbar rounded-[1.1rem] border-border/55 bg-[linear-gradient(180deg,rgba(255,255,255,0.024),rgba(255,255,255,0.01))] p-1.5 shadow-[0_18px_44px_-30px_rgba(15,23,42,0.38)]"
           >
-            <DropdownMenuLabel className="px-2 pt-1 pb-0.5 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">Set Status</DropdownMenuLabel>
+            <DropdownMenuLabel className="px-2 pt-1 pb-0.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Set Status</DropdownMenuLabel>
             <DropdownMenuSeparator className="mx-1 my-1 bg-border/50" />
             {getSortedStatusNames(uiConfig).map((s) => {
               const currentStatusConfig = getStatusConfig(s, uiConfig);
@@ -267,9 +267,8 @@ const TasksTableRow = memo(function TasksTableRow({
                 <DropdownMenuItem
                   key={s}
                   onSelect={() => handleStatusChange(s)}
-                  className="rounded-lg px-2 py-1.5 font-normal focus:bg-transparent dark:focus:bg-transparent"
+                  className="rounded-[0.9rem] px-2.5 py-2 font-normal transition-[background-color,color] duration-200 hover:bg-white/[0.05] focus:bg-white/[0.05] dark:focus:bg-white/[0.05]"
                   style={isSelectedStatus ? {
-                    backgroundColor: currentStatusStyles.defaultStyle.backgroundColor,
                     color: currentStatusStyles.defaultStyle.color,
                   } : undefined}
                 >
@@ -277,7 +276,7 @@ const TasksTableRow = memo(function TasksTableRow({
                     <div
                       className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[0.75rem]"
                       style={{
-                        backgroundColor: `color-mix(in srgb, ${String(currentStatusStyles.defaultStyle.color)} 18%, rgba(15,23,42,0.38))`,
+                        backgroundColor: `color-mix(in srgb, ${String(currentStatusStyles.defaultStyle.color)} 14%, hsl(var(--background)))`,
                         boxShadow: `inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 18px -16px ${String(currentStatusStyles.defaultStyle.color)}`,
                       }}
                     >

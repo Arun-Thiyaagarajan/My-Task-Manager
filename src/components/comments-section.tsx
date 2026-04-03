@@ -104,17 +104,17 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
 
 
   return (
-    <Card>
-        <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-xl">
-                <MessageSquare className="h-5 w-5" />
+    <Card className="rounded-[1.35rem] border-border/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.026),rgba(255,255,255,0.012))] shadow-[0_1px_2px_rgba(15,23,42,0.03),0_18px_40px_-32px_rgba(15,23,42,0.18)]">
+        <CardHeader className="space-y-2 px-5 pb-3 pt-5 sm:px-6 sm:pt-6">
+            <CardTitle className="flex items-center gap-2 text-[1.06rem] font-semibold tracking-tight text-foreground">
+                <MessageSquare className="h-5 w-5 text-primary/80" />
                 Comments
             </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-5 pb-5 pt-0 sm:px-6 sm:pb-6">
             <Accordion type="single" collapsible value={openAccordion} onValueChange={handleOpenChange} className="w-full">
                 <AccordionItem value="item-1" className="border-none">
-                    <AccordionTrigger className="justify-start gap-2 hover:no-underline py-0 text-sm text-muted-foreground">
+                    <AccordionTrigger className="justify-start gap-2 py-0 text-sm font-medium text-muted-foreground hover:no-underline">
                         Show {comments.length} comment(s)
                     </AccordionTrigger>
                     <AccordionContent className="pt-4">
@@ -125,7 +125,7 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
                                     const timestamp = getCommentTimestamp(comment);
                                     
                                     return (
-                                    <div key={index} className="p-3 rounded-md border bg-muted/50 group">
+                                    <div key={index} className="group rounded-[1rem] border border-border/50 bg-muted/[0.042] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition-[background-color,border-color,box-shadow] duration-200 hover:border-border/65 hover:bg-muted/[0.055]">
                                         {editingIndex === index ? (
                                         <div className="space-y-2">
                                              <div className="relative">
@@ -133,7 +133,7 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
                                                     ref={editCommentRef}
                                                     value={editingText}
                                                     onChange={(e) => setEditingText(e.target.value)}
-                                                    className="min-h-[110px] pb-12"
+                                                    className="min-h-[110px] rounded-[1rem] border-border/60 bg-background pb-12"
                                                     enableHotkeys
                                                 />
                                                 <TextareaToolbar onFormatClick={(type) => handleFormat(editCommentRef, type)} storageKey="taskflow_editor_toolbar_comments" />
@@ -146,16 +146,16 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
                                         ) : (
                                         <div className="flex flex-col items-start gap-2">
                                             <div className="flex w-full items-start justify-between gap-2">
-                                                <div className="min-w-0 flex-1 pt-1 text-foreground/80">
+                                                <div className="min-w-0 flex-1 pt-1 leading-6 text-foreground/86">
                                                     <RichTextViewer text={text} />
                                                 </div>
                                                 {!readOnly && (
                                                 <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(index)}>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg text-muted-foreground hover:bg-muted/55 hover:text-foreground" onClick={() => handleEdit(index)}>
                                                         <Pencil className="h-4 w-4" />
                                                         <span className="sr-only">Edit comment</span>
                                                     </Button>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(index)}>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive" onClick={() => handleDelete(index)}>
                                                         <Trash2 className="h-4 w-4 text-destructive" />
                                                         <span className="sr-only">Delete comment</span>
                                                     </Button>
@@ -175,9 +175,9 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
                                 {comments.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No comments yet. {readOnly ? '' : 'Add one below!'}</p>}
                             </div>
                             {!readOnly && (
-                              <div className="border rounded-lg bg-card mt-4 p-4">
+                              <div className="mt-4 rounded-[1rem] border border-border/55 bg-muted/[0.038] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
                                 <div className="flex flex-col gap-2">
-                                    <label htmlFor="new-comment" className="text-sm font-medium">Add a comment</label>
+                                    <label htmlFor="new-comment" className="text-sm font-medium text-foreground/90">Add a comment</label>
                                      <div className="relative">
                                         <Textarea
                                             ref={newCommentRef}
@@ -185,7 +185,7 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
                                             value={newComment}
                                             onChange={(e) => setNewComment(e.target.value)}
                                             placeholder="Type your comment here..."
-                                            className="min-h-[110px] pb-12"
+                                            className="min-h-[110px] rounded-[1rem] border-border/60 bg-background pb-12"
                                             enableHotkeys
                                         />
                                         <TextareaToolbar onFormatClick={(type) => handleFormat(newCommentRef, type)} storageKey="taskflow_editor_toolbar_comments" />

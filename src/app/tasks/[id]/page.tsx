@@ -945,7 +945,7 @@ const handleCopyDescription = () => {
   const attachmentsField = (uiConfig?.fields || []).find(f => f.key === 'attachments' && f.isActive);
   const commentsField = (uiConfig?.fields || []).find(f => f.key === 'comments' && f.isActive);
   const historyField = !isBinned;
-  const sectionCardClassName = "rounded-[1.35rem] border-border/60 bg-background/95 shadow-[0_1px_2px_rgba(15,23,42,0.03),0_18px_40px_-32px_rgba(15,23,42,0.18)]";
+  const sectionCardClassName = "rounded-[1.35rem] border-border/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.008))] shadow-[0_1px_2px_rgba(15,23,42,0.03),0_18px_40px_-32px_rgba(15,23,42,0.18)]";
   const sectionHeaderClassName = "space-y-2 px-5 pb-3 pt-5 sm:px-6 sm:pt-6";
   const sectionTitleClassName = "text-[1.06rem] font-semibold tracking-tight text-foreground";
   const subtleDividerClassName = "bg-border/55";
@@ -1131,7 +1131,7 @@ const handleCopyDescription = () => {
 
         <div id="task-detail-main" className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
           <div className="lg:col-span-2 space-y-6">
-            <Card className={cn("group/card relative overflow-hidden rounded-[1.5rem] border-border/60 bg-background/95 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_24px_60px_-38px_rgba(15,23,42,0.24)]", cardClassName)} style={statusConfig.cardStyle}>
+            <Card className={cn("group/card relative overflow-hidden rounded-[1.5rem] border-border/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.024),rgba(255,255,255,0.01))] shadow-[0_1px_2px_rgba(15,23,42,0.04),0_24px_60px_-38px_rgba(15,23,42,0.24)]", cardClassName)} style={statusConfig.cardStyle}>
                 <StatusIcon status={task.status} uiConfig={uiConfig} className={cn('absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none transition-transform duration-300 ease-in-out', !isStatusValue(task.status, 'in_progress', uiConfig) && 'group-hover/card:scale-110 group-hover/card:-rotate-6')} style={statusConfig.backgroundIconStyle} />
                 <div className="relative z-10 flex flex-col h-full">
                   <CardHeader className="px-5 pb-3 pt-5 sm:px-6 sm:pb-4 sm:pt-6">
@@ -1180,7 +1180,7 @@ const handleCopyDescription = () => {
                             align="end"
                             sideOffset={10}
                             collisionPadding={12}
-                            className="max-h-[min(24rem,calc(100vh-1.5rem))] w-[min(12.75rem,calc(100vw-0.75rem))] overflow-y-auto no-scrollbar rounded-[1.1rem] border-border/55 bg-background/98 p-1 shadow-[0_18px_44px_-30px_rgba(15,23,42,0.28)]"
+                            className="max-h-[min(24rem,calc(100vh-1.5rem))] w-[min(12.75rem,calc(100vw-0.75rem))] overflow-y-auto no-scrollbar rounded-[1.1rem] border-border/55 bg-[linear-gradient(180deg,rgba(255,255,255,0.024),rgba(255,255,255,0.01))] p-1.5 shadow-[0_18px_44px_-30px_rgba(15,23,42,0.38)]"
                           >
                             <DropdownMenuLabel className="px-2 pt-1 pb-0.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Set Status</DropdownMenuLabel>
                             <DropdownMenuSeparator className="mx-1 my-1 bg-border/50" />
@@ -1192,9 +1192,8 @@ const handleCopyDescription = () => {
                                 <DropdownMenuItem
                                   key={s}
                                   onSelect={() => handleStatusChange(s)}
-                                  className="rounded-lg px-2 py-1.5 font-normal focus:bg-transparent dark:focus:bg-transparent"
+                                  className="rounded-[0.9rem] px-2.5 py-2 font-normal transition-[background-color,color] duration-200 hover:bg-white/[0.05] focus:bg-white/[0.05] dark:focus:bg-white/[0.05]"
                                   style={isSelectedStatus ? {
-                                    backgroundColor: currentStatusStyles.defaultStyle.backgroundColor,
                                     color: currentStatusStyles.defaultStyle.color,
                                   } : undefined}
                                 >
@@ -1202,7 +1201,7 @@ const handleCopyDescription = () => {
                                     <div
                                       className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[0.75rem]"
                                       style={{
-                                        backgroundColor: `color-mix(in srgb, ${String(currentStatusStyles.defaultStyle.color)} 18%, rgba(15,23,42,0.38))`,
+                                        backgroundColor: `color-mix(in srgb, ${String(currentStatusStyles.defaultStyle.color)} 14%, hsl(var(--background)))`,
                                         boxShadow: `inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 18px -16px ${String(currentStatusStyles.defaultStyle.color)}`,
                                       }}
                                     >
@@ -1224,7 +1223,7 @@ const handleCopyDescription = () => {
                         Last updated {formatTimestamp(task.updatedAt, uiConfig.timeFormat)}
                     </CardDescription>
                      {task.summary && (
-                      <div className="mb-5 rounded-[1rem] border border-border/55 bg-muted/[0.035] p-4">
+                      <div className="mb-5 rounded-[1rem] border border-border/55 bg-muted/[0.042] p-4">
                           <p className="text-sm italic leading-6 text-muted-foreground">{task.summary}</p>
                       </div>
                     )}
@@ -1337,7 +1336,7 @@ const handleCopyDescription = () => {
                 </CardHeader>
                 <CardContent className="space-y-5 px-5 pb-5 pt-0 sm:px-6 sm:pb-6">
                   {customFields.map(field => (
-                    <div key={field.key} className="break-words rounded-[1rem] border border-border/45 bg-muted/[0.025] px-4 py-3">
+                    <div key={field.key} className="break-words rounded-[1rem] border border-border/45 bg-muted/[0.034] px-4 py-3">
                       <div className="flex justify-between items-start">
                         <h4 className="mb-1 text-[0.78rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">{field.label}</h4>
                         {!isBinned && (
@@ -1585,7 +1584,7 @@ const handleCopyDescription = () => {
                                 ))}
                                 </div>
 
-                                <div className="rounded-[1rem] border border-dashed border-border/65 bg-muted/[0.025] p-4 text-center text-sm text-muted-foreground font-normal">
+                                <div className="rounded-[1rem] border border-dashed border-border/65 bg-muted/[0.032] p-4 text-center text-sm text-muted-foreground font-normal">
                                     <p>Drop files, or paste an image/link</p>
                                     <div className="flex items-center justify-center gap-2 mt-2">
                                         <Popover open={isAddLinkPopoverOpen} onOpenChange={setIsAddLinkPopoverOpen}>
@@ -1612,7 +1611,7 @@ const handleCopyDescription = () => {
                                 </div>
                             </div>
                          ) : (!task.attachments || task.attachments.length === 0) ? (
-                            <div className="rounded-[1rem] border border-dashed border-border/65 bg-muted/[0.02] py-7 text-center text-muted-foreground">
+                            <div className="rounded-[1rem] border border-dashed border-border/65 bg-muted/[0.028] py-7 text-center text-muted-foreground">
                                 <p className="text-sm font-medium">No attachments yet.</p>
                             </div>
                          ) : (
@@ -1620,7 +1619,7 @@ const handleCopyDescription = () => {
                                 {task.attachments.map((att, index) => {
                                     const isImage = att.type === 'image' || isImageUrl(att.url);
                                     return (
-                                        <div key={index} className="group/attachment flex items-center justify-between rounded-[1rem] border border-border/55 bg-background/70 p-3 transition-[background-color,border-color,box-shadow] duration-200 hover:border-border/80 hover:bg-muted/[0.04] hover:shadow-[0_14px_28px_-24px_rgba(15,23,42,0.24)]">
+                                        <div key={index} className="group/attachment flex items-center justify-between rounded-[1rem] border border-border/55 bg-background/78 p-3 transition-[background-color,border-color,box-shadow] duration-200 hover:border-border/80 hover:bg-muted/[0.045] hover:shadow-[0_14px_28px_-24px_rgba(15,23,42,0.24)]">
                                             <div className="flex items-center gap-3 min-w-0">
                                                 <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[0.9rem] border border-border/55 bg-muted/[0.5]">
                                                     {isImage ? (
