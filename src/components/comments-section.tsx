@@ -104,7 +104,7 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
 
 
   return (
-    <Card className="rounded-[1.35rem] border-border/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.026),rgba(255,255,255,0.012))] shadow-[0_1px_2px_rgba(15,23,42,0.03),0_18px_40px_-32px_rgba(15,23,42,0.18)]">
+    <Card className="rounded-[1.35rem] border-border/72 bg-[linear-gradient(180deg,rgba(255,255,255,0.011),rgba(255,255,255,0.003))] shadow-[0_1px_2px_rgba(15,23,42,0.04),0_18px_40px_-32px_rgba(15,23,42,0.24)]">
         <CardHeader className="space-y-2 px-5 pb-3 pt-5 sm:px-6 sm:pt-6">
             <CardTitle className="flex items-center gap-2 text-[1.06rem] font-semibold tracking-tight text-foreground">
                 <MessageSquare className="h-5 w-5 text-primary/80" />

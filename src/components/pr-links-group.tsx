@@ -150,7 +150,7 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repository
                 <TabsTrigger
                   key={repo}
                   value={repo}
-                  className="h-9 shrink-0 whitespace-nowrap rounded-[0.8rem] px-4 text-[0.95rem] font-medium text-muted-foreground transition-[background-color,color,box-shadow] duration-200 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-[0_1px_2px_rgba(15,23,42,0.06),0_12px_24px_-20px_rgba(15,23,42,0.35)]"
+                  className="h-9 shrink-0 whitespace-nowrap rounded-[0.8rem] border border-transparent px-4 text-[0.95rem] font-medium text-muted-foreground transition-[background-color,border-color,color,box-shadow] duration-200 data-[state=active]:border-border/70 data-[state=active]:bg-white/95 data-[state=active]:text-foreground data-[state=active]:shadow-[0_1px_2px_rgba(15,23,42,0.08),0_12px_24px_-20px_rgba(15,23,42,0.18)] dark:data-[state=active]:border-border/55 dark:data-[state=active]:bg-background dark:data-[state=active]:shadow-[0_1px_2px_rgba(15,23,42,0.06),0_12px_24px_-20px_rgba(15,23,42,0.35)]"
                 >
                 {repo}
                 </TabsTrigger>
@@ -192,8 +192,8 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repository
                                     key={`${repo}-${env}-${id}-${index}`}
                                     variant="outline"
                                     className={cn(
-                                    "font-normal py-1 px-2.5 group/badge relative hover:bg-muted/50 transition-all duration-300",
-                                    !isEditing && "pr-2.5 hover:pr-8"
+                                    "group/badge relative overflow-hidden rounded-full border-border/55 bg-background/[0.58] py-1.5 px-3 font-normal shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-[background-color,border-color,box-shadow,padding] duration-200 hover:border-border/75 hover:bg-background/[0.74] hover:shadow-[0_10px_24px_-22px_rgba(15,23,42,0.28)]",
+                                    !isEditing && "pr-3 hover:pr-[2.2rem]"
                                     )}
                                 >
                                     <div className="flex items-center">
@@ -202,7 +202,7 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repository
                                           target="_blank"
                                           rel="noopener noreferrer"
                                           className={cn(
-                                              "flex items-center gap-1.5",
+                                              "flex items-center gap-1.5 text-foreground/88 transition-colors duration-200 group-hover/badge:text-foreground",
                                               !canBeLinked && "cursor-default"
                                           )}
                                           onClick={(e) => {
@@ -215,10 +215,10 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repository
                                           <span>PR #{id}</span>
                                       </a>
                                        {!isEditing && canBeLinked && (
-                                        <div className="absolute top-1/2 -translate-y-1/2 right-1.5 flex items-center justify-center opacity-0 group-hover/badge:opacity-100 transition-opacity duration-200">
+                                        <div className="absolute right-[0.38rem] top-1/2 flex -translate-y-1/2 items-center justify-center opacity-0 transition-[opacity,transform] duration-200 group-hover/badge:opacity-100 group-hover/badge:translate-x-0 translate-x-1">
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); handleCopy(url);}}
-                                                className="h-full w-full flex items-center justify-center text-muted-foreground hover:text-foreground"
+                                                className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-transparent bg-background/75 text-muted-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-[background-color,border-color,color,box-shadow] duration-200 hover:border-border/60 hover:bg-background hover:text-foreground"
                                             >
                                                 {copiedUrl === url ? (
                                                     <Check className="h-3.5 w-3.5 text-green-500" />

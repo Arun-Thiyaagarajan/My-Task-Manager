@@ -945,7 +945,7 @@ const handleCopyDescription = () => {
   const attachmentsField = (uiConfig?.fields || []).find(f => f.key === 'attachments' && f.isActive);
   const commentsField = (uiConfig?.fields || []).find(f => f.key === 'comments' && f.isActive);
   const historyField = !isBinned;
-  const sectionCardClassName = "rounded-[1.35rem] border-border/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.008))] shadow-[0_1px_2px_rgba(15,23,42,0.03),0_18px_40px_-32px_rgba(15,23,42,0.18)]";
+  const sectionCardClassName = "rounded-[1.35rem] border-border/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.005),rgba(255,255,255,0.001))] shadow-[0_1px_2px_rgba(15,23,42,0.04),0_18px_40px_-32px_rgba(15,23,42,0.24)]";
   const sectionHeaderClassName = "space-y-2 px-5 pb-3 pt-5 sm:px-6 sm:pt-6";
   const sectionTitleClassName = "text-[1.06rem] font-semibold tracking-tight text-foreground";
   const subtleDividerClassName = "bg-border/55";
@@ -1131,7 +1131,7 @@ const handleCopyDescription = () => {
 
         <div id="task-detail-main" className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
           <div className="lg:col-span-2 space-y-6">
-            <Card className={cn("group/card relative overflow-hidden rounded-[1.5rem] border-border/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.024),rgba(255,255,255,0.01))] shadow-[0_1px_2px_rgba(15,23,42,0.04),0_24px_60px_-38px_rgba(15,23,42,0.24)]", cardClassName)} style={statusConfig.cardStyle}>
+            <Card className={cn("group/card relative overflow-hidden rounded-[1.5rem] border-border/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.009),rgba(255,255,255,0.002))] shadow-[0_1px_2px_rgba(15,23,42,0.05),0_24px_60px_-38px_rgba(15,23,42,0.3)]", cardClassName)} style={statusConfig.cardStyle}>
                 <StatusIcon status={task.status} uiConfig={uiConfig} className={cn('absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none transition-transform duration-300 ease-in-out', !isStatusValue(task.status, 'in_progress', uiConfig) && 'group-hover/card:scale-110 group-hover/card:-rotate-6')} style={statusConfig.backgroundIconStyle} />
                 <div className="relative z-10 flex flex-col h-full">
                   <CardHeader className="px-5 pb-3 pt-5 sm:px-6 sm:pb-4 sm:pt-6">
@@ -1299,7 +1299,7 @@ const handleCopyDescription = () => {
                             if (!env || !env.name) return null;
                             const isDeployed = task.deploymentStatus?.[env.name] ?? false;
                             return (
-                              <div key={env.id} className={cn("flex items-center justify-between rounded-[0.95rem] border border-transparent px-3 py-2.5 transition-[background-color,border-color,box-shadow] duration-200",!isBinned && 'cursor-pointer hover:border-border/55 hover:bg-muted/[0.04] hover:shadow-[0_10px_24px_-24px_rgba(15,23,42,0.24)]')} onClick={!isBinned ? () => handleToggleDeployment(env.name) : undefined}>
+                              <div key={env.id} className={cn("flex items-center justify-between rounded-[0.95rem] border border-transparent px-3 py-2.5 transition-[background-color,border-color,box-shadow] duration-200",!isBinned && 'cursor-pointer hover:border-border/80 hover:bg-accent/55 hover:shadow-[0_10px_24px_-24px_rgba(15,23,42,0.16)] dark:hover:border-border/72 dark:hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.032),rgba(255,255,255,0.014))] dark:hover:shadow-[0_10px_24px_-24px_rgba(15,23,42,0.22),inset_0_1px_0_rgba(255,255,255,0.03)]')} onClick={!isBinned ? () => handleToggleDeployment(env.name) : undefined}>
                                 <span className="capitalize font-medium text-foreground">{env.name}</span>
                                 <div onAnimationEnd={() => setJustUpdatedEnv(null)} className={cn('flex items-center gap-2 font-medium', isDeployed ? 'text-green-600 dark:text-green-500' : 'text-yellow-600 dark:text-yellow-500', justUpdatedEnv === env.name && 'animate-status-in')}>
                                   {isDeployed ? (<><CheckCircle2 className="h-4 w-4" /><span>Deployed</span></>) : (<><Clock className="h-4 w-4" /><span>Pending</span></>)}
@@ -1336,7 +1336,7 @@ const handleCopyDescription = () => {
                 </CardHeader>
                 <CardContent className="space-y-5 px-5 pb-5 pt-0 sm:px-6 sm:pb-6">
                   {customFields.map(field => (
-                    <div key={field.key} className="break-words rounded-[1rem] border border-border/45 bg-muted/[0.034] px-4 py-3">
+                    <div key={field.key} className="break-words rounded-[1rem] border border-border/62 bg-muted/[0.028] px-4 py-3 transition-[border-color,background-color,box-shadow] duration-200 hover:border-border/80 hover:bg-accent/45 hover:shadow-[0_12px_28px_-26px_rgba(15,23,42,0.14)] dark:hover:border-border/78 dark:hover:bg-muted/[0.042] dark:hover:shadow-[0_12px_28px_-26px_rgba(15,23,42,0.22)]">
                       <div className="flex justify-between items-start">
                         <h4 className="mb-1 text-[0.78rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">{field.label}</h4>
                         {!isBinned && (
@@ -1619,7 +1619,7 @@ const handleCopyDescription = () => {
                                 {task.attachments.map((att, index) => {
                                     const isImage = att.type === 'image' || isImageUrl(att.url);
                                     return (
-                                        <div key={index} className="group/attachment flex items-center justify-between rounded-[1rem] border border-border/55 bg-background/78 p-3 transition-[background-color,border-color,box-shadow] duration-200 hover:border-border/80 hover:bg-muted/[0.045] hover:shadow-[0_14px_28px_-24px_rgba(15,23,42,0.24)]">
+                                        <div key={index} className="group/attachment flex items-center justify-between rounded-[1rem] border border-border/55 bg-background/78 p-3 transition-[background-color,border-color,box-shadow] duration-200 hover:border-border/80 hover:bg-accent/45 hover:shadow-[0_14px_28px_-24px_rgba(15,23,42,0.15)] dark:hover:bg-muted/[0.045] dark:hover:shadow-[0_14px_28px_-24px_rgba(15,23,42,0.24)]">
                                             <div className="flex items-center gap-3 min-w-0">
                                                 <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[0.9rem] border border-border/55 bg-muted/[0.5]">
                                                     {isImage ? (
@@ -1757,7 +1757,7 @@ function TaskDetailSection({ title, people, setPersonInView, isDeveloper }: {
                     <Tooltip>
                         <TooltipTrigger asChild>
                         <button 
-                            className="flex items-center gap-2 rounded-[0.95rem] border border-transparent px-2.5 py-2 text-left transition-[background-color,border-color,box-shadow] duration-200 hover:border-border/55 hover:bg-muted/[0.04] hover:shadow-[0_10px_24px_-24px_rgba(15,23,42,0.2)] disabled:cursor-not-allowed disabled:opacity-70"
+                            className="flex items-center gap-2 rounded-[0.95rem] border border-transparent px-2.5 py-2 text-left transition-[background-color,border-color,box-shadow] duration-200 hover:border-border/80 hover:bg-accent/55 hover:shadow-[0_10px_24px_-24px_rgba(15,23,42,0.16)] dark:hover:border-border/70 dark:hover:bg-muted/[0.06] dark:hover:shadow-[0_10px_24px_-24px_rgba(15,23,42,0.22)] disabled:cursor-not-allowed disabled:opacity-70"
                             onClick={() => setPersonInView({ person, isDeveloper })}
                             disabled={!canOpenPopup(person)}
                         >
@@ -1826,7 +1826,7 @@ function TimelineSection({
     };
 
     return (
-      <div className="group flex items-center justify-between rounded-[0.95rem] border border-transparent px-2.5 py-2 transition-[background-color,border-color] duration-200 hover:border-border/45 hover:bg-muted/[0.03]">
+      <div className="group flex items-center justify-between rounded-[0.95rem] border border-transparent px-2.5 py-2 transition-[background-color,border-color] duration-200 hover:border-border/78 hover:bg-accent/50 dark:hover:border-border/62 dark:hover:bg-muted/[0.05]">
         <span className="font-normal text-muted-foreground">{label}</span>
         <Popover open={isOpen} onOpenChange={isBinned ? undefined : setIsOpen}>
           <PopoverTrigger asChild disabled={isBinned}>
@@ -1878,7 +1878,7 @@ function TimelineSection({
       if (!isDeployed) return null;
 
       return (
-        <div className="group flex items-center justify-between rounded-[0.95rem] border border-transparent px-2.5 py-2 transition-[background-color,border-color] duration-200 hover:border-border/45 hover:bg-muted/[0.03]">
+        <div className="group flex items-center justify-between rounded-[0.95rem] border border-transparent px-2.5 py-2 transition-[background-color,border-color] duration-200 hover:border-border/78 hover:bg-accent/50 dark:hover:border-border/62 dark:hover:bg-muted/[0.05]">
             <span className="capitalize font-normal text-muted-foreground">{env} Deployed</span>
             <Popover open={isOpen} onOpenChange={isBinned ? undefined : setIsOpen}>
                 <PopoverTrigger asChild disabled={isBinned}>
