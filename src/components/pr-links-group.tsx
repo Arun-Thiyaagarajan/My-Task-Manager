@@ -2,9 +2,9 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { GitPullRequest, Plus, X, Pencil, Copy, Check } from 'lucide-react';
+import { GitPullRequest, Plus, X, Copy, Check } from 'lucide-react';
 import type { Task, Repository, RepositoryConfig } from '@/lib/types';
 import { Badge } from './ui/badge';
 import { ScrollArea, ScrollBar } from './ui/scroll-area';
@@ -26,11 +26,36 @@ interface PrLinksGroupProps {
 export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repositoryConfigs, onUpdate, isEditing }: PrLinksGroupProps) {
   const [newPrIds, setNewPrIds] = useState<Record<string, Record<string, string>>>({});
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+  const tabsViewportRef = useRef<HTMLDivElement | null>(null);
+  const [showLeftFade, setShowLeftFade] = useState(false);
+  const [showRightFade, setShowRightFade] = useState(false);
   const { toast } = useToast();
   
   const repoConfigMap = new Map((repositoryConfigs || []).map(rc => [rc.name, rc]));
   
   const displayRepos = Array.isArray(repositories) ? repositories : [];
+  const allEnvs = configuredEnvs || [];
+
+  useEffect(() => {
+    const viewport = tabsViewportRef.current;
+    if (!viewport || displayRepos.length === 0) return;
+
+    const updateOverflowIndicators = () => {
+      const { scrollLeft, scrollWidth, clientWidth } = viewport;
+      const maxScrollLeft = Math.max(scrollWidth - clientWidth, 0);
+      setShowLeftFade(scrollLeft > 6);
+      setShowRightFade(maxScrollLeft - scrollLeft > 6);
+    };
+
+    updateOverflowIndicators();
+    viewport.addEventListener('scroll', updateOverflowIndicators, { passive: true });
+    window.addEventListener('resize', updateOverflowIndicators);
+
+    return () => {
+      viewport.removeEventListener('scroll', updateOverflowIndicators);
+      window.removeEventListener('resize', updateOverflowIndicators);
+    };
+  }, [displayRepos.length]);
 
   if (!displayRepos || displayRepos.length === 0) {
     return (
@@ -39,8 +64,6 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repository
       </p>
     );
   }
-
-  const allEnvs = configuredEnvs || [];
   
   if (allEnvs.length === 0) {
      return (
@@ -103,16 +126,42 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repository
   return (
     <div className="w-full">
         <Tabs defaultValue={displayRepos[0]} className="w-full">
-        <ScrollArea className="w-full whitespace-nowrap">
-            <TabsList>
+        <div className="relative inline-block max-w-full overflow-hidden rounded-[1.05rem] border border-border/55 bg-muted/[0.38] px-1.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+          <div
+            aria-hidden="true"
+            className={cn(
+              "pointer-events-none absolute inset-y-1.5 left-1.5 z-10 w-8 rounded-l-[0.95rem] bg-gradient-to-r from-background/[0.92] via-background/[0.72] to-transparent transition-opacity duration-200",
+              showLeftFade ? "opacity-100" : "opacity-0"
+            )}
+          />
+          <div
+            aria-hidden="true"
+            className={cn(
+              "pointer-events-none absolute inset-y-1.5 right-1.5 z-10 w-8 rounded-r-[0.95rem] bg-gradient-to-l from-background/[0.92] via-background/[0.72] to-transparent transition-opacity duration-200",
+              showRightFade ? "opacity-100" : "opacity-0"
+            )}
+          />
+          <ScrollArea
+            className="max-w-full whitespace-nowrap"
+            viewportRef={tabsViewportRef}
+          >
+            <TabsList className="inline-flex h-auto min-w-max items-center justify-start gap-1 rounded-[0.9rem] bg-transparent p-0 text-muted-foreground">
             {displayRepos.map((repo) => (
-                <TabsTrigger key={repo} value={repo}>
+                <TabsTrigger
+                  key={repo}
+                  value={repo}
+                  className="h-9 shrink-0 whitespace-nowrap rounded-[0.8rem] px-4 text-[0.95rem] font-medium text-muted-foreground transition-[background-color,color,box-shadow] duration-200 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-[0_1px_2px_rgba(15,23,42,0.06),0_12px_24px_-20px_rgba(15,23,42,0.35)]"
+                >
                 {repo}
                 </TabsTrigger>
             ))}
             </TabsList>
-            <ScrollBar orientation="horizontal" />
+            <ScrollBar
+              orientation="horizontal"
+              className="hidden"
+            />
         </ScrollArea>
+        </div>
         {displayRepos.map((repo) => {
             const repoConfig = repoConfigMap.get(repo);
             
@@ -125,7 +174,7 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repository
 
             return (
                 <TabsContent key={repo} value={repo}>
-                <div className="mt-4 space-y-4">
+                <div className="mt-3.5 space-y-4">
                     {linksForRepo.map(({ env, prIds }) => (
                         <div key={env}>
                         <h4 className="font-semibold mb-2 text-sm text-foreground capitalize">

@@ -945,18 +945,26 @@ const handleCopyDescription = () => {
   const attachmentsField = (uiConfig?.fields || []).find(f => f.key === 'attachments' && f.isActive);
   const commentsField = (uiConfig?.fields || []).find(f => f.key === 'comments' && f.isActive);
   const historyField = !isBinned;
+  const sectionCardClassName = "rounded-[1.35rem] border-border/60 bg-background/95 shadow-[0_1px_2px_rgba(15,23,42,0.03),0_18px_40px_-32px_rgba(15,23,42,0.18)]";
+  const sectionHeaderClassName = "space-y-2 px-5 pb-3 pt-5 sm:px-6 sm:pt-6";
+  const sectionTitleClassName = "text-[1.06rem] font-semibold tracking-tight text-foreground";
+  const subtleDividerClassName = "bg-border/55";
+  const toolbarButtonClassName = "rounded-xl border-border/60 bg-background/92 px-3 font-medium shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-[background-color,border-color,box-shadow,transform,color] duration-200 hover:border-border/90 hover:bg-background hover:shadow-[0_12px_28px_-22px_rgba(15,23,42,0.35)] hover:-translate-y-[1px] active:translate-y-0";
 
   return (
     <>
-      <div className="container mx-auto px-4 pb-8 pt-10 sm:px-6 sm:pt-12 lg:px-8">
-        <div className="flex flex-row justify-between items-center mb-6">
+      <div className="container relative isolate mx-auto overflow-hidden px-4 pb-10 pt-10 sm:px-6 sm:pb-12 sm:pt-12 lg:px-8">
+        <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-56 bg-[radial-gradient(circle_at_top,rgba(15,23,42,0.05),transparent_62%)]" />
+        <div className="pointer-events-none absolute inset-x-6 top-24 -z-10 h-[calc(100%-6rem)] rounded-[2rem] border border-border/30 bg-muted/[0.035]" />
+
+        <div className="mb-7 flex flex-row items-center justify-between sm:mb-8">
           <Button 
             onClick={handleNavigateBack} 
             variant="ghost" 
             size={isMobile ? "icon" : "default"}
             className={cn(
-              "active:scale-95 transition-transform font-medium", 
-              isMobile ? "rounded-full" : "pl-1"
+              "text-muted-foreground transition-[background-color,color,transform] duration-200 hover:bg-muted/55 hover:text-foreground active:scale-95", 
+              isMobile ? "rounded-xl" : "pl-1.5 pr-3"
             )}
           >
               <ArrowLeft className={cn("h-4 w-4", !isMobile && "mx-2")} />
@@ -966,7 +974,7 @@ const handleCopyDescription = () => {
             <div className="flex gap-2">
                 <AlertDialog>
                 <AlertDialogTrigger asChild>
-                    <Button variant="outline" size={isMobile ? "icon" : "sm"} className="font-medium">
+                    <Button variant="outline" size={isMobile ? "icon" : "sm"} className={cn(toolbarButtonClassName, isMobile ? "h-10 w-10" : "h-9")}>
                     <History className={cn("h-4 w-4", !isMobile && "mr-2")} />
                     {!isMobile && "Restore Task"}
                     </Button>
@@ -992,7 +1000,7 @@ const handleCopyDescription = () => {
                         variant="outline"
                         size={isMobile ? "icon" : "sm"}
                         className={cn(
-                          "rounded-xl border-border/60 bg-background/92 px-3 font-medium shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-[background-color,border-color,box-shadow,transform] duration-200 hover:border-border/90 hover:bg-background hover:shadow-[0_10px_24px_-18px_rgba(15,23,42,0.5)] hover:-translate-y-[1px] active:translate-y-0",
+                          toolbarButtonClassName,
                           isMobile ? "h-10 w-10" : "h-9"
                         )}
                     >
@@ -1009,9 +1017,9 @@ const handleCopyDescription = () => {
                                     size={isMobile ? "icon" : "sm"}
                                     onClick={() => setIsReminderOpen(true)}
                                     className={cn(
-                                      "rounded-xl border-border/60 bg-background/92 px-3 font-medium shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-[background-color,border-color,box-shadow,transform] duration-200 hover:border-border/90 hover:bg-background hover:shadow-[0_10px_24px_-18px_rgba(15,23,42,0.5)] hover:-translate-y-[1px] active:translate-y-0",
+                                      toolbarButtonClassName,
                                       isMobile ? "h-10 w-10" : "h-9",
-                                      task.reminder && "border-amber-500/30 bg-amber-500/10 text-amber-700 hover:border-amber-500/45 hover:bg-amber-500/15 dark:text-amber-300"
+                                      task.reminder && "border-amber-500/28 bg-amber-500/[0.08] text-amber-700 hover:border-amber-500/40 hover:bg-amber-500/[0.11] dark:text-amber-300"
                                     )}
                                 >
                                     <BellRing className={cn(isMobile ? "h-5 w-5" : "h-4 w-4 mr-2")} />
@@ -1029,7 +1037,7 @@ const handleCopyDescription = () => {
                     variant="outline"
                     size={isMobile ? "icon" : "sm"}
                     className={cn(
-                      "rounded-xl border-border/60 bg-background/92 px-3 font-medium shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-[background-color,border-color,box-shadow,transform] duration-200 hover:border-border/90 hover:bg-background hover:shadow-[0_10px_24px_-18px_rgba(15,23,42,0.5)] hover:-translate-y-[1px] active:translate-y-0",
+                      toolbarButtonClassName,
                       isMobile ? "h-10 w-10" : "h-9"
                     )}
                 >
@@ -1062,24 +1070,24 @@ const handleCopyDescription = () => {
           </Alert>
         )}
         
-        {task.reminder && (
+                {task.reminder && (
           <div className="mb-5 md:mb-6">
-            <div className="group flex items-center gap-3 rounded-2xl border border-amber-500/20 bg-[linear-gradient(135deg,rgba(245,158,11,0.13),rgba(245,158,11,0.07))] px-3.5 py-3 shadow-[0_18px_36px_-30px_rgba(245,158,11,0.6)] backdrop-blur-sm md:px-4 md:py-3.5">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/12 text-amber-600 dark:text-amber-300 ring-1 ring-amber-500/15">
+            <div className="group flex items-center gap-3 rounded-[1.15rem] border border-amber-500/18 bg-amber-500/[0.045] px-3.5 py-3 shadow-[0_1px_2px_rgba(245,158,11,0.05),0_14px_30px_-28px_rgba(245,158,11,0.45)] md:px-4 md:py-3.5">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[1rem] bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/12 dark:text-amber-300">
                 <BellRing className="h-4.5 w-4.5" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span className="text-[11px] font-black uppercase tracking-[0.2em] text-amber-700/80 dark:text-amber-200/85">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700/80 dark:text-amber-200/85">
                     Reminder Note
                   </span>
                   {task.reminderExpiresAt && (
-                    <span className="rounded-full bg-amber-500/12 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
+                    <span className="rounded-full border border-amber-500/12 bg-amber-500/[0.06] px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
                       Expires {formatTimestamp(task.reminderExpiresAt, uiConfig.timeFormat)}
                     </span>
                   )}
                 </div>
-                <p className="mt-1 line-clamp-2 text-sm font-medium leading-6 text-amber-950/85 dark:text-amber-100/95 md:line-clamp-1">
+                <p className="mt-1 line-clamp-2 text-sm font-medium leading-6 text-amber-950/80 dark:text-amber-100/95 md:line-clamp-1">
                   {reminderPreview || 'Reminder added for this task.'}
                 </p>
               </div>
@@ -1123,10 +1131,10 @@ const handleCopyDescription = () => {
 
         <div id="task-detail-main" className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
           <div className="lg:col-span-2 space-y-6">
-            <Card className={cn("relative overflow-hidden group/card", cardClassName)} style={statusConfig.cardStyle}>
+            <Card className={cn("group/card relative overflow-hidden rounded-[1.5rem] border-border/60 bg-background/95 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_24px_60px_-38px_rgba(15,23,42,0.24)]", cardClassName)} style={statusConfig.cardStyle}>
                 <StatusIcon status={task.status} uiConfig={uiConfig} className={cn('absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none transition-transform duration-300 ease-in-out', !isStatusValue(task.status, 'in_progress', uiConfig) && 'group-hover/card:scale-110 group-hover/card:-rotate-6')} style={statusConfig.backgroundIconStyle} />
                 <div className="relative z-10 flex flex-col h-full">
-                  <CardHeader className="pb-2">
+                  <CardHeader className="px-5 pb-3 pt-5 sm:px-6 sm:pb-4 sm:pt-6">
                     <div className="flex justify-between items-start gap-4">
                       <div className="flex-1 flex items-center gap-2 group/title" onDoubleClick={() => handleStartEditing('title', task.title)}>
                         {editingSection === 'title' ? (
@@ -1136,13 +1144,13 @@ const handleCopyDescription = () => {
                                 onChange={e => setEditingValue(e.target.value)} 
                                 onBlur={() => handleSaveEditing('title', false)}
                                 onKeyDown={e => e.key === 'Enter' && handleSaveEditing('title', false)}
-                                className="text-3xl font-semibold h-auto p-0 border-0 focus-visible:ring-0"
+                                className="h-auto border-0 p-0 text-[2rem] font-semibold tracking-tight focus-visible:ring-0 sm:text-[2.2rem]"
                             />
                         ) : (
                           <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                <CardTitle className="text-3xl font-semibold cursor-pointer tracking-tight">
+                                <CardTitle className="cursor-pointer text-[2rem] font-semibold leading-[1.15] tracking-tight text-foreground sm:text-[2.2rem]">
                                     {task.title}
                                 </CardTitle>
                                 </TooltipTrigger>
@@ -1162,7 +1170,7 @@ const handleCopyDescription = () => {
                             <Button
                               variant="ghost"
                               disabled={isBinned}
-                              className="h-auto rounded-2xl p-0.5 transition-all duration-200 hover:bg-background/60 hover:shadow-[0_10px_24px_-22px_rgba(15,23,42,0.85)] focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-100 dark:hover:bg-background/35"
+                              className="h-auto rounded-[1rem] p-0.5 transition-all duration-200 hover:bg-background/60 hover:shadow-[0_10px_24px_-22px_rgba(15,23,42,0.35)] focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-100 dark:hover:bg-background/35"
                             >
                               <TaskStatusBadge status={task.status} variant="prominent" uiConfig={uiConfig} className={cn((isStatusSaving || justUpdatedStatus === task.status) && 'animate-status-in', isStatusSaving && 'opacity-90')} />
                             </Button>
@@ -1172,9 +1180,9 @@ const handleCopyDescription = () => {
                             align="end"
                             sideOffset={10}
                             collisionPadding={12}
-                            className="max-h-[min(24rem,calc(100vh-1.5rem))] w-[min(12.75rem,calc(100vw-0.75rem))] overflow-y-auto no-scrollbar rounded-[1.2rem] border-border/50 bg-background/95 p-1 shadow-[0_24px_70px_-34px_rgba(15,23,42,0.5)] backdrop-blur-xl"
+                            className="max-h-[min(24rem,calc(100vh-1.5rem))] w-[min(12.75rem,calc(100vw-0.75rem))] overflow-y-auto no-scrollbar rounded-[1.1rem] border-border/55 bg-background/98 p-1 shadow-[0_18px_44px_-30px_rgba(15,23,42,0.28)]"
                           >
-                            <DropdownMenuLabel className="px-2 pt-1 pb-0.5 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">Set Status</DropdownMenuLabel>
+                            <DropdownMenuLabel className="px-2 pt-1 pb-0.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Set Status</DropdownMenuLabel>
                             <DropdownMenuSeparator className="mx-1 my-1 bg-border/50" />
                             {getSortedStatusNames(uiConfig).map(s => {
                               const currentStatusConfig = getStatusConfig(s, uiConfig);
@@ -1211,13 +1219,13 @@ const handleCopyDescription = () => {
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="pt-2 flex-grow group/description" onDoubleClick={() => !isBinned && editingSection !== 'description' && handleStartEditing('description', task.description)}>
-                    <CardDescription className="mb-4 font-normal">
+                  <CardContent className="group/description flex-grow px-5 pb-5 pt-1 sm:px-6 sm:pb-6" onDoubleClick={() => !isBinned && editingSection !== 'description' && handleStartEditing('description', task.description)}>
+                    <CardDescription className="mb-5 text-[0.95rem] font-normal leading-6 text-muted-foreground/85">
                         Last updated {formatTimestamp(task.updatedAt, uiConfig.timeFormat)}
                     </CardDescription>
                      {task.summary && (
-                      <div className="mb-4 p-3 rounded-md bg-background/50 border border-border/50">
-                          <p className="text-sm italic text-muted-foreground leading-relaxed font-normal">{task.summary}</p>
+                      <div className="mb-5 rounded-[1rem] border border-border/55 bg-muted/[0.035] p-4">
+                          <p className="text-sm italic leading-6 text-muted-foreground">{task.summary}</p>
                       </div>
                     )}
                      <div className={cn("relative", !isBinned && "cursor-pointer")}>
@@ -1228,7 +1236,7 @@ const handleCopyDescription = () => {
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            className="absolute top-0 right-0 h-7 w-7 text-muted-foreground opacity-0 group-hover/description:opacity-100 transition-opacity"
+                                            className="absolute right-0 top-0 h-8 w-8 rounded-lg text-muted-foreground opacity-0 transition-[opacity,background-color,color] duration-200 group-hover/description:opacity-100 hover:bg-muted/60 hover:text-foreground"
                                             onClick={handleCopyDescription}
                                         >
                                             {isCopying ? <Check className="h-4 w-4 text-green-500 animate-in fade-in" /> : <Copy className="h-4 w-4" />}
@@ -1245,7 +1253,7 @@ const handleCopyDescription = () => {
                                   ref={descriptionEditorRef}
                                   value={editingValue}
                                   onChange={e => setEditingValue(e.target.value)}
-                                  className="min-h-[160px] pb-12 font-normal"
+                                  className="min-h-[160px] rounded-[1rem] border-border/60 bg-background pb-12 font-normal"
                                   placeholder="Enter a description..."
                                   enableHotkeys
                                />
@@ -1262,7 +1270,7 @@ const handleCopyDescription = () => {
                           <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                <div className="font-normal text-foreground/90 leading-relaxed">
+                                <div className="font-normal leading-7 text-foreground/90">
                                     <RichTextViewer text={task.description} />
                                 </div>
                                 </TooltipTrigger>
@@ -1281,19 +1289,19 @@ const handleCopyDescription = () => {
             
             <div className={cn("grid grid-cols-1 gap-6", prField && visibleRepositories.length > 0 ? "md:grid-cols-2" : "")}>
                 {deploymentField && (
-                  <Card id="task-detail-deployment">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-xl font-semibold"><CheckCircle2 className="h-5 w-5" />{fieldLabels.get('deploymentStatus') || 'Deployments'}</CardTitle>
+                  <Card id="task-detail-deployment" className={sectionCardClassName}>
+                    <CardHeader className={sectionHeaderClassName}>
+                      <CardTitle className={cn("flex items-center gap-2", sectionTitleClassName)}><CheckCircle2 className="h-5 w-5 text-primary/80" />{fieldLabels.get('deploymentStatus') || 'Deployments'}</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <div className="space-y-1 text-sm">
+                    <CardContent className="px-5 pb-5 pt-0 sm:px-6 sm:pb-6">
+                      <div className="space-y-1.5 text-sm">
                         {allConfiguredEnvs.length > 0 ? (
                           allConfiguredEnvs.map((env: Environment) => {
                             if (!env || !env.name) return null;
                             const isDeployed = task.deploymentStatus?.[env.name] ?? false;
                             return (
-                              <div key={env.id} className={cn("flex justify-between items-center p-2 -m-2 rounded-lg transition-colors",!isBinned && 'cursor-pointer hover:bg-muted/50')} onClick={!isBinned ? () => handleToggleDeployment(env.name) : undefined}>
-                                <span className="capitalize text-foreground font-medium">{env.name}</span>
+                              <div key={env.id} className={cn("flex items-center justify-between rounded-[0.95rem] border border-transparent px-3 py-2.5 transition-[background-color,border-color,box-shadow] duration-200",!isBinned && 'cursor-pointer hover:border-border/55 hover:bg-muted/[0.04] hover:shadow-[0_10px_24px_-24px_rgba(15,23,42,0.24)]')} onClick={!isBinned ? () => handleToggleDeployment(env.name) : undefined}>
+                                <span className="capitalize font-medium text-foreground">{env.name}</span>
                                 <div onAnimationEnd={() => setJustUpdatedEnv(null)} className={cn('flex items-center gap-2 font-medium', isDeployed ? 'text-green-600 dark:text-green-500' : 'text-yellow-600 dark:text-yellow-500', justUpdatedEnv === env.name && 'animate-status-in')}>
                                   {isDeployed ? (<><CheckCircle2 className="h-4 w-4" /><span>Deployed</span></>) : (<><Clock className="h-4 w-4" /><span>Pending</span></>)}
                                 </div>
@@ -1306,16 +1314,16 @@ const handleCopyDescription = () => {
                   </Card>
                 )}
                 {prField && visibleRepositories.length > 0 && (
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                      <CardTitle className="flex items-center gap-2 text-xl font-semibold"><GitMerge className="h-5 w-5" />{fieldLabels.get('prLinks') || 'Pull Requests'}</CardTitle>
+                  <Card className={sectionCardClassName}>
+                    <CardHeader className={cn(sectionHeaderClassName, "flex-row items-center justify-between space-y-0")}>
+                      <CardTitle className={cn("flex items-center gap-2", sectionTitleClassName)}><GitMerge className="h-5 w-5 text-primary/80" />{fieldLabels.get('prLinks') || 'Pull Requests'}</CardTitle>
                       {!isBinned && visibleRepositories.length > 0 && allConfiguredEnvs.length > 0 && (
-                        <Button variant="ghost" size="sm" onClick={() => setIsEditingPrLinks(!isEditingPrLinks)} className="font-medium">
+                        <Button variant="ghost" size="sm" onClick={() => setIsEditingPrLinks(!isEditingPrLinks)} className="rounded-lg text-muted-foreground hover:bg-muted/55 hover:text-foreground">
                           {isEditingPrLinks ? 'Done' : (<><Pencil className="h-3 w-3 mr-1.5" /> Edit</>)}
                         </Button>
                       )}
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="px-5 pb-5 pt-0 sm:px-6 sm:pb-6">
                       <PrLinksGroup prLinks={task.prLinks} repositories={visibleRepositories} configuredEnvs={allConfiguredEnvs.map(e => e.name)} repositoryConfigs={uiConfig.repositoryConfigs} onUpdate={handlePrLinksUpdate} isEditing={isEditingPrLinks && !isBinned} />
                     </CardContent>
                   </Card>
@@ -1323,22 +1331,22 @@ const handleCopyDescription = () => {
             </div>
             
             {customFields.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-xl font-semibold"><Box className="h-5 w-5" />Other Details</CardTitle>
+              <Card className={sectionCardClassName}>
+                <CardHeader className={sectionHeaderClassName}>
+                  <CardTitle className={cn("flex items-center gap-2", sectionTitleClassName)}><Box className="h-5 w-5 text-primary/80" />Other Details</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-5 px-5 pb-5 pt-0 sm:px-6 sm:pb-6">
                   {customFields.map(field => (
-                    <div key={field.key} className="break-words">
+                    <div key={field.key} className="break-words rounded-[1rem] border border-border/45 bg-muted/[0.025] px-4 py-3">
                       <div className="flex justify-between items-start">
-                        <h4 className="text-sm font-semibold text-muted-foreground mb-1">{field.label}</h4>
+                        <h4 className="mb-1 text-[0.78rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">{field.label}</h4>
                         {!isBinned && (
-                          <Button variant="ghost" size="icon" className="h-6 w-6 -mr-2 -mt-1" onClick={() => handleStartEditing(`customFields.${field.key}`, task.customFields?.[field.key])}>
+                          <Button variant="ghost" size="icon" className=" -mr-2 -mt-1 h-7 w-7 rounded-lg text-muted-foreground hover:bg-muted/55 hover:text-foreground" onClick={() => handleStartEditing(`customFields.${field.key}`, task.customFields?.[field.key])}>
                             <Pencil className="h-3 w-3" />
                           </Button>
                         )}
                       </div>
-                      <div className="text-sm text-foreground min-w-0 font-normal">
+                      <div className="min-w-0 text-sm leading-6 text-foreground">
                         {editingSection === `customFields.${field.key}` ? (
                             field.type === 'textarea' ? (
                                 <Textarea
@@ -1379,22 +1387,22 @@ const handleCopyDescription = () => {
           </div>
 
           <div className="space-y-6">
-            <Card className="h-fit">
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between text-xl font-semibold">
+            <Card className={cn("h-fit", sectionCardClassName)}>
+                <CardHeader className={cn(sectionHeaderClassName, "pb-4")}>
+                  <CardTitle className={cn("flex items-center justify-between", sectionTitleClassName)}>
                     <span className="flex items-center gap-2"><ListChecks className="h-5 w-5" />Task Details</span>
                     {!isBinned && editingSection !== 'details' && (
-                        <Button variant="ghost" size="sm" onClick={handleStartEditing.bind(null, 'details', {})} className="font-medium">
+                        <Button variant="ghost" size="sm" onClick={handleStartEditing.bind(null, 'details', {})} className="rounded-lg text-muted-foreground hover:bg-muted/55 hover:text-foreground">
                             <Pencil className="h-3 w-3 mr-1.5" /> Edit
                         </Button>
                     )}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-5 px-5 pb-5 pt-0 sm:px-6 sm:pb-6">
                   {editingSection === 'details' ? (
                      <div className="space-y-4">
                          <div>
-                            <Label className="font-semibold">{fieldLabels.get('developers') || 'Developers'}</Label>
+                            <Label className="text-[0.78rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">{fieldLabels.get('developers') || 'Developers'}</Label>
                             <MultiSelect
                               selected={editingValue?.developers || []}
                               onChange={val => setEditingValue((prev: any) => ({ ...(prev || {}), developers: val }))}
@@ -1404,7 +1412,7 @@ const handleCopyDescription = () => {
                             />
                         </div>
                         <div>
-                            <Label className="font-semibold">{fieldLabels.get('testers') || 'Testers'}</Label>
+                            <Label className="text-[0.78rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">{fieldLabels.get('testers') || 'Testers'}</Label>
                             <MultiSelect
                               selected={editingValue?.testers || []}
                               onChange={val => setEditingValue((prev: any) => ({ ...(prev || {}), testers: val }))}
@@ -1415,7 +1423,7 @@ const handleCopyDescription = () => {
                         </div>
                         {isRepositorySectionVisible && (
                           <div>
-                              <Label className="font-semibold">{fieldLabels.get('repositories') || 'Repositories'}</Label>
+                              <Label className="text-[0.78rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">{fieldLabels.get('repositories') || 'Repositories'}</Label>
                               <MultiSelect
                                 selected={editingValue?.repositories || []}
                                 onChange={val => setEditingValue((prev: any) => ({ ...(prev || {}), repositories: val }))}
@@ -1425,7 +1433,7 @@ const handleCopyDescription = () => {
                         )}
                         {azureWorkItemIdFieldConfig?.isActive && (
                             <div>
-                                <Label className="font-semibold">{azureWorkItemIdFieldConfig.label || 'Azure DevOps'}</Label>
+                                <Label className="text-[0.78rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">{azureWorkItemIdFieldConfig.label || 'Azure DevOps'}</Label>
                                 <Input
                                   value={editingValue?.azureWorkItemId || ''}
                                   onChange={(e) => setEditingValue((prev: any) => ({ ...(prev || {}), azureWorkItemId: e.target.value }))}
@@ -1442,27 +1450,27 @@ const handleCopyDescription = () => {
                   ) : (
                     <>
                       <TaskDetailSection title={fieldLabels.get('developers') || 'Developers'} people={assignedDevelopers} setPersonInView={setPersonInView} isDeveloper={true} />
-                      <Separator />
+                      <Separator className={subtleDividerClassName} />
                       <TaskDetailSection title={fieldLabels.get('testers') || 'Testers'} people={assignedTesters} setPersonInView={setPersonInView} isDeveloper={false} />
                       {isRepositorySectionVisible && (
                         <>
-                          <Separator />
+                          <Separator className={subtleDividerClassName} />
                           <div>
-                            <h4 className="text-sm font-semibold text-muted-foreground mb-2">{fieldLabels.get('repositories') || 'Repositories'}</h4>
-                            <div className="flex flex-wrap gap-1">
+                            <h4 className="mb-2 text-[0.78rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">{fieldLabels.get('repositories') || 'Repositories'}</h4>
+                            <div className="flex flex-wrap gap-1.5">
                               {visibleRepositories.length > 0 ? visibleRepositories.map(repo => (
-                                <Badge key={repo} variant="repo" style={getRepoBadgeStyle(repo)} className="font-medium">{repo}</Badge>
+                                <Badge key={repo} variant="repo" style={getRepoBadgeStyle(repo)} className="rounded-full px-2.5 py-1 font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">{repo}</Badge>
                               )) : (<p className="text-sm text-muted-foreground font-normal">No repositories assigned.</p>)}
                             </div>
                           </div>
                         </>
                       )}
                       {azureWorkItemIdFieldConfig && azureWorkItemIdFieldConfig.isActive && task.azureWorkItemId && (<>
-                        <Separator />
+                        <Separator className={subtleDividerClassName} />
                         <div>
-                          <h4 className="text-sm font-semibold text-muted-foreground mb-2">{azureWorkItemIdFieldConfig.label || 'Azure DevOps'}</h4>
+                          <h4 className="mb-2 text-[0.78rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">{azureWorkItemIdFieldConfig.label || 'Azure DevOps'}</h4>
                           {azureWorkItemIdFieldConfig.baseUrl ? (
-                            <a href={`${azureWorkItemIdFieldConfig.baseUrl}${task.azureWorkItemId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline text-sm font-normal">
+                            <a href={`${azureWorkItemIdFieldConfig.baseUrl}${task.azureWorkItemId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm font-medium text-primary/90 transition-colors hover:text-primary hover:underline">
                               <ExternalLink className="h-4 w-4" />
                               <span>Work Item #{task.azureWorkItemId}</span>
                             </a>
@@ -1474,12 +1482,12 @@ const handleCopyDescription = () => {
                   
                   {tagsField && tagsField.isActive && (
                     <>
-                        <Separator />
+                        <Separator className={subtleDividerClassName} />
                         <div>
                             <div className="flex items-center justify-between mb-2">
-                                <h4 className="text-sm font-semibold text-muted-foreground">{tagsField.label || 'Tags'}</h4>
+                                <h4 className="text-[0.78rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">{tagsField.label || 'Tags'}</h4>
                                 {!isBinned && editingSection !== 'tags' && (
-                                    <Button variant="ghost" size="sm" onClick={() => handleStartEditing('tags', task.tags || [])} className="font-medium">
+                                    <Button variant="ghost" size="sm" onClick={() => handleStartEditing('tags', task.tags || [])} className="rounded-lg text-muted-foreground hover:bg-muted/55 hover:text-foreground">
                                         <Pencil className="h-3 w-3 mr-1.5" /> Edit
                                     </Button>
                                 )}
@@ -1499,10 +1507,10 @@ const handleCopyDescription = () => {
                                   </div>
                                 </>
                             ) : (
-                                <div className="flex flex-wrap gap-1">
+                                <div className="flex flex-wrap gap-1.5">
                                     {(task.tags && task.tags.length > 0) ? (
                                         task.tags.map(tag => (
-                                            <Badge key={tag} variant="secondary" className="font-medium">{tag}</Badge>
+                                            <Badge key={tag} variant="secondary" className="rounded-full border border-border/40 bg-muted/[0.6] px-2.5 py-1 font-medium text-foreground/85">{tag}</Badge>
                                         ))
                                     ) : (
                                         <p className="text-sm text-muted-foreground font-normal">No tags assigned.</p>
@@ -1512,19 +1520,19 @@ const handleCopyDescription = () => {
                         </div>
                     </>
                   )}
-                  <Separator />
+                  <Separator className={subtleDividerClassName} />
                   <div>
-                    <h4 className="text-sm font-semibold text-muted-foreground mb-2">Important Dates</h4>
+                    <h4 className="mb-1.5 text-[0.78rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">Important Dates</h4>
                     <TimelineSection task={task} uiConfig={uiConfig} fieldLabels={fieldLabels} onDateUpdate={handleDateUpdate} onDeploymentDateUpdate={handleDeploymentDateUpdate} isBinned={isBinned}/>
                   </div>
                 </CardContent>
             </Card>
 
             {attachmentsField && (
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle className="flex items-center gap-2 text-xl font-semibold">
-                            <Paperclip className="h-5 w-5" />{fieldLabels.get('attachments') || 'Attachments'}
+                <Card className={sectionCardClassName}>
+                    <CardHeader className={cn(sectionHeaderClassName, "flex-row items-center justify-between space-y-0")}>
+                        <CardTitle className={cn("flex items-center gap-2", sectionTitleClassName)}>
+                            <Paperclip className="h-5 w-5 text-primary/80" />{fieldLabels.get('attachments') || 'Attachments'}
                         </CardTitle>
                         {!isBinned && (
                             <Button variant="ghost" size="sm" onClick={() => {
@@ -1535,17 +1543,17 @@ const handleCopyDescription = () => {
                                     isEditingAttachmentsRef.current = true;
                                     setLocalAttachments(task.attachments || []);
                                 }
-                            }} className="font-medium">
+                            }} className="rounded-lg text-muted-foreground hover:bg-muted/55 hover:text-foreground">
                                 {isEditingAttachments ? 'Save' : <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>}
                             </Button>
                         )}
                     </CardHeader>
-                    <CardContent className="space-y-2">
+                    <CardContent className="space-y-3 px-5 pb-5 pt-0 sm:px-6 sm:pb-6">
                          {isEditingAttachments ? (
                             <div className="space-y-3">
                                 <div className="space-y-2">
                                 {localAttachments.map((att, index) => (
-                                    <div key={index} className="flex items-start gap-2 group/attachment p-2 -m-2 rounded-md bg-muted/50">
+                                    <div key={index} className="group/attachment flex items-start gap-2 rounded-[1rem] border border-border/45 bg-muted/[0.04] p-3">
                                         <div className="flex-1 space-y-1">
                                           <Input 
                                             value={att.name} 
@@ -1577,14 +1585,14 @@ const handleCopyDescription = () => {
                                 ))}
                                 </div>
 
-                                <div className="border-2 border-dashed rounded-lg p-4 text-center text-sm text-muted-foreground font-normal">
+                                <div className="rounded-[1rem] border border-dashed border-border/65 bg-muted/[0.025] p-4 text-center text-sm text-muted-foreground font-normal">
                                     <p>Drop files, or paste an image/link</p>
                                     <div className="flex items-center justify-center gap-2 mt-2">
                                         <Popover open={isAddLinkPopoverOpen} onOpenChange={setIsAddLinkPopoverOpen}>
                                             <PopoverTrigger asChild>
                                                 <Button type="button" variant="outline" size="sm" className="font-medium"><Link2 className="h-4 w-4 mr-2" /> Add Link</Button>
                                             </PopoverTrigger>
-                                            <PopoverContent className="w-80">
+                                            <PopoverContent className="w-80 rounded-[1rem] border-border/60 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.24)]">
                                                 <div className="grid gap-4">
                                                     <div className="space-y-2">
                                                         <h4 className="font-semibold leading-none">Add Link</h4>
@@ -1604,7 +1612,7 @@ const handleCopyDescription = () => {
                                 </div>
                             </div>
                          ) : (!task.attachments || task.attachments.length === 0) ? (
-                            <div className="text-center py-6 text-muted-foreground border-2 border-dashed rounded-lg">
+                            <div className="rounded-[1rem] border border-dashed border-border/65 bg-muted/[0.02] py-7 text-center text-muted-foreground">
                                 <p className="text-sm font-medium">No attachments yet.</p>
                             </div>
                          ) : (
@@ -1612,9 +1620,9 @@ const handleCopyDescription = () => {
                                 {task.attachments.map((att, index) => {
                                     const isImage = att.type === 'image' || isImageUrl(att.url);
                                     return (
-                                        <div key={index} className="flex items-center justify-between group/attachment p-3 border rounded-xl hover:bg-muted/30 transition-all">
+                                        <div key={index} className="group/attachment flex items-center justify-between rounded-[1rem] border border-border/55 bg-background/70 p-3 transition-[background-color,border-color,box-shadow] duration-200 hover:border-border/80 hover:bg-muted/[0.04] hover:shadow-[0_14px_28px_-24px_rgba(15,23,42,0.24)]">
                                             <div className="flex items-center gap-3 min-w-0">
-                                                <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden border">
+                                                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[0.9rem] border border-border/55 bg-muted/[0.5]">
                                                     {isImage ? (
                                                         <img src={att.url} alt={att.name} className="h-full w-full object-cover" />
                                                     ) : (
@@ -1630,7 +1638,7 @@ const handleCopyDescription = () => {
                                                                 window.open(att.url, '_blank', 'noopener,noreferrer');
                                                             }
                                                         }}
-                                                        className="text-sm font-bold text-foreground truncate hover:text-primary hover:underline transition-colors block text-left w-full"
+                                                        className="block w-full truncate text-left text-sm font-semibold text-foreground transition-colors hover:text-primary hover:underline"
                                                     >
                                                         {att.name}
                                                     </button>
@@ -1644,7 +1652,7 @@ const handleCopyDescription = () => {
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-1 opacity-0 group-hover/attachment:opacity-100 transition-opacity">
+                                            <div className="flex items-center gap-1 opacity-0 transition-opacity duration-200 group-hover/attachment:opacity-100">
                                                 <ShareMenu 
                                                     task={task} 
                                                     uiConfig={uiConfig} 
@@ -1652,7 +1660,7 @@ const handleCopyDescription = () => {
                                                     testers={testers}
                                                     attachment={att}
                                                 >
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-muted/60">
                                                         <Share className="h-4 w-4 text-muted-foreground" />
                                                     </Button>
                                                 </ShareMenu>
@@ -1660,7 +1668,7 @@ const handleCopyDescription = () => {
                                                     <Button 
                                                         variant="ghost" 
                                                         size="icon" 
-                                                        className="h-8 w-8 rounded-full"
+                                                        className="h-8 w-8 rounded-lg hover:bg-muted/60"
                                                         onClick={() => window.open(att.url, '_blank')}
                                                     >
                                                         <ExternalLink className="h-4 w-4 text-muted-foreground" />
@@ -1741,22 +1749,22 @@ function TaskDetailSection({ title, people, setPersonInView, isDeveloper }: {
   };
   
   return (
-    <div>
-        <h4 className="text-sm font-semibold text-muted-foreground mb-2">{title}</h4>
-        <div className="flex flex-wrap gap-4">
+    <div className="space-y-3">
+        <h4 className="text-[0.78rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">{title}</h4>
+        <div className="flex flex-wrap gap-2.5">
             {people.length > 0 ? (
                 people.map((person, index) => (
                   <TooltipProvider key={`${isDeveloper ? 'dev' : 'test'}-${person.id}-${index}`}>
                     <Tooltip>
                         <TooltipTrigger asChild>
                         <button 
-                            className="flex items-center gap-2 p-1 -m-1 rounded-md hover:bg-muted/50 transition-colors disabled:cursor-not-allowed disabled:opacity-70"
+                            className="flex items-center gap-2 rounded-[0.95rem] border border-transparent px-2.5 py-2 text-left transition-[background-color,border-color,box-shadow] duration-200 hover:border-border/55 hover:bg-muted/[0.04] hover:shadow-[0_10px_24px_-24px_rgba(15,23,42,0.2)] disabled:cursor-not-allowed disabled:opacity-70"
                             onClick={() => setPersonInView({ person, isDeveloper })}
                             disabled={!canOpenPopup(person)}
                         >
-                            <Avatar className="h-7 w-7">
+                            <Avatar className="h-8 w-8 ring-1 ring-border/35">
                             <AvatarFallback
-                                className="font-semibold text-white text-[10px]"
+                                className="text-[10px] font-semibold text-white"
                                 style={{
                                 backgroundColor: `#${getAvatarColor(person.name)}`,
                                 }}
@@ -1764,7 +1772,7 @@ function TaskDetailSection({ title, people, setPersonInView, isDeveloper }: {
                                 {getInitials(person.name)}
                             </AvatarFallback>
                             </Avatar>
-                            <span className="text-sm font-medium text-foreground">
+                            <span className="text-sm font-medium text-foreground/92">
                             {person.name}
                             </span>
                         </button>
@@ -1819,20 +1827,20 @@ function TimelineSection({
     };
 
     return (
-      <div className="flex justify-between items-center group">
-        <span className="text-muted-foreground font-normal">{label}</span>
+      <div className="group flex items-center justify-between rounded-[0.95rem] border border-transparent px-2.5 py-2 transition-[background-color,border-color] duration-200 hover:border-border/45 hover:bg-muted/[0.03]">
+        <span className="font-normal text-muted-foreground">{label}</span>
         <Popover open={isOpen} onOpenChange={isBinned ? undefined : setIsOpen}>
           <PopoverTrigger asChild disabled={isBinned}>
             <Button
               variant="ghost"
               size="sm"
-              className={cn("h-7 px-2 font-normal", !dateValue && "text-muted-foreground hover:text-foreground")}
+              className={cn("h-8 rounded-lg px-2.5 font-normal text-foreground/85 hover:bg-muted/55", !dateValue && "text-muted-foreground hover:text-foreground")}
             >
               {dateValue ? format(dateValue, 'PPP') : 'Set Date'}
-              <Pencil className="ml-2 h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              <Pencil className="ml-2 h-3 w-3 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="end">
+          <PopoverContent className="w-auto rounded-[1rem] border-border/60 p-0 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.24)]" align="end">
             <Calendar
               mode="single"
               selected={dateValue || undefined}
@@ -1844,7 +1852,7 @@ function TimelineSection({
               initialFocus
               disabled={getDisabledDates()}
             />
-            <div className="p-2 border-t text-center">
+            <div className="border-t border-border/55 p-2 text-center">
               <Button
                 variant="ghost"
                 size="sm"
@@ -1871,20 +1879,20 @@ function TimelineSection({
       if (!isDeployed) return null;
 
       return (
-        <div className="flex justify-between items-center group">
-            <span className="text-muted-foreground capitalize font-normal">{env} Deployed</span>
+        <div className="group flex items-center justify-between rounded-[0.95rem] border border-transparent px-2.5 py-2 transition-[background-color,border-color] duration-200 hover:border-border/45 hover:bg-muted/[0.03]">
+            <span className="capitalize font-normal text-muted-foreground">{env} Deployed</span>
             <Popover open={isOpen} onOpenChange={isBinned ? undefined : setIsOpen}>
                 <PopoverTrigger asChild disabled={isBinned}>
                     <Button
                         variant="ghost"
                         size="sm"
-                        className={cn("h-7 px-2 font-normal", !dateValue && "text-muted-foreground hover:text-foreground")}
+                        className={cn("h-8 rounded-lg px-2.5 font-normal text-foreground/85 hover:bg-muted/55", !dateValue && "text-muted-foreground hover:text-foreground")}
                     >
                         {dateValue ? format(dateValue, 'PPP') : 'Set Date'}
-                        <Pencil className="ml-2 h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <Pencil className="ml-2 h-3 w-3 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
+                <PopoverContent className="w-auto rounded-[1rem] border-border/60 p-0 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.24)]" align="end">
                     <Calendar
                         mode="single"
                         selected={dateValue || undefined}
@@ -1895,7 +1903,7 @@ function TimelineSection({
                         defaultMonth={dateValue || undefined}
                         initialFocus
                     />
-                     <div className="p-2 border-t text-center">
+                     <div className="border-t border-border/55 p-2 text-center">
                         <Button
                             variant="ghost"
                             size="sm"
@@ -1929,14 +1937,14 @@ function TimelineSection({
 
 
   return (
-    <div className="space-y-2 text-sm">
+    <div className="space-y-1.5 text-sm">
       {devStartConfig && <DateField fieldKey="devStartDate" label={devStartConfig.label} />}
       {devEndConfig && <DateField fieldKey="devEndDate" label={devEndConfig.label} />}
-      {(devStartConfig || devEndConfig) && (qaStartConfig || qaEndConfig) && <Separator className="my-2" />}
+      {(devStartConfig || devEndConfig) && (qaStartConfig || qaEndConfig) && <Separator className="my-1.5 bg-border/50" />}
       {qaStartConfig && <DateField fieldKey="qaStartDate" label={qaStartConfig.label} />}
       {qaEndConfig && <DateField fieldKey="qaEndDate" label={qaEndConfig.label} />}
 
-      {(devStartConfig || devEndConfig || qaStartConfig || qaEndConfig) && hasAnyDeploymentDate && <Separator className="my-2"/>}
+      {(devStartConfig || devEndConfig || qaStartConfig || qaEndConfig) && hasAnyDeploymentDate && <Separator className="my-1.5 bg-border/50"/>}
 
       {task.deploymentDates && relevantEnvs.map((env: Environment) => (
           <DeploymentDateField key={env.id} env={env.name} date={task.deploymentDates?.[env.name]} />
