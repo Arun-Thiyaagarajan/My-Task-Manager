@@ -15,6 +15,7 @@ import {
   Inbox,
   LayoutDashboard,
   Copy,
+  FileSpreadsheet,
   type LucideIcon,
   NotebookPen,
   Rocket,
@@ -44,6 +45,7 @@ type FeatureItem = {
   icon: LucideIcon;
   accent: string;
   tags: string[];
+  desktopOnly?: boolean;
 };
 
 const featureItems: FeatureItem[] = [
@@ -79,6 +81,7 @@ const featureItems: FeatureItem[] = [
     icon: Search,
     accent: 'text-blue-500',
     tags: ['global search', 'spotlight', 'cmd k', 'ctrl k', 'search anything', 'command palette'],
+    desktopOnly: true,
   },
   {
     id: 'templates',
@@ -90,6 +93,19 @@ const featureItems: FeatureItem[] = [
     icon: Copy,
     accent: 'text-indigo-500',
     tags: ['templates', 'task templates', 'presets', 'template bin', 'reuse task', 'create template'],
+    desktopOnly: true,
+  },
+  {
+    id: 'excel-import-export',
+    title: 'Excel Import & Export',
+    subtitle: 'Desktop review flow, template download, and workbook export',
+    description: 'Use the desktop Excel flow to download a guided template, review workbook rows before import, and export task data back to Excel safely.',
+    href: '/tasks/import/excel',
+    category: 'Core Workflow',
+    icon: FileSpreadsheet,
+    accent: 'text-emerald-500',
+    tags: ['excel', 'xlsx', 'import excel', 'export excel', 'template download', 'review rows'],
+    desktopOnly: true,
   },
   {
     id: 'notes',
@@ -247,8 +263,8 @@ export default function HelpCenterPage() {
   }, []);
 
   const availableFeatures = React.useMemo(() => {
-    if (isAdmin) {
-      return featureItems.map((item) =>
+    const baseItems = isAdmin
+      ? featureItems.map((item) =>
         item.id === 'help-about'
           ? {
               ...item,
@@ -258,11 +274,11 @@ export default function HelpCenterPage() {
               tags: item.tags.filter((tag) => tag !== 'support'),
             }
           : item
-      );
-    }
+      )
+      : featureItems;
 
-    return featureItems;
-  }, [isAdmin]);
+    return baseItems.filter(item => !(isMobile && item.desktopOnly));
+  }, [isAdmin, isMobile]);
 
   const filteredFeatures = React.useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -341,6 +357,11 @@ export default function HelpCenterPage() {
             <Badge variant="outline" className="hidden sm:inline-flex h-5 rounded-full px-2 text-[9px] font-black uppercase tracking-wider">
               {item.category}
             </Badge>
+            {item.desktopOnly && (
+              <Badge variant="secondary" className="hidden sm:inline-flex h-5 rounded-full px-2 text-[9px] font-black uppercase tracking-wider">
+                Desktop
+              </Badge>
+            )}
           </div>
           <p className="truncate text-xs font-medium text-muted-foreground">{item.subtitle}</p>
           <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">{item.description}</p>
@@ -417,7 +438,14 @@ export default function HelpCenterPage() {
                       <suggestion.item.icon className="h-4 w-4" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-bold">{suggestion.title}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="truncate text-sm font-bold">{suggestion.title}</p>
+                        {suggestion.item.desktopOnly && (
+                          <Badge variant="secondary" className="h-5 rounded-full px-2 text-[9px] font-black uppercase tracking-wider">
+                            Desktop
+                          </Badge>
+                        )}
+                      </div>
                       <p className="truncate text-[11px] font-medium uppercase tracking-tight text-muted-foreground">{suggestion.subLabel}</p>
                     </div>
                     <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/40" />
