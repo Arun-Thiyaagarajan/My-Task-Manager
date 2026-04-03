@@ -1544,7 +1544,7 @@ export default function ExcelImportPage() {
                           <col style={{ width: '320px' }} />
                           <col style={{ width: '88px' }} />
                         </colgroup>
-                        <thead className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
+                        <thead className="sticky top-0 z-40 bg-muted/95 backdrop-blur">
                           <tr className="border-b border-border/70">
                             <th className="px-4 py-3 text-left font-semibold text-foreground">Row</th>
                             <th className="px-4 py-3 text-left font-semibold text-foreground">Status</th>
@@ -1553,7 +1553,7 @@ export default function ExcelImportPage() {
                                 key={column.key}
                                 className={cn(
                                   'px-4 py-3 text-left font-semibold text-foreground whitespace-nowrap',
-                                  column.key === 'title' && 'sticky left-0 z-20 w-[260px] min-w-[260px] max-w-[260px] bg-muted/95 shadow-[10px_0_18px_-18px_rgba(15,23,42,0.28)]'
+                                  column.key === 'title' && 'sticky left-0 z-50 w-[260px] min-w-[260px] max-w-[260px] bg-muted/95 shadow-[10px_0_18px_-18px_rgba(15,23,42,0.28)]'
                                 )}
                               >
                                 <div className="flex items-center gap-2">
@@ -1574,8 +1574,8 @@ export default function ExcelImportPage() {
                                 </div>
                               </th>
                             ))}
-                            <th className="sticky right-[88px] z-20 w-[320px] min-w-[320px] max-w-[320px] bg-muted/95 px-4 py-3 text-left font-semibold text-foreground shadow-[-10px_0_18px_-18px_rgba(15,23,42,0.28)]">Validation</th>
-                            <th className="sticky right-0 z-20 w-[88px] min-w-[88px] max-w-[88px] bg-muted/95 px-4 py-3 text-left font-semibold text-foreground shadow-[-10px_0_18px_-18px_rgba(15,23,42,0.28)]">Actions</th>
+                            <th className="sticky right-[88px] z-50 w-[320px] min-w-[320px] max-w-[320px] bg-muted/95 px-4 py-3 text-left font-semibold text-foreground shadow-[-10px_0_18px_-18px_rgba(15,23,42,0.28)]">Validation</th>
+                            <th className="sticky right-0 z-50 w-[88px] min-w-[88px] max-w-[88px] bg-muted/95 px-4 py-3 text-left font-semibold text-foreground shadow-[-10px_0_18px_-18px_rgba(15,23,42,0.28)]">Actions</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1621,7 +1621,7 @@ export default function ExcelImportPage() {
                                       key={`${row.id}-${column.key}`}
                                       className={cn(
                                         'px-4 py-4 align-top transition-all duration-200',
-                                        isStickyTitle && 'sticky left-0 z-10 w-[260px] min-w-[260px] max-w-[260px] bg-background shadow-[10px_0_18px_-18px_rgba(15,23,42,0.18)]'
+                                        isStickyTitle && 'sticky left-0 z-20 w-[260px] min-w-[260px] max-w-[260px] bg-background shadow-[10px_0_18px_-18px_rgba(15,23,42,0.18)]'
                                       )}
                                     >
                                       {isEditing ? (
@@ -1640,7 +1640,7 @@ export default function ExcelImportPage() {
                                     </td>
                                   );
                                 })}
-                                <td className="sticky right-[88px] z-10 w-[320px] min-w-[320px] max-w-[320px] px-4 py-4 bg-background shadow-[-10px_0_18px_-18px_rgba(15,23,42,0.18)]">
+                                <td className="sticky right-[88px] z-20 w-[320px] min-w-[320px] max-w-[320px] px-4 py-4 bg-background shadow-[-10px_0_18px_-18px_rgba(15,23,42,0.18)]">
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <div
@@ -1674,7 +1674,7 @@ export default function ExcelImportPage() {
                                     </TooltipContent>
                                   </Tooltip>
                                 </td>
-                                <td className="sticky right-0 z-10 w-[88px] min-w-[88px] max-w-[88px] px-4 py-4 bg-background shadow-[-10px_0_18px_-18px_rgba(15,23,42,0.18)]">
+                                <td className="sticky right-0 z-20 w-[88px] min-w-[88px] max-w-[88px] px-4 py-4 bg-background shadow-[-10px_0_18px_-18px_rgba(15,23,42,0.18)]">
                                   <div className="flex items-center gap-2">
                                     <Tooltip>
                                       <TooltipTrigger asChild>

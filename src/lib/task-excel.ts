@@ -90,9 +90,44 @@ const splitMultiValue = (value: string): string[] =>
     .map(item => item.trim())
     .filter(Boolean);
 
+const buildValidDate = (year: number, month: number, day: number): Date | null => {
+  const parsed = new Date(year, month - 1, day);
+  if (
+    Number.isNaN(parsed.getTime()) ||
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month - 1 ||
+    parsed.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return parsed;
+};
+
+const parseExcelSerialDate = (serialValue: number): Date | null => {
+  if (!Number.isFinite(serialValue) || serialValue <= 0) return null;
+  const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+  const parsed = new Date(excelEpoch.getTime() + serialValue * 24 * 60 * 60 * 1000);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
 const normalizeDateString = (value: string): string | null => {
   const trimmed = value.trim();
   if (!trimmed) return null;
+
+  const dayMonthYearMatch = trimmed.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (dayMonthYearMatch) {
+    const [, day, month, year] = dayMonthYearMatch;
+    const parsed = buildValidDate(Number(year), Number(month), Number(day));
+    return parsed ? parsed.toISOString() : null;
+  }
+
+  const excelSerial = Number(trimmed);
+  if (!Number.isNaN(excelSerial) && /^\d+(\.\d+)?$/.test(trimmed)) {
+    const parsed = parseExcelSerialDate(excelSerial);
+    return parsed ? parsed.toISOString() : null;
+  }
+
   const parsed = new Date(trimmed);
   if (Number.isNaN(parsed.getTime())) return null;
   return parsed.toISOString();
