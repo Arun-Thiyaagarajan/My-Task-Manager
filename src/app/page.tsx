@@ -421,6 +421,11 @@ export default function Home() {
   }, [refreshData]);
 
   useEffect(() => {
+    if (!mounted || pathname !== '/') return;
+    refreshData();
+  }, [mounted, pathname, searchParams, refreshData]);
+
+  useEffect(() => {
     const tutorialBulkSelectors = new Set([
       '#home-select-multiple-trigger',
       '#select-all-tasks',
