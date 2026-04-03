@@ -140,7 +140,10 @@ const TasksTableRow = memo(function TasksTableRow({
   
     const updatedTaskData = {
       deploymentStatus: { ...task.deploymentStatus, [env]: newStatus },
-      deploymentDates: { ...task.deploymentDates },
+      deploymentDates: {
+        ...task.deploymentDates,
+        [env]: newStatus ? task.deploymentDates?.[env] || new Date().toISOString() : task.deploymentDates?.[env],
+      },
     };
     
     const updatedTask = updateTask(task.id, updatedTaskData);
@@ -192,6 +195,8 @@ const TasksTableRow = memo(function TasksTableRow({
   
   const allRelevantEnvs = (uiConfig?.environments || []).filter(e => (task.relevantEnvironments || ['dev','stage','production']).includes(e.name));
   const visibleRepositories = getTaskRepositories(task, uiConfig);
+  const visibleRepoBadges = visibleRepositories.slice(0, 2);
+  const hiddenRepositories = visibleRepositories.slice(2);
 
   return (
     <TableRow 
@@ -348,7 +353,7 @@ const TasksTableRow = memo(function TasksTableRow({
       {isRepositoryFieldActive(uiConfig) && (
         <TableCell className="align-top">
           <div className="flex flex-wrap gap-1">
-            {visibleRepositories.map((repo) => (
+            {visibleRepoBadges.map((repo) => (
               <Badge
                 variant="repo"
                 key={repo}
@@ -358,6 +363,32 @@ const TasksTableRow = memo(function TasksTableRow({
                 {repo}
               </Badge>
             ))}
+            {hiddenRepositories.length > 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge
+                    variant="outline"
+                    className="cursor-default rounded-full border-border/50 bg-muted/[0.35] text-xs font-medium text-muted-foreground"
+                  >
+                    +{hiddenRepositories.length} more
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent side="top" align="start" className="max-w-[20rem]">
+                  <div className="flex flex-wrap gap-1.5 p-0.5">
+                    {hiddenRepositories.map((repo) => (
+                      <Badge
+                        variant="repo"
+                        key={`hidden-${repo}`}
+                        className="text-xs font-medium"
+                        style={getRepoBadgeStyle(repo)}
+                      >
+                        {repo}
+                      </Badge>
+                    ))}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            )}
           </div>
         </TableCell>
       )}

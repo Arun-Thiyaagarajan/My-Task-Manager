@@ -417,10 +417,10 @@ function SharedTaskContent() {
                                 )}
                                 <Separator className="opacity-50" />
                                 <div>
-                                    <h4 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+                                    <h4 className="mb-2.5 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
                                         <Clock className="h-4 w-4" /> Timeline
                                     </h4>
-                                    <div className="space-y-2 text-xs font-medium">
+                                    <div className="space-y-1.5 text-xs font-medium">
                                         {task.devStartDate && <div className="flex justify-between"><span>Dev Commenced</span><span className="font-bold">{format(new Date(task.devStartDate), 'PPP')}</span></div>}
                                         {task.devEndDate && <div className="flex justify-between"><span>Dev Completed</span><span className="font-bold">{format(new Date(task.devEndDate), 'PPP')}</span></div>}
                                         {task.qaStartDate && <div className="flex justify-between"><span>QA Started</span><span className="font-bold">{format(new Date(task.qaStartDate), 'PPP')}</span></div>}

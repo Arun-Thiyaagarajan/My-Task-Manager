@@ -139,6 +139,10 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
             ...task.deploymentStatus,
             [env]: newStatus,
         },
+        deploymentDates: {
+            ...task.deploymentDates,
+            [env]: newStatus ? task.deploymentDates?.[env] || new Date().toISOString() : task.deploymentDates?.[env],
+        },
     };
   
     const updatedTaskResult = updateTask(task.id, updatedTaskData);
@@ -223,6 +227,8 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
 
   const allRelevantEnvs = (uiConfig?.environments || []).filter(e => (task.relevantEnvironments || ['dev','stage','production']).includes(e.name));
   const visibleRepositories = getTaskRepositories(task, uiConfig);
+  const visibleRepoBadges = visibleRepositories.slice(0, 2);
+  const hiddenRepositories = visibleRepositories.slice(2);
 
   return (
     <>
@@ -375,7 +381,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                   <div className="flex items-start gap-2 text-sm text-muted-foreground">
                     <GitMerge className="mt-0.5 h-4 w-4 shrink-0" />
                     <div className="flex flex-wrap gap-1">
-                      {visibleRepositories.map((repo) => (
+                      {visibleRepoBadges.map((repo) => (
                         <Badge 
                           variant="repo" 
                           key={repo} 
@@ -385,6 +391,32 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                           {repo}
                         </Badge>
                       ))}
+                      {hiddenRepositories.length > 0 && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge
+                              variant="outline"
+                              className="cursor-default rounded-full border-border/50 bg-muted/[0.35] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground"
+                            >
+                              +{hiddenRepositories.length} more
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" align="start" className="max-w-[18rem]">
+                            <div className="flex flex-wrap gap-1.5 p-0.5">
+                              {hiddenRepositories.map((repo) => (
+                                <Badge
+                                  key={`hidden-${repo}`}
+                                  variant="repo"
+                                  className="max-w-full truncate text-[10px] font-medium uppercase tracking-wider"
+                                  style={getRepoBadgeStyle(repo)}
+                                >
+                                  {repo}
+                                </Badge>
+                              ))}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
                     </div>
                   </div>
                 )}
