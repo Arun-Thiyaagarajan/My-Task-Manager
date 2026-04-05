@@ -40,6 +40,14 @@ export function getAiErrorMessage(error: unknown) {
     ) {
       return AI_UNAVAILABLE_MESSAGE;
     }
+    if (
+      normalized.includes('an error occurred in the server components render') ||
+      normalized.includes('specific message is omitted in production builds') ||
+      normalized.includes('digest property') ||
+      normalized.includes('production builds to avoid leaking sensitive details')
+    ) {
+      return 'The assistant hit a protected server error while processing that request. Please try again. If it keeps happening, simplify the prompt or check the AI configuration.';
+    }
 
     return message;
   }
