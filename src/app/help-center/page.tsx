@@ -46,6 +46,7 @@ type FeatureItem = {
   accent: string;
   tags: string[];
   desktopOnly?: boolean;
+  premium?: boolean;
 };
 
 const featureItems: FeatureItem[] = [
@@ -110,13 +111,26 @@ const featureItems: FeatureItem[] = [
   {
     id: 'notes',
     title: 'Notes Workspace',
-    subtitle: 'Quick notes, full notes, and search',
-    description: 'Open the notes workspace for lightweight documentation, rich note editing, and note search.',
+    subtitle: 'Header notes buttons, full notes, and quick capture',
+    description: 'Use the desktop notes buttons near global search to jump into the notes workspace or create a quick note without leaving the task page.',
     href: '/notes',
     category: 'Documentation',
     icon: NotebookPen,
     accent: 'text-cyan-500',
-    tags: ['notes', 'note', 'documentation', 'floating notes', 'quick note'],
+    tags: ['notes', 'note', 'documentation', 'quick note', 'notes workspace', 'header notes'],
+  },
+  {
+    id: 'ai-assistant',
+    title: 'TaskFlow Copilot',
+    subtitle: 'Premium TaskFlow assistant for tasks, notes, reminders, and navigation',
+    description: 'Open TaskFlow Copilot from the floating desktop button for guided help, natural-language actions, and preview-before-confirm workspace changes.',
+    href: '/settings?section=features#settings-ai-assistant-feature',
+    category: 'Premium',
+    icon: Sparkles,
+    accent: 'text-violet-500',
+    tags: ['ai assistant', 'assistant', 'premium', 'copilot', 'chat', 'natural language', 'desktop assistant'],
+    desktopOnly: true,
+    premium: true,
   },
   {
     id: 'dashboard',
@@ -352,7 +366,7 @@ export default function HelpCenterPage() {
           <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-primary/20 ring-4 ring-background" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <p className="truncate text-sm font-bold text-foreground">{item.title}</p>
             <Badge variant="outline" className="hidden sm:inline-flex h-5 rounded-full px-2 text-[9px] font-black uppercase tracking-wider">
               {item.category}
@@ -360,6 +374,11 @@ export default function HelpCenterPage() {
             {item.desktopOnly && (
               <Badge variant="secondary" className="hidden sm:inline-flex h-5 rounded-full px-2 text-[9px] font-black uppercase tracking-wider">
                 Desktop
+              </Badge>
+            )}
+            {item.premium && (
+              <Badge className="hidden sm:inline-flex h-5 shrink-0 rounded-full border border-primary/25 bg-[linear-gradient(135deg,hsl(var(--primary)/0.18),hsl(280_92%_62%/0.18))] px-2 text-[9px] font-black uppercase tracking-wider text-white shadow-none hover:bg-[linear-gradient(135deg,hsl(var(--primary)/0.18),hsl(280_92%_62%/0.18))]">
+                Hot Feature
               </Badge>
             )}
           </div>
@@ -443,6 +462,11 @@ export default function HelpCenterPage() {
                         {suggestion.item.desktopOnly && (
                           <Badge variant="secondary" className="h-5 rounded-full px-2 text-[9px] font-black uppercase tracking-wider">
                             Desktop
+                          </Badge>
+                        )}
+                        {suggestion.item.premium && (
+                          <Badge className="h-5 rounded-full border border-primary/25 bg-primary/12 px-2 text-[9px] font-black uppercase tracking-wider text-primary shadow-none hover:bg-primary/12">
+                            Premium
                           </Badge>
                         )}
                       </div>

@@ -9,6 +9,7 @@
  * - SummaryOutput: The output type for the summary generation flow.
  */
 import { ai } from '@/ai/genkit';
+import { DEFAULT_GEMINI_MODEL, ensureAiAvailable, getAiErrorMessage } from '@/ai/availability';
 import { z } from 'zod';
 
 const SummaryInputSchema = z.object({
@@ -33,7 +34,12 @@ export type SummaryGenerationResult =
 export async function generateSummary(
   input: SummaryInput
 ): Promise<SummaryOutput> {
-  return generateSummaryFlow(input);
+  try {
+    ensureAiAvailable();
+    return await generateSummaryFlow(input);
+  } catch (error) {
+    throw new Error(getAiErrorMessage(error));
+  }
 }
 
 export async function generateSummarySafely(
@@ -63,9 +69,7 @@ export async function generateSummarySafely(
   }
 
   const reason =
-    lastError instanceof Error && lastError.message
-      ? lastError.message
-      : 'Summary generation failed.';
+    lastError ? getAiErrorMessage(lastError) : 'Summary generation failed.';
 
   return {
     ok: false,
@@ -86,7 +90,7 @@ const generateSummaryFlow = ai.defineFlow(
       prompt: `Generate a one-sentence summary of the following text:
 
 ${text}`,
-      model: 'googleai/gemini-1.5-flash',
+      model: DEFAULT_GEMINI_MODEL,
       output: {
         schema: SummaryOutputSchema,
       },

@@ -10,6 +10,7 @@
  */
 
 import { ai } from '@/ai/genkit';
+import { DEFAULT_GEMINI_MODEL, ensureAiAvailable, getAiErrorMessage } from '@/ai/availability';
 import { z } from 'zod';
 
 const RefineInputSchema = z.object({
@@ -32,10 +33,11 @@ export async function refineText(
   input: RefineInput
 ): Promise<RefineOutput> {
   try {
+    ensureAiAvailable();
     return await refineTextFlow(input);
   } catch (error) {
     console.error("AI Refine Flow Error:", error);
-    throw new Error("AI refinement is currently unavailable. Please try again later.");
+    throw new Error(getAiErrorMessage(error));
   }
 }
 
@@ -58,7 +60,7 @@ const refineTextFlow = ai.defineFlow(
 
       Text to refine:
       ${text}`,
-      model: 'googleai/gemini-1.5-flash',
+      model: DEFAULT_GEMINI_MODEL,
       output: {
         schema: RefineOutputSchema,
       },

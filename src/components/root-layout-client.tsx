@@ -6,7 +6,6 @@ import { cn } from '@/lib/utils';
 import { Header } from '@/components/header';
 import { Toaster } from '@/components/ui/toaster';
 import { Providers } from '@/components/providers';
-import { FloatingNotes } from '@/components/floating-notes';
 import { MobileBottomNav } from '@/components/mobile-bottom-nav';
 import { PullToRefresh } from '@/components/pull-to-refresh';
 import { NavigationLoader } from '@/components/navigation-loader';
@@ -15,6 +14,7 @@ import { FileTransferIndicator } from '@/components/file-transfer-indicator';
 import { GlobalSpotlightSearch } from '@/components/global-spotlight-search';
 import { OfflineScreen } from '@/components/offline-screen';
 import { GoogleAuthRedirectHandler } from '@/components/google-auth-redirect-handler';
+import { AIAssistant } from '@/components/ai-assistant';
 import { clearExpiredReminders } from '@/lib/data';
 
 /**
@@ -67,7 +67,7 @@ export function RootLayoutClient({ children }: { children: React.ReactNode }) {
             {children}
           </main>
         </PullToRefresh>
-        {!isSharedPage && <FloatingNotes />}
+        {!isSharedPage && <AIAssistant />}
         {!isSharedPage && <GlobalSpotlightSearch />}
         <OfflineScreen />
         <FileTransferIndicator />

@@ -245,6 +245,7 @@ export interface UiConfig {
   previousAppIcon?: string | null;
   remindersEnabled?: boolean;
   tutorialEnabled?: boolean;
+  aiAssistantEnabled?: boolean;
   timeFormat?: '12h' | '24h';
   autoBackupFrequency?: BackupFrequency;
   autoBackupTime?: number;

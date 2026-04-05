@@ -94,11 +94,11 @@ export function FloatingNotes() {
         setIsNoteEditorOpen(false);
     };
 
-    // VISIBILITY RESTRICTION: Only show on Home and Task Detail pages
+    // Desktop floating notes now stay only on task detail pages.
     const isHome = pathname === '/';
     const isTaskDetail = pathname?.startsWith('/tasks/') && !pathname.endsWith('/edit') && !pathname.endsWith('/new');
     
-    if (!isHome && !isTaskDetail) {
+    if (isHome || !isTaskDetail) {
         return null;
     }
 

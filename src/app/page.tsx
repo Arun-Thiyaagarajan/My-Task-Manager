@@ -120,6 +120,7 @@ import { isRepositoryFieldActive } from '@/lib/repository-config';
 import { openGlobalSpotlightSearch } from '@/components/global-spotlight-search';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { TasksCalendarView } from '@/components/tasks-calendar-view';
+import { DesktopNotesShortcut } from '@/components/desktop-notes-shortcut';
 import { appendExcelExportMetadataSheet, buildExcelExportRows } from '@/lib/task-excel';
 
 type ViewMode = 'grid' | 'table';
@@ -1731,6 +1732,7 @@ export default function Home() {
                         </TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
+                <DesktopNotesShortcut />
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                     <Button id="home-export-trigger" variant="outline" size="sm" className="w-full sm:w-auto h-11 rounded-2xl px-5 font-medium shadow-sm shadow-black/5 transition-all hover:shadow-md hover:shadow-black/10">

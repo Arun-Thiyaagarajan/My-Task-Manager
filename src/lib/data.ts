@@ -159,6 +159,7 @@ const getInitialData = (): MyTaskManagerData => {
                     appIcon: null,
                     remindersEnabled: true,
                     tutorialEnabled: true,
+                    aiAssistantEnabled: true,
                     timeFormat: '12h',
                     autoBackupFrequency: 'weekly',
                     autoBackupTime: 6,

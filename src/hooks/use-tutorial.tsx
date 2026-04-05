@@ -100,14 +100,24 @@ const routeRegistry: Record<TutorialRouteKey, (context: TutorialContext) => Tuto
         description: 'This tutorial opens the profile menu for you here. Use it to access My Profile, Settings, and Help & About, and in local mode you will also see Sign In / Cloud Sync.',
       },
       {
-        element: '#floating-notes-trigger',
-        title: 'Notes',
-        description: 'Use the floating notes button to quickly create a note or jump into the full notes workspace while staying on the tasks page.',
+        element: '#floating-ai-assistant-trigger',
+        title: 'AI Assistant',
+        description: 'Use the floating AI button on desktop for premium in-app help, natural-language actions, and guided answers across tasks, notes, reminders, and navigation.',
       },
       {
         element: '#global-search-option',
         title: 'Spotlight Search',
         description: 'Open the global search (`CMD+K`/`Ctrl+K`) overlay to jump across tasks, notes, settings, and key app destinations from anywhere.',
+      },
+      {
+        element: '#desktop-notes-workspace-trigger',
+        title: 'Notes Workspace',
+        description: 'Use this desktop notes button near global search to open the full notes workspace without leaving the main task flow.',
+      },
+      {
+        element: '#desktop-notes-quick-create-trigger',
+        title: 'Quick Note',
+        description: 'This notes plus button lets you capture a quick note immediately while staying on the tasks page.',
       },
       {
         element: '#home-export-trigger',
@@ -533,7 +543,12 @@ const routeRegistry: Record<TutorialRouteKey, (context: TutorialContext) => Tuto
       {
         element: '#settings-features-card',
         title: 'Feature Controls',
-        description: 'Enable or disable reminders, onboarding, and related workspace features here.',
+        description: 'Enable or disable reminders, onboarding, AI assistance, and related workspace features here.',
+      },
+      {
+        element: '#settings-ai-assistant-feature',
+        title: 'AI Assistant Toggle',
+        description: 'Turn the desktop AI assistant on or off here when you want premium chat help for tasks, notes, reminders, and navigation.',
       },
       {
         element: '#settings-team-card',

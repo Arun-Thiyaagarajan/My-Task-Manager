@@ -11,6 +11,7 @@
  */
 
 import { ai } from '@/ai/genkit';
+import { DEFAULT_GEMINI_MODEL, ensureAiAvailable, getAiErrorMessage } from '@/ai/availability';
 import { z } from 'zod';
 
 const AliasInputSchema = z.object({
@@ -32,7 +33,12 @@ export type AliasOutput = z.infer<typeof AliasOutputSchema>;
 export async function getLinkAlias(
   input: AliasInput
 ): Promise<AliasOutput> {
-  return generateAliasFlow(input);
+  try {
+    ensureAiAvailable();
+    return await generateAliasFlow(input);
+  } catch (error) {
+    throw new Error(getAiErrorMessage(error));
+  }
 }
 
 const generateAliasFlow = ai.defineFlow(
@@ -46,7 +52,7 @@ const generateAliasFlow = ai.defineFlow(
       prompt: `Generate a short, human-readable alias for the following URL. The alias should be concise and reflect the content of the page. For example, for a URL like "https://github.com/firebase/genkit/pull/123", a good alias would be "Genkit PR #123".
 
 URL: ${url}`,
-      model: 'googleai/gemini-1.5-flash',
+      model: DEFAULT_GEMINI_MODEL,
       output: {
         schema: AliasOutputSchema,
       },

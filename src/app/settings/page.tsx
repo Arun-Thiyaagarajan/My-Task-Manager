@@ -1471,6 +1471,16 @@ export default function SettingsPage() {
                         </div>
                         <Switch checked={uiConfig.tutorialEnabled} onCheckedChange={(checked) => handleUpdateConfig({ tutorialEnabled: checked })} />
                     </div>
+                    <div id="settings-ai-assistant-feature" className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-transparent hover:border-border transition-colors">
+                        <div className="space-y-0.5">
+                            <Label className="text-sm font-semibold flex items-center gap-2">
+                                <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
+                                AI Assistant
+                            </Label>
+                            <p className="text-[11px] font-normal text-muted-foreground">Desktop side panel for task, note, reminder, and navigation help.</p>
+                        </div>
+                        <Switch checked={uiConfig.aiAssistantEnabled !== false} onCheckedChange={(checked) => handleUpdateConfig({ aiAssistantEnabled: checked })} />
+                    </div>
                     <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-transparent hover:border-border transition-colors">
                         <div className="space-y-0.5">
                             <Label className="text-sm font-semibold flex items-center gap-2">
