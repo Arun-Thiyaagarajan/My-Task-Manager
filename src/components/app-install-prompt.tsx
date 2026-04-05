@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { getUserPreferences } from '@/lib/data';
 
 const PROMPT_STORAGE_KEY = 'taskflow_install_prompt_seen';
 
@@ -25,11 +26,6 @@ export function AppInstallPrompt() {
     const [isInstalled, setIsInstalled] = useState(false);
 
     useEffect(() => {
-        // 1. Check if already installed
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
-        setIsInstalled(isStandalone);
-
-        // 2. Determine platform
         const userAgent = window.navigator.userAgent.toLowerCase();
         if (/iphone|ipad|ipod/.test(userAgent)) {
             setPlatform('ios');
@@ -38,13 +34,38 @@ export function AppInstallPrompt() {
         } else {
             setPlatform('desktop');
         }
+    }, []);
 
-        // 3. Show logic
-        const hasSeen = localStorage.getItem(PROMPT_STORAGE_KEY);
-        if (!hasSeen && !isStandalone) {
-            const timer = setTimeout(() => setIsVisible(true), 3000); // Wait 3 seconds after load
-            return () => clearTimeout(timer);
-        }
+    useEffect(() => {
+        let timer: number | null = null;
+
+        const syncPromptVisibility = () => {
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
+            const hasSeenInstallPrompt = localStorage.getItem(PROMPT_STORAGE_KEY);
+            const prefs = getUserPreferences();
+            const canShowPrompt = prefs.featureDiscoverySeen && !hasSeenInstallPrompt && !isStandalone;
+
+            setIsInstalled(isStandalone);
+
+            if (timer) {
+                window.clearTimeout(timer);
+                timer = null;
+            }
+
+            if (canShowPrompt) {
+                timer = window.setTimeout(() => setIsVisible(true), 600);
+            } else {
+                setIsVisible(false);
+            }
+        };
+
+        syncPromptVisibility();
+        window.addEventListener('preferences-changed', syncPromptVisibility);
+
+        return () => {
+            if (timer) window.clearTimeout(timer);
+            window.removeEventListener('preferences-changed', syncPromptVisibility);
+        };
     }, []);
 
     const handleDismiss = () => {

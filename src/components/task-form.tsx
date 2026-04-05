@@ -1414,7 +1414,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
 
                 {canUseTemplates && (
                     <div className="px-4 lg:px-6">
-                        <Card className="border-border/60 bg-background/90 shadow-sm">
+                        <Card id="task-form-template-tools" className="border-border/60 bg-background/90 shadow-sm">
                             <CardContent className="flex flex-col gap-4 p-4 sm:p-5">
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                     <div className="space-y-1">
@@ -1434,6 +1434,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                         <Button
+                                                            id="task-form-template-save"
                                                             type="button"
                                                             variant="outline"
                                                             size="icon"
@@ -1475,7 +1476,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                 </div>
 
                                 <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                                    <div className="min-w-0 flex-1">
+                                    <div id="task-form-template-picker" className="min-w-0 flex-1">
                                         <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
                                             <SelectTrigger className={cn("h-11 w-full rounded-2xl", premiumFieldClassName)}>
                                                 <SelectValue placeholder="Choose a template" />
@@ -1491,6 +1492,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                         </Select>
                                     </div>
                                     <Button
+                                        id="task-form-apply-template"
                                         type="button"
                                         variant="secondary"
                                         onClick={() => applyTemplate(selectedTemplateId)}

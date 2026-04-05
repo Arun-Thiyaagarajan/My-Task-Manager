@@ -13,6 +13,8 @@ type TutorialRouteKey =
   | 'task-new'
   | 'task-detail'
   | 'task-edit'
+  | 'templates'
+  | 'task-import-excel'
   | 'notes'
   | 'note-new'
   | 'note-detail'
@@ -165,6 +167,26 @@ const routeRegistry: Record<TutorialRouteKey, (context: TutorialContext) => Tuto
         prevAction: { type: 'navigate', path: '/', stepIndex: 15 },
       },
       {
+        element: '#task-form-template-tools',
+        title: 'Template Shortcuts',
+        description: 'This section lets you reuse saved task setups while you create a new task.',
+      },
+      {
+        element: '#task-form-template-picker',
+        title: 'Choose A Template',
+        description: 'Pick a saved template here to preview and prepare a reusable task setup.',
+      },
+      {
+        element: '#task-form-apply-template',
+        title: 'Apply Template',
+        description: 'Apply the selected template to prefill the task form with a saved setup.',
+      },
+      {
+        element: '#task-form-template-save',
+        title: 'Save Current As Template',
+        description: 'When desktop template management is available, save the current task setup as a reusable template from here.',
+      },
+      {
         element: '#task-form-submit',
         title: 'Save the Task',
         description: 'Use this action to create the task once the required fields are complete.',
@@ -197,9 +219,114 @@ const routeRegistry: Record<TutorialRouteKey, (context: TutorialContext) => Tuto
         prevAction: { type: 'navigate', path: pathname.replace(/\/edit$/, ''), stepIndex: 2 },
       },
       {
+        element: '#task-form-template-tools',
+        title: 'Template Shortcuts',
+        description: 'This section lets you reuse saved task setups while you create or update a task.',
+      },
+      {
+        element: '#task-form-template-picker',
+        title: 'Choose A Template',
+        description: 'Pick a saved template here to preview its preset task setup before applying it.',
+      },
+      {
+        element: '#task-form-apply-template',
+        title: 'Apply Template',
+        description: 'Apply the selected template to fill the task form quickly without leaving this page.',
+      },
+      {
+        element: '#task-form-template-save',
+        title: 'Save Current As Template',
+        description: 'When template management is available on desktop, use this action to save the current task setup as a reusable template.',
+      },
+      {
         element: '#task-form-submit',
         title: 'Save Changes',
         description: 'Save the updated task from here when you finish editing.',
+      },
+    ],
+  }),
+  templates: () => ({
+    routeKey: 'templates',
+    steps: [
+      {
+        element: '#templates-page',
+        title: 'Templates Workspace',
+        description: 'This workspace is where reusable task presets are created, searched, restored, exported, and reused.',
+      },
+      {
+        element: '#templates-actions',
+        title: 'Template Actions',
+        description: 'Import JSON backups, export active templates, or create a new template from this action area.',
+      },
+      {
+        element: '#templates-filters',
+        title: 'Search And Filter',
+        description: 'Switch between active templates and bin, search by content, and narrow results with creation-date filters here.',
+      },
+      {
+        element: '#templates-select-multiple-trigger',
+        title: 'Select Multiple',
+        description: 'Turn on multi-select to export, restore, or remove several templates in one pass.',
+      },
+      {
+        element: '#select-all-templates',
+        title: 'Select All Templates',
+        description: 'Use Select All to pick every template in the current filtered view.',
+      },
+      {
+        element: '#templates-bulk-export',
+        title: 'Bulk Export',
+        description: 'Download the selected templates together as a JSON export from this action.',
+      },
+      {
+        element: '#templates-bulk-delete',
+        title: 'Bulk Remove',
+        description: 'Move selected templates to the bin, or permanently delete selected bin items, from this bulk action.',
+      },
+      {
+        element: '#templates-grid',
+        title: 'Template Cards',
+        description: 'Each card previews a saved preset and provides quick actions to edit, export, use, restore, or remove it.',
+      },
+    ],
+  }),
+  'task-import-excel': () => ({
+    routeKey: 'task-import-excel',
+    steps: [
+      {
+        element: '#excel-import-page',
+        title: 'Excel Import Workspace',
+        description: 'This desktop workflow lets you upload a workbook, review rows safely, and import valid tasks in a controlled flow.',
+      },
+      {
+        element: '#excel-import-tabs',
+        title: 'Import Stages',
+        description: 'Move between upload, review, and results to track the full import process.',
+      },
+      {
+        element: '#excel-import-upload-zone',
+        title: 'Upload Workbook',
+        description: 'Drop in your Excel workbook or click here to browse for an import file.',
+      },
+      {
+        element: '#excel-import-download-template',
+        title: 'Download Template',
+        description: 'Use the provided Excel template when you need the expected columns and guidance for a clean import.',
+      },
+      {
+        element: '#excel-import-review-card',
+        title: 'Review Before Import',
+        description: 'Rows are validated here before anything is written, so you can fix issues safely first.',
+      },
+      {
+        element: '#excel-import-confirm',
+        title: 'Import Valid Rows',
+        description: 'Start the final import from this action once the review shows rows are ready.',
+      },
+      {
+        element: '#excel-import-results-card',
+        title: 'Import Results',
+        description: 'After import, this summary shows what was added, skipped, or failed.',
       },
     ],
   }),
@@ -272,6 +399,86 @@ const routeRegistry: Record<TutorialRouteKey, (context: TutorialContext) => Tuto
         element: '#dashboard-page',
         title: 'Dashboard',
         description: 'The dashboard summarizes task throughput, ownership, repositories, and deployment activity.',
+      },
+      {
+        element: '#dashboard-hero',
+        title: 'Workspace Overview',
+        description: 'Start here for the headline health signals across delivery, completion, and collaboration.',
+      },
+      {
+        element: '#dashboard-metrics',
+        title: 'Core Metrics',
+        description: 'These cards give you a fast read on total work, completed tasks, active implementation, and QA load.',
+      },
+      {
+        element: '#dashboard-status-groups',
+        title: 'Status Groups',
+        description: 'This section breaks work into broader delivery stages and lets you jump directly into matching tasks.',
+      },
+      {
+        element: '#dashboard-group-status-chart',
+        title: 'Group Status Mix',
+        description: 'When a status group is selected, this chart shows the specific statuses inside that group.',
+      },
+      {
+        element: '#dashboard-group-trend-chart',
+        title: 'Group Trend',
+        description: 'Use this trend view to compare created versus completed work within the currently selected group.',
+      },
+      {
+        element: '#dashboard-group-owners',
+        title: 'Top Owners',
+        description: 'This panel highlights who is carrying the most work inside the selected delivery stage.',
+      },
+      {
+        element: '#dashboard-group-recent',
+        title: 'Recent Group Activity',
+        description: 'Review the most recently updated tasks within the selected status group from here.',
+      },
+      {
+        element: '#dashboard-delivery-trend',
+        title: 'Delivery Trend',
+        description: 'Track created and completed tasks over time to understand throughput at a glance.',
+      },
+      {
+        element: '#dashboard-completion-snapshot',
+        title: 'Completion Snapshot',
+        description: 'This chart summarizes finished versus still-active work for the current workspace.',
+      },
+      {
+        element: '#dashboard-status-distribution',
+        title: 'Status Distribution',
+        description: 'See where work is clustering across statuses so bottlenecks stand out more clearly.',
+      },
+      {
+        element: '#dashboard-actionable-insights',
+        title: 'Actionable Insights',
+        description: 'These insights surface notable patterns around throughput, ownership, tags, and deployment health.',
+      },
+      {
+        element: '#dashboard-team-workload',
+        title: 'Team Workload',
+        description: 'This chart compares assignee load across developers and testers when assignment data is available.',
+      },
+      {
+        element: '#dashboard-environment-readiness',
+        title: 'Environment Readiness',
+        description: 'Use this section to understand how far tasks have progressed across deployment environments.',
+      },
+      {
+        element: '#dashboard-top-tags',
+        title: 'Top Tags',
+        description: 'Popular tags appear here so you can spot common work themes and jump into filtered tasks.',
+      },
+      {
+        element: '#dashboard-repository-focus',
+        title: 'Repository Focus',
+        description: 'This section shows which repositories are carrying the most linked task activity.',
+      },
+      {
+        element: '#dashboard-recently-updated',
+        title: 'Recently Updated',
+        description: 'Use this list to jump straight into the tasks that changed most recently.',
       },
     ],
   }),
@@ -420,6 +627,8 @@ const routeRegistry: Record<TutorialRouteKey, (context: TutorialContext) => Tuto
 function getRouteKey(path: string): TutorialRouteKey | null {
   if (path === '/') return 'home';
   if (path === '/tasks/new') return 'task-new';
+  if (path === '/tasks/templates') return 'templates';
+  if (path === '/tasks/import/excel') return 'task-import-excel';
   if (/^\/tasks\/[^/]+\/edit$/.test(path)) return 'task-edit';
   if (/^\/tasks\/[^/]+$/.test(path)) return 'task-detail';
   if (path === '/notes') return 'notes';

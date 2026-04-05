@@ -234,6 +234,21 @@ export function Header() {
   useEffect(() => {
     if (!mounted) return;
 
+    const prefs = getUserPreferences();
+    if (!prefs.featureDiscoverySeen) {
+      const timer = window.setTimeout(() => {
+        setIsFeatureDiscoveryOpen(true);
+      }, 300);
+
+      return () => {
+        window.clearTimeout(timer);
+      };
+    }
+  }, [mounted]);
+
+  useEffect(() => {
+    if (!mounted) return;
+
     const handleInstallPromptDismissed = () => {
       const prefs = getUserPreferences();
       if (!uiConfig?.tutorialEnabled || prefs.tutorialButtonHintSeen) return;

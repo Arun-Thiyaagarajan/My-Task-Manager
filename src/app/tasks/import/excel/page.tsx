@@ -294,7 +294,7 @@ function buildImportTaskPayload(
 
 function ExcelImportPageSkeleton() {
   return (
-    <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
+    <div id="excel-import-page" className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
       <div className="space-y-6">
         <Skeleton className="h-24 rounded-[2rem]" />
         <div className="grid gap-4 lg:grid-cols-3">
@@ -1375,7 +1375,7 @@ export default function ExcelImportPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={value => setActiveTab(value as ImportStage)} className="space-y-4">
-          <TabsList className="h-auto rounded-2xl bg-muted/70 p-1">
+          <TabsList id="excel-import-tabs" className="h-auto rounded-2xl bg-muted/70 p-1">
             <TabsTrigger value="upload" className="rounded-xl px-4 py-2.5">Upload</TabsTrigger>
             <TabsTrigger value="review" className="rounded-xl px-4 py-2.5" disabled={rows.length === 0}>Review</TabsTrigger>
             <TabsTrigger value="results" className="rounded-xl px-4 py-2.5" disabled={!resultSummary}>Results</TabsTrigger>
@@ -1385,6 +1385,7 @@ export default function ExcelImportPage() {
             <Card className="rounded-[2rem] border-border/70">
               <CardContent className="p-6">
                 <div
+                  id="excel-import-upload-zone"
                   role="button"
                   tabIndex={0}
                   onClick={() => fileInputRef.current?.click()}
@@ -1460,6 +1461,7 @@ export default function ExcelImportPage() {
                       <div className="flex flex-wrap gap-3">
                         {uploadValidationFeedback.showTemplateAction ? (
                           <Button
+                            id="excel-import-download-template"
                             type="button"
                             className="rounded-2xl px-4 shadow-sm"
                             onClick={handleDownloadTemplate}
@@ -1503,7 +1505,7 @@ export default function ExcelImportPage() {
           </TabsContent>
 
         <TabsContent value="review" className="mt-0">
-            <Card className="rounded-[2rem] border-border/70">
+            <Card id="excel-import-review-card" className="rounded-[2rem] border-border/70">
               <CardHeader className="space-y-3">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
@@ -1741,6 +1743,7 @@ export default function ExcelImportPage() {
                     onChange={event => handleFileSelection(event.target.files?.[0] || null)}
                   />
                   <Button
+                    id="excel-import-confirm"
                     className="rounded-2xl px-5"
                     onClick={handleImportValidRows}
                     disabled={isImporting || summary.valid === 0}
@@ -1754,7 +1757,7 @@ export default function ExcelImportPage() {
           </TabsContent>
 
           <TabsContent value="results" className="mt-0">
-            <Card className="rounded-[2rem] border-border/70">
+            <Card id="excel-import-results-card" className="rounded-[2rem] border-border/70">
               <CardHeader>
                 <CardTitle className="text-2xl">Import results</CardTitle>
                 <CardDescription className="mt-2 text-sm leading-7">

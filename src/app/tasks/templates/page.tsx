@@ -285,6 +285,7 @@ export default function TaskTemplatesPage() {
   const [uiConfigVersion, setUiConfigVersion] = useState(0);
   const [showSkeleton, setShowSkeleton] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const tutorialOpenedSelectModeRef = useRef(false);
 
   const refreshTemplates = useCallback(() => {
     const authMode = getAuthMode();
@@ -607,6 +608,48 @@ export default function TaskTemplatesPage() {
     setIsSelectMode(false);
   }, [view]);
 
+  useEffect(() => {
+    const tutorialBulkSelectors = new Set([
+      '#templates-select-multiple-trigger',
+      '#select-all-templates',
+      '#templates-bulk-export',
+      '#templates-bulk-delete',
+    ]);
+
+    const handleTutorialStepHighlighted = (event: Event) => {
+      const selector = (event as CustomEvent<{ selector?: string }>).detail?.selector;
+      const shouldShowBulkBar = !!selector && tutorialBulkSelectors.has(selector);
+
+      if (shouldShowBulkBar && !isSelectMode) {
+        tutorialOpenedSelectModeRef.current = true;
+        setIsSelectMode(true);
+        setSelectedTemplateIds([]);
+        return;
+      }
+
+      if (!shouldShowBulkBar && tutorialOpenedSelectModeRef.current) {
+        tutorialOpenedSelectModeRef.current = false;
+        setIsSelectMode(false);
+        setSelectedTemplateIds([]);
+      }
+    };
+
+    const handleTutorialClosed = () => {
+      if (!tutorialOpenedSelectModeRef.current) return;
+      tutorialOpenedSelectModeRef.current = false;
+      setIsSelectMode(false);
+      setSelectedTemplateIds([]);
+    };
+
+    window.addEventListener('tutorial-step-highlighted', handleTutorialStepHighlighted as EventListener);
+    window.addEventListener('tutorial-closed', handleTutorialClosed);
+
+    return () => {
+      window.removeEventListener('tutorial-step-highlighted', handleTutorialStepHighlighted as EventListener);
+      window.removeEventListener('tutorial-closed', handleTutorialClosed);
+    };
+  }, [isSelectMode]);
+
   const handleTemplateCardClick = useCallback(
     (templateId: string, event: React.MouseEvent<HTMLElement>) => {
       if (!isSelectMode) return;
@@ -810,6 +853,7 @@ export default function TaskTemplatesPage() {
               </Button>
             ) : null}
             <Button
+              id="templates-bulk-export"
               type="button"
               variant="outline"
               size="sm"
@@ -822,6 +866,7 @@ export default function TaskTemplatesPage() {
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button
+                  id="templates-bulk-delete"
                   type="button"
                   variant="destructive"
                   size="sm"
@@ -860,7 +905,7 @@ export default function TaskTemplatesPage() {
   );
 
   return (
-    <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
+    <div id="templates-page" className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between xl:gap-6">
           <div className="space-y-2">
@@ -873,7 +918,7 @@ export default function TaskTemplatesPage() {
               Search, sort, restore, and reuse reusable task presets from one focused desktop workspace.
             </p>
           </div>
-          <div className="flex min-w-0 flex-col gap-3 xl:items-end">
+          <div id="templates-actions" className="flex min-w-0 flex-col gap-3 xl:items-end">
             <div className="flex flex-wrap items-center gap-3 xl:justify-end">
               <Badge variant="secondary" className="h-10 rounded-full px-4 text-sm font-semibold">
                 {activeCount} Active
@@ -914,7 +959,7 @@ export default function TaskTemplatesPage() {
         </div>
         <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImportFileChange} />
 
-        <Card className="overflow-hidden border-border/60 bg-gradient-to-br from-background/95 via-background/88 to-muted/[0.08] shadow-sm">
+        <Card id="templates-filters" className="overflow-hidden border-border/60 bg-gradient-to-br from-background/95 via-background/88 to-muted/[0.08] shadow-sm">
           <CardContent className="space-y-4 p-4 sm:p-5">
             <div className="flex flex-wrap items-center gap-3 xl:flex-nowrap xl:justify-between">
               <div className="flex shrink-0 flex-wrap gap-2">
@@ -1036,6 +1081,7 @@ export default function TaskTemplatesPage() {
                 </div>
                 {currentTemplates.length > 0 ? (
                   <Button
+                    id="templates-select-multiple-trigger"
                     type="button"
                     variant={isSelectMode ? 'secondary' : 'outline'}
                     onClick={handleToggleSelectMode}
@@ -1125,7 +1171,7 @@ export default function TaskTemplatesPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-3.5 xl:grid-cols-3">
+          <div id="templates-grid" className="grid gap-3.5 xl:grid-cols-3">
             {filteredTemplates.map(templateItem => (
               <Card
                 key={templateItem.id}

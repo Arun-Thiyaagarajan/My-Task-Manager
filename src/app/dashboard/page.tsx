@@ -532,7 +532,7 @@ export default function DashboardPage() {
       </div>
       <div className="container relative mx-auto max-w-7xl space-y-4 px-3 pb-4 pt-5 sm:space-y-6 sm:px-6 sm:pb-6 sm:pt-8 lg:px-8">
         <div className="grid gap-4 xl:grid-cols-[1.55fr_1fr]">
-          <Card className="overflow-hidden border-primary/15 bg-gradient-to-br from-primary/[0.10] via-background to-chart-2/10 shadow-xl backdrop-blur-sm">
+          <Card id="dashboard-hero" className="overflow-hidden border-primary/15 bg-gradient-to-br from-primary/[0.10] via-background to-chart-2/10 shadow-xl backdrop-blur-sm">
             <CardContent className="p-4 sm:p-7">
               <div className="flex flex-col gap-5 sm:gap-6">
                 <div className="flex flex-wrap items-start justify-between gap-4">
@@ -593,7 +593,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-2">
+          <div id="dashboard-metrics" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-2">
             <MetricCard
               title="Total Tasks"
               value={String(analytics.totalTasks)}
@@ -681,7 +681,7 @@ export default function DashboardPage() {
 
             {analytics.statusGroupSummaries.length > 0 && selectedStatusGroup && (
               <div className="space-y-6">
-                <Card className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm overflow-hidden">
+                <Card id="dashboard-status-groups" className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm overflow-hidden">
                   <CardHeader className="pb-4">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                       <div>
@@ -797,7 +797,7 @@ export default function DashboardPage() {
 
                         {!isMobile && (
                           <div className="grid gap-6 lg:grid-cols-2">
-                            <Card className="border-border/70 bg-background/80 shadow-sm">
+                            <Card id="dashboard-group-status-chart" className="border-border/70 bg-background/80 shadow-sm">
                               <CardHeader className="pb-3">
                                 <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
                                   <Radar className="h-4.5 w-4.5 text-chart-3" />
@@ -822,7 +822,7 @@ export default function DashboardPage() {
                               </CardContent>
                             </Card>
 
-                            <Card className="border-border/70 bg-background/80 shadow-sm">
+                            <Card id="dashboard-group-trend-chart" className="border-border/70 bg-background/80 shadow-sm">
                               <CardHeader className="pb-3">
                                 <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
                                   <TrendingUp className="h-4.5 w-4.5 text-chart-1" />
@@ -859,7 +859,7 @@ export default function DashboardPage() {
 
                       <div className="space-y-6">
                         {!isMobile && (
-                        <Card className="border-border/70 bg-background/80 shadow-sm">
+                        <Card id="dashboard-group-owners" className="border-border/70 bg-background/80 shadow-sm">
                           <CardHeader className="pb-3">
                             <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
                               <Users2 className="h-4.5 w-4.5 text-chart-5" />
@@ -889,7 +889,7 @@ export default function DashboardPage() {
                         </Card>
                         )}
 
-                        <Card className="border-border/70 bg-background/80 shadow-sm">
+                        <Card id="dashboard-group-recent" className="border-border/70 bg-background/80 shadow-sm">
                           <CardHeader className="pb-3">
                             <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
                               <ClipboardCheck className="h-4.5 w-4.5 text-chart-2" />
@@ -931,7 +931,7 @@ export default function DashboardPage() {
 
             {!isMobile && (
             <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
-              <Card className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm">
+              <Card id="dashboard-delivery-trend" className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">
                     <TrendingUp className="h-5 w-5 text-chart-1" />
@@ -964,7 +964,7 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
-              <Card className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm">
+              <Card id="dashboard-completion-snapshot" className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">
                     <CheckCircle2 className="h-5 w-5 text-chart-2" />
@@ -1015,7 +1015,7 @@ export default function DashboardPage() {
 
             <div className="grid gap-6 xl:grid-cols-[1.2fr_1fr]">
               {!isMobile && (
-              <Card className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm">
+              <Card id="dashboard-status-distribution" className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm">
                 <CardHeader className="pb-3 px-4 pt-4 sm:px-6 sm:pt-6">
                   <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight sm:text-lg">
                     <BarChart3 className="h-5 w-5 text-chart-3" />
@@ -1051,7 +1051,7 @@ export default function DashboardPage() {
               </Card>
               )}
 
-              <Card className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm">
+              <Card id="dashboard-actionable-insights" className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm">
                 <CardHeader className="pb-3 px-4 pt-4 sm:px-6 sm:pt-6">
                   <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight sm:text-lg">
                     <Sparkles className="h-5 w-5 text-chart-4" />
@@ -1082,7 +1082,7 @@ export default function DashboardPage() {
 
             {!isMobile && (
             <div className="grid gap-6 xl:grid-cols-[1.2fr_1fr]">
-              <Card className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm">
+              <Card id="dashboard-team-workload" className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">
                     <Users2 className="h-5 w-5 text-chart-5" />
@@ -1113,7 +1113,7 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
-              <Card className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm">
+              <Card id="dashboard-environment-readiness" className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">
                     <Server className="h-5 w-5 text-chart-2" />
@@ -1154,7 +1154,7 @@ export default function DashboardPage() {
             )}
 
             <div className="grid gap-6 xl:grid-cols-[1.1fr_1.1fr_1fr]">
-              <Card className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm">
+              <Card id="dashboard-top-tags" className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">
                     <Tag className="h-5 w-5 text-chart-4" />
@@ -1188,7 +1188,7 @@ export default function DashboardPage() {
               </Card>
 
               {!isMobile && (
-              <Card className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm">
+              <Card id="dashboard-repository-focus" className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">
                     <GitBranch className="h-5 w-5 text-chart-1" />
@@ -1226,7 +1226,7 @@ export default function DashboardPage() {
               </Card>
               )}
 
-              <Card className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm">
+              <Card id="dashboard-recently-updated" className="border-border/70 bg-background/90 shadow-sm backdrop-blur-sm">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">
                     <ClipboardCheck className="h-5 w-5 text-chart-3" />
