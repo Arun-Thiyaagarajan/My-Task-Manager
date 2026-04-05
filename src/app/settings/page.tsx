@@ -1070,7 +1070,6 @@ export default function SettingsPage() {
                                 </div>
                                 <Badge variant="outline" className="h-7 rounded-full px-2.5 text-[9px] font-medium">Live</Badge>
                             </div>
-                            <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20"><div className="space-y-0.5"><Label className="text-sm font-semibold">Guided tour</Label><p className="text-[11px] font-normal text-muted-foreground">Onboarding tips.</p></div><Switch checked={uiConfig.tutorialEnabled} onCheckedChange={(checked) => handleUpdateConfig({ tutorialEnabled: checked })} /></div>
                             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20">
                                 <div className="space-y-0.5">
                                     <Label className="text-sm font-semibold">Notification sounds</Label>

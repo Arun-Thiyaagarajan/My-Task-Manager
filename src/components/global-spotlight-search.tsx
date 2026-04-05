@@ -110,12 +110,12 @@ const SETTINGS_SECTIONS: Array<{
   {
     id: 'settings-features',
     title: 'Features',
-    subLabel: 'Reminders, tutorials, notifications, sounds',
+    subLabel: 'Reminders, notifications, sounds',
     section: 'features',
     anchorId: 'settings-features-card',
     icon: Bell,
     accentClassName: 'text-amber-500',
-    keywords: ['features', 'reminders', 'sounds', 'tutorial', 'notification'],
+    keywords: ['features', 'reminders', 'sounds', 'notification', 'alerts'],
   },
   {
     id: 'settings-team',

@@ -232,7 +232,7 @@ export function Header() {
   }, [mounted, pathname, previousPathname]);
 
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted || isMobile) return;
 
     const prefs = getUserPreferences();
     if (!prefs.featureDiscoverySeen) {
@@ -244,10 +244,10 @@ export function Header() {
         window.clearTimeout(timer);
       };
     }
-  }, [mounted]);
+  }, [mounted, isMobile]);
 
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted || isMobile) return;
 
     const handleInstallPromptDismissed = () => {
       const prefs = getUserPreferences();
@@ -262,7 +262,7 @@ export function Header() {
     return () => {
       window.removeEventListener('app-install-prompt-dismissed', handleInstallPromptDismissed);
     };
-  }, [mounted, uiConfig?.tutorialEnabled]);
+  }, [mounted, uiConfig?.tutorialEnabled, isMobile]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -589,7 +589,7 @@ export function Header() {
                 <span className="sr-only">General Reminders</span>
             </Button>
 
-            {uiConfig?.tutorialEnabled && (
+            {!isMobile && uiConfig?.tutorialEnabled && (
                 <div id="tutorial-trigger-wrapper" className="shrink-0">
                     <Popover open={isTutorialHintOpen} onOpenChange={handleTutorialHintOpenChange}>
                         <PopoverAnchor asChild>

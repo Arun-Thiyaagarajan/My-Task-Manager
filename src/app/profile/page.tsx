@@ -22,6 +22,9 @@ import {
     getLocalProfile, 
     setLocalProfile, 
     getCompanies, 
+    getDevelopers,
+    getTesters,
+    getUiConfig,
     setActiveCompanyId, 
     deleteCompany,
     addCompany,
@@ -572,6 +575,76 @@ export default function ProfilePage() {
   };
 
   const searchableItems = useMemo(() => {
+    const uiConfig = getUiConfig();
+    const companies = getCompanies();
+    const developers = getDevelopers();
+    const testers = getTesters();
+    const dynamicFieldItems = (uiConfig.fields || []).map(field => ({
+        id: `field-${field.key}`,
+        title: field.label,
+        subLabel: `${field.group || 'Other'} field${field.isActive ? '' : ' (inactive)'}`,
+        icon: Layout,
+        type: 'settings',
+        section: 'fields',
+        category: 'Field',
+        color: 'text-purple-500',
+        keywords: [field.key, field.type, field.group || 'other', field.isRequired ? 'required' : 'optional', field.isUnique ? 'unique' : ''],
+    }));
+    const dynamicRepositoryItems = (uiConfig.repositoryConfigs || []).map(repo => ({
+        id: `repo-${repo.id}`,
+        title: repo.name,
+        subLabel: 'Configured repository',
+        icon: Globe,
+        type: 'settings',
+        section: 'fields',
+        category: 'Repository',
+        color: 'text-cyan-500',
+        keywords: ['repository', repo.baseUrl || '', 'pr links', 'repo config'],
+    }));
+    const dynamicEnvironmentItems = (uiConfig.environments || []).map(env => ({
+        id: `env-${env.id}`,
+        title: env.name,
+        subLabel: 'Deployment environment',
+        icon: Rocket,
+        type: 'settings',
+        section: 'environments',
+        category: 'Environment',
+        color: 'text-green-500',
+        keywords: ['environment', 'deployment', env.color || ''],
+    }));
+    const dynamicDeveloperItems = developers.map(dev => ({
+        id: `developer-${dev.id}`,
+        title: dev.name,
+        subLabel: 'Developer in team management',
+        icon: Users,
+        type: 'settings',
+        section: 'team',
+        category: 'Developer',
+        color: 'text-indigo-500',
+        keywords: ['developer', 'team', 'people', dev.email || ''],
+    }));
+    const dynamicTesterItems = testers.map(tester => ({
+        id: `tester-${tester.id}`,
+        title: tester.name,
+        subLabel: 'Tester in team management',
+        icon: Users,
+        type: 'settings',
+        section: 'team',
+        category: 'Tester',
+        color: 'text-indigo-500',
+        keywords: ['tester', 'qa', 'team', 'people', tester.email || ''],
+    }));
+    const dynamicWorkspaceItems = companies.map(company => ({
+        id: `workspace-${company.id}`,
+        title: company.name,
+        subLabel: 'Workspace / company profile',
+        icon: Building,
+        type: 'tab',
+        category: 'Workspace',
+        color: 'text-cyan-500',
+        keywords: ['workspace', 'company', 'organization', 'switch'],
+    }));
+
     const items = [
         // Top Level Tabs
         { id: 'general', title: 'Account Settings', subLabel: 'Personal information & email', icon: UserIcon, type: 'tab', category: 'User', color: 'text-primary', keywords: ['profile', 'me', 'display name', 'email', 'avatar'] },
@@ -582,7 +655,7 @@ export default function ProfilePage() {
         { id: 'storage', title: 'Storage Mode', subLabel: 'Cloud Sync vs Local Storage', icon: ShieldCheck, type: 'settings', section: 'storage', category: 'Workspace', color: 'text-primary', keywords: ['cloud', 'sync', 'local', 'browser', 'offline'] },
         { id: 'appearance', title: 'Theme & Appearance', subLabel: 'Branding, Dark Mode, Icons', icon: Palette, type: 'settings', section: 'appearance', category: 'Workspace', color: 'text-blue-500', keywords: ['dark mode', 'theme', 'color', 'icon', 'logo', 'brand', '12h', '24h'] },
         { id: 'install', title: 'App Installation', subLabel: 'Install TaskFlow as a PWA', icon: DownloadCloud, type: 'settings', section: 'install', category: 'Workspace', color: 'text-green-600', keywords: ['install', 'pwa', 'mobile app', 'desktop app', 'home screen'] },
-        { id: 'features', title: 'Feature Modules', subLabel: 'Reminders & Guided Tour', icon: Bell, type: 'settings', section: 'features', category: 'Workspace', color: 'text-amber-500', keywords: ['reminders', 'tutorial', 'tour', 'help'] },
+        { id: 'features', title: 'Feature Modules', subLabel: 'Reminders & Sounds', icon: Bell, type: 'settings', section: 'features', category: 'Workspace', color: 'text-amber-500', keywords: ['reminders', 'sounds', 'notifications', 'alerts'] },
         { id: 'fields', title: 'Field Configuration', subLabel: 'Task fields and visibility', icon: Layout, type: 'settings', section: 'fields', category: 'Structure', color: 'text-purple-500', keywords: ['custom fields', 'inputs', 'required', 'active'] },
         { id: 'environments', title: 'Deploy Environments', subLabel: 'Pipeline configuration', icon: Rocket, type: 'settings', section: 'environments', category: 'Structure', color: 'text-green-500', keywords: ['dev', 'stage', 'production', 'pipeline', 'deployment'] },
         { id: 'team', title: 'Team & People', subLabel: 'Developers and QA staff', icon: Users, type: 'settings', section: 'team', category: 'Organization', color: 'text-indigo-500', keywords: ['staff', 'developers', 'testers', 'contacts', 'qa'] },
@@ -601,6 +674,12 @@ export default function ProfilePage() {
         { id: 'insights', title: 'Recent Activity', subLabel: 'Tasks added or imported recently', icon: Sparkles, type: 'link', href: '/insights', category: 'Insights', color: 'text-primary', keywords: ['recent', 'added', 'imported', 'insights', 'activity'] },
         { id: 'about-help', title: 'Help & About', subLabel: 'FAQ, Contact, and App Info', icon: HelpCircle, type: 'link', href: '/about', category: 'Support', color: 'text-primary', keywords: ['faq', 'contact', 'help', 'about us', 'support'] },
         { id: 'help-center', title: 'Help Center', subLabel: 'Features List', icon: Compass, type: 'link', href: '/help-center', category: 'Support', color: 'text-primary', keywords: ['features', 'new', 'what all', 'help center', 'help'] },
+        ...dynamicWorkspaceItems,
+        ...dynamicFieldItems,
+        ...dynamicRepositoryItems,
+        ...dynamicEnvironmentItems,
+        ...dynamicDeveloperItems,
+        ...dynamicTesterItems,
     ];
     if (isLocal) {
         items.unshift({ id: 'auth', title: 'Sign In / Cloud Sync', subLabel: 'Securely sync your workspace', icon: ShieldCheck, type: 'event', event: 'open-auth-modal', category: 'Identity', color: 'text-primary font-bold', keywords: ['login', 'register', 'firebase', 'cloud'] } as any);
