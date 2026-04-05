@@ -1245,36 +1245,38 @@ export default function Home() {
           : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-6';
 
   const selectionBarContent = (
-    <Card className="border-primary/50 bg-background/90 backdrop-blur-sm shadow-lg overflow-hidden">
+    <Card className="overflow-hidden border-primary/30 bg-[linear-gradient(180deg,hsl(var(--background)/0.96),hsl(var(--card)/0.92))] shadow-[0_22px_60px_-34px_rgba(15,23,42,0.16)] backdrop-blur-xl dark:bg-[linear-gradient(180deg,rgba(17,24,39,0.98),rgba(15,23,42,0.94))] dark:shadow-[0_22px_60px_-34px_rgba(0,0,0,0.62)]">
         <CardContent className="p-4 flex flex-col gap-4">
             <div className="flex items-center gap-3">
-                <Checkbox 
-                    id="select-all-tasks" 
-                    checked={filteredTasks.length > 0 && selectedTaskIds.length === filteredTasks.length} 
-                    onCheckedChange={handleToggleSelectAll}
-                    className="h-5 w-5"
-                />
-                <Label htmlFor="select-all-tasks" className="text-sm font-semibold whitespace-nowrap cursor-pointer text-foreground">
-                    {selectedTaskIds.length > 0 ? `${selectedTaskIds.length} Selected` : `Select All`}
-                </Label>
+                <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-background/72 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] dark:bg-white/[0.02] dark:shadow-none">
+                    <Checkbox 
+                        id="select-all-tasks" 
+                        checked={filteredTasks.length > 0 && selectedTaskIds.length === filteredTasks.length} 
+                        onCheckedChange={handleToggleSelectAll}
+                        className="h-5 w-5"
+                    />
+                    <Label htmlFor="select-all-tasks" className="text-sm font-semibold whitespace-nowrap cursor-pointer text-foreground">
+                        {selectedTaskIds.length > 0 ? `${selectedTaskIds.length} Selected` : `Select All`}
+                    </Label>
+                </div>
                 
                 {/* Desktop/Tablet Action buttons pulled to the right */}
                 <div className={cn(
                     'hidden md:flex md:flex-row md:items-center items-stretch justify-end gap-2 w-full transition-opacity duration-300 ml-auto', 
                     selectedTaskIds.length > 0 ? 'opacity-100' : 'opacity-40 pointer-events-none'
                 )}>
-                    <Button id="bulk-tags-trigger" variant="outline" size="sm" onClick={() => setIsTagsDialogOpen(true)} className="font-medium h-10 px-3">
-                        <Tag className="mr-2 h-4 w-4" /> Tags
+                    <Button id="bulk-tags-trigger" variant="outline" size="sm" onClick={() => setIsTagsDialogOpen(true)} className="h-10 rounded-2xl border-border/60 bg-background/86 px-4 font-medium shadow-[0_10px_24px_-20px_rgba(15,23,42,0.12)] transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:bg-background dark:shadow-[0_10px_24px_-20px_rgba(0,0,0,0.38)]">
+                        <Tag className="mr-2 h-4 w-4 text-primary" /> Tags
                     </Button>
-                    <Button id="bulk-copy-trigger" variant="outline" size="sm" onClick={handleBulkCopyText} className="font-medium h-10 px-3">
-                        <Copy className="mr-2 h-4 w-4" /> Copy
+                    <Button id="bulk-copy-trigger" variant="outline" size="sm" onClick={handleBulkCopyText} className="h-10 rounded-2xl border-border/60 bg-background/86 px-4 font-medium shadow-[0_10px_24px_-20px_rgba(15,23,42,0.12)] transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:bg-background dark:shadow-[0_10px_24px_-20px_rgba(0,0,0,0.38)]">
+                        <Copy className="mr-2 h-4 w-4 text-primary" /> Copy
                     </Button>
-                    <Button id="bulk-pdf-trigger" variant="outline" size="sm" onClick={handleBulkExportPdf} className="font-medium h-10 px-3">
-                        <Download className="mr-2 h-4 w-4" /> PDF
+                    <Button id="bulk-pdf-trigger" variant="outline" size="sm" onClick={handleBulkExportPdf} className="h-10 rounded-2xl border-border/60 bg-background/86 px-4 font-medium shadow-[0_10px_24px_-20px_rgba(15,23,42,0.12)] transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:bg-background dark:shadow-[0_10px_24px_-20px_rgba(0,0,0,0.38)]">
+                        <Download className="mr-2 h-4 w-4 text-primary" /> PDF
                     </Button>
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
-                            <Button id="bulk-delete-trigger" variant="destructive" size="sm" className="font-semibold h-10 px-3">
+                            <Button id="bulk-delete-trigger" variant="destructive" size="sm" className="h-10 rounded-2xl px-4 font-semibold shadow-[0_14px_30px_-22px_rgba(220,38,38,0.38)] transition-all duration-200 hover:-translate-y-0.5 dark:shadow-[0_14px_30px_-22px_rgba(127,29,29,0.55)]">
                                 <Trash2 className="mr-2 h-4 w-4" /> Delete
                             </Button>
                         </AlertDialogTrigger>
@@ -1301,18 +1303,18 @@ export default function Home() {
                 'grid grid-cols-2 gap-2 md:hidden transition-opacity duration-300', 
                 selectedTaskIds.length > 0 ? 'opacity-100' : 'opacity-40 pointer-events-none'
             )}>
-                <Button variant="outline" size="sm" onClick={() => setIsTagsDialogOpen(true)} className="font-medium h-10 px-3">
-                    <Tag className="mr-2 h-4 w-4" /> Tags
+                <Button variant="outline" size="sm" onClick={() => setIsTagsDialogOpen(true)} className="h-10 rounded-2xl border-border/60 bg-background/86 px-4 font-medium shadow-[0_10px_24px_-20px_rgba(15,23,42,0.12)] transition-all duration-200 hover:border-primary/25 hover:bg-background dark:shadow-[0_10px_24px_-20px_rgba(0,0,0,0.38)]">
+                    <Tag className="mr-2 h-4 w-4 text-primary" /> Tags
                 </Button>
-                <Button variant="outline" size="sm" onClick={handleBulkCopyText} className="font-medium h-10 px-3">
-                    <Copy className="mr-2 h-4 w-4" /> Copy
+                <Button variant="outline" size="sm" onClick={handleBulkCopyText} className="h-10 rounded-2xl border-border/60 bg-background/86 px-4 font-medium shadow-[0_10px_24px_-20px_rgba(15,23,42,0.12)] transition-all duration-200 hover:border-primary/25 hover:bg-background dark:shadow-[0_10px_24px_-20px_rgba(0,0,0,0.38)]">
+                    <Copy className="mr-2 h-4 w-4 text-primary" /> Copy
                 </Button>
-                <Button variant="outline" size="sm" onClick={handleBulkExportPdf} className="font-medium h-10 px-3">
-                    <Download className="mr-2 h-4 w-4" /> PDF
+                <Button variant="outline" size="sm" onClick={handleBulkExportPdf} className="h-10 rounded-2xl border-border/60 bg-background/86 px-4 font-medium shadow-[0_10px_24px_-20px_rgba(15,23,42,0.12)] transition-all duration-200 hover:border-primary/25 hover:bg-background dark:shadow-[0_10px_24px_-20px_rgba(0,0,0,0.38)]">
+                    <Download className="mr-2 h-4 w-4 text-primary" /> PDF
                 </Button>
                 <AlertDialog>
                     <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm" className="font-semibold h-10 px-3">
+                        <Button variant="destructive" size="sm" className="h-10 rounded-2xl px-4 font-semibold shadow-[0_14px_30px_-22px_rgba(220,38,38,0.38)] transition-all duration-200 dark:shadow-[0_14px_30px_-22px_rgba(127,29,29,0.55)]">
                             <Trash2 className="mr-2 h-4 w-4" /> Delete
                         </Button>
                     </AlertDialogTrigger>

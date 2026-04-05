@@ -1429,25 +1429,27 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-2 self-start">
-                                        <TooltipProvider>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="icon"
-                                                        onClick={handleOpenTemplateDialog}
-                                                        className="h-10 w-10 rounded-2xl border-border/60 bg-background/92 text-muted-foreground shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-[background-color,border-color,box-shadow,transform,color] duration-200 hover:-translate-y-[1px] hover:border-primary/30 hover:bg-background hover:text-foreground hover:shadow-[0_10px_24px_-18px_rgba(59,130,246,0.4)]"
-                                                    >
-                                                        <PlusCircle className="h-4.5 w-4.5" />
-                                                        <span className="sr-only">Save current as template</span>
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="top" className="font-normal">
-                                                    Save current as template
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
+                                        {canManageTemplates && (
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="icon"
+                                                            onClick={handleOpenTemplateDialog}
+                                                            className="h-10 w-10 rounded-2xl border-border/60 bg-background/92 text-muted-foreground shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-[background-color,border-color,box-shadow,transform,color] duration-200 hover:-translate-y-[1px] hover:border-primary/30 hover:bg-background hover:text-foreground hover:shadow-[0_10px_24px_-18px_rgba(59,130,246,0.4)]"
+                                                        >
+                                                            <PlusCircle className="h-4.5 w-4.5" />
+                                                            <span className="sr-only">Save current as template</span>
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="top" className="font-normal">
+                                                        Save current as template
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        )}
                                         {selectedTemplate && (
                                             <TooltipProvider>
                                                 <Tooltip>

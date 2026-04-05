@@ -925,6 +925,36 @@ function normalizeTaskTemplateName(name: string): string {
     return name.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
+function isValidDateString(value: unknown): value is string {
+    return typeof value === 'string' && !Number.isNaN(new Date(value).getTime());
+}
+
+function extractTemplatesFromJsonPayload(payload: unknown): Array<Partial<TaskTemplate>> {
+    if (Array.isArray(payload)) {
+        return payload.filter((item): item is Partial<TaskTemplate> => !!item && typeof item === 'object');
+    }
+
+    if (!payload || typeof payload !== 'object') {
+        return [];
+    }
+
+    const record = payload as Record<string, unknown>;
+
+    if (Array.isArray(record.templates)) {
+        return record.templates.filter((item): item is Partial<TaskTemplate> => !!item && typeof item === 'object');
+    }
+
+    if (Array.isArray(record.taskTemplates)) {
+        return record.taskTemplates.filter((item): item is Partial<TaskTemplate> => !!item && typeof item === 'object');
+    }
+
+    if (typeof record.name === 'string' && record.taskData && typeof record.taskData === 'object') {
+        return [record as Partial<TaskTemplate>];
+    }
+
+    return [];
+}
+
 export function getTaskTemplates(): TaskTemplate[] {
     const appData = getAppData();
     const companyId = getActiveCompanyId();
@@ -985,6 +1015,107 @@ export function addTaskTemplate(template: { name: string; description?: string; 
     }
 
     return newTemplate;
+}
+
+export function buildTaskTemplatesExportPayload(templates: TaskTemplate[] = getTaskTemplates()) {
+    const currentUiConfig = getUiConfig();
+
+    return {
+        format: 'taskflow-task-templates',
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        appName: currentUiConfig.appName || 'My Task Manager',
+        templateCount: templates.length,
+        templates: templates.map(template => ({
+            name: template.name,
+            description: template.description || '',
+            taskData: sanitizeTaskTemplateData(template.taskData || {}),
+            createdAt: template.createdAt,
+            updatedAt: template.updatedAt,
+        })),
+    };
+}
+
+export async function importTaskTemplatesFromJson(payload: unknown): Promise<{
+    importedCount: number;
+    skippedDuplicates: string[];
+    importedTemplates: TaskTemplate[];
+}> {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    if (!companyId || !data.companyData[companyId]) {
+        throw new Error('No active workspace is available for template import.');
+    }
+
+    const incomingTemplates = extractTemplatesFromJsonPayload(payload);
+    if (incomingTemplates.length === 0) {
+        throw new Error('No task templates were found in this JSON file.');
+    }
+
+    const existingTemplates = data.companyData[companyId].taskTemplates || [];
+    const activeNameSet = new Set(
+        existingTemplates
+            .filter(item => !item.deletedAt)
+            .map(item => normalizeTaskTemplateName(item.name))
+    );
+
+    const now = new Date().toISOString();
+    const importedTemplates: TaskTemplate[] = [];
+    const skippedDuplicates: string[] = [];
+
+    for (const candidate of incomingTemplates) {
+        const trimmedName = typeof candidate.name === 'string' ? candidate.name.trim().replace(/\s+/g, ' ') : '';
+        if (!trimmedName) {
+            continue;
+        }
+
+        const normalizedName = normalizeTaskTemplateName(trimmedName);
+        if (activeNameSet.has(normalizedName)) {
+            skippedDuplicates.push(trimmedName);
+            continue;
+        }
+
+        const taskData =
+            candidate.taskData && typeof candidate.taskData === 'object'
+                ? sanitizeTaskTemplateData(candidate.taskData as Partial<Task>)
+                : sanitizeTaskTemplateData({});
+
+        const importedTemplate: TaskTemplate = {
+            id: createId('template-'),
+            name: trimmedName,
+            description: typeof candidate.description === 'string' ? candidate.description.trim() : '',
+            taskData,
+            createdAt: isValidDateString(candidate.createdAt) ? candidate.createdAt : now,
+            updatedAt: isValidDateString(candidate.updatedAt) ? candidate.updatedAt : now,
+            deletedAt: null,
+        };
+
+        importedTemplates.push(importedTemplate);
+        activeNameSet.add(normalizedName);
+    }
+
+    if (importedTemplates.length === 0 && skippedDuplicates.length > 0) {
+        return { importedCount: 0, skippedDuplicates, importedTemplates: [] };
+    }
+
+    if (importedTemplates.length === 0) {
+        throw new Error('No valid task templates were available to import.');
+    }
+
+    data.companyData[companyId].taskTemplates = [...importedTemplates, ...existingTemplates];
+    await assertLocalImportCapacity(data);
+    setAppData(data);
+    addLog({ message: `Imported ${importedTemplates.length} task template${importedTemplates.length === 1 ? '' : 's'} from JSON.` });
+
+    if (getAuthMode() === 'authenticate') {
+        dispatchMutation('taskTemplates', '', data.companyData[companyId].taskTemplates, 'set');
+    }
+
+    return {
+        importedCount: importedTemplates.length,
+        skippedDuplicates,
+        importedTemplates,
+    };
 }
 
 export function updateTaskTemplate(

@@ -236,7 +236,7 @@ export function TextareaToolbar({ onFormatClick, className, storageKey }: Textar
 
     return (
         <div className={cn(
-            "no-scrollbar absolute bottom-2 z-10 flex items-center overflow-hidden rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.78),rgba(15,23,42,0.64))] shadow-[0_18px_45px_-28px_rgba(0,0,0,0.8)] backdrop-blur-xl transition-all duration-300 ease-out",
+            "no-scrollbar absolute bottom-2 z-10 flex items-center overflow-hidden rounded-2xl border border-border/60 bg-[linear-gradient(180deg,hsl(var(--background)/0.96),hsl(var(--card)/0.94))] text-foreground shadow-[0_18px_45px_-28px_rgba(15,23,42,0.28)] backdrop-blur-xl transition-all duration-300 ease-out dark:border-white/10 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.78),rgba(15,23,42,0.64))] dark:shadow-[0_18px_45px_-28px_rgba(0,0,0,0.8)]",
             isExpanded ? "left-2 right-2 max-w-[calc(100%-1rem)] gap-1 p-1.5" : "right-2 gap-0 p-1",
             className
         )}>
@@ -254,8 +254,8 @@ export function TextareaToolbar({ onFormatClick, className, storageKey }: Textar
                         type="button"
                         className={cn(
                             "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-transparent transition-all duration-200",
-                            "text-muted-foreground hover:-translate-y-0.5 hover:border-border/70 hover:bg-accent hover:text-foreground active:translate-y-0 active:scale-95",
-                            emphasis && "bg-primary/10 text-primary hover:border-primary/20 hover:bg-primary/14 hover:text-primary"
+                            "text-muted-foreground hover:-translate-y-0.5 hover:border-border/70 hover:bg-accent/80 hover:text-foreground active:translate-y-0 active:scale-95 dark:hover:bg-accent",
+                            emphasis && "bg-primary/10 text-primary hover:border-primary/20 hover:bg-primary/14 hover:text-primary dark:bg-primary/12"
                         )}
                         onClick={(e) => {
                             e.preventDefault();
@@ -288,7 +288,7 @@ export function TextareaToolbar({ onFormatClick, className, storageKey }: Textar
             type="button"
             aria-label={isExpanded ? 'Collapse editor tools' : 'Expand editor tools'}
             className={cn(
-                "flex shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-foreground/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-all duration-200 hover:bg-white/[0.1] hover:text-foreground active:scale-95",
+                "flex shrink-0 items-center justify-center rounded-xl border border-border/60 bg-background/80 text-foreground/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-all duration-200 hover:bg-accent hover:text-foreground active:scale-95 dark:border-white/10 dark:bg-white/[0.05] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] dark:hover:bg-white/[0.1]",
                 isExpanded ? "h-9 w-9" : "h-10 w-10"
             )}
             onClick={(e) => {
