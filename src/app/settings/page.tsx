@@ -1060,7 +1060,7 @@ export default function SettingsPage() {
                         <CardHeader className="pb-4"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Bell className="h-5 w-5 text-primary" />Features</CardTitle></CardHeader>
                         <CardContent className="space-y-4">
                             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20"><div className="space-y-0.5"><Label className="text-sm font-semibold">Task reminders</Label><p className="text-[11px] font-normal text-muted-foreground">Sticky notes on tasks.</p></div><Switch checked={uiConfig.remindersEnabled} onCheckedChange={(checked) => handleUpdateConfig({ remindersEnabled: checked })} /></div>
-                            <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20">
+                            {/* <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20">
                                 <div className="space-y-0.5">
                                     <Label className="text-sm font-semibold flex items-center gap-2">
                                         <Search className="h-3.5 w-3.5 text-muted-foreground" />
@@ -1069,7 +1069,7 @@ export default function SettingsPage() {
                                     <p className="text-[11px] font-normal text-muted-foreground">Cmd/Ctrl + K spotlight search.</p>
                                 </div>
                                 <Badge variant="outline" className="h-7 rounded-full px-2.5 text-[9px] font-medium">Live</Badge>
-                            </div>
+                            </div> */}
                             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20">
                                 <div className="space-y-0.5">
                                     <Label className="text-sm font-semibold">Notification sounds</Label>
@@ -1452,7 +1452,7 @@ export default function SettingsPage() {
                         </div>
                         <Switch checked={uiConfig.remindersEnabled} onCheckedChange={(checked) => handleUpdateConfig({ remindersEnabled: checked })} />
                     </div>
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-transparent hover:border-border transition-colors">
+                    {/* <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-transparent hover:border-border transition-colors">
                         <div className="space-y-0.5">
                             <Label className="text-sm font-semibold flex items-center gap-2">
                                 <Search className="h-3.5 w-3.5 text-muted-foreground" />
@@ -1463,7 +1463,7 @@ export default function SettingsPage() {
                         <Badge variant="outline" className="h-7 rounded-full px-2.5 text-[9px] font-medium">
                             Live
                         </Badge>
-                    </div>
+                    </div> */}
                     <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-transparent hover:border-border transition-colors">
                         <div className="space-y-0.5">
                             <Label className="text-sm font-semibold">Onboarding tour</Label>
