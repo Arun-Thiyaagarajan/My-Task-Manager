@@ -7,7 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "mobile:install": "npm --prefix apps/mobile install",
+    "mobile:dev": "npm --prefix apps/mobile run dev",
+    "mobile:start": "npm --prefix apps/mobile run start",
+    "mobile:typecheck": "npm --prefix apps/mobile run typecheck"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "1.25.0",

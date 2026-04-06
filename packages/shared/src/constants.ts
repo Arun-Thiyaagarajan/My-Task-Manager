@@ -1,0 +1,70 @@
+import type {
+  Environment,
+  FieldConfig,
+  FieldType,
+  ReleaseUpdate,
+  RepositoryConfig,
+  StatusConfigItem,
+  StatusGroupConfig,
+} from './types';
+
+export const TASK_STATUSES = ['To Do', 'In Progress', 'Code Review', 'QA', 'Hold', 'Done'] as const;
+
+export const DEFAULT_STATUS_GROUPS: StatusGroupConfig[] = [
+  { id: 'backlog', name: 'Backlog', order: 0, isDefault: true },
+  { id: 'active', name: 'Active', order: 1, isDefault: true },
+  { id: 'testing', name: 'Testing', order: 2, isDefault: true },
+  { id: 'hold', name: 'Hold', order: 3, isDefault: true },
+  { id: 'completed', name: 'Completed', order: 4, isDefault: true },
+];
+
+export const DEFAULT_STATUS_CONFIGS: StatusConfigItem[] = [
+  { id: 'todo', name: 'To Do', group: 'backlog', color: '#64748b', icon: 'circle', iconType: 'lucide', aliases: ['To Do'], isDefault: true, order: 0 },
+  { id: 'in_progress', name: 'In Progress', group: 'active', color: '#2563eb', icon: 'loader-2', iconType: 'lucide', aliases: ['In Progress'], isDefault: true, order: 1 },
+  { id: 'code_review', name: 'Code Review', group: 'active', color: '#9333ea', icon: 'git-pull-request', iconType: 'lucide', aliases: ['Code Review'], isDefault: true, order: 2 },
+  { id: 'qa', name: 'QA', group: 'testing', color: '#d97706', icon: 'bug', iconType: 'lucide', aliases: ['QA'], isDefault: true, order: 3 },
+  { id: 'hold', name: 'Hold', group: 'hold', color: '#52525b', icon: 'pause-circle', iconType: 'lucide', aliases: ['Hold'], isDefault: true, order: 4 },
+  { id: 'done', name: 'Done', group: 'completed', color: '#16a34a', icon: 'check-circle-2', iconType: 'lucide', aliases: ['Done'], isDefault: true, order: 5 },
+];
+
+export const ENVIRONMENTS: Environment[] = [
+  { id: 'env_1', name: 'dev', color: '#3b82f6', isMandatory: true },
+  { id: 'env_2', name: 'stage', color: '#f59e0b' },
+  { id: 'env_3', name: 'production', color: '#22c55e', isMandatory: true },
+];
+
+export const INITIAL_REPOSITORY_CONFIGS: RepositoryConfig[] = [];
+
+export const FIELD_TYPES: Array<{ value: FieldType; label: string }> = [
+  { value: 'text', label: 'Text' },
+  { value: 'textarea', label: 'Text Area' },
+  { value: 'number', label: 'Number' },
+  { value: 'url', label: 'URL' },
+  { value: 'date', label: 'Date' },
+  { value: 'select', label: 'Single Select' },
+  { value: 'multiselect', label: 'Multi Select' },
+  { value: 'tags', label: 'Tag Selection' },
+  { value: 'checkbox', label: 'Checkbox' },
+];
+
+export const INITIAL_UI_CONFIG: FieldConfig[] = [
+  { id: 'field_title', key: 'title', label: 'Title', type: 'text', group: 'Core Details', isActive: true, isRequired: true, isUnique: true, isCustom: false, order: 0 },
+  { id: 'field_description', key: 'description', label: 'Description', type: 'textarea', group: 'Core Details', isActive: true, isRequired: true, isUnique: false, isCustom: false, order: 1 },
+  { id: 'field_status', key: 'status', label: 'Status', type: 'select', group: 'Core Details', isActive: true, isRequired: true, isUnique: false, isCustom: false, order: 2, options: DEFAULT_STATUS_CONFIGS.map((s) => ({ id: s.id, value: s.name, label: s.name })) },
+  { id: 'field_repositories', key: 'repositories', label: 'Repositories', type: 'multiselect', group: 'Assignment & Tracking', isActive: true, isRequired: true, isUnique: false, isCustom: false, order: 3, options: INITIAL_REPOSITORY_CONFIGS.map((r) => ({ id: r.id, value: r.name, label: r.name })) },
+  { id: 'field_developers', key: 'developers', label: 'Developers', type: 'tags', group: 'Assignment & Tracking', isActive: true, isRequired: true, isUnique: false, isCustom: false, order: 4, options: [] },
+  { id: 'field_testers', key: 'testers', label: 'Testers', type: 'tags', group: 'Assignment & Tracking', isActive: true, isRequired: false, isUnique: false, isCustom: false, order: 5, options: [] },
+  { id: 'field_azureWorkItemId', key: 'azureWorkItemId', label: 'Azure Work Item ID', type: 'text', group: 'Assignment & Tracking', isActive: true, isRequired: false, isUnique: false, isCustom: false, order: 6, baseUrl: 'https://dev.azure.com/ideaelan/Infinity/_workitems/edit/' },
+  { id: 'field_tags', key: 'tags', label: 'Tags', type: 'tags', group: 'Assignment & Tracking', isActive: true, isRequired: false, isUnique: false, isCustom: false, order: 7, options: [] },
+  { id: 'field_prLinks', key: 'prLinks', label: 'Pull Request Links', type: 'object', group: 'Pull Requests', isActive: true, isRequired: false, isUnique: false, isCustom: false, order: 8 },
+  { id: 'field_attachments', key: 'attachments', label: 'Attachments', type: 'object', group: 'Attachments', isActive: true, isRequired: false, isUnique: false, isCustom: false, order: 9 },
+  { id: 'field_deploymentStatus', key: 'deploymentStatus', label: 'Deployment Status', type: 'object', group: 'Deployment', isActive: true, isRequired: false, isUnique: false, isCustom: false, order: 10 },
+  { id: 'field_relevantEnvs', key: 'relevantEnvironments', label: 'Relevant Environments', type: 'multiselect', group: 'Deployment', isActive: true, isRequired: false, isUnique: false, isCustom: false, order: 11, options: ENVIRONMENTS.map((e) => ({ id: e.id, value: e.name, label: e.name })) },
+  { id: 'field_devStartDate', key: 'devStartDate', label: 'Dev Start Date', type: 'date', group: 'Dates', isActive: true, isRequired: false, isUnique: false, isCustom: false, order: 12 },
+  { id: 'field_devEndDate', key: 'devEndDate', label: 'Dev End Date', type: 'date', group: 'Dates', isActive: true, isRequired: false, isUnique: false, isCustom: false, order: 13 },
+  { id: 'field_qaStartDate', key: 'qaStartDate', label: 'QA Start Date', type: 'date', group: 'Dates', isActive: true, isRequired: false, isUnique: false, isCustom: false, order: 14 },
+  { id: 'field_qaEndDate', key: 'qaEndDate', label: 'QA End Date', type: 'date', group: 'Dates', isActive: true, isRequired: false, isUnique: false, isCustom: false, order: 15 },
+  { id: 'field_comments', key: 'comments', label: 'Comments', type: 'text', group: 'Comments', isActive: true, isRequired: false, isUnique: false, isCustom: false, order: 16 },
+];
+
+export const INITIAL_RELEASES: ReleaseUpdate[] = [];
