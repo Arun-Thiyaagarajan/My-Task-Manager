@@ -42,7 +42,7 @@ import { Badge } from '@/components/ui/badge';
 import { useFirebase } from '@/firebase';
 import { NotesSkeleton } from '@/components/notes-skeleton';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -58,6 +58,7 @@ export default function NotesPage() {
   const isMobile = useIsMobile();
   const { isUserLoading } = useFirebase();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -85,6 +86,7 @@ export default function NotesPage() {
   const [isFiltering, setIsFiltering] = useState(false);
   const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const notesSearchParam = searchParams.get('q') || '';
 
   useEffect(() => {
     setMounted(true);
@@ -104,6 +106,13 @@ export default function NotesPage() {
         }
     }
   }, []);
+
+  useEffect(() => {
+    const nextQuery = notesSearchParam.trim();
+    if (!nextQuery) return;
+    setSearchQuery(nextQuery);
+    setExecutedSearchQuery(nextQuery);
+  }, [notesSearchParam]);
 
   // Update preferences
   useEffect(() => {

@@ -13,6 +13,7 @@ import {
   Loader2,
   MessageSquare,
   Plus,
+  RefreshCcw,
   SendHorizonal,
   Sparkles,
   Square,
@@ -23,12 +24,14 @@ import {
 import { getAiAssistantAvailability, planAssistantAction } from '@/ai/flows/assistant-planner-flow';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { NoteEditorDialog } from '@/components/note-editor-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useFirebase } from '@/firebase';
@@ -59,11 +62,15 @@ import {
 } from '@/lib/ai-assistant';
 import { cn, fuzzySearch } from '@/lib/utils';
 
-const DESKTOP_SAMPLE_PROMPTS = [
-  'Create a task for QA sign-off on March OT',
-  'Open OT Template task',
-  'Set a reminder for release checklist',
-  'Create a note for standup follow-ups',
+const VETTED_ASSISTANT_PROMPTS = [
+  'What can you do?',
+  'How do I create a task?',
+  'Open dashboard',
+  'Open templates',
+  'Open reminders',
+  'Create a note',
+  'Create a task',
+  'Show me the logs page',
 ];
 
 const FUTURE_ENHANCEMENT_MESSAGES = [
@@ -116,6 +123,16 @@ const ASSISTANT_MEMORY_STOP_WORDS = new Set([
 ]);
 
 const ENTITY_NOISE_WORDS = new Set([
+  'can',
+  'could',
+  'would',
+  'will',
+  'you',
+  'me',
+  'my',
+  'please',
+  'kindly',
+  'just',
   'task',
   'tasks',
   'template',
@@ -179,6 +196,11 @@ type AssistantTaskDraftState = {
   sourcePrompt: string;
 };
 
+type AssistantNoteDraftState = {
+  note: NonNullable<AssistantPlannedAction['note']>;
+  sourcePrompt: string;
+};
+
 const createInitialAssistantMessage = () =>
   createMessage(
     'assistant',
@@ -217,6 +239,10 @@ function getSessionTitleFromMessages(messages: AssistantMessage[]) {
 
   const titled = compact.charAt(0).toUpperCase() + compact.slice(1);
   return titled.length > 38 ? `${titled.slice(0, 37)}…` : titled;
+}
+
+function hasAssistantSessionUserPrompts(session: AssistantChatSession) {
+  return session.messages.some((message) => message.role === 'user' && message.content.trim().length > 0);
 }
 
 function getAssistantStorageKey(baseKey: string, scopeKey: string) {
@@ -424,23 +450,11 @@ function findTaskMatch(query: string, tasks: Task[]) {
 }
 
 function findNoteMatch(query: string, notes: Note[]) {
-  const normalizedQuery = normalize(query);
-  if (!normalizedQuery) return { note: null as Note | null, matches: [] as Note[] };
-
-  const exact = notes.filter(
-    (note) => normalize(note.id) === normalizedQuery || normalize(note.title) === normalizedQuery
-  );
-  if (exact.length === 1) return { note: exact[0], matches: exact };
-  if (exact.length > 1) return { note: null, matches: exact };
-
-  const partial = notes.filter(
-    (note) =>
-      normalize(note.title).includes(normalizedQuery) ||
-      fuzzySearch(normalizedQuery, note.title) ||
-      fuzzySearch(normalizedQuery, note.content || '')
-  );
-  if (partial.length === 1) return { note: partial[0], matches: partial };
-  return { note: null, matches: partial };
+  const { item, matches } = findBestEntityMatch(query, notes, {
+    getPrimaryText: (note) => note.title || 'Untitled Note',
+    getSecondaryText: (note) => note.content || '',
+  });
+  return { note: item, matches };
 }
 
 function findTemplateMatch(query: string, templates: TaskTemplate[]) {
@@ -891,6 +905,268 @@ function buildAssistantTaskDraftPrompt(
   ].join('\n');
 }
 
+function buildAssistantNoteDraftPrompt(
+  sourcePrompt: string,
+  draft: NonNullable<AssistantPlannedAction['note']>,
+  latestUserMessage: string
+) {
+  return [
+    'We are continuing the same note creation request.',
+    `Original request: ${sourcePrompt}`,
+    `Current draft: ${JSON.stringify(draft)}`,
+    `New user details: ${latestUserMessage}`,
+    'Continue the create_note plan by preserving existing details, filling in new details, and asking for any still-missing note title or content if both are still empty.',
+  ].join('\n');
+}
+
+function parseAssistantNoteDetails(input: string) {
+  const lines = input
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  let title: string | undefined;
+  let content: string | undefined;
+
+  for (const line of lines) {
+    const match = line.match(/^(title|content)\s*[:\-]\s*(.+)$/i);
+    if (!match) continue;
+    const [, rawKey, rawValue] = match;
+    const key = rawKey.toLowerCase();
+    const value = rawValue.trim();
+    if (!value) continue;
+    if (key === 'title') title = value;
+    if (key === 'content') content = value;
+  }
+
+  if (!title && !content && lines.length === 1) {
+    content = lines[0];
+  }
+
+  return {
+    title,
+    content,
+    hasStructuredDetails: Boolean(title || content),
+  };
+}
+
+function sanitizeAssistantRuntimeErrorMessage(message: string) {
+  const normalized = message.toLowerCase();
+  if (
+    normalized.includes('an error occurred in the server components render') ||
+    normalized.includes('specific message is omitted in production builds') ||
+    normalized.includes('digest property') ||
+    normalized.includes('production builds to avoid leaking sensitive details')
+  ) {
+    return 'The assistant hit a protected server error while processing that request. Please try again. If it keeps happening, try a simpler prompt or continue with shorter details.';
+  }
+
+  return message;
+}
+
+function sanitizeAssistantVisibleMessage(message: string) {
+  return sanitizeAssistantRuntimeErrorMessage(message);
+}
+
+function isGenericAssistantEntityRequest(value: string) {
+  const normalizedValue = normalize(value);
+  if (!normalizedValue) return true;
+
+  const genericPhrases = new Set([
+    'open',
+    'show',
+    'find',
+    'go to',
+    'task',
+    'tasks',
+    'note',
+    'notes',
+    'open task',
+    'open tasks',
+    'open note',
+    'open notes',
+    'show task',
+    'show tasks',
+    'show note',
+    'show notes',
+  ]);
+
+  return genericPhrases.has(normalizedValue) || sanitizeEntityQuery(value).length < 2;
+}
+
+function isAssistantPlannerUnavailableMessage(message: string) {
+  const normalized = normalize(message);
+  return (
+    normalized.includes('protected server error while processing that request') ||
+    normalized.includes('ai is currently unavailable') ||
+    normalized.includes('gemini api key') ||
+    normalized.includes('configured gemini model is unavailable') ||
+    normalized.includes('assistant unavailable')
+  );
+}
+
+function buildLocalAssistantFallbackPlan(message: string): AssistantPlan | null {
+  const normalizedMessage = normalize(message);
+  const cleanedQuery = sanitizeEntityQuery(message);
+
+  if (
+    normalizedMessage.includes('dashboard') ||
+    normalizedMessage.includes('templates') ||
+    normalizedMessage.includes('reminders') ||
+    normalizedMessage.includes('logs') ||
+    normalizedMessage.includes('bin') ||
+    normalizedMessage.includes('settings') ||
+    normalizedMessage.includes('profile') ||
+    normalizedMessage.includes('notes page') ||
+    normalizedMessage.includes('notes workspace')
+  ) {
+    const navigationTargets: Array<{ match: string; href: string; label: string }> = [
+      { match: 'dashboard', href: '/dashboard', label: 'Dashboard' },
+      { match: 'templates', href: '/tasks/templates', label: 'Templates' },
+      { match: 'reminders', href: '/reminders', label: 'Reminders' },
+      { match: 'logs', href: '/logs', label: 'Logs' },
+      { match: 'bin', href: '/bin', label: 'Bin' },
+      { match: 'settings', href: '/settings', label: 'Settings' },
+      { match: 'profile', href: '/profile', label: 'Profile' },
+      { match: 'notes', href: '/notes', label: 'Notes workspace' },
+    ];
+    const target = navigationTargets.find((item) => normalizedMessage.includes(item.match));
+    if (target) {
+      return {
+        message: `I can still open ${target.label.toLowerCase()} while the AI planner is unavailable.`,
+        actions: [{ type: 'navigate', label: target.label, href: target.href }],
+        needsConfirmation: false,
+      };
+    }
+  }
+
+  if (normalizedMessage.includes('open note') || normalizedMessage.includes('find note')) {
+    if (!cleanedQuery) {
+      return {
+        message: 'Please tell me which note you want to open. You can say something like `Open release note` or `Open standup follow-ups`.',
+        actions: [],
+        needsConfirmation: false,
+      };
+    }
+    return {
+      message: 'I can still try to open that note from local matching.',
+      actions: [{ type: 'open_note', label: 'Open note', targetQuery: cleanedQuery || message.trim() }],
+      needsConfirmation: false,
+    };
+  }
+
+  if (
+    normalizedMessage.includes('open') ||
+    normalizedMessage.includes('show') ||
+    normalizedMessage.includes('find') ||
+    normalizedMessage.includes('go to')
+  ) {
+    if (!cleanedQuery) {
+      return {
+        message: 'Please tell me what you want to open. You can say something like `Open March OT`, `Open OT Template`, or `Open release note`.',
+        actions: [],
+        needsConfirmation: false,
+      };
+    }
+    if (cleanedQuery) {
+      return {
+        message: 'I can still try to open the closest matching task or template from local matching.',
+        actions: [{ type: 'open_task', label: 'Open task', targetQuery: cleanedQuery }],
+        needsConfirmation: false,
+      };
+    }
+  }
+
+  if (normalizedMessage.includes('create note') || normalizedMessage.includes('new note')) {
+    return {
+      message: 'The AI planner is unavailable right now, but I can still help you start a note. Please send at least a title or some content, like `Title - Release note` or `Content - Follow up with QA`.',
+      actions: [],
+      needsConfirmation: false,
+    };
+  }
+
+  if (normalizedMessage.includes('create task') || normalizedMessage.includes('new task')) {
+    return {
+      message: 'The AI planner is unavailable right now, but I can still help you prepare a task once you share the title or more details.',
+      actions: [],
+      needsConfirmation: false,
+    };
+  }
+
+  if (
+    normalizedMessage.includes('what can you do') ||
+    normalizedMessage.includes('help') ||
+    normalizedMessage.includes('how to')
+  ) {
+    return {
+      message: 'The AI planner is temporarily unavailable. I can still help with simple page navigation, opening matching tasks/templates/notes, and starting task or note drafts from clear prompts.',
+      actions: [],
+      needsConfirmation: false,
+    };
+  }
+
+  return null;
+}
+
+function buildAssistantDirectIntentPlan(message: string): AssistantPlan | null {
+  const normalizedMessage = normalize(message);
+  const cleanedQuery = sanitizeEntityQuery(message);
+
+  const navigationTargets: Array<{ match: string; href: string; label: string }> = [
+    { match: 'dashboard', href: '/dashboard', label: 'Dashboard' },
+    { match: 'templates', href: '/tasks/templates', label: 'Templates' },
+    { match: 'reminders', href: '/reminders', label: 'Reminders' },
+    { match: 'logs', href: '/logs', label: 'Logs' },
+    { match: 'bin', href: '/bin', label: 'Bin' },
+    { match: 'settings', href: '/settings', label: 'Settings' },
+    { match: 'profile', href: '/profile', label: 'Profile' },
+    { match: 'notes page', href: '/notes', label: 'Notes workspace' },
+    { match: 'notes workspace', href: '/notes', label: 'Notes workspace' },
+  ];
+
+  const directPageTarget = navigationTargets.find((item) => normalizedMessage.includes(item.match));
+  if (directPageTarget) {
+    return {
+      message: `Opening ${directPageTarget.label.toLowerCase()}.`,
+      actions: [{ type: 'navigate', label: directPageTarget.label, href: directPageTarget.href }],
+      needsConfirmation: false,
+    };
+  }
+
+  if (
+    normalizedMessage.includes('open note') ||
+    normalizedMessage.includes('find note') ||
+    normalizedMessage.includes('navigate to note')
+  ) {
+    return {
+      message: cleanedQuery
+        ? 'Looking for the closest matching note.'
+        : 'Please tell me which note you want to open. You can say something like `Open release note` or `Open standup follow-ups`.',
+      actions: cleanedQuery ? [{ type: 'open_note', label: 'Open note', targetQuery: cleanedQuery }] : [],
+      needsConfirmation: false,
+    };
+  }
+
+  if (
+    normalizedMessage.includes('open') ||
+    normalizedMessage.includes('show') ||
+    normalizedMessage.includes('find') ||
+    normalizedMessage.includes('go to') ||
+    normalizedMessage.includes('navigate to') ||
+    normalizedMessage.startsWith('navigate ')
+  ) {
+    return {
+      message: cleanedQuery
+        ? 'Looking for the closest matching task or template.'
+        : 'Please tell me what you want to open. You can say something like `Open March OT`, `Navigate to IE 774`, or `Open OT Template`.',
+      actions: cleanedQuery ? [{ type: 'open_task', label: 'Open task', targetQuery: cleanedQuery }] : [],
+      needsConfirmation: false,
+    };
+  }
+
+  return null;
+}
+
 function inferIntentFromPrompt(prompt: string): AssistantIntentSummary | null {
   const normalizedPrompt = normalize(prompt);
 
@@ -1113,6 +1389,19 @@ function getSafetyResponse(value: string) {
 function getGeneralConversationResponse(value: string) {
   const normalizedValue = normalize(value);
 
+  if (
+    normalizedValue === 'leave' ||
+    normalizedValue === 'bye' ||
+    normalizedValue === 'goodbye' ||
+    normalizedValue === 'exit' ||
+    normalizedValue === 'close' ||
+    normalizedValue === 'done' ||
+    normalizedValue === 'later' ||
+    normalizedValue === 'talk later'
+  ) {
+    return 'Sure. I’ll stay here whenever you need help with TaskFlow again.';
+  }
+
   if (/^(hi|hello|hey|hii|helo|good morning|good afternoon|good evening)\b/.test(normalizedValue)) {
     return 'Hello. I’m here to help with TaskFlow tasks, notes, reminders, navigation, and feature questions. You can ask me to create something, update a field, or explain how a flow works.';
   }
@@ -1194,17 +1483,74 @@ function isPromptSuggestionCandidate(value: string) {
   return true;
 }
 
+function isAssistantErrorLikeMessage(value: string) {
+  const normalizedValue = normalize(value);
+  return (
+    normalizedValue.includes('protected server error') ||
+    normalizedValue.includes('assistant unavailable') ||
+    normalizedValue.includes('ai unavailable') ||
+    normalizedValue.includes('could not find') ||
+    normalizedValue.includes('please be more specific') ||
+    normalizedValue.includes('not supported') ||
+    normalizedValue.includes('not available here') ||
+    normalizedValue.includes('restricted') ||
+    normalizedValue.includes('sign in') ||
+    normalizedValue.includes('authenticate') ||
+    normalizedValue.includes('something went wrong') ||
+    normalizedValue.includes('failed') ||
+    normalizedValue.includes('error')
+  );
+}
+
+function getSuccessfulHistoryPrompts(sessions: AssistantChatSession[]) {
+  const successfulPrompts: string[] = [];
+
+  for (const session of sessions) {
+    for (let index = 0; index < session.messages.length; index += 1) {
+      const message = session.messages[index];
+      if (message.role !== 'user') continue;
+
+      const nextAssistantMessage = session.messages
+        .slice(index + 1)
+        .find((candidate) => candidate.role === 'assistant');
+
+      const prompt = message.content.trim();
+      if (!isPromptSuggestionCandidate(prompt)) continue;
+      if (!nextAssistantMessage) continue;
+      if (isAssistantErrorLikeMessage(nextAssistantMessage.content)) continue;
+
+      successfulPrompts.push(prompt);
+    }
+  }
+
+  return Array.from(new Set(successfulPrompts));
+}
+
+function shufflePromptSuggestions<T>(items: T[], seed: string) {
+  const nextItems = [...items];
+  let hash = 0;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = (hash * 31 + seed.charCodeAt(index)) | 0;
+  }
+  for (let index = nextItems.length - 1; index > 0; index -= 1) {
+    hash = (hash * 1103515245 + 12345) | 0;
+    const swapIndex = Math.abs(hash) % (index + 1);
+    [nextItems[index], nextItems[swapIndex]] = [nextItems[swapIndex], nextItems[index]];
+  }
+  return nextItems;
+}
+
 function getPromptSuggestionMatches(input: string, sessions: AssistantChatSession[]): PromptSuggestion[] {
   const normalizedInput = normalize(input);
   if (normalizedInput.length < 2) return [];
 
-  const historyPrompts = sessions
-    .flatMap((session) => session.messages)
-    .filter((message) => message.role === 'user')
-    .map((message) => message.content.trim())
-    .filter(isPromptSuggestionCandidate);
+  const historyPrompts = getSuccessfulHistoryPrompts(sessions);
+  const vettedPrompts = VETTED_ASSISTANT_PROMPTS.filter((prompt) => isPromptSuggestionCandidate(prompt));
 
-  const pool = Array.from(new Set(historyPrompts)).map((text) => ({ id: `history-${text}`, text, source: 'history' as const }));
+  const pool = [
+    ...historyPrompts.map((text) => ({ id: `history-${text}`, text, source: 'history' as const })),
+    ...vettedPrompts.map((text) => ({ id: `suggested-${text}`, text, source: 'suggested' as const })),
+  ];
 
   const scored = pool
     .map((item) => {
@@ -1223,10 +1569,41 @@ function getPromptSuggestionMatches(input: string, sessions: AssistantChatSessio
       return { ...item, score };
     })
     .filter((item) => item.score > 125)
-    .sort((left, right) => right.score - left.score || left.text.length - right.text.length)
-    .slice(0, 4);
+    .sort((left, right) => right.score - left.score || left.text.length - right.text.length);
 
-  return scored.map(({ id, text, source }) => ({ id, text, source }));
+  const strongestMatches = scored.filter((item) => item.score >= 260).slice(0, 6);
+  const fallbackMatches = scored.filter((item) => item.score < 260).slice(0, 8);
+  const selected = [
+    ...shufflePromptSuggestions(strongestMatches, `${normalizedInput}-strong`).slice(0, 3),
+    ...shufflePromptSuggestions(fallbackMatches, `${normalizedInput}-fallback`).slice(0, 2),
+  ].slice(0, 4);
+
+  return selected.map(({ id, text, source }) => ({ id, text, source }));
+}
+
+function getAssistantStarterPrompts(sessions: AssistantChatSession[], seed: string) {
+  const historyPrompts = getSuccessfulHistoryPrompts(sessions).map((text) => ({
+    id: `starter-history-${text}`,
+    text,
+    source: 'history' as const,
+  }));
+  const vettedPrompts = VETTED_ASSISTANT_PROMPTS.map((text) => ({
+    id: `starter-vetted-${text}`,
+    text,
+    source: 'suggested' as const,
+  }));
+
+  const uniqueHistory = historyPrompts.slice(0, 8);
+  const mixed = [
+    ...shufflePromptSuggestions(uniqueHistory, `${seed}-history`).slice(0, 2),
+    ...shufflePromptSuggestions(vettedPrompts, `${seed}-vetted`).slice(0, 4),
+  ];
+
+  const deduped = Array.from(
+    new Map(mixed.map((item) => [normalize(item.text), item])).values()
+  );
+
+  return shufflePromptSuggestions(deduped, `${seed}-final`).slice(0, 4);
 }
 
 function AssistantThinkingBubble({ isExecuting }: { isExecuting: boolean }) {
@@ -1277,6 +1654,13 @@ export function AIAssistant() {
   const [followUpLabel, setFollowUpLabel] = React.useState<string | null>(null);
   const [assistantCta, setAssistantCta] = React.useState<AssistantAccessPolicyResult['cta'] | null>(null);
   const [pendingTaskDraft, setPendingTaskDraft] = React.useState<AssistantTaskDraftState | null>(null);
+  const [pendingNoteDraft, setPendingNoteDraft] = React.useState<AssistantNoteDraftState | null>(null);
+  const [activeNoteEditorNote, setActiveNoteEditorNote] = React.useState<Partial<Note> | null>(null);
+  const [isNoteEditorOpen, setIsNoteEditorOpen] = React.useState(false);
+  const [displayPromptSuggestions, setDisplayPromptSuggestions] = React.useState<PromptSuggestion[]>([]);
+  const [isSuggestionsLoading, setIsSuggestionsLoading] = React.useState(false);
+  const [sessionDeleteConfirmId, setSessionDeleteConfirmId] = React.useState<string | null>(null);
+  const [isRefreshingSession, setIsRefreshingSession] = React.useState(false);
   const [isStopConfirmOpen, setIsStopConfirmOpen] = React.useState(false);
   const [hasLongWaitNotice, setHasLongWaitNotice] = React.useState(false);
   const [hasTrackedRequest, setHasTrackedRequest] = React.useState(false);
@@ -1389,7 +1773,9 @@ export function AIAssistant() {
       } catch (error) {
         setAvailability({
           available: false,
-          reason: error instanceof Error ? error.message : 'AI availability could not be checked.',
+          reason: sanitizeAssistantVisibleMessage(
+            error instanceof Error ? error.message : 'AI availability could not be checked.'
+          ),
         });
       }
     });
@@ -1415,16 +1801,51 @@ export function AIAssistant() {
     () => getPromptSuggestionMatches(input, sessions),
     [input, sessions]
   );
+  const starterPrompts = React.useMemo(
+    () => getAssistantStarterPrompts(sessions, `${activeSessionId || 'assistant'}-${messages.length}`),
+    [activeSessionId, messages.length, sessions]
+  );
+  React.useEffect(() => {
+    if (availability?.available === false || normalizedInput.length < 2) {
+      setIsSuggestionsLoading(false);
+      setDisplayPromptSuggestions([]);
+      return;
+    }
+
+    if (isBusy) {
+      setIsSuggestionsLoading(false);
+      return;
+    }
+
+    setIsSuggestionsLoading(true);
+    const timer = window.setTimeout(() => {
+      setDisplayPromptSuggestions((current) => {
+        if (promptSuggestions.length) {
+          return promptSuggestions;
+        }
+        return current.length ? current : [];
+      });
+      setIsSuggestionsLoading(false);
+    }, 180);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [availability?.available, isBusy, normalizedInput.length, promptSuggestions]);
+
   const showPromptSuggestions =
     !pendingPlan &&
     !isBusy &&
     availability?.available !== false &&
-    promptSuggestions.length > 0 &&
+    (isSuggestionsLoading || displayPromptSuggestions.length > 0) &&
     dismissedSuggestionDraft !== normalizedInput &&
     (isInputFocused || input.trim().length > 0);
 
   const pushAssistantMessage = React.useCallback((content: string) => {
-    setMessages((current) => [...current, createMessage('assistant', formatAssistantContent(content))]);
+    setMessages((current) => [
+      ...current,
+      createMessage('assistant', formatAssistantContent(sanitizeAssistantVisibleMessage(content))),
+    ]);
   }, []);
 
   const clearAssistantEphemeralState = React.useCallback(() => {
@@ -1433,6 +1854,7 @@ export function AIAssistant() {
     setFollowUpLabel(null);
     setAssistantCta(null);
     setPendingTaskDraft(null);
+    setPendingNoteDraft(null);
   }, []);
 
   const navigateWithLoader = React.useCallback(
@@ -1490,6 +1912,25 @@ export function AIAssistant() {
     pushAssistantMessage('Stopped the current run. You can ask a new question whenever you’re ready.');
   }, [finishTrackedRequest, pushAssistantMessage]);
 
+  const handleSaveAssistantNote = React.useCallback((id: string | undefined, title: string, content: string) => {
+    if (!title.trim() && !content.trim()) {
+      toast({ variant: 'destructive', title: 'Cannot save empty note.' });
+      return;
+    }
+
+    if (id) {
+      updateNote(id, { title, content });
+      toast({ variant: 'success', title: 'Note Updated' });
+    } else {
+      addNote({ title, content });
+      toast({ variant: 'success', title: 'Note Saved' });
+    }
+
+    window.dispatchEvent(new Event('notes-updated'));
+    setIsNoteEditorOpen(false);
+    setActiveNoteEditorNote(null);
+  }, [toast]);
+
   const handleExecuteAction = React.useCallback(
     async (action: AssistantPlannedAction) => {
       const actionAccess = evaluateAssistantActionAccess(action, {
@@ -1498,7 +1939,7 @@ export function AIAssistant() {
       });
       if (actionAccess.status !== 'allowed') {
         setAssistantCta(actionAccess.cta || null);
-        throw new Error(actionAccess.message || 'That action is not available here.');
+        return { message: actionAccess.message || 'That action is not available here.' };
       }
 
       const tasks = getTasks();
@@ -1527,6 +1968,9 @@ export function AIAssistant() {
           return { message: 'Opened the matching filtered task view.', href };
         }
         case 'open_task': {
+          if (isGenericAssistantEntityRequest(action.targetQuery || '')) {
+            return { message: 'Please tell me which task or template you want to open. You can say something like `Open March OT` or `Open OT Template`.' };
+          }
           const { task, matches } = findTaskMatch(action.targetQuery || '', tasks);
           if (task) {
             const href = `/tasks/${task.id}`;
@@ -1545,27 +1989,33 @@ export function AIAssistant() {
             return { message: `Opened template ${template.name}.`, href };
           }
 
-          if (matches.length > 1) {
-            throw new Error(`I found multiple tasks for "${action.targetQuery}". Please be more specific.`);
+          if (matches.length > 1 || templateMatches.length > 1) {
+            return { message: `I found multiple matches for "${action.targetQuery}". Please tell me the exact task or template name you want.` };
           }
-          if (templateMatches.length > 1) {
-            throw new Error(`I found multiple templates for "${action.targetQuery}". Please be more specific.`);
-          }
-          throw new Error(`I could not find a task or template matching "${action.targetQuery}".`);
+          return { message: `I could not find a task or template matching "${action.targetQuery}". Try the exact title or a more specific part of the name.` };
         }
         case 'open_note': {
-          const { note, matches } = findNoteMatch(action.targetQuery || '', notes);
-          if (!note) {
-          if (matches.length > 1) {
-            throw new Error(`I found multiple notes for "${action.targetQuery}". Please be more specific.`);
+          if (isGenericAssistantEntityRequest(action.targetQuery || '')) {
+            return { message: 'Please tell me which note you want to open. You can say something like `Open release note` or `Open standup follow-ups`.' };
           }
-          throw new Error(`I could not find a note matching "${action.targetQuery}".`);
-        }
-        const href = `/notes/${note.id}`;
+          const { note, matches } = findNoteMatch(action.targetQuery || '', notes);
+          if (note) {
+            const searchQuery = note.title?.trim() || action.targetQuery || '';
+            const href = `/notes?q=${encodeURIComponent(searchQuery)}`;
+            navigateWithLoader(href);
+            setFollowUpHref(href);
+            setFollowUpLabel(`Search ${note.title || 'note'} in notes`);
+            return { message: `Opened notes and searched for "${note.title || searchQuery}".`, href };
+          }
+          const fallbackQuery = action.targetQuery || '';
+          const href = `/notes?q=${encodeURIComponent(fallbackQuery)}`;
           navigateWithLoader(href);
           setFollowUpHref(href);
-          setFollowUpLabel(`Open ${note.title || 'note'}`);
-          return { message: `Opened note "${note.title || 'Untitled Note'}".`, href };
+          setFollowUpLabel('Open notes search');
+          if (matches.length > 1) {
+            return { message: `I found multiple close notes for "${fallbackQuery}". I opened the notes page and searched for it so you can choose the right one.`, href };
+          }
+          return { message: `I opened the notes page and searched for "${fallbackQuery}".`, href };
         }
         case 'create_task': {
           const resolvedCustomFields = resolveAssistantCustomFields(action.task?.customFields, nextUiConfig);
@@ -1583,7 +2033,7 @@ export function AIAssistant() {
           });
           const uniqueness = checkUniqueness(taskDraft);
           if (!uniqueness.isUnique) {
-            throw new Error(`A task with the same unique ${uniqueness.fieldLabel || 'field'} value "${uniqueness.value}" already exists. Please change that value and try again.`);
+            return { message: `A task with the same unique ${uniqueness.fieldLabel || 'field'} value "${uniqueness.value}" already exists. Please change that value and try again.` };
           }
           const createdTask = addTask(omitUndefined({
             ...taskDraft,
@@ -1594,12 +2044,15 @@ export function AIAssistant() {
           return { message: `Created task "${createdTask.title}".`, href };
         }
         case 'update_task': {
+          if (isGenericAssistantEntityRequest(action.targetQuery || '')) {
+            return { message: 'Please tell me which task you want to update, along with the field you want changed.' };
+          }
           const { task, matches } = findTaskMatch(action.targetQuery || '', tasks);
           if (!task) {
             if (matches.length > 1) {
-              throw new Error(`I found multiple tasks for "${action.targetQuery}". Please be more specific.`);
+              return { message: `I found multiple tasks for "${action.targetQuery}". Please tell me the exact task title.` };
             }
-            throw new Error(`I could not find a task matching "${action.targetQuery}".`);
+            return { message: `I could not find a task matching "${action.targetQuery}". Try the exact task title or a more specific phrase.` };
           }
 
           const resolvedCustomFields = resolveAssistantCustomFields(
@@ -1621,7 +2074,7 @@ export function AIAssistant() {
             customFields: resolvedCustomFields,
           }), task.id);
           if (!uniqueness.isUnique) {
-            throw new Error(`Another task already uses the unique ${uniqueness.fieldLabel || 'field'} value "${uniqueness.value}". Please change that value and try again.`);
+            return { message: `Another task already uses the unique ${uniqueness.fieldLabel || 'field'} value "${uniqueness.value}". Please change that value and try again.` };
           }
 
           const updatedTask = updateTask(task.id, omitUndefined({
@@ -1638,7 +2091,7 @@ export function AIAssistant() {
           }));
 
           if (!updatedTask) {
-            throw new Error(`I could not update "${task.title}".`);
+            return { message: `I could not update "${task.title}".` };
           }
 
           const href = `/tasks/${updatedTask.id}`;
@@ -1647,19 +2100,22 @@ export function AIAssistant() {
           return { message: `Updated ${updatedTask.title}.`, href };
         }
         case 'set_task_reminder': {
+          if (isGenericAssistantEntityRequest(action.targetQuery || '')) {
+            return { message: 'Please tell me which task should get the reminder.' };
+          }
           const { task, matches } = findTaskMatch(action.targetQuery || '', tasks);
           if (!task) {
             if (matches.length > 1) {
-              throw new Error(`I found multiple tasks for "${action.targetQuery}". Please be more specific.`);
+              return { message: `I found multiple tasks for "${action.targetQuery}". Please tell me the exact task title.` };
             }
-            throw new Error(`I could not find a task matching "${action.targetQuery}".`);
+            return { message: `I could not find a task matching "${action.targetQuery}". Try the exact task title or a more specific phrase.` };
           }
           const updatedTask = updateTask(task.id, {
             reminder: action.task?.reminder ?? task.reminder ?? 'Reminder',
             reminderExpiresAt: action.task?.reminderExpiresAt ?? task.reminderExpiresAt ?? null,
           });
           if (!updatedTask) {
-            throw new Error(`I could not set the reminder for "${task.title}".`);
+            return { message: `I could not set the reminder for "${task.title}".` };
           }
           const href = `/tasks/${updatedTask.id}`;
           setFollowUpHref(href);
@@ -1667,19 +2123,22 @@ export function AIAssistant() {
           return { message: `Set a reminder for ${updatedTask.title}.`, href };
         }
         case 'clear_task_reminder': {
+          if (isGenericAssistantEntityRequest(action.targetQuery || '')) {
+            return { message: 'Please tell me which task reminder you want to clear.' };
+          }
           const { task, matches } = findTaskMatch(action.targetQuery || '', tasks);
           if (!task) {
             if (matches.length > 1) {
-              throw new Error(`I found multiple tasks for "${action.targetQuery}". Please be more specific.`);
+              return { message: `I found multiple tasks for "${action.targetQuery}". Please tell me the exact task title.` };
             }
-            throw new Error(`I could not find a task matching "${action.targetQuery}".`);
+            return { message: `I could not find a task matching "${action.targetQuery}". Try the exact task title or a more specific phrase.` };
           }
           const updatedTask = updateTask(task.id, {
             reminder: null,
             reminderExpiresAt: null,
           });
           if (!updatedTask) {
-            throw new Error(`I could not clear the reminder for "${task.title}".`);
+            return { message: `I could not clear the reminder for "${task.title}".` };
           }
           const href = `/tasks/${updatedTask.id}`;
           setFollowUpHref(href);
@@ -1691,15 +2150,17 @@ export function AIAssistant() {
             title: action.note?.title || 'Untitled Note',
             content: action.note?.content || '',
           }));
-          const href = `/notes/${createdNote.id}`;
-          setFollowUpHref(href);
-          setFollowUpLabel(`Open ${createdNote.title || 'note'}`);
-          return { message: `Created note "${createdNote.title || 'Untitled Note'}".`, href };
+          window.dispatchEvent(new Event('notes-updated'));
+          setActiveNoteEditorNote(createdNote);
+          setIsNoteEditorOpen(true);
+          setFollowUpHref(null);
+          setFollowUpLabel(null);
+          return { message: `Created note "${createdNote.title || 'Untitled Note'}".` };
         }
         case 'create_general_reminder': {
           const reminderText = action.reminder?.text?.trim();
           if (!reminderText) {
-            throw new Error('Please provide reminder text to create a workspace reminder.');
+            return { message: 'Please provide reminder text to create a workspace reminder.' };
           }
           addGeneralReminder(reminderText);
           const href = '/reminders';
@@ -1711,10 +2172,10 @@ export function AIAssistant() {
           const query = normalize(action.targetQuery || action.reminder?.text || '');
           const matches = generalReminders.filter((reminder) => normalize(reminder.text).includes(query));
           if (!matches.length) {
-            throw new Error(`I could not find a workspace reminder matching "${action.targetQuery || action.reminder?.text}".`);
+            return { message: `I could not find a workspace reminder matching "${action.targetQuery || action.reminder?.text}".` };
           }
           if (matches.length > 1) {
-            throw new Error(`I found multiple workspace reminders for "${action.targetQuery || action.reminder?.text}". Please be more specific.`);
+            return { message: `I found multiple workspace reminders for "${action.targetQuery || action.reminder?.text}". Please be more specific.` };
           }
           deleteGeneralReminder(matches[0].id);
           const href = '/reminders';
@@ -1723,22 +2184,27 @@ export function AIAssistant() {
           return { message: `Cleared workspace reminder "${matches[0].text}".`, href };
         }
         case 'update_note': {
+          if (isGenericAssistantEntityRequest(action.targetQuery || '')) {
+            return { message: 'Please tell me which note you want to update, and what you want changed.' };
+          }
           const { note, matches } = findNoteMatch(action.targetQuery || '', notes);
           if (!note) {
             if (matches.length > 1) {
-              throw new Error(`I found multiple notes for "${action.targetQuery}". Please be more specific.`);
+              return { message: `I found multiple notes for "${action.targetQuery}". Please tell me the exact note title.` };
             }
-            throw new Error(`I could not find a note matching "${action.targetQuery}".`);
+            return { message: `I could not find a note matching "${action.targetQuery}". Try the exact note title or a more specific phrase.` };
           }
           updateNote(note.id, omitUndefined({
             title: action.note?.title,
             content: action.note?.content,
           }));
           const currentNote = getNotes().find((candidate) => candidate.id === note.id) || note;
-          const href = `/notes/${currentNote.id}`;
-          setFollowUpHref(href);
-          setFollowUpLabel(`Open ${currentNote.title || 'note'}`);
-          return { message: `Updated note "${currentNote.title || 'Untitled Note'}".`, href };
+          window.dispatchEvent(new Event('notes-updated'));
+          setActiveNoteEditorNote(currentNote);
+          setIsNoteEditorOpen(true);
+          setFollowUpHref(null);
+          setFollowUpLabel(null);
+          return { message: `Updated note "${currentNote.title || 'Untitled Note'}".` };
         }
         default:
           return { message: action.label };
@@ -1767,25 +2233,55 @@ export function AIAssistant() {
       return;
     }
 
-    if (availability && !availability.available) {
-      toast({
-        variant: 'destructive',
-        title: 'AI unavailable',
-        description: availability.reason || 'Gemini is not available right now.',
-      });
-      return;
-    }
-
-    if (pendingTaskDraft && isAssistantCancelIntent(trimmed)) {
+    if ((pendingTaskDraft || pendingNoteDraft) && isAssistantCancelIntent(trimmed)) {
       setMessages((current) => [
         ...current,
         createMessage('user', trimmed),
-        createMessage('assistant', 'Stopped the task creation draft. Nothing has been created, and you can start again whenever you want.'),
+        createMessage(
+          'assistant',
+          pendingTaskDraft
+            ? 'Stopped the task creation draft. Nothing has been created, and you can start again whenever you want.'
+            : 'Stopped the note draft. Nothing has been created, and you can start again whenever you want.'
+        ),
       ]);
       setInput('');
       setDismissedSuggestionDraft(null);
       clearAssistantEphemeralState();
       return;
+    }
+
+    if (pendingNoteDraft) {
+      const parsedNoteDetails = parseAssistantNoteDetails(trimmed);
+      if (parsedNoteDetails.hasStructuredDetails) {
+        const nextNoteDraft = omitUndefined({
+          title: parsedNoteDetails.title ?? pendingNoteDraft.note.title,
+          content: parsedNoteDetails.content ?? pendingNoteDraft.note.content,
+        });
+
+        setMessages((current) => [...current, createMessage('user', trimmed)]);
+        setInput('');
+        setDismissedSuggestionDraft(null);
+        setFollowUpHref(null);
+        setFollowUpLabel(null);
+        setAssistantCta(null);
+        setPendingNoteDraft({
+          note: nextNoteDraft,
+          sourcePrompt: pendingNoteDraft.sourcePrompt,
+        });
+        setPendingPlan({
+          message: 'I captured those note details. Please review them below before I create the note.',
+          actions: [
+            {
+              type: 'create_note',
+              label: 'Create note',
+              explanation: 'This note will be created in your desktop notes workspace.',
+              note: nextNoteDraft,
+            },
+          ],
+          needsConfirmation: true,
+        });
+        return;
+      }
     }
 
     const accessPolicy = evaluateAssistantAccessPolicy(trimmed, {
@@ -1857,6 +2353,51 @@ export function AIAssistant() {
       return;
     }
 
+    const directIntentPlan = buildAssistantDirectIntentPlan(trimmed);
+    if (directIntentPlan) {
+      setMessages((current) => [...current, createMessage('user', trimmed)]);
+      setInput('');
+      setDismissedSuggestionDraft(null);
+      setPendingPlan(null);
+      setFollowUpHref(null);
+      setFollowUpLabel(null);
+      setAssistantCta(null);
+      pushAssistantMessage(directIntentPlan.message);
+
+      if (!directIntentPlan.actions.length) {
+        return;
+      }
+
+      const requestId = beginTrackedRequest();
+      startSubmitting(async () => {
+        try {
+          const executionMessages: string[] = [];
+          for (const action of directIntentPlan.actions) {
+            if (isRequestCanceled(requestId)) {
+              return;
+            }
+            const result = await handleExecuteAction(action);
+            if (result.message) executionMessages.push(result.message);
+          }
+
+          if (executionMessages.length) {
+            pushAssistantMessage(executionMessages.join(' '));
+          }
+          finishTrackedRequest(requestId);
+        } catch (error) {
+          if (isRequestCanceled(requestId)) {
+            return;
+          }
+          const description = sanitizeAssistantRuntimeErrorMessage(
+            error instanceof Error ? error.message : 'The assistant could not complete that request.'
+          );
+          pushAssistantMessage(description);
+          finishTrackedRequest(requestId);
+        }
+      });
+      return;
+    }
+
     setMessages((current) => [...current, createMessage('user', trimmed)]);
     setInput('');
     setDismissedSuggestionDraft(null);
@@ -1867,7 +2408,9 @@ export function AIAssistant() {
     const requestId = beginTrackedRequest();
     const plannerMessage = pendingTaskDraft
       ? buildAssistantTaskDraftPrompt(pendingTaskDraft.sourcePrompt, pendingTaskDraft.task, trimmed)
-      : trimmed;
+      : pendingNoteDraft
+        ? buildAssistantNoteDraftPrompt(pendingNoteDraft.sourcePrompt, pendingNoteDraft.note, trimmed)
+        : trimmed;
 
     startSubmitting(async () => {
       try {
@@ -1887,6 +2430,7 @@ export function AIAssistant() {
         const actions = Array.isArray(plan.actions) ? plan.actions : [];
         const hasMutation = actions.some((action) => isAssistantMutationAction(action.type));
         const createTaskAction = actions.find((action) => action.type === 'create_task');
+        const createNoteAction = actions.find((action) => action.type === 'create_note');
         if (createTaskAction?.task) {
           const nextUiConfig = getUiConfig();
           const resolvedCustomFields = resolveAssistantCustomFields(createTaskAction.task.customFields, nextUiConfig);
@@ -1926,6 +2470,24 @@ export function AIAssistant() {
           setPendingTaskDraft(null);
         }
 
+        if (createNoteAction) {
+          const noteDraft = omitUndefined({
+            title: createNoteAction.note?.title?.trim(),
+            content: createNoteAction.note?.content?.trim(),
+          });
+          if (!noteDraft.title && !noteDraft.content) {
+            pushAssistantMessage('I can create that note. Please give at least a note title or some note content, and I’ll continue from there. If you want to stop, just say cancel or stop.');
+            setPendingNoteDraft({
+              note: createNoteAction.note || {},
+              sourcePrompt: pendingNoteDraft?.sourcePrompt || trimmed,
+            });
+            finishTrackedRequest(requestId);
+            return;
+          }
+
+          setPendingNoteDraft(null);
+        }
+
         if (!actions.length) {
           if (shouldShowFutureEnhancementFollowUp(plan.message)) {
             pushAssistantMessage(getFutureEnhancementMessage(trimmed));
@@ -1957,7 +2519,41 @@ export function AIAssistant() {
         if (isRequestCanceled(requestId)) {
           return;
         }
-        const description = error instanceof Error ? error.message : 'Something went wrong while planning that request.';
+        const description = sanitizeAssistantRuntimeErrorMessage(
+          error instanceof Error ? error.message : 'Something went wrong while planning that request.'
+        );
+
+        if (isAssistantPlannerUnavailableMessage(description)) {
+          const fallbackPlan = buildLocalAssistantFallbackPlan(trimmed);
+          if (fallbackPlan) {
+            pushAssistantMessage(fallbackPlan.message);
+
+            if (fallbackPlan.actions.length) {
+              const executionMessages: string[] = [];
+              for (const action of fallbackPlan.actions) {
+                if (isRequestCanceled(requestId)) {
+                  return;
+                }
+                const result = await handleExecuteAction(action);
+                if (result.message) executionMessages.push(result.message);
+              }
+
+              if (executionMessages.length) {
+                pushAssistantMessage(executionMessages.join(' '));
+              }
+            }
+
+            finishTrackedRequest(requestId);
+            return;
+          }
+
+          pushAssistantMessage(
+            'The AI planner is temporarily unavailable right now. Try a simple prompt like `Open dashboard`, `Open OT Template`, or `Create a note`, and I’ll keep using local fallback handling where possible.'
+          );
+          finishTrackedRequest(requestId);
+          return;
+        }
+
         pushAssistantMessage(description);
         toast({
           variant: 'destructive',
@@ -1967,7 +2563,7 @@ export function AIAssistant() {
         finishTrackedRequest(requestId);
       }
     });
-  }, [assistantRole, assistantUserLabel, authMode, availability, beginTrackedRequest, clearAssistantEphemeralState, finishTrackedRequest, handleExecuteAction, input, isBusy, isRequestCanceled, pathname, pendingTaskDraft, pushAssistantMessage, sessions, toast]);
+  }, [assistantRole, assistantUserLabel, authMode, availability, beginTrackedRequest, clearAssistantEphemeralState, finishTrackedRequest, handleExecuteAction, input, isBusy, isRequestCanceled, pathname, pendingNoteDraft, pendingTaskDraft, pushAssistantMessage, sessions, toast]);
 
   const handleConfirmPlan = React.useCallback(() => {
     if (!pendingPlan?.actions.length || isExecuting) return;
@@ -2002,7 +2598,9 @@ export function AIAssistant() {
         if (isRequestCanceled(requestId)) {
           return;
         }
-        const description = error instanceof Error ? error.message : 'The assistant could not complete that action.';
+        const description = sanitizeAssistantRuntimeErrorMessage(
+          error instanceof Error ? error.message : 'The assistant could not complete that action.'
+        );
         pushAssistantMessage(description);
         toast({
           variant: 'destructive',
@@ -2046,6 +2644,29 @@ export function AIAssistant() {
     clearAssistantEphemeralState();
   }, [clearAssistantEphemeralState, isBusy]);
 
+  const handleRefreshCurrentSession = React.useCallback(() => {
+    if (isBusy || !activeSessionId) return;
+    setIsRefreshingSession(true);
+    refreshConfig();
+
+    window.setTimeout(() => {
+      const stored = loadAssistantSessions(assistantUserScope);
+      const nextActiveSession =
+        stored.sessions.find((session) => session.id === activeSessionId) ||
+        stored.sessions.find((session) => session.id === stored.activeSessionId) ||
+        stored.sessions[0] ||
+        null;
+
+      if (nextActiveSession) {
+        setSessions(stored.sessions);
+        setActiveSessionId(nextActiveSession.id);
+        setMessages(nextActiveSession.messages);
+      }
+
+      setIsRefreshingSession(false);
+    }, 220);
+  }, [activeSessionId, assistantUserScope, isBusy, refreshConfig]);
+
   const handleDeleteSession = React.useCallback((sessionId: string) => {
     if (isBusy) return;
 
@@ -2080,7 +2701,7 @@ export function AIAssistant() {
               <button
                 id="floating-ai-assistant-trigger"
                 type="button"
-                className="fixed bottom-16 right-8 z-[120] hidden md:flex"
+                className="fixed bottom-16 right-8 z-[120] hidden rounded-[30px] md:flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/45 focus-visible:ring-offset-4 focus-visible:ring-offset-background"
               >
                 <span className="group relative flex h-[58px] w-[58px] items-center justify-center rounded-[26px] border border-primary/20 bg-[linear-gradient(145deg,hsl(var(--primary))_0%,hsl(var(--primary)/0.88)_52%,hsl(228_92%_61%)_100%)] text-primary-foreground shadow-[0_26px_60px_-28px_hsl(var(--primary)/0.9)] ring-1 ring-white/20 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_30px_70px_-30px_hsl(var(--primary)/0.95)] dark:ring-white/10">
                   <span className="absolute inset-[1px] rounded-[25px] bg-[linear-gradient(180deg,rgba(255,255,255,0.28),rgba(255,255,255,0.02)_42%,rgba(255,255,255,0.08))]" />
@@ -2193,6 +2814,22 @@ export function AIAssistant() {
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
+                      onClick={handleRefreshCurrentSession}
+                      disabled={isBusy || isRefreshingSession}
+                    >
+                      <RefreshCcw className={cn('h-4 w-4', isRefreshingSession && 'animate-spin')} />
+                      <span className="sr-only">Refresh current chat</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Refresh current chat</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
                       onClick={handleClearCurrentChat}
                       disabled={isBusy}
                     >
@@ -2216,34 +2853,84 @@ export function AIAssistant() {
                     .slice()
                     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
                     .map((session) => (
-                      <div
-                        key={session.id}
-                        className={cn(
-                          'group flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 transition-colors',
-                          session.id === activeSessionId
-                            ? 'border-primary/25 bg-primary/8 text-primary'
-                            : 'border-border/70 bg-background/70 text-muted-foreground'
-                        )}
-                      >
-                        <button
-                          type="button"
-                          className="flex items-center gap-1.5 rounded-full px-2 py-1 text-left text-[10.5px] font-medium leading-none"
-                          onClick={() => handleSwitchSession(session.id)}
-                          disabled={isBusy}
-                        >
-                          <Clock3 className="h-3 w-3 shrink-0" />
-                          <span className="max-w-[8.5rem] truncate">{session.title}</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="rounded-full p-1 text-muted-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive"
-                          onClick={() => handleDeleteSession(session.id)}
-                          disabled={isBusy}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                          <span className="sr-only">Delete chat</span>
-                        </button>
-                      </div>
+                      (() => {
+                        const canDeleteSession = sessions.length > 1 || hasAssistantSessionUserPrompts(session);
+
+                        return (
+                          <div
+                            key={session.id}
+                            className={cn(
+                              'group flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 transition-colors',
+                              session.id === activeSessionId
+                                ? 'border-primary/25 bg-primary/8 text-primary'
+                                : 'border-border/70 bg-background/70 text-muted-foreground'
+                            )}
+                          >
+                            <button
+                              type="button"
+                              className="flex items-center gap-1.5 rounded-full px-2 py-1 text-left text-[10.5px] font-medium leading-none"
+                              onClick={() => handleSwitchSession(session.id)}
+                              disabled={isBusy}
+                            >
+                              <Clock3 className="h-3 w-3 shrink-0" />
+                              <span className="max-w-[8.5rem] truncate">{session.title}</span>
+                            </button>
+                            {canDeleteSession ? (
+                              <Popover
+                                open={sessionDeleteConfirmId === session.id}
+                                onOpenChange={(open) => setSessionDeleteConfirmId(open ? session.id : null)}
+                              >
+                                <PopoverTrigger asChild>
+                                  <button
+                                    type="button"
+                                    className="rounded-full p-1 text-muted-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive"
+                                    disabled={isBusy}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                    <span className="sr-only">Delete chat</span>
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent
+                                  align="end"
+                                  side="bottom"
+                                  className="w-64 rounded-3xl border-border/70 bg-background/95 p-4 shadow-2xl backdrop-blur-xl"
+                                >
+                                  <div className="space-y-3">
+                                    <div>
+                                      <p className="text-sm font-semibold text-foreground">Delete this chat?</p>
+                                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                                        This conversation history will be removed from this device.
+                                      </p>
+                                    </div>
+                                    <div className="flex justify-end gap-2">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="rounded-full"
+                                        onClick={() => setSessionDeleteConfirmId(null)}
+                                      >
+                                        Cancel
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        className="rounded-full bg-destructive px-4 text-destructive-foreground hover:bg-destructive/90"
+                                        onClick={() => {
+                                          handleDeleteSession(session.id);
+                                          setSessionDeleteConfirmId(null);
+                                        }}
+                                      >
+                                        Delete
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                            ) : null}
+                          </div>
+                        );
+                      })()
                     ))}
                 </div>
               </div>
@@ -2252,6 +2939,21 @@ export function AIAssistant() {
 
           <ScrollArea className="flex-1">
             <div className="space-y-4 px-5 py-5">
+              {isRefreshingSession ? (
+                <div className="rounded-[28px] border border-border/60 bg-background/85 p-4 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <RefreshCcw className="h-4 w-4 animate-spin text-primary" />
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                      Refreshing chat
+                    </p>
+                  </div>
+                  <div className="mt-3 space-y-3">
+                    <Skeleton className="h-5 w-28 rounded-full" />
+                    <Skeleton className="h-16 w-[86%] rounded-[22px]" />
+                    <Skeleton className="ml-auto h-14 w-[62%] rounded-[22px]" />
+                  </div>
+                </div>
+              ) : null}
               {messages.map((message) => (
                 <div
                   key={message.id}
@@ -2265,7 +2967,7 @@ export function AIAssistant() {
                         : 'border border-border/60 bg-background/90 text-foreground'
                     )}
                   >
-                    {message.content}
+                    {message.role === 'assistant' ? sanitizeAssistantVisibleMessage(message.content) : message.content}
                   </div>
                 </div>
               ))}
@@ -2380,21 +3082,21 @@ export function AIAssistant() {
                 </div>
               ) : null}
 
-              {!isBusy ? <div className="rounded-[28px] border border-border/60 bg-background/80 p-4">
+              {!isBusy && starterPrompts.length ? <div className="rounded-[28px] border border-border/60 bg-background/80 p-4">
                 <div className="flex items-center gap-2">
                   <Wand2 className="h-4 w-4 text-primary" />
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Try asking</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Suggested starts</p>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {DESKTOP_SAMPLE_PROMPTS.map((prompt) => (
+                  {starterPrompts.map((prompt) => (
                     <button
-                      key={prompt}
+                      key={prompt.id}
                       type="button"
                       disabled={isBusy}
                       className="rounded-full border border-border/70 bg-muted/30 px-3 py-2 text-left text-xs font-medium text-foreground/90 transition-colors hover:border-primary/25 hover:bg-primary/5 hover:text-primary"
-                      onClick={() => setInput(prompt)}
+                      onClick={() => setInput(prompt.text)}
                     >
-                      {prompt}
+                      {prompt.text}
                     </button>
                   ))}
                 </div>
@@ -2407,7 +3109,7 @@ export function AIAssistant() {
           <div className="space-y-3 px-5 py-4">
             {availability?.available === false ? (
               <div className="rounded-2xl border border-destructive/20 bg-destructive/[0.04] px-4 py-3 text-xs leading-5 text-destructive [overflow-wrap:anywhere] whitespace-pre-wrap break-words">
-                {availability.reason}
+                {sanitizeAssistantVisibleMessage(availability.reason)}
               </div>
             ) : null}
             {showPromptSuggestions ? (
@@ -2431,33 +3133,56 @@ export function AIAssistant() {
                   </Button>
                 </div>
                 <div className="max-h-52 space-y-1 overflow-y-auto pr-1">
-                  {promptSuggestions.map((suggestion) => (
-                    <button
-                      key={suggestion.id}
-                      type="button"
-                      className="group flex w-full items-start justify-between gap-3 rounded-2xl border border-transparent bg-transparent px-3 py-2 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/15 hover:bg-[linear-gradient(180deg,hsl(var(--primary)/0.08),hsl(var(--primary)/0.04))] hover:shadow-[0_14px_26px_-24px_hsl(var(--primary)/0.65)]"
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => {
-                        setInput(suggestion.text);
-                        setIsInputFocused(true);
-                      }}
-                    >
-                      <span className="min-w-0 text-sm leading-5 text-foreground transition-colors group-hover:text-primary [overflow-wrap:anywhere]">
-                        {suggestion.text}
-                      </span>
-                      <span
-                        className={cn(
-                          'shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold transition-colors',
-                          suggestion.source === 'history'
-                            ? 'bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary'
-                            : 'bg-primary/8 text-primary group-hover:bg-primary/14'
-                        )}
+                  {isSuggestionsLoading && !displayPromptSuggestions.length ? (
+                    Array.from({ length: 3 }).map((_, index) => (
+                      <div
+                        key={`suggestion-skeleton-${index}`}
+                        className="flex items-start justify-between gap-3 rounded-2xl border border-border/40 px-3 py-2.5"
                       >
-                        {suggestion.source === 'history' ? 'History' : 'Suggested'}
-                      </span>
-                    </button>
-                  ))}
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <Skeleton className="h-4 w-[78%] rounded-full" />
+                          <Skeleton className="h-3.5 w-[54%] rounded-full" />
+                        </div>
+                        <Skeleton className="h-6 w-16 shrink-0 rounded-full" />
+                      </div>
+                    ))
+                  ) : (
+                    displayPromptSuggestions.map((suggestion) => (
+                      <button
+                        key={suggestion.id}
+                        type="button"
+                        className="group flex w-full items-start justify-between gap-3 rounded-2xl border border-transparent bg-transparent px-3 py-2 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/15 hover:bg-[linear-gradient(180deg,hsl(var(--primary)/0.08),hsl(var(--primary)/0.04))] hover:shadow-[0_14px_26px_-24px_hsl(var(--primary)/0.65)]"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => {
+                          setInput(suggestion.text);
+                          setIsInputFocused(true);
+                        }}
+                      >
+                        <span className="min-w-0 text-sm leading-5 text-foreground transition-colors group-hover:text-primary [overflow-wrap:anywhere]">
+                          {suggestion.text}
+                        </span>
+                        <span
+                          className={cn(
+                            'shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold transition-colors',
+                            suggestion.source === 'history'
+                              ? 'bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary'
+                              : 'bg-primary/8 text-primary group-hover:bg-primary/14'
+                          )}
+                        >
+                          {suggestion.source === 'history' ? 'History' : 'Suggested'}
+                        </span>
+                      </button>
+                    ))
+                  )}
                 </div>
+                {isSuggestionsLoading && displayPromptSuggestions.length ? (
+                  <div className="px-2 pt-2">
+                    <div className="flex items-center gap-2 rounded-2xl bg-muted/35 px-3 py-2 text-[11px] text-muted-foreground">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Refreshing suggestions...
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : null}
             <div className="rounded-[28px] border border-border/60 bg-background/95 p-3 shadow-[0_14px_34px_-30px_rgba(15,23,42,0.2)] dark:shadow-[0_16px_36px_-32px_rgba(0,0,0,0.48)]">
@@ -2488,7 +3213,7 @@ export function AIAssistant() {
                           type="button"
                           variant="outline"
                           size="icon"
-                          className="h-11 w-11 rounded-full border-destructive/30 bg-destructive/[0.04] text-destructive hover:bg-destructive/[0.08] hover:text-destructive"
+                          className="h-11 w-11 rounded-full border-border/70 bg-background/90 text-foreground shadow-sm hover:bg-muted hover:text-foreground"
                         >
                           <Square className="h-4 w-4 fill-current" />
                           <span className="sr-only">Stop current run</span>
@@ -2519,7 +3244,7 @@ export function AIAssistant() {
                     size="icon"
                     className="group h-10 w-10 rounded-full shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.03] hover:shadow-[0_12px_24px_-16px_hsl(var(--primary)/0.75)] disabled:hover:translate-y-0 disabled:hover:scale-100"
                     onClick={handleSubmit}
-                    disabled={!input.trim() || isBusy || isAvailabilityChecking || availability?.available === false}
+                    disabled={!input.trim() || isBusy || isAvailabilityChecking}
                   >
                     {hasTrackedRequest || isExecuting ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizonal className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />}
                     <span className="sr-only">{hasTrackedRequest || isExecuting ? 'Working' : 'Send message'}</span>
@@ -2550,6 +3275,17 @@ export function AIAssistant() {
           </div>
         </SheetContent>
       </Sheet>
+      <NoteEditorDialog
+        isOpen={isNoteEditorOpen}
+        onOpenChange={(open) => {
+          setIsNoteEditorOpen(open);
+          if (!open) {
+            setActiveNoteEditorNote(null);
+          }
+        }}
+        note={activeNoteEditorNote}
+        onSave={handleSaveAssistantNote}
+      />
     </TooltipProvider>
   );
 }
