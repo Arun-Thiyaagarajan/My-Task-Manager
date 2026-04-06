@@ -1197,20 +1197,27 @@ export default function TaskTemplatesPage() {
                     <div className="min-w-0 flex-1 space-y-2.5">
                       <div className="space-y-1">
                         <h2 className={cn('min-w-0 text-[1.35rem] font-semibold tracking-tight text-foreground', isSelectMode && 'pl-8')}>
-                          <button
-                            type="button"
-                            onClick={event => {
-                              event.stopPropagation();
-                              if (isSelectMode) {
-                                handleToggleTemplateCardSelection(templateItem.id);
-                                return;
-                              }
-                              handleNavigate(`/tasks/templates/${templateItem.id}/edit`);
-                            }}
-                            className="block truncate text-left transition-colors hover:text-primary focus-visible:outline-none focus-visible:text-primary"
-                          >
-                            {templateItem.name}
-                          </button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                onClick={event => {
+                                  event.stopPropagation();
+                                  if (isSelectMode) {
+                                    handleToggleTemplateCardSelection(templateItem.id);
+                                    return;
+                                  }
+                                  handleNavigate(`/tasks/templates/${templateItem.id}/edit`);
+                                }}
+                                className="block max-w-full truncate text-left leading-[1.18] transition-colors hover:text-primary focus-visible:outline-none focus-visible:text-primary"
+                              >
+                                {templateItem.name}
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="max-w-xs break-words font-normal">{templateItem.name}</p>
+                            </TooltipContent>
+                          </Tooltip>
                         </h2>
                         <p className="line-clamp-2 max-w-2xl text-[14px] leading-6 text-muted-foreground">
                           {templateItem.description?.trim() || 'No description added for this template yet.'}
@@ -1243,10 +1250,7 @@ export default function TaskTemplatesPage() {
                       </div>
                     </div>
 
-                    <div className="flex min-w-0 flex-wrap items-start justify-start gap-2 xl:max-w-[14rem] xl:justify-end">
-                      <span className="rounded-full border border-primary/15 bg-primary/[0.06] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-primary/85">
-                        {view === 'active' ? 'Template' : 'Template In Bin'}
-                      </span>
+                    <div className="flex shrink-0 flex-wrap items-start justify-start gap-2 xl:max-w-[14rem] xl:justify-end">
                       <Badge variant="outline" className="shrink-0 rounded-full border-border/60 px-2.5 py-1 text-[11px] font-semibold text-foreground/85">
                         {templateItem.presetCount} preset{templateItem.presetCount === 1 ? '' : 's'}
                       </Badge>
