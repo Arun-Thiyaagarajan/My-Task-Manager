@@ -52,7 +52,6 @@ TaskFlow is built with a modern, performant, and developer-friendly technology s
 - **Backend**: [Firebase](https://firebase.google.com/) (Authentication & Firestore)
 - **Icons**: [Lucide React](https://lucide.dev/)
 - **Charts**: [Recharts](https://recharts.org/)
-- **Mobile App Scaffold**: [Expo](https://expo.dev/) + [React Native](https://reactnative.dev/)
 
 ## 🚀 Getting Started
 
@@ -73,18 +72,6 @@ To run TaskFlow locally, follow these steps:
 4. Open [http://localhost:9003](http://localhost:9003) in your browser to see the application.
 
 For deployed environments, make sure `GEMINI_API_KEY` is also configured in Vercel anywhere AI features should be available.
-
-## Mobile App Scaffold
-
-This repository now also contains a native mobile scaffold in [apps/mobile](/Users/arunthiyaagarajan/Arun%20All%20Files/Programming/My%20Projects/My-Task-Manager/apps/mobile), built as a separate Expo app so the current web app remains intact.
-
-Shared mobile-safe domain logic lives in [packages/shared](/Users/arunthiyaagarajan/Arun%20All%20Files/Programming/My%20Projects/My-Task-Manager/packages/shared).
-
-To continue mobile setup:
-
-1. Install the mobile app separately with `npm run mobile:install`.
-2. Add `EXPO_PUBLIC_FIREBASE_*` env vars for the mobile app.
-3. Start the mobile app with `npm run mobile:dev`.
 
 ---
 *Built with ❤️ for productive teams.*
