@@ -62,6 +62,20 @@ export function useTaskFiltering({
   const [searchError, setSearchError] = useState<string | null>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
 
+  const getTimestamp = (value?: string | null, fallback = 0) => {
+    if (!value) return fallback;
+    const time = new Date(value).getTime();
+    return Number.isNaN(time) ? fallback : time;
+  };
+
+  const getNearestStartDateTimestamp = (task: Task) => {
+    const startDates = [task.devStartDate, task.qaStartDate]
+      .map((value) => getTimestamp(value, Number.POSITIVE_INFINITY))
+      .filter((value) => Number.isFinite(value));
+
+    return startDates.length > 0 ? Math.min(...startDates) : Number.POSITIVE_INFINITY;
+  };
+
   const developersById = useMemo(
     () => new Map(developers.map((developer) => [developer.id, developer.name])),
     [developers]
@@ -115,6 +129,24 @@ export function useTaskFiltering({
             const scoreA = getDeploymentScore(a);
             const scoreB = getDeploymentScore(b);
             return sortDirection === 'asc' ? scoreA - scoreB : scoreB - scoreA;
+          }
+
+          if (sortBy === 'updated') {
+            const updatedA = getTimestamp(a.updatedAt);
+            const updatedB = getTimestamp(b.updatedAt);
+            return sortDirection === 'asc' ? updatedA - updatedB : updatedB - updatedA;
+          }
+
+          if (sortBy === 'created') {
+            const createdA = getTimestamp(a.createdAt);
+            const createdB = getTimestamp(b.createdAt);
+            return sortDirection === 'asc' ? createdA - createdB : createdB - createdA;
+          }
+
+          if (sortBy === 'start') {
+            const startA = getNearestStartDateTimestamp(a);
+            const startB = getNearestStartDateTimestamp(b);
+            return sortDirection === 'asc' ? startA - startB : startB - startA;
           }
 
           return 0;

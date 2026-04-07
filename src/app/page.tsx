@@ -1445,9 +1445,15 @@ export default function Home() {
     { value: 'status-desc', label: 'Status (Desc)' },
     { value: 'title-asc', label: 'Title (A-Z)' },
     { value: 'title-desc', label: 'Title (Z-A)' },
+    { value: 'updated-desc', label: 'Recently Updated' },
+    { value: 'updated-asc', label: 'Oldest Updated' },
+    { value: 'created-desc', label: 'Newest Created' },
+    { value: 'created-asc', label: 'Oldest Created' },
+    { value: 'start-asc', label: 'Nearest Start Date' },
   ]), []);
 
   const selectedSortLabel = sortOptions.find((option) => option.value === sortDescriptor)?.label || 'Status (Asc)';
+  const hasCustomSort = sortDescriptor !== 'status-asc';
 
   const filterControlsContent = (
     <div className="space-y-4">
@@ -2135,13 +2141,13 @@ export default function Home() {
                       </p>
                   </div>
 
-                  {/* 5. View toggles row */}
-                  <div className="w-full px-1 pb-1">
-                      <div className="mx-auto flex h-10 w-fit items-center justify-center rounded-xl border bg-muted/50 p-1 shadow-sm">
+                  {/* 5. Mobile view/date toggles row */}
+                  <div className="flex items-center justify-between gap-2 px-1 pb-1 w-full md:hidden">
+                      <div className="flex h-10 min-w-0 flex-1 items-center justify-center rounded-xl border bg-muted/50 p-1 shadow-sm">
                           <button
                               onClick={() => handleDateViewChange('all')}
                               className={cn(
-                                  "inline-flex min-w-[72px] items-center justify-center h-8 px-3 rounded-lg text-[11px] font-medium transition-all",
+                                  "inline-flex min-w-0 flex-1 items-center justify-center h-8 px-2.5 rounded-lg text-[11px] font-medium transition-all",
                                   dateView === 'all' ? "bg-background text-primary shadow-sm" : "text-muted-foreground"
                               )}
                           >
@@ -2150,25 +2156,22 @@ export default function Home() {
                           <button
                               onClick={() => handleDateViewChange('monthly')}
                               className={cn(
-                                  "inline-flex min-w-[88px] items-center justify-center h-8 px-3 rounded-lg text-[11px] font-medium transition-all",
+                                  "inline-flex min-w-0 flex-1 items-center justify-center h-8 px-2.5 rounded-lg text-[11px] font-medium transition-all",
                                   dateView === 'monthly' ? "bg-background text-primary shadow-sm" : "text-muted-foreground"
                               )}
                           >
                               Monthly
                           </button>
                       </div>
-                  </div>
 
-                  {/* 6. Sort / Favourites / Select row */}
-                  <div className="flex items-center gap-2 px-1 w-full">
-                      <div className="flex h-11 shrink-0 items-center justify-center rounded-xl border bg-muted/50 p-1 shadow-sm">
+                      <div className="flex h-10 shrink-0 items-center justify-center rounded-xl border bg-muted/50 p-1 shadow-sm">
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button
                                   variant="ghost"
                                   size="icon"
-                                  className={cn("h-9 w-9 rounded-lg", dateView !== 'calendar' && viewMode === 'grid' && 'bg-card text-foreground shadow-sm')}
+                                  className={cn("h-8 w-8 rounded-lg", dateView !== 'calendar' && viewMode === 'grid' && 'bg-card text-foreground shadow-sm')}
                                   onClick={() => handleContentViewChange('grid')}
                               >
                                   <LayoutGrid className="h-4 w-4" />
@@ -2183,22 +2186,7 @@ export default function Home() {
                               <Button
                                   variant="ghost"
                                   size="icon"
-                                  className={cn("h-9 w-9 rounded-lg", dateView !== 'calendar' && viewMode === 'table' && 'bg-card text-foreground shadow-sm')}
-                                  onClick={() => handleContentViewChange('table')}
-                              >
-                                  <List className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">
-                              <p>List view</p>
-                            </TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className={cn("h-9 w-9 rounded-lg", dateView === 'calendar' && 'bg-card text-primary shadow-sm')}
+                                  className={cn("h-8 w-8 rounded-lg", dateView === 'calendar' && 'bg-card text-primary shadow-sm')}
                                   onClick={() => handleContentViewChange('calendar')}
                               >
                                   <CalendarIcon className="h-4 w-4" />
@@ -2210,7 +2198,10 @@ export default function Home() {
                           </Tooltip>
                         </TooltipProvider>
                       </div>
+                  </div>
 
+                  {/* 6. Sort / Favourites / Select row */}
+                  <div className="flex items-center gap-2 px-1 w-full">
                       {dateView !== 'calendar' && (
                         <TooltipProvider>
                           <Tooltip>
@@ -2236,8 +2227,11 @@ export default function Home() {
                           <Tooltip>
                             <DropdownMenuTrigger asChild>
                               <TooltipTrigger asChild>
-                                <Button variant="outline" size="icon" className="h-11 w-11 rounded-xl shadow-sm">
+                                <Button variant="outline" size="icon" className="relative h-11 w-11 rounded-xl shadow-sm">
                                   <ArrowDownWideNarrow className="h-4.5 w-4.5" />
+                                  {hasCustomSort && (
+                                    <span className="absolute right-2 top-2 inline-flex h-2.5 w-2.5 rounded-full bg-primary" />
+                                  )}
                                   <span className="sr-only">Sort tasks</span>
                                 </Button>
                               </TooltipTrigger>
@@ -2461,8 +2455,11 @@ export default function Home() {
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <DropdownMenuTrigger asChild>
-                                      <Button variant="outline" size="icon" className="h-11 w-11 rounded-xl shadow-sm">
+                                      <Button variant="outline" size="icon" className="relative h-11 w-11 rounded-xl shadow-sm">
                                         <ArrowDownWideNarrow className="h-4.5 w-4.5" />
+                                        {hasCustomSort && (
+                                          <span className="absolute right-2 top-2 inline-flex h-2.5 w-2.5 rounded-full bg-primary" />
+                                        )}
                                         <span className="sr-only">Sort tasks</span>
                                       </Button>
                                     </DropdownMenuTrigger>
